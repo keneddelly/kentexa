@@ -5612,5 +5612,22 @@
     "available": "Toleo jipya la KenteXa — gusa kusasisha",
     "finish_first": "Maliza kazi uliyonayo kwanza (kuna maandishi kwenye fomu).",
     "update_anyway": "Sasisha hata hivyo"
+  },
+  "pickup_pin": {
+    "title": "Mahali pa kuchukua mzigo",
+    "use_location": "📍 Tumia mahali nilipo",
+    "locating": "Inatafuta mahali…",
+    "found": "Mahali pamepatikana (±{{m}} m)",
+    "weak": "Usahihi ni mdogo. Jaribu ukiwa nje au karibu na dirisha.",
+    "retry": "Jaribu tena",
+    "remove": "Ondoa pin",
+    "error_denied": "Ruhusu KenteXa kutumia mahali (location) kwenye mipangilio ya simu, kisha jaribu tena.",
+    "error_unavailable": "Imeshindikana kupata mahali. Jaribu tena.",
+    "error_timeout": "Imechukua muda mrefu kupata mahali. Jaribu tena.",
+    "error_unsupported": "Simu hii haiwezi kutoa mahali. Andika alama ya mahali vizuri.",
+    "ask": "Weka pin ili wakala akupate haraka. Bila pin, wakala atakupigia simu.",
+    "landmark_label": "Alama ya mahali (lazima)",
+    "landmark_placeholder": "Mfano: Geti jeusi karibu na msikiti wa Mbezi",
+    "landmark_hint": "Herufi 5 hadi 160."
   }
 }

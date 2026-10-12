@@ -221,6 +221,29 @@ export class Shipment {
   })
   deliveryOption: ShipmentHandoffOption;
 
+  // ── Door pickup point the SENDER gave (migration 1791800000000) ──────────
+  // Phone GPS + accuracy, and a landmark note. Sender-given, so never mixed
+  // with originLatitude/originLongitude (server-derived from the chosen place).
+  // Shown to an agent only after they accepted the pickup.
+  @Column({ type: 'double precision', nullable: true })
+  pickupPinLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  pickupPinLongitude: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  pickupPinAccuracyM: number | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  pickupPinCapturedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  pickupLandmark: string | null;
+
+  // Nearest ward centre point to the pin (approximate: wards have no boundaries).
+  @Column({ type: 'int', nullable: true })
+  pickupPinWardId: number | null;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   priceQuoted: number | null;
 

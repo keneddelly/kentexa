@@ -15,6 +15,7 @@
  * not supply.
  */
 import { CLAIM_MESSAGES } from './shipment-claim-crypto';
+import { NEAREST_WARD_MAX_M, NEAREST_WARD_SQL, PickupPinInput, readPickupPin } from './pickup-pin';
 import {
   Injectable,
   BadRequestException,
@@ -154,6 +155,10 @@ export interface CreateShipmentDto {
   // property is ignored).
   originPlace?: PlaceSelection;
   destinationPlace?: PlaceSelection;
+  // Door pickup (section 18): landmark note (required for door pickup) and the
+  // sender's phone GPS pin (optional until the map exists). Sender-given.
+  pickupLandmark?: string;
+  pickupPin?: PickupPinInput;
   // Free-text path (no place selected): the typed city is required, the
   // snapshot is a server-authored 'user_typed' one (no coordinates, no admin
   // claims). originRegionId/originWardId are legacy, UNVERIFIED hints kept only
@@ -542,6 +547,16 @@ export class ShipmentsService {
     if (!dto.itemDescription?.trim()) {
       throw new BadRequestException('Describe what you are sending');
     }
+    // Door pickup: a landmark note (required) and, strongly asked for, the
+    // sender's phone GPS pin (section 18). Sender-given, kept apart from the
+    // server-derived place coordinates.
+    const pickupPin = readPickupPin(
+      (dto.pickupOption || ShipmentHandoffOption.AGENT) === ShipmentHandoffOption.DOOR,
+      dto.pickupLandmark, dto.pickupPin,
+    );
+    const pickupPinWardId = pickupPin.pickupPinLatitude != null
+      ? await this.nearestWardId(pickupPin.pickupPinLatitude, pickupPin.pickupPinLongitude!)
+      : null;
 
     // Selected places are re-resolved by the SERVER, exactly. This happens
     // before anything is reserved or written, so an unknown/forged/malformed
@@ -735,6 +750,8 @@ export class ShipmentsService {
           journeySelectionId: quote?.journeySelectionId ?? directJourneyId ?? null,
           pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
           deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
+          ...pickupPin,
+          pickupPinWardId,
           priceQuoted,
           // Always PENDING. CONFIRMED is reachable only through
           // confirmShipment(), the one boundary that claims the transition,
@@ -750,6 +767,16 @@ export class ShipmentsService {
       saved.trackingNumber = `KTX-SHP-${saved.id}`;
       return shipments.save(saved);
     });
+  }
+
+  /** Nearest ward centre point within 3 km of a pin, or null (approximate: wards have no boundaries). */
+  private async nearestWardId(lat: number, lng: number): Promise<number | null> {
+    try {
+      const rows: Array<{ id: number }> = await this.shipmentRepo.manager.query(NEAREST_WARD_SQL, [lat, lng, NEAREST_WARD_MAX_M]);
+      return rows[0]?.id != null ? Number(rows[0].id) : null;
+    } catch {
+      return null; // a ward name is a help for the agent, never a reason to refuse a booking
+    }
   }
 
   // A side of the Shipment corresponds to a side of the Journey when both name

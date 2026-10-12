@@ -5670,5 +5670,22 @@
     "available": "Une nouvelle version de KenteXa est prête — touchez pour mettre à jour",
     "finish_first": "Terminez d'abord ce que vous faites (un formulaire contient du texte).",
     "update_anyway": "Mettre à jour quand même"
+  },
+  "pickup_pin": {
+    "title": "Lieu de ramassage du colis",
+    "use_location": "📍 Utiliser ma position",
+    "locating": "Recherche de votre position…",
+    "found": "Position trouvée (±{{m}} m)",
+    "weak": "Peu précis. Essayez dehors ou près d'une fenêtre.",
+    "retry": "Réessayer",
+    "remove": "Retirer le repère",
+    "error_denied": "Autorisez KenteXa à utiliser votre position dans les réglages du téléphone, puis réessayez.",
+    "error_unavailable": "Impossible d'obtenir votre position. Réessayez.",
+    "error_timeout": "La recherche de position a pris trop de temps. Réessayez.",
+    "error_unsupported": "Ce téléphone ne peut pas partager sa position. Décrivez bien le lieu.",
+    "ask": "Ajoutez un repère pour que l'agent vous trouve vite. Sans repère, l'agent vous appellera.",
+    "landmark_label": "Point de repère (obligatoire)",
+    "landmark_placeholder": "ex. Portail noir à côté de la mosquée de Mbezi",
+    "landmark_hint": "5 à 160 caractères."
   }
 }

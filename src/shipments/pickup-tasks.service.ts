@@ -10,6 +10,7 @@ import { ShipmentHubSource } from './shipment-hub-source';
 import { projectShipment, projectShipmentForParcel } from './shipment-projection';
 import { SmsService } from '../sms/sms.service';
 import { customerParcelNumber } from '../super-agents/customer-parcel-number';
+import { pickupPointForAgent, SHOW_PIN_WARD } from './pickup-pin';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
@@ -590,11 +591,13 @@ export class PickupTasksService {
     const rows: any[] = await this.db.query(
       `SELECT t.id, t."servicePath", t."createdAt", t."originSnapshot",
               s."destinationLocationLabel", s."destinationCity", s."originCity",
-              s."itemDescription", s."weightKg", h."businessName" AS "originHubName"
+              s."itemDescription", s."weightKg", h."businessName" AS "originHubName",
+              pw.name AS "pickupWardName"
          FROM public.parcel_pickup_task t
          JOIN public.parcel p ON p.id = t."parcelId"
          JOIN public.shipment s ON s.id = p."shipmentId"
          LEFT JOIN public.super_agent h ON h.id = t."originHubId"
+         LEFT JOIN public.tz_ward pw ON pw.id = s."pickupPinWardId"
         WHERE t.status = 'requested' AND s.status = 'confirmed' AND p.status = 'pending'
           AND lower(btrim(s."originCity")) = $1
         ORDER BY t."createdAt" ASC LIMIT 50`,
@@ -605,6 +608,8 @@ export class PickupTasksService {
       servicePath: r.servicePath as PickupServicePath,
       requestedAt: r.createdAt,
       pickupArea: r.originSnapshot?.label ?? r.originSnapshot?.district ?? r.originCity,
+      // Before accepting: at most the ward (approximate, off for now), never the pin or the landmark.
+      pickupWard: SHOW_PIN_WARD ? r.pickupWardName ?? null : null,
       destinationArea: r.destinationLocationLabel ?? r.destinationCity,
       deliverTo: r.servicePath === 'direct_delivery' ? 'recipient' : 'hub',
       originHubName: r.originHubName ?? null,
@@ -627,11 +632,14 @@ export class PickupTasksService {
               (t."deliveryCodeHash" IS NOT NULL) AS "recipientCodeIssued",
               s."trackingNumber", s."receiverName", s."receiverPhone", s."destinationLocationLabel",
               s."destinationCity", s."originCity", s."itemDescription", s."weightKg",
-              h."businessName" AS "originHubName", h.address AS "originHubAddress"
+              h."businessName" AS "originHubName", h.address AS "originHubAddress",
+              s."pickupPinLatitude", s."pickupPinLongitude", s."pickupPinAccuracyM", s."pickupLandmark",
+              pw.name AS "pickupWardName"
          FROM public.parcel_pickup_task t
          JOIN public.parcel p ON p.id = t."parcelId"
          JOIN public.shipment s ON s.id = p."shipmentId"
          LEFT JOIN public.super_agent h ON h.id = t."originHubId"
+         LEFT JOIN public.tz_ward pw ON pw.id = s."pickupPinWardId"
         WHERE t."agentProfileId" = $1
           AND (t.status IN ('claimed','collected','awaiting_hub')
                OR (t.status IN ('delivered','hub_received') AND t."completedAt" > now() - interval '7 days'))
@@ -651,6 +659,8 @@ export class PickupTasksService {
         pickupArea: r.originSnapshot?.label ?? r.originSnapshot?.district ?? r.originCity,
         // Contact details only while the job is open.
         pickupContact: open ? { name: r.pickupContactName, phone: r.pickupContactPhone } : null,
+        // The exact pickup point only AFTER accepting, while going to collect (section 18).
+        pickupPoint: r.status === 'claimed' ? pickupPointForAgent(r) : null,
         deliverTo: direct ? 'recipient' : 'hub',
         recipient: direct && r.status === 'collected'
           ? { name: r.receiverName, phone: r.receiverPhone, area: r.destinationLocationLabel ?? r.destinationCity }

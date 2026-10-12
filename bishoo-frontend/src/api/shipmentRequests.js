@@ -137,6 +137,9 @@ export const shipmentBody = (state, selected, acceptedQuote, directJourney = nul
   providerId: acceptedQuote || directJourney ? undefined : (selected?.providerId || undefined),
   pickupOption: state.pickupOption,
   deliveryOption: state.deliveryOption,
+  // Door pickup only (section 18): landmark note and the phone's GPS pin.
+  pickupLandmark: state.pickupOption === 'door' ? ((state.pickupLandmark || '').trim() || undefined) : undefined,
+  pickupPin: state.pickupOption === 'door' && state.pickupPin ? state.pickupPin : undefined,
 });
 
 // PATCH /shipments/:id/confirm

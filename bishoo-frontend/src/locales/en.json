@@ -5682,5 +5682,22 @@
     "available": "A new version of KenteXa is ready — tap to update",
     "finish_first": "Finish what you are doing first (a form has text in it).",
     "update_anyway": "Update anyway"
+  },
+  "pickup_pin": {
+    "title": "Where we pick up the parcel",
+    "use_location": "📍 Use my location",
+    "locating": "Finding your location…",
+    "found": "Location found (±{{m}} m)",
+    "weak": "Not very precise. Try outside or near a window.",
+    "retry": "Try again",
+    "remove": "Remove pin",
+    "error_denied": "Allow KenteXa to use your location in the phone settings, then try again.",
+    "error_unavailable": "Could not get your location. Try again.",
+    "error_timeout": "Finding your location took too long. Try again.",
+    "error_unsupported": "This phone cannot share its location. Describe the place well.",
+    "ask": "Add a pin so the agent finds you quickly. Without a pin, the agent will call you.",
+    "landmark_label": "Landmark (required)",
+    "landmark_placeholder": "e.g. Black gate next to the Mbezi mosque",
+    "landmark_hint": "5 to 160 characters."
   }
 }

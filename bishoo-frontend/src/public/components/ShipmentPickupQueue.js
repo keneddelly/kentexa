@@ -25,6 +25,26 @@ const STEP = {
   wait_for_hub: 'Waiting for the hub to confirm receipt',
 };
 
+// The exact pickup point, shown only after the agent accepted (section 18).
+// No pin: the landmark note and "call the sender".
+export function PickupPoint({ point }) {
+  return (
+    <div data-testid="pickup-point" style={{ marginTop: 8, padding: 10, borderRadius: 10, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+      {point.landmark && <div style={{ fontSize: 13, color: '#0f172a' }}><strong>Alama:</strong> {point.landmark}</div>}
+      {point.ward && <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>Kata (karibu): {point.ward}</div>}
+      {point.hasPin ? (
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <a href={point.mapsUrl} target="_blank" rel="noopener noreferrer"
+            style={{ ...btn(true), textDecoration: 'none', display: 'inline-block' }}>📍 Fungua ramani</a>
+          {point.accuracyM != null && <span style={{ fontSize: 11, color: '#64748b' }}>Usahihi wa pin: ±{point.accuracyM} m</span>}
+        </div>
+      ) : (
+        <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: '#b45309' }}>{point.note || 'Hakuna pin — piga simu kwa mtumaji'}</div>
+      )}
+    </div>
+  );
+}
+
 export default function ShipmentPickupQueue({ onChanged, onCount }) {
   const [available, setAvailable] = useState([]);
   const [mine, setMine] = useState([]);
@@ -97,6 +117,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
                   Sender: {job.pickupContact.name} · <a href={`tel:${job.pickupContact.phone}`}>{job.pickupContact.phone}</a>
                 </div>
               )}
+              {job.pickupPoint && <PickupPoint point={job.pickupPoint} />}
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>Ask the sender for their 6-digit handover code when you take the parcel.</div>
               {codeInput(job.id, 'Sender code')}
               <button style={btn(true)} disabled={busy === job.id || code(job.id).length !== 6}
@@ -156,6 +177,8 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
             {job.pickupArea} → {job.deliverTo === 'recipient' ? job.destinationArea : (job.originHubName || 'Kentexa hub')}
             {job.weightKg > 0 ? ` · ${job.weightKg} kg` : ''}
           </div>
+          {/* Before accepting: the ward only — the exact pin comes after accepting. */}
+          {job.pickupWard && <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Kata (karibu): {job.pickupWard}</div>}
           <div style={{ marginTop: 10 }}>
             <button style={btn(true)} disabled={busy === job.id}
               onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/claim`), 'Job claimed. Contact the sender to collect.')}>

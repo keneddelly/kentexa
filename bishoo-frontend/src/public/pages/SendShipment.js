@@ -18,6 +18,8 @@ import {
   confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
 import { formatWaybill } from '../../utils/waybill';
+import PickupPinFields from '../components/PickupPinFields';
+import { landmarkOk } from '../../utils/phoneLocation';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -129,6 +131,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // sender/recipient uses a Kentexa Point. Agent assignment stays internal.
   const [pickupOption, setPickupOption] = useState('door');
   const [deliveryOption, setDeliveryOption] = useState('door');
+  // Door pickup point (section 18): phone GPS pin (asked for) + landmark note (required).
+  const [pickupPin, setPickupPin] = useState(null);
+  const [pickupLandmark, setPickupLandmark] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -150,7 +155,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // test shared with the backend).
   const requestState = {
     itemDescription, weightKg, origin, destination, originResolved, destinationResolved,
-    receiverName, receiverPhone, senderName, senderPhone, pickupOption, deliveryOption,
+    receiverName, receiverPhone, senderName, senderPhone, pickupOption, deliveryOption, pickupPin, pickupLandmark,
     transportProviderId: navParams?.transportProviderId, originHubId, destinationHubId,
   };
 
@@ -257,7 +262,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const canContinueStep1 = itemDescription.trim() && Number(weightKg) > 0;
   const stationOriginReady = pickupOption !== 'station' || originHubs.length > 0;
   const stationDestinationReady = deliveryOption !== 'station' || destinationHubs.length > 0;
-  const canContinueStep3 = receiverName.trim() && receiverPhone.trim();
+  const canContinueStep3 = receiverName.trim() && receiverPhone.trim() && (pickupOption !== 'door' || landmarkOk(pickupLandmark));
   const canConfirmPlan = stationOriginReady && stationDestinationReady &&
     (pickupOption !== 'station' || Boolean(originHubId)) &&
     (deliveryOption !== 'station' || Boolean(destinationHubId));
@@ -592,6 +597,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             </div>
 
             </>)}
+
+            {pickupOption === 'door' && (
+              <PickupPinFields pin={pickupPin} onPin={setPickupPin} landmark={pickupLandmark} onLandmark={setPickupLandmark} />
+            )}
 
             <button onClick={async () => { await loadHubChoices(); setStep(4); }} disabled={!canContinueStep3}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
