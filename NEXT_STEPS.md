@@ -812,7 +812,12 @@ required once the map exists.
 - **Also in Release D, no migration, no new setting:** `d2b461d` SMS to the sender when an agent accepts
   (1 SMS part per accepted pickup); `a4e3417` same-city door pickup with no agent: early check + nearest
   Super Agent office card, replaces the English "no longer fulfillable" (KNOWN_FAULTS #24, on live today).
-- Release D order: `release-d.ps1 -Target live` → "migration done" → "push" (all local commits together).
+- `9944015` send form: no "jaribu miji jirani" line for same-city trips. No migration, no new setting.
+- **Migration 1791800000000 is ON LIVE since 2026-10-12 19:43 (Tanzania time)**, via release-d.ps1
+  (log `C:\Users\BISHOO GROUP\release-d\release-d-live-20261012-193659.log`: all checks OK, tracking
+  test 404). The live code still runs fine on it. Do NOT run release-d.ps1 again (it would stop at the
+  start check, harmlessly). Remaining step: "push" (all local commits together).
+- Read-only check of office map points: `C:\Users\BISHOO GROUP\release-d\check-office-map-points.ps1`.
 - Nearest ward is saved but not shown (`SHOW_PIN_WARD=false`): the seeded ward list has only 64 Dar
   wards and named the wrong ward for Posta, Kariakoo and Mbezi. Complete the ward list first.
 - **Step 2 decided (owner, 2026-10-12):** OpenFreeMap + MapLibre; tile address as a setting; if the
