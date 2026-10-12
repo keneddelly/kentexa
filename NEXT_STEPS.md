@@ -823,3 +823,17 @@ required once the map exists.
 - **Step 2 decided (owner, 2026-10-12):** OpenFreeMap + MapLibre; tile address as a setting; if the
   map fails, fall back to "Tumia mahali nilipo" + the landmark note; its own commit after step 1; once
   the map exists the pin becomes required for door pickup.
+
+## 19. Release E — training office ("ofisi ya mafunzo"), approved by the owner 2026-10-12
+
+Branch `training-office` (worktree `C:\Users\BISHOO GROUP\training-office`), built on Release D (188a6d3).
+Never pushed before Release D is live AND migration 1791900000000 is on live.
+- **Migration `1791900000000-AddTrainingOffice`** (adds only): `super_agent."isTrainingOffice"` and
+  `commerce_profile."hiddenFromPublic"`, both boolean NOT NULL DEFAULT false (no table rewrite).
+  Guarded script like release-d.ps1: `C:\Users\BISHOO GROUP\release-e\release-e.ps1`.
+- No new environment variable.
+- Admin → Super Agents: "🎓 Mafunzo" / "↩️ Ondoa mafunzo" per office (PATCH /super-agents/:id/training,
+  admin only, activity event SUPER_AGENT_MARKED_TRAINING / _UNMARKED_TRAINING with the admin's id).
+- After the release, the owner marks: Air Doctor Express, Air Doctor Express 2, Bishoo shipping cargo,
+  FOVOTX, Habibu shipping express. Real offices stay unmarked: Ar SAMATTA TRANSPORTATION SERVICES,
+  MTANDAO TRANSPORT TZ.

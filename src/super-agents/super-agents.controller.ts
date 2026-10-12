@@ -503,6 +503,14 @@ export class SuperAgentsController {
     return this.service.approve(Number(id));
   }
 
+  // Training office mark ("ofisi ya mafunzo"): { isTraining: true | false }.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/training')
+  setTrainingOffice(@Request() req, @Param('id') id: string, @Body('isTraining') isTraining: unknown) {
+    return this.service.setTrainingOffice(req.user.id, Number(id), isTraining);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch(':id/suspend')

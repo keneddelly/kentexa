@@ -193,6 +193,12 @@ export class SuperAgent {
   })
   status: SuperAgentStatus;
 
+  // Training office ("ofisi ya mafunzo", migration 1791900000000): works fully
+  // for its own staff, never shown to customers or other businesses, sends no
+  // real SMS. Set only by an admin (PATCH /super-agents/:id/training).
+  @Column({ type: 'boolean', default: false })
+  isTrainingOffice: boolean;
+
   @Column({ type: 'text', nullable: true })
   rejectionReason: string | null;
 

@@ -68,6 +68,22 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
     }
   };
 
+  // Training office ("ofisi ya mafunzo"): works for its own staff, hidden from
+  // customers, other businesses, public profiles, search and discovery; no real SMS.
+  const handleTraining = async (agent, isTraining) => {
+    try {
+      setActionLoading(true); setError('');
+      await api.patch(`/super-agents/${agent.id}/training`, { isTraining });
+      setMessage(isTraining ? `${agent.businessName}: marked as a training office (ofisi ya mafunzo).`
+        : `${agent.businessName}: training mark removed — visible to customers again.`);
+      fetchAgents();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to change the training mark');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleSuspend = async () => {
     if (!suspendReason.trim()) { setError(`Enter ${suspendIsReject ? 'rejection' : 'suspension'} reason`); return; }
     try {
@@ -204,6 +220,10 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '14px 16px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
                         <div>{agent.businessName}</div>
                         <div style={{ fontSize: 12, color: '#64748b' }}>{agent.user?.email || agent.user?.phone}</div>
+                        {agent.isTrainingOffice && (
+                          <span data-testid="training-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 20,
+                            fontSize: 11, fontWeight: 800, backgroundColor: '#ede9fe', color: '#6d28d9' }}>🎓 Mafunzo</span>
+                        )}
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748b' }}>{agent.city}</td>
                       <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748b' }}>{agent.phone || '—'}</td>
@@ -237,6 +257,14 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                             <button onClick={() => { setSelected(agent); setSuspendIsReject(false); setShowSuspendModal(true); }}
                               style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               🚫 Suspend
+                            </button>
+                          )}
+                          {agent.status !== 'pending' && (
+                            <button onClick={() => handleTraining(agent, !agent.isTrainingOffice)} disabled={actionLoading}
+                              title={agent.isTrainingOffice ? 'Show this office to customers again' : 'Hide from customers; for staff testing and training only; no real SMS'}
+                              style={{ backgroundColor: agent.isTrainingOffice ? '#f5f3ff' : '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe',
+                                padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              {agent.isTrainingOffice ? '↩️ Ondoa mafunzo' : '🎓 Mafunzo'}
                             </button>
                           )}
                           {agent.status === 'suspended' && (

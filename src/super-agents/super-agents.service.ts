@@ -1372,6 +1372,34 @@ export class SuperAgentsService {
     return this.superAgentRepo.save(agent);
   }
 
+  /**
+   * Training office mark ("ofisi ya mafunzo"), admin only. Sets the office mark
+   * and hides/shows its business profile(s) in one transaction, then records
+   * who did it. Nothing else changes: the office keeps working for its staff.
+   */
+  async setTrainingOffice(adminUserId: number, id: number, isTraining: unknown) {
+    if (typeof isTraining !== 'boolean') throw new BadRequestException('isTraining must be true or false');
+    const result = await this.dataSource.transaction(async (m) => {
+      const rows: any[] = await m.query(
+        `SELECT id, "businessName", "isTrainingOffice" FROM public.super_agent WHERE id = $1 FOR UPDATE`, [id]);
+      if (!rows[0]) throw new NotFoundException('Super agent not found');
+      await m.query(`UPDATE public.super_agent SET "isTrainingOffice" = $2 WHERE id = $1`, [id, isTraining]);
+      await m.query(`UPDATE public.commerce_profile SET "hiddenFromPublic" = $2 WHERE "superAgentId" = $1`, [id, isTraining]);
+      return { businessName: rows[0].businessName as string, before: rows[0].isTrainingOffice === true };
+    });
+    if (result.before !== isTraining) {
+      await this.activityEvents.record({
+        eventType: isTraining ? 'SUPER_AGENT_MARKED_TRAINING' : 'SUPER_AGENT_UNMARKED_TRAINING',
+        category: ActivityCategory.AGENT,
+        actorId: adminUserId, actorType: 'admin',
+        targetType: 'super_agent', targetId: id,
+        metadata: { businessName: result.businessName },
+        visibility: 'admin',
+      });
+    }
+    return { id, isTrainingOffice: isTraining, changed: result.before !== isTraining };
+  }
+
   async getCities() {
     return { cities: TANZANIA_CITIES, cityCodes: CITY_CODES };
   }

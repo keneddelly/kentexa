@@ -83,6 +83,11 @@ export class CommerceProfile {
   })
   status: CommerceProfileStatus;
 
+  // Never shown by public profile pages, search or discovery (migration
+  // 1791900000000). Set together with a training office mark.
+  @Column({ type: 'boolean', default: false })
+  hiddenFromPublic: boolean;
+
   // Profile-level verification — deliberately separate from User.isVerified
   // (personal identity verification). A verified person can operate an
   // unverified, newly-pending business; never let one imply the other.
