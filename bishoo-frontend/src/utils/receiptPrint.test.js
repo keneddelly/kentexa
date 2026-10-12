@@ -44,12 +44,12 @@ describe('one universal receipt for every printer', () => {
 });
 
 describe('claim code on the FIRST receipt only (Release C, option a)', () => {
-  const secret = '0123456789abcdef0123456789abcdef0123';
+  const secret = 'k7mr2xq9pb4h';
   test('printed in groups of four with the steps, when passed', () => {
-    expect(formatClaimSecret(secret)).toBe('0123 4567 89ab cdef 0123 4567 89ab cdef 0123');
+    expect(formatClaimSecret(secret)).toBe('K7MR 2XQ9 PB4H');
     const html = buildReceiptHtml(receipt, { autoPrint: false, claimSecret: secret });
     expect(html).toContain('Dai mzigo wako kwenye KenteXa');
-    expect(html).toContain('<div class="claim-code">0123 4567 89ab cdef 0123 4567 89ab cdef 0123</div>');
+    expect(html).toContain('<div class="claim-code">K7MR 2XQ9 PB4H</div>');
     expect(html).toContain('Mizigo Yangu');
   });
   test('not printed on a reprint (no secret passed)', () => {

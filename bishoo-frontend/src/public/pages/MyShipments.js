@@ -80,7 +80,7 @@ export default function MyShipments({onNavigate}){
             <input required autoComplete="off" value={claimId} onChange={e=>{setClaimId(e.target.value);setClaimStep('receipt');setOtp('');}} placeholder="Mfano: KTX 1674 9680 01" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>
           </label>
           <label style={{fontWeight:700,fontSize:15}}>Namba ya siri (kwenye risiti)
-            <input required value={receiptSecret} onChange={e=>{setReceiptSecret(e.target.value);setClaimStep('receipt');setOtp('');}} autoComplete="off" placeholder="Andika kama ilivyochapishwa, mfano a3f2 9c01 …" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>
+            <input required value={receiptSecret} onChange={e=>{setReceiptSecret(e.target.value);setClaimStep('receipt');setOtp('');}} autoComplete="off" placeholder="Andika kama ilivyochapishwa, mfano K7MR 2XQ9 PB4H" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>
           </label>
           {claimStep==='otp'&&<label style={{fontWeight:700,fontSize:15}}>Namba ya uthibitisho (SMS)
             <input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" value={otp} onChange={e=>setOtp(e.target.value)} placeholder="Namba 6 za SMS" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>

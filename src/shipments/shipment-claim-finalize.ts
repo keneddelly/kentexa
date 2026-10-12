@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
-import { claimDigest, matchesClaimDigest } from './shipment-claim-crypto';
+import { claimDigest, matchesClaimDigest, isReceiptSecretFormat } from './shipment-claim-crypto';
 
 /**
  * Atomic last step of a walk-in claim. Caller must already have authenticated
@@ -19,7 +19,7 @@ export async function finalizeWalkInClaim(
 ): Promise<{ shipmentId: number }> {
   if (!Number.isSafeInteger(input.shipmentId) || input.shipmentId <= 0 ||
       !Number.isSafeInteger(input.claimantUserId) || input.claimantUserId <= 0 ||
-      !/^[a-f0-9]{36}$/i.test(input.receiptSecret) ||
+      !isReceiptSecretFormat(input.receiptSecret) ||
       !/^\d{6}$/.test(input.otp)) {
     throw new BadRequestException('Invalid claim credentials');
   }

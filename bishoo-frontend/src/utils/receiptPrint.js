@@ -50,8 +50,9 @@ export const RECEIPT_CSS = `
   .claim-note { font-size: 8pt; text-align: center; }
 `;
 
-// The claim secret as printed: groups of 4 ("a3f2 9c01 …"). The claim form ignores the spaces.
-export const formatClaimSecret = (secret) => (String(secret || '').match(/.{1,4}/g) || []).join(' ');
+// The claim secret as printed: upper case, groups of 4 ("K7MR 2XQ9 PB4H"). The claim form
+// ignores spaces and case.
+export const formatClaimSecret = (secret) => (String(secret || '').toUpperCase().match(/.{1,4}/g) || []).join(' ');
 
 /**
  * Full HTML document for one receipt. `autoPrint` adds the print call.

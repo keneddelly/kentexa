@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { SmsService } from '../sms/sms.service';
-import { claimDigest, matchesClaimDigest, newClaimOtp } from './shipment-claim-crypto';
+import { claimDigest, matchesClaimDigest, newClaimOtp, isReceiptSecretFormat } from './shipment-claim-crypto';
 
 /**
  * Customer must be authenticated upstream. The receipt secret is checked
@@ -15,7 +15,7 @@ export async function startWalkInClaim(
 ): Promise<{ sent: true }> {
   if (!Number.isSafeInteger(input.shipmentId) || input.shipmentId <= 0 ||
       !Number.isSafeInteger(input.claimantUserId) || input.claimantUserId <= 0 ||
-      !/^[a-f0-9]{36}$/i.test(input.receiptSecret)) {
+      !isReceiptSecretFormat(input.receiptSecret)) {
     throw new BadRequestException('Invalid claim credentials');
   }
   const digest = claimDigest(input.hmacKey, 'receipt', input.shipmentId, input.receiptSecret.toLowerCase());

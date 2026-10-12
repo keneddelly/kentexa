@@ -70,9 +70,9 @@ test('claims a desk shipment by the number on the receipt, only after SMS verifi
   render(<MyShipments onNavigate={jest.fn()} />);
   fireEvent.click(screen.getByText('Ongeza mzigo wa dawati'));
   fireEvent.change(screen.getByPlaceholderText('Mfano: KTX 1674 9680 01'), { target: { value: ' KTX 1674 9680 01 ' } });
-  const secret = 'a3f29c01'.repeat(4) + 'beef';
-  const printed = secret.match(/.{1,4}/g).join(' ');
-  fireEvent.change(screen.getByPlaceholderText('Andika kama ilivyochapishwa, mfano a3f2 9c01 …'), { target: { value: printed } });
+  const secret = 'K7MR2XQ9PB4H';
+  const printed = 'K7MR 2XQ9 PB4H';
+  fireEvent.change(screen.getByPlaceholderText('Andika kama ilivyochapishwa, mfano K7MR 2XQ9 PB4H'), { target: { value: printed } });
   fireEvent.click(screen.getByText('Tuma SMS ya uthibitisho'));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/shipments/claim-by-number/start',
     { reference: 'KTX 1674 9680 01', receiptSecret: secret }));
@@ -88,7 +88,7 @@ test('does not request OTP without the parcel number', async () => {
   render(<MyShipments onNavigate={jest.fn()} />);
   fireEvent.click(screen.getByText('Ongeza mzigo wa dawati'));
   fireEvent.change(screen.getByPlaceholderText('Mfano: KTX 1674 9680 01'), { target: { value: '   ' } });
-  fireEvent.change(screen.getByPlaceholderText('Andika kama ilivyochapishwa, mfano a3f2 9c01 …'), { target: { value: 'a'.repeat(36) } });
+  fireEvent.change(screen.getByPlaceholderText('Andika kama ilivyochapishwa, mfano K7MR 2XQ9 PB4H'), { target: { value: 'a'.repeat(36) } });
   fireEvent.click(screen.getByText('Tuma SMS ya uthibitisho'));
   expect(await screen.findByRole('alert')).toHaveTextContent('Weka Namba ya Mzigo');
   expect(api.post).not.toHaveBeenCalled();
