@@ -79,6 +79,11 @@ import { LocationIntelligenceService } from '../location-intelligence/location-i
 import { toValidatedPoint } from '../location-intelligence/location-provider.interface';
 import { customerParcelNumber, customerTrackRef, smsSafeName } from './customer-parcel-number';
 import { isIntercity } from './region-match';
+import { readAgentBasePoint } from '../shipments/pickup-pin';
+
+/** "Weka mahali pa ofisi" (office map point from the phone's GPS). */
+export const OFFICE_POINT_METHOD = 'device_gps';
+export const OFFICE_POINT_MESSAGES = { saved: 'Mahali pa ofisi pamehifadhiwa.' } as const;
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -377,6 +382,30 @@ export class SuperAgentsService {
     return this.superAgentRepo.save(agent);
   }
 
+  /**
+   * "📍 Weka mahali pa ofisi": the office's exact map point from the phone's
+   * GPS, same rules as the agent base point (inside Tanzania, accuracy <= 500 m).
+   * Marked locationResolutionMethod = 'device_gps' so a later place-picker
+   * save keeps it (updateMyHubLocation). Used by the no-agent office card.
+   */
+  async setMyOfficePoint(user: User, body: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown }) {
+    const agent = await this.getMyProfile(user);
+    const point = readAgentBasePoint(body);
+    await this.dataSource.query(
+      `UPDATE public.super_agent SET latitude = $2, longitude = $3, "locationResolutionMethod" = $4 WHERE id = $1`,
+      [agent.id, point.latitude, point.longitude, OFFICE_POINT_METHOD]);
+    return { officePointSet: true, officePointByGps: true, message: OFFICE_POINT_MESSAGES.saved };
+  }
+
+  /** Whether this office has a map point, and whether it came from GPS (for the settings screen). */
+  async getOfficePointStatus(superAgentId: number) {
+    const rows: any[] = await this.dataSource.query(
+      `SELECT latitude, longitude, "locationResolutionMethod" AS method FROM public.super_agent WHERE id = $1`, [superAgentId]);
+    const r = Array.isArray(rows) ? rows[0] : null;
+    const set = r?.latitude != null && r?.longitude != null;
+    return { officePointSet: set, officePointByGps: set && r.method === OFFICE_POINT_METHOD };
+  }
+
   /** Canonical hub-location write: the client selects a place reference only;
    * all geographic facts are re-resolved by Kentexa on the server. */
   async updateMyHubLocation(user: User, selection: { providerKey?: string; providerPlaceId?: string; addressDetail?: string }) {
@@ -391,11 +420,15 @@ export class SuperAgentsService {
     if (!place) throw new BadRequestException('Selected place could not be resolved');
     const point = toValidatedPoint(place.latitude, place.longitude);
     agent.locationLabel = place.displayLabel;
-    agent.latitude = point.latitude ?? null;
-    agent.longitude = point.longitude ?? null;
+    // An exact GPS point set with "Weka mahali pa ofisi" is kept: the place's
+    // centre point is only approximate. A moved office presses the GPS button again.
+    if (!(await this.getOfficePointStatus(agent.id)).officePointByGps) {
+      agent.latitude = point.latitude ?? null;
+      agent.longitude = point.longitude ?? null;
+      agent.locationResolutionMethod = place.resolutionMethod;
+    }
     agent.locationProviderKey = place.providerKey;
     agent.locationProviderPlaceId = place.providerPlaceId ?? null;
-    agent.locationResolutionMethod = place.resolutionMethod;
     agent.regionId = place.regionId ?? null;
     agent.regionName = place.regionName ?? null;
     agent.districtId = place.districtId ?? null;

@@ -111,6 +111,8 @@ export class SuperAgentsController {
     const hubLocationComplete = Boolean(profile.locationProviderKey && profile.locationProviderPlaceId && profile.latitude != null && profile.longitude != null);
     return {
       ...profile,
+      // "Weka mahali pa ofisi": does this office have a map point, set by GPS?
+      ...(await this.service.getOfficePointStatus(profile.id)),
       hubLocationComplete,
       hubLocationPrompt: hubLocationComplete ? null : {
         required: true,
@@ -124,6 +126,14 @@ export class SuperAgentsController {
   @Patch('my-profile')
   updateMyProfile(@Request() req, @Body() dto: any) {
     return this.service.updateMyProfile(req.user, dto);
+  }
+
+  // "📍 Weka mahali pa ofisi": the office's exact map point from the phone's
+  // GPS (same rules as the agent base point). The office's own point only.
+  @UseGuards(JwtAuthGuard)
+  @Patch('my-profile/office-point')
+  setMyOfficePoint(@Request() req, @Body() dto: any) {
+    return this.service.setMyOfficePoint(req.user, dto);
   }
 
   // Set this hub's canonical location from a Kentexa Location Intelligence

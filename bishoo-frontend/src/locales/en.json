@@ -5706,6 +5706,15 @@
     "landmark_placeholder": "e.g. Black gate next to the Mbezi mosque",
     "landmark_hint": "5 to 160 characters."
   },
+  "office_point": {
+    "title": "📍 Set office location",
+    "explain": "Stand inside or at the door of the office, then tap. When a customer finds no agent, they see your office with \"Open map\" so they can bring the parcel.",
+    "only_place": "The office only has an approximate location (centre of the area). Set it with GPS at the office so customers find you exactly.",
+    "button": "📍 Set office location",
+    "set_gps": "📍 Office location set with GPS.",
+    "change": "Change",
+    "saved": "Office location saved."
+  },
   "agent_base": {
     "title": "Set your base point first",
     "explain": "Stand where you start work each day, then press the button. Pickup jobs near your base reach you first. You cannot go online without a base point.",

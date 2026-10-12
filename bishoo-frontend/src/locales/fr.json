@@ -5694,6 +5694,15 @@
     "landmark_placeholder": "ex. Portail noir à côté de la mosquée de Mbezi",
     "landmark_hint": "5 à 160 caractères."
   },
+  "office_point": {
+    "title": "📍 Définir l'emplacement du bureau",
+    "explain": "Placez-vous dans le bureau ou à sa porte, puis appuyez. Un client sans agent verra votre bureau avec « Ouvrir la carte » pour apporter son colis.",
+    "only_place": "Le bureau n'a qu'un emplacement approximatif (centre de la zone). Définissez-le par GPS au bureau pour que les clients vous trouvent exactement.",
+    "button": "📍 Définir l'emplacement du bureau",
+    "set_gps": "📍 Emplacement du bureau défini par GPS.",
+    "change": "Modifier",
+    "saved": "Emplacement du bureau enregistré."
+  },
   "agent_base": {
     "title": "Définissez d'abord votre point de base",
     "explain": "Placez-vous là où vous commencez le travail chaque jour, puis appuyez sur le bouton. Les ramassages proches de votre base vous arrivent en premier. Vous ne pouvez pas être en ligne sans point de base.",

@@ -5636,6 +5636,15 @@
     "landmark_placeholder": "Mfano: Geti jeusi karibu na msikiti wa Mbezi",
     "landmark_hint": "Herufi 5 hadi 160."
   },
+  "office_point": {
+    "title": "📍 Weka mahali pa ofisi",
+    "explain": "Simama ndani au mlangoni mwa ofisi, kisha bonyeza. Mteja asipopata wakala, ataona ofisi yako na \"Fungua ramani\" ili alete mzigo.",
+    "only_place": "Ofisi ina mahali pa makadirio tu (katikati ya eneo). Weka kwa GPS ukiwa ofisini ili wateja wakupate kwa usahihi.",
+    "button": "📍 Weka mahali pa ofisi",
+    "set_gps": "📍 Mahali pa ofisi pamewekwa kwa GPS.",
+    "change": "Badilisha",
+    "saved": "Mahali pa ofisi pamehifadhiwa."
+  },
   "agent_base": {
     "title": "Weka kituo chako kwanza",
     "explain": "Simama mahali unapoanzia kazi kila siku, kisha bonyeza kitufe. Kazi za kuchukua mizigo zitakufikia kwanza zikiwa karibu na kituo chako. Huwezi kuwa mtandaoni bila kituo.",

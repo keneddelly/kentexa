@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
+import OfficePoint from '../components/OfficePoint';
 
 const inp = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
@@ -82,7 +83,11 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
           providerPlaceId: resolvedLocation.placeRef.providerPlaceId,
           addressDetail: form.address,
         });
-        setProfile(updated.data);
+        // A GPS office point is kept by the server; a place pick without one
+        // gives the office an approximate (place centre) point.
+        setProfile(prev => ({ ...updated.data,
+          officePointByGps: Boolean(prev?.officePointByGps),
+          officePointSet: Boolean(prev?.officePointByGps || updated.data?.latitude != null || prev?.officePointSet) }));
         setForm(p => ({ ...p, city: updated.data.city || p.city, address: updated.data.address || p.address }));
       }
       setSuccess(t('super_agent_settings.save_success'));
@@ -176,6 +181,10 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
                       required
                     />
                     {profile?.locationLabel && !resolvedLocation && <div style={{fontSize:11,color:'#16a34a',marginTop:-8}}>📍 {profile.locationLabel}</div>}
+                    <div style={{ marginTop: 12 }}>
+                      <OfficePoint officePointSet={profile?.officePointSet} officePointByGps={profile?.officePointByGps}
+                        onSaved={(r) => setProfile(p => ({ ...p, officePointSet: r.officePointSet, officePointByGps: r.officePointByGps }))} />
+                    </div>
                   </>
                 ) : (
                   <>
