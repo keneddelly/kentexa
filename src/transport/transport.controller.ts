@@ -38,7 +38,7 @@ import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
 import { LogisticsServiceOfferService } from './logistics-service-offer.service';
-import type { DiscoverServiceOffersDto, CommitServiceOfferDto } from './logistics-service-offer.service';
+import type { DiscoverServiceOffersDto, CommitServiceOfferDto, DoorCheckDto } from './logistics-service-offer.service';
 
 @Controller('transport')
 export class TransportController {
@@ -58,6 +58,14 @@ export class TransportController {
   @Post('service-offers/discover')
   discoverServiceOffers(@Body() dto: DiscoverServiceOffersDto) {
     return this.serviceOffers.discover(dto);
+  }
+
+  // Early check for same-city door pickup: an online agent with a base point
+  // now? If not, the nearest Super Agent office (KNOWN_FAULTS #24).
+  @UseGuards(JwtAuthGuard)
+  @Post('service-offers/door-check')
+  doorCheck(@Body() dto: DoorCheckDto) {
+    return this.serviceOffers.doorCheck(dto);
   }
 
   @UseGuards(JwtAuthGuard)

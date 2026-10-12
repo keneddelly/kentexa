@@ -19,6 +19,7 @@ import {
 } from '../../api/shipmentRequests';
 import { formatWaybill } from '../../utils/waybill';
 import PickupPinFields from '../components/PickupPinFields';
+import NoAgentOfficeCard from '../components/NoAgentOfficeCard';
 import { landmarkOk } from '../../utils/phoneLocation';
 
 const B  = '#2563EB';
@@ -149,6 +150,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // (request_failed / invalid_location). A failed request is never shown as
   // "no transporter".
   const [searchReason, setSearchReason] = useState(null);
+  // Same-city door pickup: is an agent available right now? (KNOWN_FAULTS #24)
+  // { available, nearestOffice } from the early check, and the same answer
+  // if "Thibitisha Kifurushi" finds no agent after all.
+  const [doorCheck, setDoorCheck] = useState(null);
+  const [noAgentAtConfirm, setNoAgentAtConfirm] = useState(null);
 
   // Everything the request builders need, in one object (see
   // api/shipmentRequests.js -- the request shapes are pinned by a contract
@@ -164,6 +170,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     setSearching(true);
     setSearched(true);
     setSearchReason(null);
+    setDoorCheck(null);
     try {
       // Normal Tuma Mzigo discovers transport SERVICES, not today's
       // TransportRun. A provider's active route remains bookable even before
@@ -199,6 +206,15 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         }));
       setTrips(serviceOptions);
       setSearchReason(serviceOptions.length || offers.some(o => o.serviceType === 'direct_delivery') ? 'available' : 'no_route');
+      // Early check for "Mlango kwa mlango ndani ya mji": ask now, so the
+      // option is marked before the sender fills in the rest. A failed check
+      // leaves the option as it was (the server checks again at the end).
+      if (canDeliverDirect({ originResolved, destinationResolved }) && !navParams?.transportProviderId) {
+        api.post('/transport/service-offers/door-check', {
+          fromCity, weightKg: Number(weightKg) || 0,
+          origin: { place: { providerKey: originResolved.placeRef.providerKey, providerPlaceId: originResolved.placeRef.providerPlaceId } },
+        }).then(r => setDoorCheck(r.data || null)).catch(() => setDoorCheck(null));
+      }
 
       const providerId = navParams?.transportProviderId ? Number(navParams.transportProviderId) : null;
       if (providerId) {
@@ -270,6 +286,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const handleConfirm = async () => {
     setSubmitting(true);
     setError('');
+    setNoAgentAtConfirm(null);
     try {
       let acceptedQuote = null;
       let journeySelection = null;
@@ -312,7 +329,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         dropOffHub: nextAction?.type === 'customer_dropoff' && selected?.loadHub ? selected.loadHub : null });
       setStep(5);
     } catch (err) {
-      setError(err?.response?.data?.message || t('send_shipment.post_error'));
+      // No agent after all (the last one went offline): the same Swahili
+      // card as the early check, with the nearest office -- not an error line.
+      if (err?.response?.data?.code === 'NO_AGENT_NOW') setNoAgentAtConfirm({ office: err.response.data.nearestOffice || null });
+      else setError(err?.response?.data?.message || t('send_shipment.post_error'));
     } finally {
       setSubmitting(false);
     }
@@ -451,22 +471,33 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               </div>
             )}
 
-            {searched && !searching && canDeliverDirect(requestState) && !navParams?.transportProviderId && (
-              <div onClick={() => { setSelected({ direct: true }); setPickupOption('door'); setDeliveryOption('door'); setStep(3); }}
-                style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16, cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                  border: isDirectDelivery(selected) ? `2px solid ${B}` : '2px solid transparent' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🛵</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('send_shipment.direct_title')}</div>
-                    <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{t('send_shipment.direct_subtitle')}</div>
+            {searched && !searching && canDeliverDirect(requestState) && !navParams?.transportProviderId && (() => {
+              // No agent right now: the option is marked and cannot be chosen;
+              // the nearest office card says where to bring the parcel instead.
+              const noAgent = doorCheck?.available === false;
+              return (
+                <>
+                  <div data-testid="direct-option" aria-disabled={noAgent}
+                    onClick={noAgent ? undefined : () => { setSelected({ direct: true }); setPickupOption('door'); setDeliveryOption('door'); setStep(3); }}
+                    style={{ backgroundColor: noAgent ? '#F8FAFC' : WH, borderRadius: 14, padding: 14, marginBottom: noAgent ? 8 : 16,
+                      cursor: noAgent ? 'default' : 'pointer', opacity: noAgent ? 0.75 : 1,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      border: isDirectDelivery(selected) && !noAgent ? `2px solid ${B}` : '2px solid transparent' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🛵</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('send_shipment.direct_title')}</div>
+                        <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{t('send_shipment.direct_subtitle')}</div>
+                        {noAgent && <div style={{ fontSize: 12, fontWeight: 800, color: '#B45309', marginTop: 4 }}>{t('send_shipment.no_agent_now')}</div>}
+                      </div>
+                      {!noAgent && <span style={{ fontSize: 11, fontWeight: 700, color: OR }}>{t('send_shipment.select_button')}</span>}
+                    </div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: OR }}>{t('send_shipment.select_button')}</span>
-                </div>
-              </div>
-            )}
+                  {noAgent && <NoAgentOfficeCard office={doorCheck.nearestOffice} />}
+                </>
+              );
+            })()}
 
             {trips.length > 0 && (
               <div style={{ marginBottom: 16 }}>
@@ -692,6 +723,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             {error && (
               <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 12, fontWeight: 600 }}>{error}</div>
             )}
+            {noAgentAtConfirm && <NoAgentOfficeCard office={noAgentAtConfirm.office} />}
 
             <button onClick={handleConfirm} disabled={submitting || !canConfirmPlan}
               style={{ width: '100%', background: 'linear-gradient(135deg,#EA580C,#DC2626)',

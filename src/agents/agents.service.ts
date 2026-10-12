@@ -579,6 +579,8 @@ export class AgentsService {
         collectionFeeRural: Number(a.collectionFeeRural || 3000),
         rating: Number(a.rating || 5),
         totalDeliveries: a.totalDeliveriesCompleted || 0,
+        // Yes/no only: the base point itself never leaves the server.
+        hasBasePoint: a.baseLatitude != null && a.baseLongitude != null,
         isOnline: true,
       }));
   }

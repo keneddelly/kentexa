@@ -1,5 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AgentsService } from '../agents/agents.service';
+import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
+import { findNearestOffice, NO_AGENT_NOW } from './nearest-office';
 import { TransportService } from './transport.service';
 import { JourneyComposerService } from './journey-composer.service';
 
@@ -25,15 +28,55 @@ export interface LogisticsServiceOffer {
   fulfillment: { pickup: 'agent' | 'customer_dropoff'; linehaul: 'none' | 'transport_provider'; delivery: 'agent' | 'customer_collect'; transportOption?: any };
 }
 
+export interface DoorCheckDto { fromCity: string; weightKg: number; origin?: any; }
+
 @Injectable()
 export class LogisticsServiceOfferService {
-  constructor(private readonly agents: AgentsService, private readonly transport: TransportService, private readonly journeys: JourneyComposerService) {}
+  constructor(
+    private readonly agents: AgentsService,
+    private readonly transport: TransportService,
+    private readonly journeys: JourneyComposerService,
+    // Optional only so hand-built test instances keep constructing.
+    @Optional() private readonly db?: DataSource,
+    @Optional() private readonly locations?: LocationIntelligenceService,
+  ) {}
+
+  /**
+   * Early check for "Mlango kwa mlango ndani ya mji" (KNOWN_FAULTS #24): is an
+   * online agent with a base point available in this city right now? If not,
+   * the nearest Super Agent office, so the sender can bring the parcel in.
+   */
+  async doorCheck(dto: DoorCheckDto) {
+    const city = typeof dto?.fromCity === 'string' ? dto.fromCity.trim() : '';
+    const weight = Number(dto?.weightKg);
+    if (!city || !Number.isFinite(weight) || weight <= 0) throw new BadRequestException('fromCity and a positive weightKg are required');
+    const agents = await this.agents.getAvailableAgents(city, weight);
+    if (agents.some((a: any) => a.hasBasePoint)) return { available: true, nearestOffice: null };
+    return { available: false, ...NO_AGENT_NOW, nearestOffice: await this.nearestOffice(city, dto.origin) };
+  }
+
+  private async nearestOffice(city: string, origin: any) {
+    if (!this.db) return null;
+    let point: { latitude: number; longitude: number } | null = null;
+    const place = origin?.place;
+    if (this.locations && typeof place?.providerKey === 'string' && typeof place?.providerPlaceId === 'string') {
+      const candidate: any = await this.locations.resolve({ providerKey: place.providerKey, providerPlaceId: place.providerPlaceId }).catch(() => null);
+      if (Number.isFinite(Number(candidate?.latitude)) && Number.isFinite(Number(candidate?.longitude))) {
+        point = { latitude: Number(candidate.latitude), longitude: Number(candidate.longitude) };
+      }
+    }
+    return findNearestOffice(this.db, city, point);
+  }
 
   async commit(userId: number, dto: CommitServiceOfferDto) {
     // Re-discover immediately: the client cannot commit a stale/fabricated service.
     const offers = await this.discover(dto);
     if (dto.serviceType === 'direct_delivery') {
-      if (!offers.some(o => o.serviceType === 'direct_delivery')) throw new BadRequestException('Direct delivery is no longer fulfillable');
+      if (!offers.some(o => o.serviceType === 'direct_delivery')) {
+        // Same answer as the early check, in Swahili, with the nearest office.
+        throw new BadRequestException({ statusCode: 400, error: 'Bad Request', ...NO_AGENT_NOW,
+          nearestOffice: await this.nearestOffice(dto.fromCity, dto.origin).catch(() => null) });
+      }
       return this.journeys.selectDirectDelivery(userId, {
         origin: dto.origin, destination: dto.destination,
         originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
@@ -101,13 +144,17 @@ export class LogisticsServiceOfferService {
     const deliveryFee = dto.delivery === 'door' && deliveryAgent ? Number(deliveryAgent.deliveryFee ?? 0) : 0;
 
     if (sameCity) {
-      const directAgent: any = dto.pickup === 'door' ? pickupAgent : deliveryAgent;
+      // Door pickup needs an online agent WITH a base point (the same rule as
+      // the early check, doorCheck): pickups go to the nearest base first.
+      const pickupAgents = originAgents.filter((a: any) => a.hasBasePoint);
+      const directAgent: any = dto.pickup === 'door' ? pickupAgents[0] : deliveryAgent;
       if (!directAgent) return [];
+      const directPickupFee = dto.pickup === 'door' ? Number(directAgent.collectionFeeUrban ?? directAgent.deliveryFee ?? 0) : 0;
       return [{
-        serviceType: 'direct_delivery', name: 'Direct Delivery', price: Math.max(pickupFee, deliveryFee), currency: 'TZS',
+        serviceType: 'direct_delivery', name: 'Direct Delivery', price: Math.max(directPickupFee, deliveryFee), currency: 'TZS',
         etaLabel: directAgent.deliveryTime ?? 'Same day',
-        firstAction: dto.pickup === 'door' && originAgents.length > 0
-          ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
+        firstAction: dto.pickup === 'door' && pickupAgents.length > 0
+          ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: pickupAgents.map((a: any) => a.id) }
           : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
         fulfillment: { pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff', linehaul: 'none', delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect' },
       }];

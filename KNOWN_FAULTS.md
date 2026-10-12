@@ -341,3 +341,20 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
   from a pin named Gerezani for Posta and Kariakoo, Kawe for Mbezi Beach. Hidden from agents
   (`SHOW_PIN_WARD=false`) until the list is complete. Owner can check live with
   `C:\Users\BISHOO GROUP\release-c\check-ward-points.ps1`.
+
+## 24. Same-city door booking with no agent ends in an English error — ON LIVE TODAY (found 2026-10-12)
+
+- Live code (3c85d0a) always shows "Mlango kwa mlango ndani ya mji" when both places are in one region,
+  but the booking is only possible while an agent of that city is online. With no agent online (live has
+  none today) the sender fills in every step and "Thibitisha Kifurushi" answers in English: "Direct
+  delivery is no longer fulfillable" (`logistics-service-offer.service.ts`, commit step). Nothing is saved.
+- FIXED locally (Release D, not live yet):
+  - Early check `POST /transport/service-offers/door-check` right after the search: is an online agent
+    WITH a base point in this city? If not, the option is marked "Hakuna wakala sasa hivi", cannot be
+    chosen, and the nearest active Super Agent office of that city is shown (name, phone, "Fungua
+    ramani", rough distance from the chosen place) with "Peleka mzigo ofisini".
+  - "Thibitisha Kifurushi" with no agent (the last one went offline meanwhile) shows the same Swahili
+    card instead of the English line.
+  - Same-city offers now need an agent with a base point too, so both checks always agree.
+- Offices without a map point (latitude/longitude) are still shown, without "Fungua ramani" and
+  without distance. Unknown how many live offices have a map point (not checked on live).
