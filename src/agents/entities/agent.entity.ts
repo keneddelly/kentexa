@@ -171,6 +171,18 @@ export class Agent {
   @Column({ type: 'timestamp', nullable: true })
   lastOnlineAt: Date | null;
 
+  // Fixed base point set once with the phone's GPS ("Weka kituo changu",
+  // migration 1791800000000). Required to go online and accept pickups; used to
+  // offer a pickup to the nearest agents first. No live position is stored.
+  @Column({ type: 'double precision', nullable: true })
+  baseLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  baseLongitude: number | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  baseSetAt: Date | null;
+
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

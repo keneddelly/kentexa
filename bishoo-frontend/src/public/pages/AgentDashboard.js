@@ -24,6 +24,7 @@ import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import ShipmentPickupQueue from '../components/ShipmentPickupQueue';
+import AgentBasePoint from '../components/AgentBasePoint';
 
 // ── Status colours used across both order and parcel cards ────────────────
 const STATUS_COLOR = {
@@ -278,6 +279,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       }
     } catch (err) {
       console.error('Toggle failed:', err);
+      // e.g. "Weka kituo chako kwanza" (section 18 b) — never fail silently.
+      setError(err?.response?.data?.message || t('common.error_try_again', 'Imeshindikana. Jaribu tena.'));
     } finally { setTogglingOnline(false); }
   };
 
@@ -629,6 +632,12 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             <span>✅ {success}</span>
             <button onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button>
           </div>
+        )}
+
+        {/* Section 18 (b): fixed base point, required to go online and accept pickups. */}
+        {profile?.status === 'approved' && (
+          <AgentBasePoint hasBasePoint={!!profile?.hasBasePoint} baseSetAt={profile?.baseSetAt}
+            onSaved={(d) => setProfile((p) => ({ ...p, hasBasePoint: true, baseSetAt: d?.baseSetAt }))} />
         )}
 
         {/* ── NOT APPROVED YET ─────────────────────────────────────────── */}

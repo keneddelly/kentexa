@@ -60,6 +60,14 @@ export class AgentsController {
     return this.service.toggleOnline(req.user);
   }
 
+  // ── Agent: "Weka kituo changu" — fixed base point from the phone's GPS (section 18 b) ──
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  @Patch('my-base')
+  setBasePoint(@Request() req, @Body() body: { latitude?: number; longitude?: number; accuracyM?: number }) {
+    return this.service.setBasePoint(req.user, body);
+  }
+
   // ── Agent: update own profile ─────────────────────────────────────────────
   @UseGuards(RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.AGENT)

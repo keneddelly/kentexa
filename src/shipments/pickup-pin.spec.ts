@@ -71,7 +71,10 @@ describe('what the agent sees', () => {
     expect(SHOW_PIN_WARD).toBe(false); // wrong names with today's ward list (Posta -> Gerezani)
     expect(job.pickupWard).toBeNull();
     expect(JSON.stringify(job)).not.toMatch(/-6\.8155|39\.2866|Geti jeusi|0712000111/);
-    expect(s.db.query.mock.calls[0][0]).not.toMatch(/pickupPinLatitude|pickupLandmark/);
+    // (b) reads the point on the server only to compute the rounded distance; it is never returned.
+    expect(s.db.query.mock.calls[0][0]).not.toMatch(/pickupLandmark/);
+    expect(job).not.toHaveProperty('pointLat');
+    expect(job).not.toHaveProperty('pointLng');
   });
 
   it('AFTER accepting (my jobs, going to collect): the pickup point; not once collected', async () => {

@@ -5699,5 +5699,13 @@
     "landmark_label": "Landmark (required)",
     "landmark_placeholder": "e.g. Black gate next to the Mbezi mosque",
     "landmark_hint": "5 to 160 characters."
+  },
+  "agent_base": {
+    "title": "Set your base point first",
+    "explain": "Stand where you start work each day, then press the button. Pickup jobs near your base reach you first. You cannot go online without a base point.",
+    "button": "📍 Set my base point",
+    "saved": "Your base point is saved.",
+    "set_on": "Your base point is set ({{date}}).",
+    "change": "Change"
   }
 }

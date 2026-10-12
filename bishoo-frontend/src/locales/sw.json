@@ -5629,5 +5629,13 @@
     "landmark_label": "Alama ya mahali (lazima)",
     "landmark_placeholder": "Mfano: Geti jeusi karibu na msikiti wa Mbezi",
     "landmark_hint": "Herufi 5 hadi 160."
+  },
+  "agent_base": {
+    "title": "Weka kituo chako kwanza",
+    "explain": "Simama mahali unapoanzia kazi kila siku, kisha bonyeza kitufe. Kazi za kuchukua mizigo zitakufikia kwanza zikiwa karibu na kituo chako. Huwezi kuwa mtandaoni bila kituo.",
+    "button": "📍 Weka kituo changu",
+    "saved": "Kituo chako kimehifadhiwa.",
+    "set_on": "Kituo chako kimewekwa ({{date}}).",
+    "change": "Badilisha"
   }
 }

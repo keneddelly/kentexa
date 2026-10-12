@@ -5687,5 +5687,13 @@
     "landmark_label": "Point de repère (obligatoire)",
     "landmark_placeholder": "ex. Portail noir à côté de la mosquée de Mbezi",
     "landmark_hint": "5 à 160 caractères."
+  },
+  "agent_base": {
+    "title": "Définissez d'abord votre point de base",
+    "explain": "Placez-vous là où vous commencez le travail chaque jour, puis appuyez sur le bouton. Les ramassages proches de votre base vous arrivent en premier. Vous ne pouvez pas être en ligne sans point de base.",
+    "button": "📍 Définir mon point de base",
+    "saved": "Votre point de base est enregistré.",
+    "set_on": "Votre point de base est défini ({{date}}).",
+    "change": "Modifier"
   }
 }

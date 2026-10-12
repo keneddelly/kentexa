@@ -115,3 +115,60 @@ export function pickupPointForAgent(r: {
     note: hasPin ? null : PICKUP_PIN_MESSAGES.noPin,
   };
 }
+
+// ── Section 18 (b): agent base point and nearest-first ─────────────────────
+
+export const AGENT_BASE_MESSAGES = {
+  required: 'Weka kituo chako kwanza: bonyeza "📍 Weka kituo changu" ukiwa mahali unapoanzia kazi.',
+  saved: 'Kituo chako kimehifadhiwa.',
+  weak: 'Usahihi wa GPS ni mdogo (zaidi ya mita 500). Jaribu ukiwa nje, kisha bonyeza tena.',
+} as const;
+const MAX_BASE_ACCURACY_M = 500;
+
+/** The agent's base point from the phone, validated (inside Tanzania, accuracy <= 500 m). */
+export function readAgentBasePoint(body: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown }) {
+  const lat = Number(body?.latitude);
+  const lng = Number(body?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new BadRequestException(PICKUP_PIN_MESSAGES.pinInvalid);
+  if (lat < TZ_BOX.minLat || lat > TZ_BOX.maxLat || lng < TZ_BOX.minLng || lng > TZ_BOX.maxLng) {
+    throw new BadRequestException(PICKUP_PIN_MESSAGES.pinOutsideTanzania);
+  }
+  const accuracy = body?.accuracyM == null ? null : Number(body.accuracyM);
+  if (accuracy != null && (!Number.isFinite(accuracy) || accuracy > MAX_BASE_ACCURACY_M)) {
+    throw new BadRequestException(AGENT_BASE_MESSAGES.weak);
+  }
+  return { latitude: Math.round(lat * 1e6) / 1e6, longitude: Math.round(lng * 1e6) / 1e6 };
+}
+
+/** Straight-line distance in metres (haversine). */
+export function distanceM(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Distance for the open-jobs list BEFORE accepting: rounded, never the exact point. */
+export function roughDistanceLabel(metres: number | null | undefined): string | null {
+  if (metres == null || !Number.isFinite(metres)) return null;
+  if (metres < 1000) return `~${Math.max(100, Math.round(metres / 100) * 100)} m`;
+  return `~${(Math.round(metres / 500) * 0.5).toFixed(1)} km`;
+}
+
+/**
+ * SQL distance (metres) between a pickup point and an agent base, for ORDER BY.
+ * The pickup point is the sender's pin, else the server-derived place point.
+ * NULL when either side has no point.
+ */
+export const PICKUP_TO_BASE_DISTANCE_SQL = `
+  CASE WHEN a."baseLatitude" IS NULL OR a."baseLongitude" IS NULL
+         OR COALESCE(s."pickupPinLatitude", s."originLatitude") IS NULL
+         OR COALESCE(s."pickupPinLongitude", s."originLongitude") IS NULL
+       THEN NULL  -- no distance at all (LEAST() would otherwise ignore the NULL and return half the Earth)
+       ELSE 2 * 6371000 * asin(least(1, sqrt(
+         power(sin(radians((a."baseLatitude" - COALESCE(s."pickupPinLatitude", s."originLatitude")) / 2)), 2) +
+         cos(radians(COALESCE(s."pickupPinLatitude", s."originLatitude"))) * cos(radians(a."baseLatitude")) *
+         power(sin(radians((a."baseLongitude" - COALESCE(s."pickupPinLongitude", s."originLongitude")) / 2)), 2))))
+  END`;

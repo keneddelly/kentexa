@@ -179,6 +179,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
           </div>
           {/* Before accepting: the ward only — the exact pin comes after accepting. */}
           {job.pickupWard && <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Kata (karibu): {job.pickupWard}</div>}
+          {job.distance && <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>📍 Umbali kutoka kituo chako: {job.distance}</div>}
           <div style={{ marginTop: 10 }}>
             <button style={btn(true)} disabled={busy === job.id}
               onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/claim`), 'Job claimed. Contact the sender to collect.')}>

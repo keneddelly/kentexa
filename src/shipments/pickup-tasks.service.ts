@@ -10,7 +10,7 @@ import { ShipmentHubSource } from './shipment-hub-source';
 import { projectShipment, projectShipmentForParcel } from './shipment-projection';
 import { SmsService } from '../sms/sms.service';
 import { customerParcelNumber } from '../super-agents/customer-parcel-number';
-import { pickupPointForAgent, SHOW_PIN_WARD } from './pickup-pin';
+import { AGENT_BASE_MESSAGES, distanceM, pickupPointForAgent, roughDistanceLabel, SHOW_PIN_WARD } from './pickup-pin';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
@@ -154,10 +154,14 @@ export class PickupTasksService {
           s[0].status !== 'confirmed' || p[0].status !== 'pending') {
         throw new ConflictException('Pickup task is no longer available');
       }
-      const agent: any[] = await em.query(`SELECT id,city,status,"userId" FROM public.agent
+      const agent: any[] = await em.query(`SELECT id,city,status,"userId","baseLatitude","baseLongitude" FROM public.agent
         WHERE id=$1 FOR UPDATE`, [role.profileId]);
       if (agent.length !== 1 || agent[0].userId !== userId || agent[0].status !== 'approved') {
         throw new ForbiddenException('Approved active Agent profile required');
+      }
+      // Section 18 (b): a base point is required to accept a pickup.
+      if (agent[0].baseLatitude == null || agent[0].baseLongitude == null) {
+        throw new BadRequestException(AGENT_BASE_MESSAGES.required);
       }
       if (!normalizeCity(agent[0].city) || normalizeCity(agent[0].city) !== normalizeCity(s[0].originCity)) {
         throw new ForbiddenException('Agent does not cover this pickup city');
@@ -197,7 +201,7 @@ export class PickupTasksService {
   }
 
   private async approvedAgent(em: any, role: RoleContext, userId: number, lock = true) {
-    const rows: any[] = await em.query(`SELECT id,city,status,"userId","fullName" FROM public.agent
+    const rows: any[] = await em.query(`SELECT id,city,status,"userId","fullName","baseLatitude","baseLongitude" FROM public.agent
       WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [role.profileId]);
     if (rows.length !== 1 || rows[0].userId !== userId || rows[0].status !== 'approved') {
       throw new ForbiddenException('Approved active Agent profile required');
@@ -592,7 +596,9 @@ export class PickupTasksService {
       `SELECT t.id, t."servicePath", t."createdAt", t."originSnapshot",
               s."destinationLocationLabel", s."destinationCity", s."originCity",
               s."itemDescription", s."weightKg", h."businessName" AS "originHubName",
-              pw.name AS "pickupWardName"
+              pw.name AS "pickupWardName",
+              COALESCE(s."pickupPinLatitude", s."originLatitude") AS "pointLat",
+              COALESCE(s."pickupPinLongitude", s."originLongitude") AS "pointLng"
          FROM public.parcel_pickup_task t
          JOIN public.parcel p ON p.id = t."parcelId"
          JOIN public.shipment s ON s.id = p."shipmentId"
@@ -603,10 +609,17 @@ export class PickupTasksService {
         ORDER BY t."createdAt" ASC LIMIT 50`,
       [normalizeCity(agent.city)],
     );
-    return rows.map((r) => ({
+    // Section 18 (b): distance from the agent's base, rounded; nearest first.
+    const hasBase = agent.baseLatitude != null && agent.baseLongitude != null;
+    const dist = (r: any) => (hasBase && r.pointLat != null && r.pointLng != null
+      ? distanceM(Number(agent.baseLatitude), Number(agent.baseLongitude), Number(r.pointLat), Number(r.pointLng)) : null);
+    const ranked = rows.map((r) => ({ r, d: dist(r) }))
+      .sort((x, y) => (x.d == null ? 1 : 0) - (y.d == null ? 1 : 0) || (x.d ?? 0) - (y.d ?? 0));
+    return ranked.map(({ r, d }) => ({
       id: r.id,
       servicePath: r.servicePath as PickupServicePath,
       requestedAt: r.createdAt,
+      distance: roughDistanceLabel(d),
       pickupArea: r.originSnapshot?.label ?? r.originSnapshot?.district ?? r.originCity,
       // Before accepting: at most the ward (approximate, off for now), never the pin or the landmark.
       pickupWard: SHOW_PIN_WARD ? r.pickupWardName ?? null : null,

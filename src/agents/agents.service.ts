@@ -1,3 +1,4 @@
+import { AGENT_BASE_MESSAGES, readAgentBasePoint } from '../shipments/pickup-pin';
 import {
   Injectable,
   NotFoundException,
@@ -130,6 +131,9 @@ export class AgentsService {
       fullName: agent.fullName,
       phone: agent.phone,
       city: agent.city,
+      // Section 18 (b): whether the fixed base point is set (required to go online).
+      hasBasePoint: agent.baseLatitude != null && agent.baseLongitude != null,
+      baseSetAt: agent.baseSetAt ?? null,
       district: agent.district,
       region: agent.region,
       agentCode: agent.agentCode,
@@ -486,6 +490,16 @@ export class AgentsService {
   }
   // ── Agent: toggle online/offline ─────────────────────────────────────────
 
+  /** "Weka kituo changu": the agent's fixed base point from the phone's GPS (section 18 b). */
+  async setBasePoint(user: User, body: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown }) {
+    const agent = await this.agentRepo.findOne({ where: { user: { id: user.id } } });
+    if (!agent) throw new NotFoundException('Wakala hapatikani');
+    const point = readAgentBasePoint(body);
+    const baseSetAt = new Date();
+    await this.agentRepo.update(agent.id, { baseLatitude: point.latitude, baseLongitude: point.longitude, baseSetAt });
+    return { hasBasePoint: true, baseSetAt, message: AGENT_BASE_MESSAGES.saved };
+  }
+
   async toggleOnline(user: User) {
     const agent = await this.agentRepo.findOne({
       where: { user: { id: user.id } },
@@ -495,6 +509,10 @@ export class AgentsService {
       throw new BadRequestException('Akaunti haijaidhinishwa bado');
 
     const nowOnline = !(agent as any).isOnline;
+    // Section 18 (b): a base point is required before going online.
+    if (nowOnline && (agent.baseLatitude == null || agent.baseLongitude == null)) {
+      throw new BadRequestException(AGENT_BASE_MESSAGES.required);
+    }
     await this.agentRepo.update((agent as any).id, {
       isOnline: nowOnline,
       lastOnlineAt: nowOnline ? new Date() : (agent as any).lastOnlineAt,
