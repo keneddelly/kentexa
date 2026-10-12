@@ -18,6 +18,26 @@ waybill exists in the database and is searchable, but the customer never sees it
 section 1 below ("Waybill on the Super Agent counter"). Old numbers must keep working everywhere.
 Then Release C: desk faults C1/C2 (section 9) and the walk-in claim code, option (a) (section 15).
 
+## DONE 2026-10-12 — Release B live
+
+- **Owner's changes to the checklist:** copy rehearsal SKIPPED (owner's decision: migrations only add,
+  run in a transaction, 3 days of point-in-time recovery + a fresh export); the nightly reminder is
+  **ON** from the first night (no `DISPATCH_REMINDER_ENABLED=false`; offices were told).
+- Fresh export made by the owner before the run.
+- 09:41–09:43 Tanzania time: `release-b.ps1 -Target live` — live host confirmed, start check
+  1791514900000, B1 1791600000000 and B2 1791700000000 applied with all checks OK (130 old parcels kept
+  no waybill); newest migrations 1791700000000, 1791600000000, 1791514900000; tracking test 404. Log:
+  `C:\Users\BISHOO GROUP\release-b\release-b-live-20261012-094026.log`.
+- 09:48: pushed `marketplace-basic` → `worktree-service-provider-profiles`, fast-forward
+  `4d692ee..d4f27a5`; render.yaml unchanged (no Blueprint sync). Auto-Deploy On Commit.
+- 09:50: `/version` = `d4f27a5`, started 2026-10-12T06:50:07Z. Public checks: unknown KTX-SHP → 404,
+  unknown parcel → 404, receipt and dispatch-reminder routes without login → 401 (routes exist).
+  Website bundle `main.cfdebfb8.js` contains the new counter texts, calls `https://api.kentexa.com`,
+  no `localhost`.
+- **Still to check:** Render logs (`Timed jobs: 9 registered, each once`; no `does not exist`); first
+  real walk-in today: waybill + receipt reopen + Kabidhi (checklist tests 4, 8); Mizigo Yangu; recipient
+  pickup with code; tonight 22:00–23:30 the reminder log line (one per tick) and the office SMS.
+
 ## Status on live — 2026-10-11 (owner)
 
 - Release A done (below). Tracking an unknown number gives 404; single-parcel dispatch works.
