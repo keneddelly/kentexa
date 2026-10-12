@@ -837,3 +837,13 @@ Never pushed before Release D is live AND migration 1791900000000 is on live.
 - After the release, the owner marks: Air Doctor Express, Air Doctor Express 2, Bishoo shipping cargo,
   FOVOTX, Habibu shipping express. Real offices stay unmarked: Ar SAMATTA TRANSPORTATION SERVICES,
   MTANDAO TRANSPORT TZ.
+- **Built (2026-10-12, branch `training-office`, not pushed):** 13c4688 (mark + admin switch), c4111f6
+  (never in customer/business office lists; office-to-office same kind), 1dc6930 (hidden from public
+  profile pages, search, feeds/discovery), bc0580c (no real SMS: text shown on screen as "SMS ingetumwa
+  kwa ...", incl. claim code and the nightly reminder).
+- **release-e.ps1 READY and tested locally:** copy run with smoke start of the new code — ALL OK;
+  "live" path — ALL OK (tracking 404); refusals (lower-case yes, copy on live host, live on other host,
+  bad address, second run) — all STOP, nothing changed; password in no log. Release D code also ran fine
+  on the migrated database (so: migration first, then push, is safe).
+- **Release E order:** Release D live first → `release-e.ps1 -Target live` → "migration done" → merge
+  `training-office` into the release branch → "push" → owner marks the 5 test offices in Admin.
