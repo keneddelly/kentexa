@@ -153,7 +153,7 @@ export class SearchController {
           ? this.serviceAdRepo.find({ where: { id: In(idsByType.service) } })
           : [],
         idsByType.profile?.length
-          ? this.profileRepo.find({ where: { id: In(idsByType.profile) } })
+          ? this.profileRepo.find({ where: { id: In(idsByType.profile), hiddenFromPublic: false } })
           : [],
         idsByType.moment?.length
           ? this.momentRepo.find({ where: { id: In(idsByType.moment), isActive: true } })

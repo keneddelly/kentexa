@@ -451,7 +451,8 @@ export class SuperAgentsService {
     const agent = await this.superAgentRepo.findOne({
       where: { user: { id: userId } },
     });
-    if (!agent || agent.status !== SuperAgentStatus.ACTIVE) return null;
+    // A training office has no public hub page.
+    if (!agent || agent.status !== SuperAgentStatus.ACTIVE || isTrainingOffice(agent)) return null;
     return {
       businessName: agent.businessName,
       city: agent.city,

@@ -179,6 +179,7 @@ export class CommerceProfilesService {
         .where('p.status = :status', { status: CommerceProfileStatus.ACTIVE })
         .andWhere('p.type = :type', { type: CommerceProfileType.BUSINESS })
         .andWhere('p.ownerId != :userId', { userId })
+        .andWhere('p.hiddenFromPublic = false')
         .andWhere('p.id NOT IN (:...excludedIds)', { excludedIds })
         .andWhere('LOWER(p.location) ~ :location', { location: `(^|[^a-z])${escaped}([^a-z]|$)` })
         .orderBy('p.isVerified', 'DESC')
@@ -210,6 +211,7 @@ export class CommerceProfilesService {
     return this.repo
       .createQueryBuilder('p')
       .where('p.status = :status', { status: CommerceProfileStatus.ACTIVE })
+      .andWhere('p.hiddenFromPublic = false') // training offices etc. never in search
       .andWhere(
         `((LOWER(p.displayName) LIKE :q OR LOWER(p.username) LIKE :q) OR ${keywordClause})`,
         { q: `%${query.toLowerCase()}%`, ...keywordParams },
@@ -218,6 +220,18 @@ export class CommerceProfilesService {
       .addOrderBy('p.followersCount', 'DESC')
       .take(limit)
       .getMany();
+  }
+
+  /**
+   * A profile hidden from the public (training office) is visible only to its
+   * owner, its staff (anyone who can act as it) and admins.
+   */
+  async canSeeHidden(profile: CommerceProfile, viewer?: { id?: number; role?: string } | null): Promise<boolean> {
+    if (!profile.hiddenFromPublic) return true;
+    if (!viewer?.id) return false;
+    if (viewer.role === 'admin' || viewer.id === profile.ownerId) return true;
+    const mine = await this.findAccessibleForUser(viewer.id).catch(() => [] as any[]);
+    return (mine as any[]).some((p) => p?.id === profile.id);
   }
 
   async findById(id: number): Promise<CommerceProfile> {

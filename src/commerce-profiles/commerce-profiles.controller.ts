@@ -11,6 +11,7 @@ import {
   Request,
   ParseIntPipe,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
@@ -35,8 +36,11 @@ export class CommerceProfilesController {
 
   // Public — the future `/@username` route resolves through this.
   @Get('username/:username')
-  getByUsername(@Param('username') username: string) {
-    return this.service.findByUsername(username);
+  @UseGuards(OptionalJwtAuthGuard)
+  async getByUsername(@Request() req, @Param('username') username: string) {
+    const profile = await this.service.findByUsername(username);
+    // A hidden profile (training office) answers like an unknown username.
+    return profile && (await this.service.canSeeHidden(profile, req.user)) ? profile : null;
   }
 
   // Public — People/Businesses results for unified search. Must be
@@ -53,8 +57,11 @@ export class CommerceProfilesController {
   // etc.) without guessing from role state. Also the seed for the future
   // "Also on Kentexa" cross-links between a person's profiles.
   @Get('for-user/:userId')
-  getForUser(@Param('userId', ParseIntPipe) userId: number) {
-    return this.service.findForUser(userId);
+  @UseGuards(OptionalJwtAuthGuard)
+  async getForUser(@Request() req, @Param('userId', ParseIntPipe) userId: number) {
+    const profiles = await this.service.findForUser(userId);
+    const visible = await Promise.all(profiles.map((p) => this.service.canSeeHidden(p, req.user)));
+    return profiles.filter((_p, i) => visible[i]);
   }
 
   // Every profile the caller can ACT AS — owned, plus any they're an
@@ -76,6 +83,8 @@ export class CommerceProfilesController {
   @UseGuards(OptionalJwtAuthGuard)
   async getById(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const profile = await this.service.findById(id);
+    // A hidden profile (training office) answers like an unknown profile.
+    if (!(await this.service.canSeeHidden(profile, req.user))) throw new NotFoundException('Commerce profile not found');
     const [isFollowing, isFollowedBy, followersCount, followingCount] = await Promise.all([
       this.service.isFollowing(req.user?.id, id),
       this.service.isFollowedBy(id, req.user?.id),

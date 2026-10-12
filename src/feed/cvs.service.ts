@@ -47,6 +47,7 @@ import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
+import { NOT_FROM_HIDDEN_PROFILE } from '../commerce-profiles/public-visibility';
 
 @Injectable()
 export class CvsService {
@@ -548,6 +549,7 @@ export class CvsService {
             .leftJoin('f.business', 'b')
             .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo'])
             .where('f.id IN (:...ids)', { ids: postIds })
+            .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
             .getMany()
         : [],
       byType.classified.length
@@ -774,7 +776,8 @@ export class CvsService {
         'b.phone',
         'b.role',
       ])
-      .where('f.isActive = true');
+      .where('f.isActive = true')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f')); // training offices etc. never in public feeds
 
     let [topPurchased, fastestGrowing, topBusinesses, topServices, topRoutes] =
       (await Promise.all([
@@ -1134,6 +1137,7 @@ export class CvsService {
         'b.role',
       ])
       .where('f.isActive = true')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
       .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
 
     // Once a user has genuinely viewed a post, it drops out of the
@@ -1267,6 +1271,7 @@ export class CvsService {
           'b.role',
         ])
         .where('f.isActive = true')
+        .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
         .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
         .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`)
         .andWhere(

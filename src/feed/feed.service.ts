@@ -35,6 +35,7 @@ import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 import { SearchIndexService } from '../search/search-index.service';
+import { NOT_FROM_HIDDEN_PROFILE } from '../commerce-profiles/public-visibility';
 
 export type FeedFilter =
   | 'for_you'
@@ -437,6 +438,7 @@ export class FeedService {
       .createQueryBuilder('f')
       .leftJoinAndSelect('f.business', 'b')
       .where('f.type IN (:...types)', { types: ['moment', 'looking_for'] })
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
       .andWhere('f.isActive = true')
       .andWhere('f.createdAt > :since', { since })
       .orderBy('f.createdAt', 'DESC')
@@ -602,6 +604,7 @@ export class FeedService {
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
+          .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
           .andWhere('f.createdAt > :cutoff', { cutoff: cutoff7d })
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
           .orderBy('f.cvsScore', 'DESC')
@@ -627,6 +630,7 @@ export class FeedService {
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
+          .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
         // Following someone's Business profile (or a legacy account-level
         // follow) surfaces everything under that businessId; following any
@@ -747,6 +751,7 @@ export class FeedService {
                 .createQueryBuilder('f')
                 .leftJoinAndSelect('f.business', 'b')
                 .where('f.isActive = true')
+                .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
                 .andWhere(
                   new Brackets((sub) => {
                     if (forYouFollowed.businessScopedIds.length > 0) {
@@ -769,6 +774,7 @@ export class FeedService {
             .createQueryBuilder('f')
             .leftJoinAndSelect('f.business', 'b')
             .where('f.isActive = true')
+            .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
             .andWhere('f.createdAt > :cutoff', { cutoff: cutoff7d })
             .orderBy('f.cvsScore', 'DESC')
             .take(5)
@@ -872,6 +878,7 @@ export class FeedService {
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
+          .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
           .andWhere('f.createdAt > :cutoff', {
             cutoff: new Date(Date.now() - 6 * 60 * 60 * 1000),
           })
@@ -1045,6 +1052,7 @@ export class FeedService {
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
+          .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
         qb.andWhere(
           new Brackets((sub) => {
