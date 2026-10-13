@@ -5720,6 +5720,11 @@
     "change": "Change",
     "saved": "Office location saved."
   },
+  "office_signup": {
+    "identity_title": "First: your ID",
+    "identity_desc": "An office needs its owner’s ID. Send it once; it is used everywhere on KenteXa.",
+    "identity_waiting_note": "You can apply now. The office is approved and shown to customers after your ID is verified."
+  },
   "identity_state": {
     "waiting_title": "Your ID is waiting for verification",
     "waiting_seller": "You have already sent your ID. You can continue selling once KenteXa verifies it. No need to send it again."

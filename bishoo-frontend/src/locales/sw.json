@@ -5650,6 +5650,11 @@
     "change": "Badilisha",
     "saved": "Mahali pa ofisi pamehifadhiwa."
   },
+  "office_signup": {
+    "identity_title": "Kwanza: kitambulisho chako",
+    "identity_desc": "Ofisi inahitaji kitambulisho cha mwenye ofisi. Kitume mara moja tu; kitatumika kila mahali kwenye KenteXa.",
+    "identity_waiting_note": "Unaweza kuomba sasa. Ofisi itaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa."
+  },
   "identity_state": {
     "waiting_title": "Kitambulisho kinasubiri uthibitisho",
     "waiting_seller": "Umeshatuma kitambulisho chako. Utaweza kuendelea na kuuza baada ya KenteXa kukithibitisha. Huna haja ya kukituma tena."

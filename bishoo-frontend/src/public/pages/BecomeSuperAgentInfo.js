@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
+import useIdentityRefresh from '../../utils/useIdentityRefresh';
 
 // Fallback only — the real list is fetched from the backend's canonical
 // TANZANIA_CITIES (GET /super-agents/cities) so this page doesn't carry
@@ -24,6 +27,17 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
   const step = 'info';
   const [existingProfile, setExistingProfile] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
+  // The account's ID (utils/identityState): sent in = may apply; the admin
+  // approves the office only once it is verified.
+  const [identityStatus, setIdentityStatus] = useState(null);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
+  useIdentityRefresh(setIdentityStatus, isLoggedIn);
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/identity/me').then((r) => setIdentityStatus(r.data)).catch(() => setIdentityStatus({ status: 'not_submitted', level: 0 }));
+  }, [isLoggedIn]);
+  const needsId = isLoggedIn && needsIdentityStep(identityStatus);
+  const idWaiting = isLoggedIn && identityState(identityStatus) === 'waiting';
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
   const [form, setForm] = useState({
@@ -71,12 +85,11 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
     }
     try {
       setLoading(true); setError('');
-      await api.post('/super-agents/apply', form);
-      // Match the logistics role pattern: the server creates the active
-      // Super Agent role, then the client refreshes authoritative RoleContext
-      // before entering the operational dashboard.
+      const res = await api.post('/super-agents/apply', form);
+      // A new office waits for admin approval: show its "pending" status here
+      // instead of opening an office dashboard it cannot use yet.
       await onRefreshContext?.();
-      onNavigate('SuperAgentDashboard');
+      setExistingProfile({ ...(res.data || {}), status: res.data?.status || 'pending' });
     } catch (err) {
       setError(err?.response?.data?.message || t('become_super_agent_info.submit_failed'));
     } finally { setLoading(false); }
@@ -196,9 +209,25 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
               {t('become_super_agent_info.back_home_button')}
             </button>
           </div>
+        ) : !existingProfile && needsId ? (
+          <div data-testid="office-identity-step" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>{t('office_signup.identity_title')}</div>
+            <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>
+              {identityState(identityStatus) === 'rejected' ? t('agent_signup.identity_rejected') : t('office_signup.identity_desc')}
+            </div>
+            <button onClick={() => setShowVerifyIdentity(true)}
+              style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 800 }}>
+              {t('agent_signup.identity_button')}
+            </button>
+          </div>
         ) : !existingProfile ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>{t('become_super_agent_info.form_title')}</h3>
+            {idWaiting && (
+              <div role="status" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
+                <strong>{t('identity_state.waiting_title')}</strong><br />{t('office_signup.identity_waiting_note')}
+              </div>
+            )}
 
             {error && (
               <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
@@ -258,6 +287,11 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
           </div>
         ) : null}
       </div>
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); setIdentityStatus((p) => afterIdentitySent(p)); }} />
+      )}
 
     </div>
   );

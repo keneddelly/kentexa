@@ -66,6 +66,7 @@ import { FRONTEND_URL } from '../config/urls.config';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Sale, SaleStatus } from '../sales/entities/sale.entity';
 import { VerificationService } from '../identity/verification.service';
+import { IdentityVerificationStatus } from '../identity/entities/identity-profile.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { RoleContextService } from '../role-context/role-context.service';
@@ -84,6 +85,14 @@ import { isTrainingOffice } from './training-office';
 
 /** "Weka mahali pa ofisi" (office map point from the phone's GPS). */
 export const OFFICE_POINT_METHOD = 'device_gps';
+
+/** Opening an office (owner 2026-10-13): ID sent in to apply, ID verified to be approved. */
+export const OFFICE_SIGNUP_MESSAGES = {
+  identityFirst: 'Tuma kitambulisho chako kwanza, kisha omba kufungua ofisi.',
+  identityRejected: 'Kitambulisho chako kilikataliwa. Kituma tena kwanza.',
+  submitted: 'Ombi la ofisi limepokelewa. Linasubiri idhini ya KenteXa; ofisi haitaonekana kwa wateja hadi iidhinishwe.',
+  approveNeedsVerified: 'Kitambulisho cha mwenye ofisi hii bado hakijathibitishwa. Thibitisha kitambulisho kwanza.',
+} as const;
 export const OFFICE_POINT_MESSAGES = { saved: 'Mahali pa ofisi pamehifadhiwa.' } as const;
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
@@ -312,6 +321,14 @@ export class SuperAgentsService {
       throw new BadRequestException(
         'You already have a super agent application',
       );
+    // Owner 2026-10-13: an office needs the account's ID sent in (waiting is
+    // fine); the admin approves it only once the ID is VERIFIED. Until then the
+    // office stays pending: hidden, no counter work, no money.
+    const identity = await this.verification.getIdentityProfile(user.id);
+    if (identity?.status === IdentityVerificationStatus.REJECTED) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.identityRejected);
+    if (identity?.status !== IdentityVerificationStatus.PENDING && identity?.status !== IdentityVerificationStatus.VERIFIED) {
+      throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.identityFirst);
+    }
     if (!TANZANIA_CITIES.includes(dto.city))
       throw new BadRequestException(`Invalid city: ${dto.city}`);
 
@@ -329,28 +346,24 @@ export class SuperAgentsService {
       phone: dto.phone,
       governmentId: dto.governmentId,
       governmentIdImage: dto.governmentIdImage || null,
-      status: SuperAgentStatus.ACTIVE,
+      status: SuperAgentStatus.PENDING,
       commissionRate: 10,
       shippingRates: {},
     });
 
     const saved = await this.superAgentRepo.save(agent);
 
-    // Super Agent registration is immediately active. There is no Admin
-    // approval or onboarding activation gate.
-    await this.userRepo.update(user.id, {
-      role: UserRole.SUPER_AGENT,
-      activeRoles: mergeActiveRole(user.activeRoles, 'super_agent'),
-    });
+    // A new office waits for admin approval (approve() activates the office,
+    // the account role and the business profile). Existing offices are untouched.
     await this.roleContextService.syncOperationalRole({
       userId: user.id,
       roleType: AccountRoleType.SUPER_AGENT,
-      status: AccountRoleStatus.ACTIVE,
+      status: AccountRoleStatus.PENDING,
       profileType: RoleProfileType.SUPER_AGENT,
       profileId: saved.id,
     });
     await this.commerceProfiles
-      .syncStatusByLink('superAgentId', saved.id, CommerceProfileStatus.ACTIVE)
+      .syncStatusByLink('superAgentId', saved.id, CommerceProfileStatus.PENDING)
       .catch(() => {});
 
     try {
@@ -361,12 +374,12 @@ export class SuperAgentsService {
         usernameSeed: saved.businessName,
         photoUrl: user.avatarUrl,
         location: saved.city,
-        status: CommerceProfileStatus.ACTIVE,
+        status: CommerceProfileStatus.PENDING,
         superAgentId: saved.id,
       });
     } catch {}
 
-    return saved;
+    return Object.assign(saved, { message: OFFICE_SIGNUP_MESSAGES.submitted });
   }
 
   async getMyProfile(user: User) {
@@ -1324,6 +1337,13 @@ export class SuperAgentsService {
   async approve(id: number) {
     const agent = await this.superAgentRepo.findOne({ where: { id } });
     if (!agent) throw new NotFoundException('Super agent not found');
+    // An office is approved (or reactivated) only with the owner's ID VERIFIED.
+    if (agent.user) {
+      const identity = await this.verification.getIdentityProfile(agent.user.id);
+      if (identity?.status !== IdentityVerificationStatus.VERIFIED) {
+        throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.approveNeedsVerified);
+      }
+    }
     agent.status = SuperAgentStatus.ACTIVE;
     const saved = await this.superAgentRepo.save(agent);
     if (agent.user) {

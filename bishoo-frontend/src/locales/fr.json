@@ -5708,6 +5708,11 @@
     "change": "Modifier",
     "saved": "Emplacement du bureau enregistré."
   },
+  "office_signup": {
+    "identity_title": "D’abord : votre pièce d’identité",
+    "identity_desc": "Un bureau a besoin de la pièce d’identité de son propriétaire. Envoyez-la une fois ; elle sert partout sur KenteXa.",
+    "identity_waiting_note": "Vous pouvez faire la demande maintenant. Le bureau sera approuvé et visible après la vérification de votre identité."
+  },
   "identity_state": {
     "waiting_title": "Votre pièce d’identité attend la vérification",
     "waiting_seller": "Vous avez déjà envoyé votre pièce d’identité. Vous pourrez vendre dès que KenteXa l’aura vérifiée. Inutile de la renvoyer."
