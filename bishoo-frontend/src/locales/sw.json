@@ -5693,7 +5693,8 @@
     "vehicle_truck": "🚛 Lori",
     "vehicle_foot": "🚶 Miguu",
     "max_kg_label": "Uzito wa juu unaoweza kubeba (kilo)",
-    "submit": "Tuma ombi"
+    "submit": "Tuma ombi",
+    "status_waiting_id_desc": "Ombi lako la kuwa wakala limepokelewa. Kitambulisho chako kikithibitishwa, KenteXa itaidhinisha ombi na utaanza kupokea kazi."
   },
   "agent_base": {
     "title": "Weka kituo chako kwanza",

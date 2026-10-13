@@ -5763,7 +5763,8 @@
     "vehicle_truck": "🚛 Truck",
     "vehicle_foot": "🚶 On foot",
     "max_kg_label": "Maximum weight you can carry (kg)",
-    "submit": "Send application"
+    "submit": "Send application",
+    "status_waiting_id_desc": "Your agent request was received. Once your ID is verified, KenteXa approves the request and you start receiving jobs."
   },
   "agent_base": {
     "title": "Set your base point first",

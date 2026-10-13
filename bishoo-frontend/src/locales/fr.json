@@ -5751,7 +5751,8 @@
     "vehicle_truck": "🚛 Camion",
     "vehicle_foot": "🚶 À pied",
     "max_kg_label": "Poids maximum transportable (kg)",
-    "submit": "Envoyer la demande"
+    "submit": "Envoyer la demande",
+    "status_waiting_id_desc": "Votre demande d’agent a été reçue. Une fois votre identité vérifiée, KenteXa approuve la demande et vous commencez à recevoir des missions."
   },
   "agent_base": {
     "title": "Définissez d'abord votre point de base",
