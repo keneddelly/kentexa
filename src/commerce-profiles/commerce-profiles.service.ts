@@ -174,7 +174,10 @@ export class CommerceProfilesService {
     let local: CommerceProfile | null = null;
     if (location) {
       // Match a whole city phrase, not a wildcard supplied by the caller.
-      const escaped = location.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\  async search(q:');
+      // Each regex special character is escaped with one backslash ($& = the
+      // character itself); the old replacement text was corrupted and turned
+      // such a city into nonsense, so it never matched.
+      const escaped = location.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       local = await this.repo.createQueryBuilder('p')
         .where('p.status = :status', { status: CommerceProfileStatus.ACTIVE })
         .andWhere('p.type = :type', { type: CommerceProfileType.BUSINESS })
