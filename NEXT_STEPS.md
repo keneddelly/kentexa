@@ -858,3 +858,16 @@ Never pushed before Release D is live AND migration 1791900000000 is on live.
   push, one commit each, no push until the owner says "push". render.yaml is not to be touched.
 - Owner to do: SAMATTA and MTANDAO press "📍 Weka mahali pa ofisi" at their office; any real agent sets
   "Weka kituo changu" before going online.
+
+## 21. Release E — LIVE 2026-10-13 12:33 (Tanzania time)
+- Migration 1791900000000 applied on live 12:26–12:27 by release-e.ps1 (log
+  `C:\Users\BISHOO GROUP\release-e\release-e-live-20261013-122513.log`): all checks OK, 7 offices and
+  126 business profiles unchanged, tracking test 404.
+- Push 188a6d3..2322399 (fast-forward, exactly the reviewed commit) at 12:31; backend /version 2322399,
+  started 09:32:44 UTC. Public checks: tracking 404, PATCH /super-agents/:id/training 401 without login,
+  profile search and feed 200, website bundle main.20acb44c.js has the training texts.
+- Owner to do: Admin → Super Agents → "🎓 Mafunzo" on Air Doctor Express, Air Doctor Express 2,
+  Bishoo shipping cargo, FOVOTX, Habibu shipping express. Never on SAMATTA or MTANDAO.
+- Next: review fixes D1–D5 and L5 on top of this, one commit each, no push until the owner says "push";
+  render.yaml is not to be touched. Later: training offices still create money records (handling
+  earnings, cash collection) and count in admin numbers; exclude them before any office billing.
