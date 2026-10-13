@@ -847,3 +847,14 @@ Never pushed before Release D is live AND migration 1791900000000 is on live.
   on the migrated database (so: migration first, then push, is safe).
 - **Release E order:** Release D live first → `release-e.ps1 -Target live` → "migration done" → merge
   `training-office` into the release branch → "push" → owner marks the 5 test offices in Admin.
+## 20. Release D — LIVE 2026-10-13 12:10 (Tanzania time)
+- Owner export of kentexa-db first, then push 3c85d0a..188a6d3 (fast-forward) to
+  worktree-service-provider-profiles at 12:09; backend /version = 188a6d3, started 09:10:17 UTC.
+- Migration 1791800000000 was already on live since 2026-10-12 19:43 (release-d.ps1, all checks OK).
+- Public checks after deploy: unknown tracking number 404; door-check, office-point, agents/my-base,
+  claim-by-number/start answer 401 (exist); website bundle main.816afc34.js has the new texts.
+- WAYBILL_CUSTOMER_FROM is set on bishoo-backend (2026-10-12T12:30:00+03:00), owner confirmed.
+- Independent review of review/release-d: no blocker. Findings D1–D5 and L5 to be fixed after the
+  push, one commit each, no push until the owner says "push". render.yaml is not to be touched.
+- Owner to do: SAMATTA and MTANDAO press "📍 Weka mahali pa ofisi" at their office; any real agent sets
+  "Weka kituo changu" before going online.
