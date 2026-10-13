@@ -570,6 +570,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <Row icon="📱" label={t('my_profile.phone_verified_label')}
                 value={profile?.isVerified ? t('my_profile.yes_label') : t('my_profile.not_yet_label')}
                 color={profile?.isVerified ? '#16A34A' : '#DC2626'} />
+              {/* The ID is separate from the phone (utils/identityState): only the admin-checked ID counts. */}
+              <Row icon="🪪" label={t('my_profile.identity_label')}
+                value={identityStatus?.status === 'verified' ? t('my_profile.identity_verified')
+                  : identityStatus?.status === 'pending' ? t('my_profile.identity_pending')
+                  : identityStatus?.status === 'rejected' ? t('my_profile.identity_rejected')
+                  : t('my_profile.identity_not_verified')}
+                color={identityStatus?.status === 'verified' ? '#16A34A' : identityStatus?.status === 'pending' ? '#CA8A04' : '#DC2626'}
+                onAction={needsIdentityStep(identityStatus) ? () => setShowVerifyIdentity(true) : undefined} />
               <Row icon="✅" label={t('my_profile.account_setup_label')}
                 value={profile?.onboardingCompleted ? t('my_profile.account_completed_label') : t('my_profile.incomplete_status')}
                 color={profile?.onboardingCompleted ? '#16A34A' : '#D97706'}
