@@ -5730,5 +5730,17 @@
     "status_approved_desc": "Duka lako limeidhinishwa.",
     "status_rejected_title": "Ombi la kuuza limekataliwa",
     "status_contact_desc": "Wasiliana na KenteXa kwa maelezo zaidi."
+  },
+  "service_signup": {
+    "identity_title": "Kwanza: kitambulisho chako",
+    "identity_desc": "Tangazo la huduma linahitaji kitambulisho chako. Kitume mara moja tu; kitatumika kila mahali kwenye KenteXa.",
+    "identity_waiting_note": "Unaweza kuweka tangazo sasa. Litaonekana kwa wateja baada ya kitambulisho kuthibitishwa.",
+    "waiting_desc": "Tangazo lako limehifadhiwa. Litaonekana kwa wateja wenyewe mara kitambulisho chako kitakapothibitishwa.",
+    "area_from_account": "Eneo: {{place}}",
+    "whatsapp_from_account": "WhatsApp: {{phone}} (kutoka akaunti yako)",
+    "change": "Badilisha",
+    "more_details": "Siku na saa za kazi (hiari)",
+    "area_required": "Chagua eneo unalofanyia kazi.",
+    "price_placeholder": "Bei (TZS), mf. 20000"
   }
 }

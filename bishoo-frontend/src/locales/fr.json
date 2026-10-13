@@ -5788,5 +5788,17 @@
     "status_approved_desc": "Votre boutique est approuvée.",
     "status_rejected_title": "Demande de vendeur refusée",
     "status_contact_desc": "Contactez KenteXa pour plus de détails."
+  },
+  "service_signup": {
+    "identity_title": "D’abord : votre pièce d’identité",
+    "identity_desc": "Une annonce de service nécessite votre pièce d’identité. Envoyez-la une fois ; elle sert partout sur KenteXa.",
+    "identity_waiting_note": "Vous pouvez publier maintenant. L’annonce sera visible après la vérification de votre identité.",
+    "waiting_desc": "Votre annonce est enregistrée. Elle apparaîtra d’elle-même dès que votre identité sera vérifiée.",
+    "area_from_account": "Zone : {{place}}",
+    "whatsapp_from_account": "WhatsApp : {{phone}} (de votre compte)",
+    "change": "Modifier",
+    "more_details": "Jours et heures de travail (facultatif)",
+    "area_required": "Choisissez la zone où vous travaillez.",
+    "price_placeholder": "Prix (TZS), ex. 20000"
   }
 }

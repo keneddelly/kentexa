@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { WORK_ROLES, workRoleStatus, workRoleTarget } from '../../utils/workRoles';
+import { WORK_ROLES, workRoleStatus, workRoleTarget, serviceRecordFromAds } from '../../utils/workRoles';
 
 // "Fanya kazi na KenteXa" on the profile's main list (audit B step 2): every
 // work role with its status; tapping one opens its form or status page
@@ -23,8 +23,8 @@ export default function WorkWithKentexa({ onNavigate, availableRoles = [], ident
 
   useEffect(() => {
     let alive = true;
-    Promise.all([myRecord('/agents/my-profile'), myRecord('/super-agents/my-profile'), myRecord('/seller/my-profile')])
-      .then(([agent, office, seller]) => { if (alive) setRecords({ agent, office, seller }); });
+    Promise.all([myRecord('/agents/my-profile'), myRecord('/super-agents/my-profile'), myRecord('/seller/my-profile'), myRecord('/services/my/ads')])
+      .then(([agent, office, seller, ads]) => { if (alive) setRecords({ agent, office, seller, service: serviceRecordFromAds(ads) }); });
     return () => { alive = false; };
   }, []);
 
@@ -37,7 +37,7 @@ export default function WorkWithKentexa({ onNavigate, availableRoles = [], ident
       {WORK_ROLES.map((role, i) => {
         const roleRow = availableRoles.find((r) => r.roleType === role.roleType) || null;
         const record = role.recordKey && records ? records[role.recordKey] : null;
-        const status = records ? workRoleStatus({ record, roleRow, identity: identityStatus }) : null;
+        const status = records ? workRoleStatus({ record, roleRow, identity: identityStatus, recordWins: !!role.recordWins }) : null;
         const s = STATUS_STYLE[status] || STATUS_STYLE.none;
         return (
           <button key={role.key} data-testid={`work-role-${role.key}`} disabled={!status}

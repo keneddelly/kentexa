@@ -41,3 +41,18 @@ describe('work role status ("Fanya kazi na KenteXa")', () => {
     expect(workRoleTarget(WORK_ROLES[2], 'none')).toBe('BecomeSeller'); // straight to the form, no info page
   });
 });
+
+describe('service provider status from their own ads (decision S1)', () => {
+  const { serviceRecordFromAds } = require('./workRoles');
+  const service = WORK_ROLES.find((r) => r.key === 'service');
+  it('no ads: no request; a live ad: active; only ads waiting for the ID: waiting for the ID', () => {
+    expect(serviceRecordFromAds([])).toBeNull();
+    expect(serviceRecordFromAds([{ status: 'active', waitingForId: false }])).toEqual({ status: 'active' });
+    expect(serviceRecordFromAds([{ status: 'active', waitingForId: true }])).toEqual({ status: 'pending' });
+  });
+  it('a waiting ad wins over an active role row (the ad is not live yet)', () => {
+    const record = serviceRecordFromAds([{ status: 'active', waitingForId: true }]);
+    expect(workRoleStatus({ record, roleRow: { status: 'active' }, identity: { status: 'pending' }, recordWins: service.recordWins })).toBe('waiting_id');
+    expect(workRoleStatus({ record: null, roleRow: { status: 'active' }, identity: { status: 'pending' }, recordWins: service.recordWins })).toBe('active');
+  });
+});

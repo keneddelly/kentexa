@@ -5800,5 +5800,17 @@
     "status_approved_desc": "Your store is approved.",
     "status_rejected_title": "Seller request rejected",
     "status_contact_desc": "Contact KenteXa for more details."
+  },
+  "service_signup": {
+    "identity_title": "First: your ID",
+    "identity_desc": "A service ad needs your ID. Send it once; it is used everywhere on KenteXa.",
+    "identity_waiting_note": "You can post now. The ad is shown to customers after your ID is verified.",
+    "waiting_desc": "Your ad is saved. It appears to customers by itself once your ID is verified.",
+    "area_from_account": "Area: {{place}}",
+    "whatsapp_from_account": "WhatsApp: {{phone}} (from your account)",
+    "change": "Change",
+    "more_details": "Working days and hours (optional)",
+    "area_required": "Choose the area you work in.",
+    "price_placeholder": "Price (TZS), e.g. 20000"
   }
 }
