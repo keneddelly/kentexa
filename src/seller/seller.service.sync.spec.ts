@@ -38,7 +38,7 @@ describe('SellerService — organizational approval invariant (Stage A1/A2)', ()
       syncStatusByLink: jest.fn().mockResolvedValue(undefined),
       findForUserByType: jest.fn().mockResolvedValue(null),
     };
-    const verification: any = {};
+    const verification: any = { getIdentityProfile: jest.fn().mockResolvedValue({ status: 'verified' }) }; // rule A: approval needs a verified owner ID
     const sellingCapability: any = { grant: jest.fn().mockResolvedValue(undefined) };
     const roleContextService: any = { syncOperationalRole: jest.fn().mockResolvedValue({ id: 38 }) };
 

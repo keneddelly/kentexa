@@ -37,6 +37,15 @@ import {
   AccountRoleType,
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
+import { IdentityVerificationStatus } from '../identity/entities/identity-profile.entity';
+
+/** Opening a store (owner 2026-10-13, rule A): ID sent in to apply, ID verified to be approved.
+ *  Classified ads are not stores and keep their own rule (no ID needed). */
+export const SELLER_SIGNUP_MESSAGES = {
+  identityFirst: 'Tuma kitambulisho chako kwanza, kisha omba kuwa muuzaji.',
+  identityRejected: 'Kitambulisho chako kilikataliwa. Kituma tena kwanza.',
+  approveNeedsVerified: 'Kitambulisho cha muuzaji huyu bado hakijathibitishwa. Thibitisha kitambulisho kwanza.',
+} as const;
 
 @Injectable()
 export class SellerService {
@@ -261,6 +270,14 @@ export class SellerService {
     });
     if (existing)
       throw new ConflictException('You already have a seller application');
+    // Rule A: the store request needs the account's ID sent in (waiting is
+    // fine); the store stays PENDING (hidden, no money) until an admin
+    // approves it with the ID VERIFIED.
+    const identity = await this.verification.getIdentityProfile(user.id);
+    if (identity?.status === IdentityVerificationStatus.REJECTED) throw new BadRequestException(SELLER_SIGNUP_MESSAGES.identityRejected);
+    if (identity?.status !== IdentityVerificationStatus.PENDING && identity?.status !== IdentityVerificationStatus.VERIFIED) {
+      throw new BadRequestException(SELLER_SIGNUP_MESSAGES.identityFirst);
+    }
 
     // businessDocuments isn't a SellerProfile column — it becomes
     // BusinessDocument rows via submitBusinessDocuments() below, once the
@@ -797,6 +814,16 @@ export class SellerService {
       where: { id: profileId },
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
+    // Rule A: turning a request into an approved store needs the owner's ID
+    // VERIFIED. An already approved seller (e.g. a verification-tier change)
+    // is not re-checked: nobody already approved is touched.
+    if (profile.status !== SellerStatus.APPROVED) {
+      const ownerId = profile.user?.id ?? (profile as any).userId;
+      const identity = ownerId ? await this.verification.getIdentityProfile(ownerId) : null;
+      if (identity?.status !== IdentityVerificationStatus.VERIFIED) {
+        throw new BadRequestException(SELLER_SIGNUP_MESSAGES.approveNeedsVerified);
+      }
+    }
 
     // Business Capability Activation Stage A1: resolved and validated
     // BEFORE any write below. An ORGANIZATIONAL SellerProfile whose
