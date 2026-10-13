@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
+import { VerificationService } from '../identity/verification.service';
+import { IdentityVerificationStatus } from '../identity/entities/identity-profile.entity';
+import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Agent, AgentStatus } from './entities/agent.entity';
@@ -29,6 +33,22 @@ import {
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
 
+/** Vehicle types an agent can choose (step 3 of sign-up). */
+export const AGENT_VEHICLE_TYPES = ['boda', 'car', 'van', 'truck', 'foot'] as const;
+
+export const AGENT_SIGNUP_MESSAGES = {
+  identityFirst: 'Thibitisha kitambulisho chako kwanza (Hatua 1).',
+  identityRejected: 'Kitambulisho chako kilikataliwa. Kituma tena kwanza (Hatua 1).',
+  noPhone: 'Akaunti yako haina namba ya simu. Weka namba kwenye akaunti kwanza.',
+  noName: 'Akaunti yako haina jina. Weka jina kwenye akaunti kwanza.',
+  placeRequired: 'Chagua mji unaofanyia kazi kutoka kwenye orodha (Hatua 2).',
+  baseRequired: 'Weka kituo chako: bonyeza "📍 Weka kituo changu" ukiwa mahali unapoanzia kazi (Hatua 2).',
+  vehicle: 'Chagua aina ya usafiri (Hatua 3).',
+  weight: 'Andika uzito wa juu unaoweza kubeba, kilo 1 hadi 5000 (Hatua 3).',
+  submitted: 'Ombi limewasilishwa. Tutawasiliana nawe haraka.',
+  approveNeedsVerified: 'Kitambulisho cha wakala huyu bado hakijathibitishwa. Thibitisha kitambulisho kwanza.',
+} as const;
+
 @Injectable()
 export class AgentsService {
   constructor(
@@ -40,67 +60,77 @@ export class AgentsService {
     private commerceProfiles: CommerceProfilesService,
     private activityEvents: ActivityEventService,
     private roleContextService: RoleContextService,
+    // Agent sign-up reuses the account's identity and the place list.
+    @Optional() private readonly verification?: VerificationService,
+    @Optional() private readonly locations?: LocationIntelligenceService,
   ) {}
 
   // ── Agent: register ────────────────────────────────────────────────────────
 
+  /**
+   * Agent sign-up, 3 short steps (owner 2026-10-13: "verify a person once,
+   * reuse it everywhere"):
+   *  1. who: name and phone come from the ACCOUNT; the identity comes from the
+   *     account's identity record (sent in = may apply; approval needs verified).
+   *     No ID number is typed again here.
+   *  2. where: a city picked from the place list + the base point (GPS).
+   *  3. what: vehicle type + maximum weight. No fees here (they come with pricing).
+   */
   async register(
     user: User,
     dto: {
-      fullName: string;
-      phone: string;
-      city?: string;
-      address?: string;
-      region?: string;
-      district?: string;
-      idNumber?: string;
-      idType?: string;
-      idPhotoUrl?: string;
+      place?: { providerKey?: string; providerPlaceId?: string };
+      base?: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown };
       agentType?: string;
-      maxWeightKg?: number;
-      vehicleDescription?: string;
+      maxWeightKg?: number | string;
     },
   ) {
-    const existing = await this.agentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const identity = this.verification ? await this.verification.getIdentityProfile(user.id) : null;
+    if (identity?.status === IdentityVerificationStatus.REJECTED) throw new BadRequestException(AGENT_SIGNUP_MESSAGES.identityRejected);
+    if (identity?.status !== IdentityVerificationStatus.PENDING && identity?.status !== IdentityVerificationStatus.VERIFIED) {
+      throw new BadRequestException(AGENT_SIGNUP_MESSAGES.identityFirst);
+    }
+    const account = await this.userRepo.findOne({ where: { id: user.id } });
+    const phone = String(account?.phone || '').trim();
+    if (!phone) throw new BadRequestException(AGENT_SIGNUP_MESSAGES.noPhone);
+    const fullName = String(identity.legalName || account?.name || '').trim().slice(0, 160);
+    if (!fullName) throw new BadRequestException(AGENT_SIGNUP_MESSAGES.noName);
+
+    const ref = dto?.place;
+    const place = this.locations && typeof ref?.providerKey === 'string' && typeof ref?.providerPlaceId === 'string'
+      ? await this.locations.resolve({ providerKey: ref.providerKey, providerPlaceId: ref.providerPlaceId }).catch(() => null)
+      : null;
+    const regionName = String(place?.regionName || '').trim();
+    if (!regionName) throw new BadRequestException(AGENT_SIGNUP_MESSAGES.placeRequired);
+    if (!dto?.base) throw new BadRequestException(AGENT_SIGNUP_MESSAGES.baseRequired);
+    const base = readAgentBasePoint(dto.base);
+    const agentType = String(dto?.agentType || '');
+    if (!AGENT_VEHICLE_TYPES.includes(agentType as any)) throw new BadRequestException(AGENT_SIGNUP_MESSAGES.vehicle);
+    const maxWeightKg = Number(dto?.maxWeightKg);
+    if (!Number.isFinite(maxWeightKg) || maxWeightKg < 1 || maxWeightKg > 5000) throw new BadRequestException(AGENT_SIGNUP_MESSAGES.weight);
+
+    const fields = {
+      fullName, phone,
+      city: regionName, region: regionName,
+      district: place?.districtName || null,
+      address: place?.displayLabel || null,
+      agentType, maxWeightKg: Math.round(maxWeightKg),
+      baseLatitude: base.latitude, baseLongitude: base.longitude, baseSetAt: new Date(),
+    };
+
+    const existing = await this.agentRepo.findOne({ where: { user: { id: user.id } } });
     if (existing) {
-      if (existing.status === AgentStatus.PENDING)
-        throw new BadRequestException(
-          'Ombi lako lipo tayari chini ya mapitio.',
-        );
-      if (existing.status === AgentStatus.APPROVED)
-        throw new BadRequestException('Wewe ni wakala tayari.');
-      await this.agentRepo.update(existing.id, {
-        ...dto,
-        status: AgentStatus.PENDING,
-        rejectionReason: null,
-      });
+      if (existing.status === AgentStatus.PENDING) throw new BadRequestException('Ombi lako lipo tayari chini ya mapitio.');
+      if (existing.status === AgentStatus.APPROVED) throw new BadRequestException('Wewe ni wakala tayari.');
+      await this.agentRepo.update(existing.id, { ...fields, status: AgentStatus.PENDING, rejectionReason: null } as any);
       await this.commerceProfiles
         .syncStatusByLink('agentId', existing.id, CommerceProfileStatus.PENDING)
         .catch(() => {});
-      return { message: 'Ombi lako jipya limewasilishwa. Tutawasiliana nawe.' };
+      return { message: AGENT_SIGNUP_MESSAGES.submitted };
     }
-    const agent = this.agentRepo.create({
-      user,
-      fullName: dto.fullName,
-      phone: dto.phone,
-      city: dto.city || null,
-      address: dto.address || null,
-      region: dto.region || null,
-      district: dto.district || null,
-      idNumber: dto.idNumber || null,
-      idType: dto.idType || null,
-      idPhotoUrl: dto.idPhotoUrl || null,
-      agentType: dto.agentType || 'boda',
-      maxWeightKg: dto.maxWeightKg || 20,
-      vehicleDescription: dto.vehicleDescription || null,
-      status: AgentStatus.PENDING,
-    } as any);
-    // .create() was already passed `as any` here (pre-existing), which
-    // makes TS resolve .save()'s array overload instead of the single-
-    // entity one — cast back since this is always exactly one Agent.
-    const saved = (await this.agentRepo.save(agent)) as unknown as Agent;
+    const saved = (await this.agentRepo.save(
+      this.agentRepo.create({ user, ...fields, status: AgentStatus.PENDING } as any),
+    )) as unknown as Agent;
 
     try {
       await this.commerceProfiles.createProfile({
@@ -115,7 +145,7 @@ export class AgentsService {
       });
     } catch {}
 
-    return { message: 'Ombi limewasilishwa. Tutawasiliana nawe haraka.' };
+    return { message: AGENT_SIGNUP_MESSAGES.submitted };
   }
 
   // ── Agent: my profile ─────────────────────────────────────────────────────
@@ -201,12 +231,24 @@ export class AgentsService {
       relations: { user: true },
       order: { createdAt: 'DESC' },
     });
+    // The account's identity status (one identity per person, reused everywhere).
+    const identityStatus = new Map<number, string>();
+    if (this.verification) {
+      await Promise.all(agents.filter((a) => a.user?.id).map(async (a) => {
+        const p = await this.verification!.getIdentityProfile(a.user.id).catch(() => null);
+        identityStatus.set(a.user.id, p?.status || IdentityVerificationStatus.NOT_SUBMITTED);
+      }));
+    }
     return agents
       .filter((a) => !filters?.status || a.status === filters.status)
       .filter((a) => !filters?.city || a.city === filters.city)
       .map((a) => ({
         id: a.id,
         userId: a.user?.id,
+        identityStatus: (a.user?.id && identityStatus.get(a.user.id)) || null,
+        agentType: a.agentType,
+        maxWeightKg: a.maxWeightKg == null ? null : Number(a.maxWeightKg),
+        hasBasePoint: a.baseLatitude != null && a.baseLongitude != null,
         fullName: a.fullName,
         phone: a.phone,
         city: a.city,
@@ -248,6 +290,13 @@ export class AgentsService {
       relations: { user: true },
     });
     if (!agent) throw new NotFoundException('Wakala hapatikani');
+    // Approval needs the account's identity VERIFIED (sign-up only needs it sent in).
+    if (this.verification && agent.user) {
+      const identity = await this.verification.getIdentityProfile(agent.user.id);
+      if (identity?.status !== IdentityVerificationStatus.VERIFIED) {
+        throw new BadRequestException(AGENT_SIGNUP_MESSAGES.approveNeedsVerified);
+      }
+    }
     const cityCode = (agent.city || agent.district || 'KTX')
       .slice(0, 3)
       .toUpperCase()

@@ -296,11 +296,7 @@ const Agents = ({ onNavigate }) => {
                           <div style={{ fontSize: 12, color: '#64748b' }}>
                             📞 {agent.phone || '—'} · 📍 {agent.city || agent.district || '—'}
                           </div>
-                          {agent.idNumber && (
-                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                              🪪 {agent.idType || 'ID'}: {agent.idNumber}
-                            </div>
-                          )}
+                          <IdentityBadge status={agent.identityStatus} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                           <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: st.bg, color: st.color }}>
@@ -362,10 +358,11 @@ const Agents = ({ onNavigate }) => {
                   📍 {selected.city || selected.district || '—'} · {selected.phone}
                 </div>
 
+                <div style={{ marginBottom: 10 }}><IdentityBadge status={selected.identityStatus} /></div>
                 {/* ID info */}
                 {selected.idNumber && (
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>🪪 KITAMBULISHO</div>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>🪪 KITAMBULISHO (nakala ya zamani iliyoandikwa na wakala)</div>
                     <div style={{ fontSize: 12, color: '#1e293b' }}>{selected.idType}: {selected.idNumber}</div>
                     {selected.idPhotoUrl && (
                       <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"
@@ -564,5 +561,17 @@ const Agents = ({ onNavigate }) => {
     </div>
   );
 };
+
+// The account's identity (one per person, reused everywhere). Approval needs "verified".
+const IDENTITY_LABEL = {
+  verified: ['✔ Kitambulisho kimethibitishwa', '#166534', '#dcfce7'],
+  pending: ['⏳ Kitambulisho kinasubiri uthibitisho', '#854d0e', '#fef9c3'],
+  rejected: ['✖ Kitambulisho kilikataliwa', '#991b1b', '#fee2e2'],
+  not_submitted: ['— Hakuna kitambulisho', '#475569', '#f1f5f9'],
+};
+function IdentityBadge({ status }) {
+  const [text, color, bg] = IDENTITY_LABEL[status] || IDENTITY_LABEL.not_submitted;
+  return <span data-testid="identity-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, color, backgroundColor: bg }}>{text}</span>;
+}
 
 export default Agents;

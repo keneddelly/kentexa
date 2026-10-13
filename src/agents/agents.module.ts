@@ -9,6 +9,8 @@ import { User } from '../users/entities/user.entity';
 import { SmsModule } from '../sms/sms.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { ActivityModule } from '../activity/activity.module';
+import { IdentityModule } from '../identity/identity.module';
+import { LocationIntelligenceModule } from '../location-intelligence/location-intelligence.module';
 
 @Module({
   imports: [
@@ -16,6 +18,9 @@ import { ActivityModule } from '../activity/activity.module';
     SmsModule,
     CommerceProfilesModule,
     ActivityModule,
+    // Agent sign-up: the account's identity record and the place list.
+    IdentityModule,
+    LocationIntelligenceModule,
   ],
   controllers: [AgentsController],
   providers: [AgentsService, AgentCodRemittanceService],
