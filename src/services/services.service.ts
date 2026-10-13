@@ -23,6 +23,7 @@ import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entit
 import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
+import { PUBLIC_SERVICE_AD, publicServiceAdWhere } from './service-ad-visibility';
 
 // B6D-P0 — minimal public projections. Never the raw User/CommerceProfile
 // entity: only the fields actually consumed by public Service UI
@@ -151,7 +152,13 @@ export class ServicesService {
 
   // ── Create / Edit Service Ad ──────────────────────────────────────────────
 
-  async createAd(user: User, dto: Partial<ServiceAd> & { commerceProfileId?: number }): Promise<ServiceAd> {
+  async createAd(
+    user: User,
+    dto: Partial<ServiceAd> & { commerceProfileId?: number },
+    // false while the poster's ID is not verified: the ad is hidden from
+    // customers then, so it must not appear in the feed as a Moment either.
+    opts: { shareAsMoment?: boolean } = {},
+  ): Promise<ServiceAd> {
     // Attributes the ad to whichever profile was active when it was posted
     // — same fix already applied to Classifieds/Products/Moments.
     // Authorization is never trusted from the client.
@@ -191,7 +198,7 @@ export class ServicesService {
       saved.priceType !== 'negotiate' &&
       saved.priceType !== 'free_quote' &&
       Number(saved.price) > 0;
-    if (user?.id) {
+    if (user?.id && opts.shareAsMoment !== false) {
       this.feedService
         .publish(user.id, {
           type: 'moment',
@@ -378,7 +385,7 @@ export class ServicesService {
   // no longer calls this.
   async findByProvider(providerId: number): Promise<ServiceAd[]> {
     return this.adRepo.find({
-      where: { providerId, status: ServiceStatus.ACTIVE },
+      where: publicServiceAdWhere({ providerId, status: ServiceStatus.ACTIVE }),
       order: { createdAt: 'DESC' },
     });
   }
@@ -397,12 +404,12 @@ export class ServicesService {
     if (!profile) return [];
     if (profile.businessId != null) {
       return this.adRepo.find({
-        where: { businessId: profile.businessId, status: ServiceStatus.ACTIVE },
+        where: publicServiceAdWhere({ businessId: profile.businessId, status: ServiceStatus.ACTIVE }),
         order: { createdAt: 'DESC' },
       });
     }
     return this.adRepo.find({
-      where: { commerceProfileId, status: ServiceStatus.ACTIVE },
+      where: publicServiceAdWhere({ commerceProfileId, status: ServiceStatus.ACTIVE }),
       order: { createdAt: 'DESC' },
     });
   }
@@ -424,7 +431,7 @@ export class ServicesService {
     // raw User columns (previously: storeName/logo/businessLocation/
     // followersCount/isOfficialStore/storeWhatsApp/phone/role, none of
     // which the frontend actually reads from a browse-card).
-    const qb = this.adRepo.createQueryBuilder('a').where("a.status = 'active'");
+    const qb = this.adRepo.createQueryBuilder('a').where("a.status = 'active'").andWhere(PUBLIC_SERVICE_AD('a'));
 
     if (params.category)
       qb.andWhere('a.category = :cat', { cat: params.category });
@@ -468,7 +475,7 @@ export class ServicesService {
     // provider have any Business profile" lookup, which could (and did)
     // attach a wrong or unrelated Business's identity.
     const ad = await this.adRepo.findOne({
-      where: { id, status: ServiceStatus.ACTIVE },
+      where: publicServiceAdWhere({ id, status: ServiceStatus.ACTIVE }),
     });
     if (!ad) throw new NotFoundException('Huduma haijapatikana');
     await this.adRepo.update(id, { views: () => 'views + 1' });
@@ -479,7 +486,7 @@ export class ServicesService {
 
   async getFeatured(limit = 8): Promise<any[]> {
     const ads = await this.adRepo.find({
-      where: { status: ServiceStatus.ACTIVE, isVerified: true },
+      where: publicServiceAdWhere({ status: ServiceStatus.ACTIVE, isVerified: true }),
       order: { rating: 'DESC', totalJobs: 'DESC' },
       take: limit,
     });
@@ -488,7 +495,7 @@ export class ServicesService {
 
   async getByCategory(category: string, limit = 12): Promise<any[]> {
     const ads = await this.adRepo.find({
-      where: { status: ServiceStatus.ACTIVE, category: category as any },
+      where: publicServiceAdWhere({ status: ServiceStatus.ACTIVE, category: category as any }),
       order: { rating: 'DESC', totalJobs: 'DESC' },
       take: limit,
     });
@@ -509,7 +516,7 @@ export class ServicesService {
     },
   ): Promise<JobRequest> {
     const ad = await this.adRepo.findOne({
-      where: { id: dto.serviceAdId, status: ServiceStatus.ACTIVE },
+      where: publicServiceAdWhere({ id: dto.serviceAdId, status: ServiceStatus.ACTIVE }),
     });
     if (!ad) throw new NotFoundException('Huduma haijapatikana');
     if (ad.providerId === buyer.id)
@@ -747,6 +754,7 @@ export class ServicesService {
     const ads = await this.adRepo
       .createQueryBuilder('a')
       .where("a.status = 'active'")
+      .andWhere(PUBLIC_SERVICE_AD('a'))
       .andWhere(clause, params)
       .orderBy(
         'COALESCE((SELECT CAST(u."reputationScore" AS int) FROM "user" u WHERE u.id = a."providerId"), 0)',

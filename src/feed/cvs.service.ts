@@ -17,6 +17,7 @@ import {
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { PUBLIC_SERVICE_AD } from '../services/service-ad-visibility';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 
 // Which linkedEntityType values get the "unified comment thread" treatment
@@ -573,7 +574,7 @@ export class CvsService {
             .createQueryBuilder('a')
             .leftJoin('a.provider', 'u')
             .addSelect(['u.id', 'u.name', 'u.storeName', 'u.logo'])
-            .where('a.id IN (:...ids)', { ids: byType.service })
+            .where('a.id IN (:...ids)', { ids: byType.service }).andWhere(PUBLIC_SERVICE_AD('a'))
             .getMany()
         : [],
       byType.route.length
@@ -865,7 +866,7 @@ export class CvsService {
       const svcs = await this.serviceAdRepo2
         .createQueryBuilder('s')
         .leftJoinAndSelect('s.provider', 'u')
-        .where("s.status = 'active'")
+        .where("s.status = 'active'").andWhere(PUBLIC_SERVICE_AD('s'))
         .orderBy('s.rating', 'DESC')
         .take(limit)
         .getMany();
@@ -1533,7 +1534,7 @@ export class CvsService {
         const services = await this.serviceAdRepo2
           .createQueryBuilder('s')
           .leftJoinAndSelect('s.provider', 'u')
-          .where("s.status = 'active'")
+          .where("s.status = 'active'").andWhere(PUBLIC_SERVICE_AD('s'))
           .orderBy('s.rating', 'DESC')
           .take(4)
           .getMany();

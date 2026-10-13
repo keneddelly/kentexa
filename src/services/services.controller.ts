@@ -30,6 +30,7 @@ import { AiListingDescriptionService } from '../ai/ai-listing-description.servic
 import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
+import { assertServicePosterIdSent, waitingForPosterId } from './service-ad-visibility';
 
 @Controller('services')
 export class ServicesController {
@@ -120,7 +121,12 @@ export class ServicesController {
   @UseGuards(JwtAuthGuard)
   async createAd(@Request() req, @Body() dto: CreateServiceAdDto) {
     await this.verification.requireFeature(req.user.id, Feature.CREATE_SERVICE);
-    return this.svc.createAd(req.user, dto);
+    // Decision S1 (owner 2026-10-13): the ID must be sent; while it is not
+    // verified the ad stays hidden from customers (service-ad-visibility.ts)
+    // and is not auto-shared as a Moment.
+    const idStatus = await assertServicePosterIdSent(this.verification, req.user.id);
+    const ad = await this.svc.createAd(req.user, dto, { shareAsMoment: idStatus === 'verified' });
+    return { ...ad, waitingForId: waitingForPosterId(ad, idStatus) };
   }
 
   // B6C — Business-attributed ad creation. Requires the caller's currently
@@ -138,25 +144,32 @@ export class ServicesController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     await this.verification.requireFeature(req.user.id, Feature.CREATE_SERVICE);
-    return this.svc.createBusinessServiceAdForRoleContext(
+    const idStatus = await assertServicePosterIdSent(this.verification, req.user.id);
+    const ad = await this.svc.createBusinessServiceAdForRoleContext(
       req.user.id,
       roleContext.accountRoleId,
       dto,
     );
+    return { ...ad, waitingForId: waitingForPosterId(ad, idStatus) };
   }
 
   @Get('my/ads')
   @UseGuards(JwtAuthGuard)
-  getMyAds(
+  async getMyAds(
     @Request() req,
     @Query('commerceProfileId') commerceProfileId?: string,
     @Query('businessId') businessId?: string,
   ) {
-    return this.svc.getMyAds(
-      req.user.id,
-      commerceProfileId ? Number(commerceProfileId) : undefined,
-      businessId ? Number(businessId) : undefined,
-    );
+    const [ads, identity] = await Promise.all([
+      this.svc.getMyAds(
+        req.user.id,
+        commerceProfileId ? Number(commerceProfileId) : undefined,
+        businessId ? Number(businessId) : undefined,
+      ),
+      this.verification.getIdentityProfile(req.user.id),
+    ]);
+    // waitingForId: hidden from customers until the poster's ID is verified.
+    return ads.map((ad) => ({ ...ad, waitingForId: waitingForPosterId(ad, identity?.status) }));
   }
 
   @Patch('my/ads/:id')

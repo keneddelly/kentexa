@@ -20,6 +20,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { Product } from '../products/entities/products.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { publicServiceAdWhere } from '../services/service-ad-visibility';
 import { CommerceProfile, CommerceProfileStatus } from '../commerce-profiles/entities/commerce-profile.entity';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
@@ -150,7 +151,7 @@ export class SearchController {
           ? this.classifiedRepo.find({ where: { id: In(idsByType.classified) } })
           : [],
         idsByType.service?.length
-          ? this.serviceAdRepo.find({ where: { id: In(idsByType.service) } })
+          ? this.serviceAdRepo.find({ where: publicServiceAdWhere({ id: In(idsByType.service) }) })
           : [],
         idsByType.profile?.length
           // Training offices and waiting (PENDING) profiles never appear.

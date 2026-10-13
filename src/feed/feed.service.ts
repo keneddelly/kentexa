@@ -22,6 +22,7 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { User } from '../users/entities/user.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { PUBLIC_SERVICE_AD } from '../services/service-ad-visibility';
 import { Product } from '../products/entities/products.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
@@ -709,7 +710,7 @@ export class FeedService {
         const services = await this.serviceAdRepo
           .createQueryBuilder('s')
           .leftJoinAndSelect('s.provider', 'u')
-          .where("s.status = 'active'")
+          .where("s.status = 'active'").andWhere(PUBLIC_SERVICE_AD('s'))
           .orderBy('s.rating', 'DESC')
           .addOrderBy('s.createdAt', 'DESC')
           .skip(offset)
@@ -922,7 +923,7 @@ export class FeedService {
         this.serviceAdRepo
           .createQueryBuilder('s')
           .leftJoinAndSelect('s.provider', 'u')
-          .where("s.status = 'active'")
+          .where("s.status = 'active'").andWhere(PUBLIC_SERVICE_AD('s'))
           .orderBy('s.rating', 'DESC')
           .take(10)
           .getMany(),
@@ -1022,7 +1023,7 @@ export class FeedService {
       this.serviceAdRepo
         .createQueryBuilder('s')
         .leftJoinAndSelect('s.provider', 'u')
-        .where("s.status = 'active'")
+        .where("s.status = 'active'").andWhere(PUBLIC_SERVICE_AD('s'))
         .orderBy('s.rating', 'DESC')
         .take(6)
         .getMany(),
