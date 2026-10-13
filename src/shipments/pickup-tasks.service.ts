@@ -9,6 +9,7 @@ import type { RoleContext } from '../role-context/role-context.types';
 import { ShipmentHubSource } from './shipment-hub-source';
 import { projectShipment, projectShipmentForParcel } from './shipment-projection';
 import { SmsService } from '../sms/sms.service';
+import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { customerParcelNumber, smsSafeName } from '../super-agents/customer-parcel-number';
 import { AGENT_BASE_MESSAGES, distanceM, pickupPointForAgent, roughDistanceLabel, SHOW_PIN_WARD } from './pickup-pin';
 
@@ -40,6 +41,11 @@ export function pickupAcceptedSms(agentName: string | null, agentPhone: string, 
   return `KenteXa: Wakala ${name}, simu ${agentPhone}, anakuja kuchukua mzigo${reference ? ` ${reference}` : ''}.`;
 }
 
+/** The agent's SMS when the sender cancels a pickup the agent had accepted (review D3). */
+export function pickupCancelledSms(reference: string) {
+  return `KenteXa: Kazi ya kuchukua mzigo${reference ? ` ${reference}` : ''} imesitishwa na mtumaji. Usiende kuchukua.`;
+}
+
 /**
  * Request and claim (Stage 3S) plus the physical first mile (Stage 3S-A):
  * sender -> Agent (origin_agent_collected) and Agent -> exact origin hub
@@ -55,6 +61,8 @@ export class PickupTasksService {
     // Gate 4: the recipient's delivery code is sent by SMS. Optional only so
     // the existing hand-built instances in specs keep constructing.
     @Optional() private readonly sms?: SmsService,
+    // Review D3: in-app message to the agent when an accepted job is cancelled.
+    @Optional() private readonly communication?: CommunicationEngineService,
   ) {}
 
   async requestForShipment(userId: number, shipmentId: number, input: RequestPickupDto) {
@@ -823,7 +831,7 @@ export class PickupTasksService {
    * cannot be erased: the task, event and Parcel keep their history.
    */
   async cancel(userId: number, shipmentId: number) {
-    return this.db.transaction(async (em) => {
+    const result: any = await this.db.transaction(async (em) => {
       const s: any[] = await em.query('SELECT * FROM public.shipment WHERE id=$1 FOR UPDATE', [shipmentId]);
       if (!s[0]) throw new NotFoundException('Shipment not found');
       if (s[0].requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
@@ -839,8 +847,46 @@ export class PickupTasksService {
       await em.query(`UPDATE public.parcel_pickup_task SET status='cancelled',"cancelledAt"=now(),
         "handoffCodeHash"=NULL,"handoffCodeIssuedAt"=NULL,"handoffCodeExpiresAt"=NULL,"handoffAttempts"=0,
         "updatedAt"=now() WHERE id=$1`, [t[0].id]);
-      return { id: t[0].id, parcelId: p[0].id, status: 'cancelled', replay: false };
+      return { id: t[0].id, parcelId: p[0].id, status: 'cancelled', replay: false,
+        acceptedByAgent: t[0].status === 'claimed' ? t[0].agentProfileId : null };
     });
+    const { acceptedByAgent, ...answer } = result;
+    // Review D3: an agent who already accepted is told (once; a replay sends nothing).
+    if (!answer.replay && acceptedByAgent) await this.tellAgentJobCancelled(answer.id, Number(acceptedByAgent));
+    return answer;
+  }
+
+  /**
+   * The sender cancelled a pickup this agent had accepted: one in-app message
+   * and one SMS (the agent may already be on the way). Never undoes the cancel.
+   */
+  private async tellAgentJobCancelled(taskId: number, agentProfileId: number) {
+    try {
+      const rows: any[] = await this.db.query(`
+        SELECT a."userId", COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS "agentPhone",
+               s."trackingNumber" AS "shipmentNumber", p."trackingNumber", p."waybillNumber", p."createdAt"
+          FROM public.parcel_pickup_task t
+          JOIN public.parcel p ON p.id = t."parcelId"
+          JOIN public.shipment s ON s.id = p."shipmentId"
+          JOIN public.agent a ON a.id = $2
+          LEFT JOIN public."user" u ON u.id = a."userId"
+         WHERE t.id = $1`, [taskId, agentProfileId]);
+      const r = rows[0];
+      if (!r) return;
+      const reference = customerParcelNumber({
+        trackingNumber: r.shipmentNumber ?? r.trackingNumber, waybillNumber: r.waybillNumber, createdAt: r.createdAt,
+      });
+      if (r.userId && this.communication) {
+        await this.communication.dispatch({
+          eventType: 'LOGISTICS_PICKUP_CANCELLED', sourceType: 'parcel_pickup_task', sourceId: taskId,
+          recipients: [{ userId: Number(r.userId), role: 'agent', actionPage: 'agent-pickups', actionParam: String(taskId) }],
+          context: { taskId, reference: reference || `#${taskId}` },
+        }).catch((err: any) => this.logger.warn(`Pickup cancelled in-app not sent for task ${taskId}: ${err?.message || err}`));
+      }
+      if (r.agentPhone && this.sms) await this.sms.sendSms(r.agentPhone, pickupCancelledSms(reference));
+    } catch (err: any) {
+      this.logger.warn(`Pickup cancelled message not sent for task ${taskId}: ${err?.message || err}`);
+    }
   }
 
 }

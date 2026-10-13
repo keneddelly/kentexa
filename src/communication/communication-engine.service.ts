@@ -101,6 +101,13 @@ const SEED_TEMPLATES: Array<
     bodyTemplate: 'Mzigo unasubiri kuchukuliwa {originCity} kuelekea {destinationCity}. Fungua Kentexa kuona na kukubali kazi.',
   },
   {
+    // Review D3: the sender cancelled a pickup this agent had already accepted.
+    eventType: 'LOGISTICS_PICKUP_CANCELLED',
+    recipientRole: 'agent',
+    titleTemplate: 'Kazi ya kuchukua mzigo imesitishwa',
+    bodyTemplate: 'Mtumaji amesitisha kazi ya kuchukua mzigo {reference}. Usiende kuchukua.',
+  },
+  {
     eventType: 'PARCEL_DISPATCHED',
     recipientRole: 'buyer',
     titleTemplate: '📦 Kifurushi Kimetumwa',
