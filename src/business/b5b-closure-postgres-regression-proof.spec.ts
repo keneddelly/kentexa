@@ -143,7 +143,7 @@ describe('B5B closure — final real-Postgres regression proof (COMMERCE + legac
       ds.getRepository(Agent), superAgentRepo(), transportRepo(),
       assignmentRepo(), new RoleSessionEventsService(),
     );
-    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService);
+    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService, { getIdentityProfile: async () => ({ status: 'verified' }) } as any);
   }, 60000);
 
   afterAll(async () => {

@@ -113,7 +113,7 @@ describe('B5B closure — pending/approved role availability + suspension regres
       ds.getRepository(Agent), ds.getRepository(SuperAgent), ds.getRepository(TransportProvider),
       assignmentRepo(), new RoleSessionEventsService(),
     );
-    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService);
+    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService, { getIdentityProfile: async () => ({ status: 'verified' }) } as any);
     authService = new AuthService(
       null as any, { sign: () => 'stub-token' } as any, null as any, null as any,
       null as any, null as any, null as any, roleContextService,

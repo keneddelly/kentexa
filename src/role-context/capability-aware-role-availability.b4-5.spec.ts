@@ -128,7 +128,7 @@ describe('Capability-aware role availability (Stage B4.5), real disposable-DB', 
       ds.getRepository(Agent), ds.getRepository(SuperAgent), ds.getRepository(TransportProvider),
       assignmentRepo(), new RoleSessionEventsService(),
     );
-    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService);
+    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService, { getIdentityProfile: async () => ({ status: 'verified' }) } as any);
     // switchRole/login never touch userRepo/smsService/mailService/
     // commerceProfiles/policyVersions/verification -- stubbed since real
     // instances would need far more setup than this stage's actual code

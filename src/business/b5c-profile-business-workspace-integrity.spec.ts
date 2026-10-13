@@ -180,7 +180,7 @@ describe('B5C — profile/Business/workspace authority integrity, real disposabl
       ds.getRepository(Agent), superAgentRepo(), transportRepo(),
       assignmentRepo(), new RoleSessionEventsService(),
     );
-    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService);
+    lifecycleService = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, roleContextService, { getIdentityProfile: async () => ({ status: 'verified' }) } as any);
     authService = new AuthService(
       null as any, { sign: () => 'stub-token' } as any, null as any, null as any,
       null as any, null as any, null as any, roleContextService,

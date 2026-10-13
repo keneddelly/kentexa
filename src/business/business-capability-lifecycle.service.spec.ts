@@ -117,7 +117,7 @@ describe('BusinessCapabilityLifecycleService — suspend/reactivate (Stage B4), 
     });
     await ds.initialize();
 
-    service = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, null as any);
+    service = new BusinessCapabilityLifecycleService(capabilityRepo(), ds, null as any, { getIdentityProfile: async () => ({ status: 'verified' }) } as any);
     roleContextService = new RoleContextService(
       userRepo(), accountRoleRepo(), sessionRepo(), sellerProfileRepo(),
       ds.getRepository(Agent), ds.getRepository(SuperAgent), ds.getRepository(TransportProvider),

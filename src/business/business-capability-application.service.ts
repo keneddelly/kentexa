@@ -30,7 +30,7 @@ import {
 } from '../role-context/entities/account-role.entity';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
-import { IdentityVerificationStatus } from '../identity/entities/identity-profile.entity';
+import { assertCapabilityOwnerVerified } from './capability-owner-identity';
 import type { RoleContext } from '../role-context/role-context.types';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { assertBusinessSellingIdentity, evaluateBusinessSellingIdentity } from './business-selling-identity';
@@ -108,13 +108,9 @@ const VERIFICATION_FEATURE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode,
   [BusinessCapabilityCode.SUPER_AGENT]: Feature.BECOME_SUPER_AGENT,
 };
 
-/** Capabilities whose approval needs the applicant's ID VERIFIED (owner 2026-10-13). */
-const APPROVAL_NEEDS_VERIFIED_OWNER = new Set<BusinessCapabilityCode>([
-  BusinessCapabilityCode.COMMERCE,
-  BusinessCapabilityCode.SUPER_AGENT,
-]);
-export const OWNER_NOT_VERIFIED_MESSAGE =
-  'Kitambulisho cha mwombaji bado hakijathibitishwa. Thibitisha kitambulisho kwanza.';
+// The verified-owner rule for approval lives in ./capability-owner-identity
+// (shared with capability reactivation); re-exported for existing callers.
+export { OWNER_NOT_VERIFIED_MESSAGE } from './capability-owner-identity';
 
 interface OwnerWorkspaceContext {
   businessId: number;
@@ -248,12 +244,7 @@ export class BusinessCapabilityApplicationService {
       // approved through this route needs the applicant's ID VERIFIED, the
       // same rule as SellerService.approve() and SuperAgentsService.approve().
       // Checked before any write.
-      if (APPROVAL_NEEDS_VERIFIED_OWNER.has(application.capabilityCode)) {
-        const identity = await this.verification.getIdentityProfile(application.requestedByUserId);
-        if (identity?.status !== IdentityVerificationStatus.VERIFIED) {
-          throw new BadRequestException({ code: 'OWNER_IDENTITY_NOT_VERIFIED', message: OWNER_NOT_VERIFIED_MESSAGE });
-        }
-      }
+      await assertCapabilityOwnerVerified(this.verification, application.capabilityCode, application.requestedByUserId);
 
       const chain = await this.revalidateApplicationChain(manager, application);
 

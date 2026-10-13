@@ -11,6 +11,8 @@ import { User } from '../users/entities/user.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { ORGANIZATIONAL_CAPABILITY_BY_ROLE } from '../role-context/organizational-capability';
 import { RoleContextService } from '../role-context/role-context.service';
+import { VerificationService } from '../identity/verification.service';
+import { assertCapabilityOwnerVerified } from './capability-owner-identity';
 
 /**
  * Business Capability Activation Stage B4.0 (schema) / B4 (this file):
@@ -38,6 +40,7 @@ export class BusinessCapabilityLifecycleService {
     private readonly capabilityRepo: Repository<BusinessCapability>,
     private readonly dataSource: DataSource,
     private readonly roleContextService: RoleContextService,
+    private readonly verification: VerificationService,
   ) {}
 
   /**
@@ -137,6 +140,14 @@ export class BusinessCapabilityLifecycleService {
         // value from this later call.
         return { capability: cap, mutated: false };
       }
+
+      // Owner 2026-10-13: selling (COMMERCE) or office (SUPER_AGENT) rights
+      // come back only with the business owner's ID VERIFIED -- the same
+      // shared rule as approval. Checked before any write.
+      const owner: Array<{ userId: number }> = await manager.query(
+        `SELECT b."userId" AS "userId" FROM public.operational_workspace w
+           JOIN public.business b ON b.id = w."businessId" WHERE w.id = $1`, [cap.workspaceId]);
+      await assertCapabilityOwnerVerified(this.verification, cap.capabilityCode, owner[0]?.userId);
 
       // SUSPENDED -> ACTIVE. approvedAt/approvedByUserId are never touched
       // here -- reactivation is not a new approval (mission §8).
