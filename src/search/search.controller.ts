@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   AiSearchParserService,
@@ -20,7 +20,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { Product } from '../products/entities/products.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
-import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { CommerceProfile, CommerceProfileStatus } from '../commerce-profiles/entities/commerce-profile.entity';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 
@@ -153,7 +153,8 @@ export class SearchController {
           ? this.serviceAdRepo.find({ where: { id: In(idsByType.service) } })
           : [],
         idsByType.profile?.length
-          ? this.profileRepo.find({ where: { id: In(idsByType.profile), hiddenFromPublic: false } })
+          // Training offices and waiting (PENDING) profiles never appear.
+          ? this.profileRepo.find({ where: { id: In(idsByType.profile), hiddenFromPublic: false, status: Not(CommerceProfileStatus.PENDING) } })
           : [],
         idsByType.moment?.length
           ? this.momentRepo.find({ where: { id: In(idsByType.moment), isActive: true } })

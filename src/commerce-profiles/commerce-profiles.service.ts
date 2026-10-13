@@ -226,11 +226,12 @@ export class CommerceProfilesService {
   }
 
   /**
-   * A profile hidden from the public (training office) is visible only to its
-   * owner, its staff (anyone who can act as it) and admins.
+   * A profile hidden from the public (training office) or still waiting
+   * (PENDING: office or seller not approved yet, owner 2026-10-13) is visible
+   * only to its owner, its staff (anyone who can act as it) and admins.
    */
   async canSeeHidden(profile: CommerceProfile, viewer?: { id?: number; role?: string } | null): Promise<boolean> {
-    if (!profile.hiddenFromPublic) return true;
+    if (!profile.hiddenFromPublic && profile.status !== CommerceProfileStatus.PENDING) return true;
     if (!viewer?.id) return false;
     if (viewer.role === 'admin' || viewer.id === profile.ownerId) return true;
     const mine = await this.findAccessibleForUser(viewer.id).catch(() => [] as any[]);
