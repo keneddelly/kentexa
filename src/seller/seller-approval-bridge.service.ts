@@ -60,6 +60,9 @@ export class SellerApprovalBridgeService {
     if (profile.status !== SellerStatus.SUSPENDED) {
       throw new ConflictException({ code: 'SELLER_NOT_SUSPENDED', message: 'SELLER_NOT_SUSPENDED' });
     }
+    // Owner 2026-10-13: bringing back a suspended seller needs a verified
+    // owner ID, the same as offices. Checked first, before anything else.
+    await this.sellerService.assertOwnerIdentityVerified(profile);
     if (profile.businessId != null) {
       // A legacy migrated Seller can have an active commerce entitlement yet
       // no application row. Require its exact suspended role and the full

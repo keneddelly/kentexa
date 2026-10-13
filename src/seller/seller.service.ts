@@ -805,6 +805,19 @@ export class SellerService {
     };
   }
 
+  /**
+   * Rule A (owner 2026-10-13): a store becomes (or becomes again) active only
+   * with the owner's ID VERIFIED: approving a request AND bringing back a
+   * suspended seller, the same rule as offices. Throws before any write.
+   */
+  async assertOwnerIdentityVerified(profile: SellerProfile): Promise<void> {
+    const ownerId = profile.user?.id ?? (profile as any).userId;
+    const identity = ownerId ? await this.verification.getIdentityProfile(ownerId) : null;
+    if (identity?.status !== IdentityVerificationStatus.VERIFIED) {
+      throw new BadRequestException(SELLER_SIGNUP_MESSAGES.approveNeedsVerified);
+    }
+  }
+
   // ── Admin: approve seller ─────────────────────────────────────────────────
   async approve(
     profileId: number,
@@ -814,16 +827,10 @@ export class SellerService {
       where: { id: profileId },
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
-    // Rule A: turning a request into an approved store needs the owner's ID
-    // VERIFIED. An already approved seller (e.g. a verification-tier change)
-    // is not re-checked: nobody already approved is touched.
-    if (profile.status !== SellerStatus.APPROVED) {
-      const ownerId = profile.user?.id ?? (profile as any).userId;
-      const identity = ownerId ? await this.verification.getIdentityProfile(ownerId) : null;
-      if (identity?.status !== IdentityVerificationStatus.VERIFIED) {
-        throw new BadRequestException(SELLER_SIGNUP_MESSAGES.approveNeedsVerified);
-      }
-    }
+    // Rule A: a request (or a suspended seller) becomes active only with the
+    // owner's ID VERIFIED. An already approved seller (e.g. a verification-
+    // tier change) is not re-checked: nobody already approved is touched.
+    if (profile.status !== SellerStatus.APPROVED) await this.assertOwnerIdentityVerified(profile);
 
     // Business Capability Activation Stage A1: resolved and validated
     // BEFORE any write below. An ORGANIZATIONAL SellerProfile whose
