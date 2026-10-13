@@ -5723,7 +5723,14 @@
   "office_signup": {
     "identity_title": "First: your ID",
     "identity_desc": "An office needs its owner’s ID. Send it once; it is used everywhere on KenteXa.",
-    "identity_waiting_note": "You can apply now. The office is approved and shown to customers after your ID is verified."
+    "identity_waiting_note": "You can apply now. The office is approved and shown to customers after your ID is verified.",
+    "place_label": "Where is the office?",
+    "place_placeholder": "Type the street, ward or town, then pick from the list",
+    "place_required": "Pick where the office is from the list.",
+    "point_required": "Set the office point by GPS while you are at the office.",
+    "point_taken": "Office point set (±{{m}} m)",
+    "landmark_label": "Nearby landmark (optional)",
+    "phone_from_account": "Office phone: {{phone}} (from your account)"
   },
   "identity_state": {
     "waiting_title": "Your ID is waiting for verification",

@@ -96,7 +96,7 @@ export class SuperAgentsController {
 
   // ── Authenticated ─────────────────────────────────────────────────────────
 
-  // Apply to become a Super Agent. Registration activates immediately.
+  // Apply to open a Super Agent office. It waits for admin approval (ID verified first).
   @UseGuards(JwtAuthGuard)
   @Post('apply')
   async apply(@Request() req, @Body() dto: any) {

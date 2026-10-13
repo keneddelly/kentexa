@@ -5711,7 +5711,14 @@
   "office_signup": {
     "identity_title": "D’abord : votre pièce d’identité",
     "identity_desc": "Un bureau a besoin de la pièce d’identité de son propriétaire. Envoyez-la une fois ; elle sert partout sur KenteXa.",
-    "identity_waiting_note": "Vous pouvez faire la demande maintenant. Le bureau sera approuvé et visible après la vérification de votre identité."
+    "identity_waiting_note": "Vous pouvez faire la demande maintenant. Le bureau sera approuvé et visible après la vérification de votre identité.",
+    "place_label": "Où se trouve le bureau ?",
+    "place_placeholder": "Tapez la rue, le quartier ou la ville, puis choisissez dans la liste",
+    "place_required": "Choisissez l’emplacement du bureau dans la liste.",
+    "point_required": "Enregistrez le point du bureau par GPS depuis le bureau.",
+    "point_taken": "Point du bureau enregistré (±{{m}} m)",
+    "landmark_label": "Repère proche (facultatif)",
+    "phone_from_account": "Téléphone du bureau : {{phone}} (de votre compte)"
   },
   "identity_state": {
     "waiting_title": "Votre pièce d’identité attend la vérification",

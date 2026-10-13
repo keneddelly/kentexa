@@ -463,11 +463,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [agentHandoffChallenge, setAgentHandoffChallenge] = useState(null);
   const [codBalanceAmount, setCodBalanceAmount] = useState('');
 
-  // ── Apply form ────────────────────────────────────────────────────────────
-  const [applyForm, setApplyForm] = useState({
-    businessName: '', phone: '', address: '', city: '', region: '', description: '',
-  });
-  const [applying, setApplying]         = useState(false);
   const [transferModal, setTransferModal] = useState(null);
   const [transferForm, setTransferForm]   = useState({
     destinationCity: '', destinationSuperAgentId: null,
@@ -888,19 +883,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     } finally { setActionLoading(false); }
   };
 
-  // ── Apply ─────────────────────────────────────────────────────────────────
-
-  const handleApply = async () => {
-    try {
-      setApplying(true); setError('');
-      await api.post('/super-agents/apply', applyForm);
-      setProfileStatus('pending');
-    } catch (err) {
-      setError(err?.response?.data?.message || t('super_agent_dashboard.submit_failed'));
-    } finally { setApplying(false); }
-  };
-
   // ── Not applied ───────────────────────────────────────────────────────────
+  // One office form only (BecomeSuperAgentInfo: ID step, place list, GPS point).
 
   if (!loading && profileStatus === 'not_applied') return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
@@ -914,27 +898,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           <p style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginBottom: 20 }}>
             {t('super_agent_dashboard.apply_desc')}
           </p>
-          {[
-            { k: 'businessName', l: t('super_agent_dashboard.field_business_name_label'), ph: 'e.g. Geita Express Hub' },
-            { k: 'phone',        l: t('super_agent_dashboard.field_phone_label'),             ph: '0712345678' },
-            { k: 'city',         l: t('super_agent_dashboard.field_city_label'),              ph: 'e.g. Geita' },
-            { k: 'address',      l: t('super_agent_dashboard.field_address_label'),    ph: t('super_agent_dashboard.field_address_placeholder') },
-            { k: 'region',       l: t('super_agent_dashboard.field_region_label'),               ph: 'e.g. Geita' },
-            { k: 'description',  l: t('super_agent_dashboard.field_description_label'),  ph: 'Mzigo, vifurushi...' },
-          ].map(f => (
-            <div key={f.k} style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
-                display: 'block', marginBottom: 4 }}>{f.l}</label>
-              <input type="text" placeholder={f.ph} value={applyForm[f.k]}
-                onChange={e => setApplyForm(p => ({ ...p, [f.k]: e.target.value }))}
-                style={inp} />
-            </div>
-          ))}
-          {error && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 10 }}>❌ {error}</div>}
-          <button onClick={handleApply} disabled={applying}
+          <button onClick={() => onNavigate('BecomeSuperAgentInfo')}
             style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
               padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 15, fontWeight: 900 }}>
-            {applying ? t('super_agent_dashboard.submitting') : t('super_agent_dashboard.submit_application_button')}
+            {t('become_super_agent_info.form_title')}
           </button>
         </div>
       </div>

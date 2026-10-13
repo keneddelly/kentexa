@@ -5,16 +5,8 @@ import api from '../../api/api';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
-
-// Fallback only — the real list is fetched from the backend's canonical
-// TANZANIA_CITIES (GET /super-agents/cities) so this page doesn't carry
-// its own copy that can drift out of sync.
-const FALLBACK_CITIES = [
-  'Dar es Salaam','Mwanza','Arusha','Moshi','Dodoma','Mbeya','Tanga','Morogoro',
-  'Kigoma','Tabora','Songea','Iringa','Zanzibar','Lindi','Mtwara','Shinyanga',
-  'Singida','Musoma','Bukoba','Sumbawanga','Babati','Kibaha','Njombe','Kasulu',
-  'Mpanda','Masasi','Korogwe','Geita','Bariadi','Chato','Sengerema',
-];
+import IntelligentLocationInput from '../components/IntelligentLocationInput';
+import { getPhonePosition } from '../../utils/phoneLocation';
 
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
@@ -40,30 +32,31 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
   const idWaiting = isLoggedIn && identityState(identityStatus) === 'waiting';
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
-  const [form, setForm] = useState({
-    businessName: '', city: '', address: '', phone: '',
-  });
-  const [cities, setCities] = useState(FALLBACK_CITIES);
+  // The office's place comes from the place list and its map point from the
+  // phone's GPS (both required); the phone is the account's, not asked again.
+  const [form, setForm] = useState({ businessName: '', address: '' });
+  const [placeText, setPlaceText] = useState('');
+  const [place, setPlace] = useState(null);       // picked place (placeRef + regionName)
+  const [point, setPoint] = useState(null);       // { latitude, longitude, accuracyM }
+  const [locating, setLocating] = useState(false);
+  const accountPhone = currentUser?.phone || '';
 
-  useEffect(() => {
-    api.get('/super-agents/cities')
-      .then(res => { if (Array.isArray(res.data?.cities) && res.data.cities.length) setCities(res.data.cities); })
-      .catch(() => {});
-  }, []);
-
-  // Pre-fill from profile — the platform already knows this person's
-  // phone/city/store name if they've set them elsewhere; don't make them
-  // re-type it.
+  // Pre-fill the name/landmark the platform already knows.
   useEffect(() => {
     if (!currentUser) return;
     setForm(prev => ({
       ...prev,
-      phone:        prev.phone        || currentUser.phone           || '',
-      city:         prev.city         || currentUser.city             || '',
       address:      prev.address      || currentUser.businessLocation || '',
       businessName: prev.businessName || currentUser.storeName        || '',
     }));
   }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const takePoint = async () => {
+    setLocating(true); setError('');
+    try { setPoint(await getPhonePosition()); }
+    catch (err) { setError(err?.code ? t(`pickup_pin.error_${err.code}`) : t('pickup_pin.error_unavailable')); }
+    finally { setLocating(false); }
+  };
 
   useEffect(() => {
     if (!isLoggedIn) { setCheckingStatus(false); return; }
@@ -75,9 +68,8 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
 
   const handleSubmit = async () => {
     if (!form.businessName.trim()) { setError(t('become_super_agent_info.business_name_required')); return; }
-    if (!form.city) { setError(t('become_super_agent_info.city_required')); return; }
-    if (!form.phone.trim()) { setError(t('become_super_agent_info.phone_required')); return; }
-    if (!form.address.trim()) { setError(t('become_super_agent_info.address_required')); return; }
+    if (!place?.placeRef) { setError(t('office_signup.place_required')); return; }
+    if (!point) { setError(t('office_signup.point_required')); return; }
     if (!isLoggedIn) {
       localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo');
       onNavigate('PublicLogin');
@@ -85,7 +77,12 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
     }
     try {
       setLoading(true); setError('');
-      const res = await api.post('/super-agents/apply', form);
+      const res = await api.post('/super-agents/apply', {
+        businessName: form.businessName.trim(),
+        address: form.address.trim(),
+        place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId },
+        officePoint: { latitude: point.latitude, longitude: point.longitude, accuracyM: point.accuracyM },
+      });
       // A new office waits for admin approval: show its "pending" status here
       // instead of opening an office dashboard it cannot use yet.
       await onRefreshContext?.();
@@ -244,29 +241,30 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.city_label')}</label>
-                <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inputStyle}>
-                  <option value="">{t('become_super_agent_info.select_city_placeholder')}</option>
-                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                  {t('become_super_agent_info.city_hint')}
-                </div>
+                <IntelligentLocationInput label={t('office_signup.place_label')} value={placeText} onTextChange={setPlaceText}
+                  onResolved={setPlace} placeholder={t('office_signup.place_placeholder')} required />
+                {place?.regionName && <div style={{ fontSize: 12, color: '#16a34a', marginTop: -6 }}>✔ {place.regionName}</div>}
+              </div>
+
+              <div data-testid="office-signup-point">
+                <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>{t('office_point.explain')}</div>
+                <button type="button" onClick={takePoint} disabled={locating}
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 800,
+                    background: point ? '#ecfdf5' : '#ea580c', color: point ? '#065f46' : '#fff' }}>
+                  {locating ? t('pickup_pin.locating') : point ? `✔ ${t('office_signup.point_taken', { m: Math.round(point.accuracyM || 0) })}` : t('office_point.button')}
+                </button>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.address_label')}</label>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('office_signup.landmark_label')}</label>
                 <textarea rows={2} placeholder={t('become_super_agent_info.address_placeholder')}
                   value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
                   style={{ ...inputStyle, resize: 'vertical' }} />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.phone_label')}</label>
-                <input type="tel" placeholder="255712345678"
-                  value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                  style={inputStyle} />
-              </div>
+              {isLoggedIn && (
+                <div style={{ fontSize: 12, color: '#475569' }}>📞 {t('office_signup.phone_from_account', { phone: accountPhone || '—' })}</div>
+              )}
 
               {!isLoggedIn && (
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#92400e' }}>

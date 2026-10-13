@@ -90,6 +90,10 @@ export const OFFICE_POINT_METHOD = 'device_gps';
 export const OFFICE_SIGNUP_MESSAGES = {
   identityFirst: 'Tuma kitambulisho chako kwanza, kisha omba kufungua ofisi.',
   identityRejected: 'Kitambulisho chako kilikataliwa. Kituma tena kwanza.',
+  nameRequired: 'Andika jina la ofisi.',
+  placeRequired: 'Chagua mahali ofisi ilipo kutoka kwenye orodha.',
+  pointRequired: 'Weka mahali pa ofisi kwa GPS: bonyeza "Weka mahali pa ofisi" ukiwa ofisini.',
+  noPhone: 'Akaunti yako haina namba ya simu. Iweke kwenye akaunti kwanza.',
   submitted: 'Ombi la ofisi limepokelewa. Linasubiri idhini ya KenteXa; ofisi haitaonekana kwa wateja hadi iidhinishwe.',
   approveNeedsVerified: 'Kitambulisho cha mwenye ofisi hii bado hakijathibitishwa. Thibitisha kitambulisho kwanza.',
 } as const;
@@ -309,9 +313,11 @@ export class SuperAgentsService {
     user: User,
     dto: {
       businessName: string;
-      city: string;
+      // The office's place from the place list and its map point by GPS
+      // (owner 2026-10-13); the phone comes from the account.
+      place?: { providerKey?: string; providerPlaceId?: string };
+      officePoint?: { latitude?: unknown; longitude?: unknown; accuracyM?: unknown };
       address: string;
-      phone: string;
       governmentId?: string;
       governmentIdImage?: string;
     },
@@ -329,21 +335,40 @@ export class SuperAgentsService {
     if (identity?.status !== IdentityVerificationStatus.PENDING && identity?.status !== IdentityVerificationStatus.VERIFIED) {
       throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.identityFirst);
     }
-    if (!TANZANIA_CITIES.includes(dto.city))
-      throw new BadRequestException(`Invalid city: ${dto.city}`);
+    const businessName = String(dto?.businessName || '').trim().slice(0, 160);
+    if (!businessName) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.nameRequired);
+    const ref = dto?.place;
+    const place = typeof ref?.providerKey === 'string' && typeof ref?.providerPlaceId === 'string'
+      ? await this.locationIntelligence.resolve({ providerKey: ref.providerKey, providerPlaceId: ref.providerPlaceId }).catch(() => null)
+      : null;
+    const regionName = String(place?.regionName || '').trim();
+    if (!place || !regionName) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.placeRequired);
+    if (!dto?.officePoint) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.pointRequired);
+    const point = readAgentBasePoint(dto.officePoint);
+    const phone = String(user.phone || '').trim();
+    if (!phone) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.noPhone);
+    const address = String(dto?.address || '').trim().slice(0, 300) || place.displayLabel || null;
 
     const cityCode =
-      CITY_CODES[dto.city] || dto.city.substring(0, 3).toUpperCase();
+      CITY_CODES[regionName] || regionName.substring(0, 3).toUpperCase();
     const agentCode = `SA-${cityCode}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
 
     const agent = this.superAgentRepo.create({
       user,
       agentCode,
       cityCode,
-      businessName: dto.businessName,
-      city: dto.city,
-      address: dto.address,
-      phone: dto.phone,
+      businessName,
+      // Same place fields as the settings place picker (updateMyHubLocation);
+      // the map point is the GPS one, which later place-picker saves keep.
+      city: regionName,
+      regionId: place.regionId ?? null, regionName,
+      districtId: place.districtId ?? null, districtName: place.districtName ?? null,
+      wardId: place.wardId ?? null, wardName: place.wardName ?? null,
+      locationLabel: place.displayLabel,
+      locationProviderKey: place.providerKey, locationProviderPlaceId: place.providerPlaceId ?? null,
+      latitude: point.latitude, longitude: point.longitude, locationResolutionMethod: OFFICE_POINT_METHOD,
+      address,
+      phone,
       governmentId: dto.governmentId,
       governmentIdImage: dto.governmentIdImage || null,
       status: SuperAgentStatus.PENDING,

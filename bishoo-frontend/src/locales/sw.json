@@ -5653,7 +5653,14 @@
   "office_signup": {
     "identity_title": "Kwanza: kitambulisho chako",
     "identity_desc": "Ofisi inahitaji kitambulisho cha mwenye ofisi. Kitume mara moja tu; kitatumika kila mahali kwenye KenteXa.",
-    "identity_waiting_note": "Unaweza kuomba sasa. Ofisi itaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa."
+    "identity_waiting_note": "Unaweza kuomba sasa. Ofisi itaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa.",
+    "place_label": "Ofisi iko wapi?",
+    "place_placeholder": "Andika mtaa, kata au mji, kisha chagua kwenye orodha",
+    "place_required": "Chagua mahali ofisi ilipo kutoka kwenye orodha.",
+    "point_required": "Weka mahali pa ofisi kwa GPS ukiwa ofisini.",
+    "point_taken": "Mahali pa ofisi pamewekwa (±{{m}} m)",
+    "landmark_label": "Alama ya karibu (hiari)",
+    "phone_from_account": "Simu ya ofisi: {{phone}} (kutoka akaunti yako)"
   },
   "identity_state": {
     "waiting_title": "Kitambulisho kinasubiri uthibitisho",
