@@ -5718,7 +5718,8 @@
     "point_required": "Enregistrez le point du bureau par GPS depuis le bureau.",
     "point_taken": "Point du bureau enregistré (±{{m}} m)",
     "landmark_label": "Repère proche (facultatif)",
-    "phone_from_account": "Téléphone du bureau : {{phone}} (de votre compte)"
+    "phone_from_account": "Téléphone du bureau : {{phone}} (de votre compte)",
+    "status_waiting_id_desc": "Votre demande de bureau a été reçue. Une fois votre identité vérifiée, KenteXa approuve le bureau et les clients peuvent le voir."
   },
   "identity_state": {
     "waiting_title": "Votre pièce d’identité attend la vérification",
@@ -5759,5 +5760,19 @@
     "saved": "Votre point de base est enregistré.",
     "set_on": "Votre point de base est défini ({{date}}).",
     "change": "Modifier"
+  },
+  "work_roles": {
+    "title": "Travailler avec KenteXa",
+    "desc": "Un compte, plusieurs rôles. Touchez un rôle pour postuler ou voir son statut.",
+    "agent": "Agent",
+    "office": "Bureau (Super Agent)",
+    "seller": "Vendeur",
+    "service": "Prestataire de services",
+    "status_none": "Pas de demande",
+    "status_waiting": "En attente : approbation de KenteXa",
+    "status_waiting_id": "En attente : votre pièce d’identité doit d’abord être vérifiée",
+    "status_active": "Actif",
+    "status_suspended": "Suspendu",
+    "status_rejected": "Refusé : vous pouvez refaire une demande"
   }
 }

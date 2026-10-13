@@ -5730,7 +5730,8 @@
     "point_required": "Set the office point by GPS while you are at the office.",
     "point_taken": "Office point set (±{{m}} m)",
     "landmark_label": "Nearby landmark (optional)",
-    "phone_from_account": "Office phone: {{phone}} (from your account)"
+    "phone_from_account": "Office phone: {{phone}} (from your account)",
+    "status_waiting_id_desc": "Your office request was received. Once your ID is verified, KenteXa approves the office and customers can see it."
   },
   "identity_state": {
     "waiting_title": "Your ID is waiting for verification",
@@ -5771,5 +5772,19 @@
     "saved": "Your base point is saved.",
     "set_on": "Your base point is set ({{date}}).",
     "change": "Change"
+  },
+  "work_roles": {
+    "title": "Work with KenteXa",
+    "desc": "One account, many roles. Tap a role to apply or see its status.",
+    "agent": "Agent",
+    "office": "Office (Super Agent)",
+    "seller": "Seller",
+    "service": "Service provider",
+    "status_none": "Not applied",
+    "status_waiting": "Waiting: KenteXa approval",
+    "status_waiting_id": "Waiting: your ID must be verified first",
+    "status_active": "Active",
+    "status_suspended": "Suspended",
+    "status_rejected": "Rejected: you can apply again"
   }
 }

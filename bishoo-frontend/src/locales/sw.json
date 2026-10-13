@@ -5660,7 +5660,8 @@
     "point_required": "Weka mahali pa ofisi kwa GPS ukiwa ofisini.",
     "point_taken": "Mahali pa ofisi pamewekwa (±{{m}} m)",
     "landmark_label": "Alama ya karibu (hiari)",
-    "phone_from_account": "Simu ya ofisi: {{phone}} (kutoka akaunti yako)"
+    "phone_from_account": "Simu ya ofisi: {{phone}} (kutoka akaunti yako)",
+    "status_waiting_id_desc": "Ombi la ofisi limepokelewa. Kitambulisho chako kikithibitishwa, KenteXa itaidhinisha ofisi na itaonekana kwa wateja."
   },
   "identity_state": {
     "waiting_title": "Kitambulisho kinasubiri uthibitisho",
@@ -5701,5 +5702,19 @@
     "saved": "Kituo chako kimehifadhiwa.",
     "set_on": "Kituo chako kimewekwa ({{date}}).",
     "change": "Badilisha"
+  },
+  "work_roles": {
+    "title": "Fanya kazi na KenteXa",
+    "desc": "Akaunti moja, kazi nyingi. Gusa kazi ili kuomba au kuona hali yake.",
+    "agent": "Wakala",
+    "office": "Ofisi (Super Agent)",
+    "seller": "Muuzaji",
+    "service": "Mtoa huduma",
+    "status_none": "Hujaomba",
+    "status_waiting": "Inasubiri: idhini ya KenteXa",
+    "status_waiting_id": "Inasubiri: kitambulisho chako kithibitishwe kwanza",
+    "status_active": "Inatumika",
+    "status_suspended": "Imesimamishwa",
+    "status_rejected": "Imekataliwa: unaweza kuomba tena"
   }
 }

@@ -93,7 +93,10 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
   };
 
   const statusInfo = existingProfile ? {
-    pending:   { icon: '⏳', color: '#f59e0b', title: t('become_super_agent_info.status_pending_title'), desc: t('become_super_agent_info.status_pending_desc') },
+    // Waiting for the owner's ID comes first: say so instead of "24-48 hours".
+    pending:   identityState(identityStatus) !== 'verified'
+      ? { icon: '⏳', color: '#f59e0b', title: t('work_roles.status_waiting_id'), desc: t('office_signup.status_waiting_id_desc') }
+      : { icon: '⏳', color: '#f59e0b', title: t('become_super_agent_info.status_pending_title'), desc: t('become_super_agent_info.status_pending_desc') },
     active:    { icon: '✅', color: '#16a34a', title: t('become_super_agent_info.status_active_title'), desc: t('become_super_agent_info.status_active_desc', { code: existingProfile.agentCode || '—', city: existingProfile.city }) },
     suspended: { icon: '🚫', color: '#dc2626', title: t('become_super_agent_info.status_suspended_title'), desc: existingProfile.rejectionReason || t('become_super_agent_info.status_default_desc') },
     blocked:   { icon: '⛔', color: '#dc2626', title: t('become_super_agent_info.status_blocked_title'), desc: existingProfile.rejectionReason || t('become_super_agent_info.status_default_desc') },

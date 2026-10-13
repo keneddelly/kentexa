@@ -16,6 +16,7 @@ import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/b
 import { enablePushNotifications, disablePushNotifications, getPushNotificationState } from '../hooks/usePWA';
 import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
+import WorkWithKentexa from '../components/WorkWithKentexa';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -500,6 +501,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       {!section && (
         <div style={{ padding:'14px 14px 20px', maxWidth:760,
           margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
+          <WorkWithKentexa onNavigate={onNavigate} availableRoles={availableRoles} identityStatus={identityStatus} />
           <div style={{ backgroundColor:WH, borderRadius:16,
             boxShadow:'0 2px 8px rgba(0,0,0,0.05)', overflow:'hidden' }}>
             <Row icon="✏️" label={t('profile_editor.title')}
