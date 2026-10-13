@@ -5717,5 +5717,18 @@
     "status_active": "Inatumika",
     "status_suspended": "Imesimamishwa",
     "status_rejected": "Imekataliwa: unaweza kuomba tena"
+  },
+  "seller_signup": {
+    "identity_waiting_note": "Unaweza kuomba sasa. Duka litaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa.",
+    "phone_from_account": "Simu: {{phone}} (kutoka akaunti yako)",
+    "place_from_account": "Mahali: {{place}}",
+    "change_place": "Badilisha",
+    "next_papers": "Endelea: nyaraka za biashara",
+    "status_waiting_desc": "Ombi lako la kuuza limepokelewa. KenteXa italipitia; duka litaonekana kwa wateja baada ya kuidhinishwa.",
+    "status_waiting_id_desc": "Ombi lako la kuuza limepokelewa. Kitambulisho chako kikithibitishwa, KenteXa itaidhinisha duka na litaonekana kwa wateja.",
+    "status_approved_title": "Wewe ni muuzaji",
+    "status_approved_desc": "Duka lako limeidhinishwa.",
+    "status_rejected_title": "Ombi la kuuza limekataliwa",
+    "status_contact_desc": "Wasiliana na KenteXa kwa maelezo zaidi."
   }
 }

@@ -38,5 +38,6 @@ describe('work role status ("Fanya kazi na KenteXa")', () => {
     expect(workRoleTarget(service, 'active')).toBe('MyServices');
     expect(workRoleTarget(service, 'none')).toBe('PostService');
     expect(workRoleTarget(WORK_ROLES[1], 'active')).toBe('BecomeSuperAgentInfo');
+    expect(workRoleTarget(WORK_ROLES[2], 'none')).toBe('BecomeSeller'); // straight to the form, no info page
   });
 });

@@ -5787,5 +5787,18 @@
     "status_active": "Active",
     "status_suspended": "Suspended",
     "status_rejected": "Rejected: you can apply again"
+  },
+  "seller_signup": {
+    "identity_waiting_note": "You can apply now. The store is approved and shown to customers after your ID is verified.",
+    "phone_from_account": "Phone: {{phone}} (from your account)",
+    "place_from_account": "Place: {{place}}",
+    "change_place": "Change",
+    "next_papers": "Next: business papers",
+    "status_waiting_desc": "Your seller request was received. KenteXa will review it; the store is shown to customers once approved.",
+    "status_waiting_id_desc": "Your seller request was received. Once your ID is verified, KenteXa approves the store and customers can see it.",
+    "status_approved_title": "You are a seller",
+    "status_approved_desc": "Your store is approved.",
+    "status_rejected_title": "Seller request rejected",
+    "status_contact_desc": "Contact KenteXa for more details."
   }
 }

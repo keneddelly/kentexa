@@ -9,7 +9,7 @@ import { identityState } from './identityState';
 export const WORK_ROLES = [
   { key: 'agent',   roleType: 'agent',            recordKey: 'agent',  page: 'BecomeAgent' },
   { key: 'office',  roleType: 'super_agent',      recordKey: 'office', page: 'BecomeSuperAgentInfo' },
-  { key: 'seller',  roleType: 'seller',           recordKey: 'seller', page: 'BecomeSellerInfo' },
+  { key: 'seller',  roleType: 'seller',           recordKey: 'seller', page: 'BecomeSeller' },
   { key: 'service', roleType: 'service_provider', recordKey: null,     page: 'PostService', activePage: 'MyServices' },
 ];
 

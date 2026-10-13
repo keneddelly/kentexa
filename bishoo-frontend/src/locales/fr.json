@@ -5775,5 +5775,18 @@
     "status_active": "Actif",
     "status_suspended": "Suspendu",
     "status_rejected": "Refusé : vous pouvez refaire une demande"
+  },
+  "seller_signup": {
+    "identity_waiting_note": "Vous pouvez faire la demande maintenant. La boutique sera approuvée et visible après la vérification de votre identité.",
+    "phone_from_account": "Téléphone : {{phone}} (de votre compte)",
+    "place_from_account": "Lieu : {{place}}",
+    "change_place": "Modifier",
+    "next_papers": "Suivant : documents de l’entreprise",
+    "status_waiting_desc": "Votre demande de vendeur a été reçue. KenteXa va l’examiner ; la boutique sera visible une fois approuvée.",
+    "status_waiting_id_desc": "Votre demande de vendeur a été reçue. Une fois votre identité vérifiée, KenteXa approuve la boutique et les clients peuvent la voir.",
+    "status_approved_title": "Vous êtes vendeur",
+    "status_approved_desc": "Votre boutique est approuvée.",
+    "status_rejected_title": "Demande de vendeur refusée",
+    "status_contact_desc": "Contactez KenteXa pour plus de détails."
   }
 }
