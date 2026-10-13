@@ -14,22 +14,27 @@ describe('onboarding profile suggestions', () => {
     service.isFollowing = jest.fn().mockResolvedValue(false);
     return { service, builder };
   }
-  it('returns official, exact BiS identity and at most one city match', async () => {
+  it('returns the official profile and at most one city match; no business is pinned by its id', async () => {
     const { service, builder } = setup();
     const result = await service.getOnboardingSuggestions(7, 'Arusha');
-    expect(result.map((p: any) => p.id)).toEqual([2, 26, 40]);
-    expect(result[2].isLocalSuggestion).toBe(true);
+    expect(result.map((p: any) => p.id)).toEqual([2, 40]);
+    expect(result[1].isLocalSuggestion).toBe(true);
+    expect(service.repo.findOne).not.toHaveBeenCalled();   // no lookup of a fixed profile (was #26, BiS)
     expect(builder.andWhere).toHaveBeenCalledWith('p.ownerId != :userId', { userId: 7 });
-    expect(builder.andWhere).toHaveBeenCalledWith('p.id NOT IN (:...excludedIds)', { excludedIds: [26, 2] });
+    expect(builder.andWhere).toHaveBeenCalledWith('p.id NOT IN (:...excludedIds)', { excludedIds: [2] });
     expect(result.every((p: any) => !('email' in p) && !('phone' in p))).toBe(true);
   });
   it('never adds an unrelated fallback if no business matches the city', async () => {
     const { service } = setup(null);
-    expect((await service.getOnboardingSuggestions(7, 'Arusha')).map((p: any) => p.id)).toEqual([2, 26]);
+    expect((await service.getOnboardingSuggestions(7, 'Arusha')).map((p: any) => p.id)).toEqual([2]);
+  });
+  it('the former pinned business (#26) is only suggested like any other: as the city match', async () => {
+    const { service } = setup(bis);
+    expect((await service.getOnboardingSuggestions(7, 'Dar es Salaam')).map((p: any) => p.id)).toEqual([2, 26]);
   });
   it('does not query for a local business when location is unknown', async () => {
     const { service, builder } = setup();
-    expect((await service.getOnboardingSuggestions(7)).map((p: any) => p.id)).toEqual([2, 26]);
+    expect((await service.getOnboardingSuggestions(7)).map((p: any) => p.id)).toEqual([2]);
     expect(builder.getOne).not.toHaveBeenCalled();
   });
 });

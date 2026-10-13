@@ -159,17 +159,17 @@ export class CommerceProfilesService {
   // expansion and shop/duka/seller stopword-stripping (see
   // search-term-normalizer.util.ts) apply here too.
 
-  // Pinned BiS identity is the current production business profile, distinct
-  // from its legacy profile #6 and the owner's personal identity.
+  // New-user follow suggestions: the official KenteXa profile, then one active
+  // business in the user's city. No business is pinned by its id (owner
+  // 2026-10-13: no special cases for any person or business); an admin-chosen
+  // "featured profiles" setting comes later with N1.
   async getOnboardingSuggestions(userId: number, city?: string) {
     const official = await this.getOfficialKentexaProfile();
-    const bis = await this.repo.findOne({
-      where: { id: 26, type: CommerceProfileType.BUSINESS, status: CommerceProfileStatus.ACTIVE },
-    });
-    const pinned = [official, bis].filter(
+    const pinned = [official].filter(
       (p): p is CommerceProfile => !!p && p.status === CommerceProfileStatus.ACTIVE && p.ownerId !== userId,
     );
-    const excludedIds = [...new Set([26, ...pinned.map(p => p.id)])];
+    // Never an empty IN () list: -1 matches no profile.
+    const excludedIds = pinned.length ? pinned.map(p => p.id) : [-1];
     const location = city?.trim().slice(0, 80);
     let local: CommerceProfile | null = null;
     if (location) {
