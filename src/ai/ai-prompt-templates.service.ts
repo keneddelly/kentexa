@@ -177,7 +177,7 @@ export class AiPromptTemplateService {
         'e.g. "super agent Mwanza", "hub near me", "who handles parcels in Dodoma", "send a ' +
         'parcel from Arusha" when no specific transport company is named), "people" (looking ' +
         'up a specific person, seller, or business by their name/username directly — not what ' +
-        'they sell, e.g. "kened" or "Bishoo Intelligence Systems"), "business" (the user wants ' +
+        'they sell, e.g. "amani" or "Jua Kali Traders"), "business" (the user wants ' +
         'to find businesses/sellers/shops THEMSELVES, usually filtered by a brand they carry ' +
         'or their authorization status, rather than one specific product/classified/service or ' +
         'a specific named identity — e.g. "which shops sell genuine LG products", "authorized ' +
