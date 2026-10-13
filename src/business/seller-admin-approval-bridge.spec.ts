@@ -77,7 +77,7 @@ describe('Seller admin approval bridge (Business Selling), real disposable-DB', 
     await ds.initialize();
     apps = new BusinessCapabilityApplicationService(
       repo(BusinessCapabilityApplication), repo(BusinessCapability), ds,
-      { requireFeature: jest.fn() } as any, { resolveAgentLocation: jest.fn() } as any,
+      { requireFeature: jest.fn(), getIdentityProfile: async () => ({ status: 'verified' }) } as any, { resolveAgentLocation: jest.fn() } as any,
     );
     bridge = new SellerApprovalBridgeService(repo(SellerProfile), repo(BusinessCapabilityApplication), legacySeller, apps);
     roles = new RoleContextService(

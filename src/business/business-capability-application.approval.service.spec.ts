@@ -104,7 +104,7 @@ describe('BusinessCapabilityApplicationService — approve/reject (Stage B3), re
 
     service = new BusinessCapabilityApplicationService(
       applicationRepo(), capabilityRepo(), ds,
-      { requireFeature: async () => undefined } as any,
+      { requireFeature: async () => undefined, getIdentityProfile: async () => ({ status: 'verified' }) } as any,
       { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
     );
   }, 60000);

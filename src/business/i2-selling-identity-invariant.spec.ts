@@ -77,7 +77,7 @@ describe('Business Selling identity invariant (shared validator), real disposabl
     await ds.initialize();
     apps = new BusinessCapabilityApplicationService(
       repo(BusinessCapabilityApplication), repo(BusinessCapability), ds,
-      { requireFeature: jest.fn() } as any, { resolveAgentLocation: jest.fn() } as any,
+      { requireFeature: jest.fn(), getIdentityProfile: async () => ({ status: 'verified' }) } as any, { resolveAgentLocation: jest.fn() } as any,
     );
     roles = new RoleContextService(
       repo(User), repo(AccountRole), repo(ActiveRoleSession), repo(SellerProfile),

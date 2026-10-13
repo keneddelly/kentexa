@@ -102,6 +102,7 @@ describe('B7C — capability verification + SuperAgent real-city + reapply, real
         throw err;
       }
     }),
+    getIdentityProfile: async () => ({ status: 'verified' }), // approval needs a verified owner (2026-10-13)
   };
 
   // A configurable tz-location stub: resolves a known set of city strings,

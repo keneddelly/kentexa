@@ -44,6 +44,7 @@ describe('I2C — canonical Business capability activation, real disposable-DB',
         throw err;
       }
     }),
+    getIdentityProfile: async () => ({ status: 'verified' }), // approval needs a verified owner (2026-10-13)
   };
 
   const makeUser = (name: string) => {

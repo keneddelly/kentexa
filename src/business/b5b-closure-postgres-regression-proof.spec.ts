@@ -135,7 +135,7 @@ describe('B5B closure — final real-Postgres regression proof (COMMERCE + legac
 
     service = new BusinessCapabilityApplicationService(
       applicationRepo(), capabilityRepo(), ds,
-      { requireFeature: async () => undefined } as any,
+      { requireFeature: async () => undefined, getIdentityProfile: async () => ({ status: 'verified' }) } as any,
       { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
     );
     roleContextService = new RoleContextService(

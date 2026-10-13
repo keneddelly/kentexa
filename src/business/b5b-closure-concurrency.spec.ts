@@ -92,7 +92,7 @@ describe('B5B closure — concurrent application, concurrent approval, approve-v
     await ds.initialize();
     service = new BusinessCapabilityApplicationService(
       applicationRepo(), capabilityRepo(), ds,
-      { requireFeature: async () => undefined } as any,
+      { requireFeature: async () => undefined, getIdentityProfile: async () => ({ status: 'verified' }) } as any,
       { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
     );
   }, 60000);

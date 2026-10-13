@@ -64,7 +64,7 @@ describe('BusinessCapabilityApplicationService.applyForCapability() — transact
 
     const service = new BusinessCapabilityApplicationService(
       outerApplicationRepo, outerCapabilityRepo, dataSource,
-      { requireFeature: async () => undefined } as any,
+      { requireFeature: async () => undefined, getIdentityProfile: async () => ({ status: 'verified' }) } as any,
       { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
     );
     return { service, profileSave, roleSave, applicationSave, dataSource };

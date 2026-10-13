@@ -126,7 +126,7 @@ describe('B6B — Service Business Authority Foundation, real disposable-DB', ()
 
     service = new BusinessCapabilityApplicationService(
       applicationRepo(), capabilityRepo(), ds,
-      { requireFeature: async () => undefined } as any,
+      { requireFeature: async () => undefined, getIdentityProfile: async () => ({ status: 'verified' }) } as any,
       { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
     );
     roleContextService = new RoleContextService(

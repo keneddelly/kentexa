@@ -172,7 +172,7 @@ describe('B5C — profile/Business/workspace authority integrity, real disposabl
 
     service = new BusinessCapabilityApplicationService(
       applicationRepo(), capabilityRepo(), ds,
-      { requireFeature: async () => undefined } as any,
+      { requireFeature: async () => undefined, getIdentityProfile: async () => ({ status: 'verified' }) } as any,
       { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
     );
     roleContextService = new RoleContextService(
