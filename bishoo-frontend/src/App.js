@@ -148,6 +148,7 @@ import TermsAndConditions from './public/pages/TermsAndConditions';
 import PrivacyPolicy from './public/pages/PrivacyPolicy';
 import UpdateNotice from './public/components/UpdateNotice';
 import TrainingSmsNotice from './public/components/TrainingSmsNotice';
+import { identityState, afterIdentitySent } from './utils/identityState';
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -606,12 +607,14 @@ function App() {
     const role = activeContext?.roleType;
     if (role === 'admin' || role === 'manager' || role === 'super_agent') return component;
     if (identityStatus === null) return null; // brief post-login load; avoid flashing either state
-    if (identityStatus.level === 0) {
+    // Seller pages need a VERIFIED ID (server rule). Missing/rejected -> the ID step;
+    // waiting -> "kinasubiri" (never asked again). utils/identityState.
+    if (identityState(identityStatus) !== 'verified') {
       return (
         <SellerAccessGate
           onNavigate={handleNavigate}
           identityStatus={identityStatus}
-          onVerified={() => setIdentityStatus({ status: 'pending', level: 1 })}
+          onVerified={() => setIdentityStatus(prev => afterIdentitySent(prev))}
         />
       );
     }

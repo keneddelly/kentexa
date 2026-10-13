@@ -41,6 +41,7 @@ import {
   CLAIM_CODE_NOTE, SHOW_CLAIM_CODE_NOTE, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
   canHandOverToRecipient, canReopenReceipt, historiaMatches,
 } from '../../utils/counterReceipt';
+import { needsIdentityStep } from '../../utils/identityState';
 
 const pendingWalkInRequests = new Map();
 
@@ -1021,7 +1022,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           Phase 3 never had to complete Level 1 identity; this never
           restricts anything they can already do, it's purely informational
           (spec: "do not remove existing Super Agents automatically"). */}
-      {identityStatus && identityStatus.level < 1 && (
+      {needsIdentityStep(identityStatus) && (
         <div onClick={() => setShowVerifyIdentity(true)}
           style={{ backgroundColor: '#fef9c3', padding: '10px 16px', fontSize: 12,
             color: '#92400e', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>

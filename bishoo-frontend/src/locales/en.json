@@ -5720,6 +5720,10 @@
     "change": "Change",
     "saved": "Office location saved."
   },
+  "identity_state": {
+    "waiting_title": "Your ID is waiting for verification",
+    "waiting_seller": "You have already sent your ID. You can continue selling once KenteXa verifies it. No need to send it again."
+  },
   "agent_signup": {
     "step_of": "Step {{step}} of 3",
     "back": "Back",

@@ -4,6 +4,7 @@ import api from '../../api/api';
 import IntelligentLocationInput from './IntelligentLocationInput';
 import VerifyIdentityModal from './VerifyIdentityModal';
 import { getPhonePosition } from '../../utils/phoneLocation';
+import { identityState, afterIdentitySent } from '../../utils/identityState';
 
 // Agent sign-up in 3 short steps (owner 2026-10-13: "simple door, complex
 // engine"; verify a person once, reuse it everywhere):
@@ -35,7 +36,9 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
     api.get('/identity/me').then((r) => setIdentity(r.data)).catch(() => setIdentity({ status: 'not_submitted', level: 0 }));
   }, []);
 
-  const identityOk = identity && (identity.status === 'verified' || identity.status === 'pending');
+  // One answer for every form (utils/identityState): verified or waiting may continue.
+  const idState = identityState(identity);
+  const identityOk = idState === 'verified' || idState === 'waiting';
   const name = currentUser?.name || '';
   const phone = currentUser?.phone || '';
 
@@ -91,17 +94,17 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
           <div style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 12px' }}>{t('agent_signup.from_account')}</div>
           {!identity ? (
             <div style={{ fontSize: 13, color: '#64748b' }}>⏳</div>
-          ) : identity.status === 'verified' ? (
+          ) : idState === 'verified' ? (
             <div data-testid="identity-ok" style={{ background: '#dcfce7', color: '#166534', padding: '10px 12px', borderRadius: 10, fontWeight: 800, fontSize: 14 }}>
               ✔ {t('agent_signup.identity_verified')}
             </div>
-          ) : identity.status === 'pending' ? (
+          ) : idState === 'waiting' ? (
             <div style={{ background: '#fef9c3', color: '#854d0e', padding: '10px 12px', borderRadius: 10, fontSize: 13 }}>
               <strong>⏳ {t('agent_signup.identity_pending')}</strong><br />{t('agent_signup.identity_pending_note')}
             </div>
           ) : (
             <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', padding: '12px', borderRadius: 10, fontSize: 13, color: '#7c2d12' }}>
-              {identity.status === 'rejected' ? t('agent_signup.identity_rejected') : t('agent_signup.identity_missing')}
+              {idState === 'rejected' ? t('agent_signup.identity_rejected') : t('agent_signup.identity_missing')}
               <button type="button" onClick={() => setShowIdentity(true)} style={{ ...primary(true), marginTop: 10 }}>
                 🪪 {t('agent_signup.identity_button')}
               </button>
@@ -158,7 +161,7 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
 
       {showIdentity && (
         <VerifyIdentityModal onClose={() => setShowIdentity(false)}
-          onVerified={() => { setShowIdentity(false); setIdentity((p) => ({ ...(p || {}), status: 'pending', level: 1 })); }} />
+          onVerified={() => { setShowIdentity(false); setIdentity((p) => afterIdentitySent(p)); }} />
       )}
     </div>
   );

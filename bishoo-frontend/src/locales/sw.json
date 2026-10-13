@@ -5650,6 +5650,10 @@
     "change": "Badilisha",
     "saved": "Mahali pa ofisi pamehifadhiwa."
   },
+  "identity_state": {
+    "waiting_title": "Kitambulisho kinasubiri uthibitisho",
+    "waiting_seller": "Umeshatuma kitambulisho chako. Utaweza kuendelea na kuuza baada ya KenteXa kukithibitisha. Huna haja ya kukituma tena."
+  },
   "agent_signup": {
     "step_of": "Hatua {{step}} kati ya 3",
     "back": "Rudi",

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
 import api from '../../api/api';
 
 const inputStyle = {
@@ -53,13 +54,10 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
     if (!isLoggedIn) { setIdentityStatus({ status: 'not_submitted', level: 0 }); return; }
     api.get('/identity/me').then(r => setIdentityStatus(r.data)).catch(() => setIdentityStatus({ status: 'not_submitted', level: 0 }));
   }, [isLoggedIn]);
-  const needsIdentityVerification = identityStatus && identityStatus.level === 0;
-  // Distinguishes the two ways the identity modal can open: proactively
-  // (the "Verify Now" gate below, before any form exists to submit) vs
-  // reactively (a 403 from an already-filled-in form, handled in
-  // handleSubmit's catch below) — only the latter should auto-retry
-  // submission once verification succeeds.
-  const [retrySubmitAfterVerify, setRetrySubmitAfterVerify] = useState(false);
+  // One answer for every form (utils/identityState): only a missing or rejected
+  // ID shows the ID step; a waiting one shows "kinasubiri" and is never re-asked.
+  const needsIdentityVerification = needsIdentityStep(identityStatus);
+  const identityWaiting = identityState(identityStatus) === 'waiting';
 
   // ── Business verification (Phase 2) ─────────────────────────────────────
   const [sellerType, setSellerType] = useState('individual');
@@ -136,8 +134,11 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
       // before the form even renders, but stays as a defensive fallback
       // (e.g. a stale identityStatus read at mount).
       if (err?.response?.data?.code === 'VERIFICATION_REQUIRED') {
-        setRetrySubmitAfterVerify(true);
-        setShowVerifyIdentity(true);
+        // The server needs a VERIFIED ID. Re-read it: waiting -> the waiting card,
+        // missing/rejected -> the ID step. Never re-ask a waiting person.
+        const fresh = await api.get('/identity/me').then((r) => r.data).catch(() => null);
+        if (fresh) setIdentityStatus(fresh);
+        if (!fresh || needsIdentityStep(fresh)) setShowVerifyIdentity(true);
         return;
       }
       setError(err?.response?.data?.message || t('become_seller.apply_failed'));
@@ -222,7 +223,14 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
         {/* Application Form — hidden until identity verification clears,
             so choosing "Sell" never shows business-shaped fields before
             the user has even proven who they are. */}
-        {!needsIdentityVerification && (
+        {identityWaiting && isLoggedIn && (
+          <div role="status" data-testid="identity-waiting" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 16, padding: 18, marginBottom: 16, fontSize: 14, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 800, marginBottom: 4 }}>{t('identity_state.waiting_title')}</div>
+            {t('identity_state.waiting_seller')}
+          </div>
+        )}
+
+        {!needsIdentityVerification && !identityWaiting && (
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}>
           <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 16 }}>
             {t('become_seller.apply_title')}
@@ -510,11 +518,9 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
             // counts (VerificationService.getLevel()'s own policy) — so
             // reveal the application form right away rather than
             // re-fetching and waiting on a network round trip.
-            setIdentityStatus(prev => ({ ...(prev || {}), status: 'pending', level: 1 }));
-            if (retrySubmitAfterVerify) {
-              setRetrySubmitAfterVerify(false);
-              handleSubmit();
-            }
+            // The real status after sending: waiting (or still verified). A waiting
+            // ID cannot apply yet (the server needs it verified): no automatic retry.
+            setIdentityStatus(prev => afterIdentitySent(prev));
           }}
         />
       )}

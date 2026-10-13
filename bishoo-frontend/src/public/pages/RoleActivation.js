@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import api from '../../api/api';
+import { needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
 
 // Roles that make someone an operational Kentexa participant (sells,
 // ships, transports, or provides a service on behalf of themselves or
@@ -127,8 +128,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
   const handleActivate = (targetPage) => {
     const needsVerification =
       OPERATIONAL_ROLE_KEYS.includes(selected) &&
-      identityStatus &&
-      identityStatus.level === 0;
+      needsIdentityStep(identityStatus);
     if (needsVerification) {
       setShowVerifyIdentity(true);
       return;
@@ -293,7 +293,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
           onClose={() => setShowVerifyIdentity(false)}
           onVerified={() => {
             setShowVerifyIdentity(false);
-            setIdentityStatus({ status: 'pending', level: 1 });
+            setIdentityStatus(prev => afterIdentitySent(prev));
             onNavigate(role.page);
           }}
         />

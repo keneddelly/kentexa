@@ -22,6 +22,8 @@ const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
   const { t } = useTranslation();
   const [showVerify, setShowVerify] = useState(false);
   const rejected = identityStatus?.status === 'rejected';
+  // Waiting: the ID was sent; never ask again, just say so (utils/identityState).
+  const waiting = identityStatus?.status === 'pending';
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
@@ -31,11 +33,11 @@ const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
           boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🪪</div>
           <div style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', marginBottom: 10 }}>
-            {rejected ? t('become_seller.identity_rejected_title') : t('seller_access_gate.title')}
+            {waiting ? t('identity_state.waiting_title') : rejected ? t('become_seller.identity_rejected_title') : t('seller_access_gate.title')}
           </div>
           <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6,
             marginBottom: identityStatus?.rejectionReason ? 10 : 22 }}>
-            {rejected ? t('seller_access_gate.desc_rejected') : t('seller_access_gate.desc_not_submitted')}
+            {waiting ? t('identity_state.waiting_seller') : rejected ? t('seller_access_gate.desc_rejected') : t('seller_access_gate.desc_not_submitted')}
           </div>
           {rejected && identityStatus?.rejectionReason && (
             <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px',
@@ -43,12 +45,12 @@ const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
               {t('seller_access_gate.rejected_reason', { reason: identityStatus.rejectionReason })}
             </div>
           )}
-          <button onClick={() => setShowVerify(true)}
+          {!waiting && <button onClick={() => setShowVerify(true)}
             style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', border: 'none',
               padding: '13px 28px', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800,
               boxShadow: '0 4px 12px rgba(102,126,234,0.4)' }}>
             {t('seller_access_gate.verify_button')}
-          </button>
+          </button>}
         </div>
       </div>
 

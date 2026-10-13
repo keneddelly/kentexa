@@ -14,6 +14,7 @@ import { homeForRole } from '../../navigation/navigationRegistry';
 import { getMyBusinesses } from '../../api/business';
 import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
 import { enablePushNotifications, disablePushNotifications, getPushNotificationState } from '../hooks/usePWA';
+import { needsIdentityStep } from '../../utils/identityState';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -746,7 +747,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   : t('my_profile.identity_not_verified')
                 }
                 color={identityStatus?.status === 'verified' ? '#16a34a' : identityStatus?.status === 'pending' ? '#ca8a04' : GR}
-                onAction={identityStatus?.status === 'verified' ? undefined : () => setShowVerifyIdentity(true)} />
+                onAction={needsIdentityStep(identityStatus) ? () => setShowVerifyIdentity(true) : undefined} />
               {sellerProfile?.sellerType === 'business' && (
                 <Row icon="🏢" label={t('my_profile.business_verification_label')}
                   value={

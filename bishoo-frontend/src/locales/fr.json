@@ -5708,6 +5708,10 @@
     "change": "Modifier",
     "saved": "Emplacement du bureau enregistré."
   },
+  "identity_state": {
+    "waiting_title": "Votre pièce d’identité attend la vérification",
+    "waiting_seller": "Vous avez déjà envoyé votre pièce d’identité. Vous pourrez vendre dès que KenteXa l’aura vérifiée. Inutile de la renvoyer."
+  },
   "agent_signup": {
     "step_of": "Étape {{step}} sur 3",
     "back": "Retour",
