@@ -118,6 +118,11 @@ api.interceptors.response.use(
     // A revoked response from an old token/epoch is stale evidence and must
     // never clear a newer context established while the request was in flight.
     if (isStale(config)) return Promise.reject(new StaleContextResponseError());
+    // The server says an ID is needed: let every open page re-read the ID status
+    // (utils/useIdentityRefresh). Raw event name: no import, no cycle.
+    if (error?.response?.status === 403 && /^VERIFICATION_/.test(error?.response?.data?.code || '') && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('kentexa:identity-changed'));
+    }
     if (error?.response?.status === 401 && config?.__authenticatedRequest) {
       onCurrentContextRevoked(responseCode(error) || 'AUTHENTICATION_FAILED');
     }

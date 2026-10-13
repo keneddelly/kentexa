@@ -11,6 +11,7 @@ import BackBar  from '../components/BackBar';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import api from '../../api/api';
 import { needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
+import useIdentityRefresh from '../../utils/useIdentityRefresh';
 
 // Roles that make someone an operational Kentexa participant (sells,
 // ships, transports, or provides a service on behalf of themselves or
@@ -103,6 +104,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
   const [selected, setSelected] = useState(null);
   const [hasBusiness, setHasBusiness] = useState(false);
   const [identityStatus, setIdentityStatus] = useState(null);
+  useIdentityRefresh(setIdentityStatus, isLoggedIn);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   // Business isn't tracked on User.activeRoles — it's its own entity

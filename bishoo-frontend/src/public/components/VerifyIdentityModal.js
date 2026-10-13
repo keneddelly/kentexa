@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import { announceIdentityChanged } from '../../utils/useIdentityRefresh';
 
 const overlayStyle = {
   position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)',
@@ -73,6 +74,7 @@ const VerifyIdentityModal = ({ onClose, onVerified }) => {
         idNumber: idNumber.trim(),
         idDocumentImageUrl: idPhoto,
       });
+      announceIdentityChanged(); // every open page re-reads the ID status
       onVerified();
     } catch (err) {
       setError(err?.response?.data?.message || t('verify_identity.submit_failed'));

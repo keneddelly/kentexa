@@ -42,6 +42,7 @@ import {
   canHandOverToRecipient, canReopenReceipt, historiaMatches,
 } from '../../utils/counterReceipt';
 import { needsIdentityStep } from '../../utils/identityState';
+import useIdentityRefresh from '../../utils/useIdentityRefresh';
 
 const pendingWalkInRequests = new Map();
 
@@ -193,6 +194,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [resendMsg, setResendMsg] = useState('');
   const [error, setError]               = useState('');
   const [identityStatus, setIdentityStatus] = useState(null);
+  useIdentityRefresh(setIdentityStatus, true);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [referralData, setReferralData] = useState(null);
   const [refLinkCopied, setRefLinkCopied] = useState(false);

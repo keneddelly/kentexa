@@ -149,6 +149,7 @@ import PrivacyPolicy from './public/pages/PrivacyPolicy';
 import UpdateNotice from './public/components/UpdateNotice';
 import TrainingSmsNotice from './public/components/TrainingSmsNotice';
 import { identityState, afterIdentitySent } from './utils/identityState';
+import useIdentityRefresh from './utils/useIdentityRefresh';
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -253,6 +254,7 @@ function App() {
   // renderPage() shows nothing/blocks rather than flashing a real page
   // then yanking it away).
   const [identityStatus, setIdentityStatus] = useState(null);
+  useIdentityRefresh(setIdentityStatus, isLoggedIn);
   const fetchIdentityStatus = () => {
     if (!isLoggedIn) { setIdentityStatus({ status: 'not_submitted', level: 0 }); return; }
     api.get('/identity/me')

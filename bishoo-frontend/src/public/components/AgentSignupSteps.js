@@ -5,6 +5,7 @@ import IntelligentLocationInput from './IntelligentLocationInput';
 import VerifyIdentityModal from './VerifyIdentityModal';
 import { getPhonePosition } from '../../utils/phoneLocation';
 import { identityState, afterIdentitySent } from '../../utils/identityState';
+import useIdentityRefresh from '../../utils/useIdentityRefresh';
 
 // Agent sign-up in 3 short steps (owner 2026-10-13: "simple door, complex
 // engine"; verify a person once, reuse it everywhere):
@@ -22,6 +23,7 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
   const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [identity, setIdentity] = useState(null);           // { status, level } from /identity/me
+  useIdentityRefresh(setIdentity, true);
   const [showIdentity, setShowIdentity] = useState(false);
   const [placeText, setPlaceText] = useState('');
   const [place, setPlace] = useState(null);                  // picked place (placeRef + regionName)

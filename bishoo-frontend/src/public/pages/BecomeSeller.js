@@ -5,6 +5,7 @@ import LocationPicker from '../components/LocationPicker';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
 import api from '../../api/api';
+import useIdentityRefresh from '../../utils/useIdentityRefresh';
 
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
@@ -50,6 +51,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
   // satisfy Level 1 (see VerificationService.getLevel()'s own "pending
   // counts" policy) — never re-ask in either of those states.
   const [identityStatus, setIdentityStatus] = useState(null);
+  useIdentityRefresh(setIdentityStatus, isLoggedIn);
   React.useEffect(() => {
     if (!isLoggedIn) { setIdentityStatus({ status: 'not_submitted', level: 0 }); return; }
     api.get('/identity/me').then(r => setIdentityStatus(r.data)).catch(() => setIdentityStatus({ status: 'not_submitted', level: 0 }));

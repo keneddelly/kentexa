@@ -15,6 +15,7 @@ import { getMyBusinesses } from '../../api/business';
 import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
 import { enablePushNotifications, disablePushNotifications, getPushNotificationState } from '../hooks/usePWA';
 import { needsIdentityStep } from '../../utils/identityState';
+import useIdentityRefresh from '../../utils/useIdentityRefresh';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -111,6 +112,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [loading,    setLoading]    = useState(true); // eslint-disable-line no-unused-vars
   const [showQR,     setShowQR]     = useState(false);
   const [identityStatus, setIdentityStatus] = useState(null);
+  useIdentityRefresh(setIdentityStatus, true);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [pushState, setPushState] = useState('');
