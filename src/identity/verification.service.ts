@@ -184,6 +184,10 @@ export class VerificationService {
     },
   ): Promise<IdentityProfile> {
     let profile = await this.identityRepo.findOne({ where: { user: { id: user.id } } });
+    // An identity an admin already VERIFIED is never overwritten by sending the
+    // ID again (that used to drop the person back to "waiting", level 0, so every
+    // form asked again). It stays as it is; the caller just refreshes.
+    if (profile?.status === IdentityVerificationStatus.VERIFIED) return profile;
     const previousStatus = profile?.status || IdentityVerificationStatus.NOT_SUBMITTED;
 
     const result = await this.provider.submit(data);
