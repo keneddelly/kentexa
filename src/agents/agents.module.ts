@@ -4,6 +4,8 @@ import { AgentsService } from './agents.service';
 import { AgentsController } from './agents.controller';
 import { AgentCodRemittanceService } from './agent-cod-remittance.service';
 import { AgentOnlineExpiryService } from './agent-online-expiry.service';
+import { AgentPickupReofferService } from './agent-pickup-reoffer.service';
+import { CommunicationModule } from '../communication/communication.module';
 import { Agent } from './entities/agent.entity';
 import { AgentTransaction } from './entities/agent-transaction.entity';
 import { User } from '../users/entities/user.entity';
@@ -22,9 +24,11 @@ import { LocationIntelligenceModule } from '../location-intelligence/location-in
     // Agent sign-up: the account's identity record and the place list.
     IdentityModule,
     LocationIntelligenceModule,
+    // D5: the in-app job alert when an agent goes online.
+    CommunicationModule,
   ],
   controllers: [AgentsController],
-  providers: [AgentsService, AgentCodRemittanceService, AgentOnlineExpiryService],
+  providers: [AgentsService, AgentCodRemittanceService, AgentOnlineExpiryService, AgentPickupReofferService],
   exports: [AgentsService],
 })
 export class AgentsModule {}

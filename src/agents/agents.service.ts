@@ -8,6 +8,7 @@ import {
 import { VerificationService } from '../identity/verification.service';
 import { IdentityVerificationStatus } from '../identity/entities/identity-profile.entity';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
+import { AgentPickupReofferService } from './agent-pickup-reoffer.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Agent, AgentStatus } from './entities/agent.entity';
@@ -63,6 +64,8 @@ export class AgentsService {
     // Agent sign-up reuses the account's identity and the place list.
     @Optional() private readonly verification?: VerificationService,
     @Optional() private readonly locations?: LocationIntelligenceService,
+    // D5: waiting pickups near the base are offered when the agent goes online.
+    @Optional() private readonly pickupReoffer?: AgentPickupReofferService,
   ) {}
 
   // ── Agent: register ────────────────────────────────────────────────────────
@@ -570,6 +573,8 @@ export class AgentsService {
       isOnline: nowOnline,
       lastOnlineAt: nowOnline ? new Date() : (agent as any).lastOnlineAt,
     });
+    // D5: offer him the pickups already waiting near his base (never blocks going online).
+    if (nowOnline && this.pickupReoffer) await this.pickupReoffer.offerTo((agent as any).id);
 
     return {
       isOnline: nowOnline,
