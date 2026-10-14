@@ -20,6 +20,7 @@ import { PickupTasksController } from './pickup-tasks.controller';
 import { SmsModule } from '../sms/sms.module';
 import { ShipmentActivationService } from './shipment-activation.service';
 import { LogisticsDispatchService } from './logistics-dispatch.service';
+import { PickupOfferSmsService } from './pickup-offer-sms.service';
 import { CommunicationModule } from '../communication/communication.module';
 
 @Module({
@@ -38,7 +39,7 @@ import { CommunicationModule } from '../communication/communication.module';
     CommunicationModule,
   ],
   controllers: [ShipmentsController, PickupTasksController],
-  providers: [ShipmentsService, PickupTasksService, ShipmentActivationService, LogisticsDispatchService],
+  providers: [ShipmentsService, PickupTasksService, ShipmentActivationService, LogisticsDispatchService, PickupOfferSmsService],
   exports: [ShipmentsService],
 })
 export class ShipmentsModule {}

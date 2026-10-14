@@ -682,6 +682,9 @@ step 0): the new frontend has no live fallback any more.
 - Release B (all optional, defaults built in): `DISPATCH_REMINDER_ENABLED`, `DISPATCH_REMINDER_STALE_HOURS`,
   `DISPATCH_REMINDER_SMS_TIME`, `DISPATCH_REMINDER_LATEST_TIME`
 - Waybill on counter receipt/SMS (planned, section 1): `WAYBILL_CUSTOMER_FROM` (not set = KTX-ORD as today)
+- Job offer SMS to agents (2026-10-14, all optional, defaults built in): `PICKUP_OFFER_SMS_AGENTS`
+  (how many nearest online agents get the SMS, 0-3; not set = 3; 0 = off), `PICKUP_OFFER_SMS_DELAY_MINUTES`
+  (minutes a pickup waits before the SMS, 0-60; not set = 2). No migration.
 
 **Set by Render itself — do not add:** `PORT`, `RENDER_GIT_COMMIT`, `RENDER_GIT_BRANCH`.
 
