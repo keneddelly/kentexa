@@ -108,6 +108,20 @@ const SEED_TEMPLATES: Array<
     bodyTemplate: 'Mtumaji amesitisha kazi ya kuchukua mzigo {reference}. Usiende kuchukua.',
   },
   {
+    // D2: reminder before an accepted pickup is released for taking too long.
+    eventType: 'LOGISTICS_PICKUP_REMINDER',
+    recipientRole: 'agent',
+    titleTemplate: 'Bado unakuja kuchukua mzigo?',
+    bodyTemplate: 'Kazi ya kuchukua mzigo {reference}: usipouchukua ndani ya dakika {minutesLeft}, itapewa wakala mwingine. Kama huwezi kufika, bonyeza "Siwezi kufika".',
+  },
+  {
+    // D2: an accepted pickup was released because the time ran out.
+    eventType: 'LOGISTICS_PICKUP_RELEASED',
+    recipientRole: 'agent',
+    titleTemplate: 'Kazi imeondolewa kwako',
+    bodyTemplate: 'Kazi ya kuchukua mzigo {reference} imeondolewa kwako kwa sababu muda umepita. Usiende kuchukua.',
+  },
+  {
     eventType: 'PARCEL_DISPATCHED',
     recipientRole: 'buyer',
     titleTemplate: '📦 Kifurushi Kimetumwa',

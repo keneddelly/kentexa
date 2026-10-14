@@ -652,8 +652,11 @@ export class PickupTasksService {
          LEFT JOIN public.tz_ward pw ON pw.id = s."pickupPinWardId"
         WHERE t.status = 'requested' AND s.status = 'confirmed' AND p.status = 'pending'
           AND lower(btrim(s."originCity")) = $1
+          -- D2: a job this agent released ("Siwezi kufika" or timeout) is not offered to him again.
+          AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_RELEASED'
+                AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = $2)
         ORDER BY t."createdAt" ASC LIMIT 50`,
-      [normalizeCity(agent.city)],
+      [normalizeCity(agent.city), agent.id],
     );
     // Section 18 (b): distance from the agent's base, rounded; nearest first.
     const hasBase = agent.baseLatitude != null && agent.baseLongitude != null;

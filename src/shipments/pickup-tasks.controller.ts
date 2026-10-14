@@ -8,6 +8,7 @@ import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
 import { PickupTasksService } from './pickup-tasks.service';
 import type { RequestPickupDto } from './pickup-tasks.service';
+import { PickupReleaseService } from './pickup-release.service';
 
 /**
  * Draft first-mile: request, claim (Stage 3S) and the physical handoffs
@@ -16,7 +17,15 @@ import type { RequestPickupDto } from './pickup-tasks.service';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class PickupTasksController {
-  constructor(private readonly tasks: PickupTasksService) {}
+  constructor(private readonly tasks: PickupTasksService, private readonly releases: PickupReleaseService) {}
+
+  // D2: "Siwezi kufika" -- the accepting agent gives the job back before collecting.
+  @Post('pickup-tasks/:id/release')
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  release(@Request() req, @Param('id', ParseIntPipe) id: number, @CurrentRoleContext() role: RoleContext) {
+    return this.releases.releaseByAgent(id, req.user.id, role);
+  }
 
   @Post('shipments/:id/pickup-task')
   requestPickup(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() body: RequestPickupDto) {

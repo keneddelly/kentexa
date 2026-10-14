@@ -16,6 +16,9 @@ export class LogisticsDispatchService {
       JOIN agent a ON a.status='approved' AND lower(trim(a.city))=lower(trim(s."originCity"))
        AND a."isOnline"=true AND (a."maxWeightKg" IS NULL OR a."maxWeightKg">=s."weightKg")
       WHERE t.id=$1 AND t.status='requested'
+        -- D2: never offered again to an agent who released this job.
+        AND NOT EXISTS (SELECT 1 FROM activity_events e WHERE e."eventType"='PICKUP_RELEASED'
+              AND e."targetType"='parcel_pickup_task' AND e."targetId"=t.id AND e."actorProfileId"=a.id)
       -- Section 18 (b): nearest agents first (base point to the pickup pin/place), then rating;
       -- agents without a base point (or a pickup with no point) come after.
       ORDER BY (a."baseLatitude" IS NULL) ASC, "distanceM" ASC NULLS LAST, COALESCE(a.rating,0) DESC, a.id ASC LIMIT 10

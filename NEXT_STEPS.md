@@ -688,6 +688,10 @@ step 0): the new frontend has no live fallback any more.
 - Agent online expiry D1 (2026-10-14, optional, default built in): `AGENT_ONLINE_EXPIRY_MINUTES`
   (an online agent not seen on any KenteXa screen for this long goes offline, 15-1440; not set = 60).
   No migration (reuses agent."lastOnlineAt" as "last seen while online"; nothing else reads it).
+- Accepted pickup timeout D2 (2026-10-14, optional, defaults built in): `PICKUP_ACCEPT_TIMEOUT_MINUTES`
+  (accepted but not collected for this long -> given to the next agent, 10-240; not set = 45),
+  `PICKUP_ACCEPT_REMINDER_MINUTES` (in-app "Bado unakuja?" to the agent, before the timeout; not set = 30).
+  No migration.
 
 **Set by Render itself — do not add:** `PORT`, `RENDER_GIT_COMMIT`, `RENDER_GIT_BRANCH`.
 

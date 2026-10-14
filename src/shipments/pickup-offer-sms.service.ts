@@ -80,7 +80,7 @@ export class PickupOfferSmsService {
              AND a."isOnline" = true AND (a."maxWeightKg" IS NULL OR a."maxWeightKg" >= s."weightKg")
             LEFT JOIN public."user" u ON u.id = a."userId"
            WHERE t.id = $1
-             AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_OFFER_SMS_SENT'
+             AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" IN ('PICKUP_OFFER_SMS_SENT', 'PICKUP_RELEASED')
                    AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = a.id)
            ORDER BY (a."baseLatitude" IS NULL) ASC, ${PICKUP_TO_BASE_DISTANCE_SQL} ASC NULLS LAST, COALESCE(a.rating, 0) DESC, a.id ASC
            LIMIT $2`, [task.id, room]);

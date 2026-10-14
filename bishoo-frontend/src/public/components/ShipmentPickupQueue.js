@@ -52,6 +52,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
   const [busy, setBusy] = useState(null);
   const [message, setMessage] = useState(null); // { type: 'ok' | 'error', text }
   const [loaded, setLoaded] = useState(false);
+  const [confirmRelease, setConfirmRelease] = useState(null); // D2: job id awaiting "Una uhakika?"
 
   const load = useCallback(async () => {
     const [a, m] = await Promise.allSettled([api.get('/pickup-tasks/available'), api.get('/pickup-tasks/mine')]);
@@ -84,7 +85,8 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
 
   const open = mine.filter((j) => j.nextAction);
   const done = mine.filter((j) => !j.nextAction);
-  if (!loaded || (available.length === 0 && mine.length === 0)) return null;
+  // Keep the last message visible even when no job is left (e.g. after "Siwezi kufika").
+  if (!loaded || (available.length === 0 && mine.length === 0 && !message)) return null;
 
   return (
     <div style={{ marginBottom: 16 }} data-testid="shipment-pickup-queue">
@@ -124,6 +126,22 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
                 onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/collect`, { code: code(job.id) }), 'Parcel collected from the sender.')}>
                 Confirm collection
               </button>
+              {/* D2: give the job back before collecting; an on-page confirmation, never a browser pop-up. */}
+              {confirmRelease === job.id ? (
+                <div data-testid="release-confirm" style={{ marginTop: 10, padding: 10, borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA' }}>
+                  <div style={{ fontSize: 13, color: '#7F1D1D', marginBottom: 8 }}>Una uhakika? Kazi hii itapewa wakala mwingine na mtumaji ataarifiwa.</div>
+                  <button style={{ ...btn(true), backgroundColor: '#DC2626', marginRight: 8 }} disabled={busy === job.id}
+                    onClick={() => { setConfirmRelease(null); act(job.id, () => api.post(`/pickup-tasks/${job.id}/release`), 'Kazi imerudishwa. Tunatafuta wakala mwingine.'); }}>
+                    Ndiyo, siwezi kufika
+                  </button>
+                  <button style={btn(false)} onClick={() => setConfirmRelease(null)}>Hapana</button>
+                </div>
+              ) : (
+                <button data-testid="release-button" style={{ ...btn(false), marginTop: 10, display: 'block', color: '#B91C1C', backgroundColor: '#FEF2F2' }}
+                  disabled={busy === job.id} onClick={() => setConfirmRelease(job.id)}>
+                  Siwezi kufika
+                </button>
+              )}
             </>
           )}
 
