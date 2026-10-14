@@ -1243,7 +1243,8 @@
     "method_direct_label": "Courier",
     "method_direct_desc": "Kampuni ya usafirishaji",
     "method_agent_label": "KenteXa Agent",
-    "method_agent_desc": "Mtandao wa Super Agents"
+    "method_agent_desc": "Mtandao wa Super Agents",
+    "order_not_shipped_yet": "Agizo {{val}} limepatikana, lakini bado halijakabidhiwa kwa ofisi ya usafirishaji. Ufuatiliaji utaanza likikabidhiwa."
   },
   "install_kentexa": {
     "title": "Sakinisha Kentexa",

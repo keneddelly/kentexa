@@ -73,6 +73,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
   const [result, setResult]               = useState(null);
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
+  const [notice, setNotice]               = useState('');
   const [showPhoneSearch, setShowPhoneSearch] = useState(false);
   const [phoneResults, setPhoneResults]   = useState(null);
   const [phoneLoading, setPhoneLoading]   = useState(false);
@@ -89,7 +90,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
     const val = String(raw || '').trim().toUpperCase();
     if (!val) { setError(t('track_parcel.error_empty')); return; }
 
-    setLoading(true); setError(''); setResult(null);
+    setLoading(true); setError(''); setNotice(''); setResult(null);
 
     try {
       // 0. Waybill (KTX + 10 digits, spaces allowed, check digit valid).
@@ -102,41 +103,13 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
         return;
       }
 
-      // 1. Pure number → order ID
-      if (/^\d+$/.test(val)) {
-        const res = await api.get(`/super-agents/track-order/${val}`);
-        setResult({ ...res.data, _source: 'order' });
-        return;
-      }
-
-      // 2. KTX-ORD-xxx may be a Parcel's canonical tracking number.
-      // Prefer that exact Parcel, while preserving the older order lookup
-      // for orders which have no Parcel yet.
-      const orderMatch = val.match(/^KTX-ORD-(\d+)$/);
+      // 1. Pure number or KTX-ORD-n → the order's number (KTX-ORD-n). Its
+      // parcel carries the same number once handed to an office; before
+      // that there is nothing to track yet. (The old public lookup by order
+      // ID, /super-agents/track-order, was removed on purpose: 13bd3eb.)
+      const orderMatch = val.match(/^(?:KTX-ORD-)?(\d+)$/);
       if (orderMatch) {
-        try {
-          const res = await api.get(`/super-agents/track/${val}`);
-          setResult({ ...res.data, _source: 'superagent' });
-        } catch {
-          const res = await api.get(`/super-agents/track-order/${orderMatch[1]}`);
-          setResult({ ...res.data, _source: 'order' });
-        }
-        return;
-      }
-
-      // 2b. KTX-BATCH-batchId-orderId → track batch parcel by order ID
-      const batchMatch = val.match(/^KTX-BATCH-\d+-(\d+)$/);
-      if (batchMatch) {
-        const res = await api.get(`/super-agents/track-order/${batchMatch[1]}`);
-        setResult({ ...res.data, _source: 'batch' });
-        return;
-      }
-
-      // 2c. KTX-OFFLINE-batchId-orderId → same
-      const offlineMatch = val.match(/^KTX-OFFLINE-\d+-(\d+)$/);
-      if (offlineMatch) {
-        const res = await api.get(`/super-agents/track-order/${offlineMatch[1]}`);
-        setResult({ ...res.data, _source: 'batch' });
+        await trackOrderNumber(`KTX-ORD-${orderMatch[1]}`);
         return;
       }
 
@@ -160,23 +133,11 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
         return;
       }
 
-      // 3. KTX-XXX-XXX-xxxxxx → Super Agent parcel
+      // 3. KTX-XXX-XXX-xxxxxx (also KTX-BATCH-… / KTX-OFFLINE-…) → the parcel's own number
       if (val.startsWith('KTX-')) {
-        try {
-          const res = await api.get(`/super-agents/track/${val}`);
-          setResult({ ...res.data, _source: 'superagent' });
-          return;
-        } catch (superAgentErr) {
-          // KTX- prefix but not found as parcel — try as order fallback
-          // e.g. user typed KTX-BATCH-xxx from batch system
-          const batchMatch = val.match(/KTX-(?:BATCH|OFFLINE)-\d+-(\d+)/);
-          if (batchMatch) {
-            const res = await api.get(`/super-agents/track-order/${batchMatch[1]}`);
-            setResult({ ...res.data, _source: 'order' });
-            return;
-          }
-          throw superAgentErr;
-        }
+        const res = await api.get(`/super-agents/track/${val}`);
+        setResult({ ...res.data, _source: 'superagent' });
+        return;
       }
 
       // 4. Anything else — try super agent first
@@ -184,15 +145,11 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
         const res = await api.get(`/super-agents/track/${val}`);
         setResult({ ...res.data, _source: 'superagent' });
       } catch {
-        // 5. Last resort — search orders by trackingNumber field
+        // 5. Last resort — an order's own tracking number (or waybill)
         try {
           const searchRes = await api.get(`/orders/by-tracking/${encodeURIComponent(val)}`);
-          if (searchRes.data?.id) {
-            const orderRes = await api.get(`/super-agents/track-order/${searchRes.data.id}`);
-            setResult({ ...orderRes.data, _source: 'order' });
-          } else {
-            setError(t('track_parcel.error_not_found', { val }));
-          }
+          if (searchRes.data?.trackingNumber) await trackOrderNumber(searchRes.data.trackingNumber);
+          else setError(t('track_parcel.error_not_found', { val }));
         } catch {
           setError(t('track_parcel.error_not_found', { val }));
         }
@@ -202,6 +159,21 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
       setError(err?.response?.data?.message || t('track_parcel.error_generic'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // An order number (KTX-ORD-n): its parcel, if it has one yet.
+  const trackOrderNumber = async (orderNumber) => {
+    try {
+      const res = await api.get(`/super-agents/track/${orderNumber}`);
+      setResult({ ...res.data, _source: 'superagent' });
+      return;
+    } catch { /* no parcel with this number yet */ }
+    try {
+      await api.get(`/orders/by-tracking/${encodeURIComponent(orderNumber)}`);
+      setNotice(t('track_parcel.order_not_shipped_yet', { val: orderNumber }));
+    } catch {
+      setError(t('track_parcel.error_not_found', { val: orderNumber }));
     }
   };
 
@@ -223,17 +195,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
       setPhoneLoading(false);
     }
   };
-  const handleTrackByOrderId = async (id) => {
-    setLoading(true); setError(''); setResult(null);
-    try {
-      const res = await api.get(`/super-agents/track-order/${id}`);
-      setResult({ ...res.data, _source: 'order' });
-    } catch (err) {
-      setError(err?.response?.data?.message || t('track_parcel.error_order_not_found', { id }));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleTrackByOrderId = (id) => handleSearch(`KTX-ORD-${id}`);
 
   const getStepIndex = (status) => {
     // Map batch parcel status to step key first
@@ -279,6 +241,11 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
           {error && (
             <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginTop: 12, fontSize: 13 }}>
               ❌ {error}
+            </div>
+          )}
+          {notice && (
+            <div data-testid="track-notice" style={{ backgroundColor: '#fef9c3', color: '#854d0e', padding: '10px 14px', borderRadius: 8, marginTop: 12, fontSize: 13 }}>
+              {notice}
             </div>
           )}
 

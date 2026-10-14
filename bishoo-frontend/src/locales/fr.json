@@ -1460,7 +1460,8 @@
     "method_direct_label": "Coursier",
     "method_direct_desc": "Société de transport",
     "method_agent_label": "Agent KenteXa",
-    "method_agent_desc": "Réseau de Super Agents"
+    "method_agent_desc": "Réseau de Super Agents",
+    "order_not_shipped_yet": "La commande {{val}} a été trouvée, mais elle n’a pas encore été remise à un bureau d’expédition. Le suivi commence à ce moment-là."
   },
   "install_kentexa": {
     "title": "Installer Kentexa",

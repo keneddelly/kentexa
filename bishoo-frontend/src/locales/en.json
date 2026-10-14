@@ -1464,7 +1464,8 @@
     "method_direct_label": "Courier",
     "method_direct_desc": "Shipping company",
     "method_agent_label": "KenteXa Agent",
-    "method_agent_desc": "Super Agent network"
+    "method_agent_desc": "Super Agent network",
+    "order_not_shipped_yet": "Order {{val}} was found, but it has not been handed to a shipping office yet. Tracking starts once it is."
   },
   "install_kentexa": {
     "title": "Install Kentexa",
