@@ -4,6 +4,14 @@ import ShipmentPickupPanel, { pickupPathFor } from './ShipmentPickupPanel';
 import ShipmentPickupQueue from './ShipmentPickupQueue';
 import api from '../../api/api';
 
+// The job card's texts come from the app language (pickup_queue.*); English here.
+jest.mock('react-i18next', () => {
+  const texts = require('../../locales/en.json');
+  return { useTranslation: () => ({ t: (key, vars) => {
+    const v = key.split('.').reduce((o, k) => (o ? o[k] : undefined), texts) ?? key;
+    return String(v).replace(/\{\{(\w+)\}\}/g, (_m, k) => (vars && vars[k] != null ? vars[k] : ''));
+  } }) };
+});
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
 
 const direct = {
@@ -75,7 +83,7 @@ describe('ShipmentPickupQueue — the Agent', () => {
     render(<ShipmentPickupQueue onCount={onCount} />);
     expect(await screen.findByText(/Kariakoo, Ilala → Mbagala, Temeke/)).toBeInTheDocument();
     await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(1));
-    fireEvent.click(screen.getByText('Claim this pickup'));
+    fireEvent.click(screen.getByText('Accept this job'));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/pickup-tasks/5/claim'));
   });
 
