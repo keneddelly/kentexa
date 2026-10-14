@@ -16,7 +16,11 @@ Ombi linasubiri hadi kitambulisho chako kithibitishwe na KenteXa iidhinishe.
 
 ## Kufungua dashibodi ya wakala
 
-Baada ya kuidhinishwa, bonyeza kitufe cha wasifu chini ya skrini (**Badilisha wasifu**) na uchague **Wakala**. Dashibodi ya wakala inafunguka. Kazi za kuchukua mizigo ziko kwenye kichupo cha **Jobs**.
+Baada ya kuidhinishwa, nenda **Wasifu**, kisha **Fanya kazi na KenteXa**, kisha **Wakala**, na bonyeza **Nenda Dashibodini**. Dashibodi ya wakala inafunguka.
+
+Njia ya pili: bonyeza kitufe cha wasifu chini ya skrini (**Badilisha wasifu**) na uchague **Wakala**.
+
+Kazi za kuchukua mizigo ziko kwenye kichupo cha **Kazi**.
 
 ## Kuwa online
 

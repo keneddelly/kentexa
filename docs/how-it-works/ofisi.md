@@ -16,7 +16,9 @@ Ombi linasubiri. Ofisi haionekani kwa wateja na haipokei mizigo hadi kitambulish
 
 ## Kufungua dashibodi ya ofisi
 
-Baada ya kuidhinishwa, bonyeza kitufe cha wasifu chini ya skrini (**Badilisha wasifu**) na uchague wasifu wa ofisi (**Hub**). Dashibodi ya ofisi inafunguka.
+Baada ya kuidhinishwa, nenda **Wasifu**, kisha **Fanya kazi na KenteXa**, kisha **Ofisi (Super Agent)**, na bonyeza **Nenda Dashibodini**. Dashibodi ya ofisi inafunguka.
+
+Njia ya pili: bonyeza kitufe cha wasifu chini ya skrini (**Badilisha wasifu**) na uchague wasifu wa ofisi (**Hub**).
 
 ## Kazi za kila siku
 
