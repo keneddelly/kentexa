@@ -36,18 +36,4 @@ Gusa kazi ili kuomba au kuona hali yake.
 
 ## Msafirishaji (basi, lori, van)
 
-Msafirishaji ni mwenye basi, lori au van anayebeba mizigo kati ya miji. Boda na courier wanajisajili kama Wakala, si hapa.
-
-1. Fungua **Wasifu**, kisha **Fanya kazi na KenteXa**, kisha **Msafirishaji (basi, lori, van)**.
-2. Kama hujatuma kitambulisho, utaombwa kukituma kwanza.
-3. Chagua **Aina ya usafiri**: Basi, Lori au Van.
-4. Andika **Jina la biashara yako ya usafiri**, **Namba ya gari** na **Uzito wa juu (kilo)**.
-5. Chagua njia yako kuu: **unaanzia wapi?** na **Unakwenda wapi?** (andika mji au wilaya, kisha chagua kwenye orodha).
-6. Leseni ya LATRA na idadi ya mizigo kwa safari ni hiari. Simu inachukuliwa kutoka kwenye akaunti yako.
-7. Bonyeza **Tuma ombi**.
-
-Ombi linasubiri hadi kitambulisho kithibitishwe na KenteXa iidhinishe. Bei unaweka baada ya kuidhinishwa:
-
-1. Gusa **Msafirishaji** kwenye **Fanya kazi na KenteXa**. Dashibodi ya msafirishaji inafunguka.
-2. Kwenye kadi ya **Weka bei ya njia yako**, andika **Bei kwa kilo (TZS)** au **Bei ya chini (TZS)**, au zote mbili.
-3. Bonyeza **Weka bei na anza kupokea kazi**. Njia yako inaanza kuonekana kwa wateja.
+Hatua za kujisajili na kuweka bei ziko kwenye mwongozo wa msafirishaji (msafirishaji.md).
