@@ -5812,5 +5812,11 @@
     "more_details": "Working days and hours (optional)",
     "area_required": "Choose the area you work in.",
     "price_placeholder": "Price (TZS), e.g. 20000"
+  },
+  "agent_presence": {
+    "offline_title": "You are offline",
+    "offline_inactive": "You were not seen on KenteXa for {{m}} minutes, so you are not receiving new jobs. Go online to receive jobs again.",
+    "offline_manual": "You are not receiving new jobs. Go online to receive jobs.",
+    "go_online": "Go online"
   }
 }

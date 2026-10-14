@@ -179,6 +179,10 @@ export class AgentsService {
       totalEarnings: Number(agent.totalEarnings),
       pendingEarnings: Number(agent.pendingEarnings),
       rejectionReason: agent.rejectionReason,
+      // D1: the dashboard's online state (it read isOnline here, which was never
+      // returned, so it always showed "Offline" after a reload).
+      isOnline: agent.isOnline === true,
+      lastOnlineAt: agent.lastOnlineAt ?? null,
     };
   }
 

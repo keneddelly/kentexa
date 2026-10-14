@@ -5800,5 +5800,11 @@
     "more_details": "Jours et heures de travail (facultatif)",
     "area_required": "Choisissez la zone où vous travaillez.",
     "price_placeholder": "Prix (TZS), ex. 20000"
+  },
+  "agent_presence": {
+    "offline_title": "Vous êtes hors ligne",
+    "offline_inactive": "Vous n’avez pas été vu sur KenteXa depuis {{m}} minutes, vous ne recevez donc pas de nouvelles missions. Passez en ligne pour en recevoir à nouveau.",
+    "offline_manual": "Vous ne recevez pas de nouvelles missions. Passez en ligne pour en recevoir.",
+    "go_online": "Passer en ligne"
   }
 }

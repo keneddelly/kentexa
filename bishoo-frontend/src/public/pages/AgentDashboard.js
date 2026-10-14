@@ -274,6 +274,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setTogglingOnline(true);
       const res = await api.patch('/agents/toggle-online');
       setIsOnline(res.data.isOnline);
+      // D1: once switched back on, the "switched off automatically" note no longer applies.
+      setProfile((p) => (p ? { ...p, offlineReason: null } : p));
       if (res.data.isOnline && profile?.city) {
         fetchJobs(profile.city, profile.maxWeightKg);
       }
@@ -619,6 +621,21 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       </div>
 
       <div style={{ padding: '16px', maxWidth: 700, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
+
+        {/* D1: a clear "Uko offline" note, with the reason when it happened by itself. */}
+        {profile?.status === 'approved' && !isOnline && (
+          <div role="status" data-testid="agent-offline-banner" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, lineHeight: 1.5 }}>
+            <strong>{t('agent_presence.offline_title')}</strong><br />
+            {profile?.offlineReason === 'inactive'
+              ? t('agent_presence.offline_inactive', { m: profile?.onlineExpiryMinutes || 60 })
+              : t('agent_presence.offline_manual')}
+            <button type="button" onClick={handleToggleOnline} disabled={togglingOnline}
+              style={{ display: 'block', marginTop: 10, width: '100%', padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                background: '#16a34a', color: '#fff', fontSize: 14, fontWeight: 800 }}>
+              {togglingOnline ? '...' : t('agent_presence.go_online')}
+            </button>
+          </div>
+        )}
 
         {/* Alerts */}
         {error && (

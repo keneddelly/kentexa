@@ -20,11 +20,23 @@ import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { AgentOnlineExpiryService, agentOnlineExpiryMinutes } from './agent-online-expiry.service';
 
 @Controller('agents')
 @UseGuards(JwtAuthGuard)
 export class AgentsController {
-  constructor(private service: AgentsService, private codRemittance: AgentCodRemittanceService) {}
+  constructor(
+    private service: AgentsService,
+    private codRemittance: AgentCodRemittanceService,
+    private onlineExpiry: AgentOnlineExpiryService,
+  ) {}
+
+  // D1: "I'm here" from any open KenteXa screen. Refreshes the last-seen time
+  // of an online agent only; for anyone else it changes nothing.
+  @Post('seen')
+  seen(@Request() req) {
+    return this.onlineExpiry.markSeen(req.user.id);
+  }
 
   @UseGuards(RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.ADMIN)
@@ -108,8 +120,15 @@ export class AgentsController {
   // SellerController.getMyProfile: a pending applicant is active as buyer
   // and must still be able to see their own application status.
   @Get('my-profile')
-  getMyProfile(@Request() req) {
-    return this.service.getMyProfile(req.user);
+  async getMyProfile(@Request() req) {
+    const profile: any = await this.service.getMyProfile(req.user);
+    if (!profile) return profile;
+    // D1: why an offline agent is offline ('inactive' = switched off automatically).
+    return {
+      ...profile,
+      offlineReason: await this.onlineExpiry.offlineReason(profile.id, profile.isOnline, profile.lastOnlineAt),
+      onlineExpiryMinutes: agentOnlineExpiryMinutes(),
+    };
   }
 
   // ── Admin: agents with pending earnings ──────────────────────────────────

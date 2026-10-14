@@ -685,6 +685,9 @@ step 0): the new frontend has no live fallback any more.
 - Job offer SMS to agents (2026-10-14, all optional, defaults built in): `PICKUP_OFFER_SMS_AGENTS`
   (how many nearest online agents get the SMS, 0-3; not set = 3; 0 = off), `PICKUP_OFFER_SMS_DELAY_MINUTES`
   (minutes a pickup waits before the SMS, 0-60; not set = 2). No migration.
+- Agent online expiry D1 (2026-10-14, optional, default built in): `AGENT_ONLINE_EXPIRY_MINUTES`
+  (an online agent not seen on any KenteXa screen for this long goes offline, 15-1440; not set = 60).
+  No migration (reuses agent."lastOnlineAt" as "last seen while online"; nothing else reads it).
 
 **Set by Render itself — do not add:** `PORT`, `RENDER_GIT_COMMIT`, `RENDER_GIT_BRANCH`.
 

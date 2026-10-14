@@ -150,6 +150,7 @@ import UpdateNotice from './public/components/UpdateNotice';
 import TrainingSmsNotice from './public/components/TrainingSmsNotice';
 import { identityState, afterIdentitySent } from './utils/identityState';
 import useIdentityRefresh from './utils/useIdentityRefresh';
+import useAgentPresence from './utils/useAgentPresence';
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -255,6 +256,8 @@ function App() {
   // then yanking it away).
   const [identityStatus, setIdentityStatus] = useState(null);
   useIdentityRefresh(setIdentityStatus, isLoggedIn);
+  // D1: an agent's "online" stays on while any KenteXa screen is open.
+  useAgentPresence(isLoggedIn, roleContext.availableRoles);
   const fetchIdentityStatus = () => {
     if (!isLoggedIn) { setIdentityStatus({ status: 'not_submitted', level: 0 }); return; }
     api.get('/identity/me')

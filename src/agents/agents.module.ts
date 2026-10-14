@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsService } from './agents.service';
 import { AgentsController } from './agents.controller';
 import { AgentCodRemittanceService } from './agent-cod-remittance.service';
+import { AgentOnlineExpiryService } from './agent-online-expiry.service';
 import { Agent } from './entities/agent.entity';
 import { AgentTransaction } from './entities/agent-transaction.entity';
 import { User } from '../users/entities/user.entity';
@@ -23,7 +24,7 @@ import { LocationIntelligenceModule } from '../location-intelligence/location-in
     LocationIntelligenceModule,
   ],
   controllers: [AgentsController],
-  providers: [AgentsService, AgentCodRemittanceService],
+  providers: [AgentsService, AgentCodRemittanceService, AgentOnlineExpiryService],
   exports: [AgentsService],
 })
 export class AgentsModule {}

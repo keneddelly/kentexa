@@ -5742,5 +5742,11 @@
     "more_details": "Siku na saa za kazi (hiari)",
     "area_required": "Chagua eneo unalofanyia kazi.",
     "price_placeholder": "Bei (TZS), mf. 20000"
+  },
+  "agent_presence": {
+    "offline_title": "Uko offline",
+    "offline_inactive": "Hukuonekana kwenye KenteXa kwa dakika {{m}}, kwa hiyo hupokei kazi mpya. Ingia online ili upokee kazi tena.",
+    "offline_manual": "Hupokei kazi mpya. Ingia online ili upokee kazi.",
+    "go_online": "Ingia online"
   }
 }
