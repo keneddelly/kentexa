@@ -229,12 +229,12 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
               value={trackingInput}
               onChange={e => setTrackingInput(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, fontFamily: 'monospace', fontWeight: 700, outline: 'none', boxSizing: 'border-box' }}
+              style={{ flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, fontFamily: 'monospace', fontWeight: 700, outline: 'none', boxSizing: 'border-box' }}
               onFocus={e => e.target.style.border = '2px solid #1d4ed8'}
               onBlur={e => e.target.style.border = '2px solid #e2e8f0'}
             />
             <button onClick={() => handleSearch()} disabled={loading}
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
+              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 16px', borderRadius: 10, flexShrink: 0, cursor: 'pointer', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
               {loading ? '⏳' : t('track_parcel.track_button')}
             </button>
           </div>
