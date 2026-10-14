@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api     from '../../api/api';
 import RunBookings from '../components/RunBookings';
+import RoutesAwaitingPrice from '../components/RoutesAwaitingPrice';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Operational dashboard (posting routes, availability, accepting
@@ -89,6 +90,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const STATUS_STYLE = getStatusStyle(t);
   const [profile,       setProfile]       = useState(null);
   const [routes,        setRoutes]        = useState([]);
+  const [routesAwaitingPrice, setRoutesAwaitingPrice] = useState(0);
   const [assignments,   setAssignments]   = useState([]);
   const [vanRuns,       setVanRuns]       = useState([]);
   const [runManifest,   setRunManifest]   = useState({});
@@ -835,7 +837,10 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               </div>
             )}
 
-            {routes.length === 0 ? (
+            {/* Msafirishaji: the sign-up route waits for its first price ("Weka bei"). */}
+            <RoutesAwaitingPrice onPriced={fetchAll} onCount={setRoutesAwaitingPrice} />
+
+            {routes.length === 0 && routesAwaitingPrice > 0 ? null : routes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, color: '#94a3b8' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
                 <div>{t('transport_provider_dashboard.no_routes_title')}</div>

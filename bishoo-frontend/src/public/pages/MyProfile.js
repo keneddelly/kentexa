@@ -87,7 +87,7 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment,
-  activeProfile, availableRoles = [], roleOptions = [], canInstallKentexa, onInstallKentexa }) => {
+  activeProfile, availableRoles = [], roleOptions = [], canInstallKentexa, onInstallKentexa, onSwitchAccountRole }) => {
   const { t, i18n } = useTranslation();
   const TIERS = getTiers(t);
   const ROLE_META = getRoleMeta(t);
@@ -501,7 +501,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       {!section && (
         <div style={{ padding:'14px 14px 20px', maxWidth:760,
           margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
-          <WorkWithKentexa onNavigate={onNavigate} availableRoles={availableRoles} identityStatus={identityStatus} />
+          <WorkWithKentexa onNavigate={onNavigate} onSwitchAccountRole={onSwitchAccountRole} availableRoles={availableRoles} identityStatus={identityStatus} />
           <div style={{ backgroundColor:WH, borderRadius:16,
             boxShadow:'0 2px 8px rgba(0,0,0,0.05)', overflow:'hidden' }}>
             <Row icon="✏️" label={t('profile_editor.title')}

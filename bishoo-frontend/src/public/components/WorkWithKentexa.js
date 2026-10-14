@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { WORK_ROLES, workRoleStatus, workRoleTarget, serviceRecordFromAds } from '../../utils/workRoles';
+import { WORK_ROLES, workRoleStatus, openWorkRole, serviceRecordFromAds } from '../../utils/workRoles';
 
 // "Fanya kazi na KenteXa" on the profile's main list (audit B step 2): every
 // work role with its status; tapping one opens its form or status page
@@ -17,14 +17,14 @@ const STATUS_STYLE = {
 
 const myRecord = (url) => api.get(url).then((r) => r.data || null).catch(() => null);
 
-export default function WorkWithKentexa({ onNavigate, availableRoles = [], identityStatus }) {
+export default function WorkWithKentexa({ onNavigate, onSwitchAccountRole, availableRoles = [], identityStatus }) {
   const { t } = useTranslation();
   const [records, setRecords] = useState(null);
 
   useEffect(() => {
     let alive = true;
-    Promise.all([myRecord('/agents/my-profile'), myRecord('/super-agents/my-profile'), myRecord('/seller/my-profile'), myRecord('/services/my/ads')])
-      .then(([agent, office, seller, ads]) => { if (alive) setRecords({ agent, office, seller, service: serviceRecordFromAds(ads) }); });
+    Promise.all([myRecord('/agents/my-profile'), myRecord('/super-agents/my-profile'), myRecord('/seller/my-profile'), myRecord('/services/my/ads'), myRecord('/transport/my-profile')])
+      .then(([agent, office, seller, ads, transport]) => { if (alive) setRecords({ agent, office, seller, service: serviceRecordFromAds(ads), transport }); });
     return () => { alive = false; };
   }, []);
 
@@ -41,7 +41,7 @@ export default function WorkWithKentexa({ onNavigate, availableRoles = [], ident
         const s = STATUS_STYLE[status] || STATUS_STYLE.none;
         return (
           <button key={role.key} data-testid={`work-role-${role.key}`} disabled={!status}
-            onClick={() => onNavigate(workRoleTarget(role, status))}
+            onClick={() => openWorkRole({ role, status, roleRow, onNavigate, onSwitchAccountRole })}
             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', border: 'none',
               borderTop: i === 0 ? 'none' : '1px solid #f1f5f9', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
             <div style={{ flex: 1, minWidth: 0 }}>

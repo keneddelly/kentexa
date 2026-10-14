@@ -1,11 +1,11 @@
-import { WORK_ROLES, workRoleStatus, workRoleTarget } from './workRoles';
+import { WORK_ROLES, workRoleStatus, workRoleTarget, openWorkRole } from './workRoles';
 
 const verified = { status: 'verified' };
 const waitingId = { status: 'pending' };
 
 describe('work role status ("Fanya kazi na KenteXa")', () => {
-  it('lists the four roles in order', () => {
-    expect(WORK_ROLES.map((r) => r.key)).toEqual(['agent', 'office', 'seller', 'service']);
+  it('lists the five roles in order (Msafirishaji last)', () => {
+    expect(WORK_ROLES.map((r) => r.key)).toEqual(['agent', 'office', 'seller', 'service', 'transport']);
   });
 
   it('no request yet', () => {
@@ -54,5 +54,45 @@ describe('service provider status from their own ads (decision S1)', () => {
     const record = serviceRecordFromAds([{ status: 'active', waitingForId: true }]);
     expect(workRoleStatus({ record, roleRow: { status: 'active' }, identity: { status: 'pending' }, recordWins: service.recordWins })).toBe('waiting_id');
     expect(workRoleStatus({ record: null, roleRow: { status: 'active' }, identity: { status: 'pending' }, recordWins: service.recordWins })).toBe('active');
+  });
+});
+
+describe('Msafirishaji status (transport provider record)', () => {
+  const transport = WORK_ROLES.find((r) => r.key === 'transport');
+  it('pending -> waiting (or waiting for the ID); verified/active -> active; suspended/inactive -> suspended', () => {
+    expect(workRoleStatus({ record: { status: 'pending' }, identity: verified })).toBe('waiting');
+    expect(workRoleStatus({ record: { status: 'pending' }, identity: waitingId })).toBe('waiting_id');
+    expect(workRoleStatus({ record: { status: 'verified' }, identity: verified })).toBe('active');
+    expect(workRoleStatus({ record: { status: 'inactive' }, identity: verified })).toBe('suspended');
+    expect(workRoleTarget(transport, 'none')).toBe('BecomeTransportProvider');
+    expect(workRoleTarget(transport, 'active')).toBe('TransportProviderDashboard');
+  });
+});
+
+describe('opening a role whose page only works inside the role', () => {
+  const transport = WORK_ROLES.find((r) => r.key === 'transport');
+  const service = WORK_ROLES.find((r) => r.key === 'service');
+  const open = (role, status, roleRow) => {
+    const onNavigate = jest.fn(), onSwitchAccountRole = jest.fn();
+    openWorkRole({ role, status, roleRow, onNavigate, onSwitchAccountRole });
+    return { onNavigate, onSwitchAccountRole };
+  };
+
+  test('active Msafirishaji: switches to the transport role and opens its dashboard', () => {
+    const r = open(transport, 'active', { roleType: 'transport_provider', status: 'active', accountRoleId: 45 });
+    expect(r.onSwitchAccountRole).toHaveBeenCalledWith(45, 'TransportProviderDashboard');
+    expect(r.onNavigate).not.toHaveBeenCalled();
+  });
+
+  test('active record but no active role row yet: the status page, not a page that bounces home', () => {
+    expect(open(transport, 'active', null).onNavigate).toHaveBeenCalledWith('BecomeTransportProvider');
+    expect(open(transport, 'active', { status: 'pending', accountRoleId: 45 }).onSwitchAccountRole).not.toHaveBeenCalled();
+  });
+
+  test('waiting Msafirishaji opens the form/status page; other roles just navigate', () => {
+    expect(open(transport, 'waiting', null).onNavigate).toHaveBeenCalledWith('BecomeTransportProvider');
+    const s = open(service, 'active', { status: 'active', accountRoleId: 9 });
+    expect(s.onNavigate).toHaveBeenCalledWith('MyServices');
+    expect(s.onSwitchAccountRole).not.toHaveBeenCalled();
   });
 });

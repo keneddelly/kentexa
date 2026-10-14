@@ -1,313 +1,185 @@
 /**
- * BecomeTransportProvider.js — Self-service provider registration
+ * BecomeTransportProvider.js — Msafirishaji sign-up on ONE screen (owner 2026-10-14)
  * Place at: src/public/pages/BecomeTransportProvider.js
  * Route: 'BecomeTransportProvider'
+ *
+ *  - asked: type (basi / lori / van), business name, vehicle plate and
+ *    capacity, the main route (from -> to, place list); LATRA licence optional;
+ *  - from the account, shown not asked: phone (also WhatsApp);
+ *  - prices, more routes, schedules and the logo come after approval, on the
+ *    provider dashboard ("Weka bei");
+ *  - the ID screen appears only when no ID was sent or it was rejected; a
+ *    waiting ID may apply and the request waits until it is verified;
+ *  - an existing request shows its status instead of the form.
+ * Boda and courier sign up as Wakala, not here.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
-import api     from '../../api/api';
+import IntelligentLocationInput from '../components/IntelligentLocationInput';
+import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
+import { WORK_ROLES, openWorkRole } from '../../utils/workRoles';
+import useIdentityRefresh from '../../utils/useIdentityRefresh';
+import api from '../../api/api';
 
-const getProviderTypes = (t) => [
-  { value: 'bus',     icon: '🚌', label: t('become_transport_provider.type_bus_label'),   desc: t('become_transport_provider.type_bus_desc') },
-  { value: 'van',     icon: '🚐', label: t('become_transport_provider.type_van_label'),   desc: t('become_transport_provider.type_van_desc') },
-  { value: 'courier', icon: '📦', label: t('become_transport_provider.type_courier_label'),    desc: t('become_transport_provider.type_courier_desc') },
-  { value: 'truck',   icon: '🚛', label: t('become_transport_provider.type_truck_label'),       desc: t('become_transport_provider.type_truck_desc') },
-  { value: 'boda',    icon: '🏍️', label: t('become_transport_provider.type_boda_label'), desc: t('become_transport_provider.type_boda_desc') },
-  { value: 'boat',    icon: '⛵',   label: t('become_transport_provider.type_boat_label'),          desc: t('become_transport_provider.type_boat_desc') },
-];
+const TYPES = ['bus', 'truck', 'van'];
+const inp = { width: '100%', padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' };
+const label = { display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 };
+const card = { backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 14 };
+const chip = (on) => ({ flex: 1, padding: '12px 8px', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer',
+  border: on ? '2px solid #1d4ed8' : '2px solid #e2e8f0', backgroundColor: on ? '#eff6ff' : '#fff', color: on ? '#1d4ed8' : '#1e293b' });
+const primary = (on) => ({ width: '100%', padding: 14, border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 800,
+  background: on ? 'linear-gradient(135deg,#1d4ed8,#2563eb)' : '#94a3b8', color: '#fff', cursor: on ? 'pointer' : 'not-allowed' });
 
-const inp = {
-  width: '100%', padding: '12px 14px', borderRadius: 10,
-  border: '2px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box',
-  outline: 'none', fontFamily: 'inherit',
-};
+const TRANSPORT_ROLE = WORK_ROLES.find((r) => r.key === 'transport');
 
-const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
+const BecomeTransportProvider = ({ onNavigate, isLoggedIn = true, currentUser, availableRoles = [], onSwitchAccountRole }) => {
   const { t } = useTranslation();
-  const PROVIDER_TYPES = getProviderTypes(t);
-  const [step,   setStep]   = useState(1); // 1=type, 2=details, 3=success
-  const [form,   setForm]   = useState({
-    type: '', name: '', contactPhone: '', whatsappPhone: '',
-    contactEmail: '', registrationNumber: '', description: '', logoUrl: '',
-    defaultParcelCapacity: '20', defaultMaxWeightKg: '200',
-  });
-  const [saving, setSaving] = useState(false);
-  const [error,  setError]  = useState('');
-  const [logoUploading, setLogoUploading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [existing, setExisting] = useState(null);
+  const [identityStatus, setIdentityStatus] = useState(null);
+  useIdentityRefresh(setIdentityStatus, isLoggedIn);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
+  const [type, setType] = useState('');
+  const [name, setName] = useState('');
+  const [plate, setPlate] = useState('');
+  const [capacityKg, setCapacityKg] = useState('');
+  const [parcels, setParcels] = useState('');
+  const [licence, setLicence] = useState('');
+  const [fromText, setFromText] = useState(''); const [from, setFrom] = useState(null);
+  const [toText, setToText] = useState(''); const [to, setTo] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      setLogoUploading(true);
-      setError('');
-      const formData = new FormData();
-      formData.append('files', file);
-      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      set('logoUrl', res.data.urls?.[0] || '');
-    } catch {
-      setError(t('become_transport_provider.logo_upload_failed'));
-    } finally {
-      setLogoUploading(false);
-    }
-  };
-
-  // Pre-fill from profile — don't make them re-type what's already known.
   useEffect(() => {
-    if (!currentUser) return;
-    setForm(prev => ({
-      ...prev,
-      name:          prev.name          || currentUser.name          || '',
-      contactPhone:  prev.contactPhone  || currentUser.phone          || '',
-      contactEmail:  prev.contactEmail  || currentUser.email          || '',
-      whatsappPhone: prev.whatsappPhone || currentUser.storeWhatsApp  || '',
-    }));
-  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!isLoggedIn) { setChecking(false); return; }
+    api.get('/identity/me').then((r) => setIdentityStatus(r.data)).catch(() => setIdentityStatus({ status: 'not_submitted', level: 0 }));
+    api.get('/transport/my-profile').then((r) => setExisting(r.data || null)).catch(() => setExisting(null)).finally(() => setChecking(false));
+  }, [isLoggedIn]);
+  useEffect(() => { if (currentUser) setName((prev) => prev || currentUser.storeName || ''); }, [currentUser]);
 
-  const handleSubmit = async () => {
-    if (!form.name.trim())         return setError(t('become_transport_provider.name_required'));
-    if (!form.contactPhone.trim()) return setError(t('become_transport_provider.phone_required'));
+  const accountPhone = currentUser?.phone || '';
+  const ready = !!type && name.trim().length >= 2 && plate.trim().length >= 3 && Number(capacityKg) > 0 && !!from?.placeRef && !!to?.placeRef;
+
+  const submit = async () => {
     try {
       setSaving(true); setError('');
-      await api.post('/transport/register', {
-        ...form,
-        defaultParcelCapacity: Number(form.defaultParcelCapacity),
-        defaultMaxWeightKg:    Number(form.defaultMaxWeightKg),
+      const res = await api.post('/transport/register', {
+        type, name: name.trim(), registrationNumber: licence.trim() || undefined,
+        vehicle: { registrationPlate: plate.trim(), weightCapacityKg: Number(capacityKg), parcelCapacity: parcels ? Number(parcels) : undefined },
+        route: { from: from.placeRef, to: to.placeRef },
       });
-      setStep(3);
+      setExisting({ ...(res.data || {}), status: res.data?.status || 'pending' });
+      window.scrollTo(0, 0);
     } catch (e) {
-      const code = e.response?.data?.code;
-      if (code === 'VERIFICATION_REQUIRED' || code === 'VERIFICATION_REJECTED') {
-        setShowVerifyIdentity(true);
-      } else {
-        setError(e.response?.data?.message || t('become_transport_provider.submit_failed'));
-      }
+      const m = e.response?.data?.message;
+      setError(Array.isArray(m) ? m.join(', ') : (m || t('become_transport_provider.submit_failed')));
     } finally { setSaving(false); }
   };
 
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <BackBar onBack={() => step > 1 ? setStep(s => s - 1) : onNavigate('back')}
-        title={t('become_transport_provider.page_title')} top={0} />
+  let body;
+  if (checking || !identityStatus) {
+    body = <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>...</div>;
+  } else if (existing && existing.status) {
+    const s = existing.status;
+    const waitingForId = s === 'pending' && identityState(identityStatus) !== 'verified';
+    const approved = s === 'verified' || s === 'active';
+    const title = approved ? t('transport_signup.status_approved_title')
+      : s === 'pending' ? (waitingForId ? t('work_roles.status_waiting_id') : t('work_roles.status_waiting'))
+      : s === 'rejected' ? t('transport_signup.status_rejected_title') : t('work_roles.status_suspended');
+    const desc = approved ? t('transport_signup.status_approved_desc')
+      : s === 'pending' ? (waitingForId ? t('transport_signup.status_waiting_id_desc') : t('transport_signup.status_waiting_desc'))
+      : (existing.rejectionReason || t('transport_signup.status_contact_desc'));
+    body = (
+      <div data-testid="transport-status" style={{ ...card, textAlign: 'center' }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '4px 0 8px' }}>{title}</div>
+        <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 10px', lineHeight: 1.5 }}>{desc}</p>
+        {approved && (
+          <button onClick={() => openWorkRole({ role: TRANSPORT_ROLE, status: 'active', onNavigate, onSwitchAccountRole,
+            roleRow: availableRoles.find((r) => r.roleType === TRANSPORT_ROLE.roleType) })} style={{ ...primary(true), width: 'auto', padding: '12px 24px' }}>
+            {t('transport_signup.go_dashboard')}
+          </button>
+        )}
+      </div>
+    );
+  } else if (needsIdentityStep(identityStatus)) {
+    body = (
+      <div data-testid="transport-identity-step" style={{ ...card, textAlign: 'center' }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>{t('transport_signup.identity_title')}</div>
+        <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>
+          {identityState(identityStatus) === 'rejected' ? t('agent_signup.identity_rejected') : t('transport_signup.identity_desc')}
+        </div>
+        <button onClick={() => setShowVerifyIdentity(true)} style={primary(true)}>{t('agent_signup.identity_button')}</button>
+      </div>
+    );
+  } else {
+    body = (
+      <div data-testid="transport-form" style={card}>
+        {error && <div role="alert" style={{ backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{error}</div>}
+        {identityState(identityStatus) === 'waiting' && (
+          <div role="status" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
+            <strong>{t('identity_state.waiting_title')}</strong><br />{t('transport_signup.identity_waiting_note')}
+          </div>
+        )}
 
-      <div style={{ flex: 1, padding: '16px 16px 40px', maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-
-        {/* Progress */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
-          {[1, 2].map(s => (
-            <div key={s} style={{ flex: 1, height: 4, borderRadius: 100,
-              backgroundColor: step >= s ? '#1d4ed8' : '#e2e8f0',
-              transition: 'background 0.3s' }} />
+        <label style={label}>{t('transport_signup.type_label')}</label>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {TYPES.map((v) => (
+            <button key={v} type="button" aria-pressed={type === v} onClick={() => setType(v)} style={chip(type === v)}>
+              {t(`transport_signup.type_${v}`)}
+            </button>
           ))}
         </div>
 
-        {/* Step 1: Choose type */}
-        {step === 1 && (
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 6 }}>
-              {t('become_transport_provider.step1_title')}
-            </div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
-              {t('become_transport_provider.step1_subtitle')}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {PROVIDER_TYPES.map(pt => (
-                <button key={pt.value} onClick={() => { set('type', pt.value); setStep(2); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16,
-                    backgroundColor: '#fff', borderRadius: 14, cursor: 'pointer', textAlign: 'left',
-                    border: '2px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                    transition: 'border 0.15s' }}>
-                  <span style={{ fontSize: 36, flexShrink: 0 }}>{pt.icon}</span>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>{pt.label}</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{pt.desc}</div>
-                  </div>
-                  <span style={{ marginLeft: 'auto', fontSize: 18, color: '#94a3b8' }}>→</span>
-                </button>
-              ))}
-            </div>
+        <label style={label}>{t('transport_signup.name_label')}</label>
+        <input style={{ ...inp, marginBottom: 16 }} value={name} onChange={(e) => setName(e.target.value)} placeholder={t('transport_signup.name_placeholder')} />
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+          <div style={{ flex: 1 }}>
+            <label style={label}>{t('transport_signup.plate_label')}</label>
+            <input style={inp} value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="T 123 ABC" />
           </div>
-        )}
-
-        {/* Step 2: Details */}
-        {step === 2 && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <span style={{ fontSize: 32 }}>
-                {PROVIDER_TYPES.find(t => t.value === form.type)?.icon}
-              </span>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#1e293b' }}>{t('become_transport_provider.step2_title')}</div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  {PROVIDER_TYPES.find(pt => pt.value === form.type)?.label}
-                </div>
-              </div>
-            </div>
-
-            {error && (
-              <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: 10,
-                padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
-                {error}
-              </div>
-            )}
-
-            {/* Name */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                {t('become_transport_provider.field_name_label')}
-              </label>
-              <input style={inp} value={form.name}
-                placeholder={form.type === 'boda' ? t('become_transport_provider.field_name_placeholder_boda') : t('become_transport_provider.field_name_placeholder_default')}
-                onChange={e => set('name', e.target.value)} />
-            </div>
-
-            {/* Logo — this is what shows on the public profile instead of
-                the personal photo, same as a seller's store logo */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                {t('become_transport_provider.field_logo_label')}
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
-                border: '2px dashed #93c5fd', borderRadius: 14, padding: '12px 16px', backgroundColor: '#f8fafc' }}>
-                {form.logoUrl ? (
-                  <img src={form.logoUrl} alt="" style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: '#e2e8f0',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>🚌</div>
-                )}
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#2563eb' }}>
-                  {logoUploading ? t('become_transport_provider.logo_uploading') : t('become_transport_provider.logo_upload_hint')}
-                </span>
-                <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} disabled={logoUploading} />
-              </label>
-            </div>
-
-            {/* Phone */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  {t('become_transport_provider.field_contact_phone_label')}
-                </label>
-                <input style={inp} value={form.contactPhone} type="tel"
-                  placeholder="0788 000 000"
-                  onChange={e => set('contactPhone', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  {t('become_transport_provider.field_whatsapp_label')}
-                </label>
-                <input style={inp} value={form.whatsappPhone} type="tel"
-                  placeholder="0788 000 000"
-                  onChange={e => set('whatsappPhone', e.target.value)} />
-              </div>
-            </div>
-
-            {/* Registration number */}
-            {['bus', 'courier', 'truck'].includes(form.type) && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  {t('become_transport_provider.field_registration_label')}
-                </label>
-                <input style={inp} value={form.registrationNumber}
-                  placeholder="e.g. SUMATRA/BUS/2024/001"
-                  onChange={e => set('registrationNumber', e.target.value)} />
-              </div>
-            )}
-
-            {/* Description */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                {t('become_transport_provider.field_description_label')}
-              </label>
-              <textarea style={{ ...inp, minHeight: 80, resize: 'vertical' }}
-                value={form.description}
-                placeholder={
-                  form.type === 'bus'    ? t('become_transport_provider.desc_placeholder_bus') :
-                  form.type === 'van'    ? t('become_transport_provider.desc_placeholder_van') :
-                  form.type === 'boda'   ? t('become_transport_provider.desc_placeholder_boda') :
-                  t('become_transport_provider.desc_placeholder_default')
-                }
-                onChange={e => set('description', e.target.value)} />
-            </div>
-
-            {/* Capacity */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  {t('become_transport_provider.field_capacity_label')}
-                </label>
-                <input style={inp} type="number" value={form.defaultParcelCapacity}
-                  onChange={e => set('defaultParcelCapacity', e.target.value)} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  {t('become_transport_provider.field_max_weight_label')}
-                </label>
-                <input style={inp} type="number" value={form.defaultMaxWeightKg}
-                  onChange={e => set('defaultMaxWeightKg', e.target.value)} />
-              </div>
-            </div>
-
-            {/* Note about verification */}
-            <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 20,
-              border: '1px solid #bfdbfe' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>
-                {t('become_transport_provider.verification_note_title')}
-              </div>
-              <div style={{ fontSize: 12, color: '#475569' }}>
-                {t('become_transport_provider.verification_note_desc')}
-              </div>
-            </div>
-
-            <button onClick={handleSubmit} disabled={saving}
-              style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-                color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0',
-                fontSize: 15, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer' }}>
-              {saving ? t('become_transport_provider.submitting_button') : t('become_transport_provider.submit_button')}
-            </button>
+          <div style={{ flex: 1 }}>
+            <label style={label}>{t('transport_signup.capacity_label')}</label>
+            <input style={inp} type="number" inputMode="numeric" min="1" value={capacityKg} onChange={(e) => setCapacityKg(e.target.value)} placeholder="2000" />
           </div>
-        )}
+        </div>
 
-        {/* Step 3: Success */}
-        {step === 3 && (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
-              {t('become_transport_provider.success_title')}
-            </div>
-            <div style={{ fontSize: 14, color: '#64748b', marginBottom: 32, lineHeight: 1.6 }}>
-              {t('become_transport_provider.success_desc').split('\n').map((line, i, arr) => (
-                <React.Fragment key={i}>{line}{i < arr.length - 1 && <br />}</React.Fragment>
-              ))}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button onClick={() => onNavigate('TransportProviderDashboard')}
-                style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
-                  borderRadius: 12, padding: '14px 0', fontSize: 14, fontWeight: 800,
-                  cursor: 'pointer' }}>
-                {t('become_transport_provider.go_dashboard_button')}
-              </button>
-              <button onClick={() => onNavigate('Home')}
-                style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none',
-                  borderRadius: 12, padding: '14px 0', fontSize: 14, fontWeight: 700,
-                  cursor: 'pointer' }}>
-                {t('become_transport_provider.back_home_button')}
-              </button>
-            </div>
-          </div>
-        )}
+        <IntelligentLocationInput label={t('transport_signup.from_label')} value={fromText} onTextChange={setFromText}
+          onResolved={setFrom} placeholder={t('transport_signup.place_placeholder')} required />
+        <IntelligentLocationInput label={t('transport_signup.to_label')} value={toText} onTextChange={setToText}
+          onResolved={setTo} placeholder={t('transport_signup.place_placeholder')} required />
+
+        <details style={{ marginBottom: 12 }}>
+          <summary style={{ fontSize: 13, padding: '8px 0', cursor: 'pointer', color: '#1d4ed8', fontWeight: 700 }}>{t('transport_signup.more_details')}</summary>
+          <label style={{ ...label, marginTop: 6 }}>{t('transport_signup.licence_label')}</label>
+          <input style={{ ...inp, marginBottom: 12 }} value={licence} onChange={(e) => setLicence(e.target.value)} />
+          <label style={label}>{t('transport_signup.parcels_label')}</label>
+          <input style={inp} type="number" inputMode="numeric" min="1" value={parcels} onChange={(e) => setParcels(e.target.value)} />
+        </details>
+
+        <div data-testid="transport-account-line" style={{ fontSize: 12, color: '#475569', margin: '4px 0 6px' }}>
+          {t('transport_signup.phone_from_account', { phone: accountPhone || '-' })}
+        </div>
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>{t('transport_signup.prices_later')}</div>
+
+        <button type="button" disabled={saving || !ready} onClick={submit} style={primary(!saving && ready)}>
+          {saving ? t('transport_signup.submitting') : t('transport_signup.submit')}
+        </button>
       </div>
+    );
+  }
 
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+      <BackBar onBack={() => onNavigate('back')} title={t('become_transport_provider.page_title')} top={0} />
+      <div style={{ flex: 1, padding: '16px 16px 140px', maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        {body}
+      </div>
       {showVerifyIdentity && (
-        <VerifyIdentityModal
-          onClose={() => setShowVerifyIdentity(false)}
-          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
-        />
+        <VerifyIdentityModal onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); setIdentityStatus((prev) => afterIdentitySent(prev)); }} />
       )}
     </div>
   );

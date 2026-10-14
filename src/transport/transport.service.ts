@@ -935,6 +935,20 @@ export class TransportService {
     return this.routeRepo.find({ where: { providerId: p.id, isActive: true } });
   }
 
+  /**
+   * Msafirishaji: routes waiting for their first price ("Weka bei") -- the
+   * main route from sign-up is created switched off and never priced. A
+   * route that was priced before and then switched off (removed) is not here.
+   */
+  async getMyRoutesAwaitingPrice(userId: number): Promise<TransportRoute[]> {
+    const p = await this.getMyProfile(userId);
+    return this.dataSource.query(`
+      SELECT r.* FROM public.transport_route r
+       WHERE r."providerId" = $1 AND r."isActive" = false AND r."pricePerKg" = 0 AND r."fixedFee" = 0
+         AND NOT EXISTS (SELECT 1 FROM public.transport_route_price_history h WHERE h."routeId" = r.id)
+       ORDER BY r.id`, [p.id]);
+  }
+
   async updateRoute(
     userId: number,
     routeId: number,

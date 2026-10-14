@@ -5786,7 +5786,8 @@
     "status_waiting_id": "Waiting: your ID must be verified first",
     "status_active": "Active",
     "status_suspended": "Suspended",
-    "status_rejected": "Rejected: you can apply again"
+    "status_rejected": "Rejected: you can apply again",
+    "transport": "Transporter (bus, truck, van)"
   },
   "seller_signup": {
     "identity_waiting_note": "You can apply now. The store is approved and shown to customers after your ID is verified.",
@@ -5859,5 +5860,40 @@
     "open_map": "Open map",
     "pin_accuracy": "Pin accuracy: ±{{m}} m",
     "no_pin": "No pin. Call the sender."
+  },
+  "transport_signup": {
+    "identity_title": "First: your ID",
+    "identity_desc": "A transporter needs the owner's ID. Send it once; it is used everywhere on KenteXa.",
+    "identity_waiting_note": "You can apply now. You are approved and shown to customers after your ID is verified.",
+    "type_label": "Type of transport *",
+    "type_bus": "Bus",
+    "type_truck": "Truck",
+    "type_van": "Van",
+    "name_label": "Your transport business name *",
+    "name_placeholder": "e.g. Juma Express",
+    "plate_label": "Vehicle plate *",
+    "capacity_label": "Maximum weight (kg) *",
+    "from_label": "Your main route: where do you start?",
+    "to_label": "Where do you go?",
+    "place_placeholder": "Type a town or district, then pick from the list",
+    "more_details": "LATRA licence and parcel count (optional)",
+    "licence_label": "LATRA licence / registration number",
+    "parcels_label": "Parcels per trip",
+    "phone_from_account": "Phone and WhatsApp: {{phone}} (from your account)",
+    "prices_later": "You set prices after approval, on your dashboard.",
+    "submit": "Send request",
+    "submitting": "Sending...",
+    "status_waiting_desc": "Your transport request was received. KenteXa will review it; customers see you once approved.",
+    "status_waiting_id_desc": "Your transport request was received. Once your ID is verified, KenteXa approves the request.",
+    "status_approved_title": "You are a transporter",
+    "status_approved_desc": "Your request is approved. Set your route price on the dashboard so customers can see you.",
+    "status_rejected_title": "Transport request rejected",
+    "status_contact_desc": "Contact KenteXa for more details.",
+    "go_dashboard": "Go to the dashboard",
+    "weka_bei_title": "Set your route price",
+    "price_per_kg": "Price per kg (TZS)",
+    "min_fee": "Minimum price (TZS)",
+    "weka_bei_button": "Set the price and start receiving jobs",
+    "price_required": "Set a price per kg or a minimum price."
   }
 }

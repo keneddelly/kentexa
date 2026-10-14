@@ -14,6 +14,9 @@ export const WORK_ROLES = [
   // person's own ads (serviceRecordFromAds), and it wins over the role row,
   // because an ad waiting for the ID (decision S1) is not live yet.
   { key: 'service', roleType: 'service_provider', recordKey: 'service', recordWins: true, page: 'PostService', activePage: 'MyServices' },
+  // Msafirishaji (bus, truck, van; owner 2026-10-14). Its dashboard only
+  // opens inside the transport role, so the role is switched first.
+  { key: 'transport', roleType: 'transport_provider', recordKey: 'transport', page: 'BecomeTransportProvider', activePage: 'TransportProviderDashboard', switchRole: true },
 ];
 
 /** The service provider's status from their own ads (GET /services/my/ads). */
@@ -26,9 +29,9 @@ export function serviceRecordFromAds(ads) {
 
 // Record statuses of the different role tables, as one word.
 const FROM_RECORD = {
-  pending: 'waiting',
-  approved: 'active', active: 'active',
-  suspended: 'suspended', blocked: 'suspended',
+  pending: 'waiting', testing: 'waiting',
+  approved: 'active', active: 'active', verified: 'active',   // transport_provider uses "verified" for approved
+  suspended: 'suspended', blocked: 'suspended', inactive: 'suspended',
   rejected: 'rejected',
 };
 const FROM_ROLE_ROW = {
@@ -56,4 +59,18 @@ export function workRoleStatus({ record, roleRow, identity, recordWins = false }
 /** Where tapping the role goes. */
 export function workRoleTarget(role, status) {
   return status === 'active' && role.activePage ? role.activePage : role.page;
+}
+
+/**
+ * Opens the role. A page that only works inside the role (switchRole) goes
+ * through the same role switch as the profile switcher; without an active
+ * role row to switch to, the role's own status page opens instead.
+ */
+export function openWorkRole({ role, status, roleRow, onNavigate, onSwitchAccountRole }) {
+  const target = workRoleTarget(role, status);
+  if (!role.switchRole || target === role.page) return onNavigate(target);
+  if (roleRow?.status === 'active' && roleRow.accountRoleId && onSwitchAccountRole) {
+    return onSwitchAccountRole(roleRow.accountRoleId, target);
+  }
+  return onNavigate(role.page);
 }

@@ -5774,7 +5774,8 @@
     "status_waiting_id": "En attente : votre pièce d’identité doit d’abord être vérifiée",
     "status_active": "Actif",
     "status_suspended": "Suspendu",
-    "status_rejected": "Refusé : vous pouvez refaire une demande"
+    "status_rejected": "Refusé : vous pouvez refaire une demande",
+    "transport": "Transporteur (bus, camion, van)"
   },
   "seller_signup": {
     "identity_waiting_note": "Vous pouvez faire la demande maintenant. La boutique sera approuvée et visible après la vérification de votre identité.",
@@ -5847,5 +5848,40 @@
     "open_map": "Ouvrir la carte",
     "pin_accuracy": "Précision du point : ±{{m}} m",
     "no_pin": "Pas de point. Appelez l’expéditeur."
+  },
+  "transport_signup": {
+    "identity_title": "D’abord : votre pièce d’identité",
+    "identity_desc": "Un transporteur a besoin de la pièce d’identité du propriétaire. Envoyez-la une fois ; elle sert partout sur KenteXa.",
+    "identity_waiting_note": "Vous pouvez faire la demande maintenant. Vous serez approuvé et visible après la vérification de votre identité.",
+    "type_label": "Type de transport *",
+    "type_bus": "Bus",
+    "type_truck": "Camion",
+    "type_van": "Van",
+    "name_label": "Nom de votre entreprise de transport *",
+    "name_placeholder": "ex. Juma Express",
+    "plate_label": "Immatriculation *",
+    "capacity_label": "Poids maximal (kg) *",
+    "from_label": "Votre trajet principal : d’où partez-vous ?",
+    "to_label": "Où allez-vous ?",
+    "place_placeholder": "Tapez une ville ou un district, puis choisissez dans la liste",
+    "more_details": "Licence LATRA et nombre de colis (facultatif)",
+    "licence_label": "Licence LATRA / numéro d’enregistrement",
+    "parcels_label": "Colis par voyage",
+    "phone_from_account": "Téléphone et WhatsApp : {{phone}} (de votre compte)",
+    "prices_later": "Vous fixez les prix après l’approbation, sur votre tableau de bord.",
+    "submit": "Envoyer la demande",
+    "submitting": "Envoi...",
+    "status_waiting_desc": "Votre demande de transport a été reçue. KenteXa va l’examiner ; les clients vous verront une fois approuvé.",
+    "status_waiting_id_desc": "Votre demande de transport a été reçue. Une fois votre identité vérifiée, KenteXa approuve la demande.",
+    "status_approved_title": "Vous êtes transporteur",
+    "status_approved_desc": "Votre demande est approuvée. Fixez le prix de votre trajet sur le tableau de bord pour être visible.",
+    "status_rejected_title": "Demande de transport refusée",
+    "status_contact_desc": "Contactez KenteXa pour plus de détails.",
+    "go_dashboard": "Aller au tableau de bord",
+    "weka_bei_title": "Fixez le prix de votre trajet",
+    "price_per_kg": "Prix par kg (TZS)",
+    "min_fee": "Prix minimum (TZS)",
+    "weka_bei_button": "Fixer le prix et recevoir des missions",
+    "price_required": "Fixez un prix par kg ou un prix minimum."
   }
 }

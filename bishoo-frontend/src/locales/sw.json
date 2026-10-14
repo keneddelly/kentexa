@@ -5716,7 +5716,8 @@
     "status_waiting_id": "Inasubiri: kitambulisho chako kithibitishwe kwanza",
     "status_active": "Inatumika",
     "status_suspended": "Imesimamishwa",
-    "status_rejected": "Imekataliwa: unaweza kuomba tena"
+    "status_rejected": "Imekataliwa: unaweza kuomba tena",
+    "transport": "Msafirishaji (basi, lori, van)"
   },
   "seller_signup": {
     "identity_waiting_note": "Unaweza kuomba sasa. Duka litaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa.",
@@ -5789,5 +5790,40 @@
     "open_map": "Fungua ramani",
     "pin_accuracy": "Usahihi wa pin: ±{{m}} m",
     "no_pin": "Hakuna pin. Piga simu kwa mtumaji."
+  },
+  "transport_signup": {
+    "identity_title": "Kwanza: kitambulisho chako",
+    "identity_desc": "Msafirishaji anahitaji kitambulisho cha mwenye biashara. Kitume mara moja tu; kitatumika kila mahali kwenye KenteXa.",
+    "identity_waiting_note": "Unaweza kuomba sasa. Utaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa.",
+    "type_label": "Aina ya usafiri *",
+    "type_bus": "Basi",
+    "type_truck": "Lori",
+    "type_van": "Van",
+    "name_label": "Jina la biashara yako ya usafiri *",
+    "name_placeholder": "mf. Juma Express",
+    "plate_label": "Namba ya gari *",
+    "capacity_label": "Uzito wa juu (kilo) *",
+    "from_label": "Njia yako kuu: unaanzia wapi?",
+    "to_label": "Unakwenda wapi?",
+    "place_placeholder": "Andika mji au wilaya, kisha chagua kwenye orodha",
+    "more_details": "Leseni ya LATRA na idadi ya mizigo (hiari)",
+    "licence_label": "Namba ya leseni ya LATRA / usajili",
+    "parcels_label": "Idadi ya mizigo kwa safari moja",
+    "phone_from_account": "Simu na WhatsApp: {{phone}} (kutoka akaunti yako)",
+    "prices_later": "Bei utaweka baada ya kuidhinishwa, kwenye dashibodi yako.",
+    "submit": "Tuma ombi",
+    "submitting": "Inatuma...",
+    "status_waiting_desc": "Ombi lako la usafirishaji limepokelewa. KenteXa italipitia; utaonekana kwa wateja baada ya kuidhinishwa.",
+    "status_waiting_id_desc": "Ombi lako la usafirishaji limepokelewa. Kitambulisho chako kikithibitishwa, KenteXa itaidhinisha ombi.",
+    "status_approved_title": "Wewe ni msafirishaji",
+    "status_approved_desc": "Ombi lako limeidhinishwa. Weka bei ya njia yako kwenye dashibodi ili wateja wakuone.",
+    "status_rejected_title": "Ombi la usafirishaji limekataliwa",
+    "status_contact_desc": "Wasiliana na KenteXa kwa maelezo zaidi.",
+    "go_dashboard": "Nenda kwenye dashibodi",
+    "weka_bei_title": "Weka bei ya njia yako",
+    "price_per_kg": "Bei kwa kilo (TZS)",
+    "min_fee": "Bei ya chini (TZS)",
+    "weka_bei_button": "Weka bei na anza kupokea kazi",
+    "price_required": "Weka bei kwa kilo au bei ya chini."
   }
 }

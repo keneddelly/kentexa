@@ -188,6 +188,14 @@ export class TransportController {
     return this.svc.getMyRoutes(req.user.id);
   }
 
+  // Msafirishaji: the sign-up route(s) still waiting for a first price ("Weka bei").
+  @Get('routes/awaiting-price')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
+  getRoutesAwaitingPrice(@Request() req) {
+    return this.svc.getMyRoutesAwaitingPrice(req.user.id);
+  }
+
   // ── Public: provider info + routes for viewing any provider's profile ────
   @Get('public/:userId')
   getPublicProfile(@Param('userId', ParseIntPipe) userId: number) {
