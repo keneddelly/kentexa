@@ -512,7 +512,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     try {
       setActionLoading(true); setError('');
       await api.patch(`/collections/${collectionId}/handed-over`);
-      setSuccess('Handover requested. The receiving hub must confirm the parcel before your collection fee is credited.');
+      setSuccess('Makabidhiano yameombwa. Ofisi inayopokea lazima ithibitishe mzigo kabla ada yako ya kuchukua haijaingizwa.');
       setSelectedItem(null); setNote('');
       fetchWork(profile);
     } catch (err) {
@@ -1115,7 +1115,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             </button>
                           )}
                           {job.status === 'collected' && job.handedOverAt && (
-                            <div role="status" style={{ padding: 10, color: '#92400e' }}>Awaiting receiving hub confirmation</div>
+                            <div role="status" style={{ padding: 10, color: '#92400e' }}>Inasubiri ofisi inayopokea ithibitishe</div>
                           )}
                         </div>
                       );
@@ -1177,7 +1177,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 ) : (
                   <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                     <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>{t('agent_dashboard.invoice_number_field_label')}</label>
-                    <input data-tour="ag-invoice-input" type="text" placeholder="e.g. KNT-INV-2025-00001"
+                    <input data-tour="ag-invoice-input" type="text" placeholder="mf. KNT-INV-2025-00001"
                       value={invoiceInput} onChange={e => setInvoiceInput(e.target.value)}
                       style={{ ...inputStyle, marginBottom: 10 }} />
                     <button onClick={handleLookupInvoice} disabled={lookupLoading || !invoiceInput.trim()}
