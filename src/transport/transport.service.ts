@@ -13,6 +13,9 @@ import {
 import { ReputationService } from '../reputation/reputation.service';
 import { VerificationService } from '../identity/verification.service';
 import { assertTransportOwnerVerified } from './transport-signup';
+import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
+import { Vehicle, VehicleOperationalStatus } from './entities/vehicle.entity';
+import { readMsafirishajiSignup, MsafirishajiInput } from './msafirishaji-signup';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -109,6 +112,8 @@ export class TransportService {
     private readonly dataSource: DataSource,
     // Msafirishaji: approving (or bringing back) a provider needs the owner's ID verified.
     @Optional() private readonly verification?: VerificationService,
+    // Msafirishaji sign-up: the main route's two ends from the place list.
+    @Optional() private readonly locations?: LocationIntelligenceService,
   ) {}
 
   // ── Safe, credential-free provider projection ────────────────────────────
@@ -225,12 +230,17 @@ export class TransportService {
       logoUrl?: string;
       defaultParcelCapacity?: number;
       defaultMaxWeightKg?: number;
-    },
+    } & MsafirishajiInput,
   ): Promise<TransportProvider> {
     // One provider per user
     const existing = await this.resolveActingTransportProvider(user.id);
     if (existing)
       throw new BadRequestException('Una akaunti ya usafirishaji tayari');
+
+    // Msafirishaji one-screen sign-up (owner 2026-10-14): provider, vehicle and
+    // main route together. The older sign-up shape (no vehicle/route) keeps
+    // working exactly as before below.
+    if (dto.vehicle || dto.route) return this.registerMsafirishaji(user, dto);
 
     const provider = this.providerRepo.create({
       userId: user.id,
@@ -266,6 +276,68 @@ export class TransportService {
       });
     } catch {}
 
+    return saved;
+  }
+
+  /**
+   * Msafirishaji one-screen sign-up: the provider (pending), its vehicle and
+   * its main route, all in one transaction. The route is created switched off
+   * and without a price: prices are set only after approval ("Weka bei").
+   */
+  private async registerMsafirishaji(user: User, dto: MsafirishajiInput): Promise<TransportProvider> {
+    if (!this.locations) throw new BadRequestException('Place list unavailable');
+    const form = await readMsafirishajiSignup(dto, user.phone, (ref) => this.locations!.resolve(ref) as any);
+    const saved = await this.dataSource.transaction(async (em) => {
+      const provider = await em.getRepository(TransportProvider).save(em.getRepository(TransportProvider).create({
+        userId: user.id,
+        name: form.name,
+        type: form.type as any,
+        contactPhone: form.phone,
+        whatsappPhone: form.phone,
+        registrationNumber: form.registrationNumber,
+        defaultParcelCapacity: form.vehicle.parcelCapacity ?? 10,
+        defaultMaxWeightKg: form.vehicle.weightCapacityKg,
+        cities: [form.route.originCity, form.route.destinationCity],
+        status: ProviderStatus.PENDING,
+        confirmMode: form.type === 'bus' ? ConfirmMode.AUTO : ConfirmMode.MANUAL,
+      }));
+      await em.getRepository(Vehicle).save(em.getRepository(Vehicle).create({
+        providerId: provider.id,
+        identifier: form.vehicle.registrationPlate,
+        registrationPlate: form.vehicle.registrationPlate,
+        type: form.type as any,
+        parcelCapacity: form.vehicle.parcelCapacity,
+        weightCapacityKg: form.vehicle.weightCapacityKg,
+        isActive: true,
+        operationalStatus: VehicleOperationalStatus.AVAILABLE,
+      }));
+      await em.getRepository(TransportRoute).save(em.getRepository(TransportRoute).create({
+        providerId: provider.id,
+        routeType: RouteType.INTERCITY,
+        originCity: form.route.originCity,
+        originRegionId: form.route.originRegionId,
+        destinationCity: form.route.destinationCity,
+        destinationRegionId: form.route.destinationRegionId,
+        pricePerKg: 0,
+        fixedFee: 0,
+        isActive: false,
+      }));
+      return provider;
+    });
+    // Same side effects as the older sign-up: a paused service ad and a pending (hidden) profile.
+    await this.syncServiceAd(saved, false);
+    try {
+      await this.commerceProfiles.createProfile({
+        ownerId: user.id,
+        type: CommerceProfileType.TRANSPORT_PROVIDER,
+        displayName: saved.name,
+        usernameSeed: saved.name,
+        photoUrl: null,
+        bio: null,
+        status: CommerceProfileStatus.PENDING,
+        transportProviderId: saved.id,
+      });
+    } catch {}
     return saved;
   }
 
@@ -873,6 +945,12 @@ export class TransportService {
       where: { id: routeId, providerId: p.id },
     });
     if (!route) throw new NotFoundException('Njia haijapatikana');
+    // Msafirishaji: a route created at sign-up stays off until the provider is
+    // approved; switching it on (which makes it searchable) needs approval,
+    // the same rule addRoute() applies to new routes.
+    if (dto?.isActive === true && ![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(p.status)) {
+      throw new ForbiddenException('Akaunti yako haijahakikiwa bado');
+    }
     // Explicit whitelist — the previous Object.assign(route, dto) let an
     // owner smuggle a providerId (or any other column) into the same
     // request that was only supposed to let them edit their own route,
