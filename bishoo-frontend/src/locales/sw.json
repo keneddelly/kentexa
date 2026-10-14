@@ -1156,7 +1156,7 @@
     "header_subtitle": "Weka nambari ya ufuatiliaji au nambari ya agizo",
     "error_empty": "Weka nambari ya ufuatiliaji au nambari ya agizo",
     "search_placeholder": "KTX-DAR-MZA-000001 au Number ya Agizo",
-    "track_button": "🔍 Track",
+    "track_button": "🔍 Fuatilia",
     "error_not_found": "Number \"{{val}}\" haikupatikana. Weka nambari ya agizo lako (mfano: 1234).",
     "error_generic": "Haikupatikana. Angalia nambari na ujaribu tena.",
     "error_order_not_found": "Agizo #{{id}} haikupatikana",
