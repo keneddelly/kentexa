@@ -6,11 +6,12 @@ import { IdentityVerificationStatus } from '../identity/entities/identity-profil
  * One shared rule (owner 2026-10-13): selling rights (COMMERCE) and office
  * rights (SUPER_AGENT) of a business become active, at approval or when
  * reactivated after a suspension, only with the person's ID VERIFIED.
- * Transport and service rights are not covered by this rule.
+ * Transport rights too (Msafirishaji, owner 2026-10-14). Service rights are not covered.
  */
 export const CAPABILITIES_NEEDING_VERIFIED_OWNER: ReadonlySet<BusinessCapabilityCode> = new Set([
   BusinessCapabilityCode.COMMERCE,
   BusinessCapabilityCode.SUPER_AGENT,
+  BusinessCapabilityCode.TRANSPORT,
 ]);
 
 export const OWNER_NOT_VERIFIED_CODE = 'OWNER_IDENTITY_NOT_VERIFIED';

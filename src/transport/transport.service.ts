@@ -8,8 +8,11 @@ import {
   ForbiddenException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { ReputationService } from '../reputation/reputation.service';
+import { VerificationService } from '../identity/verification.service';
+import { assertTransportOwnerVerified } from './transport-signup';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -104,6 +107,8 @@ export class TransportService {
     private readonly roleContextService: RoleContextService,
     private readonly searchIndex: SearchIndexService,
     private readonly dataSource: DataSource,
+    // Msafirishaji: approving (or bringing back) a provider needs the owner's ID verified.
+    @Optional() private readonly verification?: VerificationService,
   ) {}
 
   // ── Safe, credential-free provider projection ────────────────────────────
@@ -2151,6 +2156,14 @@ export class TransportService {
   ): Promise<TransportProvider> {
     const p = await this.providerRepo.findOne({ where: { id } });
     if (!p) throw new NotFoundException('Msafirishaji hajapatikana');
+    // Same rule as the other work roles (owner 2026-10-14): a provider becomes
+    // (or becomes again) approved only with the owner's ID VERIFIED. One already
+    // approved is not re-checked. Checked before any write.
+    const alreadyApproved = p.status === ProviderStatus.VERIFIED || p.status === ProviderStatus.ACTIVE;
+    if (approve && !alreadyApproved) {
+      if (!this.verification) throw new BadRequestException('Identity check unavailable');
+      await assertTransportOwnerVerified(this.verification, p.userId);
+    }
     p.status = approve ? ProviderStatus.VERIFIED : ProviderStatus.REJECTED;
     p.verifiedAt = approve ? new Date() : null;
     p.rejectionReason = reason || null;

@@ -20,7 +20,7 @@ function setup(capabilityCode: BusinessCapabilityCode, idStatus: string | null, 
 const admin: any = { id: 1 };
 
 describe('reactivating selling or office rights needs a verified owner ID', () => {
-  for (const code of [BusinessCapabilityCode.COMMERCE, BusinessCapabilityCode.SUPER_AGENT]) {
+  for (const code of [BusinessCapabilityCode.COMMERCE, BusinessCapabilityCode.SUPER_AGENT, BusinessCapabilityCode.TRANSPORT]) {
     it(`${code}: a waiting, missing or rejected owner ID is refused and nothing is written`, async () => {
       for (const idStatus of ['pending', null, 'rejected']) {
         const { service, cap, save, query, verification } = setup(code, idStatus);
@@ -42,8 +42,8 @@ describe('reactivating selling or office rights needs a verified owner ID', () =
     });
   }
 
-  it('transport and service rights are not affected', async () => {
-    for (const code of [BusinessCapabilityCode.TRANSPORT, BusinessCapabilityCode.SERVICE]) {
+  it('service rights are not affected', async () => {
+    for (const code of [BusinessCapabilityCode.SERVICE]) {
       const { service, save, verification } = setup(code, 'pending');
       await service.reactivate(3, admin);
       expect(verification.getIdentityProfile).not.toHaveBeenCalled();

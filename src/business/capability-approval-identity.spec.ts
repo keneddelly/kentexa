@@ -23,7 +23,7 @@ function setup(capabilityCode: BusinessCapabilityCode, idStatus: string | null) 
 const admin: any = { id: 1 };
 
 describe('business-capability approval: stores and offices need a verified owner ID', () => {
-  for (const code of [BusinessCapabilityCode.COMMERCE, BusinessCapabilityCode.SUPER_AGENT]) {
+  for (const code of [BusinessCapabilityCode.COMMERCE, BusinessCapabilityCode.SUPER_AGENT, BusinessCapabilityCode.TRANSPORT]) {
     it(`${code}: a waiting, missing or rejected ID is refused before anything is written`, async () => {
       for (const idStatus of ['pending', null, 'rejected', 'not_submitted']) {
         const { service, verification, saves } = setup(code, idStatus);
@@ -42,8 +42,8 @@ describe('business-capability approval: stores and offices need a verified owner
     });
   }
 
-  it('transport and service applications are not affected (no ID lookup here)', async () => {
-    for (const code of [BusinessCapabilityCode.TRANSPORT, BusinessCapabilityCode.SERVICE]) {
+  it('service applications are not affected (no ID lookup here)', async () => {
+    for (const code of [BusinessCapabilityCode.SERVICE]) {
       const { service, verification } = setup(code, 'pending');
       await expect(service.approveApplication(7, admin)).rejects.toThrow('past the ID rule');
       expect(verification.getIdentityProfile).not.toHaveBeenCalled();

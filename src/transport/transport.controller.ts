@@ -30,7 +30,7 @@ import type { ComposeJourneyDto, SelectComposedJourneyDto } from './journey-comp
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
-import { Feature } from '../identity/verification.constants';
+import { assertTransportIdSent } from './transport-signup';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
@@ -148,7 +148,11 @@ export class TransportController {
   @Post('register')
   @UseGuards(JwtAuthGuard)
   async register(@Request() req, @Body() dto: any) {
-    await this.verification.requireFeature(req.user.id, Feature.BECOME_TRANSPORTER);
+    // Msafirishaji (owner 2026-10-14), the same rule as the other work roles:
+    // the ID must be sent (a waiting ID is fine; it used to need a verified
+    // one). The provider stays pending (hidden) until an admin approves it,
+    // and approval needs the ID verified (TransportService.adminVerify).
+    await assertTransportIdSent(this.verification, req.user.id);
     return this.svc.register(req.user, dto);
   }
 
