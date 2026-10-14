@@ -1,4 +1,4 @@
-import { WORK_ROLES, workRoleStatus, workRoleTarget, openWorkRole } from './workRoles';
+import { WORK_ROLES, workRoleStatus, workRoleTarget, openWorkRole, openRolePage } from './workRoles';
 
 const verified = { status: 'verified' };
 const waitingId = { status: 'pending' };
@@ -94,5 +94,21 @@ describe('opening a role whose page only works inside the role', () => {
     const s = open(service, 'active', { status: 'active', accountRoleId: 9 });
     expect(s.onNavigate).toHaveBeenCalledWith('MyServices');
     expect(s.onSwitchAccountRole).not.toHaveBeenCalled();
+  });
+});
+
+describe('dashboard buttons on the Wakala and Ofisi status pages', () => {
+  const roles = [{ roleType: 'agent', status: 'active', accountRoleId: 7 }, { roleType: 'super_agent', status: 'pending', accountRoleId: 8 }];
+  test('switch into the active role, then open its dashboard', () => {
+    const onNavigate = jest.fn(), onSwitchAccountRole = jest.fn();
+    openRolePage({ roleType: 'agent', page: 'AgentDashboard', availableRoles: roles, onNavigate, onSwitchAccountRole });
+    expect(onSwitchAccountRole).toHaveBeenCalledWith(7, 'AgentDashboard');
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+  test('a role row that is not active is not switched into', () => {
+    const onNavigate = jest.fn(), onSwitchAccountRole = jest.fn();
+    openRolePage({ roleType: 'super_agent', page: 'SuperAgentDashboard', availableRoles: roles, onNavigate, onSwitchAccountRole });
+    expect(onSwitchAccountRole).not.toHaveBeenCalled();
+    expect(onNavigate).toHaveBeenCalledWith('SuperAgentDashboard');
   });
 });

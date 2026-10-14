@@ -7,6 +7,7 @@ import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { getPhonePosition } from '../../utils/phoneLocation';
+import { openRolePage } from '../../utils/workRoles';
 
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
@@ -14,7 +15,7 @@ const inputStyle = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
-const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, onRefreshContext }) => {
+const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, onRefreshContext, availableRoles, onSwitchAccountRole }) => {
   const { t } = useTranslation();
   const step = 'info';
   const [existingProfile, setExistingProfile] = useState(null);
@@ -126,7 +127,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>{statusInfo.title}</h2>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px' }}>{statusInfo.desc}</p>
             {existingProfile.status === 'active' && (
-              <button onClick={() => onNavigate('SuperAgentDashboard')}
+              <button onClick={() => openRolePage({ roleType: 'super_agent', page: 'SuperAgentDashboard', availableRoles, onNavigate, onSwitchAccountRole })}
                 style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
                 {t('become_super_agent_info.go_to_dashboard_button')}
               </button>

@@ -62,6 +62,17 @@ export function workRoleTarget(role, status) {
 }
 
 /**
+ * Opens a page that only works inside one role (e.g. AgentDashboard,
+ * SuperAgentDashboard): switches into the person's active role row first,
+ * through the same switch as the profile switcher.
+ */
+export function openRolePage({ roleType, page, availableRoles = [], onNavigate, onSwitchAccountRole }) {
+  const row = availableRoles.find((r) => r.roleType === roleType && r.status === 'active' && r.accountRoleId);
+  if (row && onSwitchAccountRole) return onSwitchAccountRole(row.accountRoleId, page);
+  return onNavigate(page);
+}
+
+/**
  * Opens the role. A page that only works inside the role (switchRole) goes
  * through the same role switch as the profile switcher; without an active
  * role row to switch to, the role's own status page opens instead.

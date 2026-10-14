@@ -5,10 +5,11 @@ import api from '../../api/api';
 import AgentSignupSteps from '../components/AgentSignupSteps';
 import { identityState } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
+import { openRolePage } from '../../utils/workRoles';
 
 // Become an agent (audit B step 3): the form (or the request's status) comes
 // first, right under the header; commission tiers and benefits follow below.
-const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
+const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, availableRoles, onSwitchAccountRole }) => {
   const { t } = useTranslation();
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [existingProfile, setExistingProfile] = useState(null);
@@ -63,7 +64,7 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }
                 {existingProfile.status === 'suspended' && (existingProfile.rejectionReason || t('become_agent.status_suspended_desc_default'))}
               </p>
               {existingProfile.status === 'approved' && (
-                <button onClick={() => onNavigate('AgentDashboard')}
+                <button onClick={() => openRolePage({ roleType: 'agent', page: 'AgentDashboard', availableRoles, onNavigate, onSwitchAccountRole })}
                   style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
                   {t('become_agent.go_dashboard_button')}
                 </button>
