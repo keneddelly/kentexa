@@ -20,6 +20,7 @@ import { SmsService } from '../sms/sms.service';
 import { FRONTEND_URL } from '../config/urls.config';
 import { ParcelReferenceInterceptor } from '../shipments/parcel-reference.interceptor';
 import { projectShipmentForParcelSafely } from '../shipments/shipment-projection';
+import { publicInitials } from '../shipments/public-tracking-privacy';
 
 /**
  * WebhookController — KenteXa's public API for transport companies.
@@ -37,7 +38,7 @@ import { projectShipmentForParcelSafely } from '../shipments/shipment-projection
  *   POST /api/v1/webhook/departure   — parcel left origin (bus departed, courier collected)
  *   POST /api/v1/webhook/arrival     — parcel arrived at destination or transit hub
  *   POST /api/v1/webhook/delivered   — retired terminal write (recipient proof required)
- *   GET  /api/v1/track/:trackingNumber — public tracking (no auth needed)
+ *   GET  /api/v1/track/:trackingNumber — public tracking (no auth needed; initials only, no notes)
  */
 @Controller('api/v1')
 export class WebhookController {
@@ -307,9 +308,9 @@ export class WebhookController {
       // Item
       description: (parcel as any).description || null,
       weightKg: (parcel as any).weightKg || null,
-      // People (no sensitive data like phone numbers in public API)
-      senderName: (parcel as any).senderName || parcel.seller?.name || null,
-      recipientName: (parcel as any).recipientName || null,
+      // People -- L5: initials only, never a full name or a phone number.
+      senderName: publicInitials((parcel as any).senderName || parcel.seller?.name),
+      recipientName: publicInitials((parcel as any).recipientName),
       // Hubs
       originHub: parcel.superAgent?.businessName || null,
       destinationHub: parcel.destinationSuperAgent?.businessName || null,
@@ -321,12 +322,11 @@ export class WebhookController {
       // Timestamps
       dispatchTime: (parcel as any).dispatchTime || null,
       arrivedAtHubTime: (parcel as any).arrivedAtHubTime || null,
-      // History — full audit trail
+      // History -- the journey only. L5: no free-form notes (they can carry a
+      // receiver's name) and no handler names, same as /super-agents/track.
       history: tracking.map((t) => ({
         status: t.status,
         city: t.city,
-        note: t.note,
-        updatedBy: t.updatedBy,
         timestamp: t.createdAt,
       })),
       // Meta

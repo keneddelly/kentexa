@@ -213,7 +213,7 @@ describe('ShipmentsService', () => {
         requestedByUserId: 7, // must NOT appear
         senderName: 'Kened', // must NOT appear
         senderPhone: '0711111111', // must NOT appear
-        receiverName: 'Asha', // MUST appear
+        receiverName: 'Asha Juma', // L5: appears as initials only
         receiverPhone: '0722222222', // must NOT appear
         originCity: 'Dar es Salaam',
         originRegionId: 3, // must NOT appear
@@ -281,7 +281,9 @@ describe('ShipmentsService', () => {
       expect(result).not.toHaveProperty('destinationWardId');
       expect(result).not.toHaveProperty('priceQuoted');
       expect(result).not.toHaveProperty('updatedAt');
-      expect(result.receiverName).toBe('Asha');
+      // L5 (owner 2026-10-14): public tracking shows initials only, never a full name or phone.
+      expect(result.receiverName).toBe('A. J.');
+      expect(JSON.stringify(result)).not.toMatch(/Asha|Juma|Kened|0711111111|0722222222/);
       expect(result.parcelTrackingNumber).toBe('KTX-PCL-900');
     });
 

@@ -71,6 +71,7 @@ import {
   parseHubSide,
   storedSideHubKeys,
 } from './shipment-hub-selection';
+import { publicInitials } from './public-tracking-privacy';
 import {
   PlaceSelection,
   deriveLegacyRoutingCity,
@@ -95,7 +96,7 @@ export interface PublicShipmentTracking {
   weightKg: number;
   pickupOption: ShipmentHandoffOption;
   deliveryOption: ShipmentHandoffOption;
-  receiverName: string;
+  receiverName: string | null; // L5: initials only (public-tracking-privacy.ts)
   collectedAt: Date | null;
   deliveredAt: Date | null;
   completedAt: Date | null;
@@ -1051,7 +1052,8 @@ export class ShipmentsService {
       weightKg: s.weightKg,
       pickupOption: s.pickupOption,
       deliveryOption: s.deliveryOption,
-      receiverName: s.receiverName,
+      // L5: public answer -- initials only, never the full name or phone.
+      receiverName: publicInitials(s.receiverName),
       collectedAt: s.collectedAt,
       deliveredAt: s.deliveredAt,
       completedAt: s.completedAt,
