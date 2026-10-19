@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { DirectPaymentNotice } from '../components/DirectPayment';
 import { isDirectPaymentOrder, usePaymentMode } from '../../utils/paymentMode';
 import { API_BASE_URL } from '../../api/baseUrl';
 
@@ -549,7 +550,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       const codUpfront = Number(order.codUpfrontAmount || 0);
                       const codRemaining = Number(order.codRemainingBalance || 0);
                       if (order.status === 'cancelled') return null;
-                      if (isDirectPaymentOrder(order)) return null; // paid to the seller directly (Release F)
+                      // Release F: paid to the seller directly; show how, never a KenteXa "Pay Now".
+                      if (isDirectPaymentOrder(order)) return <DirectPaymentNotice order={order} />;
                       if (isCodOrder && (codUpfront === 0 || order.paymentStatus === 'upfront_paid' || order.paymentStatus === 'paid')) {
                         // Nothing payable online — either 100%-on-delivery,
                         // or the deposit is already done. Show a plain

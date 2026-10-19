@@ -74,7 +74,8 @@ const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+re
  * Same city = same region. By region id when both are known (the buyer's
  * checkout place list and the seller's profile use the same tz_region list),
  * else by region name. Unknown on either side = NOT the same city, so COD is
- * never offered on a guess.
+ * never offered on a guess. District matching comes later (NEXT_STEPS.md,
+ * Release F): until then COD is offered only within the seller's region.
  */
 export function isSameRegion(
   buyer: { regionId?: number | null; regionName?: string | null },

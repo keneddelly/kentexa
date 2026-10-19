@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { DirectPaymentNotice } from '../components/DirectPayment';
 import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
@@ -441,6 +442,9 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
             ))}
           </div>
         </div>
+
+        {/* Release F: paid to the seller directly (COD by hand / Lipa Namba). */}
+        {isDirectPaymentOrder(order) && <DirectPaymentNotice order={order} />}
 
         {/* Cash on Delivery breakdown */}
         {order?.paymentMethod === 'cod' && !isDirectPaymentOrder(order) && (

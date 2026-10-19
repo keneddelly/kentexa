@@ -898,3 +898,10 @@ Branch `cod-lipa` (from 604b11c). Never pushed before migration 1792000000000 is
   unless the old online process must come back (`online`).
 - **Order:** migration first (`release-f.ps1 -Target live` → "migration done"), then "push". The current
   live code ignores the new columns, so migration-before-push is safe.
+- **TO DO before COD opens outside the seller's region — backend district rule.** Today COD is offered
+  only when the buyer's region equals the seller's region (`isSameRegion` in
+  `src/orders/direct-payment.ts`, region id or region name; district is not compared). Owner's rule:
+  same city is decided by the destination region **and district** compared with the seller's city,
+  never by GPS or a map pin. Needs: the seller's district on `seller_profile`, the checkout's
+  `districtId` sent to `GET /orders/payment-options` and checked again in `OrdersService.create()`,
+  and tests for same region / other district.

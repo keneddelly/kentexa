@@ -5886,6 +5886,33 @@
     "price_required": "Fixez un prix par kg ou un prix minimum."
   },
   "direct_payment": {
-    "online_hidden": "Le paiement en ligne n'est pas disponible pour l'instant. Contactez le vendeur au sujet de cette commande."
+    "title": "Comment vous payez",
+    "cod": "Payer en main propre à la livraison",
+    "cod_sub": "Vous payez le vendeur, ou la personne qui livre, à la réception.",
+    "lipa": "Payer par Lipa Namba",
+    "lipa_sub": "Vous payez directement sur la Lipa Namba du vendeur.",
+    "same_city": "Le vendeur est dans votre région.",
+    "other_city": "Le vendeur est dans une autre région : paiement par Lipa Namba uniquement.",
+    "choose_region": "Choisissez votre région de livraison pour voir tous les moyens de paiement.",
+    "loading": "Recherche des moyens de paiement...",
+    "none": "Ce produit ne peut pas être payé pour l'instant : le vendeur n'a pas de Lipa Namba, et le paiement en main propre n'est pas disponible pour votre lieu.",
+    "lipa_number_label": "Lipa Namba du vendeur",
+    "lipa_name_label": "Nom enregistré",
+    "copy": "Copier",
+    "copied": "Copié",
+    "lipa_note": "Payez sur ce numéro, puis envoyez un message au vendeur.",
+    "kentexa_note": "KenteXa ne détient pas l'argent : vous payez le vendeur directement.",
+    "choose_first": "Choisissez comment vous payez.",
+    "success_title": "Commande reçue",
+    "success_cod": "Vous paierez TZS {{amount}} en main propre à la réception.",
+    "success_lipa": "Payez TZS {{amount}} sur la Lipa Namba du vendeur.",
+    "my_orders": "Mes commandes",
+    "home": "Accueil",
+    "order_cod": "Paiement : en main propre à la livraison (TZS {{amount}})",
+    "order_lipa": "Paiement : sur la Lipa Namba du vendeur (TZS {{amount}})",
+    "order_total": "Total de la commande",
+    "online_hidden": "Le paiement en ligne n'est pas disponible pour l'instant. Contactez le vendeur au sujet de cette commande.",
+    "seller_order_cod": "L'acheteur vous paie en main propre à la livraison.",
+    "seller_order_lipa": "L'acheteur paie sur votre Lipa Namba. Vérifiez que vous avez reçu l'argent avant d'envoyer le colis."
   }
 }

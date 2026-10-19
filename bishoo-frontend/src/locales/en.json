@@ -5898,6 +5898,33 @@
     "price_required": "Set a price per kg or a minimum price."
   },
   "direct_payment": {
-    "online_hidden": "Online payment is not available right now. Contact the seller about this order."
+    "title": "How you will pay",
+    "cod": "Pay by hand on delivery",
+    "cod_sub": "You pay the seller, or whoever brings the parcel, when you receive it.",
+    "lipa": "Pay with Lipa Namba",
+    "lipa_sub": "You pay straight to the seller's Lipa Namba.",
+    "same_city": "The seller is in your region.",
+    "other_city": "The seller is in another region: you can pay with Lipa Namba only.",
+    "choose_region": "Choose your delivery region to see every way to pay.",
+    "loading": "Finding ways to pay...",
+    "none": "This product cannot be paid for right now: the seller has no Lipa Namba yet, and paying by hand is not available for your location.",
+    "lipa_number_label": "Seller's Lipa Namba",
+    "lipa_name_label": "Registered name",
+    "copy": "Copy",
+    "copied": "Copied",
+    "lipa_note": "Pay to this number, then send the seller a message.",
+    "kentexa_note": "KenteXa does not hold the money: you pay the seller directly.",
+    "choose_first": "Choose how you will pay.",
+    "success_title": "Order received",
+    "success_cod": "You will pay TZS {{amount}} by hand when you receive the parcel.",
+    "success_lipa": "Pay TZS {{amount}} to the seller's Lipa Namba.",
+    "my_orders": "My orders",
+    "home": "Home",
+    "order_cod": "Payment: by hand on delivery (TZS {{amount}})",
+    "order_lipa": "Payment: to the seller's Lipa Namba (TZS {{amount}})",
+    "order_total": "Order total",
+    "online_hidden": "Online payment is not available right now. Contact the seller about this order.",
+    "seller_order_cod": "The buyer pays you by hand on delivery.",
+    "seller_order_lipa": "The buyer pays to your Lipa Namba. Make sure you have received the money before you send the parcel."
   }
 }

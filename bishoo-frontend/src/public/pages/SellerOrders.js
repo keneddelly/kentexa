@@ -531,7 +531,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ color: '#64748b' }}>{t('seller_orders.fee_total_paid')}</span>
+                      {/* Release F: a direct-payment order not paid yet is not "paid". */}
+                      <span style={{ color: '#64748b' }}>
+                        {isDirectPaymentOrder(order) && order.paymentStatus !== 'paid' ? t('direct_payment.order_total') : t('seller_orders.fee_total_paid')}
+                      </span>
                       <span style={{ color: '#1e293b', fontWeight: 800 }}>TZS {Number(order.totalAmount).toLocaleString()}</span>
                     </div>
                     {/* Release F: a direct-payment order is paid to the seller in full by the
@@ -550,11 +553,26 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                     )}
                   </div>
 
+                  {isDirectPaymentOrder(order) && (
+                    <div data-testid="seller-direct-payment" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: '#0f172a', lineHeight: 1.45 }}>
+                      <div style={{ fontWeight: 800 }}>
+                        {order.paymentMethod === 'lipa_namba'
+                          ? t('direct_payment.order_lipa', { amount: Number(order.totalAmount).toLocaleString() })
+                          : t('direct_payment.order_cod', { amount: Number(order.totalAmount).toLocaleString() })}
+                      </div>
+                      <div style={{ color: '#475569', marginTop: 2 }}>
+                        {order.paymentMethod === 'lipa_namba' ? t('direct_payment.seller_order_lipa') : t('direct_payment.seller_order_cod')}
+                      </div>
+                    </div>
+                  )}
+
                   {/* COD status — order.paymentMethod/codRemainingBalance/
                       codBalanceCollected already come through on every
                       order from GET /seller/dashboard; this was simply
-                      never rendered anywhere on this page before. */}
-                  {order.paymentMethod === 'cod' && (
+                      never rendered anywhere on this page before.
+                      Release F: not for direct-payment orders (the buyer pays the
+                      seller by hand; KenteXa tracks no balance for them). */}
+                  {order.paymentMethod === 'cod' && !isDirectPaymentOrder(order) && (
                     <div style={{ backgroundColor: order.codBalanceCollected ? '#f0fdf4' : '#eff6ff',
                       border: `1px solid ${order.codBalanceCollected ? '#86efac' : '#93c5fd'}`,
                       borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 12 }}>

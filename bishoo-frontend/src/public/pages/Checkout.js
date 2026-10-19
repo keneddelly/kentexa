@@ -5,6 +5,7 @@ import Celebration from '../components/Celebration';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
+import { DirectPaymentChoice, DirectPaymentSuccess } from '../components/DirectPayment';
 import { usePaymentMode } from '../../utils/paymentMode';
 
 const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
@@ -58,6 +59,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // 'online' mode. While the mode is loading (null) nothing old is shown.
   const paymentMode = usePaymentMode();
   const directMode = paymentMode !== 'online';
+  const [directChoice, setDirectChoice] = useState(null); // 'cod' | 'lipa_namba'
+  const [directInfo, setDirectInfo]     = useState({ loading: false, options: [], sameCity: false, lipaNambas: [] });
+  const [directDone, setDirectDone]     = useState(null); // { method, total, lipaNambas }
 
   const [showAgentStep, setShowAgentStep] = useState(false);
   const [nearbyAgents, setNearbyAgents]   = useState([]);
@@ -171,7 +175,32 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     return () => { cancelled = true; };
   }, [paymentChoice, cart, deliveryMethods, selectedMethod, isSameCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Release F: what the server allows for every item in the cart, for the
+  // buyer's chosen region (same city = same region; unknown = other city).
+  // COD only when the buyer's region equals the seller's region; district
+  // matching comes later (NEXT_STEPS.md, Release F).
+  const productKey = cart.map((i) => i.id).join(',');
+  React.useEffect(() => {
+    if (!directMode || cart.length === 0) return undefined;
+    let cancelled = false;
+    setDirectInfo((d) => ({ ...d, loading: true }));
+    const ids = [...new Set(cart.map((i) => i.id))];
+    Promise.all(ids.map((productId) => api.get('/orders/payment-options', {
+      params: { productId, ...(deliveryLocation.regionId ? { regionId: deliveryLocation.regionId } : {}) },
+    }).then((r) => r.data).catch(() => ({ options: [], sameCity: false, lipaNamba: null }))))
+      .then((list) => {
+        if (cancelled) return;
+        const options = ['cod', 'lipa_namba'].filter((o) => list.every((x) => (x.options || []).includes(o)));
+        const lipaNambas = [];
+        list.forEach((x) => { if (x.lipaNamba?.number && !lipaNambas.some((l) => l.number === x.lipaNamba.number)) lipaNambas.push(x.lipaNamba); });
+        setDirectInfo({ loading: false, options, sameCity: list.length > 0 && list.every((x) => x.sameCity), lipaNambas });
+        setDirectChoice((c) => (c && options.includes(c) ? c : null));
+      });
+    return () => { cancelled = true; };
+  }, [directMode, productKey, deliveryLocation.regionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCheckout = async () => {
+    if (directMode && !directChoice) { setError(t('direct_payment.choose_first')); return; }
     if ((!isDigitalOnlyCart && !form.deliveryAddress.trim()) || !form.phone.trim()) {
       setError(t('checkout.err_fill_address'));
       return;
@@ -204,13 +233,23 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           // Send the actual delivery fee for this method
           // agent = use product default, others = method fee
           ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
-          paymentMethod: paymentChoice,
+          paymentMethod: directMode ? directChoice : paymentChoice,
         });
         orders.push(res.data);
       }
       setOrderTotal(getCartTotal());
       setPlacedOrders(orders);
       clearCart();
+
+      if (directMode) {
+        // Paid to the seller directly: no KenteXa payment step at all.
+        setDirectDone({
+          method: directChoice,
+          total: orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0),
+          lipaNambas: directInfo.lipaNambas,
+        });
+        return;
+      }
 
       const first = orders[0];
       if (first?.paymentMethod === 'cod') {
@@ -284,6 +323,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
+
+  // ── Release F: order placed, paid to the seller directly ───────────────────
+  if (directDone) {
+    return <DirectPaymentSuccess method={directDone.method} total={directDone.total} lipaNambas={directDone.lipaNambas} onNavigate={onNavigate} />;
+  }
 
   // ── Payment success ───────────────────────────────────────────────────────
   if (paymentSuccess) {
@@ -738,6 +782,20 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           </div>
         )}
 
+        {/* Release F: in cod_lipa mode the buyer pays the seller directly. */}
+        {directMode && paymentMode && (
+          <DirectPaymentChoice
+            loading={directInfo.loading}
+            options={directInfo.options}
+            sameCity={directInfo.sameCity}
+            regionChosen={!!deliveryLocation.regionId}
+            digital={isDigitalOnlyCart}
+            lipaNambas={directInfo.lipaNambas}
+            choice={directChoice}
+            onChoose={setDirectChoice}
+          />
+        )}
+
         {/* Payment Method — chosen before order creation since the backend
             decides the upfront/remaining split (COD) at creation time */}
         {!directMode && !isDigitalOnlyCart && (
@@ -907,7 +965,18 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               </div>
             </div>
           )}
-          {!directMode && (
+          {directMode ? (() => {
+            const blocked = loading || cart.length === 0 || !paymentMode || directInfo.loading || !directChoice || !directInfo.options.includes(directChoice);
+            return (
+              <>
+                <button data-testid="place-order" onClick={handleCheckout} disabled={blocked}
+                  style={{ width: '100%', minHeight: 52, backgroundColor: blocked ? '#93c5fd' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif' }}>
+                  {loading ? t('checkout.placing') : t('checkout.place_order')}
+                </button>
+                <div style={{ textAlign: 'center', fontSize: 12, color: '#475569' }}>{t('direct_payment.kentexa_note')}</div>
+              </>
+            );
+          })() : (
             <>
               <button onClick={handleCheckout}
                 disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}

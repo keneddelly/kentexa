@@ -5828,6 +5828,33 @@
     "price_required": "Weka bei kwa kilo au bei ya chini."
   },
   "direct_payment": {
-    "online_hidden": "Malipo ya mtandaoni hayapatikani kwa sasa. Wasiliana na muuzaji kuhusu agizo hili."
+    "title": "Jinsi utakavyolipa",
+    "cod": "Lipa kwa mkono unapopokea",
+    "cod_sub": "Unamlipa muuzaji au anayekuletea mzigo, unapoupokea.",
+    "lipa": "Lipa kwa Lipa Namba",
+    "lipa_sub": "Unalipa moja kwa moja kwenye Lipa Namba ya muuzaji.",
+    "same_city": "Muuzaji yuko mkoa mmoja na wewe.",
+    "other_city": "Muuzaji yuko mkoa mwingine: unaweza kulipa kwa Lipa Namba tu.",
+    "choose_region": "Chagua mkoa wa kupokea ili kuona njia zote za kulipa.",
+    "loading": "Inatafuta njia za kulipa...",
+    "none": "Bidhaa hii haiwezi kulipiwa kwa sasa: muuzaji hajaweka Lipa Namba, na kulipa kwa mkono hakupatikani kwa mahali pako.",
+    "lipa_number_label": "Lipa Namba ya muuzaji",
+    "lipa_name_label": "Imesajiliwa kwa jina",
+    "copy": "Nakili",
+    "copied": "Imenakiliwa",
+    "lipa_note": "Lipa kwenye namba hii, kisha utume ujumbe kwa muuzaji.",
+    "kentexa_note": "KenteXa haishikilii pesa: unamlipa muuzaji moja kwa moja.",
+    "choose_first": "Chagua jinsi utakavyolipa.",
+    "success_title": "Agizo limepokelewa",
+    "success_cod": "Utalipa TZS {{amount}} kwa mkono unapopokea mzigo.",
+    "success_lipa": "Lipa TZS {{amount}} kwenye Lipa Namba ya muuzaji.",
+    "my_orders": "Maagizo yangu",
+    "home": "Mwanzo",
+    "order_cod": "Malipo: kwa mkono unapopokea (TZS {{amount}})",
+    "order_lipa": "Malipo: kwa Lipa Namba ya muuzaji (TZS {{amount}})",
+    "order_total": "Jumla ya Agizo",
+    "online_hidden": "Malipo ya mtandaoni hayapatikani kwa sasa. Wasiliana na muuzaji kuhusu agizo hili.",
+    "seller_order_cod": "Mnunuzi atakulipa kwa mkono anapopokea mzigo.",
+    "seller_order_lipa": "Mnunuzi analipa kwenye Lipa Namba yako. Hakikisha umepokea pesa kabla ya kutuma mzigo."
   }
 }
