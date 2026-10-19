@@ -122,7 +122,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         setDetectingMethods(true);
         const productId = cart[0]?.id;
         if (!productId) return;
-        const res = await api.get(`/daily-batches/delivery-methods?address=${encodeURIComponent(address)}&productId=${productId}`);
+        const res = await api.get(`/orders/delivery-methods?address=${encodeURIComponent(address)}&productId=${productId}`);
         setDeliveryMethods(res.data.methods || []);
         setIsSameCity(res.data.isSameCity || false);
         // Auto-select first method
