@@ -12,6 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { marketplacePaymentMode } from './direct-payment';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -78,6 +79,13 @@ export class OrdersController {
     } catch (err) {
       return { eligible: false, message: err.message };
     }
+  }
+
+  // Release F: which marketplace payment mode is on ('cod_lipa' | 'online'), so the website can
+  // hide the old online-payment buttons on older unpaid orders. Public; carries nothing else.
+  @Get('payment-mode')
+  getPaymentMode() {
+    return { mode: marketplacePaymentMode() };
   }
 
   // Release F: the ways to pay this product, in the active MARKETPLACE_PAYMENT_MODE, for the
