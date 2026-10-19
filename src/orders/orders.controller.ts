@@ -80,6 +80,19 @@ export class OrdersController {
     }
   }
 
+  // Release F: the ways to pay this product, in the active MARKETPLACE_PAYMENT_MODE, for the
+  // buyer's region (tz_region id from the checkout place list). The checkout shows exactly these;
+  // OrdersService.create() applies the same rule again.
+  @UseGuards(JwtAuthGuard)
+  @Get('payment-options')
+  getPaymentOptions(
+    @Query('productId', ParseIntPipe) productId: number,
+    @Query('regionId') regionId?: string,
+  ) {
+    const region = Number.parseInt(String(regionId ?? ''), 10);
+    return this.ordersService.getPaymentOptions(productId, Number.isFinite(region) && region > 0 ? region : null);
+  }
+
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.BUYER)
   @Post(':id/rate-seller')

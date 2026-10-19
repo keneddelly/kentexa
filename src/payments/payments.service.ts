@@ -49,6 +49,8 @@ import { BusinessCustomerService } from '../business/business-customer.service';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { PaymentConfirmationService, ConfirmationOutcome } from './payment-confirmation.service';
 import { deriveOrderPaymentObligation } from './order-payment-obligation';
+import { isCheckoutOrderSource } from './checkout-eligibility';
+import { DIRECT_PAYMENT_MESSAGES, isDirectPaymentOrder, marketplacePaymentMode } from '../orders/direct-payment';
 import { parseAmountToMinor, minorToNumber } from './payment-money';
 import { generateProviderReference } from './provider-reference';
 import { isProviderEnabled } from './enabled-providers';
@@ -654,9 +656,22 @@ export class PaymentsService {
   // obligation (deriveOrderPaymentObligation), never a frontend value; the
   // reference is ALWAYS our own compliant generator, never built inline
   // per-call-site (Decision 8). ───────────────────────────────────────────
+  /**
+   * Release F: in MARKETPLACE_PAYMENT_MODE cod_lipa the old online payment for checkout orders is
+   * hidden and refused (the buyer pays the seller directly). A direct-payment order is never paid
+   * through KenteXa, in any mode. Super Agent parcel and classified invoices are not affected.
+   */
+  private assertOnlineOrderPaymentAllowed(order: { source?: any; paymentMode?: string | null }): void {
+    if (isDirectPaymentOrder(order)) throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.onlinePayHidden);
+    if (marketplacePaymentMode() === 'cod_lipa' && isCheckoutOrderSource(order.source)) {
+      throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.onlinePayHidden);
+    }
+  }
+
   async initiatePayment(dto: InitiatePaymentDto, user: User) {
     const order = await this.orderRepo.findOne({ where: { id: dto.orderId, buyer: { id: user.id } } });
     if (!order) throw new NotFoundException('Order not found');
+    this.assertOnlineOrderPaymentAllowed(order);
     if (order.status !== OrderStatus.PENDING_PAYMENT) {
       throw new BadRequestException('This order is not currently payable');
     }
@@ -758,9 +773,11 @@ export class PaymentsService {
 
   async customerPayInvoice(invoiceNumber: string | undefined, phone: string, provider: string, user: User, orderId?: number) {
     if (!invoiceNumber?.trim() && orderId) {
+      const byId = await this.orderRepo.findOne({ where: { id: orderId } });
+      if (byId) this.assertOnlineOrderPaymentAllowed(byId);
       let existing = await this.invoiceRepo.findOne({ where: { order: { id: orderId } } });
       if (!existing) {
-        const order = await this.orderRepo.findOne({ where: { id: orderId } });
+        const order = byId;
         if (!order) throw new NotFoundException(`Order #${orderId} not found`);
         existing = await this.invoicesService.createForOrder(order);
       }
@@ -776,6 +793,7 @@ export class PaymentsService {
     let purpose: 'ORDER_FULL' | 'COD_DEPOSIT' | 'CLASSIFIED_INVOICE' = 'CLASSIFIED_INVOICE';
     if (found.invoiceType === 'order' && found.orderId) {
       const order = await this.orderRepo.findOne({ where: { id: found.orderId } });
+      if (order) this.assertOnlineOrderPaymentAllowed(order);
       purpose = order ? deriveOrderPaymentObligation(order).purpose : 'ORDER_FULL';
     }
 
@@ -865,6 +883,7 @@ export class PaymentsService {
     let purpose: 'ORDER_FULL' | 'COD_DEPOSIT' | 'CLASSIFIED_INVOICE' = 'CLASSIFIED_INVOICE';
     if (found.invoiceType === 'order' && found.orderId) {
       const order = await this.orderRepo.findOne({ where: { id: found.orderId } });
+      if (order) this.assertOnlineOrderPaymentAllowed(order);
       purpose = order ? deriveOrderPaymentObligation(order).purpose : 'ORDER_FULL';
     }
 

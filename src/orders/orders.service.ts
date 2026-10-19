@@ -18,6 +18,10 @@ import {
   OrderPaymentMethod,
 } from './entities/order.entity';
 import { CreateOrderDto, CheckoutPaymentMethod } from './dto/create-order.dto';
+import {
+  DIRECT_PAYMENT_MESSAGES, DIRECT_PAYMENT_MODE, DirectPaymentMethod, directPaymentOptions,
+  isDirectPaymentOrder, isSameRegion, marketplacePaymentMode,
+} from './direct-payment';
 import { ProductsService } from '../products/products.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -180,6 +184,7 @@ export class OrdersService {
       paymentMethod: order.paymentMethod,
       totalAmount: order.totalAmount,
       codUpfrontAmount: (order as any).codUpfrontAmount,
+      paymentMode: (order as any).paymentMode,
     });
     if (evidence.applicable && !evidence.sufficient) {
       throw new BadRequestException(message);
@@ -227,6 +232,25 @@ export class OrdersService {
       : null;
 
     const basePrice = Number(product.basePrice || 0);
+
+    // Release F (MARKETPLACE_PAYMENT_MODE): in cod_lipa the buyer pays the seller directly. The
+    // server decides "same city" and which ways to pay are allowed; the checkout only shows them.
+    const paymentMode = marketplacePaymentMode();
+    let direct: { method: DirectPaymentMethod; sameCity: boolean } | null = null;
+    if (paymentMode === 'cod_lipa') {
+      const ctx = await this.directPaymentContext(product, dto.regionId ?? null);
+      const chosen = dto.paymentMethod;
+      if (chosen === CheckoutPaymentMethod.ONLINE) throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.onlineHidden);
+      if (!chosen) {
+        throw new BadRequestException(ctx.options.length ? DIRECT_PAYMENT_MESSAGES.methodRequired : DIRECT_PAYMENT_MESSAGES.noWay);
+      }
+      if (!ctx.options.includes(chosen as DirectPaymentMethod)) {
+        throw new BadRequestException(chosen === CheckoutPaymentMethod.COD ? DIRECT_PAYMENT_MESSAGES.codNotHere : DIRECT_PAYMENT_MESSAGES.noLipaNamba);
+      }
+      direct = { method: chosen as DirectPaymentMethod, sameCity: ctx.sameCity };
+    } else if (dto.paymentMethod === CheckoutPaymentMethod.LIPA_NAMBA) {
+      throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.noLipaNamba);
+    }
 
     // Checkout DTO Integrity hotfix. shippingMethod is a real, typed DTO
     // field now, but a syntactically valid key must still be ELIGIBLE for
@@ -330,7 +354,11 @@ export class OrdersService {
     const isCod = !isDigitalProduct && buyerRequestedCod;
     let codUpfrontAmount: number | null = null;
     let codRemainingBalance: number | null = null;
-    if (isCod) {
+    if (isCod && direct) {
+      // Release F: paid by hand on delivery, all of it, to the seller. No deposit exists.
+      codUpfrontAmount = 0;
+      codRemainingBalance = totalAmount;
+    } else if (isCod) {
       const codResult = this.codCalculation.calculate({
         basePrice: totalAmount,
         deliveryFee: 0, // already folded into totalAmount above
@@ -377,14 +405,20 @@ export class OrdersService {
       phone: dto.phone,
       recipientName: dto.recipientName || null,
       shippingMethod: chosenMethod,
-      status: codSkipsPayment ? OrderStatus.PREPARING : OrderStatus.PENDING_PAYMENT,
+      // A direct-payment order (cod_lipa) goes straight to PREPARING: the buyer pays the seller,
+      // not KenteXa, so there is no payment step, no escrow and no payout (all NULL).
+      status: codSkipsPayment || direct ? OrderStatus.PREPARING : OrderStatus.PENDING_PAYMENT,
       paymentStatus: PaymentStatus.PENDING,
-      paymentMethod: isCod ? OrderPaymentMethod.COD : OrderPaymentMethod.ONLINE,
+      paymentMethod: direct
+        ? (direct.method === 'cod' ? OrderPaymentMethod.COD : OrderPaymentMethod.LIPA_NAMBA)
+        : (isCod ? OrderPaymentMethod.COD : OrderPaymentMethod.ONLINE),
       codUpfrontAmount,
       codRemainingBalance,
       codTermsAcceptedAt: isCod ? new Date() : null,
-      escrowStatus: EscrowStatus.HOLDING,
-      payoutStatus: 'pending',
+      escrowStatus: direct ? null : EscrowStatus.HOLDING,
+      payoutStatus: direct ? null : 'pending',
+      paymentMode: direct ? DIRECT_PAYMENT_MODE : null,
+      sameCity: direct ? direct.sameCity : null,
       // Collection fields
       needsCollection: needsCollection,
       isRuralCollection: isRuralCollection,
@@ -426,7 +460,9 @@ export class OrdersService {
     );
 
     let invoiceNumber: string | null = null;
-    try {
+    // Release F: a direct-payment order is never paid to KenteXa, so it gets no KenteXa invoice
+    // ("pay this to KenteXa") and no seller payout row (KenteXa owes the seller nothing).
+    if (!direct) try {
       const invoice = await this.invoicesService.createForOrder(saved);
       invoiceNumber = invoice.invoiceNumber;
     } catch (err) {
@@ -444,7 +480,7 @@ export class OrdersService {
       );
     }
 
-    if (product.seller) {
+    if (product.seller && !direct) {
       try {
         await this.payoutRepo.save(
           this.payoutRepo.create({
@@ -1040,6 +1076,8 @@ export class OrdersService {
       // mark-as-delivered step.
       paymentMethod: order.paymentMethod || 'online',
       isCod: order.paymentMethod === OrderPaymentMethod.COD,
+      // Release F: paid to the seller directly (COD by hand / Lipa Namba); KenteXa collects nothing.
+      directPayment: isDirectPaymentOrder(order as any),
       codUpfrontAmount: Number((order as any).codUpfrontAmount || 0),
       codRemainingBalance: Number((order as any).codRemainingBalance || 0),
       codBalanceCollected: !!(order as any).codBalanceCollected,
@@ -1728,7 +1766,10 @@ export class OrdersService {
     await this.syncParcelDeliveredForOrder(order);
 
     return {
-      message: 'Confirmed! Payment will be released to seller within 24 hours.',
+      // Release F: a direct-payment order was paid to the seller directly; KenteXa releases nothing.
+      message: isDirectPaymentOrder(order as any)
+        ? 'Imethibitishwa. Asante kwa kununua kupitia KenteXa.'
+        : 'Confirmed! Payment will be released to seller within 24 hours.',
     };
   }
 
@@ -2467,7 +2508,10 @@ export class OrdersService {
           await this.smsService
             .sendSms(
               sellerPhone,
-              `⏰ Agizo #${order.trackingNumber || order.id} imethibitishwa otomatiki (mnunuzi hakujibu siku ${isIntercity ? 5 : 3}).\n💰 Malipo yatatoka hivi karibuni.`,
+              isDirectPaymentOrder(order as any)
+                // Release F: paid to the seller directly; KenteXa has nothing to pay out.
+                ? `KenteXa: Agizo #${order.trackingNumber || order.id} limekamilika otomatiki (mnunuzi hakujibu siku ${isIntercity ? 5 : 3}).`
+                : `⏰ Agizo #${order.trackingNumber || order.id} imethibitishwa otomatiki (mnunuzi hakujibu siku ${isIntercity ? 5 : 3}).\n💰 Malipo yatatoka hivi karibuni.`,
             )
             .catch(() => {});
         }
@@ -2984,6 +3028,52 @@ export class OrdersService {
   }
 
   // ── Get available delivery methods for buyer address + product ───────────
+  // ── Release F: marketplace payment mode (MARKETPLACE_PAYMENT_MODE) ─────────
+  /**
+   * What the checkout may offer for this product and the buyer's region.
+   * cod_lipa: 'cod' (same city only, and only if the seller allows COD for the
+   * product) and 'lipa_namba' (only if the seller has set one). online: the
+   * old process. The seller's Lipa Namba is returned only when it is offered.
+   */
+  async getPaymentOptions(productId: number, buyerRegionId: number | null) {
+    const product = await this.productsService.findOne(productId);
+    const mode = marketplacePaymentMode();
+    if (mode === 'online') {
+      const codEnabled = !!(product as any).codEnabled && (product as any).productType !== 'digital';
+      return { mode, sameCity: null, options: codEnabled ? ['online', 'cod'] : ['online'], lipaNamba: null };
+    }
+    const ctx = await this.directPaymentContext(product, buyerRegionId);
+    return {
+      mode,
+      sameCity: ctx.sameCity,
+      options: ctx.options,
+      lipaNamba: ctx.options.includes('lipa_namba') ? ctx.lipaNamba : null,
+    };
+  }
+
+  private async directPaymentContext(product: any, buyerRegionId: number | null) {
+    const sellerUserId = product?.seller?.id ?? null;
+    // The seller's own profile: the approved one first if the account has several.
+    const seller: any = sellerUserId
+      ? (await this.repo.manager.query(
+          `SELECT "regionId", "businessRegion", "lipaNamba", "lipaNambaName" FROM public.seller_profile
+            WHERE "userId" = $1 ORDER BY (status = 'approved') DESC, id ASC LIMIT 1`, [sellerUserId]))[0] ?? null
+      : null;
+    const buyerRegion: any = buyerRegionId
+      ? (await this.repo.manager.query(`SELECT id, name FROM public.tz_region WHERE id = $1`, [buyerRegionId]))[0] ?? null
+      : null;
+    const digital = product?.productType === 'digital';
+    const sameCity = !digital && !!buyerRegion && isSameRegion(
+      { regionId: buyerRegion.id, regionName: buyerRegion.name },
+      { regionId: seller?.regionId ?? null, regionName: seller?.businessRegion ?? null },
+    );
+    const lipaNamba = seller?.lipaNamba ? { number: seller.lipaNamba as string, name: (seller.lipaNambaName as string) || null } : null;
+    const options = directPaymentOptions({
+      sameCity, codEnabled: !!product?.codEnabled, digital, sellerHasLipaNamba: !!lipaNamba,
+    });
+    return { sameCity, options, lipaNamba };
+  }
+
   async getDeliveryMethods(buyerAddress: string, productId: number) {
     const product = await this.productsService.findOne(productId);
 

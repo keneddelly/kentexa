@@ -1,8 +1,10 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export enum CheckoutPaymentMethod {
   ONLINE = 'online',
   COD = 'cod',
+  // Release F (MARKETPLACE_PAYMENT_MODE cod_lipa): paid to the seller's Lipa Namba.
+  LIPA_NAMBA = 'lipa_namba',
 }
 
 export class CreateOrderDto {
@@ -51,6 +53,12 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   shippingMethod?: string;
+
+  // Release F: the buyer's region from the checkout place list (tz_region id).
+  // Not stored; used only to decide "same city" (buyer region = seller region).
+  @IsOptional()
+  @IsInt()
+  regionId?: number;
 
   @IsOptional()
   @IsBoolean()

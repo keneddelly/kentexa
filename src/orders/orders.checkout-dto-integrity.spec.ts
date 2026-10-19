@@ -43,6 +43,12 @@ const baseProduct = (overrides: Record<string, any> = {}) => ({
 });
 
 describe('OrdersService.create() — Checkout DTO Integrity', () => {
+  // These cases cover the old checkout (MARKETPLACE_PAYMENT_MODE=online). The default mode
+  // cod_lipa is covered by orders.direct-payment-create.spec.ts.
+  const savedMode = process.env.MARKETPLACE_PAYMENT_MODE;
+  beforeAll(() => { process.env.MARKETPLACE_PAYMENT_MODE = 'online'; });
+  afterAll(() => { if (savedMode === undefined) delete process.env.MARKETPLACE_PAYMENT_MODE; else process.env.MARKETPLACE_PAYMENT_MODE = savedMode; });
+
   it('honors an eligible, buyer-selected shippingMethod and derives its fee server-side (never from the request)', async () => {
     const product = baseProduct();
     const productsService = {
