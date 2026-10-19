@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Brackets } from 'typeorm';
 import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
+import { DIRECT_PAYMENT_MESSAGES, normalizeLipaNamba, normalizeLipaNambaName } from '../orders/direct-payment';
 import { User, UserRole } from '../users/entities/user.entity';
 import {
   Order,
@@ -358,6 +359,32 @@ export class SellerService {
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
     return profile;
+  }
+
+  // ── Lipa Namba (Release F) ────────────────────────────────────────────────
+  /**
+   * The seller's Lipa Namba and the name it is registered to. Buyers in
+   * MARKETPLACE_PAYMENT_MODE cod_lipa pay it directly; until it is set, the
+   * seller's products cannot be paid by Lipa Namba. Owner only (never a team
+   * member: whoever sets it decides where buyers' money goes). Both values
+   * empty = remove it.
+   */
+  async setLipaNamba(userId: number, body: { lipaNamba?: unknown; lipaNambaName?: unknown }) {
+    const profile = await this.getMyProfile(userId);
+    const clear = !String(body?.lipaNamba ?? '').trim() && !String(body?.lipaNambaName ?? '').trim();
+    if (clear) {
+      profile.lipaNamba = null;
+      profile.lipaNambaName = null;
+    } else {
+      const number = normalizeLipaNamba(body?.lipaNamba);
+      if (!number) throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaNambaInvalid);
+      const name = normalizeLipaNambaName(body?.lipaNambaName);
+      if (!name) throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaNambaNameInvalid);
+      profile.lipaNamba = number;
+      profile.lipaNambaName = name;
+    }
+    await this.profileRepo.save(profile);
+    return { lipaNamba: profile.lipaNamba, lipaNambaName: profile.lipaNambaName };
   }
 
   // ── Update my seller profile ──────────────────────────────────────────────

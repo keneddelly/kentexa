@@ -72,6 +72,13 @@ export class SellerController {
     return this.sellerService.getMyProfile(req.user.id);
   }
 
+  // Release F: the seller's Lipa Namba (number + registered name). Owner only.
+  @UseGuards(JwtAuthGuard)
+  @Patch('my-profile/lipa-namba')
+  setLipaNamba(@Body() body: { lipaNamba?: string; lipaNambaName?: string }, @Request() req) {
+    return this.sellerService.setLipaNamba(req.user.id, body);
+  }
+
   // Update my seller profile
   @UseGuards(JwtAuthGuard)
   @Patch('my-profile')
