@@ -5896,5 +5896,8 @@
     "min_fee": "Minimum price (TZS)",
     "weka_bei_button": "Set the price and start receiving jobs",
     "price_required": "Set a price per kg or a minimum price."
+  },
+  "direct_payment": {
+    "online_hidden": "Online payment is not available right now. Contact the seller about this order."
   }
 }

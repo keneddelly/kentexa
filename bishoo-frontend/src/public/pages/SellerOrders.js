@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
 // eslint-disable-next-line no-unused-vars
 import { buildCreationMessage, buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
@@ -533,14 +534,20 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                       <span style={{ color: '#64748b' }}>{t('seller_orders.fee_total_paid')}</span>
                       <span style={{ color: '#1e293b', fontWeight: 800 }}>TZS {Number(order.totalAmount).toLocaleString()}</span>
                     </div>
-                    <div style={{ borderTop: '1px solid #bbf7d0', paddingTop: 6, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#dc2626' }}>{t('seller_orders.fee_kentexa')}</span>
-                      <span style={{ color: '#dc2626' }}>-TZS {Number(order.platformFeeAmount || 0).toLocaleString()}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                      <span style={{ color: '#16a34a', fontWeight: 800 }}>{t('seller_orders.fee_you_receive')}</span>
-                      <span style={{ color: '#16a34a', fontWeight: 900, fontSize: 13 }}>TZS {Number(order.sellerAmount || 0).toLocaleString()}</span>
-                    </div>
+                    {/* Release F: a direct-payment order is paid to the seller in full by the
+                        buyer; KenteXa holds nothing, so there is no deduction to show. */}
+                    {!isDirectPaymentOrder(order) && (
+                      <>
+                        <div style={{ borderTop: '1px solid #bbf7d0', paddingTop: 6, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#dc2626' }}>{t('seller_orders.fee_kentexa')}</span>
+                          <span style={{ color: '#dc2626' }}>-TZS {Number(order.platformFeeAmount || 0).toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                          <span style={{ color: '#16a34a', fontWeight: 800 }}>{t('seller_orders.fee_you_receive')}</span>
+                          <span style={{ color: '#16a34a', fontWeight: 900, fontSize: 13 }}>TZS {Number(order.sellerAmount || 0).toLocaleString()}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* COD status — order.paymentMethod/codRemainingBalance/

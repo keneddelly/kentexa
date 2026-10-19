@@ -5884,5 +5884,8 @@
     "min_fee": "Prix minimum (TZS)",
     "weka_bei_button": "Fixer le prix et recevoir des missions",
     "price_required": "Fixez un prix par kg ou un prix minimum."
+  },
+  "direct_payment": {
+    "online_hidden": "Le paiement en ligne n'est pas disponible pour l'instant. Contactez le vendeur au sujet de cette commande."
   }
 }

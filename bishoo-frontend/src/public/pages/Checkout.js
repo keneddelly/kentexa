@@ -5,6 +5,7 @@ import Celebration from '../components/Celebration';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
+import { usePaymentMode } from '../../utils/paymentMode';
 
 const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
   const { t } = useTranslation();
@@ -51,6 +52,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // real upfront/remaining amounts BEFORE placing the order, not only after.
   const [codQuote, setCodQuote]               = useState(null);
   const [codQuoteLoading, setCodQuoteLoading] = useState(false);
+
+  // Release F (MARKETPLACE_PAYMENT_MODE): 'cod_lipa' (default) = the buyer pays
+  // the seller directly; the old online payment screens below are used only in
+  // 'online' mode. While the mode is loading (null) nothing old is shown.
+  const paymentMode = usePaymentMode();
+  const directMode = paymentMode !== 'online';
 
   const [showAgentStep, setShowAgentStep] = useState(false);
   const [nearbyAgents, setNearbyAgents]   = useState([]);
@@ -733,7 +740,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
         {/* Payment Method — chosen before order creation since the backend
             decides the upfront/remaining split (COD) at creation time */}
-        {!isDigitalOnlyCart && (
+        {!directMode && !isDigitalOnlyCart && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>💰 {t('checkout.payment_method_title')}</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -900,12 +907,16 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               </div>
             </div>
           )}
-          <button onClick={handleCheckout}
-            disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}
-            style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
-            {loading ? `⏳ ${t('checkout.placing')}` : `✅ ${t('checkout.place_order')}`}
-          </button>
-          <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>{t('cart.secure_note')}</div>
+          {!directMode && (
+            <>
+              <button onClick={handleCheckout}
+                disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}
+                style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
+                {loading ? `⏳ ${t('checkout.placing')}` : `✅ ${t('checkout.place_order')}`}
+              </button>
+              <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>{t('cart.secure_note')}</div>
+            </>
+          )}
         </div>
         <div style={{ height: 90 }} />
       </div>

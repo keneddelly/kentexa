@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
 import { API_BASE_URL } from '../../api/baseUrl';
@@ -442,7 +443,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
         </div>
 
         {/* Cash on Delivery breakdown */}
-        {order?.paymentMethod === 'cod' && (
+        {order?.paymentMethod === 'cod' && !isDirectPaymentOrder(order) && (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16, border: '2px solid #fde68a' }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: '#92400e', margin: '0 0 12px' }}>🚚 {t('order_tracking.cod_title')}</h3>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>

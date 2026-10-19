@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { isDirectPaymentOrder, usePaymentMode } from '../../utils/paymentMode';
 import { API_BASE_URL } from '../../api/baseUrl';
 
 const API_URL = API_BASE_URL;
@@ -9,6 +10,8 @@ const API_URL = API_BASE_URL;
 const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
+  // Release F: in cod_lipa mode the old online payment is hidden (the server refuses it too).
+  const paymentMode = usePaymentMode();
   const highlightRef = React.useRef(null);
   const [classifiedInvoices, setClassifiedInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -525,6 +528,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           // badge would otherwise wrongly flag a perfectly
                           // normal COD order as having a payment problem.
                           const nothingOwedOnlineYet = isCodOrder && (codUpfront === 0 || order.paymentStatus === 'upfront_paid');
+                          if (isDirectPaymentOrder(order)) return null; // paid to the seller directly (Release F)
                           if (order.status === 'cancelled' || order.paymentStatus === 'paid' || nothingOwedOnlineYet) return null;
                           return (
                             <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', fontWeight: '600' }}>
@@ -545,6 +549,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       const codUpfront = Number(order.codUpfrontAmount || 0);
                       const codRemaining = Number(order.codRemainingBalance || 0);
                       if (order.status === 'cancelled') return null;
+                      if (isDirectPaymentOrder(order)) return null; // paid to the seller directly (Release F)
                       if (isCodOrder && (codUpfront === 0 || order.paymentStatus === 'upfront_paid' || order.paymentStatus === 'paid')) {
                         // Nothing payable online — either 100%-on-delivery,
                         // or the deposit is already done. Show a plain
@@ -562,6 +567,14 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         );
                       }
                       if (order.paymentStatus === 'paid') return null;
+                      // Release F: an older unpaid order while the old online payment is hidden.
+                      if (paymentMode !== 'online') {
+                        return (
+                          <div data-testid="online-payment-hidden" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: '#475569', lineHeight: 1.45 }}>
+                            {t('direct_payment.online_hidden')}
+                          </div>
+                        );
+                      }
                       return (
                         <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                           <div style={{ fontSize: '13px', color: '#fff' }}>

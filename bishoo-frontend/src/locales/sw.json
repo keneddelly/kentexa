@@ -5826,5 +5826,8 @@
     "min_fee": "Bei ya chini (TZS)",
     "weka_bei_button": "Weka bei na anza kupokea kazi",
     "price_required": "Weka bei kwa kilo au bei ya chini."
+  },
+  "direct_payment": {
+    "online_hidden": "Malipo ya mtandaoni hayapatikani kwa sasa. Wasiliana na muuzaji kuhusu agizo hili."
   }
 }
