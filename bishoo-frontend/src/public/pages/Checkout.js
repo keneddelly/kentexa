@@ -138,7 +138,14 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     detectDeliveryMethodsFor(address);
   };
 
-  const getSelectedMethodData = () => deliveryMethods.find(m => m.key === selectedMethod) || null;
+  // Release F: local delivery options (boda, van, collection) only when the
+  // server says the buyer's region is the seller's region (payment-options,
+  // by region id; never the typed address). Other region, no region yet, or
+  // still checking: hidden, and the order goes as 'agent' with no local fee.
+  const deliveryOptionsHidden = directMode && !isDigitalOnlyCart
+    && !(deliveryLocation.regionId && !directInfo.loading && directInfo.sameCity);
+
+  const getSelectedMethodData = () => (deliveryOptionsHidden ? null : deliveryMethods.find(m => m.key === selectedMethod) || null);
 
   const getCartTotal = () => {
     const method = getSelectedMethodData();
@@ -201,6 +208,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   const handleCheckout = async () => {
     if (directMode && !directChoice) { setError(t('direct_payment.choose_first')); return; }
+    if (directMode && !isDigitalOnlyCart && !deliveryLocation.regionId) { setError(t('direct_payment.choose_region')); return; }
     if ((!isDigitalOnlyCart && !form.deliveryAddress.trim()) || !form.phone.trim()) {
       setError(t('checkout.err_fill_address'));
       return;
@@ -226,10 +234,10 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           destinationCity:  deliveryLocation.districtName || deliveryLocation.regionName || null,
           phone:            form.phone.trim(),
           recipientName:    forSomeoneElse ? form.recipientName.trim() : null,
-          shippingMethod:   selectedMethod || (isSameCity ? 'boda' : 'agent'),
-          needsCollection:  needsCollection && !isSameCity, // only for intercity agent orders
+          shippingMethod:   deliveryOptionsHidden ? 'agent' : (selectedMethod || (isSameCity ? 'boda' : 'agent')),
+          needsCollection:  !deliveryOptionsHidden && needsCollection && !isSameCity, // only for intercity agent orders
           isRuralCollection: isRuralCollection,
-          collectionFee:    needsCollection && !isSameCity ? collectionFee : 0,
+          collectionFee:    !deliveryOptionsHidden && needsCollection && !isSameCity ? collectionFee : 0,
           // Send the actual delivery fee for this method
           // agent = use product default, others = method fee
           ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
@@ -647,7 +655,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         </div>
 
         {/* Delivery Method Selector — shown when address is filled */}
-        {!isDigitalOnlyCart && (detectingMethods || deliveryMethods.length > 0) && (
+        {!isDigitalOnlyCart && !deliveryOptionsHidden && (detectingMethods || deliveryMethods.length > 0) && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>
 
@@ -731,7 +739,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         )}
 
         {/* Collection Request — only shown for intercity agent orders */}
-        {selectedMethod === 'agent' && !isSameCity && (
+        {!deliveryOptionsHidden && selectedMethod === 'agent' && !isSameCity && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px' }}>
               {t('checkout.collection_title')}
@@ -912,7 +920,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           )}
 
           {/* Collection fee line */}
-          {needsCollection && !isSameCity && (
+          {!deliveryOptionsHidden && needsCollection && !isSameCity && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
               <span style={{ color: '#64748b' }}>{t('checkout.collection_fee_line', { type: isRuralCollection ? t('checkout.rural_paren') : t('checkout.urban_paren') })}</span>
               <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {(isRuralCollection ? 3000 : 1500).toLocaleString()}</span>

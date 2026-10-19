@@ -905,3 +905,10 @@ Branch `cod-lipa` (from 604b11c). Never pushed before migration 1792000000000 is
   never by GPS or a map pin. Needs: the seller's district on `seller_profile`, the checkout's
   `districtId` sent to `GET /orders/payment-options` and checked again in `OrdersService.create()`,
   and tests for same region / other district.
+- **LATER FIX (not in the Release F push) — two seller pages are wider than a phone.** Found by the
+  360px checks on 2026-10-19; both widths were the same before Release F:
+  - Seller orders (`SellerOrders.js`): 407px. The top action buttons ("Historia Kamili", "Unda
+    Agizo kwa Mteja") and the "Peleka kwa" card in each order run past the right edge.
+  - Seller dashboard (`SellerDashboard.js`): 442px. The "Mgeni hapa?" button in the header row runs
+    past the right edge.
+  Goal: no horizontal scroll at 360px, nothing cut off; check with the same 360px screenshots.
