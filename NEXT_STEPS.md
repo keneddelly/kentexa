@@ -912,3 +912,14 @@ Branch `cod-lipa` (from 604b11c). Never pushed before migration 1792000000000 is
   - Seller dashboard (`SellerDashboard.js`): 442px. The "Mgeni hapa?" button in the header row runs
     past the right edge.
   Goal: no horizontal scroll at 360px, nothing cut off; check with the same 360px screenshots.
+- **LATER FIX (not in the Release F push) — found by the local real test on 2026-10-19:**
+  - **My Orders shows "Idadi: 1 × TZS 0" for every order.** `MyOrders.js` (line ~506) reads
+    `order.product?.price`, but the product has no `price` field (only `basePrice` / `displayPrice`).
+    Not the test data: every product shows TZS 0 there. Since 2026-08-01 (f001f16).
+  - **Product page is 404px wide at 360px.** The full-width cards are 360px wide but start 16px
+    in (end at 376px); the "Tembelea Duka" button ends at 403px and the bottom "Nunua Sasa" bar
+    button at 390px.
+  - **`/daily-batches/*` is not served** (`DailyBatchesModule` is not loaded in `app.module.ts`, every
+    route 404s). Checkout now uses `/orders/delivery-methods` (commit 9095172), but the admin
+    page `BodaRates.js` still calls `/daily-batches/delivery-methods`. Decide: load the module, or
+    move the admin page to the orders route. Backend route change: owner's OK first.
