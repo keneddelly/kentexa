@@ -5854,6 +5854,17 @@
     "order_lipa": "Malipo: kwa Lipa Namba ya muuzaji (TZS {{amount}})",
     "order_total": "Jumla ya Agizo",
     "online_hidden": "Malipo ya mtandaoni hayapatikani kwa sasa. Wasiliana na muuzaji kuhusu agizo hili.",
+    "seller_card_title": "Lipa Namba yako",
+    "seller_card_desc": "Wanunuzi wanalipa moja kwa moja kwenye namba hii. KenteXa haishikilii pesa.",
+    "seller_missing": "Bado hujaweka Lipa Namba: wanunuzi hawawezi kulipa bidhaa zako kwa Lipa Namba.",
+    "seller_number_label": "Lipa Namba",
+    "seller_name_label": "Jina lililosajiliwa kwenye Lipa Namba",
+    "seller_name_placeholder": "mf. Juma Shop",
+    "seller_save": "Hifadhi Lipa Namba",
+    "seller_saving": "Inahifadhi...",
+    "seller_saved": "Lipa Namba imehifadhiwa.",
+    "seller_save_failed": "Imeshindikana kuhifadhi. Jaribu tena.",
+    "seller_edit": "Badilisha",
     "seller_order_cod": "Mnunuzi atakulipa kwa mkono anapopokea mzigo.",
     "seller_order_lipa": "Mnunuzi analipa kwenye Lipa Namba yako. Hakikisha umepokea pesa kabla ya kutuma mzigo."
   }

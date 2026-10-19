@@ -5,6 +5,7 @@ import BackBar from '../components/BackBar';
 import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
 import api from '../../api/api';
+import SellerLipaNambaCard from '../components/SellerLipaNambaCard';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 
@@ -422,6 +423,8 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
           <>
             {profile && !profile.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={fetchData} />}
             <ProfileCompletionBanner profile={profile} onNavigate={onNavigate} />
+            {/* Release F: the Lipa Namba buyers pay to directly (own profile only). */}
+            {profile && <SellerLipaNambaCard profile={profile} onSaved={(d) => setProfile((p) => ({ ...p, ...d }))} />}
             {/* ── Quick Actions — 4 live numbers, not decoration ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
               {[

@@ -5924,6 +5924,17 @@
     "order_lipa": "Payment: to the seller's Lipa Namba (TZS {{amount}})",
     "order_total": "Order total",
     "online_hidden": "Online payment is not available right now. Contact the seller about this order.",
+    "seller_card_title": "Your Lipa Namba",
+    "seller_card_desc": "Buyers pay straight to this number. KenteXa does not hold the money.",
+    "seller_missing": "You have not set a Lipa Namba yet: buyers cannot pay for your products with Lipa Namba.",
+    "seller_number_label": "Lipa Namba",
+    "seller_name_label": "Name the Lipa Namba is registered to",
+    "seller_name_placeholder": "e.g. Juma Shop",
+    "seller_save": "Save Lipa Namba",
+    "seller_saving": "Saving...",
+    "seller_saved": "Lipa Namba saved.",
+    "seller_save_failed": "Could not save. Try again.",
+    "seller_edit": "Change",
     "seller_order_cod": "The buyer pays you by hand on delivery.",
     "seller_order_lipa": "The buyer pays to your Lipa Namba. Make sure you have received the money before you send the parcel."
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { DirectPaymentChoice, DirectPaymentNotice, LipaNambaBox } from './DirectPayment';
+import SellerLipaNambaCard from './SellerLipaNambaCard';
 import api from '../../api/api';
 import sw from '../../locales/sw.json';
 
@@ -92,5 +93,33 @@ describe('order notice (My Orders / tracking)', () => {
     });
     expect(screen.getByTestId('direct-payment-notice')).toHaveTextContent('Malipo: kwa mkono unapopokea (TZS 25,000)');
     expect(api.get).not.toHaveBeenCalled();
+  });
+});
+
+describe('seller Lipa Namba card', () => {
+  test('no number yet: warning + form; saving sends both values', async () => {
+    api.patch.mockResolvedValue({ data: { lipaNamba: '55771234', lipaNambaName: 'Juma Shop' } });
+    const onSaved = jest.fn();
+    render(<SellerLipaNambaCard profile={{ lipaNamba: null }} onSaved={onSaved} />);
+    expect(screen.getByText(dp.seller_missing)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(dp.seller_number_label), { target: { value: '5577 1234' } });
+    fireEvent.change(screen.getByLabelText(dp.seller_name_label), { target: { value: 'Juma Shop' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: dp.seller_save })); });
+    expect(api.patch).toHaveBeenCalledWith('/seller/my-profile/lipa-namba', { lipaNamba: '5577 1234', lipaNambaName: 'Juma Shop' });
+    expect(onSaved).toHaveBeenCalledWith({ lipaNamba: '55771234', lipaNambaName: 'Juma Shop' });
+  });
+
+  test('server refusal is shown', async () => {
+    api.patch.mockRejectedValue({ response: { data: { message: 'Weka Lipa Namba sahihi (tarakimu 5 hadi 15).' } } });
+    render(<SellerLipaNambaCard profile={{ lipaNamba: null }} />);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: dp.seller_save })); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Weka Lipa Namba sahihi');
+  });
+
+  test('a saved number shows with a Change button', () => {
+    render(<SellerLipaNambaCard profile={{ lipaNamba: '55771234', lipaNambaName: 'Juma Shop' }} />);
+    expect(screen.getByText('55771234')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: dp.seller_edit })).toBeInTheDocument();
+    expect(screen.queryByText(dp.seller_missing)).toBeNull();
   });
 });
