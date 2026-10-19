@@ -42,6 +42,9 @@ export enum PaymentStatus {
 export enum OrderPaymentMethod {
   ONLINE = 'online',
   COD = 'cod',
+  // Paid by the buyer straight to the seller's Lipa Namba (MARKETPLACE_PAYMENT_MODE
+  // cod_lipa, migration 1792000000000). KenteXa never holds this money.
+  LIPA_NAMBA = 'lipa_namba',
 }
 
 export enum EscrowStatus {
@@ -291,6 +294,18 @@ export class Order {
   // codUpfrontAmount/codRemainingBalance are computed at order creation.
   @Column({ type: 'enum', enum: OrderPaymentMethod, default: OrderPaymentMethod.ONLINE })
   paymentMethod: OrderPaymentMethod;
+
+  // Marketplace payment mode the order was created under (migration
+  // 1792000000000): 'cod_lipa' = the buyer pays the seller directly (COD by
+  // hand, or the seller's Lipa Namba); KenteXa holds no money, so no escrow,
+  // release or payout ever applies. NULL for every order created before it.
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  paymentMode: string | null;
+
+  // Buyer region = seller region, decided by the server at order creation
+  // (cod_lipa orders only; NULL for older orders).
+  @Column({ type: 'boolean', nullable: true })
+  sameCity: boolean | null;
 
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
   codUpfrontAmount: number | null;

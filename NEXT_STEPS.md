@@ -692,6 +692,9 @@ step 0): the new frontend has no live fallback any more.
   (accepted but not collected for this long -> given to the next agent, 10-240; not set = 45),
   `PICKUP_ACCEPT_REMINDER_MINUTES` (in-app "Bado unakuja?" to the agent, before the timeout; not set = 30).
   No migration.
+- Marketplace payment mode, Release F (2026-10-19, optional, default built in): `MARKETPLACE_PAYMENT_MODE`
+  (not set or `cod_lipa` = buyer pays the seller directly: COD same city, Lipa Namba; the old online
+  payment is hidden and refused. `online` = the old process). Needs migration 1792000000000 (section 22).
 
 **Set by Render itself — do not add:** `PORT`, `RENDER_GIT_COMMIT`, `RENDER_GIT_BRANCH`.
 
@@ -881,3 +884,17 @@ Never pushed before Release D is live AND migration 1791900000000 is on live.
 - Next: review fixes D1–D5 and L5 on top of this, one commit each, no push until the owner says "push";
   render.yaml is not to be touched. Later: training offices still create money records (handling
   earnings, cash collection) and count in admin numbers; exclude them before any office billing.
+
+## 22. Release F — marketplace payment mode "cod_lipa" (owner, 2026-10-19, URGENT)
+
+Branch `cod-lipa` (from 604b11c). Never pushed before migration 1792000000000 is on live.
+- **Migration `1792000000000-AddDirectPaymentMode`** (adds only, every existing row NULL):
+  `order_paymentmethod_enum` + `'lipa_namba'`; `order."paymentMode"` varchar(20), `order."sameCity"`
+  boolean; `seller_profile."lipaNamba"` varchar(30), `seller_profile."lipaNambaName"` varchar(100).
+  Guarded script: `C:\Users\BISHOO GROUP\release-f\release-f.ps1` (start check 1791900000000; checks the
+  enum list, the 4 columns, no values set, order/seller counts and payment-method counts unchanged).
+  down() is never run (an enum value cannot be dropped safely; down() drops only the columns).
+- **New setting `MARKETPLACE_PAYMENT_MODE`** (section 14): not set = `cod_lipa`. Nothing to add on Render
+  unless the old online process must come back (`online`).
+- **Order:** migration first (`release-f.ps1 -Target live` → "migration done"), then "push". The current
+  live code ignores the new columns, so migration-before-push is safe.

@@ -106,6 +106,15 @@ export class SellerProfile {
   @Column({ type: 'varchar', nullable: true })
   businessCity: string | null;
 
+  // The seller's Lipa Namba and the name it is registered to (migration
+  // 1792000000000). Buyers in MARKETPLACE_PAYMENT_MODE cod_lipa pay it
+  // directly; KenteXa never holds that money. NULL until the seller sets it.
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  lipaNamba: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  lipaNambaName: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   registrationNumber: string | null; // BRELA registration number
 
