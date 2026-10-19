@@ -503,7 +503,11 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           {order.productNameSnapshot || order.product?.name || order.manualProductName || t('my_orders.product_fallback')}
                         </h4>
                         <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 4px' }}>
-                          {t('my_orders.qty_price_label', { qty: order.quantity, price: Number(order.product?.price || 0).toLocaleString() })}
+                          {/* Unit price the buyer paid: the order's saved baseAmount (basePrice × qty
+                              at checkout); older orders without it fall back to the product's basePrice. */}
+                          {t('my_orders.qty_price_label', { qty: order.quantity, price: (Number(order.baseAmount) > 0 && Number(order.quantity) > 0
+                            ? Number(order.baseAmount) / Number(order.quantity)
+                            : Number(order.product?.basePrice || 0)).toLocaleString() })}
                         </p>
                         {order.product?.productType !== 'digital' && (
                           <div style={{ fontSize: '13px', color: '#64748b' }}>
