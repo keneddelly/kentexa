@@ -86,7 +86,7 @@ export async function setupReleaseHarness(): Promise<ReleaseHarness> {
     "buyerConfirmedAt" timestamp, "deliveredAt" timestamp, "completedAt" timestamp, "confirmationToken" varchar,
     "buyerRating" int, "buyerReview" text, "reviewedAt" timestamp, "superAgentRating" int, "superAgentReview" text,
     "transportRating" int, "transportReview" text, "autoConfirmed" boolean, "autoConfirmAt" timestamp,
-    "disputeResolution" text, "fundsReleasedAt" timestamp, "autoReleaseAt" timestamp)`);
+    "disputeResolution" text, "fundsReleasedAt" timestamp, "autoReleaseAt" timestamp, "paymentMode" varchar)`);
   await q(`ALTER TABLE "order" ADD CONSTRAINT "FK_8a583acc24e13bcf84b1b9d0d20" FOREIGN KEY ("sellerId") REFERENCES "user"(id) ON DELETE SET NULL`);
   await q(`CREATE TABLE sale (id serial PRIMARY KEY, "sellerId" int NOT NULL, "createdAt" timestamp DEFAULT now())`);
   await q(`ALTER TABLE sale ADD CONSTRAINT "FK_8107fa8e7838a1882adab4564be" FOREIGN KEY ("sellerId") REFERENCES "user"(id) ON DELETE CASCADE`);

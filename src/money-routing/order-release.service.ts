@@ -5,6 +5,7 @@ import { MoneyRoutingBlockedException, resolveOrderRoutingTarget } from './order
 import { MoneyRoutingBlockReason, MoneyRoutingState } from './entities/money-routing-entry.entity';
 import { qRows } from './pg-rows';
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
+import { DIRECT_PAYMENT_MODE } from '../orders/direct-payment';
 
 export type ReleaseSource = MoneyRoutingSource | 'DISPUTE_RESOLUTION' | 'ADMIN_RELEASE' | 'AUTO_RELEASE';
 
@@ -21,6 +22,12 @@ export interface ReleaseOutcome {
   /** true when the order had ALREADY been released (retry / legacy): no second credit, state simply converges. */
   alreadyReleased: boolean;
   routing: RoutingOutcome | null;
+  /**
+   * true for a direct-payment order (MARKETPLACE_PAYMENT_MODE cod_lipa): the buyer paid the seller
+   * directly, KenteXa holds nothing, so nothing was routed and no escrow/payout state was written;
+   * only the completion facts were committed.
+   */
+  notHeld?: boolean;
 }
 
 /**
@@ -98,7 +105,7 @@ export class OrderReleaseService {
       // share locks the routing entry insert takes on the same row.
       const rows = await m.query(
         `SELECT id, "sellerId", "sellerAmount", "escrowStatus"::text AS "escrowStatus",
-                source, "paymentMethod", "totalAmount", "codUpfrontAmount"
+                source, "paymentMethod", "totalAmount", "codUpfrontAmount", "paymentMode"
            FROM "order" WHERE id = $1 FOR NO KEY UPDATE`,
         [orderId],
       );
@@ -115,6 +122,22 @@ export class OrderReleaseService {
         throw new ConflictException({ code: 'ORDER_ESCROW_NOT_RELEASABLE', message: 'ORDER_ESCROW_NOT_RELEASABLE', orderId });
       }
       if (input.preflightInTransaction) await input.preflightInTransaction(m);
+
+      // Release F (cod_lipa): the buyer paid the seller directly (COD by hand or the seller's Lipa
+      // Namba). KenteXa holds no money for this order, so there is nothing to route or release:
+      // never a wallet credit, never escrow/payout/funds-released state. The completion facts
+      // (status, confirmation dates, ratings) still commit so confirmation and auto-confirm work;
+      // paymentStatus is not touched (KenteXa never saw the payment).
+      if (order.paymentMode === DIRECT_PAYMENT_MODE) {
+        const facts = companion.filter(([column]) => column !== 'paymentStatus');
+        if (facts.length) {
+          const params: unknown[] = [orderId];
+          const sets = facts.map(([column, value]) => { params.push(value); return `"${column}" = $${params.length}`; });
+          await qRows(m, `UPDATE "order" SET ${sets.join(', ')} WHERE id = $1 RETURNING id`, params);
+        }
+        if (input.completeInTransaction) await input.completeInTransaction(m);
+        return { released: true, alreadyReleased: false, routing: null, notHeld: true };
+      }
 
       // S0 backstop, preserved at the canonical choke point: a checkout order without sufficient
       // verified PaymentEvidence is refused here too — never resurrect by trusting the order's own

@@ -57,6 +57,7 @@ export class ShippingService {
       paymentMethod: order.paymentMethod,
       totalAmount: order.totalAmount,
       codUpfrontAmount: (order as any).codUpfrontAmount,
+      paymentMode: (order as any).paymentMode,
     });
     if (evidence.applicable && !evidence.sufficient) {
       throw new BadRequestException('Cannot prepare an order without verified payment evidence');

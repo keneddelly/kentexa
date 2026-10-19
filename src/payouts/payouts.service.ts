@@ -1,3 +1,4 @@
+import { DIRECT_PAYMENT_MESSAGES, isDirectPaymentOrder } from '../orders/direct-payment';
 import {
   Injectable,
   NotFoundException,
@@ -33,6 +34,9 @@ export class PayoutsService {
   // case), then PaymentEvidence backstops it for checkout orders so a
   // forged/self-set paymentStatus can't reach a real payout either.
   private async assertPayoutEligible(order: Order): Promise<void> {
+    if (isDirectPaymentOrder(order)) {
+      throw new BadRequestException(`Order #${order.id}: ${DIRECT_PAYMENT_MESSAGES.notHeld}`);
+    }
     if (order.paymentStatus !== PaymentStatus.PAID) {
       throw new BadRequestException(`Order #${order.id} has not been paid yet`);
     }

@@ -5418,6 +5418,7 @@ export class SuperAgentsService {
         paymentMethod: parcel.order.paymentMethod,
         totalAmount: parcel.order.totalAmount,
         codUpfrontAmount: parcel.order.codUpfrontAmount,
+        paymentMode: (parcel.order as any).paymentMode,
       });
       if (evidence.applicable && !evidence.sufficient) {
         throw new ConflictException('Order payment evidence is insufficient');

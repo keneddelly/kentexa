@@ -393,6 +393,7 @@ export class DailyBatchesService {
       paymentMethod: order.paymentMethod,
       totalAmount: order.totalAmount,
       codUpfrontAmount: (order as any).codUpfrontAmount,
+      paymentMode: (order as any).paymentMode,
     });
     if (evidence.applicable && !evidence.sufficient) {
       throw new BadRequestException('This order does not have verified payment evidence yet');

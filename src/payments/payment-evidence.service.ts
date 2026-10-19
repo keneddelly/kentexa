@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
 import { isCheckoutOrderSource } from './checkout-eligibility';
+import { isDirectPaymentOrder } from '../orders/direct-payment';
 import { deriveOrderPaymentObligation, PaymentPurpose } from './order-payment-obligation';
 import { EvidenceCandidateRow, sumValidEvidence } from './payment-evidence';
 
@@ -12,6 +13,8 @@ export interface OrderEvidenceCheckInput {
   paymentMethod: string;
   totalAmount: number | string;
   codUpfrontAmount: number | string | null;
+  /** 'cod_lipa' = the buyer pays the seller directly (Release F); KenteXa takes no payment. */
+  paymentMode?: string | null;
 }
 
 export interface OrderEvidenceResult {
@@ -37,6 +40,12 @@ export class PaymentEvidenceService {
   async check(order: OrderEvidenceCheckInput): Promise<OrderEvidenceResult> {
     if (!isCheckoutOrderSource(order.source)) {
       return { applicable: false, sufficient: true, purpose: null, requiredMinor: 0, totalMinor: 0 };
+    }
+    // Release F (cod_lipa): the buyer pays the seller directly, so there is no KenteXa payment to
+    // prove. Fulfilment may go ahead (the seller decides when they have been paid). Money can never
+    // follow from this: the release step moves nothing for these orders and payouts refuse them.
+    if (isDirectPaymentOrder(order)) {
+      return { applicable: false, sufficient: true, purpose: null, requiredMinor: 0, totalMinor: 0, reason: 'DIRECT_PAYMENT_NOT_HELD' };
     }
 
     const obligation = deriveOrderPaymentObligation(order);
