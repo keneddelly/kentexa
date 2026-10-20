@@ -18,6 +18,17 @@ import {
   OrderPaymentMethod,
 } from './entities/order.entity';
 import { CreateOrderDto, CheckoutPaymentMethod } from './dto/create-order.dto';
+import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import {
+  NoticeOrder,
+  buildSellerCheckoutMessage,
+  checkoutTotal,
+  groupDirectOrdersBySeller,
+  sellerCheckoutExpiry,
+  signSellerCheckoutToken,
+  verifySellerCheckoutToken,
+  whatsappLink,
+} from './seller-checkout-notice';
 import {
   DIRECT_PAYMENT_MESSAGES, DIRECT_PAYMENT_MODE, DirectPaymentMethod, directPaymentOptions,
   isDirectPaymentOrder, isSameRegion, marketplacePaymentMode,
@@ -732,6 +743,157 @@ export class OrdersService {
     }
 
     return { ...saved, invoiceNumber, batchInfo };
+  }
+
+  // ── Checkout: the whole cart in one request ──────────────────────────────────
+  // Same rules as before: every item goes through create() with the same shared
+  // fields, in cart order. On top, ONE seller notice per seller for the
+  // direct-payment (cod_lipa) orders of this checkout. If an item fails, the
+  // orders already created stay (as with the old per-item loop), their sellers
+  // are still told, and the error is returned to the buyer.
+  async createCheckout(dto: CreateCheckoutDto, user: User) {
+    const { items, districtId, ...shared } = dto;
+    const orders: any[] = [];
+    let failure: unknown = null;
+    for (const item of items) {
+      try {
+        orders.push(await this.create({ ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto, user));
+      } catch (err) {
+        failure = err;
+        break;
+      }
+    }
+    const sellerNotices = await this.notifySellersOfDirectCheckout(orders, {
+      regionId: dto.regionId ?? null,
+      districtId: districtId ?? null,
+      buyerName: user?.name ?? null,
+      buyerPhone: dto.phone?.trim() || null,
+      buyerId: user?.id ?? null,
+    });
+    if (failure) throw failure;
+    return { orders, sellerNotices };
+  }
+
+  // One message per seller: SMS to the seller's phone (skipped and logged when there is none),
+  // and the same text as a WhatsApp link for the buyer's confirmation screen when the seller has
+  // storeWhatsApp. Never throws: a notice problem must not fail an order that was created.
+  private async notifySellersOfDirectCheckout(
+    orders: any[],
+    ctx: { regionId: number | null; districtId: number | null; buyerName: string | null; buyerPhone: string | null; buyerId: number | null },
+  ): Promise<{ sellerId: number; storeName: string | null; orderIds: number[]; whatsappUrl: string | null }[]> {
+    try {
+      const noticeOrders: NoticeOrder[] = orders.map((o) => ({
+        id: o.id,
+        quantity: Number(o.quantity || 0),
+        totalAmount: o.totalAmount,
+        deliveryFeeAmount: o.deliveryFeeAmount,
+        paymentMethod: o.paymentMethod,
+        paymentMode: o.paymentMode,
+        productName: o.productNameSnapshot || o.product?.name || 'Bidhaa',
+        sellerId: o.seller?.id ?? o.product?.seller?.id ?? null,
+      }));
+      const groups = groupDirectOrdersBySeller(noticeOrders);
+      if (groups.length === 0) return [];
+      const place = await this.checkoutPlaceNames(ctx.regionId, ctx.districtId);
+      const notices: { sellerId: number; storeName: string | null; orderIds: number[]; whatsappUrl: string | null }[] = [];
+      for (const group of groups) {
+        const source = orders.find((o) => (o.seller?.id ?? o.product?.seller?.id) === group.sellerId);
+        const seller = source?.seller ?? source?.product?.seller;
+        const orderIds = group.orders.map((o) => o.id);
+        const token = signSellerCheckoutToken(
+          { s: group.sellerId, o: orderIds, r: place.regionId, d: place.districtId, e: sellerCheckoutExpiry() },
+          process.env.JWT_SECRET,
+        );
+        const text = buildSellerCheckoutMessage({
+          orders: group.orders,
+          regionName: place.regionName,
+          districtName: place.districtName,
+          buyerName: ctx.buyerName,
+          buyerPhone: ctx.buyerPhone,
+          link: `${FRONTEND_URL}/?sellerCheckout=${token}`,
+        });
+        let smsSent = false;
+        if (seller?.phone) {
+          smsSent = await this.smsService
+            .sendSms(seller.phone, text)
+            .catch((e) => { console.error(`Seller checkout SMS failed for orders ${orderIds.join(',')}:`, e?.message); return false; });
+        } else {
+          console.warn(`Seller checkout notice: seller #${group.sellerId} has no phone; SMS skipped for orders ${orderIds.join(',')}`);
+        }
+        this.activityEvents.record({
+          eventType: 'SELLER_CHECKOUT_NOTICE',
+          category: ActivityCategory.COMMERCE,
+          actorId: ctx.buyerId,
+          actorType: 'buyer',
+          relatedUserId: group.sellerId,
+          targetType: 'order',
+          targetId: orderIds[0],
+          metadata: { orderIds, channel: 'sms', smsSent, sellerHasPhone: !!seller?.phone, total: checkoutTotal(group.orders) },
+        });
+        notices.push({
+          sellerId: group.sellerId,
+          storeName: seller?.storeName ?? seller?.name ?? null,
+          orderIds,
+          whatsappUrl: whatsappLink(seller?.storeWhatsApp, text),
+        });
+      }
+      return notices;
+    } catch (err: any) {
+      console.error('Seller checkout notice failed (orders are created):', err?.message);
+      return [];
+    }
+  }
+
+  // Region / district names from the checkout place list; a district outside the region is ignored.
+  private async checkoutPlaceNames(regionId: number | null, districtId: number | null) {
+    const region = regionId
+      ? (await this.repo.manager.query(`SELECT id, name FROM public.tz_region WHERE id = $1`, [regionId]))[0] ?? null
+      : null;
+    const district = region && districtId
+      ? (await this.repo.manager.query(`SELECT id, name FROM public.tz_district WHERE id = $1 AND region_id = $2`, [districtId, region.id]))[0] ?? null
+      : null;
+    return {
+      regionId: region?.id ?? null,
+      regionName: region?.name ?? null,
+      districtId: district?.id ?? null,
+      districtName: district?.name ?? null,
+    };
+  }
+
+  // ── Seller checkout link: GET /orders/seller-checkout/:token ─────────────────
+  // Public route, but nothing without a valid signed token (7 days). Shows only that
+  // seller's orders from that checkout.
+  async getSellerCheckoutView(token: string) {
+    const payload = verifySellerCheckoutToken(token, process.env.JWT_SECRET);
+    if (!payload) throw new NotFoundException('Kiungo hiki si sahihi au muda wake umekwisha.');
+    const orders = (await this.repo.find({ where: { id: In(payload.o) } }))
+      .filter((o) => o.seller?.id === payload.s)
+      .sort((a, b) => a.id - b.id);
+    if (orders.length === 0) throw new NotFoundException('Kiungo hiki si sahihi au muda wake umekwisha.');
+    const place = await this.checkoutPlaceNames(payload.r, payload.d);
+    const first: any = orders[0];
+    return {
+      orderIds: orders.map((o) => o.id),
+      items: orders.map((o: any) => ({
+        orderId: o.id,
+        trackingNumber: o.trackingNumber ?? null,
+        productName: o.productNameSnapshot || o.product?.name || 'Bidhaa',
+        quantity: o.quantity,
+        totalAmount: Number(o.totalAmount || 0),
+        deliveryFeeAmount: Number(o.deliveryFeeAmount || 0),
+        status: o.status,
+      })),
+      total: orders.reduce((sum, o: any) => sum + Number(o.totalAmount || 0), 0),
+      paymentMethod: first.paymentMethod,
+      regionName: place.regionName,
+      districtName: place.districtName,
+      deliveryAddress: first.deliveryAddress ?? null,
+      buyerName: first.buyer?.name ?? null,
+      buyerPhone: first.phone ?? null,
+      recipientName: first.recipientName ?? null,
+      createdAt: first.createdAt,
+      expiresAt: new Date(payload.e * 1000).toISOString(),
+    };
   }
 
   // ── Seller: Upload shipping proof ────────────────────────────────────────────

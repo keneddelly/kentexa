@@ -14,6 +14,7 @@ import {
 import { OrdersService } from './orders.service';
 import { marketplacePaymentMode } from './direct-payment';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateCheckoutDto } from './dto/create-checkout.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -55,6 +56,22 @@ export class OrdersController {
   @Post()
   create(@Body() dto: CreateOrderDto, @Request() req) {
     return this.ordersService.create(dto, req.user);
+  }
+
+  // The whole cart in one request (same guards and rules as POST /orders, item by item). Its
+  // direct-payment orders get one seller notice per seller; see seller-checkout-notice.ts.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
+  @Post('checkout')
+  createCheckout(@Body() dto: CreateCheckoutDto, @Request() req) {
+    return this.ordersService.createCheckout(dto, req.user);
+  }
+
+  // The private link in the seller notice. No login: the signed token (7 days) is the key, and
+  // it opens only that seller's orders from that checkout.
+  @Get('seller-checkout/:token')
+  getSellerCheckout(@Param('token') token: string) {
+    return this.ordersService.getSellerCheckoutView(token);
   }
 
   // Live preview for checkout — lets the buyer see the upfront/remaining
