@@ -321,11 +321,16 @@ function App() {
     // destination; an ordinary role switch still lands on its role home.
     const params = new URLSearchParams(window.location.search);
     const receive = params.get('receive');
+    // Same for the seller's new-order link (SMS / WhatsApp): a logged-in seller opening it
+    // must land on that order, not on the role home.
+    const sellerCheckout = params.get('sellerCheckout');
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
-        : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
-          ? 'Activity' : homeForRole(activeContext.roleType));
+        : sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)
+          ? `SellerCheckout-${sellerCheckout}`
+          : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+            ? 'Activity' : homeForRole(activeContext.roleType));
   }, [contextEpoch, activeContext?.roleType]);
 
   // Syncs the visible browser URL for the 4 shareable content types
