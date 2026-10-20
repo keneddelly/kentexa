@@ -100,8 +100,29 @@ export function DirectPaymentChoice({ loading, options = [], sameCity, regionCho
   );
 }
 
+/**
+ * "Send to the seller on WhatsApp": opens wa.me with the seller's storeWhatsApp number and the
+ * same text as the seller SMS, pre-filled; the buyer taps send. One per seller of this checkout;
+ * sellers without a WhatsApp number on file get no button (the server sends no link for them).
+ */
+function WhatsAppSellerButton({ notice, showStore }) {
+  const { t } = useTranslation();
+  return (
+    <a data-testid="whatsapp-seller" href={notice.whatsappUrl} target="_blank" rel="noopener noreferrer"
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 48, padding: '10px 14px', borderRadius: 12,
+        backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', width: '100%' }}>
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style={{ flexShrink: 0 }}>
+        <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z" />
+      </svg>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+        {showStore && notice.storeName ? t('direct_payment.whatsapp_send_store', { store: notice.storeName }) : t('direct_payment.whatsapp_send')}
+      </span>
+    </a>
+  );
+}
+
 /** Checkout success screen in cod_lipa mode. */
-export function DirectPaymentSuccess({ method, total, lipaNambas = [], onNavigate }) {
+export function DirectPaymentSuccess({ method, total, lipaNambas = [], whatsapp = [], onNavigate }) {
   const { t } = useTranslation();
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
@@ -120,6 +141,12 @@ export function DirectPaymentSuccess({ method, total, lipaNambas = [], onNavigat
         {method === 'lipa_namba' && lipaNambas.map((l) => (
           <div key={l.number} style={{ marginBottom: 14 }}><LipaNambaBox number={l.number} name={l.name} /></div>
         ))}
+        {whatsapp.length > 0 && (
+          <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 13, color: GREY, lineHeight: 1.45 }}>{t('direct_payment.whatsapp_note')}</div>
+            {whatsapp.map((n) => <WhatsAppSellerButton key={n.sellerId} notice={n} showStore={whatsapp.length > 1} />)}
+          </div>
+        )}
         <div style={{ fontSize: 12, color: GREY, lineHeight: 1.45, marginBottom: 14 }}>{t('direct_payment.kentexa_note')}</div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button type="button" onClick={() => onNavigate('MyOrders')}

@@ -5936,6 +5936,25 @@
     "seller_save_failed": "Could not save. Try again.",
     "seller_edit": "Change",
     "seller_order_cod": "The buyer pays you by hand on delivery.",
-    "seller_order_lipa": "The buyer pays to your Lipa Namba. Make sure you have received the money before you send the parcel."
+    "seller_order_lipa": "The buyer pays to your Lipa Namba. Make sure you have received the money before you send the parcel.",
+    "whatsapp_note": "You can also send your order to the seller on WhatsApp: the message is ready, just tap Send.",
+    "whatsapp_send": "Send order to seller on WhatsApp",
+    "whatsapp_send_store": "Send to {{store}} on WhatsApp"
+  },
+  "seller_checkout": {
+    "loading": "Loading order…",
+    "invalid_title": "Link not available",
+    "invalid": "This link is wrong or has expired (links last 7 days). Log in and open your orders to see it.",
+    "open_orders": "Open my orders",
+    "title": "New order {{orders}}",
+    "pay_cod": "Buyer pays cash on delivery (COD)",
+    "pay_lipa": "Buyer pays to your Lipa Namba",
+    "total": "Total",
+    "buyer": "Buyer",
+    "phone": "Phone",
+    "recipient": "Receiver",
+    "place": "Area",
+    "address": "Address",
+    "expires": "This private link works until {{date}}. Do not share it."
   }
 }

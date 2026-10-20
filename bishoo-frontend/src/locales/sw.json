@@ -5866,6 +5866,25 @@
     "seller_save_failed": "Imeshindikana kuhifadhi. Jaribu tena.",
     "seller_edit": "Badilisha",
     "seller_order_cod": "Mnunuzi atakulipa kwa mkono anapopokea mzigo.",
-    "seller_order_lipa": "Mnunuzi analipa kwenye Lipa Namba yako. Hakikisha umepokea pesa kabla ya kutuma mzigo."
+    "seller_order_lipa": "Mnunuzi analipa kwenye Lipa Namba yako. Hakikisha umepokea pesa kabla ya kutuma mzigo.",
+    "whatsapp_note": "Unaweza pia kumtumia muuzaji agizo lako kwa WhatsApp: ujumbe uko tayari, bonyeza Tuma tu.",
+    "whatsapp_send": "Mtumie muuzaji agizo kwa WhatsApp",
+    "whatsapp_send_store": "Tuma kwa {{store}} kwa WhatsApp"
+  },
+  "seller_checkout": {
+    "loading": "Inapakia agizo…",
+    "invalid_title": "Kiungo hakipatikani",
+    "invalid": "Kiungo hiki si sahihi au muda wake umekwisha (kinadumu siku 7). Ingia kwenye akaunti yako ufungue maagizo yako.",
+    "open_orders": "Fungua maagizo yangu",
+    "title": "Agizo jipya {{orders}}",
+    "pay_cod": "Mnunuzi atalipa pesa mkononi wakati wa kupokea (COD)",
+    "pay_lipa": "Mnunuzi atalipa kwenye Lipa Namba yako",
+    "total": "Jumla",
+    "buyer": "Mnunuzi",
+    "phone": "Simu",
+    "recipient": "Mpokeaji",
+    "place": "Mahali",
+    "address": "Anwani",
+    "expires": "Kiungo hiki cha siri kinafanya kazi hadi {{date}}. Usikishiriki."
   }
 }

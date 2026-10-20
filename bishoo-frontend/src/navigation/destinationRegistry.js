@@ -39,6 +39,8 @@ const DYNAMIC_DESTINATIONS = [
   [/^BusinessDashboard-\d+$/, 'BusinessDashboard'],
   [/^BecomeBusinessCapability-\d+-(commerce|transport)$/, 'BecomeBusinessCapability'],
   [/^BecomeBusinessServiceProvider-\d+$/, 'BecomeBusinessServiceProvider'],
+  // The seller's private new-order link (?sellerCheckout=<signed token>): public, the token is the key.
+  [/^SellerCheckout-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'SellerCheckout'],
 ];
 
 // Destinations that exist ONLY as dynamic routes: their bare names are not
@@ -46,6 +48,7 @@ const DYNAMIC_DESTINATIONS = [
 const DYNAMIC_ONLY_DESTINATIONS = Object.freeze({
   BecomeBusinessCapability: destination('BecomeBusinessCapability', DESTINATION_KIND.ACCOUNT),
   BecomeBusinessServiceProvider: destination('BecomeBusinessServiceProvider', DESTINATION_KIND.ACCOUNT),
+  SellerCheckout: destination('SellerCheckout', DESTINATION_KIND.PUBLIC),
 });
 
 export const destinationForPage = (page) => {

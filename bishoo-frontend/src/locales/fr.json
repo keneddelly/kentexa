@@ -5924,6 +5924,25 @@
     "seller_save_failed": "Échec de l'enregistrement. Réessayez.",
     "seller_edit": "Modifier",
     "seller_order_cod": "L'acheteur vous paie en main propre à la livraison.",
-    "seller_order_lipa": "L'acheteur paie sur votre Lipa Namba. Vérifiez que vous avez reçu l'argent avant d'envoyer le colis."
+    "seller_order_lipa": "L'acheteur paie sur votre Lipa Namba. Vérifiez que vous avez reçu l'argent avant d'envoyer le colis.",
+    "whatsapp_note": "Vous pouvez aussi envoyer votre commande au vendeur sur WhatsApp : le message est prêt, appuyez sur Envoyer.",
+    "whatsapp_send": "Envoyer la commande au vendeur sur WhatsApp",
+    "whatsapp_send_store": "Envoyer à {{store}} sur WhatsApp"
+  },
+  "seller_checkout": {
+    "loading": "Chargement de la commande…",
+    "invalid_title": "Lien indisponible",
+    "invalid": "Ce lien est invalide ou a expiré (valable 7 jours). Connectez-vous et ouvrez vos commandes.",
+    "open_orders": "Ouvrir mes commandes",
+    "title": "Nouvelle commande {{orders}}",
+    "pay_cod": "L'acheteur paie à la livraison (COD)",
+    "pay_lipa": "L'acheteur paie sur votre Lipa Namba",
+    "total": "Total",
+    "buyer": "Acheteur",
+    "phone": "Téléphone",
+    "recipient": "Destinataire",
+    "place": "Zone",
+    "address": "Adresse",
+    "expires": "Ce lien privé fonctionne jusqu'au {{date}}. Ne le partagez pas."
   }
 }

@@ -32,6 +32,7 @@ import PostModal      from './public/components/PostModal';
 import CreateMomentModal from './public/components/CreateMomentModal';
 import BecomeSellerInfo from './public/pages/BecomeSellerInfo';
 import ConfirmDelivery    from './public/pages/ConfirmDelivery';
+import SellerCheckout     from './public/pages/SellerCheckout';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import SellerPayouts     from './public/pages/SellerPayouts';
@@ -203,6 +204,9 @@ function App() {
       const token   = params.get('token');
       if (params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')) return 'Activity';
       if (confirm && token) return `ConfirmDelivery-${token}`;
+      // Seller's private new-order link (SMS / WhatsApp): signed token, opens without login.
+      const sellerCheckout = params.get('sellerCheckout');
+      if (sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)) return `SellerCheckout-${sellerCheckout}`;
       if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
       if (track) return `TrackParcel-${track}`;
       // Real shareable paths (/product/42, /store/7, ...) — resolves
@@ -717,6 +721,8 @@ function App() {
       return requireLogin(<OrderTracking {...publicProps} orderId={Number(page.split('OrderTracking-')[1])} />);
     if (page.startsWith('ConfirmDelivery-'))
       return <ConfirmDelivery token={page.split('ConfirmDelivery-')[1]} />;
+    if (page.startsWith('SellerCheckout-'))
+      return <SellerCheckout token={page.slice('SellerCheckout-'.length)} onNavigate={publicProps.onNavigate} />;
     if (page.startsWith('BuyerParcelAction-'))
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))

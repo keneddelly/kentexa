@@ -221,29 +221,40 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     try {
       setLoading(true);
       setError('');
-      const orders = [];
-      for (const item of cart) {
-        const methodData = getSelectedMethodData();
-        const res = await api.post('/orders', {
-          productId:        item.id,
-          quantity:         item.quantity,
-          deliveryAddress:  form.deliveryAddress.trim(),
-          regionId:         deliveryLocation.regionId || null,
-          districtId:       deliveryLocation.districtId || null,
-          wardId:           deliveryLocation.wardId || null,
-          destinationCity:  deliveryLocation.districtName || deliveryLocation.regionName || null,
-          phone:            form.phone.trim(),
-          recipientName:    forSomeoneElse ? form.recipientName.trim() : null,
-          shippingMethod:   deliveryOptionsHidden ? 'agent' : (selectedMethod || (isSameCity ? 'boda' : 'agent')),
-          needsCollection:  !deliveryOptionsHidden && needsCollection && !isSameCity, // only for intercity agent orders
-          isRuralCollection: isRuralCollection,
-          collectionFee:    !deliveryOptionsHidden && needsCollection && !isSameCity ? collectionFee : 0,
-          // Send the actual delivery fee for this method
-          // agent = use product default, others = method fee
-          ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
-          paymentMethod: directMode ? directChoice : paymentChoice,
+      const methodData = getSelectedMethodData();
+      const shared = {
+        deliveryAddress:  form.deliveryAddress.trim(),
+        regionId:         deliveryLocation.regionId || null,
+        districtId:       deliveryLocation.districtId || null,
+        wardId:           deliveryLocation.wardId || null,
+        destinationCity:  deliveryLocation.districtName || deliveryLocation.regionName || null,
+        phone:            form.phone.trim(),
+        recipientName:    forSomeoneElse ? form.recipientName.trim() : null,
+        shippingMethod:   deliveryOptionsHidden ? 'agent' : (selectedMethod || (isSameCity ? 'boda' : 'agent')),
+        needsCollection:  !deliveryOptionsHidden && needsCollection && !isSameCity, // only for intercity agent orders
+        isRuralCollection: isRuralCollection,
+        collectionFee:    !deliveryOptionsHidden && needsCollection && !isSameCity ? collectionFee : 0,
+        // Send the actual delivery fee for this method
+        // agent = use product default, others = method fee
+        ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
+        paymentMethod: directMode ? directChoice : paymentChoice,
+      };
+      let orders = [];
+      let sellerNotices = [];
+      if (directMode) {
+        // Paid to the seller directly: the whole cart in one request, so the seller gets ONE
+        // message for this checkout (POST /orders/checkout, same rules per item as POST /orders).
+        const res = await api.post('/orders/checkout', {
+          ...shared,
+          items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
         });
-        orders.push(res.data);
+        orders = res.data.orders || [];
+        sellerNotices = res.data.sellerNotices || [];
+      } else {
+        for (const item of cart) {
+          const res = await api.post('/orders', { ...shared, productId: item.id, quantity: item.quantity });
+          orders.push(res.data);
+        }
       }
       setOrderTotal(getCartTotal());
       setPlacedOrders(orders);
@@ -255,6 +266,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           method: directChoice,
           total: orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0),
           lipaNambas: directInfo.lipaNambas,
+          // Only sellers with a WhatsApp number on file (storeWhatsApp) come with a link.
+          whatsapp: sellerNotices.filter((n) => n.whatsappUrl),
         });
         return;
       }
@@ -334,7 +347,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   // ── Release F: order placed, paid to the seller directly ───────────────────
   if (directDone) {
-    return <DirectPaymentSuccess method={directDone.method} total={directDone.total} lipaNambas={directDone.lipaNambas} onNavigate={onNavigate} />;
+    return <DirectPaymentSuccess method={directDone.method} total={directDone.total} lipaNambas={directDone.lipaNambas} whatsapp={directDone.whatsapp} onNavigate={onNavigate} />;
   }
 
   // ── Payment success ───────────────────────────────────────────────────────
