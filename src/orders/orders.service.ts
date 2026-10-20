@@ -25,6 +25,7 @@ import {
   checkoutTotal,
   groupDirectOrdersBySeller,
   sellerCheckoutExpiry,
+  sellerCheckoutLink,
   signSellerCheckoutToken,
   verifySellerCheckoutToken,
   whatsappLink,
@@ -810,7 +811,7 @@ export class OrdersService {
           districtName: place.districtName,
           buyerName: ctx.buyerName,
           buyerPhone: ctx.buyerPhone,
-          link: `${FRONTEND_URL}/?sellerCheckout=${token}`,
+          link: sellerCheckoutLink(token),
         });
         let smsSent = false;
         if (seller?.phone) {

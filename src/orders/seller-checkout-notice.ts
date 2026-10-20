@@ -16,6 +16,12 @@ import * as crypto from 'crypto';
  */
 
 export const SELLER_CHECKOUT_LINK_DAYS = 7;
+
+/** The seller link's site: FRONTEND_URL when set, else the live site (never the onrender.com fallback). */
+export function sellerCheckoutLink(token: string, frontendUrl = process.env.FRONTEND_URL): string {
+  const base = (frontendUrl || 'https://kentexa.com').replace(/\/+$/, '');
+  return `${base}/?sellerCheckout=${token}`;
+}
 const TOKEN_KEY_LABEL = 'kentexa-seller-checkout-link-v1';
 const MAX_NAME = 40;
 

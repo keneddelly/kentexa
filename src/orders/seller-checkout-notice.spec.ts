@@ -5,6 +5,7 @@ import {
   buildSellerCheckoutMessage,
   groupDirectOrdersBySeller,
   sellerCheckoutExpiry,
+  sellerCheckoutLink,
   signSellerCheckoutToken,
   verifySellerCheckoutToken,
   whatsappLink,
@@ -81,6 +82,14 @@ describe('seller checkout notice — signed link (7 days)', () => {
     expect(verifySellerCheckoutToken(token, undefined, now)).toBeNull();
     expect(verifySellerCheckoutToken('garbage', SECRET, now)).toBeNull();
     expect(() => signSellerCheckoutToken(payload, undefined)).toThrow();
+  });
+});
+
+describe('seller checkout notice — link site', () => {
+  it('https://kentexa.com when FRONTEND_URL is not set; FRONTEND_URL (no trailing slash) when it is', () => {
+    expect(sellerCheckoutLink('a.b', undefined)).toBe('https://kentexa.com/?sellerCheckout=a.b');
+    expect(sellerCheckoutLink('a.b', '')).toBe('https://kentexa.com/?sellerCheckout=a.b');
+    expect(sellerCheckoutLink('a.b', 'https://www.kentexa.com/')).toBe('https://www.kentexa.com/?sellerCheckout=a.b');
   });
 });
 
