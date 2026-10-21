@@ -4,7 +4,7 @@ import { ILike, Repository } from 'typeorm';
 import { SuperAgent, SuperAgentStatus } from './entities/super-agent.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
 import { SuperAgentPriceRule } from './entities/super-agent-price-rule.entity';
-import { DailyBatchesService } from '../daily-batches/daily-batches.service';
+import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
 import type { User } from '../users/entities/user.entity';
@@ -42,7 +42,7 @@ export class OfficePriceService {
     @InjectRepository(SuperAgentPriceRule) private readonly rules: Repository<SuperAgentPriceRule>,
     @InjectRepository(ShippingRate) private readonly rates: Repository<ShippingRate>,
     @InjectRepository(SuperAgent) private readonly offices: Repository<SuperAgent>,
-    private readonly boda: DailyBatchesService,
+    private readonly boda: OfficeBodaFeeService,
   ) {}
 
   /** The caller's own ACTIVE office, from the active Super Agent role context. */
@@ -108,9 +108,9 @@ export class OfficePriceService {
     const inDar = isDarEsSalaam(office.city);
     const officePlace = office.address || office.city;
     const deliveryBodaFee = inDar && req.servicePath === 'local_agent'
-      ? await this.boda.bodaFeeBetween(officePlace, req.deliveryAddress || null) : null;
+      ? await this.boda.feeBetween(officePlace, req.deliveryAddress || null) : null;
     const pickupBodaFee = inDar && req.pickupAddress
-      ? await this.boda.bodaFeeBetween(req.pickupAddress, officePlace) : null;
+      ? await this.boda.feeBetween(req.pickupAddress, officePlace) : null;
 
     // Same-city parcel in Dar (agent delivery from a Dar office): only the boda fee.
     const sameCityDar = inDar && req.servicePath === 'local_agent';

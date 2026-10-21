@@ -4,6 +4,7 @@ import {
   quoteOfficePrice, roundUpTo100, checkChargedAmount, breakdownReceiptLines, isDarEsSalaam,
 } from './office-price';
 import { OfficePriceService } from './office-price.service';
+import { OfficeBodaFeeService, DEFAULT_DAR_BODA_MATRIX, darBodaFee } from './office-boda-fee.service';
 import { SuperAgentsService } from './super-agents.service';
 import { SuperAgentStatus } from './entities/super-agent.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
@@ -107,7 +108,7 @@ function setup(opts: { city?: string; status?: SuperAgentStatus } = {}) {
   const rules = repo([]);
   const rates = repo([{ id: 1, superAgent: { id: 10 }, destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, isActive: true }]);
   const offices = repo([office]);
-  const boda = { bodaFeeBetween: jest.fn(async () => 6000) };
+  const boda = { feeBetween: jest.fn(async () => 6000) };
   const service = new OfficePriceService(rules as any, rates as any, offices as any, boda as any);
   return { service, office, rules, boda };
 }
@@ -135,7 +136,7 @@ describe('OfficePriceService', () => {
   it('Dar office, agent delivery: the delivery line is the boda fee (office → recipient); van / intercity are not included', async () => {
     const { service, boda } = setup();
     const agent = await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'local_agent', deliveryAddress: 'Sinza, Kinondoni' });
-    expect(boda.bodaFeeBetween).toHaveBeenCalledWith('Kariakoo, Ilala', 'Sinza, Kinondoni');
+    expect(boda.feeBetween).toHaveBeenCalledWith('Kariakoo, Ilala', 'Sinza, Kinondoni');
     expect(agent.delivery).toEqual({ status: 'charged', amount: 6000, source: 'boda' });
     expect(agent.pickup.status).toBe('not_included'); // the sender brought it to the counter
     // Same-city in Dar: only the boda fee, no 10% and no 5,000 minimum.
@@ -145,18 +146,18 @@ describe('OfficePriceService', () => {
     const intercity = await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'intercity', destinationCity: 'Mwanza' });
     expect(intercity.transport).toEqual(expect.objectContaining({ mode: 'value', amount: 10000 }));
     expect(intercity.total).toBe(10000);
-    boda.bodaFeeBetween.mockResolvedValueOnce(0);
+    boda.feeBetween.mockResolvedValueOnce(0);
     expect((await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'local_agent', deliveryAddress: 'Kariakoo' })).delivery.status).toBe('free');
-    boda.bodaFeeBetween.mockClear();
+    boda.feeBetween.mockClear();
     expect((await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'van', deliveryAddress: 'Sinza' })).delivery.status).toBe('not_included');
-    expect(boda.bodaFeeBetween).not.toHaveBeenCalled();
+    expect(boda.feeBetween).not.toHaveBeenCalled();
   });
 
   it('outside Dar: no boda fee, pickup and delivery not included', async () => {
     const { service, boda } = setup({ city: 'Mwanza' });
     const q = await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'local_agent', deliveryAddress: 'Ilemela' });
     expect(q.delivery.status).toBe('not_included');
-    expect(boda.bodaFeeBetween).not.toHaveBeenCalled();
+    expect(boda.feeBetween).not.toHaveBeenCalled();
   });
 
   it('rule checks, and only an active office', async () => {
@@ -202,5 +203,26 @@ describe('walk-in: a fee different from the office price needs a reason', () => 
     const svc = make();
     await expect(svc.createOfflineIntercityOrder({ id: 1 }, dto({ shippingFeeCollected: 8000, priceChangeReason: 'Punguzo la mteja wa kudumu' }), ctx))
       .rejects.toThrow('REACHED_SAVE');
+  });
+});
+
+describe('OfficeBodaFeeService: Dar boda fee from boda_rate_card only', () => {
+  it('zone-to-zone default matrix, unknown Dar address = inner zone', () => {
+    expect(darBodaFee(DEFAULT_DAR_BODA_MATRIX, 'Kariakoo, Ilala', 'Sinza, Kinondoni')).toBe(6000);
+    expect(darBodaFee(DEFAULT_DAR_BODA_MATRIX, 'Bunju B', 'Kariakoo')).toBe(14000);
+    expect(darBodaFee(DEFAULT_DAR_BODA_MATRIX, 'Somewhere', 'Sinza')).toBe(4000);
+  });
+
+  it('active admin overrides replace the default for that pair only', async () => {
+    const find = jest.fn(async () => [{ rateKey: 'matrix_1_2', fee: 7500 }]);
+    const svc = new OfficeBodaFeeService({ find } as any);
+    expect(await svc.feeBetween('Kariakoo', 'Sinza')).toBe(7500);
+    expect(await svc.feeBetween('Sinza', 'Kariakoo')).toBe(5000);
+    expect(find).toHaveBeenCalledWith({ where: { category: 'matrix', isActive: true } });
+  });
+
+  it('a failed read falls back to the default matrix', async () => {
+    const svc = new OfficeBodaFeeService({ find: jest.fn(() => Promise.reject(new Error('down'))) } as any);
+    expect(await svc.feeBetween('Kariakoo', 'Sinza')).toBe(6000);
   });
 });

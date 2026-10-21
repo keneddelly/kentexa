@@ -169,15 +169,6 @@ export class DailyBatchesService {
     return this.runtimeMatrix;
   }
 
-  /**
-   * The Dar es Salaam boda boda fee between two addresses, from the admin boda rate
-   * table (zone to zone). Used by the Super Agent office price rule for an agent pickup
-   * or door delivery in Dar (src/super-agents/office-price.ts).
-   */
-  async bodaFeeBetween(fromAddress: string | null, toAddress: string | null): Promise<number> {
-    return this.calculateBodaFee(fromAddress, toAddress);
-  }
-
   private async calculateBodaFee(
     sellerAddress: string | null,
     buyerAddress: string | null,
