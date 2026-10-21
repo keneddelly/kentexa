@@ -75,8 +75,16 @@ export class OfficePriceService {
 
   async getMyRule(user: User, roleContext: RoleContext | undefined) {
     const office = await this.activeOffice(user, roleContext);
-    const rule = await this.ruleFor(office.id);
-    return { ...(rule ?? defaultRule()), source: rule ? 'office' : 'default', isDarEsSalaam: isDarEsSalaam(office.city) };
+    const [rule, rates] = await Promise.all([this.ruleFor(office.id), this.myRates(office)]);
+    return { ...(rule ?? defaultRule()), source: rule ? 'office' : 'default', isDarEsSalaam: isDarEsSalaam(office.city), rates };
+  }
+
+  /** This office's own active per-destination rates: the rows a by-kg quote reads (read-only here). */
+  private async myRates(office: SuperAgent) {
+    const rows = await this.rates.find({ where: { superAgent: { id: office.id }, isActive: true } as any, order: { destinationCity: 'ASC' } });
+    return rows.map((r) => ({
+      destinationCity: r.destinationCity, ratePerKg: Number(r.ratePerKg), minimumCharge: Number(r.minimumCharge), estimatedDays: r.estimatedDays,
+    }));
   }
 
   async setMyRule(user: User, roleContext: RoleContext | undefined, dto: { chargeMode?: string; valuePercent?: unknown; valueMinimum?: unknown }) {

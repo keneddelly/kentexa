@@ -12,7 +12,7 @@ const darQuote = {
   pickup: { status: 'not_included', amount: 0 },
   transport: { amount: 10000, mode: 'value', percent: 10, minimum: 5000 },
   delivery: { status: 'free', amount: 0, source: 'boda' },
-  total: 10000, currency: 'TZS', ruleSource: 'office', fallback: null,
+  total: 10000, currency: 'TZS', ruleSource: 'office',
 };
 
 beforeEach(() => { jest.useFakeTimers(); api.get.mockReset(); api.post.mockReset(); api.put.mockReset(); });
@@ -79,4 +79,37 @@ test('Bei page: shows the rule and saves by kg', async () => {
   fireEvent.click(screen.getByText('office_price_rule.save'));
   await waitFor(() => expect(api.put).toHaveBeenCalledWith('/super-agents/me/price-rule', { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000 }));
   expect(await screen.findByText('office_price_rule.saved')).toBeTruthy();
+});
+
+test('Bei page, by kg: no percent or minimum fields; the office\'s own rates are shown read-only', async () => {
+  jest.useRealTimers();
+  const rates = [{ destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, estimatedDays: 2 }];
+  api.get.mockResolvedValue({ data: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000, source: 'office', isDarEsSalaam: false, rates } });
+  render(<OfficePriceRuleCard />);
+  expect(await screen.findByText('Mwanza')).toBeTruthy();
+  expect(api.get).toHaveBeenCalledWith('/super-agents/me/price-rule');
+  expect(screen.getByText('TZS 3,000')).toBeTruthy();
+  expect(screen.getByText('TZS 4,000')).toBeTruthy();
+  expect(screen.queryByText('office_price_rule.percent')).toBeNull();
+  expect(screen.queryAllByRole('spinbutton')).toHaveLength(0); // nothing to edit here
+  expect(screen.getByText('office_price_rule.kg_rates_note', { exact: false })).toBeTruthy();
+  // By value brings the percent and minimum fields back.
+  fireEvent.click(screen.getByText('office_price_rule.by_value'));
+  expect(screen.getByText('office_price_rule.percent')).toBeTruthy();
+  expect(screen.queryAllByRole('spinbutton')).toHaveLength(2);
+});
+
+test('Bei page, by kg with no rates: says every by-kg parcel will be refused until a rate is set', async () => {
+  jest.useRealTimers();
+  api.get.mockResolvedValue({ data: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000, source: 'office', isDarEsSalaam: false, rates: [] } });
+  render(<OfficePriceRuleCard />);
+  expect(await screen.findByText('office_price_rule.kg_no_rates')).toBeTruthy();
+});
+
+test('counter preview shows the refusal for a town with no kg rate', async () => {
+  const message = 'Ofisi hii inatoza kwa kilo, lakini hakuna bei ya kilo kwa Mbeya.';
+  api.post.mockRejectedValue({ response: { data: { message } } });
+  render(<OfficePricePreview input={{ ...input, destinationCity: 'Mbeya', servicePath: 'intercity' }} fee="" onQuote={jest.fn()} />);
+  await act(async () => { jest.advanceTimersByTime(450); });
+  expect(await screen.findByRole('alert')).toHaveTextContent(message);
 });

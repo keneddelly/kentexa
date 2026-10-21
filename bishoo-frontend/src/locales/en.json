@@ -1955,7 +1955,13 @@
     "percent": "Percent of value (%)",
     "minimum": "Minimum (TZS)",
     "value_note": "Every amount is rounded up to the nearest TZS 100.",
-    "kg_fallback_note": "A town with no per-kg rate uses the percent and minimum above. Every amount is rounded up to TZS 100.",
+    "kg_rates_note": "Only towns with a per-kg rate can be charged by kg. A parcel to a town with no rate is refused at the counter. Edit rates in the form below. Every amount is rounded up to TZS 100.",
+
+    "kg_no_rates": "No per-kg rates yet. Add a rate for each town in the form below, or every by-kg parcel will be refused at the counter.",
+
+    "kg_town": "Town",
+
+    "kg_rate": "Per kg (TZS)",
     "dar_note": "Dar es Salaam: an agent pickup or delivery is the boda boda fee.",
     "save": "Save how you charge",
     "saving": "Saving…",

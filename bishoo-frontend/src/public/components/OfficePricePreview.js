@@ -65,7 +65,6 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
               : quote.transport?.mode === 'kg'
                 ? `Kwa kilo: ${money(quote.transport.ratePerKg)}/kg, kiwango cha chini ${money(quote.transport.minimum)}`
                 : `${quote.transport?.percent}% ya thamani, kiwango cha chini ${money(quote.transport?.minimum)}`}
-            {quote.fallback === 'no_destination_rate' && ' · Hakuna bei ya kilo kwa mji huu, imetumika bei ya thamani'}
             {quote.ruleSource === 'default' && ' · Bei ya kawaida (weka yako kwenye Bei)'}
           </div>
           {Number(fee) !== Number(quote.total) && (

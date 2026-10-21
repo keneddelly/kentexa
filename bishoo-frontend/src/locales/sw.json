@@ -1734,7 +1734,13 @@
     "percent": "Asilimia ya thamani (%)",
     "minimum": "Kiwango cha chini (TZS)",
     "value_note": "Kila kiasi kinazungushwa juu hadi TZS 100 iliyo karibu.",
-    "kg_fallback_note": "Mji usio na bei ya kilo unatumia asilimia na kiwango cha chini hapa juu. Kila kiasi kinazungushwa juu hadi TZS 100.",
+    "kg_rates_note": "Miji yenye bei ya kilo pekee ndiyo inatozwa kwa kilo. Mzigo kwenda mji usio na bei unakataliwa kaunta. Badilisha bei kwenye fomu ya bei hapa chini. Kila kiasi kinazungushwa juu hadi TZS 100.",
+
+    "kg_no_rates": "Bado hakuna bei za kilo. Weka bei ya kila mji kwenye fomu hapa chini, la sivyo kila mzigo wa kilo utakataliwa kaunta.",
+
+    "kg_town": "Mji",
+
+    "kg_rate": "Kwa kilo (TZS)",
     "dar_note": "Dar es Salaam: kuchukua na kufikisha kwa wakala ni ada ya boda boda.",
     "save": "Hifadhi jinsi ya kutoza",
     "saving": "Inahifadhi…",

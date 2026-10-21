@@ -104,6 +104,7 @@ const matches = (row: any, where: any): boolean => Object.entries(where || {}).e
 const repo = (rows: any[]) => ({
   rows,
   findOne: jest.fn(async ({ where }: any) => rows.find((r) => matches(r, where)) ?? null),
+  find: jest.fn(async ({ where }: any) => rows.filter((r) => matches(r, where))),
   create: jest.fn((d: any) => ({ ...d })),
   save: jest.fn(async (d: any) => { if (!rows.includes(d)) rows.push(d); return d; }),
 });
@@ -111,7 +112,10 @@ const repo = (rows: any[]) => ({
 function setup(opts: { city?: string; status?: SuperAgentStatus } = {}) {
   const office = { id: 10, userId: 1, status: opts.status ?? SuperAgentStatus.ACTIVE, city: opts.city ?? 'Dar es Salaam', address: 'Kariakoo, Ilala', workspaceId: null };
   const rules = repo([]);
-  const rates = repo([{ id: 1, superAgent: { id: 10 }, destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, isActive: true }]);
+  const rates = repo([
+    { id: 1, superAgent: { id: 10 }, destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, estimatedDays: 2, isActive: true },
+    { id: 2, superAgent: { id: 99 }, destinationCity: 'Mbeya', ratePerKg: 2500, minimumCharge: 3000, estimatedDays: 3, isActive: true }, // another office
+  ]);
   const offices = repo([office]);
   const boda = { feeBetween: jest.fn(async () => 6000) };
   const service = new OfficePriceService(rules as any, rates as any, offices as any, boda as any);
@@ -126,6 +130,8 @@ describe('OfficePriceService', () => {
     const q = await service.previewMine(me, ctx, { destinationCity: 'Arusha', declaredValue: 40000, servicePath: 'intercity' });
     expect(q).toEqual(expect.objectContaining({ ruleSource: 'default', total: 5000 }));
     expect((await service.getMyRule(me, ctx))).toEqual(expect.objectContaining({ chargeMode: 'value', valuePercent: 10, valueMinimum: 5000, source: 'default' }));
+    // The card shows this office's own route prices only (shipping_rate), never another office's.
+    expect((await service.getMyRule(me, ctx)).rates).toEqual([{ destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, estimatedDays: 2 }]);
   });
 
   it('saves the office rule; by kg finds the destination rate (any case); a town with no rate is refused', async () => {
