@@ -4,7 +4,8 @@ import {
   quoteOfficePrice, roundUpTo100, checkChargedAmount, breakdownReceiptLines, isDarEsSalaam,
 } from './office-price';
 import { OfficePriceService } from './office-price.service';
-import { OfficeBodaFeeService, DEFAULT_DAR_BODA_MATRIX, darBodaFee } from './office-boda-fee.service';
+import { OfficeBodaFeeService, darBodaFee } from './office-boda-fee.service';
+import { DEFAULT_DAR_BODA_MATRIX } from '../boda-rates/dar-boda-zones';
 import { SuperAgentsService } from './super-agents.service';
 import { SuperAgentStatus } from './entities/super-agent.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
