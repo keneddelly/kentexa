@@ -8,6 +8,7 @@ import { DeliveryZone } from './entities/delivery-zone.entity';
 import { Order } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { IntercityRoute } from '../super-agents/entities/intercity-route.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { PaymentCoreModule } from '../payments/payment-core.module';
@@ -22,6 +23,7 @@ import { WalletModule } from '../wallet/wallet.module';
       Order,
       Product,
       SuperAgent, // needed by DeliveryZone#superAgent relation
+      IntercityRoute, // injected by DailyBatchesService
     ]),
     NotificationsModule,
     CommunicationModule,
