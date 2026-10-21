@@ -1,4 +1,4 @@
-// Home feed product trail: a horizontal row of listing cards placed between feed posts.
+// Home feed product trail: a 2×2 grid of 4 listing cards placed between feed posts.
 //
 // Slots: one slot after every 2 posts. Odd slots (after posts 2, 6, 10…) are the product
 // trail, even slots (after 4, 8, 12…) keep the older discovery rail with all its types.
@@ -13,7 +13,7 @@
 // paid slot can be added later without touching the layout. No payment logic here.
 
 export const POSTS_PER_SLOT = 2;
-export const TRAIL_SIZE = 8;
+export const TRAIL_SIZE = 4;
 export const SLOT_SOURCE = Object.freeze({ ORGANIC: 'organic', BOOST: 'boost' });
 // The older rail, unchanged: trending products, classifieds, services, stores, transport.
 export const DISCOVERY_RAIL_TYPES = ['product', 'classified', 'service', 'store', 'transport'];

@@ -92,6 +92,13 @@ describe('rotation', () => {
     expect(storage.getItem('kentexa_trail_seen_2')).toBeNull();
   });
 
+  test('a trail holds 4 listings', () => {
+    const rot = createTrailRotation(pool(20), { userKey: 5, storage: memoryStorage() });
+    expect(rot.trailSize).toBe(4);
+    expect(rot.trailAt(0).items).toHaveLength(4);
+    expect(rot.trailAt(1).items).toHaveLength(4);
+  });
+
   test('a trail is stable within a session', () => {
     const rot = createTrailRotation(pool(20), { userKey: 5, storage: memoryStorage() });
     expect(rot.trailAt(2)).toBe(rot.trailAt(2));

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-// One horizontal row of listing cards between home feed posts (see utils/productTrail.js).
-// Same card look as the "Bidhaa za Duka" grid on ListingsPage. The row scrolls sideways
-// inside a 16px gutter; the page itself never scrolls horizontally.
+// A 2×2 grid of 4 listing cards between home feed posts (see utils/productTrail.js).
+// Same cards as the "Bidhaa za Duka" grid on ListingsPage, laid out vertically inside a
+// 16px gutter, so nothing scrolls sideways.
 const ProductTrail = ({ trail, onNavigate, onAddToCart, onSeen }) => {
   const { t } = useTranslation();
   const ref = useRef(null);
@@ -35,13 +35,12 @@ const ProductTrail = ({ trail, onNavigate, onAddToCart, onSeen }) => {
           {t('home_feed.see_all')} →
         </button>
       </div>
-      <div data-testid="product-trail-scroll" className="kx-trail-scroll"
-        style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 16px 4px', scrollPaddingInline: 16, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-        <style>{'.kx-trail-scroll::-webkit-scrollbar{display:none}'}</style>
+      <div data-testid="product-trail-grid"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, padding: '0 16px 4px' }}>
         {trail.items.map((item) => (
           <div key={item.key} role="link" tabIndex={0} onClick={() => open(item)}
             onKeyDown={(e) => { if (e.key === 'Enter') open(item); }}
-            style={{ flex: '0 0 140px', width: 140, background: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9', cursor: 'pointer' }}>
+            style={{ minWidth: 0, background: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9', cursor: 'pointer' }}>
             <div style={{ width: '100%', aspectRatio: '1/1', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
               {item.image
                 ? <img src={item.image} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
