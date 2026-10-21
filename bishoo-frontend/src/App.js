@@ -33,6 +33,7 @@ import CreateMomentModal from './public/components/CreateMomentModal';
 import BecomeSellerInfo from './public/pages/BecomeSellerInfo';
 import ConfirmDelivery    from './public/pages/ConfirmDelivery';
 import SellerCheckout     from './public/pages/SellerCheckout';
+import PartnerInvite      from './public/pages/PartnerInvite';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import SellerPayouts     from './public/pages/SellerPayouts';
@@ -207,6 +208,9 @@ function App() {
       // Seller's private new-order link (SMS / WhatsApp): signed token; the page asks for login first.
       const sellerCheckout = params.get('sellerCheckout');
       if (sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)) return `SellerCheckout-${sellerCheckout}`;
+      // A Super Agent's partner invitation (WhatsApp / the sender's own SMS): public page.
+      const partnerInvite = params.get('partnerInvite');
+      if (partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)) return `PartnerInvite-${partnerInvite}`;
       if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
       if (track) return `TrackParcel-${track}`;
       // Real shareable paths (/product/42, /store/7, ...) — resolves
@@ -324,13 +328,16 @@ function App() {
     // Same for the seller's new-order link (SMS / WhatsApp): a logged-in seller opening it
     // must land on that order, not on the role home.
     const sellerCheckout = params.get('sellerCheckout');
+    const partnerInvite = params.get('partnerInvite');
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
         : sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)
           ? `SellerCheckout-${sellerCheckout}`
-          : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
-            ? 'Activity' : homeForRole(activeContext.roleType));
+          : partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)
+            ? `PartnerInvite-${partnerInvite}`
+            : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+              ? 'Activity' : homeForRole(activeContext.roleType));
   }, [contextEpoch, activeContext?.roleType]);
 
   // Syncs the visible browser URL for the 4 shareable content types
@@ -435,12 +442,16 @@ function App() {
             const receive = params.get('receive');
             // The seller's new-order link asks for login first; after login it opens that order.
             const sellerCheckout = params.get('sellerCheckout');
+            // A partner invitation: back to the join page after login.
+            const partnerInvite = params.get('partnerInvite');
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
               : sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)
                 ? `SellerCheckout-${sellerCheckout}`
-                : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
-                  ? 'Activity' : (intentDestination || 'Home'));
+                : partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)
+                  ? `PartnerInvite-${partnerInvite}`
+                  : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+                    ? 'Activity' : (intentDestination || 'Home'));
           } else {
             setPage(options.targetPage);
           }
@@ -732,6 +743,8 @@ function App() {
       return <ConfirmDelivery token={page.split('ConfirmDelivery-')[1]} />;
     if (page.startsWith('SellerCheckout-'))
       return requireLogin(<SellerCheckout token={page.slice('SellerCheckout-'.length)} onNavigate={publicProps.onNavigate} />);
+    if (page.startsWith('PartnerInvite-'))
+      return <PartnerInvite token={page.slice('PartnerInvite-'.length)} isLoggedIn={isLoggedIn} onNavigate={publicProps.onNavigate} />;
     if (page.startsWith('BuyerParcelAction-'))
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))

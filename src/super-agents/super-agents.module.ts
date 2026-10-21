@@ -18,6 +18,7 @@ import { Agent } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
 import { User } from '../users/entities/user.entity';
 import { AgentsModule } from '../agents/agents.module';
+import { PartnerInvitationsModule } from '../partner-invitations/partner-invitations.module';
 import { SmsModule } from '../sms/sms.module';
 import { BusinessModule } from '../business/business.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -60,6 +61,7 @@ import { LocationIntelligenceModule } from '../location-intelligence/location-in
       Sale,
     ]),
     AgentsModule,
+    PartnerInvitationsModule,
     SmsModule,
     BusinessModule,
     NotificationsModule,

@@ -43,6 +43,7 @@ import {
 } from '../../utils/counterReceipt';
 import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
+import PartnerInvitePanel from '../components/PartnerInvitePanel';
 
 const pendingWalkInRequests = new Map();
 
@@ -2164,6 +2165,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       value={dispatchForm.vehicleNumber}
                       onChange={e => setDispatchForm(f => ({ ...f, vehicleNumber: e.target.value }))}
                       style={{ ...inp, marginBottom: 8 }} />
+                    {/* Partner invitation: the driver / transport not yet on KenteXa joins through this waybill. */}
+                    <PartnerInvitePanel parcel={dispatchParcel}
+                      defaultPhone={dispatchForm.driverPhone} defaultName={dispatchForm.driverName} />
                     <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                       <input type="date" placeholder="Tarehe ya Kuondoka"
                         value={dispatchForm.departureDate}

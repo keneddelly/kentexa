@@ -13,7 +13,10 @@ import {
   ParseIntPipe,
   Header,
   UseInterceptors,
+  Optional,
 } from '@nestjs/common';
+import { PartnerInvitationsService } from '../partner-invitations/partner-invitations.service';
+import { PartnerInvitationRole } from '../partner-invitations/partner-invitation.entity';
 import { ParcelReferenceInterceptor } from '../shipments/parcel-reference.interceptor';
 import { AgentsService } from '../agents/agents.service';
 import { SuperAgentsService } from './super-agents.service';
@@ -43,6 +46,7 @@ export class SuperAgentsController {
     private agentsService: AgentsService,
     private verification: VerificationService,
     private sellerScope: SellerScopeService,
+    @Optional() private partnerInvitations?: PartnerInvitationsService,
   ) {}
 
   // ── Public ────────────────────────────────────────────────────────────────
@@ -100,7 +104,13 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard)
   @Post('apply')
   async apply(@Request() req, @Body() dto: any) {
-    return this.service.apply(req.user, dto);
+    const saved: any = await this.service.apply(req.user, dto);
+    // A partner invitation this user accepted becomes "joined". The office itself stays
+    // pending for normal admin approval; never blocks the application.
+    await this.partnerInvitations
+      ?.onApplicationSubmitted(req.user.id, PartnerInvitationRole.SUPER_AGENT, saved?.id)
+      .catch(() => 0);
+    return saved;
   }
 
   // Get my super agent profile

@@ -14,8 +14,11 @@ import {
   UseGuards,
   ParseIntPipe,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { PartnerInvitationsService } from '../partner-invitations/partner-invitations.service';
+import { PartnerInvitationRole } from '../partner-invitations/partner-invitation.entity';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -49,6 +52,7 @@ export class TransportController {
     private readonly journeys: JourneySelectionService,
     private readonly journeyComposer: JourneyComposerService,
     private readonly serviceOffers: LogisticsServiceOfferService,
+    @Optional() private readonly partnerInvitations?: PartnerInvitationsService,
   ) {}
 
   // ── CUSTOMER SERVICE OFFERS (Issue #95) ───────────────────────────────────
@@ -153,7 +157,13 @@ export class TransportController {
     // one). The provider stays pending (hidden) until an admin approves it,
     // and approval needs the ID verified (TransportService.adminVerify).
     await assertTransportIdSent(this.verification, req.user.id);
-    return this.svc.register(req.user, dto);
+    const saved = await this.svc.register(req.user, dto);
+    // A partner invitation this user accepted becomes "joined". The application itself
+    // stays pending for normal admin approval; never blocks the application.
+    await this.partnerInvitations
+      ?.onApplicationSubmitted(req.user.id, PartnerInvitationRole.TRANSPORT_PROVIDER, saved?.id)
+      .catch(() => 0);
+    return saved;
   }
 
   // Self-status-check, same precedent as SellerController.getMyProfile: a

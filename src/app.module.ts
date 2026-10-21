@@ -63,6 +63,7 @@ import { ShareModule } from './share/share.module';
 import { RoleContextModule } from './role-context/role-context.module';
 import { CommunicationFeatureFlagsModule } from './communication/communication-feature-flags.module';
 import { OwnershipFeatureFlagsModule } from './ownership/ownership-feature-flags.module';
+import { PartnerInvitationsModule } from './partner-invitations/partner-invitations.module';
 import { VersionController } from './version.controller';
 
 export const allowDevelopmentSchemaSync =
@@ -149,6 +150,7 @@ export const allowDevelopmentSchemaSync =
     RoleContextModule,
     CommunicationFeatureFlagsModule,
     OwnershipFeatureFlagsModule,
+    PartnerInvitationsModule,
     // Blanket default rate limit — most controllers had none at all (only
     // auth/transport/search/early-access separately registered their own
     // tighter ThrottlerModule + guard). This adds a global floor via

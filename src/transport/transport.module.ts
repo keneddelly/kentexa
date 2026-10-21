@@ -42,9 +42,11 @@ import { SearchModule } from '../search/search.module';
 import { SuperAgentCommissionModule } from '../super-agent-commission/super-agent-commission.module';
 import { AgentsModule } from '../agents/agents.module';
 import { LogisticsServiceOfferService } from './logistics-service-offer.service';
+import { PartnerInvitationsModule } from '../partner-invitations/partner-invitations.module';
 
 @Module({
   imports: [
+    PartnerInvitationsModule,
     ReputationModule,
     CommerceProfilesModule,
     TzLocationModule,
