@@ -82,9 +82,19 @@ suite('Stage 3S-A first-mile handoff: real PostgreSQL', () => {
       -- Gate 3: the columns the ONE Shipment projector reads and writes.
       "orderId" integer, "deliveredAt" timestamp, "completedAt" timestamp, "updatedAt" timestamp)`);
     await q(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "shipmentId" integer, "orderId" integer, status text NOT NULL, "superAgentId" integer)`);
+    // Columns from later migrations: isTrainingOffice (1791900000000), the Agent base point
+    // (1791800000000; every test Agent has one, it is required to accept a pickup).
     await q(`CREATE TABLE public.super_agent (id integer PRIMARY KEY, "userId" integer, status text NOT NULL, "workspaceId" integer,
-      city text, "businessName" text, phone text, address text)`);
-    await q(`CREATE TABLE public.agent (id integer PRIMARY KEY, "userId" integer, status text, city text, "fullName" text)`);
+      city text, "businessName" text, phone text, address text,
+      "isTrainingOffice" boolean NOT NULL DEFAULT false)`);
+    await q(`CREATE TABLE public.agent (id integer PRIMARY KEY, "userId" integer, status text, city text, "fullName" text,
+      "baseLatitude" double precision DEFAULT -6.8161, "baseLongitude" double precision DEFAULT 39.2804, "baseSetAt" timestamptz DEFAULT now())`);
+    // The pickup point (1791800000000) and the tables the Agent pickup lists read.
+    await q(`ALTER TABLE public.shipment ADD COLUMN "pickupPinLatitude" double precision, ADD COLUMN "pickupPinLongitude" double precision,
+      ADD COLUMN "pickupPinAccuracyM" integer, ADD COLUMN "pickupPinCapturedAt" timestamptz, ADD COLUMN "pickupLandmark" varchar(160),
+      ADD COLUMN "pickupPinWardId" integer`);
+    await q(`CREATE TABLE public.tz_ward (id integer PRIMARY KEY, name text NOT NULL)`);
+    await q(`CREATE TABLE public.activity_events (id SERIAL PRIMARY KEY, "eventType" text, "targetType" text, "targetId" integer, "actorProfileId" integer)`);
     await q(`CREATE TABLE public.parcel_collection (id integer PRIMARY KEY, "parcelId" integer, status text)`);
     await q(`CREATE TABLE public.parcel_tracking (id SERIAL PRIMARY KEY, "parcelId" integer NOT NULL, status text NOT NULL, city text, note text,
       "updatedBy" text, "handlerPhone" text, "handlerLocation" text, "handlerType" text, "createdAt" timestamp NOT NULL DEFAULT now())`);
