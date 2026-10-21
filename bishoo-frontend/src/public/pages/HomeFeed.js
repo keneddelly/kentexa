@@ -1983,12 +1983,13 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       ) : (
         <>
           {posts.map((post, i) => {
-            // One slot after every 2 posts, never at the start or end: product trail
-            // after posts 2, 6, 10…, the discovery rail after 4, 8, 12…
-            // (see utils/productTrail.js).
+            // One slot after every 2 posts: product trail after posts 2, 6, 10…, the
+            // discovery rail after 4, 8, 12… (and after the last post of a thin feed).
+            // See utils/productTrail.js.
             const slot = slotAfterPost(i, posts.length);
             const railType  = slot?.kind === 'discovery_rail' ? slot.railType : null;
             const railItems = railType && trending && {
+              product:    trending.topProducts,
               classified: trending.topClassifieds,
               service:    trending.topServices,
               store:      trending.topBusinesses?.map(b => b.business).filter(Boolean),

@@ -1,8 +1,9 @@
 // Home feed product trail: a horizontal row of listing cards placed between feed posts.
 //
-// Slots: one slot after every 2 posts, never after the last post (so a short feed
-// gets none at its start or end). Slots alternate: odd slots (after posts 2, 6, 10…)
-// are the product trail, even slots (after 4, 8, 12…) keep the older discovery rail.
+// Slots: one slot after every 2 posts. Odd slots (after posts 2, 6, 10…) are the product
+// trail, even slots (after 4, 8, 12…) keep the older discovery rail with all its types.
+// The trail never sits at the start or end of the feed. The older rail keeps its own
+// rule for a thin feed (under 4 posts): one rail after the last post.
 //
 // Rotation: listings come from all products + active classifieds, no approval step.
 // Consecutive trails never share an item, and a user's newest trail prefers items
@@ -14,8 +15,9 @@
 export const POSTS_PER_SLOT = 2;
 export const TRAIL_SIZE = 8;
 export const SLOT_SOURCE = Object.freeze({ ORGANIC: 'organic', BOOST: 'boost' });
-// The older rail keeps its other types; products moved to the trail.
-export const DISCOVERY_RAIL_TYPES = ['classified', 'service', 'store', 'transport'];
+// The older rail, unchanged: trending products, classifieds, services, stores, transport.
+export const DISCOVERY_RAIL_TYPES = ['product', 'classified', 'service', 'store', 'transport'];
+const THIN_FEED = 4;
 
 const SEEN_LIMIT = 200;
 const seenKey = (userKey) => `kentexa_trail_seen_${userKey || 'guest'}`;
@@ -25,7 +27,11 @@ const seenKey = (userKey) => `kentexa_trail_seen_${userKey || 'guest'}`;
  * null, { kind: 'product_trail', trailIndex }, or { kind: 'discovery_rail', railType }.
  */
 export function slotAfterPost(index, postCount) {
-  if (index < 0 || index >= postCount - 1) return null; // nothing at the end
+  if (index < 0 || index >= postCount) return null;
+  if (index === postCount - 1) {
+    // No trail at the end; a thin feed still gets the older rail's one guaranteed slot.
+    return postCount < THIN_FEED ? { kind: 'discovery_rail', railType: DISCOVERY_RAIL_TYPES[0] } : null;
+  }
   if ((index + 1) % POSTS_PER_SLOT !== 0) return null;
   const slot = (index + 1) / POSTS_PER_SLOT; // 1, 2, 3…
   if (slot % 2 === 1) return { kind: 'product_trail', trailIndex: (slot - 1) / 2 };

@@ -16,17 +16,29 @@ describe('insertion rule', () => {
   test('a slot after every 2 posts: trail after 2, 6, 10…, the old rail after 4, 8, 12…', () => {
     expect(positions(13, 'product_trail')).toEqual([2, 6, 10]);
     expect(positions(13, 'discovery_rail')).toEqual([4, 8, 12]);
-    expect(slotsFor(13).filter(Boolean).map((s) => s.railType).filter(Boolean)).toEqual(['classified', 'service', 'store']);
+    expect(slotsFor(13).filter(Boolean).map((s) => s.railType).filter(Boolean)).toEqual(['product', 'classified', 'service']);
   });
 
-  test('nothing at the start, nothing after the last post of a short feed', () => {
+  test('the old rail keeps all its types in turn', () => {
+    expect(slotsFor(41).filter(Boolean).map((s) => s.railType).filter(Boolean))
+      .toEqual(['product', 'classified', 'service', 'store', 'transport', 'product', 'classified', 'service', 'store', 'transport']);
+  });
+
+  test('no trail at the start or after the last post of a short feed', () => {
     expect(slotsFor(0)).toEqual([]);
-    expect(slotsFor(1)).toEqual([null]);
-    expect(slotsFor(2)).toEqual([null, null]); // the only slot would be the end
+    expect(positions(1, 'product_trail')).toEqual([]);
+    expect(positions(2, 'product_trail')).toEqual([]); // the only slot would be the end
     expect(positions(3, 'product_trail')).toEqual([2]);
     expect(positions(4, 'product_trail')).toEqual([2]);
-    expect(positions(4, 'discovery_rail')).toEqual([]); // after post 4 is the end
+    expect(positions(4, 'discovery_rail')).toEqual([]); // after post 4 is the end of a 4-post feed
     expect(slotAfterPost(0, 10)).toBeNull();
+  });
+
+  test('a thin feed (under 4 posts) still gets the old rail once, after its last post', () => {
+    expect(slotsFor(1)).toEqual([{ kind: 'discovery_rail', railType: 'product' }]);
+    expect(positions(2, 'discovery_rail')).toEqual([2]);
+    expect(positions(3, 'discovery_rail')).toEqual([3]);
+    expect(positions(3, 'product_trail')).toEqual([2]);
   });
 
   test('trails are numbered in order for the rotation', () => {
