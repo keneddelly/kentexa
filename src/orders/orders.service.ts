@@ -862,11 +862,17 @@ export class OrdersService {
   }
 
   // ── Seller checkout link: GET /orders/seller-checkout/:token ─────────────────
-  // Public route, but nothing without a valid signed token (7 days). Shows only that
-  // seller's orders from that checkout.
-  async getSellerCheckoutView(token: string) {
+  // Login required, plus a valid signed token (7 days) naming the logged-in seller. Same
+  // access as getOrderDetail's seller side: the seller, their staff with canViewOrders, or
+  // an active admin. Shows only that seller's orders from that checkout.
+  async getSellerCheckoutView(token: string, user: User, roleContext?: RoleContext) {
     const payload = verifySellerCheckoutToken(token, process.env.JWT_SECRET);
     if (!payload) throw new NotFoundException('Kiungo hiki si sahihi au muda wake umekwisha.');
+    const allowed =
+      payload.s === user?.id ||
+      roleContext?.roleType === AccountRoleType.ADMIN ||
+      (!!user && (await this.sellerScope.isAuthorizedFor(user, payload.s, 'canViewOrders')));
+    if (!allowed) throw new ForbiddenException('Agizo hili ni la muuzaji mwingine. Ingia kwa akaunti ya muuzaji.');
     const orders = (await this.repo.find({ where: { id: In(payload.o) } }))
       .filter((o) => o.seller?.id === payload.s)
       .sort((a, b) => a.id - b.id);

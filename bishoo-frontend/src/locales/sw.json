@@ -5875,6 +5875,7 @@
     "loading": "Inapakia agizo…",
     "invalid_title": "Kiungo hakipatikani",
     "invalid": "Kiungo hiki si sahihi au muda wake umekwisha (kinadumu siku 7). Ingia kwenye akaunti yako ufungue maagizo yako.",
+    "wrong_account": "Agizo hili ni la muuzaji mwingine. Ingia kwa akaunti ya muuzaji aliyepokea ujumbe huu.",
     "open_orders": "Fungua maagizo yangu",
     "title": "Agizo jipya {{orders}}",
     "pay_cod": "Mnunuzi atalipa pesa mkononi wakati wa kupokea (COD)",

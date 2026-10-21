@@ -32,7 +32,7 @@ const SellerCheckout = ({ token, onNavigate }) => {
     let alive = true;
     api.get(`/orders/seller-checkout/${encodeURIComponent(token || '')}`)
       .then((r) => { if (alive) setView(r.data); })
-      .catch(() => { if (alive) setError(t('seller_checkout.invalid')); });
+      .catch((e) => { if (alive) setError(t(e?.response?.status === 403 ? 'seller_checkout.wrong_account' : 'seller_checkout.invalid')); });
     return () => { alive = false; };
   }, [token, t]);
 

@@ -67,11 +67,17 @@ export class OrdersController {
     return this.ordersService.createCheckout(dto, req.user);
   }
 
-  // The private link in the seller notice. No login: the signed token (7 days) is the key, and
-  // it opens only that seller's orders from that checkout.
+  // The private link in the seller notice. Login required, and the signed token (7 days) must
+  // name the logged-in seller (or their order staff / an active admin); it opens only that
+  // seller's orders from that checkout.
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('seller-checkout/:token')
-  getSellerCheckout(@Param('token') token: string) {
-    return this.ordersService.getSellerCheckoutView(token);
+  getSellerCheckout(
+    @Param('token') token: string,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.ordersService.getSellerCheckoutView(token, req.user, roleContext);
   }
 
   // Live preview for checkout — lets the buyer see the upfront/remaining

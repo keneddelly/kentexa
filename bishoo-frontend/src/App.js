@@ -204,7 +204,7 @@ function App() {
       const token   = params.get('token');
       if (params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')) return 'Activity';
       if (confirm && token) return `ConfirmDelivery-${token}`;
-      // Seller's private new-order link (SMS / WhatsApp): signed token, opens without login.
+      // Seller's private new-order link (SMS / WhatsApp): signed token; the page asks for login first.
       const sellerCheckout = params.get('sellerCheckout');
       if (sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)) return `SellerCheckout-${sellerCheckout}`;
       if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
@@ -433,10 +433,14 @@ function App() {
             const intentDestination = destinationForIntent(consumeIntent());
             const params = new URLSearchParams(window.location.search);
             const receive = params.get('receive');
+            // The seller's new-order link asks for login first; after login it opens that order.
+            const sellerCheckout = params.get('sellerCheckout');
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
-              : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
-                ? 'Activity' : (intentDestination || 'Home'));
+              : sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)
+                ? `SellerCheckout-${sellerCheckout}`
+                : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+                  ? 'Activity' : (intentDestination || 'Home'));
           } else {
             setPage(options.targetPage);
           }
@@ -727,7 +731,7 @@ function App() {
     if (page.startsWith('ConfirmDelivery-'))
       return <ConfirmDelivery token={page.split('ConfirmDelivery-')[1]} />;
     if (page.startsWith('SellerCheckout-'))
-      return <SellerCheckout token={page.slice('SellerCheckout-'.length)} onNavigate={publicProps.onNavigate} />;
+      return requireLogin(<SellerCheckout token={page.slice('SellerCheckout-'.length)} onNavigate={publicProps.onNavigate} />);
     if (page.startsWith('BuyerParcelAction-'))
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))

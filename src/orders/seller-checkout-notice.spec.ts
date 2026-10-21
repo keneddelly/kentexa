@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import {
   NoticeOrder,
@@ -233,25 +233,36 @@ describe('OrdersService.getSellerCheckoutView() — the private link', () => {
     { id: 901, seller: { id: 2 }, buyer: { name: 'Asha Juma' }, product: { name: 'SPY CAMERA' }, quantity: 1, totalAmount: '300000.00', paymentMethod: 'cod', phone: '0712345678', deliveryAddress: 'Ilala, Dar es Salaam' },
     { id: 902, seller: { id: 9 }, buyer: { name: 'Asha Juma' }, product: { name: 'Other seller item' }, quantity: 1, totalAmount: '5000.00', paymentMethod: 'cod' },
   ];
-  const svc = () => build<OrdersService>({
+  const svc = (staffOf: number[] = []) => build<OrdersService>({
+    sellerScope: { isAuthorizedFor: jest.fn(async (_u: any, sellerId: number) => staffOf.includes(sellerId)) },
     repo: {
       find: jest.fn(async () => orders),
       manager: { query: jest.fn(async (sql: string) => (/tz_region/.test(sql) ? [{ id: 1, name: 'Dar es Salaam' }] : [{ id: 1, name: 'Ilala' }])) },
     },
   });
 
+  const seller2 = { id: 2 } as any;
+
   it('valid token: only that seller\'s orders from that checkout', async () => {
     const token = signSellerCheckoutToken({ s: 2, o: [901, 902], r: 1, d: 1, e: sellerCheckoutExpiry() }, SECRET);
-    const view = await svc().getSellerCheckoutView(token);
+    const view = await svc().getSellerCheckoutView(token, seller2);
     expect(view.orderIds).toEqual([901]);
     expect(view.total).toBe(300000);
     expect(view).toEqual(expect.objectContaining({ regionName: 'Dar es Salaam', districtName: 'Ilala', buyerName: 'Asha Juma', buyerPhone: '0712345678' }));
   });
 
+  it('login is the key too: another account gets 403; the seller\'s staff or an active admin get in', async () => {
+    const token = signSellerCheckoutToken({ s: 2, o: [901], r: 1, d: 1, e: sellerCheckoutExpiry() }, SECRET);
+    await expect(svc().getSellerCheckoutView(token, { id: 9 } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(svc().getSellerCheckoutView(token, undefined as any)).rejects.toBeInstanceOf(ForbiddenException);
+    expect((await svc([2]).getSellerCheckoutView(token, { id: 9 } as any)).orderIds).toEqual([901]);
+    expect((await svc().getSellerCheckoutView(token, { id: 9 } as any, { roleType: 'admin' } as any)).orderIds).toEqual([901]);
+  });
+
   it('no token, a bad one, or an expired one: nothing (404)', async () => {
     const expired = signSellerCheckoutToken({ s: 2, o: [901], r: 1, d: 1, e: Math.floor(Date.now() / 1000) - 1 }, SECRET);
-    await expect(svc().getSellerCheckoutView(expired)).rejects.toBeInstanceOf(NotFoundException);
-    await expect(svc().getSellerCheckoutView('x.y')).rejects.toBeInstanceOf(NotFoundException);
-    await expect(svc().getSellerCheckoutView('')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc().getSellerCheckoutView(expired, seller2)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc().getSellerCheckoutView('x.y', seller2)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc().getSellerCheckoutView('', seller2)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

@@ -5945,6 +5945,7 @@
     "loading": "Loading order…",
     "invalid_title": "Link not available",
     "invalid": "This link is wrong or has expired (links last 7 days). Log in and open your orders to see it.",
+    "wrong_account": "This order belongs to another seller. Log in with the seller account that received this message.",
     "open_orders": "Open my orders",
     "title": "New order {{orders}}",
     "pay_cod": "Buyer pays cash on delivery (COD)",

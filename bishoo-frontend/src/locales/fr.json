@@ -5933,6 +5933,7 @@
     "loading": "Chargement de la commande…",
     "invalid_title": "Lien indisponible",
     "invalid": "Ce lien est invalide ou a expiré (valable 7 jours). Connectez-vous et ouvrez vos commandes.",
+    "wrong_account": "Cette commande appartient à un autre vendeur. Connectez-vous avec le compte vendeur qui a reçu ce message.",
     "open_orders": "Ouvrir mes commandes",
     "title": "Nouvelle commande {{orders}}",
     "pay_cod": "L'acheteur paie à la livraison (COD)",
