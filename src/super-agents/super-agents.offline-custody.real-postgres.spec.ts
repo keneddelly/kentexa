@@ -42,7 +42,7 @@ const config = getB5BTestConnectionConfig();
     await db.query('CREATE TABLE public.super_agent (id integer PRIMARY KEY, "freeOrdersUsed" integer NOT NULL DEFAULT 0, "totalParcelsHandled" integer NOT NULL DEFAULT 0)');
     await db.query('INSERT INTO public.super_agent (id) VALUES (12)');
     await db.query('CREATE TABLE public."order" (id serial PRIMARY KEY, "trackingNumber" varchar, "createdByUserId" integer, "shippingFeeCollectedByAgentId" integer)');
-    await db.query('CREATE TABLE public.parcel (id serial PRIMARY KEY, "orderId" integer, "trackingNumber" varchar)');
+    await db.query('CREATE TABLE public.parcel (id serial PRIMARY KEY, "orderId" integer, "trackingNumber" varchar, "waybillNumber" varchar(16), "createdAt" timestamp NOT NULL DEFAULT now())'); // waybill: 1791600000000-AddParcelWaybillNumber
     await db.query('CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY, "parcelId" integer, status varchar)');
     await db.query('CREATE TABLE public.invoice_counter (id serial PRIMARY KEY, year integer NOT NULL, "lastSequence" integer NOT NULL DEFAULT 0)');
     await db.query('CREATE TABLE public.receipt_counter (id serial PRIMARY KEY, year integer NOT NULL, "lastSequence" integer NOT NULL DEFAULT 0)');

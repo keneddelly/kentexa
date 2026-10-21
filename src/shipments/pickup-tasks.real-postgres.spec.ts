@@ -34,8 +34,8 @@ suite('Stage 3S pickup request and claim: real PostgreSQL', () => {
       "originLongitude" double precision, "originRegionName" text, "originDistrictName" text)`);
     await db.query(`CREATE TABLE public.parcel (
       id integer PRIMARY KEY, "shipmentId" integer, "orderId" integer, status text NOT NULL)`);
-    await db.query('CREATE TABLE public.super_agent (id integer PRIMARY KEY, status text NOT NULL)');
-    await db.query('CREATE TABLE public.agent (id integer PRIMARY KEY, "userId" integer, status text, city text)');
+    await db.query('CREATE TABLE public.super_agent (id integer PRIMARY KEY, status text NOT NULL, "isTrainingOffice" boolean NOT NULL DEFAULT false)'); // 1791900000000-AddTrainingOffice
+    await db.query('CREATE TABLE public.agent (id integer PRIMARY KEY, "userId" integer, status text, city text, "baseLatitude" double precision, "baseLongitude" double precision, "baseSetAt" timestamptz)'); // 1791800000000-AddPickupPinAndAgentBase
     await db.query('CREATE TABLE public.parcel_collection (id integer PRIMARY KEY, "parcelId" integer, status text)');
     await db.query(`INSERT INTO public.shipment VALUES
       (1,5,'confirmed','Dar es Salaam','Dar es Salaam','not_required','not_required',NULL,'tz_seed','admin_seed','Kariakoo',NULL,NULL,'Dar es Salaam','Ilala'),
@@ -45,7 +45,9 @@ suite('Stage 3S pickup request and claim: real PostgreSQL', () => {
     await db.query(`INSERT INTO public.parcel VALUES
       (1,1,NULL,'pending'),(2,2,NULL,'pending'),(3,3,NULL,'pending'),(4,4,NULL,'pending')`);
     await db.query("INSERT INTO public.super_agent VALUES (7,'active')");
-    await db.query("INSERT INTO public.agent VALUES (9,9,'approved','Dar es Salaam'),(10,10,'approved','Dar es Salaam'),(11,11,'suspended','Dar es Salaam')");
+    // A base point is required to accept a pickup (1791800000000-AddPickupPinAndAgentBase).
+    await db.query(`INSERT INTO public.agent VALUES (9,9,'approved','Dar es Salaam',-6.8161,39.2804,now()),
+      (10,10,'approved','Dar es Salaam',-6.8161,39.2804,now()),(11,11,'suspended','Dar es Salaam',-6.8161,39.2804,now())`);
     const runner = db.createQueryRunner();
     try { await new AddParcelPickupTask1788283200000().up(runner); } finally { await runner.release(); }
     service = new PickupTasksService(db);

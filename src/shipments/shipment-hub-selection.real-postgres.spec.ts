@@ -75,6 +75,8 @@ suite('Shipment hub decision — real PostgreSQL', () => {
   };
   const dto = (extra: Record<string, unknown> = {}) => ({
     receiverName: 'Amina', receiverPhone: '0700000000', itemDescription: 'Clothes', weightKg: 2, providerId: p1.id,
+    // Required for a door pickup since 1791800000000-AddPickupPinAndAgentBase; ignored otherwise.
+    pickupLandmark: 'Geti jeusi karibu na msikiti',
     originPlace: { providerKey: 'tz_seed', providerPlaceId: REF.dar }, destinationPlace: { providerKey: 'tz_seed', providerPlaceId: REF.mwanza }, ...extra,
   });
   const mk = async (extra: Record<string, unknown> = {}) => service.createShipment(7, dto(extra) as any);

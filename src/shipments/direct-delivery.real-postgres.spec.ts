@@ -111,9 +111,19 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     await q(`INSERT INTO public.journey_leg ("journeySelectionId", sequence, type, "runId") VALUES (800, 1, 'transport', 30)`);
     await q(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "shipmentId" integer, "orderId" integer, status text NOT NULL,
       "superAgentId" integer, "trackingNumber" text, "deliveredTime" timestamp, "buyerConfirmed" boolean NOT NULL DEFAULT false)`);
+    // Columns from later migrations: isTrainingOffice (1791900000000), the Agent base point
+    // (1791800000000; every test Agent has one, it is required to accept a pickup).
     await q(`CREATE TABLE public.super_agent (id integer PRIMARY KEY, "userId" integer, status text NOT NULL, "workspaceId" integer,
-      city text, "businessName" text, phone text, address text)`);
-    await q(`CREATE TABLE public.agent (id integer PRIMARY KEY, "userId" integer, status text, city text, "fullName" text, phone text)`);
+      city text, "businessName" text, phone text, address text,
+      "isTrainingOffice" boolean NOT NULL DEFAULT false)`);
+    await q(`CREATE TABLE public.agent (id integer PRIMARY KEY, "userId" integer, status text, city text, "fullName" text, phone text,
+      "baseLatitude" double precision DEFAULT -6.8161, "baseLongitude" double precision DEFAULT 39.2804, "baseSetAt" timestamptz DEFAULT now())`);
+    // The pickup point (1791800000000) and the tables the Agent pickup lists read.
+    await q(`ALTER TABLE public.shipment ADD COLUMN "pickupPinLatitude" double precision, ADD COLUMN "pickupPinLongitude" double precision,
+      ADD COLUMN "pickupPinAccuracyM" integer, ADD COLUMN "pickupPinCapturedAt" timestamptz, ADD COLUMN "pickupLandmark" varchar(160),
+      ADD COLUMN "pickupPinWardId" integer`);
+    await q(`CREATE TABLE public.tz_ward (id integer PRIMARY KEY, name text NOT NULL)`);
+    await q(`CREATE TABLE public.activity_events (id SERIAL PRIMARY KEY, "eventType" text, "targetType" text, "targetId" integer, "actorProfileId" integer)`);
     await q(`CREATE TABLE public.parcel_collection (id integer PRIMARY KEY, "parcelId" integer, status text)`);
     await q(`CREATE TABLE public.parcel_tracking (id SERIAL PRIMARY KEY, "parcelId" integer NOT NULL, status text NOT NULL, city text, note text,
       "updatedBy" text, "handlerPhone" text, "handlerLocation" text, "handlerType" text, "createdAt" timestamp NOT NULL DEFAULT now())`);
@@ -145,6 +155,8 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     expect(job).toEqual({
       id: requested.id, servicePath: 'direct_delivery', requestedAt: expect.any(Date), pickupArea: 'Kariakoo, Ilala',
       destinationArea: 'Mbagala, Temeke', deliverTo: 'recipient', originHubName: null, itemDescription: 'Nguo za watoto', weightKg: 2,
+      // Pickup point fields (1791800000000): no pin and no origin coordinates on this shipment.
+      pickupWard: null, distance: null,
     });
     expect(JSON.stringify(available)).not.toMatch(/Baraka|255713000002|Amina|255712000001/);
     // The same city spelled with different case/spacing is the same city; another city, or a suspended Agent, sees nothing.
