@@ -29,6 +29,13 @@ import { PaymentConfirmationService } from '../payments/payment-confirmation.ser
 import { deriveOrderPaymentObligation } from '../payments/order-payment-obligation';
 import { parseAmountToMinor } from '../payments/payment-money';
 
+// Payments collected directly (at the counter or by the seller) and only recorded in
+// KenteXa, never through a KenteXa gateway. The Super Agent counter records mobile money
+// as 'mpesa' / 'airtel' (SuperAgentDashboard "Malipo"), so those are manual too.
+export const MANUAL_PAYMENT_METHODS = ['cash', 'mobile_money', 'mpesa', 'airtel', 'bank', 'other'] as const;
+export const isManualPaymentMethod = (method: string | null | undefined): boolean =>
+  (MANUAL_PAYMENT_METHODS as readonly string[]).includes((method || '').trim().toLowerCase());
+
 @Injectable()
 export class InvoicesService {
   private readonly logger = new Logger(InvoicesService.name);
@@ -729,10 +736,7 @@ export class InvoicesService {
       // real online gateway, unlike a paymentMethod like 'selcom'/
       // 'vodacom'/'mock'. Everything below reflects that distinction
       // instead of always assuming Kentexa processed the money.
-      const MANUAL_METHODS = ['cash', 'mobile_money', 'bank', 'other'];
-      const isManualPayment = MANUAL_METHODS.includes(
-        (invoice.paymentMethod || '').toLowerCase(),
-      );
+      const isManualPayment = isManualPaymentMethod(invoice.paymentMethod);
       const sellerName =
         (invoice.order?.seller as any)?.storeName ||
         invoice.order?.seller?.name ||
