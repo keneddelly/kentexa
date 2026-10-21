@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
-  quoteOfficePrice, roundUpTo100, checkChargedAmount, breakdownReceiptLines, isDarEsSalaam,
+  quoteOfficePrice, roundUpTo100, checkChargedAmount, breakdownReceiptLines, isDarEsSalaam, NoDestinationRateError,
 } from './office-price';
-import { OfficePriceService } from './office-price.service';
+import { OfficePriceService, noDestinationRateMessage } from './office-price.service';
 import { OfficeBodaFeeService, darBodaFee } from './office-boda-fee.service';
 import { DEFAULT_DAR_BODA_MATRIX } from '../boda-rates/dar-boda-zones';
 import { SuperAgentsService } from './super-agents.service';
@@ -26,7 +26,7 @@ describe('office price calculation', () => {
     expect(quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 30000 }).transport.amount).toBe(5000); // 3,000 → minimum
     expect(quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 123456 }).transport.amount).toBe(12400); // 12,345.6 → up
     const q = quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 200000 });
-    expect(q).toEqual(expect.objectContaining({ total: 20000, currency: 'TZS', ruleSource: 'office', fallback: null }));
+    expect(q).toEqual(expect.objectContaining({ total: 20000, currency: 'TZS', ruleSource: 'office' }));
     expect(q.pickup).toEqual({ status: 'not_included', amount: 0 });
     expect(q.delivery).toEqual({ status: 'not_included', amount: 0 });
   });
@@ -45,12 +45,15 @@ describe('office price calculation', () => {
     expect(quoteOfficePrice({ rule: kgRule, kgRate: { ratePerKg: 1000, minimumCharge: 4000 }, declaredValue: 500000, weightKg: 1 }).transport.amount).toBe(4000);
   });
 
-  it('by kg with no rate for that destination: uses the value rule, and says so', () => {
+  it('by kg with no rate for that destination is refused: no percent fallback', () => {
     const kgRule = { chargeMode: 'kg' as const, valuePercent: 8, valueMinimum: 6000 };
-    const q = quoteOfficePrice({ rule: kgRule, kgRate: null, declaredValue: 150000, weightKg: 4 });
-    expect(q.fallback).toBe('no_destination_rate');
-    expect(q.transport).toEqual(expect.objectContaining({ mode: 'value', percent: 8, minimum: 6000, amount: 12000 }));
-    expect(quoteOfficePrice({ rule: kgRule, kgRate: null, declaredValue: 50000 }).transport.amount).toBe(6000); // 4,000 → minimum
+    expect(() => quoteOfficePrice({ rule: kgRule, kgRate: null, declaredValue: 150000, weightKg: 4 })).toThrow(NoDestinationRateError);
+    expect(() => quoteOfficePrice({ rule: kgRule, kgRate: { ratePerKg: 0, minimumCharge: 4000 }, declaredValue: 150000, weightKg: 4 }))
+      .toThrow(NoDestinationRateError);
+    // By value is unchanged: 10% with a 5,000 minimum, with or without a kg rate.
+    expect(quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 150000 }).transport)
+      .toEqual(expect.objectContaining({ mode: 'value', percent: 10, minimum: 5000, amount: 15000 }));
+    expect(quoteOfficePrice({ rule: tenPercent, kgRate: { ratePerKg: 3000, minimumCharge: 4000 }, declaredValue: 20000, weightKg: 9 }).transport.amount).toBe(5000);
   });
 
   it('Dar es Salaam: pickup / delivery lines show the boda fee, "Bure" when it is 0; total adds up', () => {
@@ -67,8 +70,9 @@ describe('office price calculation', () => {
       const q = quoteOfficePrice({ rule, kgRate: { ratePerKg: 3000, minimumCharge: 4000 }, declaredValue: 900000, weightKg: 10, deliveryBodaFee: 4000, sameCityDar: true });
       expect(q.transport).toEqual({ amount: 0, mode: 'same_city', minimum: 0 });
       expect(q.total).toBe(4000);
-      expect(q.fallback).toBeNull();
     }
+    // Same-city in Dar never needs a kg rate.
+    expect(quoteOfficePrice({ rule: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000 }, kgRate: null, declaredValue: 1, deliveryBodaFee: 4000, sameCityDar: true }).total).toBe(4000);
     const free = quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 50000, deliveryBodaFee: 0, sameCityDar: true });
     expect(free.total).toBe(0);
     expect(breakdownReceiptLines(free).map((l) => l.value)).toEqual(['Haihusiki (not included)', 'Haihusiki (not included)', 'Bure (free)', 'TZS 0']);
@@ -124,14 +128,21 @@ describe('OfficePriceService', () => {
     expect((await service.getMyRule(me, ctx))).toEqual(expect.objectContaining({ chargeMode: 'value', valuePercent: 10, valueMinimum: 5000, source: 'default' }));
   });
 
-  it('saves the office rule; by kg finds the destination rate (any case); no rate falls back to value', async () => {
+  it('saves the office rule; by kg finds the destination rate (any case); a town with no rate is refused', async () => {
     const { service, rules } = setup({ city: 'Arusha' });
     await service.setMyRule(me, ctx, { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000 });
     expect(rules.rows[0]).toEqual(expect.objectContaining({ superAgentId: 10, chargeMode: 'kg', currency: 'TZS', country: 'TZ', updatedByUserId: 1 }));
     const byKg = await service.previewMine(me, ctx, { destinationCity: 'mwanza', declaredValue: 900000, weightKg: 2, servicePath: 'intercity' });
     expect(byKg.transport).toEqual(expect.objectContaining({ mode: 'kg', amount: 6000 }));
-    const noRate = await service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 90000, weightKg: 2, servicePath: 'intercity' });
-    expect(noRate).toEqual(expect.objectContaining({ fallback: 'no_destination_rate', total: 9000 }));
+    const noRate = service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 90000, weightKg: 2, servicePath: 'intercity' });
+    await expect(noRate).rejects.toThrow(BadRequestException);
+    await expect(service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 90000, weightKg: 2, servicePath: 'intercity' }))
+      .rejects.toThrow(noDestinationRateMessage('Mbeya'));
+    expect(noDestinationRateMessage('Mbeya')).toContain('hakuna bei ya kilo kwa Mbeya');
+    // Back to by value: 10% with a 5,000 minimum, no kg rate needed.
+    await service.setMyRule(me, ctx, { chargeMode: 'value', valuePercent: 10, valueMinimum: 5000 });
+    expect((await service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 30000, servicePath: 'intercity' })).total).toBe(5000);
+    expect((await service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 90000, servicePath: 'intercity' })).total).toBe(9000);
   });
 
   it('Dar office, agent delivery: the delivery line is the boda fee (office → recipient); van / intercity are not included', async () => {

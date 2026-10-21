@@ -2,6 +2,8 @@
  * Office price rule (owner, 2026-10-21; NEXT_STEPS section 12). Each Super Agent office
  * sets HOW it charges for transport: a percent of the goods value (mostly 10%, with a
  * minimum of 5,000 TZS) or by kg (its existing per-destination rates in shipping_rate).
+ * By kg, a town with no shipping_rate row is refused (NoDestinationRateError): the office
+ * sets a rate for that town first. There is no percent fallback (owner 2026-10-21).
  * One calculation gives pickup, transport, delivery and total, so the offer, the counter
  * preview, the receipt and the invoice all show the same numbers.
  *
@@ -43,8 +45,11 @@ export interface OfficePriceQuote {
   currency: string;
   /** 'office' = the office's own rule; 'default' = no rule saved yet (10%, minimum 5,000). */
   ruleSource: 'office' | 'default';
-  /** Set when a by-kg office has no rate for this destination and the value rule was used. */
-  fallback: 'no_destination_rate' | null;
+}
+
+/** A by-kg office has no shipping_rate row for the parcel's town. */
+export class NoDestinationRateError extends Error {
+  constructor() { super('NO_DESTINATION_RATE'); this.name = 'NoDestinationRateError'; }
 }
 
 export const roundUpTo100 = (n: number): number => {
@@ -83,17 +88,16 @@ export function quoteOfficePrice(input: QuoteInput): OfficePriceQuote {
   const weight = Math.max(0, Number(input.weightKg) || 0);
 
   let transport: OfficePriceQuote['transport'];
-  let fallback: OfficePriceQuote['fallback'] = null;
   if (input.sameCityDar) {
     transport = { amount: 0, mode: 'same_city', minimum: 0 };
-  } else if (rule.chargeMode === 'kg' && input.kgRate && Number(input.kgRate.ratePerKg) > 0) {
+  } else if (rule.chargeMode === 'kg') {
+    if (!input.kgRate || !(Number(input.kgRate.ratePerKg) > 0)) throw new NoDestinationRateError();
     const minimum = roundUpTo100(Number(input.kgRate.minimumCharge) || 0);
     transport = {
       amount: Math.max(roundUpTo100(weight * Number(input.kgRate.ratePerKg)), minimum),
       mode: 'kg', minimum, ratePerKg: Number(input.kgRate.ratePerKg), weightKg: weight,
     };
   } else {
-    if (rule.chargeMode === 'kg') fallback = 'no_destination_rate';
     const minimum = roundUpTo100(Number(rule.valueMinimum) || 0);
     const percent = Number(rule.valuePercent) || 0;
     transport = { amount: Math.max(roundUpTo100((value * percent) / 100), minimum), mode: 'value', percent, minimum };
@@ -106,7 +110,6 @@ export function quoteOfficePrice(input: QuoteInput): OfficePriceQuote {
     total: pickup.amount + transport.amount + delivery.amount,
     currency: rule.currency || DEFAULT_CURRENCY,
     ruleSource: input.rule ? 'office' : 'default',
-    fallback,
   };
 }
 
