@@ -161,7 +161,8 @@ suite('Gate 3 — one lifecycle contract, real PostgreSQL', () => {
       "recipientName" varchar, "buyerPhone" varchar, "originCity" varchar, "destinationCity" varchar,
       "weightKg" decimal(8,2), description text, "estimatedShippingFee" decimal(10,2),
       "actualShippingFee" decimal(10,2), "declaredValue" decimal(12,2),
-      "superAgentId" integer, "destinationSuperAgentId" integer, "sellerId" integer, source varchar
+      "superAgentId" integer, "destinationSuperAgentId" integer, "sellerId" integer, source varchar,
+      "waybillNumber" varchar(16) -- 1791600000000-AddParcelWaybillNumber
     )`);
 
     const args: any[] = new Array(16).fill({});
