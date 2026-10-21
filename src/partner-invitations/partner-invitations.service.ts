@@ -31,8 +31,21 @@ export const PARTNER_INVITE_MESSAGES = {
   invalidLink: 'Kiungo hiki si sahihi.',
   expiredLink: 'Kiungo hiki kimekwisha muda (kinadumu siku 7). Muombe aliyekualika akutumie kingine.',
   usedByAnother: 'Mwaliko huu tayari umetumiwa na akaunti nyingine.',
+  wrongPhone: 'Mwaliko huu ni kwa namba nyingine. Ingia kwa akaunti ya namba iliyoalikwa.',
+  trainingTestOnly: 'Ofisi ya mafunzo inaweza kualika namba za majaribio tu (namba ya ofisi, yako, au iliyoorodheshwa na KenteXa).',
   notJoinedYet: 'Mshirika huyu bado hajatuma ombi.',
 } as const;
+
+const tz = (phone: unknown) => (typeof phone === 'string' && phone.trim() ? normalizeTzPhone(phone) : '');
+
+/**
+ * Numbers a training office may invite, so it can practise without adding real partners:
+ * the office's own phone, the inviting staff member's phone, and any number in the
+ * optional PARTNER_INVITE_TEST_PHONES setting (comma-separated). Nothing else.
+ */
+export function trainingTestNumbers(office: { phone?: string | null }, user: { phone?: string | null }, list = process.env.PARTNER_INVITE_TEST_PHONES): Set<string> {
+  return new Set([tz(office?.phone), tz(user?.phone), ...(list || '').split(',').map(tz)].filter((p) => /^255\d{9}$/.test(p)));
+}
 
 export interface CreatePartnerInvitationDto {
   parcelId?: number;
@@ -99,6 +112,10 @@ export class PartnerInvitationsService {
     if (!Object.values(PartnerInvitationChannel).includes(channel)) throw new BadRequestException(PARTNER_INVITE_MESSAGES.badChannel);
     const phone = typeof dto?.phone === 'string' ? normalizeTzPhone(dto.phone) : '';
     if (!/^255\d{9}$/.test(phone)) throw new BadRequestException(PARTNER_INVITE_MESSAGES.badPhone);
+    // A training office practises on test numbers only, never real partners.
+    if (office.isTrainingOffice && !trainingTestNumbers(office, user).has(phone)) {
+      throw new ForbiddenException(PARTNER_INVITE_MESSAGES.trainingTestOnly);
+    }
     const invitedName = typeof dto?.name === 'string' && dto.name.trim() ? dto.name.trim().slice(0, 100) : null;
 
     const waybill = dto?.waybill != null ? normalizeWaybill(dto.waybill) : null;
@@ -200,12 +217,14 @@ export class PartnerInvitationsService {
   }
 
   /**
-   * Logged-in invitee accepts the link: the account is recorded on the invitation. If
-   * they already applied for the offered role it counts as joined now; otherwise the
-   * page sends them to the normal application, and joined is recorded when it is saved.
+   * Logged-in invitee accepts the link: the account is recorded on the invitation. Only
+   * the invited number can accept. If they already applied for the offered role it
+   * counts as joined now; otherwise the page sends them to the normal application, and
+   * joined is recorded when it is saved.
    */
   async accept(user: User, token: string) {
     const row = await this.rowForToken(token);
+    if (tz(user?.phone) !== row.invitedPhone) throw new ForbiddenException(PARTNER_INVITE_MESSAGES.wrongPhone);
     if (row.joinedUserId && row.joinedUserId !== user.id) throw new ConflictException(PARTNER_INVITE_MESSAGES.usedByAnother);
     const patch: Partial<PartnerInvitation> = {};
     if (!row.joinedUserId) patch.joinedUserId = user.id;

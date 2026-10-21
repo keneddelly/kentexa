@@ -125,6 +125,47 @@ describe('Partner invitations', () => {
     });
   });
 
+  describe('only the invited number can accept', () => {
+    it('another phone number is refused and does not claim the invitation', async () => {
+      const { service, invitations } = setup();
+      const { link } = await service.create({ id: 1 } as any, saCtx(1, 10), dto());
+      await expect(service.accept({ id: 77, phone: '255799999999' } as any, tokenOf(link))).rejects.toThrow('namba nyingine');
+      await expect(service.accept({ id: 78 } as any, tokenOf(link))).rejects.toBeInstanceOf(ForbiddenException); // no phone
+      expect(invitations[0].joinedUserId ?? null).toBeNull();
+      // the invited number, typed any way, still works afterwards
+      await expect(service.accept({ id: 50, phone: '0712 345 678' } as any, tokenOf(link))).resolves.toEqual(expect.objectContaining({ next: 'apply' }));
+    });
+  });
+
+  describe('training offices practise on test numbers only', () => {
+    const training = (s: ReturnType<typeof setup>) => Object.assign(s.offices[0], { isTrainingOffice: true, phone: '0711000010' });
+    const savedList = process.env.PARTNER_INVITE_TEST_PHONES;
+    afterEach(() => { if (savedList !== undefined) process.env.PARTNER_INVITE_TEST_PHONES = savedList; else delete process.env.PARTNER_INVITE_TEST_PHONES; });
+
+    it('a real partner\'s number is refused', async () => {
+      delete process.env.PARTNER_INVITE_TEST_PHONES;
+      const s = setup(); training(s);
+      await expect(s.service.create({ id: 1, phone: '255744000001' } as any, saCtx(1, 10), dto())).rejects.toThrow('namba za majaribio');
+      expect(s.invitations).toHaveLength(0);
+    });
+
+    it('the office phone, the sender\'s own phone, and listed test numbers are allowed', async () => {
+      process.env.PARTNER_INVITE_TEST_PHONES = '0755 000 111, 255755000222';
+      const s = setup(); training(s);
+      const me = { id: 1, phone: '255744000001' } as any;
+      for (const phone of ['0711000010', '0744000001', '0755000111', '255755000222']) {
+        await expect(s.service.create(me, saCtx(1, 10), dto({ phone }))).resolves.toBeTruthy();
+      }
+      expect(s.invitations).toHaveLength(4);
+    });
+
+    it('a normal office may invite any valid number', async () => {
+      delete process.env.PARTNER_INVITE_TEST_PHONES;
+      const s = setup();
+      await expect(s.service.create({ id: 1 } as any, saCtx(1, 10), dto({ phone: '0788123456' }))).resolves.toBeTruthy();
+    });
+  });
+
   describe('the parcel must belong to that office', () => {
     it('another office\'s parcel is refused', async () => {
       const { service, invitations } = setup();
@@ -150,7 +191,7 @@ describe('Partner invitations', () => {
       const { service, providers } = setup();
       const { link, invitation } = await service.create({ id: 1 } as any, saCtx(1, 10), dto());
       await service.publicView(tokenOf(link));
-      await service.accept({ id: 50 } as any, tokenOf(link));
+      await service.accept({ id: 50, phone: '255712345678' } as any, tokenOf(link));
       providers.push({ id: 7, userId: 50, status: ProviderStatus.PENDING });
       await service.onApplicationSubmitted(50, PartnerInvitationRole.TRANSPORT_PROVIDER, 7);
       await service.confirm({ id: 1 } as any, saCtx(1, 10), invitation.id);
@@ -192,7 +233,7 @@ describe('Partner invitations', () => {
       expect((await service.publicView(tokenOf(link))).status).toBe('opened');
       jest.setSystemTime(new Date(new Date('2026-10-21T08:00:00Z').getTime() + 7 * DAY));
       await expect(service.publicView(tokenOf(link))).rejects.toBeInstanceOf(GoneException);
-      await expect(service.accept({ id: 50 } as any, tokenOf(link))).rejects.toBeInstanceOf(GoneException);
+      await expect(service.accept({ id: 50, phone: '255712345678' } as any, tokenOf(link))).rejects.toBeInstanceOf(GoneException);
       expect(invitations[0].status).toBe(PartnerInvitationStatus.EXPIRED);
     });
 
@@ -209,7 +250,7 @@ describe('Partner invitations', () => {
       jest.useFakeTimers({ now: new Date('2026-10-21T08:00:00Z'), doNotFake: ['nextTick', 'setImmediate'] });
       const { service, invitations } = setup();
       const { link } = await service.create({ id: 1 } as any, saCtx(1, 10), dto());
-      await service.accept({ id: 50 } as any, tokenOf(link));
+      await service.accept({ id: 50, phone: '255712345678' } as any, tokenOf(link));
       jest.setSystemTime(new Date(Date.now() + 8 * DAY));
       expect(await service.onApplicationSubmitted(50, PartnerInvitationRole.TRANSPORT_PROVIDER, 7)).toBe(0);
       expect(invitations[0].status).toBe('expired');
@@ -228,7 +269,7 @@ describe('Partner invitations', () => {
       expect(view.waybill).toEqual({ waybillNumber: 'KTX4829103755', originCity: 'Dar es Salaam', destinationCity: 'Mwanza', weightKg: 12 });
       expect(JSON.stringify(view)).not.toMatch(/255700000999|Siri/);
 
-      expect(await service.accept({ id: 50 } as any, tokenOf(link))).toEqual(expect.objectContaining({ next: 'apply' }));
+      expect(await service.accept({ id: 50, phone: '255712345678' } as any, tokenOf(link))).toEqual(expect.objectContaining({ next: 'apply' }));
       expect(invitations[0].status).toBe('opened');
 
       // The normal application is saved elsewhere (TransportService.register), pending.
@@ -254,7 +295,7 @@ describe('Partner invitations', () => {
       const { service, invitations, offices } = setup();
       const { link } = await service.create({ id: 1 } as any, saCtx(1, 10), dto({ role: 'super_agent' }));
       offices.push({ id: 13, userId: 60, status: SuperAgentStatus.PENDING, businessName: 'Ofisi ya Juma', city: 'Mwanza', workspaceId: null });
-      expect(await service.accept({ id: 60 } as any, tokenOf(link))).toEqual(expect.objectContaining({ status: 'joined', next: 'done' }));
+      expect(await service.accept({ id: 60, phone: '+255 712 345 678' } as any, tokenOf(link))).toEqual(expect.objectContaining({ status: 'joined', next: 'done' }));
       expect(invitations[0].joinedApplicationId).toBe(13);
       expect(offices.find((o) => o.id === 13)!.status).toBe(SuperAgentStatus.PENDING);
     });
@@ -263,8 +304,8 @@ describe('Partner invitations', () => {
       const { service } = setup();
       const { link, invitation } = await service.create({ id: 1 } as any, saCtx(1, 10), dto());
       await expect(service.confirm({ id: 1 } as any, saCtx(1, 10), invitation.id)).rejects.toThrow('bado hajatuma ombi');
-      await service.accept({ id: 50 } as any, tokenOf(link));
-      await expect(service.accept({ id: 51 } as any, tokenOf(link))).rejects.toThrow('akaunti nyingine');
+      await service.accept({ id: 50, phone: '255712345678' } as any, tokenOf(link));
+      await expect(service.accept({ id: 51, phone: '0712345678' } as any, tokenOf(link))).rejects.toThrow('akaunti nyingine');
       // another office cannot confirm it
       await expect(service.confirm({ id: 3 } as any, saCtx(3, 12), invitation.id)).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -272,7 +313,7 @@ describe('Partner invitations', () => {
     it('applying for the other role does not mark the invitation joined', async () => {
       const { service, invitations } = setup();
       const { link } = await service.create({ id: 1 } as any, saCtx(1, 10), dto());
-      await service.accept({ id: 50 } as any, tokenOf(link));
+      await service.accept({ id: 50, phone: '255712345678' } as any, tokenOf(link));
       expect(await service.onApplicationSubmitted(50, PartnerInvitationRole.SUPER_AGENT, 99)).toBe(0);
       expect(invitations[0].status).toBe('opened');
     });

@@ -51,7 +51,8 @@ const PartnerInvite = ({ token, isLoggedIn, onNavigate }) => {
       else setDone(true);
     } catch (e) {
       const status = e?.response?.status;
-      setError(status === 409 ? t('partner_invite.used') : status === 410 ? t('partner_invite.expired') : t('partner_invite.failed'));
+      setError(status === 403 ? t('partner_invite.wrong_phone') : status === 409 ? t('partner_invite.used')
+        : status === 410 ? t('partner_invite.expired') : t('partner_invite.failed'));
     } finally { setBusy(false); }
   };
 

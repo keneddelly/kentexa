@@ -42,6 +42,16 @@ test('logged in: accept, then the normal application for the offered role', asyn
   expect(api.post).toHaveBeenCalledWith(`/partner-invitations/link/${TOKEN}/accept`);
 });
 
+test('an account with another phone number is told to use the invited number (403)', async () => {
+  api.get.mockResolvedValue({ data: summary });
+  api.post.mockRejectedValue({ response: { status: 403 } });
+  const onNavigate = jest.fn();
+  render(<PartnerInvite token={TOKEN} isLoggedIn onNavigate={onNavigate} />);
+  fireEvent.click(await screen.findByRole('button'));
+  expect(await screen.findByText('partner_invite.wrong_phone')).toBeTruthy();
+  expect(onNavigate).not.toHaveBeenCalled();
+});
+
 test('an expired link says so (410)', async () => {
   api.get.mockRejectedValue({ response: { status: 410 } });
   render(<PartnerInvite token={TOKEN} isLoggedIn={false} onNavigate={jest.fn()} />);
