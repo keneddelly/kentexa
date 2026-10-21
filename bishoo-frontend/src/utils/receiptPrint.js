@@ -22,6 +22,21 @@ export function paymentMethodSw(method) {
 
 const money = (n) => `TZS ${Number(n || 0).toLocaleString('en-US')}`;
 
+// The office price rule's lines (pickup, transport, delivery, total), as on the invoice.
+// "Bure" when free, "Haihusiki" when not part of this office's price.
+export function priceLinesSw(b) {
+  if (!b || typeof b !== 'object' || !b.transport) return [];
+  const line = (l) => (!l || l.status === 'not_included' ? 'Haihusiki' : l.status === 'free' ? 'Bure' : money(l.amount));
+  const lines = [
+    ['Kuchukua', line(b.pickup)],
+    ['Usafirishaji', money(b.transport.amount)],
+    ['Kufikisha', line(b.delivery)],
+    ['Jumla', money(b.total)],
+  ];
+  if (b.changed) lines.push(['Bei imebadilishwa', String(b.changeReason || '')]);
+  return lines;
+}
+
 export const RECEIPT_CSS = `
   @page { margin: 3mm; }
   * { box-sizing: border-box; }
@@ -83,6 +98,7 @@ ${row('Mpokeaji', r.receiverName)}
 ${row('Simu ya Mpokeaji', r.receiverPhone)}
 ${row('Thamani ya Mzigo', r.declaredValue ? money(r.declaredValue) : '')}
 <hr />
+${priceLinesSw(r.priceBreakdown).map(([l, v]) => row(l, v)).join('\n')}
 ${row('Njia ya Malipo', paymentMethodSw(r.paymentMethod))}
 <div class="amount">${money(r.amountPaid)}</div>
 <div class="footer">Malipo yamepokewa. Asante kwa kutumia<br />${escapeHtml(office)}</div>

@@ -8,6 +8,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import OfficePoint from '../components/OfficePoint';
+import OfficePriceRuleCard from '../components/OfficePriceRuleCard';
 
 const inp = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
@@ -207,6 +208,9 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
             </button>
           </div>
         )}
+
+        {/* ── Bei: how this office charges (value or kg) ── */}
+        {!loading && <OfficePriceRuleCard />}
 
         {/* ── Bei / Route Pricing ── */}
         {!loading && (

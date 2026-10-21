@@ -28,6 +28,7 @@ import { Payment, PaymentStatus as GatewayPaymentStatus } from '../payments/enti
 import { PaymentConfirmationService } from '../payments/payment-confirmation.service';
 import { deriveOrderPaymentObligation } from '../payments/order-payment-obligation';
 import { parseAmountToMinor } from '../payments/payment-money';
+import { breakdownReceiptLines } from '../super-agents/office-price';
 
 // Payments collected directly (at the counter or by the seller) and only recorded in
 // KenteXa, never through a KenteXa gateway. The Super Agent counter records mobile money
@@ -177,6 +178,8 @@ export class InvoicesService {
       buyerId?: number | null;
       payerName?: string | null;
       payerPhone?: string | null;
+      // Office price rule lines (pickup, transport, delivery, total) for a counter parcel.
+      breakdown?: Record<string, any> | null;
     },
     manager?: EntityManager,
   ): Promise<Invoice> {
@@ -194,6 +197,7 @@ export class InvoicesService {
       receiptNumber,
       paymentMethod: params.paymentMethod,
       agentId: params.agentId ?? null,
+      breakdown: params.breakdown ?? null,
       paidAt: new Date(),
     } as any);
     return repo.save(invoice) as unknown as Promise<Invoice>;
@@ -778,6 +782,8 @@ export class InvoicesService {
           label: 'Payment Source',
           value: isManualPayment ? 'External / Offline' : 'Kentexa Online',
         },
+        // Super Agent counter parcels: pickup, transport, delivery and total.
+        ...breakdownReceiptLines((invoice as any).breakdown),
       ];
 
       let y = 195;
@@ -792,7 +798,8 @@ export class InvoicesService {
           .font('Helvetica-Bold')
           .text(item.value, 200, y);
         doc.font('Helvetica');
-        y += 20;
+        // A5 page: tighter rows when the price lines are added, so the footer still fits.
+        y += details.length > 10 ? 16 : 20;
       });
 
       doc

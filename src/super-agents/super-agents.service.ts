@@ -4,7 +4,10 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
+import { OfficePriceService } from './office-price.service';
+import { checkChargedAmount } from './office-price';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
 import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from 'crypto';
@@ -214,6 +217,9 @@ export class SuperAgentsService {
     private moneyRouting: MoneyRoutingService,
     private orderRelease: OrderReleaseService,
     private paymentEvidence: PaymentEvidenceService,
+    // The office price rule (pickup, transport, delivery, total) for the counter.
+    // Optional only so hand-built test instances keep constructing.
+    @Optional() private officePrices?: OfficePriceService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -673,6 +679,8 @@ export class SuperAgentsService {
       shippingFeeCollected: number;
       paymentMethod?: string; // cash | mpesa | airtel
       notes?: string;
+      // Required only when shippingFeeCollected differs from the office price rule's total.
+      priceChangeReason?: string;
       requestKey: string; // stable across lost-response retries, new for each parcel
     },
     roleContext?: RoleContext,
@@ -711,6 +719,7 @@ export class SuperAgentsService {
       weightKg: dto.weightKg ?? null, parcelSize: dto.parcelSize ?? null,
       declaredValue, shippingFeeCollected: Number(dto.shippingFeeCollected),
       paymentMethod: dto.paymentMethod ?? null, notes: dto.notes ?? null,
+      priceChangeReason: dto.priceChangeReason ?? null,
     })).digest('hex');
 
     const originCity = superAgent.city;
@@ -719,6 +728,28 @@ export class SuperAgentsService {
     const servicePath = dto.servicePath || 'intercity';
     if (!['local_agent', 'van', 'intercity'].includes(servicePath))
       throw new BadRequestException('Invalid parcel service path');
+
+    // Office price rule: the same quote the counter preview showed. The agent may charge
+    // a different amount, but only with a saved reason. The breakdown goes on the invoice
+    // and the receipt (pickup, transport, delivery, total).
+    let priceBreakdown: Record<string, any> | null = null;
+    if (this.officePrices) {
+      const quote = await this.officePrices.quoteFor(superAgent, {
+        destinationCity, declaredValue, weightKg: dto.weightKg ?? null, servicePath, deliveryAddress: dto.deliveryAddress,
+      });
+      let check: { changed: boolean; reason: string | null };
+      try {
+        check = checkChargedAmount(quote, Number(dto.shippingFeeCollected), dto.priceChangeReason);
+      } catch (e: any) {
+        if (e?.message === 'REASON_REQUIRED') {
+          throw new BadRequestException(
+            `Ada uliyoweka ni tofauti na bei ya ofisi (TZS ${quote.total.toLocaleString('en-US')}). Andika sababu ya kubadilisha bei.`,
+          );
+        }
+        throw new BadRequestException('Ada uliyokusanya si sahihi');
+      }
+      priceBreakdown = { ...quote, charged: Number(dto.shippingFeeCollected), changed: check.changed, changeReason: check.reason };
+    }
 
     const outcome = await this.dataSource.transaction(async (manager) => {
         // Serialize free-order allowance and dashboard totals for this hub.
@@ -974,6 +1005,7 @@ export class SuperAgentsService {
         agentId: superAgent.id,
         payerName: dto.senderName,
         payerPhone: dto.senderPhone,
+        breakdown: priceBreakdown,
       },
       manager,
     );
@@ -990,7 +1022,7 @@ export class SuperAgentsService {
         receiptNumber: invoice.receiptNumber, parcelReference: customerNumber, orderReference: trackingNumber,
         senderName: dto.senderName, senderPhone: dto.senderPhone,
         receiverName: dto.recipientName, receiverPhone: dto.recipientPhone,
-        declaredValue, amountPaid: dto.shippingFeeCollected,
+        declaredValue, amountPaid: dto.shippingFeeCollected, priceBreakdown,
         paymentMethod: dto.paymentMethod || 'cash', superAgentName: superAgent.businessName,
         superAgentCity: superAgent.city, status: 'paid', paidAt: invoice.paidAt,
         verifiedByKentexa: true,

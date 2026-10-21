@@ -1940,6 +1940,24 @@
     "in_progress_stat": "En Cours",
     "active_city_stat": "Ville Active"
   },
+  "office_price_rule": {
+    "title": "Comment ce bureau facture",
+    "desc": "Le prix du transport pour chaque colis. Le comptoir, les reçus et les factures l'utilisent.",
+    "default_note": "Pas encore défini : 10 % de la valeur, minimum 5 000 TZS.",
+    "by_value": "Selon la valeur",
+    "by_value_hint": "Un pourcentage de la valeur des marchandises",
+    "by_kg": "Au kilo",
+    "by_kg_hint": "Vos tarifs au kilo par ville (ci-dessous)",
+    "percent": "Pourcentage de la valeur (%)",
+    "minimum": "Minimum (TZS)",
+    "value_note": "Chaque montant est arrondi aux 100 TZS supérieurs.",
+    "kg_fallback_note": "Une ville sans tarif au kilo utilise le pourcentage et le minimum ci-dessus. Arrondi aux 100 TZS supérieurs.",
+    "dar_note": "Dar es Salaam : le ramassage ou la livraison par un agent est le tarif boda boda.",
+    "save": "Enregistrer la tarification",
+    "saving": "Enregistrement…",
+    "saved": "✅ Enregistré",
+    "save_failed": "Échec de l'enregistrement"
+  },
   "partner_invite": {
     "loading": "Chargement de l'invitation…",
     "invalid_title": "Invitation indisponible",

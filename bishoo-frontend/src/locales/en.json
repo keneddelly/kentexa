@@ -1944,6 +1944,24 @@
     "in_progress_stat": "In Progress",
     "active_city_stat": "Active City"
   },
+  "office_price_rule": {
+    "title": "How this office charges",
+    "desc": "The transport price for each parcel. The counter, receipts and invoices use it.",
+    "default_note": "Not set yet: 10% of the value is used, minimum TZS 5,000.",
+    "by_value": "By value",
+    "by_value_hint": "A percent of the goods value",
+    "by_kg": "By kg",
+    "by_kg_hint": "Your per-kg rates for each town (below)",
+    "percent": "Percent of value (%)",
+    "minimum": "Minimum (TZS)",
+    "value_note": "Every amount is rounded up to the nearest TZS 100.",
+    "kg_fallback_note": "A town with no per-kg rate uses the percent and minimum above. Every amount is rounded up to TZS 100.",
+    "dar_note": "Dar es Salaam: an agent pickup or delivery is the boda boda fee.",
+    "save": "Save how you charge",
+    "saving": "Saving…",
+    "saved": "✅ Saved",
+    "save_failed": "Could not save"
+  },
   "partner_invite": {
     "loading": "Loading invitation…",
     "invalid_title": "Invitation not available",

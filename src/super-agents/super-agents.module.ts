@@ -33,6 +33,10 @@ import { IdentityModule } from '../identity/identity.module';
 import { ActivityModule } from '../activity/activity.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { LocationIntelligenceModule } from '../location-intelligence/location-intelligence.module';
+import { DailyBatchesModule } from '../daily-batches/daily-batches.module';
+import { SuperAgentPriceRule } from './entities/super-agent-price-rule.entity';
+import { OfficePriceService } from './office-price.service';
+import { OfficePriceController } from './office-price.controller';
 
 @Module({
   imports: [
@@ -59,6 +63,7 @@ import { LocationIntelligenceModule } from '../location-intelligence/location-in
       Payment,
       SellerProfile,
       Sale,
+      SuperAgentPriceRule,
     ]),
     AgentsModule,
     PartnerInvitationsModule,
@@ -73,9 +78,10 @@ import { LocationIntelligenceModule } from '../location-intelligence/location-in
     WalletModule,
     PaymentCoreModule,
     LocationIntelligenceModule,
+    DailyBatchesModule, // the Dar boda boda fee for the office price rule
   ],
-  controllers: [SuperAgentsController],
-  providers: [SuperAgentsService],
-  exports: [SuperAgentsService],
+  controllers: [SuperAgentsController, OfficePriceController],
+  providers: [SuperAgentsService, OfficePriceService],
+  exports: [SuperAgentsService, OfficePriceService],
 })
 export class SuperAgentsModule {}

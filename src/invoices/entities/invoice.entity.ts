@@ -83,6 +83,12 @@ export class Invoice {
   @Column({ type: 'timestamp', nullable: true })
   dueDate: Date | null;
 
+  // Super Agent counter parcels: the office price rule's lines, frozen at payment time
+  // (pickup, transport, delivery, total, and the charged amount / change reason if the
+  // agent changed it). NULL for every other invoice. Migration 1792200000000.
+  @Column({ type: 'jsonb', nullable: true })
+  breakdown: Record<string, any> | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

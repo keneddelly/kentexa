@@ -25,7 +25,7 @@
  * 🚐 VAN YA LEO (Dar es Salaam only):
  *   Daily batch for same-city deliveries
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
@@ -44,6 +44,7 @@ import {
 import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import PartnerInvitePanel from '../components/PartnerInvitePanel';
+import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/OfficePricePreview';
 
 const pendingWalkInRequests = new Map();
 
@@ -283,7 +284,19 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     senderName: '', senderPhone: '', recipientName: '', recipientPhone: '',
     destinationCity: '', deliveryAddress: '', description: '',
     weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '',
+    priceChangeReason: '',
   });
+  // Office price rule preview (pickup, transport, delivery, total) for the walk-in.
+  const [walkQuote, setWalkQuote] = useState(null);
+  const lastWalkQuoteTotal = useRef(null);
+  const handleWalkQuote = (q) => {
+    const previous = lastWalkQuoteTotal.current;
+    lastWalkQuoteTotal.current = q ? q.total : null;
+    setWalkQuote(q);
+    // Fill the fee from the office price while the agent has not typed their own.
+    if (q) setWalkForm(p => (p.shippingFeeCollected === '' || Number(p.shippingFeeCollected) === previous)
+      ? { ...p, shippingFeeCollected: String(q.total) } : p);
+  };
   const [walkRoute, setWalkRoute]       = useState(null);
   const [walkDestText, setWalkDestText] = useState('');
   const [walkPriceEstimate, setWalkPriceEstimate] = useState(null);
@@ -602,6 +615,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     if (walkServicePath !== 'local_agent' && walkHubs.length > 1 && !walkDestinationHubId) {
       setError('Chagua hub ya mpokeaji'); return;
     }
+    if (feeDiffers(walkQuote, walkForm.shippingFeeCollected) && (walkForm.priceChangeReason || '').trim().length < REASON_MIN) {
+      setError('Ada ni tofauti na bei ya ofisi. Andika sababu ya kubadilisha bei.'); return;
+    }
     try {
       setActionLoading(true); setError('');
       const payload = {
@@ -612,6 +628,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         weightKg:   walkForm.weightKg ? Number(walkForm.weightKg) : undefined,
         declaredValue: Number(walkForm.declaredValue),
         shippingFeeCollected: Number(walkForm.shippingFeeCollected || 0),
+        priceChangeReason: feeDiffers(walkQuote, walkForm.shippingFeeCollected) ? walkForm.priceChangeReason.trim() : undefined,
       };
       // Reuse the request identity after a lost response or page reload.
       // A changed form starts a different request; the backend also compares
@@ -643,7 +660,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const resetWalk = () => {
     setWalkForm({ senderName: '', senderPhone: '', recipientName: '', recipientPhone: '',
       destinationCity: '', deliveryAddress: '', description: '',
-      weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
+      weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '', priceChangeReason: '' });
+    setWalkQuote(null); lastWalkQuoteTotal.current = null;
     setWalkRoute(null); setWalkResult(null); clearLastWalkResult(profile?.id);
     setWalkHubs([]); setWalkDestinationHubId(''); setWalkServicePath('local_agent'); setWalkRegion(null); setWalkPathOverride(false);
     setPokeaMode('list'); fetchAll();
@@ -1380,7 +1398,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
                     {/* Route info */}
                     {/* Live price estimate */}
-                    {walkPriceEstimate && (
+                    {/* The platform route estimate only when the office's own price is not available. */}
+                    {walkPriceEstimate && !walkQuote && (
                       <div style={{ borderRadius: 10, padding: '10px 14px', marginBottom: 10,
                         backgroundColor: walkPriceEstimate.confidence === 'exact' ? '#f0fdf4' : '#fff7ed',
                         border: `1px solid ${walkPriceEstimate.confidence === 'exact' ? '#86efac' : '#fed7aa'}` }}>
@@ -1471,6 +1490,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         </select>
                       </div>
                     </div>
+
+                    <OfficePricePreview
+                      input={{ declaredValue: walkForm.declaredValue, weightKg: walkForm.weightKg, destinationCity: walkForm.destinationCity,
+                        servicePath: walkServicePath, deliveryAddress: walkForm.deliveryAddress }}
+                      fee={walkForm.shippingFeeCollected} reason={walkForm.priceChangeReason}
+                      onQuote={handleWalkQuote}
+                      onUseTotal={(total) => setWalkForm(p => ({ ...p, shippingFeeCollected: String(total), priceChangeReason: '' }))}
+                      onReasonChange={(v) => setWalkForm(p => ({ ...p, priceChangeReason: v }))} />
 
                     <button data-tour="sa-walkin-submit" onClick={handleWalkSubmit} disabled={actionLoading}
                       style={{ width: '100%', backgroundColor: actionLoading ? '#94a3b8' : '#16a34a',
