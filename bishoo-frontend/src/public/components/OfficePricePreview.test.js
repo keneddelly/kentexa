@@ -44,6 +44,16 @@ test('a different fee asks for a reason; the same fee does not', async () => {
   expect(feeDiffers(darQuote, '')).toBe(false);
 });
 
+test('same-city in Dar: the transport line is "Haihusiki", the total is the boda fee', async () => {
+  const sameCity = { ...darQuote, transport: { amount: 0, mode: 'same_city', minimum: 0 }, delivery: { status: 'charged', amount: 6000, source: 'boda' }, total: 6000 };
+  api.post.mockResolvedValue({ data: sameCity });
+  render(<OfficePricePreview input={input} fee="6000" onQuote={() => {}} />);
+  await act(async () => { jest.advanceTimersByTime(450); });
+  expect(await screen.findByText('Ndani ya Dar es Salaam: ada ya boda boda tu', { exact: false })).toBeTruthy();
+  expect(screen.getAllByText('Haihusiki').length).toBe(2); // pickup and transport
+  expect(priceLinesSw(sameCity)).toEqual([['Kuchukua', 'Haihusiki'], ['Usafirishaji', 'Haihusiki'], ['Kufikisha', 'TZS 6,000'], ['Jumla', 'TZS 6,000']]);
+});
+
 test('no goods value yet: no request, nothing shown', () => {
   render(<OfficePricePreview input={{ ...input, declaredValue: '' }} fee="" onQuote={() => {}} />);
   act(() => { jest.advanceTimersByTime(450); });

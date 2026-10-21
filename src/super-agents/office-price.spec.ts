@@ -60,6 +60,18 @@ describe('office price calculation', () => {
     expect(lines.map((l) => l.value)).toEqual(['Bure (free)', 'TZS 10,000', 'TZS 6,000', 'TZS 16,000']);
   });
 
+  it('same-city in Dar pays only the boda fee: no percent, no minimum, even with a by-kg rule', () => {
+    for (const rule of [tenPercent, { chargeMode: 'kg' as const, valuePercent: 10, valueMinimum: 5000 }, null]) {
+      const q = quoteOfficePrice({ rule, kgRate: { ratePerKg: 3000, minimumCharge: 4000 }, declaredValue: 900000, weightKg: 10, deliveryBodaFee: 4000, sameCityDar: true });
+      expect(q.transport).toEqual({ amount: 0, mode: 'same_city', minimum: 0 });
+      expect(q.total).toBe(4000);
+      expect(q.fallback).toBeNull();
+    }
+    const free = quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 50000, deliveryBodaFee: 0, sameCityDar: true });
+    expect(free.total).toBe(0);
+    expect(breakdownReceiptLines(free).map((l) => l.value)).toEqual(['Haihusiki (not included)', 'Haihusiki (not included)', 'Bure (free)', 'TZS 0']);
+  });
+
   it('the agent may change the price only with a reason', () => {
     expect(checkChargedAmount({ total: 16000 }, 16000, undefined)).toEqual({ changed: false, reason: null });
     expect(() => checkChargedAmount({ total: 16000 }, 15000, '')).toThrow('REASON_REQUIRED');
@@ -126,7 +138,13 @@ describe('OfficePriceService', () => {
     expect(boda.bodaFeeBetween).toHaveBeenCalledWith('Kariakoo, Ilala', 'Sinza, Kinondoni');
     expect(agent.delivery).toEqual({ status: 'charged', amount: 6000, source: 'boda' });
     expect(agent.pickup.status).toBe('not_included'); // the sender brought it to the counter
-    expect(agent.total).toBe(16000);
+    // Same-city in Dar: only the boda fee, no 10% and no 5,000 minimum.
+    expect(agent.transport).toEqual(expect.objectContaining({ mode: 'same_city', amount: 0 }));
+    expect(agent.total).toBe(6000);
+    // Intercity from the same Dar office: the office rule applies (10% of 100,000).
+    const intercity = await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'intercity', destinationCity: 'Mwanza' });
+    expect(intercity.transport).toEqual(expect.objectContaining({ mode: 'value', amount: 10000 }));
+    expect(intercity.total).toBe(10000);
     boda.bodaFeeBetween.mockResolvedValueOnce(0);
     expect((await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'local_agent', deliveryAddress: 'Kariakoo' })).delivery.status).toBe('free');
     boda.bodaFeeBetween.mockClear();

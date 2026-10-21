@@ -112,7 +112,9 @@ export class OfficePriceService {
     const pickupBodaFee = inDar && req.pickupAddress
       ? await this.boda.bodaFeeBetween(req.pickupAddress, officePlace) : null;
 
-    return quoteOfficePrice({ rule, kgRate, declaredValue, weightKg: req.weightKg ?? null, pickupBodaFee, deliveryBodaFee });
+    // Same-city parcel in Dar (agent delivery from a Dar office): only the boda fee.
+    const sameCityDar = inDar && req.servicePath === 'local_agent';
+    return quoteOfficePrice({ rule, kgRate, declaredValue, weightKg: req.weightKg ?? null, pickupBodaFee, deliveryBodaFee, sameCityDar });
   }
 
   async previewMine(user: User, roleContext: RoleContext | undefined, req: OfficeQuoteRequest) {

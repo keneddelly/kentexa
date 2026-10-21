@@ -9,6 +9,9 @@
  * boda boda fee (the admin boda rate table, zone to zone); 0 shows as "Bure". Elsewhere
  * they are "not included" here: any agent or van fee is charged as today, separately.
  *
+ * Same-city parcels in Dar es Salaam (agent delivery from a Dar office) pay ONLY the boda
+ * boda fee: no transport line, no percent, no minimum (owner 2026-10-21).
+ *
  * Every amount is rounded UP to the nearest 100 TZS. Pure: no database, no clock.
  */
 
@@ -33,7 +36,8 @@ export interface PriceLine { status: LineStatus; amount: number; source?: 'boda'
 
 export interface OfficePriceQuote {
   pickup: PriceLine;
-  transport: { amount: number; mode: ChargeMode; percent?: number; minimum: number; ratePerKg?: number; weightKg?: number };
+  /** mode 'same_city': a same-city parcel in Dar, which pays only the boda fee (amount 0). */
+  transport: { amount: number; mode: ChargeMode | 'same_city'; percent?: number; minimum: number; ratePerKg?: number; weightKg?: number };
   delivery: PriceLine;
   total: number;
   currency: string;
@@ -69,6 +73,8 @@ export interface QuoteInput {
   /** Dar boda fee for an agent pickup / door delivery; null/undefined = not included. */
   pickupBodaFee?: number | null;
   deliveryBodaFee?: number | null;
+  /** Same-city parcel in Dar es Salaam: only the boda fee, no transport charge. */
+  sameCityDar?: boolean;
 }
 
 export function quoteOfficePrice(input: QuoteInput): OfficePriceQuote {
@@ -78,7 +84,9 @@ export function quoteOfficePrice(input: QuoteInput): OfficePriceQuote {
 
   let transport: OfficePriceQuote['transport'];
   let fallback: OfficePriceQuote['fallback'] = null;
-  if (rule.chargeMode === 'kg' && input.kgRate && Number(input.kgRate.ratePerKg) > 0) {
+  if (input.sameCityDar) {
+    transport = { amount: 0, mode: 'same_city', minimum: 0 };
+  } else if (rule.chargeMode === 'kg' && input.kgRate && Number(input.kgRate.ratePerKg) > 0) {
     const minimum = roundUpTo100(Number(input.kgRate.minimumCharge) || 0);
     transport = {
       amount: Math.max(roundUpTo100(weight * Number(input.kgRate.ratePerKg)), minimum),
@@ -128,7 +136,7 @@ export function breakdownReceiptLines(b: any): { label: string; value: string }[
   const currency = b.currency || DEFAULT_CURRENCY;
   const lines = [
     { label: 'Kuchukua (pickup)', value: lineText(b.pickup, currency) },
-    { label: 'Usafirishaji (transport)', value: tzs(b.transport.amount, currency) },
+    { label: 'Usafirishaji (transport)', value: b.transport.mode === 'same_city' ? 'Haihusiki (not included)' : tzs(b.transport.amount, currency) },
     { label: 'Kufikisha (delivery)', value: lineText(b.delivery, currency) },
     { label: 'Jumla (total)', value: tzs(b.total, currency) },
   ];

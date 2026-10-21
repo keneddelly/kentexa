@@ -29,7 +29,7 @@ export function priceLinesSw(b) {
   const line = (l) => (!l || l.status === 'not_included' ? 'Haihusiki' : l.status === 'free' ? 'Bure' : money(l.amount));
   const lines = [
     ['Kuchukua', line(b.pickup)],
-    ['Usafirishaji', money(b.transport.amount)],
+    ['Usafirishaji', b.transport.mode === 'same_city' ? 'Haihusiki' : money(b.transport.amount)],
     ['Kufikisha', line(b.delivery)],
     ['Jumla', money(b.total)],
   ];

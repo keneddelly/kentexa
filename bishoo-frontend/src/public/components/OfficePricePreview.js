@@ -49,7 +49,9 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
       {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c' }}>{error}</div>}
       {quote && (
         <>
-          {[['Kuchukua', lineText(quote.pickup)], ['Usafirishaji', money(quote.transport?.amount)], ['Kufikisha', lineText(quote.delivery)]].map(([l, v]) => (
+          {[['Kuchukua', lineText(quote.pickup)],
+            ['Usafirishaji', quote.transport?.mode === 'same_city' ? 'Haihusiki' : money(quote.transport?.amount)],
+            ['Kufikisha', lineText(quote.delivery)]].map(([l, v]) => (
             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', color: '#334155' }}>
               <span>{l}</span><span style={{ fontWeight: 700 }}>{v}</span>
             </div>
@@ -58,9 +60,11 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
             <span>Jumla</span><span>{money(quote.total)}</span>
           </div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-            {quote.transport?.mode === 'kg'
-              ? `Kwa kilo: ${money(quote.transport.ratePerKg)}/kg, kiwango cha chini ${money(quote.transport.minimum)}`
-              : `${quote.transport?.percent}% ya thamani, kiwango cha chini ${money(quote.transport?.minimum)}`}
+            {quote.transport?.mode === 'same_city'
+              ? 'Ndani ya Dar es Salaam: ada ya boda boda tu'
+              : quote.transport?.mode === 'kg'
+                ? `Kwa kilo: ${money(quote.transport.ratePerKg)}/kg, kiwango cha chini ${money(quote.transport.minimum)}`
+                : `${quote.transport?.percent}% ya thamani, kiwango cha chini ${money(quote.transport?.minimum)}`}
             {quote.fallback === 'no_destination_rate' && ' · Hakuna bei ya kilo kwa mji huu, imetumika bei ya thamani'}
             {quote.ruleSource === 'default' && ' · Bei ya kawaida (weka yako kwenye Bei)'}
           </div>
