@@ -1723,6 +1723,16 @@
     "in_progress_stat": "Zinaendelea",
     "active_city_stat": "Mji wa kazi"
   },
+  "product_trail": {
+    "title": "🛍️ Bidhaa kwa ajili yako",
+    "store": "Duka",
+    "ad": "Tangazo",
+    "cod": "💵 COD",
+    "free_delivery": "Utoaji bure",
+    "delivery": "Usafirishaji",
+    "add_to_cart": "Weka kwenye kikapu",
+    "view": "Tazama"
+  },
   "home_feed": {
     "user_fallback": "Mtumiaji",
     "just_now": "Just now",

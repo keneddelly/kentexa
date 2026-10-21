@@ -1944,6 +1944,16 @@
     "in_progress_stat": "In Progress",
     "active_city_stat": "Active City"
   },
+  "product_trail": {
+    "title": "🛍️ Products for you",
+    "store": "Store",
+    "ad": "Ad",
+    "cod": "💵 COD",
+    "free_delivery": "Free delivery",
+    "delivery": "Delivery",
+    "add_to_cart": "Add to cart",
+    "view": "View"
+  },
   "home_feed": {
     "user_fallback": "User",
     "just_now": "Just now",

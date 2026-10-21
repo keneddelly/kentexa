@@ -12,8 +12,11 @@
  *  Comments go to POST /comments (entity-based)
  */
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import ProductTrail from '../components/ProductTrail';
+import { slotAfterPost, buildTrailPool, createTrailRotation } from '../utils/productTrail';
+import { useCart } from '../../context/CartContext';
 import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import AiSearchBar from '../components/AiSearchBar';
@@ -1632,6 +1635,23 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const [moments,     setMoments]     = useState([]);
   const [viewingMoment,    setViewingMoment]    = useState(null);
   const [pendingParcels,   setPendingParcels]   = useState([]);
+  const [trailPool,        setTrailPool]        = useState([]);
+  const { addToCart } = useCart() || {};
+
+  // Product trail: every listing (products + active classifieds), no approval step.
+  useEffect(() => {
+    Promise.allSettled([api.get('/products'), api.get('/classifieds')]).then(([p, c]) => {
+      setTrailPool(buildTrailPool(
+        p.status === 'fulfilled' ? p.value.data : [],
+        c.status === 'fulfilled' ? c.value.data : [],
+      ));
+    });
+  }, []);
+  const trailRotation = useMemo(() => {
+    let storage = null;
+    try { storage = window.localStorage; } catch { /* blocked storage: rotation still works per session */ }
+    return createTrailRotation(trailPool, { userKey: currentUser?.id, storage });
+  }, [trailPool, currentUser?.id]);
 
   const loadPosts = useCallback(async (f, p = 1, append = false) => {
     if (p === 1) setLoading(true); else setLoadingMore(true);
@@ -1963,23 +1983,18 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       ) : (
         <>
           {posts.map((post, i) => {
-            const railTypes = ['product', 'classified', 'service', 'store', 'transport'];
-            // Every 4th post for a normal-sized feed — but also guarantee at
-            // least one rail shows even in a thin feed (e.g. a fresh launch
-            // with limited posts seeded yet), where "every 4th" might never
-            // be reached at all.
-            const isLastPost = i === posts.length - 1;
-            const thinFeed = posts.length < 4 && posts.length > 0;
-            const showRailAfter = (i + 1) % 4 === 0 || (thinFeed && isLastPost);
-            const railIndex = Math.floor(i / 4) % railTypes.length;
-            const railType  = railTypes[railIndex];
-            const railItems = trending && {
-              product:    trending.topProducts,
+            // One slot after every 2 posts, never at the start or end: product trail
+            // after posts 2, 6, 10…, the discovery rail after 4, 8, 12…
+            // (see utils/productTrail.js).
+            const slot = slotAfterPost(i, posts.length);
+            const railType  = slot?.kind === 'discovery_rail' ? slot.railType : null;
+            const railItems = railType && trending && {
               classified: trending.topClassifieds,
               service:    trending.topServices,
               store:      trending.topBusinesses?.map(b => b.business).filter(Boolean),
               transport:  trending.topRoutes,
             }[railType];
+            const trail = slot?.kind === 'product_trail' ? trailRotation.trailAt(slot.trailIndex) : null;
 
             // Individual route posts only get the full-width transport card
             // on the dedicated Transport tab (a deliberate browse action).
@@ -2003,7 +2018,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                       saved ? [...prev, id] : prev.filter(x => x !== id)
                     )} />
                 )}
-                {showRailAfter && (
+                {trail && (
+                  <ProductTrail trail={trail} onNavigate={onNavigate}
+                    onAddToCart={addToCart} onSeen={trailRotation.markSeen} />
+                )}
+                {railType && (
                   <DiscoveryRail type={railType} items={railItems} onNavigate={onNavigate} />
                 )}
               </React.Fragment>

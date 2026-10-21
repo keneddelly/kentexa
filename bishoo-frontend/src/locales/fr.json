@@ -1940,6 +1940,16 @@
     "in_progress_stat": "En Cours",
     "active_city_stat": "Ville Active"
   },
+  "product_trail": {
+    "title": "🛍️ Produits pour vous",
+    "store": "Boutique",
+    "ad": "Annonce",
+    "cod": "💵 COD",
+    "free_delivery": "Livraison gratuite",
+    "delivery": "Livraison",
+    "add_to_cart": "Ajouter au panier",
+    "view": "Voir"
+  },
   "home_feed": {
     "user_fallback": "Utilisateur",
     "just_now": "À l'instant",
