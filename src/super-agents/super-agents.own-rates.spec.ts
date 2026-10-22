@@ -39,3 +39,36 @@ describe('GET /super-agents/rates/:city: the calling office\'s own rates only', 
     expect(guards).toContain(JwtAuthGuard);
   });
 });
+
+// Settings now picks the destination from the region list; an old free-text row
+// (e.g. "Mwnza") re-picked there is sent with its id and fixed in place.
+describe('POST /super-agents/rates: a row sent with its id is updated in place', () => {
+  const mine = { id: 10, city: 'Dar es Salaam', status: 'active' };
+  const make = () => {
+    const rows: any[] = [
+      { id: 2, superAgent: { id: 10 }, originCity: 'Dar es Salaam', destinationCity: 'Mwnza', ratePerKg: 2000, minimumCharge: 0, estimatedDays: 3 },
+      { id: 7, superAgent: { id: 11 }, originCity: 'Dar es Salaam', destinationCity: 'Mbeya', ratePerKg: 2500, minimumCharge: 0, estimatedDays: 3 },
+    ];
+    const rateRepo = {
+      findOne: jest.fn(async ({ where }: any) => rows.find((r) => Object.entries(where).every(([k, v]: any) =>
+        k === 'superAgent' ? r.superAgent.id === v.id : r[k] === v)) ?? null),
+      save: jest.fn(async (r: any) => { if (!rows.includes(r)) rows.push({ id: rows.length + 100, ...r }); return r; }),
+      create: jest.fn((r: any) => ({ ...r, superAgent: { id: r.superAgent.id } })),
+    };
+    const call = (rates: any[]) => SuperAgentsService.prototype.setShippingRates.call({ getMyProfile: async () => mine, rateRepo }, { id: 1 } as any, rates);
+    return { rows, call };
+  };
+
+  it('re-picking an old free-text destination fixes that row, with no duplicate and nothing deleted', async () => {
+    const { rows, call } = make();
+    await call([{ id: 2, destinationCity: 'Mwanza', ratePerKg: 2000, minimumCharge: 0, estimatedDays: 3 }]);
+    expect(rows.filter((r) => r.superAgent.id === 10)).toEqual([expect.objectContaining({ id: 2, destinationCity: 'Mwanza' })]);
+  });
+
+  it('another office\'s id is ignored: a new row of my own is made instead', async () => {
+    const { rows, call } = make();
+    await call([{ id: 7, destinationCity: 'Arusha', ratePerKg: 1800, minimumCharge: 0, estimatedDays: 2 }]);
+    expect(rows.find((r) => r.id === 7)).toEqual(expect.objectContaining({ destinationCity: 'Mbeya', ratePerKg: 2500 }));
+    expect(rows.filter((r) => r.superAgent.id === 10).map((r) => r.destinationCity).sort()).toEqual(['Arusha', 'Mwnza']);
+  });
+});

@@ -5343,6 +5343,8 @@
     "rates_desc": "Tarifs appliqués depuis {{city}} vers chaque destination — visibles par les vendeurs qui estiment les frais d'expédition et utilisés par le système Kentexa.",
     "rate_destination_label": "Destination",
     "rate_destination_placeholder": "ex. Mwanza",
+    "rate_destination_pick": "Choisir une région",
+    "rate_destination_unknown": "« {{city}} » n’est pas dans la liste des régions, aucun colis ne correspond. Choisissez de nouveau la région ; la ligne est gardée d’ici là.",
     "rate_per_kg_label": "Prix par kg (TZS)",
     "rate_minimum_label": "Frais minimum (TZS)",
     "rate_days_label": "Jours estimés",

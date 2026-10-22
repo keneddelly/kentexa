@@ -522,6 +522,7 @@ export class SuperAgentsService {
   async setShippingRates(
     user: User,
     rates: {
+      id?: number;
       destinationCity: string;
       ratePerKg: number;
       minimumCharge: number;
@@ -539,14 +540,22 @@ export class SuperAgentsService {
       // Agents ship to real districts/wards, not only regional capitals, so
       // this only requires a non-empty destination now.
       if (!rate.destinationCity?.trim()) continue;
-      const existing = await this.rateRepo.findOne({
-        where: {
-          superAgent: { id: agent.id },
-          originCity: agent.city,
-          destinationCity: rate.destinationCity,
-        },
-      });
+      // A row sent with its id is that office row (e.g. an old free-text
+      // destination re-picked from the region list): it is updated in place,
+      // destination included, never duplicated. Another office's id is ignored.
+      const existing =
+        (rate.id != null
+          ? await this.rateRepo.findOne({ where: { id: rate.id, superAgent: { id: agent.id }, originCity: agent.city } })
+          : null) ??
+        (await this.rateRepo.findOne({
+          where: {
+            superAgent: { id: agent.id },
+            originCity: agent.city,
+            destinationCity: rate.destinationCity,
+          },
+        }));
       if (existing) {
+        existing.destinationCity = rate.destinationCity;
         existing.ratePerKg = rate.ratePerKg;
         existing.minimumCharge = rate.minimumCharge;
         existing.estimatedDays = rate.estimatedDays;
