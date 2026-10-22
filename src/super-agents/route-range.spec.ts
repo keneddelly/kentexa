@@ -115,9 +115,10 @@ describe('counter: manual price', () => {
     expect(checkChargedAmount(quote, quote.total - 1000, '  Punguzo la mteja  ')).toEqual({ changed: true, reason: 'Punguzo la mteja' });
   });
 
-  it('a by-kg office with no rate for the town still gets a suggestion, so the counter is never blocked', () => {
+  it('a by-kg office with no rate for the town: no suggestion, the agent types any price, so the counter is never blocked', () => {
     const q = quoteOfficePrice({ rule: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000 }, kgRate: null, declaredValue: 90000, weightKg: 2 });
-    expect(q.total).toBeGreaterThan(0);
+    expect(q.noSuggestion).toBe(true);
+    expect(checkChargedAmount(q, 7000, undefined)).toEqual({ changed: true, reason: null });
     expect(checkChargedAmount(q, 7000, 'Bei ya mji huu')).toEqual({ changed: true, reason: 'Bei ya mji huu' });
   });
 });
