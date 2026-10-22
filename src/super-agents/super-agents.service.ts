@@ -4745,7 +4745,8 @@ export class SuperAgentsService {
       }
       codText = codText1({
         goods: codRemainingBalance, partlyPaid: codUpfrontAmount > 0, bodaFee: codBodaFee,
-        lipaNamba: sellerProfile?.lipaNamba ?? null, reference: orderRef,
+        lipaNamba: sellerProfile?.lipaNamba ?? null,
+        shopName: smsSender || null, itemName: dto.description || null, reference: customerNumber,
       });
     }
 
