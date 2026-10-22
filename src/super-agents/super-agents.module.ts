@@ -38,6 +38,7 @@ import { SuperAgentPriceRule } from './entities/super-agent-price-rule.entity';
 import { OfficePriceService } from './office-price.service';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { OfficePriceController } from './office-price.controller';
+import { RouteRangeService } from './route-range.service';
 
 @Module({
   imports: [
@@ -82,7 +83,7 @@ import { OfficePriceController } from './office-price.controller';
     LocationIntelligenceModule,
   ],
   controllers: [SuperAgentsController, OfficePriceController],
-  providers: [SuperAgentsService, OfficePriceService, OfficeBodaFeeService],
+  providers: [SuperAgentsService, OfficePriceService, OfficeBodaFeeService, RouteRangeService],
   exports: [SuperAgentsService, OfficePriceService],
 })
 export class SuperAgentsModule {}
