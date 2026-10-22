@@ -1952,17 +1952,9 @@
     "minimum": "Minimum (TZS)",
     "value_note": "Chaque montant est arrondi aux 100 TZS supérieurs.",
     "kg_rates_note": "Seules les villes avec un tarif au kilo peuvent être facturées au kilo. Pour une ville sans tarif, l’agent saisit le prix au comptoir. Modifiez les tarifs dans le formulaire ci-dessous. Arrondi aux 100 TZS supérieurs.",
-
-    "kg_no_rates": "Aucun tarif au kilo. Ajoutez un tarif pour chaque ville dans le formulaire ci-dessous. En attendant, l’agent saisit le prix de chaque colis au comptoir.",
-
-    "kg_town": "Ville",
-
-    "kg_rate": "Par kg (TZS)",
+    "kg_uses_routes": "Utilise vos tarifs par itinéraire ci-dessous : le tarif au kilo et le minimum de chaque ville.",
     "dar_note": "Dar es Salaam : le ramassage ou la livraison par un agent est le tarif boda boda.",
-    "save": "Enregistrer la tarification",
-    "saving": "Enregistrement…",
-    "saved": "✅ Enregistré",
-    "save_failed": "Échec de l'enregistrement"
+    "saved": "✅ Enregistré"
   },
   "partner_invite": {
     "loading": "Chargement de l'invitation…",
@@ -5350,7 +5342,7 @@
     "rate_minimum_label": "Frais minimum (TZS)",
     "rate_days_label": "Jours estimés",
     "rate_add_route": "Ajouter un autre itinéraire",
-    "rate_save_button": "💾 Enregistrer les Tarifs",
+    "rate_save_button": "💾 Enregistrer les prix",
     "rate_save_success": "✅ Tarifs enregistrés",
     "rate_save_failed": "Échec de l'enregistrement des tarifs",
     "rate_validation_error": "Ajoutez au moins une destination avec un prix par kg supérieur à zéro"

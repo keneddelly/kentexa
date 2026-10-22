@@ -1956,17 +1956,9 @@
     "minimum": "Minimum (TZS)",
     "value_note": "Every amount is rounded up to the nearest TZS 100.",
     "kg_rates_note": "Only towns with a per-kg rate can be charged by kg. For a town with no rate, the agent types the price at the counter. Edit rates in the form below. Every amount is rounded up to TZS 100.",
-
-    "kg_no_rates": "No per-kg rates yet. Add a rate for each town in the form below. Until then the agent types the price for each parcel at the counter.",
-
-    "kg_town": "Town",
-
-    "kg_rate": "Per kg (TZS)",
+    "kg_uses_routes": "Uses your route prices below: each town's per-kg rate and minimum.",
     "dar_note": "Dar es Salaam: an agent pickup or delivery is the boda boda fee.",
-    "save": "Save how you charge",
-    "saving": "Saving…",
-    "saved": "✅ Saved",
-    "save_failed": "Could not save"
+    "saved": "✅ Saved"
   },
   "partner_invite": {
     "loading": "Loading invitation…",
@@ -5354,7 +5346,7 @@
     "rate_minimum_label": "Minimum charge (TZS)",
     "rate_days_label": "Estimated days",
     "rate_add_route": "Add another route",
-    "rate_save_button": "💾 Save Route Prices",
+    "rate_save_button": "💾 Save prices",
     "rate_save_success": "✅ Route prices saved",
     "rate_save_failed": "Failed to save route prices",
     "rate_validation_error": "Add at least one destination with a price per kg greater than zero"

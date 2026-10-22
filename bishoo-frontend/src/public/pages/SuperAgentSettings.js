@@ -8,7 +8,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import OfficePoint from '../components/OfficePoint';
-import OfficePriceRuleCard from '../components/OfficePriceRuleCard';
+import ChargeRuleSection from '../components/ChargeRuleSection';
 
 const inp = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
@@ -37,6 +37,19 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
   const [rateMessage, setRateMessage] = useState('');
   const [rateError, setRateError]   = useState('');
   const [regionNames, setRegionNames] = useState([]);
+  // How this office charges (value or kg): saved with the routes by the one Save.
+  // null = not an active office role (the section is hidden; Save saves routes only).
+  const [rule, setRule]           = useState(null);
+  const [ruleForm, setRuleForm]   = useState({ chargeMode: 'value', valuePercent: '10', valueMinimum: '5000' });
+
+  useEffect(() => {
+    api.get('/super-agents/me/price-rule')
+      .then(({ data }) => {
+        setRule(data);
+        setRuleForm({ chargeMode: data.chargeMode, valuePercent: String(Number(data.valuePercent)), valueMinimum: String(Number(data.valueMinimum)) });
+      })
+      .catch(() => setRule(null));
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -101,11 +114,20 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
     setRates(prev => prev.map((r, idx) => idx === i ? { ...r, [key]: val } : r));
   };
 
+  // One Save for the Bei card: how the office charges (PUT me/price-rule), then the
+  // route rows (POST rates). Routes are optional when the charging rule is shown.
   const handleSaveRates = async () => {
     const valid = rates.filter(r => r.destinationCity?.trim() && Number(r.ratePerKg) > 0);
-    if (!valid.length) { setRateError(t('super_agent_settings.rate_validation_error')); return; }
+    if (!rule && !valid.length) { setRateError(t('super_agent_settings.rate_validation_error')); return; }
     try {
       setRateSaving(true); setRateError(''); setRateMessage('');
+      if (rule) {
+        const { data } = await api.put('/super-agents/me/price-rule', {
+          chargeMode: ruleForm.chargeMode, valuePercent: Number(ruleForm.valuePercent), valueMinimum: Number(ruleForm.valueMinimum),
+        });
+        setRule(data);
+      }
+      if (!valid.length) { setRateMessage(t('office_price_rule.saved')); return; }
       await api.post('/super-agents/rates', {
         rates: valid.map(r => ({
           destinationCity: r.destinationCity.trim(),
@@ -209,16 +231,14 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
           </div>
         )}
 
-        {/* ── Bei: how this office charges (value or kg) ── */}
-        {!loading && <OfficePriceRuleCard />}
-
-        {/* ── Bei / Route Pricing ── */}
+        {/* ── Bei: one card. How this office charges, then the route prices; one Save ── */}
         {!loading && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
+          <div data-testid="bei-card" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginTop: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 4 }}>
+            <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 12 }}>
               📋 {t('super_agent_settings.rates_title')}
             </div>
+            {rule && <ChargeRuleSection rule={rule} form={ruleForm} onChange={setRuleForm} />}
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
               {t('super_agent_settings.rates_desc', { city: form.city || '—' })}
             </div>

@@ -1735,17 +1735,9 @@
     "minimum": "Kiwango cha chini (TZS)",
     "value_note": "Kila kiasi kinazungushwa juu hadi TZS 100 iliyo karibu.",
     "kg_rates_note": "Miji yenye bei ya kilo pekee ndiyo inatozwa kwa kilo. Kwa mji usio na bei, wakala anaandika ada mwenyewe kaunta. Badilisha bei kwenye fomu ya bei hapa chini. Kila kiasi kinazungushwa juu hadi TZS 100.",
-
-    "kg_no_rates": "Bado hakuna bei za kilo. Weka bei ya kila mji kwenye fomu hapa chini. Hadi hapo, wakala anaandika ada ya kila mzigo kaunta.",
-
-    "kg_town": "Mji",
-
-    "kg_rate": "Kwa kilo (TZS)",
+    "kg_uses_routes": "Inatumia bei za njia hapa chini: bei ya kilo na kiwango cha chini cha kila mji.",
     "dar_note": "Dar es Salaam: kuchukua na kufikisha kwa wakala ni ada ya boda boda.",
-    "save": "Hifadhi jinsi ya kutoza",
-    "saving": "Inahifadhi…",
-    "saved": "✅ Imehifadhiwa",
-    "save_failed": "Imeshindikana kuhifadhi"
+    "saved": "✅ Imehifadhiwa"
   },
   "partner_invite": {
     "loading": "Inapakia mwaliko…",
@@ -5239,7 +5231,7 @@
     "rate_minimum_label": "Bei ya chini kabisa (TZS)",
     "rate_days_label": "Siku za kadirio",
     "rate_add_route": "Ongeza njia nyingine",
-    "rate_save_button": "💾 Hifadhi Bei za Njia",
+    "rate_save_button": "💾 Hifadhi Bei",
     "rate_save_success": "✅ Bei za njia zimehifadhiwa",
     "rate_save_failed": "Imeshindwa kuhifadhi bei za njia",
     "rate_validation_error": "Ongeza angalau njia moja yenye bei kwa kg zaidi ya sifuri"

@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import OfficePricePreview, { feeDiffers } from './OfficePricePreview';
-import OfficePriceRuleCard from './OfficePriceRuleCard';
 import api from '../../api/api';
 import { buildReceiptHtml, priceLinesSw } from '../../utils/receiptPrint';
 
@@ -66,44 +65,6 @@ test('printed receipt shows the four price lines, and the reason when changed', 
   const html = buildReceiptHtml({ parcelReference: 'KTX4829103755', amountPaid: 9000, priceBreakdown: { ...darQuote, changed: true, charged: 9000, changeReason: 'Mteja wa kudumu' } }, { autoPrint: false });
   for (const s of ['Kuchukua', 'Usafirishaji', 'Kufikisha', 'Jumla', 'Bure', 'Mteja wa kudumu']) expect(html).toContain(s);
   expect(buildReceiptHtml({ parcelReference: 'X', amountPaid: 1 }, { autoPrint: false })).not.toContain('Usafirishaji'); // older receipts unchanged
-});
-
-test('Bei page: shows the rule and saves by kg', async () => {
-  jest.useRealTimers();
-  api.get.mockResolvedValue({ data: { chargeMode: 'value', valuePercent: 10, valueMinimum: 5000, source: 'default', isDarEsSalaam: true } });
-  api.put.mockResolvedValue({ data: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000, source: 'office', isDarEsSalaam: true } });
-  render(<OfficePriceRuleCard />);
-  expect(screen.getByText('office_price_rule.title', { exact: false })).toBeTruthy();
-  expect(await screen.findByText('office_price_rule.default_note', { exact: false })).toBeTruthy(); // after the rule loads
-  fireEvent.click(screen.getByText('office_price_rule.by_kg'));
-  fireEvent.click(screen.getByText('office_price_rule.save'));
-  await waitFor(() => expect(api.put).toHaveBeenCalledWith('/super-agents/me/price-rule', { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000 }));
-  expect(await screen.findByText('office_price_rule.saved')).toBeTruthy();
-});
-
-test('Bei page, by kg: no percent or minimum fields; the office\'s own rates are shown read-only', async () => {
-  jest.useRealTimers();
-  const rates = [{ destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, estimatedDays: 2 }];
-  api.get.mockResolvedValue({ data: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000, source: 'office', isDarEsSalaam: false, rates } });
-  render(<OfficePriceRuleCard />);
-  expect(await screen.findByText('Mwanza')).toBeTruthy();
-  expect(api.get).toHaveBeenCalledWith('/super-agents/me/price-rule');
-  expect(screen.getByText('TZS 3,000')).toBeTruthy();
-  expect(screen.getByText('TZS 4,000')).toBeTruthy();
-  expect(screen.queryByText('office_price_rule.percent')).toBeNull();
-  expect(screen.queryAllByRole('spinbutton')).toHaveLength(0); // nothing to edit here
-  expect(screen.getByText('office_price_rule.kg_rates_note', { exact: false })).toBeTruthy();
-  // By value brings the percent and minimum fields back.
-  fireEvent.click(screen.getByText('office_price_rule.by_value'));
-  expect(screen.getByText('office_price_rule.percent')).toBeTruthy();
-  expect(screen.queryAllByRole('spinbutton')).toHaveLength(2);
-});
-
-test('Bei page, by kg with no rates: says the agent types the price until a rate is set', async () => {
-  jest.useRealTimers();
-  api.get.mockResolvedValue({ data: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000, source: 'office', isDarEsSalaam: false, rates: [] } });
-  render(<OfficePriceRuleCard />);
-  expect(await screen.findByText('office_price_rule.kg_no_rates')).toBeTruthy();
 });
 
 test('a town with no kg rate: no refusal, no suggestion, the agent types the fee with no reason asked', async () => {
