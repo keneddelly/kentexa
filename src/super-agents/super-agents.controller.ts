@@ -92,10 +92,14 @@ export class SuperAgentsController {
     );
   }
 
-  // Get shipping rates for a city
+  // The calling office's OWN shipping rates (the Bei tab and Settings). The :city is kept
+  // so existing screens keep working, but it is ignored: no response ever holds another
+  // office's exact price (owner 2026-10-22; market comparison is GET me/route-range).
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
   @Get('rates/:city')
-  getShippingRates(@Param('city') city: string) {
-    return this.service.getShippingRates(city);
+  getShippingRates(@Request() req) {
+    return this.service.getMyShippingRates(req.user);
   }
 
   // ── Authenticated ─────────────────────────────────────────────────────────

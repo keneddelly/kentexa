@@ -563,9 +563,11 @@ export class SuperAgentsService {
     return { message: 'Shipping rates updated successfully' };
   }
 
-  async getShippingRates(city: string) {
+  /** The calling office's own active rates only; never another office's row. */
+  async getMyShippingRates(user: User) {
+    const agent = await this.getMyProfile(user);
     return this.rateRepo.find({
-      where: { originCity: city, isActive: true },
+      where: { superAgent: { id: agent.id }, originCity: agent.city, isActive: true },
       order: { destinationCity: 'ASC' },
     });
   }
