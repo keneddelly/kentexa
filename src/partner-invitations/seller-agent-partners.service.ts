@@ -218,7 +218,7 @@ export class SellerAgentPartnersService implements OnModuleInit {
     if (!(await refreshSellerPartnerTable(this.db, true))) return [];
     const rows: any[] = await this.db.query(`SELECT id, "sellerUserId", "acceptedAt" FROM public.seller_agent_partner
       WHERE "agentUserId" = $1 AND status = 'accepted' ORDER BY "acceptedAt" DESC LIMIT 50`, [agentUserId]);
-    const out = [];
+    const out: Array<{ id: number; shopName: string; acceptedAt: Date }> = [];
     for (const r of rows) out.push({ id: r.id, shopName: await this.shopName(r.sellerUserId), acceptedAt: r.acceptedAt });
     return out;
   }

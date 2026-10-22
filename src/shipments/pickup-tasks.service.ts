@@ -247,7 +247,7 @@ export class PickupTasksService {
         throw new ConflictException('Pickup task was claimed or closed');
       }
       // Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
-      if (sellerPartnerTableReady()) {
+      if (sellerPartnerTableReady() && partnerGateSql('$2::int') !== 'TRUE') {
         const gate: any[] = await em.query(`SELECT ${partnerGateSql('$2::int')} AS ok
           FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId"
           JOIN public.shipment s ON s.id = p."shipmentId" WHERE t.id = $1`, [taskId, userId]);
@@ -776,6 +776,8 @@ export class PickupTasksService {
     this.assertAgentRole(role, userId);
     const agent = await this.approvedAgent(this.db, role, userId, false);
     if (!normalizeCity(agent.city)) return [];
+    // Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
+    const partnerGate = partnerGateSql('$3::int');
     const rows: any[] = await this.db.query(
       `SELECT t.id, t."servicePath", t."createdAt", t."originSnapshot",
               s."destinationLocationLabel", s."destinationCity", s."originCity",
@@ -793,10 +795,9 @@ export class PickupTasksService {
           -- D2: a job this agent released ("Siwezi kufika" or timeout) is not offered to him again.
           AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_RELEASED'
                 AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = $2)
-          -- Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
-          AND ${partnerGateSql('$3::int')}
+          AND ${partnerGate}
         ORDER BY t."createdAt" ASC LIMIT 50`,
-      [normalizeCity(agent.city), agent.id, userId],
+      partnerGate === 'TRUE' ? [normalizeCity(agent.city), agent.id] : [normalizeCity(agent.city), agent.id, userId],
     );
     // Section 18 (b): distance from the agent's base, rounded; nearest first.
     const hasBase = agent.baseLatitude != null && agent.baseLongitude != null;
