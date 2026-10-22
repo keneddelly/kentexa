@@ -45,6 +45,7 @@ import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import PartnerInvitePanel from '../components/PartnerInvitePanel';
 import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/OfficePricePreview';
+import RouteRangePanel from '../components/RouteRangePanel';
 
 const pendingWalkInRequests = new Map();
 
@@ -1490,6 +1491,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         </select>
                       </div>
                     </div>
+
+                    {/* The anonymous market range for this route (intercity / van only: same-city pays the boda fee). */}
+                    {walkServicePath !== 'local_agent' && (
+                      <RouteRangePanel destinationCity={walkForm.destinationCity} weightKg={walkForm.weightKg} />
+                    )}
 
                     <OfficePricePreview
                       input={{ declaredValue: walkForm.declaredValue, weightKg: walkForm.weightKg, destinationCity: walkForm.destinationCity,
