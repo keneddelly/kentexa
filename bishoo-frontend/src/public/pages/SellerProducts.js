@@ -801,7 +801,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   TZS {Number(product.displayPrice || product.price || 0).toLocaleString()}
                 </div>
 
-                {lowStock && (
+                {product.productType !== 'digital' && Number(product.stock) <= 0 ? (
+                  <span data-testid="sold-out-badge" style={{ position: 'absolute', top: 4, left: 4, fontSize: 10, fontWeight: 800, color: '#fff',
+                    backgroundColor: '#dc2626', padding: '2px 6px', borderRadius: 6 }}>
+                    {t('seller_products.sold_out_badge')}
+                  </span>
+                ) : lowStock && (
                   <span style={{ position: 'absolute', top: 4, left: 4, fontSize: 12 }} title={t('seller_products.low_stock_badge')}>⚠️</span>
                 )}
 

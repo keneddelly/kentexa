@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, MoreThan, LessThanOrEqual } from 'typeorm';
 import { v2 as cloudinary } from 'cloudinary';
 import { Product } from './entities/products.entity';
 import { ProductReview } from './entities/product-review.entity';
@@ -152,7 +152,9 @@ export class ProductsService {
         'seller.role',
       ])
       .where('p.isAvailable = :isAvailable', { isAvailable: true })
-      .andWhere('p.availableOnline = :availableOnline', { availableOnline: true });
+      .andWhere('p.availableOnline = :availableOnline', { availableOnline: true })
+      // Sold out (stock 0) is never shown to buyers.
+      .andWhere('p.stock > 0');
     if (category) query.andWhere('p.category = :category', { category });
     // Same structured attribute filtering as search() — lets CategoryPage.js's
     // dynamic filter chips (e.g. Color, Brand) narrow a plain category browse,
@@ -206,7 +208,9 @@ export class ProductsService {
         'seller.role',
       ])
       .where('p.isAvailable = :isAvailable', { isAvailable: true })
-      .andWhere('p.availableOnline = :availableOnline', { availableOnline: true });
+      .andWhere('p.availableOnline = :availableOnline', { availableOnline: true })
+      // Sold out (stock 0) is never shown to buyers.
+      .andWhere('p.stock > 0');
 
     // Query normalization layer — see search-term-normalizer.util.ts.
     // "kamera" now also matches products titled "camera" (and vice versa),
@@ -390,9 +394,16 @@ export class ProductsService {
     };
   }
 
-  async findBySeller(sellerId: number) {
+  // ownShop: the seller's own view of their shop. It also lists sold-out
+  // products (a sale to zero turns isAvailable off), which buyers never see.
+  async findBySeller(sellerId: number, ownShop = false) {
     return this.repo.find({
-      where: { seller: { id: sellerId }, isAvailable: true, availableOnline: true },
+      where: ownShop
+        ? [
+            { seller: { id: sellerId }, isAvailable: true, availableOnline: true },
+            { seller: { id: sellerId }, availableOnline: true, stock: LessThanOrEqual(0) },
+          ]
+        : { seller: { id: sellerId }, isAvailable: true, availableOnline: true, stock: MoreThan(0) },
       order: { createdAt: 'DESC' },
     });
   }
@@ -407,16 +418,19 @@ export class ProductsService {
   // explicitly tagged to it. Mirrors
   // ClassifiedsService.findByCommerceProfile() exactly
   // (profile-architecture-audit-2026-08).
-  async findByCommerceProfile(commerceProfileId: number) {
+  async findByCommerceProfile(commerceProfileId: number, viewer: { id: number } | null = null) {
     const profile = await this.commerceProfiles
       .findById(commerceProfileId)
       .catch(() => null);
     if (!profile) return [];
 
+    // The owner viewing their own profile also sees sold-out products ("Imeisha").
+    const ownShop = !!viewer && profile.ownerId != null && Number(profile.ownerId) === Number(viewer.id);
     const qb = this.repo
       .createQueryBuilder('p')
-      .where('p."isAvailable" = true')
+      .where(ownShop ? '(p."isAvailable" = true OR p.stock <= 0)' : 'p."isAvailable" = true')
       .andWhere('p."availableOnline" = true');
+    if (!ownShop) qb.andWhere('p.stock > 0');
 
     if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
       qb.andWhere(

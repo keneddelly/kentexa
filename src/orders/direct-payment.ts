@@ -55,7 +55,20 @@ export const DIRECT_PAYMENT_MESSAGES = {
   notHeld: 'KenteXa haishikilii pesa ya agizo hili; muuzaji alilipwa moja kwa moja.',
   lipaNambaInvalid: 'Weka Lipa Namba sahihi (tarakimu 5 hadi 15).',
   lipaNambaNameInvalid: 'Weka jina ambalo Lipa Namba imesajiliwa nalo (herufi 2 hadi 100).',
+  lipaProofRequired: 'Lipa kwanza, kisha pakia picha ya malipo kwa kila muuzaji na ubonyeze "Lipa na uthibitishe".',
+  lipaProofInvalid: 'Picha ya malipo haikupokelewa. Ipakie tena.',
+  placeInvalid: 'Mahali pa kupokea hapakupatikana. Andika kata au wilaya yako na uichague kwenye orodha.',
 } as const;
+
+/** "<name>" is sold out (stock 0 or no longer offered). */
+export const soldOutMessage = (names: string[]) =>
+  names.length === 1
+    ? `"${names[0]}" imeisha. Tumeiondoa kwenye kikapu chako.`
+    : `Bidhaa hizi zimeisha: ${names.map((n) => `"${n}"`).join(', ')}. Tumeziondoa kwenye kikapu chako.`;
+
+/** Fewer left than the buyer asked for. */
+export const shortStockMessage = (name: string, left: number) =>
+  `Zimebaki ${left} tu za "${name}". Punguza idadi kwenye kikapu.`;
 
 /** "123 456 78" -> "12345678"; null when not 5-15 digits. */
 export function normalizeLipaNamba(value: unknown): string | null {

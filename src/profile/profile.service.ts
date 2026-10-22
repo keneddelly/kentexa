@@ -117,7 +117,10 @@ export class ProfileService {
     // Business storefront (profile-architecture-audit-2026-08). Legacy
     // products (posted before commerceProfileId existed) keep resolving
     // here via the NULL fallback, same rule as findOne()/findByCommerceProfile().
-    const products = businessProfile
+    // Sold out (stock 0): hidden from buyers; the seller still sees it on
+    // their own shop page (shown as "Imeisha").
+    const ownShop = viewerId != null && Number(viewerId) === Number(userId);
+    const allProducts = businessProfile
       ? await this.productRepo
           .createQueryBuilder('p')
           .where(
@@ -130,6 +133,7 @@ export class ProfileService {
           where: { seller: { id: userId } },
           order: { createdAt: 'DESC' },
         });
+    const products = ownShop ? allProducts : allProducts.filter((p) => Number(p.stock) > 0);
 
     const { password, otp, otpExpiry, otpAttempts, ...safeUser } =
       user as any;

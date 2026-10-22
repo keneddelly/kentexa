@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Not, Repository } from 'typeorm';
+import { In, MoreThan, Not, Repository } from 'typeorm';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   AiSearchParserService,
@@ -145,7 +145,8 @@ export class SearchController {
 
       const [products, classifieds, services, profiles, moments, transportRoutes] = await Promise.all([
         idsByType.product?.length
-          ? this.productRepo.find({ where: { id: In(idsByType.product) } })
+          // Sold out (stock 0) and unavailable products are never shown to buyers.
+          ? this.productRepo.find({ where: { id: In(idsByType.product), isAvailable: true, availableOnline: true, stock: MoreThan(0) } })
           : [],
         idsByType.classified?.length
           ? this.classifiedRepo.find({ where: { id: In(idsByType.classified) } })

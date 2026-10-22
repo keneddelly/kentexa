@@ -10,7 +10,9 @@ import {
   UseGuards,
   Request,
   ParseIntPipe,
+  NotFoundException,
 } from '@nestjs/common';
+import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -228,20 +230,26 @@ export class ProductsController {
     return this.service.setBadges(id, dto);
   }
 
+  // The seller (or their staff) viewing their own shop also gets sold-out
+  // products, so they can see them marked "Imeisha"; buyers never do.
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('seller/:sellerId')
-  findBySeller(@Param('sellerId', ParseIntPipe) sellerId: number) {
-    return this.service.findBySeller(sellerId);
+  async findBySeller(@Param('sellerId', ParseIntPipe) sellerId: number, @Request() req) {
+    const ownShop = !!req.user && (await this.sellerScope.isAuthorizedFor(req.user, sellerId, 'canManageProducts'));
+    return this.service.findBySeller(sellerId, ownShop);
   }
 
   // Scoped to one commerce profile — use this instead of seller/:sellerId
   // when rendering a specific profile's own products tab (a personal and
   // a business profile on the same account must not show each other's
   // products). Mirrors ClassifiedsController's equivalent route.
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('profile/:commerceProfileId')
   findByCommerceProfile(
     @Param('commerceProfileId', ParseIntPipe) commerceProfileId: number,
+    @Request() req,
   ) {
-    return this.service.findByCommerceProfile(commerceProfileId);
+    return this.service.findByCommerceProfile(commerceProfileId, req.user ?? null);
   }
 
   // ── Social proof: track daily views — public, fire-and-forget ─────────
@@ -277,9 +285,25 @@ export class ProductsController {
 
   // ── :id routes LAST ─────────────────────────────────────────────────────
 
+  // A sold-out product (stock 0) is hidden from buyers: only its seller (or
+  // their staff) and admins can still open it.
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const product: any = await this.service.findOne(id);
+    const viewer: User | null = req.user ?? null;
+    const sellerId = product.seller?.id ?? null;
+    const isSellerSide = !!viewer && (
+      viewer.role === UserRole.ADMIN ||
+      (sellerId != null && (await this.sellerScope.isAuthorizedFor(viewer, sellerId, 'canManageProducts')))
+    );
+    if (isSellerSide) return product;
+    if (Number(product.stock) <= 0) throw new NotFoundException('Bidhaa hii imeisha.');
+    return {
+      ...product,
+      variants: (product.variants || []).filter((v) => Number(v.stock) > 0),
+      otherOffers: (product.otherOffers || []).filter((o) => Number(o.stock) > 0),
+    };
   }
 
   // Layer 1/2 seller verification gate — CREATE_PRODUCT was declared at

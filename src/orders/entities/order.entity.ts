@@ -307,6 +307,18 @@ export class Order {
   @Column({ type: 'boolean', nullable: true })
   sameCity: boolean | null;
 
+  // Lipa Namba proof (migration 1792300000000): the buyer's payment screenshot,
+  // optional payment reference, and when they confirmed. A Lipa Namba order is
+  // created only at that moment, so all three are set together; NULL otherwise.
+  @Column({ type: 'text', nullable: true })
+  lipaProofUrl: string | null;
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  lipaReference: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lipaConfirmedAt: Date | null;
+
   @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
   codUpfrontAmount: number | null;
 

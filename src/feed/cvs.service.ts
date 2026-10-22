@@ -947,6 +947,7 @@ export class CvsService {
         .leftJoinAndSelect('p.seller', 's')
         .where('p."isActive" = true')
         .andWhere('p."isAvailable" = true')
+        .andWhere('p.stock > 0')
         .orderBy('p.createdAt', 'DESC')
         .take(limit)
         .getMany();
@@ -1013,6 +1014,7 @@ export class CvsService {
         .leftJoinAndSelect('p.seller', 's')
         .where('p."isActive" = true')
         .andWhere('p."isAvailable" = true')
+        .andWhere('p.stock > 0')
         .orderBy('p.createdAt', 'DESC')
         .take(limit)
         .getMany(),
@@ -1491,6 +1493,7 @@ export class CvsService {
           .leftJoinAndSelect('p.seller', 's')
           .where('p."isActive" = true')
           .andWhere('p."isAvailable" = true')
+          .andWhere('p.stock > 0')
           .orderBy('p.createdAt', 'DESC')
           .take(6)
           .getMany();

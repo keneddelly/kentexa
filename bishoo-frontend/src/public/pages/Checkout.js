@@ -4,13 +4,17 @@ import { useTranslation } from 'react-i18next';
 import Celebration from '../components/Celebration';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
-import LocationPicker from '../components/LocationPicker';
-import { DirectPaymentChoice, DirectPaymentSuccess } from '../components/DirectPayment';
+import IntelligentLocationInput from '../components/IntelligentLocationInput';
+import { DirectPaymentChoice, DirectPaymentSuccess, LipaPaymentStep } from '../components/DirectPayment';
 import { usePaymentMode } from '../../utils/paymentMode';
+
+const NO_LOCATION = { regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' };
+// tz_seed place references, the only ones the exact lookup below accepts.
+const TZ_PLACE_REF = /^(ward|district|region):([1-9][0-9]{0,8})$/;
 
 const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
   const { t } = useTranslation();
-  const { cart, clearCart } = useCart();
+  const { cart, clearCart, removeFromCart, updateQuantity, syncStock } = useCart();
 
   const getItemPrice = (item) => Number(item.displayPrice || item.basePrice || item.price || 0);
   const cartTotal    = cart.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
@@ -27,12 +31,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const allItemsAllowCod = cart.length > 0 && cart.every(item => item.codEnabled);
 
   const [form, setForm]                     = useState({ deliveryAddress: '', phone: '', recipientName: '' });
-  const [deliveryLocation, setDeliveryLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [deliveryLocation, setDeliveryLocation] = useState(NO_LOCATION);
+  const [placeText, setPlaceText]           = useState('');
+  const placePickRef = React.useRef(0);
   const [forSomeoneElse, setForSomeoneElse] = useState(false);
-  const [needsCollection, setNeedsCollection] = useState(false);
-  const [isRuralCollection, setIsRuralCollection] = useState(false);
-  const [collectionFee] = useState(1500); // default urban, product/seller sets this
   const [loading, setLoading]               = useState(false);
+  const [stockNotice, setStockNotice]       = useState('');
   const [error, setError]                   = useState('');
   const [paymentStep, setPaymentStep]       = useState(false);
   const [placedOrders, setPlacedOrders]     = useState([]);
@@ -61,7 +65,15 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const directMode = paymentMode !== 'online';
   const [directChoice, setDirectChoice] = useState(null); // 'cod' | 'lipa_namba'
   const [directInfo, setDirectInfo]     = useState({ loading: false, options: [], sameCity: false, lipaNambas: [] });
-  const [directDone, setDirectDone]     = useState(null); // { method, total, lipaNambas }
+  const [directDone, setDirectDone]     = useState(null); // { method, total, notices }
+  // Lipa Namba: "Lipa na uthibitishe" opens the payment step; the order is
+  // created only when the buyer confirms with a screenshot per seller.
+  const [lipaStep, setLipaStep]         = useState(false);
+  const [lipaQuote, setLipaQuote]       = useState(null);
+  const [lipaProofs, setLipaProofs]     = useState({}); // { [sellerId]: { proofUrl, reference } }
+  const [lipaError, setLipaError]       = useState('');
+  // Same key on a retry = the server returns the first result, never a second set of orders.
+  const checkoutKeyRef = React.useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
   const [showAgentStep, setShowAgentStep] = useState(false);
   const [nearbyAgents, setNearbyAgents]   = useState([]);
@@ -108,9 +120,6 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   };
 
   // ── Detect delivery methods when address changes ─────────────
-  // Split from handleAddressChange (below) so the LocationPicker can
-  // re-run detection on every change WITHOUT clobbering a manually-typed
-  // street address — see its onChange for why this split matters.
   const detectDeliveryRef = React.useRef(null);
   const detectDeliveryMethodsFor = (address) => {
     setSelectedMethod(null);
@@ -136,6 +145,39 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const handleAddressChange = (address) => {
     setForm(f => ({ ...f, deliveryAddress: address }));
     detectDeliveryMethodsFor(address);
+  };
+
+  // One keyword search (the shipment form's) sets region, district and ward
+  // together. The picked place is the only location: its label is the
+  // delivery address that is saved, sent and shown. Typing again or picking
+  // another place clears the old one first, so nothing stale survives.
+  // The search returns names and a placeRef only; the ids come from the
+  // exact lookup of that one place.
+  const choosePlace = async (loc) => {
+    const pick = ++placePickRef.current;
+    setDeliveryLocation(NO_LOCATION);
+    handleAddressChange('');
+    if (!loc) return;
+    const ref = loc.placeRef?.providerKey === 'tz_seed' && TZ_PLACE_REF.exec(loc.placeRef.providerPlaceId || '');
+    let row = null;
+    if (ref) {
+      try { row = (await api.get(`/locations/places/${ref[1]}/${ref[2]}`)).data; } catch { row = null; }
+    }
+    if (pick !== placePickRef.current) return; // a newer pick replaced this one
+    if (!row?.regionId) {
+      setPlaceText('');
+      setError(t('checkout.place_not_found'));
+      return;
+    }
+    const isWard = row.type === 'ward';
+    setDeliveryLocation({
+      regionId: row.regionId, regionName: row.region || '',
+      districtId: row.districtId || null, districtName: row.district || '',
+      wardId: isWard ? row.wardId : null, wardName: isWard ? row.ward || '' : '',
+    });
+    setPlaceText(row.fullAddress);
+    setError('');
+    handleAddressChange(row.fullAddress);
   };
 
   // Release F: local delivery options (boda, van, collection) only when the
@@ -206,6 +248,124 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     return () => { cancelled = true; };
   }, [directMode, productKey, deliveryLocation.regionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Stock is checked again on this page: an item that sold out while in the
+  // cart is removed and the buyer told which one (a sold-out product answers
+  // 404), and a quantity above what is left is lowered.
+  const applyStockAnswer = React.useCallback((soldOutIds = [], lowered = []) => {
+    const names = cart.filter((i) => soldOutIds.includes(i.id)).map((i) => i.name);
+    soldOutIds.forEach((id) => removeFromCart(id));
+    lowered.forEach(({ productId, stock }) => syncStock(productId, stock));
+    const lines = [];
+    if (names.length) lines.push(t('checkout.sold_out_removed', { names: names.join(', ') }));
+    lowered.forEach(({ productId, stock }) => {
+      const item = cart.find((i) => i.id === productId);
+      if (item && item.quantity > stock) lines.push(t('checkout.stock_lowered', { count: stock, name: item.name }));
+    });
+    if (lines.length) setStockNotice(lines.join(' '));
+  }, [cart]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
+    if (cart.length === 0) return undefined;
+    let cancelled = false;
+    Promise.all(cart.map((item) => api.get(`/products/${item.id}`)
+      .then((r) => ({ item, stock: Number(r.data?.stock) }))
+      .catch((err) => ({ item, stock: err?.response?.status === 404 ? 0 : null }))))
+      .then((results) => {
+        if (cancelled) return;
+        const soldOut = results.filter((r) => r.stock !== null && r.stock <= 0).map((r) => r.item.id);
+        const lowered = results
+          .filter((r) => r.stock > 0 && r.item.productType !== 'digital' && r.stock !== Number(r.item.stock))
+          .map((r) => ({ productId: r.item.id, stock: r.stock }));
+        if (soldOut.length || lowered.length) applyStockAnswer(soldOut, lowered);
+      });
+    return () => { cancelled = true; };
+  }, [productKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Removing an item changes what can be shipped and how: reload delivery methods.
+  const firstProductId = cart[0]?.id;
+  React.useEffect(() => {
+    if (form.deliveryAddress) detectDeliveryMethodsFor(form.deliveryAddress);
+  }, [firstProductId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The server refused a checkout over stock: drop / lower what it named.
+  const handleServerStock = (data) => {
+    if (data?.soldOut?.length || data?.shortStock?.length) {
+      applyStockAnswer(data.soldOut || [], data.shortStock || []);
+      return true;
+    }
+    return false;
+  };
+
+  const checkoutPayload = () => {
+    const methodData = getSelectedMethodData();
+    return {
+      deliveryAddress:  form.deliveryAddress.trim(),
+      regionId:         deliveryLocation.regionId || null,
+      districtId:       deliveryLocation.districtId || null,
+      wardId:           deliveryLocation.wardId || null,
+      destinationCity:  deliveryLocation.districtName || deliveryLocation.regionName || null,
+      phone:            form.phone.trim(),
+      recipientName:    forSomeoneElse ? form.recipientName.trim() : null,
+      shippingMethod:   deliveryOptionsHidden ? 'agent' : (selectedMethod || (isSameCity ? 'boda' : 'agent')),
+      // Send the actual delivery fee for this method
+      // agent = use product default, others = method fee
+      ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
+      paymentMethod: directMode ? directChoice : paymentChoice,
+      items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
+    };
+  };
+
+  // Paid to the seller directly: the whole cart in one request, so each seller gets ONE
+  // notice for this checkout. For Lipa Namba this is the moment the orders are created.
+  const submitDirectCheckout = async (extra = {}) => {
+    const res = await api.post('/orders/checkout', { ...checkoutPayload(), ...extra, checkoutKey: checkoutKeyRef.current });
+    const orders = res.data.orders || [];
+    setOrderTotal(getCartTotal());
+    setPlacedOrders(orders);
+    clearCart();
+    setDirectDone({
+      method: directChoice,
+      total: orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0),
+      notices: res.data.sellerNotices || [],
+    });
+  };
+
+  const openLipaStep = async () => {
+    setLipaStep(true);
+    setLipaQuote(null);
+    setLipaError('');
+    try {
+      const { items, ...rest } = checkoutPayload();
+      const res = await api.post('/orders/checkout/quote', { ...rest, items });
+      setLipaQuote(res.data);
+    } catch (err) {
+      const data = err?.response?.data;
+      setLipaStep(false);
+      handleServerStock(data);
+      setError(data?.message || t('checkout.err_place_orders'));
+    }
+  };
+
+  const confirmLipa = async () => {
+    try {
+      setLoading(true);
+      setLipaError('');
+      await submitDirectCheckout({
+        lipaProofs: (lipaQuote?.sellers || []).map((s) => ({
+          sellerId: s.sellerId,
+          proofUrl: lipaProofs[s.sellerId]?.proofUrl,
+          ...(lipaProofs[s.sellerId]?.reference?.trim() ? { reference: lipaProofs[s.sellerId].reference.trim() } : {}),
+        })),
+      });
+    } catch (err) {
+      const data = err?.response?.data;
+      if (handleServerStock(data)) { setLipaStep(false); setError(data.message); }
+      else setLipaError(data?.message || t('checkout.err_place_orders'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (directMode && !directChoice) { setError(t('direct_payment.choose_first')); return; }
     if (directMode && !isDigitalOnlyCart && !deliveryLocation.regionId) { setError(t('direct_payment.choose_region')); return; }
@@ -218,59 +378,24 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       return;
     }
     if (cart.length === 0) { setError(t('checkout.err_cart_empty')); return; }
+    setError('');
+    // Lipa Namba: no order yet — the payment step comes first.
+    if (directMode && directChoice === 'lipa_namba') { openLipaStep(); return; }
     try {
       setLoading(true);
-      setError('');
-      const methodData = getSelectedMethodData();
-      const shared = {
-        deliveryAddress:  form.deliveryAddress.trim(),
-        regionId:         deliveryLocation.regionId || null,
-        districtId:       deliveryLocation.districtId || null,
-        wardId:           deliveryLocation.wardId || null,
-        destinationCity:  deliveryLocation.districtName || deliveryLocation.regionName || null,
-        phone:            form.phone.trim(),
-        recipientName:    forSomeoneElse ? form.recipientName.trim() : null,
-        shippingMethod:   deliveryOptionsHidden ? 'agent' : (selectedMethod || (isSameCity ? 'boda' : 'agent')),
-        needsCollection:  !deliveryOptionsHidden && needsCollection && !isSameCity, // only for intercity agent orders
-        isRuralCollection: isRuralCollection,
-        collectionFee:    !deliveryOptionsHidden && needsCollection && !isSameCity ? collectionFee : 0,
-        // Send the actual delivery fee for this method
-        // agent = use product default, others = method fee
-        ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
-        paymentMethod: directMode ? directChoice : paymentChoice,
-      };
-      let orders = [];
-      let sellerNotices = [];
       if (directMode) {
-        // Paid to the seller directly: the whole cart in one request, so the seller gets ONE
-        // message for this checkout (POST /orders/checkout, same rules per item as POST /orders).
-        const res = await api.post('/orders/checkout', {
-          ...shared,
-          items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
-        });
-        orders = res.data.orders || [];
-        sellerNotices = res.data.sellerNotices || [];
-      } else {
-        for (const item of cart) {
-          const res = await api.post('/orders', { ...shared, productId: item.id, quantity: item.quantity });
-          orders.push(res.data);
-        }
+        await submitDirectCheckout();
+        return;
+      }
+      const { items, ...shared } = checkoutPayload();
+      const orders = [];
+      for (const item of items) {
+        const res = await api.post('/orders', { ...shared, productId: item.productId, quantity: item.quantity });
+        orders.push(res.data);
       }
       setOrderTotal(getCartTotal());
       setPlacedOrders(orders);
       clearCart();
-
-      if (directMode) {
-        // Paid to the seller directly: no KenteXa payment step at all.
-        setDirectDone({
-          method: directChoice,
-          total: orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0),
-          lipaNambas: directInfo.lipaNambas,
-          // Only sellers with a WhatsApp number on file (storeWhatsApp) come with a link.
-          whatsapp: sellerNotices.filter((n) => n.whatsappUrl),
-        });
-        return;
-      }
 
       const first = orders[0];
       if (first?.paymentMethod === 'cod') {
@@ -287,7 +412,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         setPaymentStep(true);
       }
     } catch (err) {
-      setError(err?.response?.data?.message || t('checkout.err_place_orders'));
+      const data = err?.response?.data;
+      handleServerStock(data);
+      setError(data?.message || t('checkout.err_place_orders'));
     } finally {
       setLoading(false);
     }
@@ -332,8 +459,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     setShowAgentStep(true);
     try {
       setAgentsLoading(true);
-      const parts = form.deliveryAddress.split(',').map(s => s.trim());
-      const res = await api.get(`/agents/nearby?region=${encodeURIComponent(parts[0] || '')}`);
+      const res = await api.get(`/agents/nearby?region=${encodeURIComponent(deliveryLocation.regionName)}`);
       setNearbyAgents(res.data);
     } catch { setNearbyAgents([]); }
     finally { setAgentsLoading(false); }
@@ -347,7 +473,22 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   // ── Release F: order placed, paid to the seller directly ───────────────────
   if (directDone) {
-    return <DirectPaymentSuccess method={directDone.method} total={directDone.total} lipaNambas={directDone.lipaNambas} whatsapp={directDone.whatsapp} onNavigate={onNavigate} />;
+    return <DirectPaymentSuccess method={directDone.method} total={directDone.total} notices={directDone.notices} onNavigate={onNavigate} />;
+  }
+
+  // ── Lipa Namba payment step: pay, upload proof, confirm ─────────────────────
+  if (lipaStep) {
+    return (
+      <LipaPaymentStep
+        quote={lipaQuote}
+        proofs={lipaProofs}
+        onProofChange={(sellerId, patch) => setLipaProofs((p) => ({ ...p, [sellerId]: { ...p[sellerId], ...patch } }))}
+        onConfirm={confirmLipa}
+        onBack={() => setLipaStep(false)}
+        confirming={loading}
+        error={lipaError}
+      />
+    );
   }
 
   // ── Payment success ───────────────────────────────────────────────────────
@@ -573,20 +714,49 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         {/* Cart Items */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 12px' }}>{t('checkout.items_title', { count: cart.length })}</h3>
-          {cart.map(item => (
-            <div key={item.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
-              <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {item.images?.[0] ? <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18 }}>📦</span>}
+          {stockNotice && (
+            <div role="alert" data-testid="stock-notice" style={{ backgroundColor: '#fef3c7', color: '#92400e', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 13, lineHeight: 1.45 }}>
+              {stockNotice}
+            </div>
+          )}
+          {cart.map(item => {
+            // A quantity control only where the cart allows one (physical items, more than one in stock).
+            const canChangeQty = item.productType !== 'digital' && Number(item.stock) > 1;
+            const stepBtn = (disabled) => ({ width: 40, height: 40, borderRadius: 10, border: '1px solid #cbd5e1', backgroundColor: '#fff',
+              fontSize: 18, fontWeight: 800, color: disabled ? '#cbd5e1' : '#1e293b', cursor: disabled ? 'not-allowed' : 'pointer', flexShrink: 0 });
+            return (
+            <div key={item.id} data-testid="checkout-item" style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {item.images?.[0] ? <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18 }}>📦</span>}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>{t('checkout.qty_label', { count: item.quantity })}</div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#2563eb', flexShrink: 0 }}>
+                  TZS {(getItemPrice(item) * item.quantity).toLocaleString()}
+                </div>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{t('checkout.qty_label', { count: item.quantity })} · {t('cart.free')}</div>
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#2563eb', flexShrink: 0 }}>
-                TZS {(getItemPrice(item) * item.quantity).toLocaleString()}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, paddingLeft: 54 }}>
+                {canChangeQty && (
+                  <>
+                    <button type="button" aria-label={t('checkout.qty_less')} data-testid={`qty-less-${item.id}`} disabled={item.quantity <= 1}
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)} style={stepBtn(item.quantity <= 1)}>−</button>
+                    <span style={{ minWidth: 24, textAlign: 'center', fontSize: 15, fontWeight: 800 }}>{item.quantity}</span>
+                    <button type="button" aria-label={t('checkout.qty_more')} data-testid={`qty-more-${item.id}`} disabled={item.quantity >= Number(item.stock)}
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)} style={stepBtn(item.quantity >= Number(item.stock))}>+</button>
+                  </>
+                )}
+                <button type="button" data-testid={`remove-${item.id}`} onClick={() => removeFromCart(item.id)}
+                  style={{ marginLeft: 'auto', minHeight: 40, padding: '0 14px', borderRadius: 10, border: '1px solid #fecaca', backgroundColor: '#fff',
+                    color: '#b91c1c', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  {t('checkout.remove_item')}
+                </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Who is this for? */}
@@ -622,40 +792,14 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               {`💾 ${t('checkout.digital_instant_delivery')}`}
             </div>
           ) : (
-            <>
-              <LocationPicker
-                    label={t('checkout.region_ward_label')}
-                    value={deliveryLocation}
-                    onChange={loc => {
-                      setDeliveryLocation(loc);
-                      const locationStr = [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', ');
-                      if (!locationStr) return;
-                      if (!form.deliveryAddress) {
-                        // Nothing typed yet — prefill the address field too.
-                        handleAddressChange(locationStr);
-                      } else {
-                        // Address already has (possibly manually-typed)
-                        // text — don't overwrite it, but the region/ward
-                        // just changed, so re-run intercity/same-city
-                        // detection against the new location, or price
-                        // and COD terms go stale (e.g. someone who first
-                        // picks a different city, then corrects back to
-                        // the seller's own city, previously kept seeing
-                        // intercity pricing forever).
-                        detectDeliveryMethodsFor(locationStr);
-                      }
-                    }}
-                    required
-                    style={{ marginBottom: 10 }}
-                  />
-                  <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>{t('checkout.delivery_address')} *</label>
-                <input placeholder={t('checkout.address_placeholder')}
-                  value={form.deliveryAddress} onChange={e => handleAddressChange(e.target.value)}
-                  style={inputStyle} />
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{t('checkout.address_hint')}</div>
-              </div>
-            </>
+            <IntelligentLocationInput
+              label={t('checkout.place_label')}
+              value={placeText}
+              onTextChange={setPlaceText}
+              onResolved={choosePlace}
+              placeholder={t('checkout.place_placeholder')}
+              required
+            />
           )}
           <div>
             <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>
@@ -751,58 +895,6 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           </div>
         )}
 
-        {/* Collection Request — only shown for intercity agent orders */}
-        {!deliveryOptionsHidden && selectedMethod === 'agent' && !isSameCity && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px' }}>
-              {t('checkout.collection_title')}
-            </h3>
-            <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 14px' }}>
-              {t('checkout.collection_desc')}
-            </p>
-
-            {/* Toggle */}
-            <div
-              onClick={() => setNeedsCollection(!needsCollection)}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                backgroundColor: needsCollection ? '#eff6ff' : '#f8fafc',
-                border: `2px solid ${needsCollection ? '#1d4ed8' : '#e2e8f0'}` }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${needsCollection ? '#1d4ed8' : '#94a3b8'}`,
-                backgroundColor: needsCollection ? '#1d4ed8' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {needsCollection && <span style={{ color: '#fff', fontSize: 12 }}>✓</span>}
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: needsCollection ? '#1d4ed8' : '#1e293b' }}>
-                  {t('checkout.collection_yes')}
-                </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                  {t('checkout.collection_fee_note', { fee: isRuralCollection ? '3,000' : '1,500' })}
-                </div>
-              </div>
-            </div>
-
-            {needsCollection && (
-              <div style={{ marginTop: 10 }}>
-                <div
-                  onClick={() => setIsRuralCollection(!isRuralCollection)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                    backgroundColor: isRuralCollection ? '#fef9c3' : '#f8fafc',
-                    border: `1px solid ${isRuralCollection ? '#fde68a' : '#e2e8f0'}`, marginTop: 6 }}>
-                  <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isRuralCollection ? '#ca8a04' : '#94a3b8'}`,
-                    backgroundColor: isRuralCollection ? '#ca8a04' : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {isRuralCollection && <span style={{ color: '#fff', fontSize: 10 }}>✓</span>}
-                  </div>
-                  <div style={{ fontSize: 12, color: isRuralCollection ? '#92400e' : '#64748b' }}>
-                    {t('checkout.rural_collection')}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Release F: in cod_lipa mode the buyer pays the seller directly. */}
         {directMode && paymentMode && (
           <DirectPaymentChoice
@@ -811,7 +903,6 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             sameCity={directInfo.sameCity}
             regionChosen={!!deliveryLocation.regionId}
             digital={isDigitalOnlyCart}
-            lipaNambas={directInfo.lipaNambas}
             choice={directChoice}
             onChoose={setDirectChoice}
           />
@@ -932,19 +1023,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             </div>
           )}
 
-          {/* Collection fee line */}
-          {!deliveryOptionsHidden && needsCollection && !isSameCity && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
-              <span style={{ color: '#64748b' }}>{t('checkout.collection_fee_line', { type: isRuralCollection ? t('checkout.rural_paren') : t('checkout.urban_paren') })}</span>
-              <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {(isRuralCollection ? 3000 : 1500).toLocaleString()}</span>
-            </div>
-          )}
           {/* Online (or COD not yet resolved): the big number is what gets
               charged right now, same as before. */}
           {(paymentChoice !== 'cod' || !codQuote || codQuote.eligible === false) && (
             <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('checkout.total')}</span>
-              <span style={{ fontSize: 22, fontWeight: 900, color: '#2563eb' }}>TZS {getCartTotal().toLocaleString()}</span>
+              <span data-testid="checkout-total" style={{ fontSize: 22, fontWeight: 900, color: '#2563eb' }}>TZS {getCartTotal().toLocaleString()}</span>
             </div>
           )}
           {paymentChoice === 'cod' && codQuoteLoading && (
@@ -992,7 +1076,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               <>
                 <button data-testid="place-order" onClick={handleCheckout} disabled={blocked}
                   style={{ width: '100%', minHeight: 52, backgroundColor: blocked ? '#93c5fd' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif' }}>
-                  {loading ? t('checkout.placing') : t('checkout.place_order')}
+                  {directChoice === 'lipa_namba'
+                    ? t('direct_payment.pay_and_confirm')
+                    : loading ? t('checkout.placing') : t('checkout.place_order')}
                 </button>
                 <div style={{ textAlign: 'center', fontSize: 12, color: '#475569' }}>{t('direct_payment.kentexa_note')}</div>
               </>

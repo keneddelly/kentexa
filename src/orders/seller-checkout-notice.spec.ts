@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import {
   NoticeOrder,
@@ -32,7 +32,7 @@ describe('seller checkout notice — grouping', () => {
 });
 
 describe('seller checkout notice — message text', () => {
-  const base = { regionName: 'Dar es Salaam', districtName: 'Ilala', buyerName: 'Asha Juma', buyerPhone: '0712345678', link: 'https://kentexa.com/?sellerCheckout=abc.def' };
+  const base = { place: 'Ilala, Dar es Salaam', buyerName: 'Asha Juma', buyerPhone: '0712345678', link: 'https://kentexa.com/?sellerCheckout=abc.def' };
 
   it('two-product COD cart: order numbers, items with quantity and price, total, place, buyer, method, link', () => {
     expect(buildSellerCheckoutMessage({ ...base, orders: [camera, keychain] })).toBe([
@@ -49,9 +49,10 @@ describe('seller checkout notice — message text', () => {
 
   it('Lipa Namba, long product name shortened, unknown place and buyer said plainly', () => {
     const lipa = [{ ...camera, paymentMethod: 'lipa_namba', productName: 'A'.repeat(60) }, { ...keychain, paymentMethod: 'lipa_namba' }];
-    const text = buildSellerCheckoutMessage({ ...base, orders: lipa, regionName: null, districtName: null, buyerName: null, buyerPhone: null });
+    const text = buildSellerCheckoutMessage({ ...base, orders: lipa, place: null, buyerName: null, buyerPhone: null, lipaReference: 'QX12' });
     expect(text).toContain(`1) ${'A'.repeat(39)}… x1: TZS 300,000`);
-    expect(text).toContain('Malipo: Lipa Namba yako');
+    expect(text).toContain('Malipo: Lipa Namba yako (mnunuzi ametuma picha ya malipo)');
+    expect(text).toContain('Kumbukumbu ya malipo: QX12');
     expect(text).toContain('Mahali: haijulikani');
     expect(text).toContain('Mnunuzi: haijulikani');
   });
@@ -124,6 +125,7 @@ const build = <T>(props: Record<string, unknown>): T =>
   }) as T;
 
 function setup(opts: { sellerPhone?: string | null; storeWhatsApp?: string | null; failSecond?: boolean } = {}) {
+  const inAppNotif = { orderPlacedById: jest.fn().mockResolvedValue(undefined) };
   const seller = { id: 2, name: 'kened', storeName: 'Bishoo intelligence system',
     phone: opts.sellerPhone === undefined ? '255700000002' : opts.sellerPhone, storeWhatsApp: opts.storeWhatsApp ?? null };
   const products: Record<number, any> = {
@@ -133,8 +135,9 @@ function setup(opts: { sellerPhone?: string | null; storeWhatsApp?: string | nul
   const profile = { regionId: 1, businessRegion: 'Dar es Salaam', lipaNamba: '55771234', lipaNambaName: 'Bishoo' };
   const query = jest.fn(async (sql: string, params: any[]) => {
     if (/FROM public\.seller_profile/.test(sql)) return [profile];
-    if (/FROM public\.tz_region/.test(sql)) return params[0] === 1 ? [{ id: 1, name: 'Dar es Salaam' }] : [];
-    if (/FROM public\.tz_district/.test(sql)) return params[0] === 1 && params[1] === 1 ? [{ id: 1, name: 'Ilala' }] : [];
+    if (/FROM public\.tz_region/.test(sql)) return params[0] === 1 ? [{ id: 1, name: 'Dar es Salaam' }] : params[0] === 3 ? [{ id: 3, name: 'Arusha' }] : [];
+    if (/FROM public\.tz_district/.test(sql)) return params[0] === 1 && params[1] === 1 ? [{ id: 1, name: 'Ilala' }] : params[0] === 5 && params[1] === 3 ? [{ id: 5, name: 'Arusha Mjini' }] : [];
+    if (/FROM public\.tz_ward/.test(sql)) return params[0] === 11 && params[1] === 1 ? [{ id: 11, name: 'Kariakoo' }] : [];
     return [];
   });
   let nextId = 900;
@@ -145,14 +148,17 @@ function setup(opts: { sellerPhone?: string | null; storeWhatsApp?: string | nul
   const productsService = { findOne: jest.fn(async (id: number) => products[id]), decreaseStock: jest.fn().mockResolvedValue(undefined) };
   const smsService = { sendSms: jest.fn().mockResolvedValue(true) };
   const activityEvents = { record: jest.fn() };
-  const svc = build<OrdersService>({ repo, productsService, smsService, activityEvents, invoicesService: { createForOrder: jest.fn() }, payoutRepo: { save: jest.fn(), create: jest.fn((v) => v) } });
-  return { svc, smsService, activityEvents };
+  const svc = build<OrdersService>({ repo, productsService, smsService, activityEvents, inAppNotif, invoicesService: { createForOrder: jest.fn() }, payoutRepo: { save: jest.fn(), create: jest.fn((v) => v) } });
+  return { svc, smsService, activityEvents, repo, inAppNotif, productsService };
 }
-const checkout = (svc: OrdersService, paymentMethod: 'cod' | 'lipa_namba') =>
+const PROOF_URL = 'https://res.cloudinary.com/kentexa/image/upload/v1/slip.jpg';
+const checkout = (svc: OrdersService, paymentMethod: 'cod' | 'lipa_namba', extra: Record<string, unknown> = {}) =>
   svc.createCheckout({
     items: [{ productId: 31, quantity: 1 }, { productId: 34, quantity: 1 }],
-    deliveryAddress: 'Ilala, Dar es Salaam', phone: '0712345678', regionId: 1, districtId: 1,
+    deliveryAddress: 'typed by the buyer, never kept', phone: '0712345678', regionId: 1, districtId: 1,
     shippingMethod: 'boda', paymentMethod,
+    ...(paymentMethod === 'lipa_namba' ? { lipaProofs: [{ sellerId: 2, proofUrl: PROOF_URL, reference: 'QX12' }] } : {}),
+    ...extra,
   } as any, { id: 7, name: 'Asha Juma' } as any);
 
 describe('OrdersService.createCheckout() — one seller notice per checkout', () => {
@@ -165,8 +171,8 @@ describe('OrdersService.createCheckout() — one seller notice per checkout', ()
   const sellerSms = (sms: jest.Mock) => sms.mock.calls.filter(([phone]) => phone === '255700000002');
   const buyerSms = (sms: jest.Mock) => sms.mock.calls.filter(([phone]) => phone === '0712345678');
 
-  it('two-product COD cart: two orders, ONE seller SMS with both items; buyer COD SMS unchanged (one per order)', async () => {
-    const { svc, smsService } = setup();
+  it('two-product COD cart: two orders, ONE seller SMS and ONE in-app notice with both items; buyer COD SMS one per order', async () => {
+    const { svc, smsService, inAppNotif } = setup();
     const res = await checkout(svc, 'cod');
     expect(res.orders.map((o: any) => o.id)).toEqual([901, 902]);
     const seller = sellerSms(smsService.sendSms);
@@ -184,22 +190,89 @@ describe('OrdersService.createCheckout() — one seller notice per checkout', ()
     const token = text.split('?sellerCheckout=')[1];
     expect(verifySellerCheckoutToken(token, SECRET)).toEqual(expect.objectContaining({ s: 2, o: [901, 902], r: 1, d: 1 }));
     expect(buyerSms(smsService.sendSms).map(([, m]) => m)).toEqual([
-      'KenteXa: Oda #901 imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS 300,000 wakati wa kupokea.',
-      'KenteXa: Oda #902 imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS 150,000 wakati wa kupokea.',
+      'KenteXa: Oda #901 imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS 300,000 wakati wa kupokea. Mahali: Ilala, Dar es Salaam',
+      'KenteXa: Oda #902 imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS 150,000 wakati wa kupokea. Mahali: Ilala, Dar es Salaam',
     ]);
-    expect(res.sellerNotices).toEqual([{ sellerId: 2, storeName: 'Bishoo intelligence system', orderIds: [901, 902], whatsappUrl: null }]);
+    expect(inAppNotif.orderPlacedById).toHaveBeenCalledTimes(1);
+    expect(res.sellerNotices).toEqual([{ sellerId: 2, storeName: 'Bishoo intelligence system', orderIds: [901, 902], whatsappUrl: null, phone: '255700000002' }]);
   });
 
-  it('two-product Lipa Namba cart: one seller SMS, no buyer COD SMS; WhatsApp link only with storeWhatsApp', async () => {
-    const { svc, smsService } = setup({ storeWhatsApp: '0754000111' });
+  it('the one picked place (ward, district, region) is saved, sent and shown; changing it replaces it everywhere', async () => {
+    let t = setup();
+    let res = await checkout(t.svc, 'cod', { regionId: 1, districtId: 1, wardId: 11 });
+    const dar = 'Kariakoo, Ilala, Dar es Salaam';
+    expect(res.place).toBe(dar);
+    expect(t.repo.create.mock.calls.map(([o]) => o.deliveryAddress)).toEqual([dar, dar]);
+    expect(sellerSms(t.smsService.sendSms)[0][1]).toContain(`Mahali: ${dar}`);
+    expect(buyerSms(t.smsService.sendSms).every(([, m]) => m.endsWith(`Mahali: ${dar}`))).toBe(true);
+    t = setup();
+    res = await checkout(t.svc, 'lipa_namba', { regionId: 3, districtId: 5, wardId: undefined, shippingMethod: 'agent' });
+    const arusha = 'Arusha Mjini, Arusha';
+    expect(res.place).toBe(arusha);
+    const everything = [
+      ...t.repo.create.mock.calls.map(([o]) => o.deliveryAddress),
+      ...t.smsService.sendSms.mock.calls.map(([, m]) => m),
+      res.sellerNotices[0].whatsappUrl ?? '',
+    ].join('\n');
+    expect(everything).toContain(arusha);
+    expect(everything).not.toMatch(/Dar es Salaam|Ilala|Kariakoo|typed by the buyer/);
+  });
+
+  it('a place that is not in the list (ward outside the district) is refused before any order', async () => {
+    const { svc, repo } = setup();
+    await expect(checkout(svc, 'cod', { wardId: 99 })).rejects.toThrow('Mahali pa kupokea hapakupatikana');
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('Lipa Namba with proof: orders created once with the proof, ONE seller SMS + in-app, ONE buyer SMS; WhatsApp text = seller notice', async () => {
+    const { svc, smsService, repo, inAppNotif } = setup({ storeWhatsApp: '0754000111' });
     const res = await checkout(svc, 'lipa_namba');
+    expect(res.orders).toHaveLength(2);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ lipaProofUrl: PROOF_URL, lipaReference: 'QX12' }));
     const seller = sellerSms(smsService.sendSms);
     expect(seller).toHaveLength(1);
-    expect(seller[0][1]).toContain('Malipo: Lipa Namba yako');
-    expect(buyerSms(smsService.sendSms)).toHaveLength(0);
+    expect(seller[0][1]).toContain('Malipo: Lipa Namba yako (mnunuzi ametuma picha ya malipo)');
+    expect(seller[0][1]).toContain('Kumbukumbu ya malipo: QX12');
+    expect(inAppNotif.orderPlacedById).toHaveBeenCalledTimes(1);
+    expect(buyerSms(smsService.sendSms).map(([, m]) => m)).toEqual([
+      'KenteXa: Umethibitisha malipo ya TZS 450,000 kwa Lipa Namba, oda #901, #902. Muuzaji ataangalia malipo na kuwasiliana nawe. Mahali: Ilala, Dar es Salaam',
+    ]);
     const url = res.sellerNotices[0].whatsappUrl!;
     expect(url.startsWith('https://wa.me/255754000111?text=')).toBe(true);
     expect(decodeURIComponent(url.split('?text=')[1])).toBe(seller[0][1]);
+    expect(res.sellerNotices[0].phone).toBe('255700000002');
+  });
+
+  it('Lipa Namba without proof, or with a foreign image link: no order, no seller notice', async () => {
+    for (const lipaProofs of [[], [{ sellerId: 2, proofUrl: 'https://evil.example/slip.jpg' }]]) {
+      const { svc, smsService, repo, inAppNotif } = setup();
+      await expect(checkout(svc, 'lipa_namba', { lipaProofs })).rejects.toThrow(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(smsService.sendSms).not.toHaveBeenCalled();
+      expect(inAppNotif.orderPlacedById).not.toHaveBeenCalled();
+    }
+  });
+
+  it('the same checkoutKey twice (double tap): one set of orders, one notice', async () => {
+    const { svc, smsService, repo } = setup();
+    const [a, b] = await Promise.all([
+      checkout(svc, 'lipa_namba', { checkoutKey: 'k-1' }),
+      checkout(svc, 'lipa_namba', { checkoutKey: 'k-1' }),
+    ]);
+    expect(a).toBe(b);
+    expect(repo.save).toHaveBeenCalledTimes(2);
+    expect(sellerSms(smsService.sendSms)).toHaveLength(1);
+  });
+
+  it('quote: per-seller amounts equal the orders\' amounts, with the Lipa Namba; nothing written', async () => {
+    const { svc, repo } = setup();
+    const q = await svc.quoteCheckout({
+      items: [{ productId: 31, quantity: 1 }, { productId: 34, quantity: 1 }],
+      phone: '0712345678', regionId: 1, districtId: 1, shippingMethod: 'boda', paymentMethod: 'lipa_namba',
+    } as any, { id: 7 } as any);
+    expect(q).toEqual(expect.objectContaining({ place: 'Ilala, Dar es Salaam', total: 450000 }));
+    expect(q.sellers).toEqual([expect.objectContaining({ sellerId: 2, total: 450000, lipaNamba: { number: '55771234', name: 'Bishoo' } })]);
+    expect(repo.save).not.toHaveBeenCalled();
   });
 
   it('seller without a phone: no SMS, logged, the orders still succeed', async () => {
@@ -215,12 +288,15 @@ describe('OrdersService.createCheckout() — one seller notice per checkout', ()
     warn.mockRestore();
   });
 
-  it('second item fails: the first order stays, its seller is still told, the error reaches the buyer', async () => {
-    const { svc, smsService } = setup({ failSecond: true });
-    await expect(checkout(svc, 'cod')).rejects.toThrow('Insufficient stock');
-    const seller = sellerSms(smsService.sendSms);
-    expect(seller).toHaveLength(1);
-    expect(seller[0][1].split('\n')[0]).toBe('KenteXa: Agizo jipya #901.');
+  it('an item sold out in the cart: no order at all, the buyer is told which one (soldOut ids for the cart)', async () => {
+    const { svc, smsService, repo } = setup({ failSecond: true });
+    const err: any = await checkout(svc, 'cod').catch((e) => e);
+    expect(err).toBeInstanceOf(BadRequestException);
+    expect(err.getResponse()).toEqual(expect.objectContaining({
+      message: '"CAR KEY CHAIN SPY CAMERA" imeisha. Tumeiondoa kwenye kikapu chako.', soldOut: [34],
+    }));
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(smsService.sendSms).not.toHaveBeenCalled();
   });
 });
 
@@ -248,7 +324,7 @@ describe('OrdersService.getSellerCheckoutView() — the private link', () => {
     const view = await svc().getSellerCheckoutView(token, seller2);
     expect(view.orderIds).toEqual([901]);
     expect(view.total).toBe(300000);
-    expect(view).toEqual(expect.objectContaining({ regionName: 'Dar es Salaam', districtName: 'Ilala', buyerName: 'Asha Juma', buyerPhone: '0712345678' }));
+    expect(view).toEqual(expect.objectContaining({ place: 'Ilala, Dar es Salaam', buyerName: 'Asha Juma', buyerPhone: '0712345678' }));
   });
 
   it('login is the key too: another account gets 403; the seller\'s staff or an active admin get in', async () => {

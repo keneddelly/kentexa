@@ -113,9 +113,22 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
     finally { setLoading(false); }
   };
 
-  const handleAddToCart = () => {
+  // Stock is checked again at the moment of adding: a product that sold out
+  // since the page opened answers 404 and is not added.
+  const handleAddToCart = async () => {
     if (!product?.isAvailable) return;
-    addToCart(product, quantity);
+    let current = product;
+    try {
+      current = (await api.get(`/products/${product.id}`)).data || product;
+    } catch (err) {
+      if (err?.response?.status === 404) current = { ...product, stock: 0 };
+    }
+    if (!addToCart(current, Math.min(quantity, Math.max(Number(current.stock), 1)))) {
+      setProduct(p => ({ ...p, stock: 0, isAvailable: false }));
+      setMessage(`${product.name}: ${t('commerce_profile.out_of_stock')}`);
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
     if (track) trackAddToCart(track, product);
     setMessage(`${product.name} ${t('product_detail.added_to_cart')}`);
     setTimeout(() => setMessage(''), 3000);

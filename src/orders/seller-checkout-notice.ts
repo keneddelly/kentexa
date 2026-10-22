@@ -65,8 +65,10 @@ export function checkoutTotal(orders: NoticeOrder[]): number {
 
 export interface SellerMessageInput {
   orders: NoticeOrder[];
-  regionName: string | null;
-  districtName: string | null;
+  /** The one place picked at checkout ("Ward, District, Region"). */
+  place: string | null;
+  /** Lipa Namba: the reference the buyer typed with the payment screenshot. */
+  lipaReference?: string | null;
   buyerName: string | null;
   buyerPhone: string | null;
   link: string;
@@ -84,8 +86,9 @@ export function buildSellerCheckoutMessage(input: SellerMessageInput): string {
         (fee > 0 ? ` (pamoja na usafiri ${tzs(fee)})` : '');
     }),
     `Jumla: ${tzs(checkoutTotal(orders))}`,
-    `Malipo: ${method === 'lipa_namba' ? 'Lipa Namba yako' : 'Pesa mkononi wakati wa kupokea (COD)'}`,
-    `Mahali: ${[input.districtName, input.regionName].filter(Boolean).join(', ') || 'haijulikani'}`,
+    `Malipo: ${method === 'lipa_namba' ? 'Lipa Namba yako (mnunuzi ametuma picha ya malipo)' : 'Pesa mkononi wakati wa kupokea (COD)'}`,
+    ...(method === 'lipa_namba' && input.lipaReference ? [`Kumbukumbu ya malipo: ${input.lipaReference}`] : []),
+    `Mahali: ${input.place || 'haijulikani'}`,
     `Mnunuzi: ${[input.buyerName, input.buyerPhone].filter(Boolean).join(', ') || 'haijulikani'}`,
     `Maelezo: ${input.link}`,
   ];

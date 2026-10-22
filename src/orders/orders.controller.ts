@@ -67,6 +67,15 @@ export class OrdersController {
     return this.ordersService.createCheckout(dto, req.user);
   }
 
+  // What the buyer will pay, per seller, with each seller's Lipa Namba — the same
+  // checks and prices as POST /orders/checkout, nothing created.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
+  @Post('checkout/quote')
+  quoteCheckout(@Body() dto: CreateCheckoutDto, @Request() req) {
+    return this.ordersService.quoteCheckout(dto, req.user);
+  }
+
   // The private link in the seller notice. Login required, and the signed token (7 days) must
   // name the logged-in seller (or their order staff / an active admin); it opens only that
   // seller's orders from that checkout.

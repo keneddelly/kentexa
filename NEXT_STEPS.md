@@ -920,3 +920,12 @@ Branch `cod-lipa` (from 604b11c). Never pushed before migration 1792000000000 is
     route 404s). Checkout now uses `/orders/delivery-methods` (commit 9095172), but the admin
     page `BodaRates.js` still calls `/daily-batches/delivery-methods`. Decide: load the module, or
     move the admin page to the orders route. Backend route change: owner's OK first.
+
+## Marketplace checkout fixes — branch `feature/checkout-fixes` (2026-10-22, not pushed)
+
+- **Migration `1792300000000-AddLipaPaymentProof`** (adds only, every existing row NULL):
+  `order."lipaProofUrl"` text, `order."lipaReference"` varchar(60), `order."lipaConfirmedAt"` timestamptz.
+  Must be applied on live BEFORE this code deploys (the code writes these columns on every Lipa Namba order).
+- No new environment variable.
+- Lipa Namba orders are now created only by `POST /orders/checkout` with a payment screenshot per seller;
+  `POST /orders` refuses Lipa Namba. New: `POST /orders/checkout/quote` (exact amounts, nothing written).
