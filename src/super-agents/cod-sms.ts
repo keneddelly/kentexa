@@ -15,6 +15,9 @@ export const COD_MESSAGES = {
   fullyPaid: 'Mteja amelipa kiasi chote. Rekodi mauzo haya kama taslimu au pesa ya simu, si COD.',
   bodaFeeRequired: 'Weka ada ya boda ya kufikisha mzigo huu wa COD.',
   badBodaFee: 'Ada ya boda iwe 0 au zaidi.',
+  pickupPlaceRequired: 'Chagua mahali boda atachukua mzigo (duka lako) kwenye ramani.',
+  pickupPlaceOtherCity: 'Mahali pa kuchukua mzigo lazima pawe ndani ya mji wa mzigo huu.',
+  sellerPhoneRequired: 'Weka namba yako ya simu kwanza: boda atakupigia kuchukua mzigo.',
 } as const;
 
 const cityKey = (city: string | null | undefined) =>

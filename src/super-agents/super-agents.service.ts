@@ -10,6 +10,8 @@ import { OfficePriceService } from './office-price.service';
 import { checkChargedAmount, isDarEsSalaam } from './office-price';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
+import { agentCodSplit, codCollectedOrderUpdate, settleManualAgentCod } from './agent-cod-settlement';
+import { insertSellerCodPickupTask } from '../shipments/pickup-tasks.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
 import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from 'crypto';
@@ -3032,19 +3034,14 @@ export class SuperAgentsService {
     if (preflight.invalid) throw new BadRequestException('Incorrect recipient delivery code');
     const order = preflight.parcel.order!;
     const expectedAmount = preflight.expectedAmount!;
-    const handlingFee = Math.round(expectedAmount * COD_HANDLING_FEE_PERCENT) / 100;
-    const kentexaShare = Math.round(handlingFee * COD_HANDLING_FEE_KENTEXA_SHARE_PERCENT) / 100;
-    const agentShare = Math.round((handlingFee - kentexaShare) * 100) / 100;
+    // The ONE COD split, shared with the boda rider path (agent-cod-settlement.ts).
+    const { handlingFee, kentexaShare } = agentCodSplit(expectedAmount);
     const manual = order.source === OrderSource.SELLER_SHIPMENT;
     const sellerNet = Math.round((Number(order.sellerAmount || 0) - handlingFee) * 100) / 100;
     if (!manual && sellerNet < 0) throw new ConflictException('COD proceeds cannot cover the handling fee');
     const cashLiability = manual ? kentexaShare : expectedAmount;
     const now = new Date();
-    const companion = {
-      codBalanceCollected: true, codBalanceCollectedByLocalAgentId: agent.id,
-      codBalanceCollectedAt: now, paymentStatus: OrderPaymentStatus.PAID,
-      status: OrderStatus.DELIVERED, deliveredAt: now,
-    };
+    const companion = codCollectedOrderUpdate(agent.id, now);
 
     const complete = async (manager: any) => {
       const result = await validate(manager, true);
@@ -3073,12 +3070,6 @@ export class SuperAgentsService {
       });
       const eventId = custody.identifiers[0]?.id;
       if (!eventId) throw new ConflictException('Recipient custody event was not recorded');
-      await manager.query(`INSERT INTO public.agent_cod_collection
-        ("orderId","parcelId","custodyEventId","agentId","collectedAmount","cashLiability",
-         "handlingFee","kentexaShare","agentShare","orderSource")
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-        [order.id, parcel.id, eventId, agent.id, expectedAmount, cashLiability,
-          handlingFee, kentexaShare, agentShare, order.source]);
       await manager.getRepository(Parcel).update(parcel.id, {
         status: ParcelStatus.DELIVERED, deliveredTime: now, buyerConfirmed: true,
         agentDeliveryCodeHash: null, agentDeliveryCodeExpiresAt: null,
@@ -3093,18 +3084,16 @@ export class SuperAgentsService {
         note: 'Recipient code confirmed Agent COD delivery',
         updatedBy: agent.fullName || user.name, handlerType: 'local_agent',
       });
-      await manager.getRepository(Agent).increment({ id: agent.id }, 'totalDeliveriesCompleted', 1);
-      const deliveryCommission = Number(agent.deliveryCommission || 0);
-      if (Number.isFinite(deliveryCommission) && deliveryCommission > 0) {
-        await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarningsDeliveries', deliveryCommission);
-      }
-      if (agentShare > 0) {
-        await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarningsPayments', agentShare);
-      }
-      const totalEarned = (Number.isFinite(deliveryCommission) && deliveryCommission > 0
-        ? deliveryCommission : 0) + agentShare;
-      if (totalEarned > 0) await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarnings', totalEarned);
-      await this.invoicesService.recordCodBalanceCollected(order, Number(order.totalAmount || 0), manager);
+      // The collection record, the Agent's earnings and the receipt: the ONE shared COD
+      // settlement, also used by the boda rider path. The Order update stays below
+      // (manual) or in the release service (marketplace), exactly as before.
+      await settleManualAgentCod(manager, {
+        order: { id: order.id, source: order.source, totalAmount: order.totalAmount },
+        parcelId: parcel.id, custodyEventId: Number(eventId),
+        agent: { id: agent.id, deliveryCommission: agent.deliveryCommission },
+        expectedAmount, cashLiability, updateOrder: false, assertNotCollected: false,
+        recordInvoice: (m) => this.invoicesService.recordCodBalanceCollected(order, Number(order.totalAmount || 0), m),
+      });
     };
 
     if (manual) {
@@ -4394,6 +4383,36 @@ export class SuperAgentsService {
     throw new BadRequestException(COD_MESSAGES.bodaFeeRequired);
   }
 
+  /**
+   * Where the boda rider collects a COD parcel: a KenteXa place the seller picked,
+   * resolved on the server (never free text), in the parcel's own city.
+   */
+  private async resolveCodPickup(
+    dto: { pickupPlace?: { providerKey?: string; providerPlaceId?: string }; originCity: string },
+    seller: User,
+  ): Promise<{ snapshot: Record<string, unknown>; phone: string }> {
+    const ref = dto.pickupPlace;
+    if (!ref?.providerKey || !ref?.providerPlaceId) throw new BadRequestException(COD_MESSAGES.pickupPlaceRequired);
+    const place = await this.locationIntelligence
+      .resolve({ providerKey: ref.providerKey, providerPlaceId: ref.providerPlaceId })
+      .catch(() => null);
+    if (!place) throw new BadRequestException(COD_MESSAGES.pickupPlaceRequired);
+    if (place.regionName && !isSameCity(place.regionName, dto.originCity)) {
+      throw new BadRequestException(COD_MESSAGES.pickupPlaceOtherCity);
+    }
+    const phone = typeof seller.phone === 'string' ? seller.phone.trim() : '';
+    if (!phone) throw new BadRequestException(COD_MESSAGES.sellerPhoneRequired);
+    return {
+      phone,
+      snapshot: {
+        city: dto.originCity, label: place.displayLabel,
+        latitude: place.latitude ?? null, longitude: place.longitude ?? null,
+        region: place.regionName ?? null, district: place.districtName ?? null,
+        providerKey: place.providerKey, resolutionMethod: place.resolutionMethod,
+      },
+    };
+  }
+
   async createSellerShipment(
     seller: User,
     dto: {
@@ -4464,6 +4483,9 @@ export class SuperAgentsService {
       // KenteXa Dar boda fee; the seller may change it. Kept on the Parcel's own
       // last-mile fee (agreedDeliveryFee), never in the seller's payout or fees.
       bodaFee?: number;
+      // COD only: where the boda rider collects the parcel (the seller's shop), a
+      // KenteXa place picked on the map; resolved on the server.
+      pickupPlace?: { providerKey?: string; providerPlaceId?: string };
     },
     scope?: SellerScope,
   ) {
@@ -4568,9 +4590,11 @@ export class SuperAgentsService {
       throw new BadRequestException(COD_MESSAGES.fullyPaid);
     }
     let codBodaFee: number | null = null;
+    let codPickup: { snapshot: Record<string, unknown>; phone: string } | null = null;
     if (isCodSale) {
       if (!isSameCity(dto.originCity, dto.destinationCity)) throw new BadRequestException(COD_MESSAGES.intercity);
       codBodaFee = await this.resolveCodBodaFee(dto, sellerProfile);
+      codPickup = await this.resolveCodPickup(dto, seller);
     }
 
     const order = (await this.orderRepo.save(
@@ -4715,6 +4739,19 @@ export class SuperAgentsService {
     let codText: string | null = null;
     if (isCodSale && codBodaFee != null) {
       await this.parcelRepo.update(parcel.id, { agreedDeliveryFee: codBodaFee });
+      // The boda job: a direct (no-hub) pickup at the seller's shop, offered to riders
+      // in this city. The rider who accepts gets the buyer's text 2 sent (rider + code).
+      if (codPickup) {
+        await this.dataSource.transaction(async (em) => {
+          const [linked] = await em.query('SELECT "shipmentId" FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
+          if (!linked?.shipmentId) throw new ConflictException('The shipment record for this parcel is missing');
+          await insertSellerCodPickupTask(em, {
+            parcelId: parcel.id, sellerUserId: seller.id,
+            contactName: senderDisplayName || seller.name || 'Muuzaji', contactPhone: codPickup!.phone,
+            originSnapshot: codPickup!.snapshot,
+          });
+        }).catch((e: any) => console.warn('COD boda pickup task not created:', e?.message));
+      }
       codText = codText1({
         goods: codRemainingBalance, partlyPaid: codUpfrontAmount > 0, bodaFee: codBodaFee,
         lipaNamba: sellerProfile?.lipaNamba ?? null, reference: orderRef,
