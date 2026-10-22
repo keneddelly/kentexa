@@ -19,6 +19,7 @@ import { InventoryMovementReason } from '../inventory/entities/inventory-movemen
 import { InvoicesService } from '../invoices/invoices.service';
 import { SmsService } from '../sms/sms.service';
 import { GrowthInviteService, InviteContext } from '../sms/growth-invite.service';
+import { COD_MESSAGES } from '../super-agents/cod-sms';
 
 @Injectable()
 export class SalesService {
@@ -111,6 +112,9 @@ export class SalesService {
         if (dto.amountPaid > total) {
           throw new BadRequestException('Amount paid cannot exceed the total for a COD sale');
         }
+        // A COD sale must leave a balance to pay on delivery. A full payment is
+        // cash or mobile money, never COD (owner, 2026-10-22).
+        if (dto.amountPaid >= total) throw new BadRequestException(COD_MESSAGES.fullyPaid);
       } else if (dto.amountPaid < total) {
         throw new BadRequestException(
           `Amount paid (${dto.amountPaid}) is less than the total due (${total})`,
@@ -167,7 +171,9 @@ export class SalesService {
     // whether the SMS provider is reachable. See CreateSaleDto — a manual
     // sale doesn't require a customer phone at all (in-shop cash sale with
     // no contact info), so this is skipped entirely when none was given.
-    if (saved.customerPhone) {
+    // A COD sale gets no receipt SMS: its one text is sent when the shipment is
+    // created (goods + boda = total, to pay on delivery; owner 2026-10-22).
+    if (saved.customerPhone && !saved.isCod) {
       this.sendReceiptSms(sellerId, saved).catch((e) =>
         console.error('Manual sale receipt SMS failed (non-critical):', e.message),
       );
@@ -186,9 +192,7 @@ export class SalesService {
   private async sendReceiptSms(sellerId: number, sale: Sale): Promise<void> {
     const seller = await this.userRepo.findOne({ where: { id: sellerId } });
     const sellerName = (seller as any)?.storeName || seller?.name || 'Muuzaji';
-    const baseMessage = sale.isCod
-      ? `KenteXa: Risiti ${sale.receiptNumber} kutoka ${sellerName}. Umelipa TZS ${Number(sale.amountPaid).toLocaleString()}. Salio la TZS ${Number(sale.balanceDue).toLocaleString()} litalipwa wakati wa kupokea.`
-      : `KenteXa: Umepokea risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()} kutoka ${sellerName}.`;
+    const baseMessage = `KenteXa: Umepokea risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()} kutoka ${sellerName}.`;
     const message = await this.growthInvite.appendInvite(
       baseMessage,
       sale.customerPhone,

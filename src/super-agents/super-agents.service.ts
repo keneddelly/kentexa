@@ -7,7 +7,9 @@ import {
   Optional,
 } from '@nestjs/common';
 import { OfficePriceService } from './office-price.service';
-import { checkChargedAmount } from './office-price';
+import { checkChargedAmount, isDarEsSalaam } from './office-price';
+import { OfficeBodaFeeService } from './office-boda-fee.service';
+import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
 import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from 'crypto';
@@ -220,6 +222,8 @@ export class SuperAgentsService {
     // The office price rule (pickup, transport, delivery, total) for the counter.
     // Optional only so hand-built test instances keep constructing.
     @Optional() private officePrices?: OfficePriceService,
+    // The KenteXa Dar boda fee: the default COD delivery fee on a seller shipment.
+    @Optional() private bodaFees?: OfficeBodaFeeService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -4361,6 +4365,26 @@ export class SuperAgentsService {
     return profile;
   }
 
+  /**
+   * The boda fee a COD buyer pays on delivery: the seller's own figure when given,
+   * otherwise the KenteXa Dar boda fee (seller's address -> delivery address).
+   * Outside Dar there is no default, so the seller must enter it.
+   */
+  private async resolveCodBodaFee(
+    dto: { bodaFee?: number; destinationCity: string; originCity: string; deliveryAddress: string },
+    sellerProfile: SellerProfile | null,
+  ): Promise<number> {
+    if (dto.bodaFee !== undefined && dto.bodaFee !== null && String(dto.bodaFee).trim() !== '') {
+      const fee = Number(dto.bodaFee);
+      if (!Number.isFinite(fee) || fee < 0 || fee > 1_000_000) throw new BadRequestException(COD_MESSAGES.badBodaFee);
+      return Math.round(fee);
+    }
+    if (this.bodaFees && isDarEsSalaam(dto.destinationCity)) {
+      return this.bodaFees.feeBetween(sellerProfile?.address || dto.originCity || null, dto.deliveryAddress || null);
+    }
+    throw new BadRequestException(COD_MESSAGES.bodaFeeRequired);
+  }
+
   async createSellerShipment(
     seller: User,
     dto: {
@@ -4427,6 +4451,10 @@ export class SuperAgentsService {
       // isCod/balanceDue is the authoritative source in that case.
       isCod?: boolean;
       codAmountPaid?: number; // what the buyer has already paid, if anything
+      // COD only: the boda delivery fee the buyer pays on delivery. Defaults to the
+      // KenteXa Dar boda fee; the seller may change it. Kept on the Parcel's own
+      // last-mile fee (agreedDeliveryFee), never in the seller's payout or fees.
+      bodaFee?: number;
     },
     scope?: SellerScope,
   ) {
@@ -4524,6 +4552,17 @@ export class SuperAgentsService {
     const isCodSale = linkedSale
       ? !!linkedSale.isCod && saleBalanceDue > 0
       : !!dto.isCod && directBalanceDue > 0;
+
+    // COD (owner 2026-10-22): never a fully paid sale, within one city only (a boda
+    // delivers it), and the buyer's one text shows goods + the boda fee set here.
+    if (!linkedSale && dto.isCod && directBalanceDue <= 0) {
+      throw new BadRequestException(COD_MESSAGES.fullyPaid);
+    }
+    let codBodaFee: number | null = null;
+    if (isCodSale) {
+      if (!isSameCity(dto.originCity, dto.destinationCity)) throw new BadRequestException(COD_MESSAGES.intercity);
+      codBodaFee = await this.resolveCodBodaFee(dto, sellerProfile);
+    }
 
     const order = (await this.orderRepo.save(
       this.orderRepo.create({
@@ -4662,6 +4701,17 @@ export class SuperAgentsService {
     const orderRef = customerNumber === trackingNumber ? `Oda: ${trackingNumber}` : `Mzigo: ${customerNumber}`;
     const smsSender = smsSafeName(senderDisplayName);
 
+    // COD: the boda fee sits on the Parcel's own last-mile fee, apart from the
+    // seller's payout and fees. The buyer's one text (text 1) is built from it.
+    let codText: string | null = null;
+    if (isCodSale && codBodaFee != null) {
+      await this.parcelRepo.update(parcel.id, { agreedDeliveryFee: codBodaFee });
+      codText = codText1({
+        goods: codRemainingBalance, partlyPaid: codUpfrontAmount > 0, bodaFee: codBodaFee,
+        lipaNamba: sellerProfile?.lipaNamba ?? null, reference: orderRef,
+      });
+    }
+
     // Populated by whichever branch below runs — read by the receipt in
     // the return value at the bottom of this method either way.
     let buyerName: string;
@@ -4692,11 +4742,13 @@ export class SuperAgentsService {
       await this.saleRepo.update(linkedSale.id, { shipmentTrackingNumber: trackingNumber });
 
       try {
+        // A COD sale's one text (text 1) replaces the "already paid" shipping text.
         buyerPaymentSmsSent = await this.smsService.sendSms(
           buyerPhone,
-          `Habari ${buyerName}, ${smsSender} ameanza kutuma bidhaa yako: ${dto.description} (${orderRef}).\n\n` +
-            `Risiti: ${receiptNumber}\n\n` +
-            `Verified by Kentexa`,
+          codText ??
+            `Habari ${buyerName}, ${smsSender} ameanza kutuma bidhaa yako: ${dto.description} (${orderRef}).\n\n` +
+              `Risiti: ${receiptNumber}\n\n` +
+              `Verified by Kentexa`,
         );
       } catch (e: any) {
         console.warn('POS-linked shipment SMS failed:', e?.message);
@@ -4753,14 +4805,8 @@ export class SuperAgentsService {
           receiptNumber = invoice.receiptNumber;
         }
         try {
-          buyerPaymentSmsSent = await this.smsService.sendSms(
-            buyerPhone,
-            directAmountPaid > 0
-              ? `Habari ${buyerName}, ${smsSender} imepokea malipo ya awali ya TZS ${directAmountPaid.toLocaleString()} kwa ${dto.description} (${orderRef}). Salio la TZS ${directBalanceDue.toLocaleString()} litakusanywa ukipokea.\n\n` +
-                `Verified by Kentexa`
-              : `Habari ${buyerName}, agizo lako la ${dto.description} (${orderRef}) limethibitishwa - Malipo Baada ya Kupokea. Utalipa TZS ${directBalanceDue.toLocaleString()} ukipokea.\n\n` +
-                `Verified by Kentexa`,
-          );
+          // The one COD text (text 1): goods + boda = total, to pay on delivery.
+          buyerPaymentSmsSent = await this.smsService.sendSms(buyerPhone, codText!);
         } catch (e: any) {
           console.warn('Manual order COD confirmation SMS failed:', e?.message);
         }

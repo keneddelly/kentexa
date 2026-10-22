@@ -151,6 +151,8 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
     if (!isCod && paid < total) { setError(t('pos.insufficient_payment')); return; }
     if (isCod && !customerPhone.trim()) { setError(t('pos.cod_needs_phone')); return; }
     if (isCod && paid > total) { setError(t('pos.cod_overpaid')); return; }
+    // A full payment is cash or mobile money, never COD (same rule as the backend).
+    if (isCod && paid >= total) { setError(t('pos.cod_full_paid')); return; }
     setSubmitting(true); setError('');
     try {
       const res = await api.post('/sales', {

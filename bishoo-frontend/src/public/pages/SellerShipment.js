@@ -105,6 +105,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
     // online orders, Manual Sale, and classified invoices.
     isCod: false,
     codAmountPaid: '0',
+    // COD only: the boda fee the buyer pays on delivery ('' = the KenteXa Dar default).
+    bodaFee: '',
     // Shipping — all required per method
     transportMethod: 'super_agent',
     superAgentNote: '',      // confirmation seller has/will hand to hub
@@ -186,6 +188,10 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
   };
 
   const set = (key, value) => setForm(f => ({ ...f, [key]: value }));
+  // Cash on Delivery for this shipment: a COD "Ship It" sale with a balance, or COD
+  // declared on this form. COD is within one city only, by boda (owner 2026-10-22).
+  const codActive = (prefill?.saleId && prefill?.isCod && Number(prefill?.balanceDue) > 0) ||
+    (!prefill?.saleId && form.isCod);
 
   // Nearby Super Agent hubs for the chosen destination — previously the
   // "Super Agent" transport option only showed generic reassurance text,
@@ -339,6 +345,11 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
     if (!prefill?.saleId && form.isCod && (Number(form.codAmountPaid) || 0) > getTotalValue()) {
       return t('seller_shipment.validate_cod_overpaid');
     }
+    // COD (owner 2026-10-22): never fully paid, and within one city only (boda).
+    if (!prefill?.saleId && form.isCod && (Number(form.codAmountPaid) || 0) >= getTotalValue()) {
+      return t('seller_shipment.validate_cod_full_paid');
+    }
+    if (codActive && !isSameCity) return t('seller_shipment.cod_intracity_only');
     // Shipping validation — required for tracking to work
     if (isSameCity) {
       // boda/local — just need address (already validated above)
@@ -407,6 +418,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
         // backend when saleId is set — that Sale's own isCod is authoritative).
         isCod: !prefill?.saleId && form.isCod ? true : undefined,
         codAmountPaid: !prefill?.saleId && form.isCod ? (Number(form.codAmountPaid) || 0) : undefined,
+        bodaFee: codActive && String(form.bodaFee).trim() !== '' ? Number(form.bodaFee) : undefined,
       });
       setResult(res.data);
       // Tracking is active immediately — no separate upfront fee payment
@@ -959,6 +971,21 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* COD: within one city only; the buyer pays the boda fee with the goods. */}
+            {codActive && !isSameCity && (
+              <div data-testid="cod-intracity-only" style={{ marginTop: 10, backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#b91c1c' }}>
+                {t('seller_shipment.cod_intracity_only')}
+              </div>
+            )}
+            {codActive && isSameCity && (
+              <div style={{ marginTop: 10 }}>
+                <Field label={t('seller_shipment.cod_boda_fee_label')} hint={t('seller_shipment.cod_boda_fee_hint')}>
+                  <input type="number" min="0" step="100" placeholder="3000" value={form.bodaFee}
+                    data-testid="cod-boda-fee" onChange={e => set('bodaFee', e.target.value)} style={inputStyle} />
+                </Field>
               </div>
             )}
           </div>

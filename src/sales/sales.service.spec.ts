@@ -95,6 +95,28 @@ describe('SalesService — Cash on Delivery', () => {
     ).rejects.toThrow(/cannot exceed/);
   });
 
+  // Owner 2026-10-22: a full payment is cash or mobile money, never COD.
+  it('rejects a COD sale whose amount paid equals the total', async () => {
+    await expect(
+      service.createSale(1, 1, { ...baseDto(), isCod: true, amountPaid: 50_000, customerPhone: '0700000000' } as any),
+    ).rejects.toThrow(/taslimu au pesa ya simu/);
+    expect(smsService.sendSms).not.toHaveBeenCalled();
+  });
+
+  it('a COD sale gets no receipt SMS (its one text is sent with the shipment)', async () => {
+    await service.createSale(1, 1, { ...baseDto(), isCod: true, amountPaid: 20_000, customerPhone: '0700000000' } as any);
+    await new Promise((r) => setImmediate(r));
+    expect(smsService.sendSms).not.toHaveBeenCalled();
+  });
+
+  it('a paid sale still gets its receipt SMS, unchanged', async () => {
+    await service.createSale(1, 1, { ...baseDto(), customerPhone: '0700000000' } as any);
+    await new Promise((r) => setImmediate(r));
+    expect(smsService.sendSms).toHaveBeenCalledTimes(1);
+    expect(smsService.sendSms).toHaveBeenCalledWith('0700000000',
+      'KenteXa: Umepokea risiti KNT-RCP-2026-ABCDE ya TZS 50,000 kutoka Duka Store.');
+  });
+
   describe('recordCodBalancePayment', () => {
     it('clears the balance and marks the sale paid in full', async () => {
       saleRepo.findOne.mockResolvedValue({
