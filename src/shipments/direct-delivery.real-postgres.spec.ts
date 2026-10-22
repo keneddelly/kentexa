@@ -6,6 +6,7 @@ import { AddParcelCustodyEvent1788278400000 } from '../database/migrations/17882
 import { AddParcelPickupChallenge1788279000000 } from '../database/migrations/1788279000000-AddParcelPickupChallenge';
 import { AddParcelPickupTask1788283200000 } from '../database/migrations/1788283200000-AddParcelPickupTask';
 import { AddPickupTaskDirectDelivery1788292800000 } from '../database/migrations/1788292800000-AddPickupTaskDirectDelivery';
+import { AddPickupTaskCodeOnAccept1792300000000 } from '../database/migrations/1792300000000-AddPickupTaskCodeOnAccept';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { COD_CODE_ALREADY_SENT, PickupTasksService, insertSellerCodPickupTask } from './pickup-tasks.service';
 import { PickupReleaseService } from './pickup-release.service';
@@ -162,6 +163,9 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       await new AddParcelPickupTask1788283200000().up(runner);
       await new AddPickupTaskDirectDelivery1788292800000().up(runner);
       await new AddPickupTaskDirectDelivery1788292800000().up(runner); // idempotent
+      // COD (2026-10-22): a direct task may hold its recipient code from the rider's accept.
+      await new AddPickupTaskCodeOnAccept1792300000000().up(runner);
+      await new AddPickupTaskCodeOnAccept1792300000000().up(runner); // idempotent
     } finally { await runner.release(); }
     svc = new PickupTasksService(db, sms);
   });
@@ -353,7 +357,7 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       // Offered to riders in the city; nothing is sent to the buyer before a rider accepts.
       expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(taskId);
       expect(textTwo()).toHaveLength(0);
-      expect((await parcel(id)).agentDeliveryCodeHash).toBeNull();
+      expect((await task(id)).deliveryCodeHash).toBeNull();
 
       // Rider Nine accepts: text 2 to the buyer, once, with the rider's name, phone and the code.
       await cod.claim(taskId, 9, agentRole(9));
@@ -362,13 +366,16 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       expect(textTwo()[0].message).toMatch(/^KenteXa: Boda Agent Nine, simu 0709, ataleta mzigo wako KTX-SHP-\d+\. Namba ya kupokea: \d{6}\./);
       expect(textTwo()[0].message.length).toBeLessThanOrEqual(160);
       const firstCode = codeOf(textTwo()[0]);
-      expect(await parcel(id)).toMatchObject({ agentDeliveryAgentUserId: 9, agentDeliveryRecipientPhone: RECIPIENT_PHONE });
+      // The code is kept on the pickup task, never in the Parcel's last-mile code columns.
+      expect(await task(id)).toMatchObject({ status: 'claimed', agentProfileId: 9, deliveryAttempts: 0 });
+      expect((await task(id)).deliveryCodeHash).not.toBeNull();
+      expect((await parcel(id)).agentDeliveryCodeHash).toBeNull();
       await cod.claim(taskId, 9, agentRole(9)); // a repeated tap is a replay: no second text
       expect(textTwo()).toHaveLength(1);
 
       // Rider Nine releases: the code bound to them is cancelled. Rider Ten accepts: a new text 2.
       await releases.releaseByAgent(taskId, 9, agentRole(9));
-      expect((await parcel(id)).agentDeliveryCodeHash).toBeNull();
+      expect(await task(id)).toMatchObject({ status: 'requested', deliveryCodeHash: null, deliveryCodeIssuedAt: null });
       await cod.claim(taskId, 10, agentRole(10));
       expect(textTwo()).toHaveLength(2);
       expect(textTwo()[1].message).toMatch(/Boda Agent Ten, simu 0710/);
@@ -387,13 +394,14 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       // Only Rider Ten's code, from Rider Ten: the released rider's code no longer works.
       if (firstCode !== code) {
         await expect(cod.deliver(taskId, 10, agentRole(10), firstCode)).rejects.toThrow('Incorrect recipient delivery code');
-        expect((await parcel(id)).agentDeliveryAttempts).toBe(1);
+        expect((await task(id)).deliveryAttempts).toBe(1);
       }
       await expect(cod.deliver(taskId, 9, agentRole(9), code)).rejects.toThrow('not assigned to you');
 
       // Delivered: the COD is collected and settled once, the code is gone.
       expect(await cod.deliver(taskId, 10, agentRole(10), code)).toMatchObject({ status: 'delivered', replay: false });
-      expect(await parcel(id)).toMatchObject({ status: 'delivered', agentDeliveryCodeHash: null, agentDeliveryAttempts: 0 });
+      expect(await parcel(id)).toMatchObject({ status: 'delivered', agentDeliveryCodeHash: null });
+      expect(await task(id)).toMatchObject({ status: 'delivered', deliveryCodeHash: null, deliveryAttempts: 0 });
       const [order] = await q('SELECT * FROM public."order" WHERE id=$1', [id]);
       expect(order).toMatchObject({ codBalanceCollected: true, codBalanceCollectedByLocalAgentId: 10, paymentStatus: 'paid', status: 'delivered' });
       const rows = await q('SELECT * FROM public.agent_cod_collection WHERE "orderId"=$1', [id]);
@@ -419,9 +427,9 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     it('the seller cancels before collection: the COD code is cancelled with the job', async () => {
       const { id, taskId } = await mkCod();
       await cod.claim(taskId, 9, agentRole(9));
-      expect((await parcel(id)).agentDeliveryCodeHash).not.toBeNull();
+      expect((await task(id)).deliveryCodeHash).not.toBeNull();
       await cod.cancel(SELLER, id);
-      expect((await parcel(id)).agentDeliveryCodeHash).toBeNull();
+      expect(await task(id)).toMatchObject({ status: 'cancelled', deliveryCodeHash: null });
     });
   });
 
@@ -466,11 +474,21 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     expect(await svc.getForShipment(SENDER, await mkShipment())).toEqual({ task: null });
   });
 
-  it('the database itself refuses a recipient code outside a collected direct task', async () => {
+  it('the database itself refuses a recipient code outside a claimed or collected direct task', async () => {
+    const setCode = (id: number) => q(`UPDATE public.parcel_pickup_task SET "deliveryCodeHash"='x',"deliveryCodeIssuedAt"=now(),
+      "deliveryCodeExpiresAt"=now() WHERE id=$1`, [id]);
     const s = await mkShipment();
     const t = await request(s);
-    await expect(q(`UPDATE public.parcel_pickup_task SET "deliveryCodeHash"='x',"deliveryCodeIssuedAt"=now(),
-      "deliveryCodeExpiresAt"=now() WHERE id=$1`, [t.id])).rejects.toThrow('CHK_pickup_task_delivery_code');
+    await expect(setCode(t.id)).rejects.toThrow('CHK_pickup_task_delivery_code'); // requested
+    await svc.claim(t.id, 9, agentRole(9));
+    await expect(setCode(t.id)).resolves.toBeDefined(); // claimed direct task: allowed (COD code on accept)
+    // a claimed task with a code cannot go back to 'requested' without clearing it
+    await expect(q(`UPDATE public.parcel_pickup_task SET status='requested',"agentProfileId"=NULL,"claimedAt"=NULL WHERE id=$1`, [t.id]))
+      .rejects.toThrow('CHK_pickup_task_delivery_code');
+    const h = await mkShipment(7);
+    const ht = await request(h, 'hub_routed');
+    await svc.claim(ht.id, 9, agentRole(9));
+    await expect(setCode(ht.id)).rejects.toThrow('CHK_pickup_task_delivery_code'); // hub-routed: never
     await expect(q(`UPDATE public.parcel_pickup_task SET "deliveryAttempts"=-1 WHERE id=$1`, [t.id]))
       .rejects.toThrow('CHK_pickup_task_delivery_attempts');
   });

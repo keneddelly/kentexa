@@ -7,7 +7,7 @@ import { LogisticsDispatchService } from './logistics-dispatch.service';
 import { customerParcelNumber } from '../super-agents/customer-parcel-number';
 import { findNearestOffice } from '../transport/nearest-office';
 import { smsSafeName } from '../super-agents/customer-parcel-number';
-import { CLEAR_PARCEL_COD_CODE } from './pickup-tasks.service';
+import { CLEAR_TASK_DELIVERY_CODE } from './pickup-tasks.service';
 import type { RoleContext } from '../role-context/role-context.types';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
@@ -98,10 +98,7 @@ export class PickupReleaseService {
       // and the next rider's accept sends a new one.
       await em.query(`UPDATE public.parcel_pickup_task SET status = 'requested', "agentProfileId" = NULL, "claimedAt" = NULL,
         "handoffCodeHash" = NULL, "handoffCodeIssuedAt" = NULL, "handoffCodeExpiresAt" = NULL, "handoffAttempts" = 0,
-        "updatedAt" = now() WHERE id = $1`, [taskId]);
-      if (p[0]?.agentDeliveryCodeHash) {
-        await em.query(`UPDATE public.parcel SET ${CLEAR_PARCEL_COD_CODE} WHERE id = $1`, [p[0].id]);
-      }
+        ${task.deliveryCodeHash ? `${CLEAR_TASK_DELIVERY_CODE},` : ''} "updatedAt" = now() WHERE id = $1`, [taskId]);
       await em.query(`INSERT INTO public.parcel_tracking ("parcelId", status, city, note, "updatedBy", "handlerPhone", "handlerLocation", "handlerType")
         VALUES ($1, $2, NULL, $3, NULL, NULL, NULL, 'local_agent')`,
         [p[0].id, p[0].status, 'Wakala hawezi kufika; tunatafuta wakala mwingine']);
