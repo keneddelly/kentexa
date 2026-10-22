@@ -99,17 +99,26 @@ test('Bei page, by kg: no percent or minimum fields; the office\'s own rates are
   expect(screen.queryAllByRole('spinbutton')).toHaveLength(2);
 });
 
-test('Bei page, by kg with no rates: says every by-kg parcel will be refused until a rate is set', async () => {
+test('Bei page, by kg with no rates: says the agent types the price until a rate is set', async () => {
   jest.useRealTimers();
   api.get.mockResolvedValue({ data: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000, source: 'office', isDarEsSalaam: false, rates: [] } });
   render(<OfficePriceRuleCard />);
   expect(await screen.findByText('office_price_rule.kg_no_rates')).toBeTruthy();
 });
 
-test('counter preview shows the refusal for a town with no kg rate', async () => {
-  const message = 'Ofisi hii inatoza kwa kilo, lakini hakuna bei ya kilo kwa Mbeya.';
-  api.post.mockRejectedValue({ response: { data: { message } } });
-  render(<OfficePricePreview input={{ ...input, destinationCity: 'Mbeya', servicePath: 'intercity' }} fee="" onQuote={jest.fn()} />);
+test('a town with no kg rate: no refusal, no suggestion, the agent types the fee with no reason asked', async () => {
+  const noRate = {
+    pickup: { status: 'not_included', amount: 0 }, transport: { amount: 0, mode: 'kg', minimum: 0, weightKg: 2, noRate: true },
+    delivery: { status: 'not_included', amount: 0 }, total: 0, currency: 'TZS', ruleSource: 'office', noSuggestion: true,
+  };
+  api.post.mockResolvedValue({ data: noRate });
+  render(<OfficePricePreview input={{ ...input, destinationCity: 'Mbeya', servicePath: 'intercity' }} fee="12000" onQuote={jest.fn()} />);
   await act(async () => { jest.advanceTimersByTime(450); });
-  expect(await screen.findByRole('alert')).toHaveTextContent(message);
+  expect(await screen.findByTestId('office-price-no-suggestion')).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.queryByText(/Tumia/)).toBeNull();
+  expect(screen.queryByPlaceholderText(/Punguzo/)).toBeNull();
+  expect(feeDiffers(noRate, '12000')).toBe(false);
+  expect(priceLinesSw({ ...noRate, charged: 12000, changed: true, changeReason: null }))
+    .toEqual([['Kuchukua', 'Haihusiki'], ['Usafirishaji', 'Bei ya wakala'], ['Kufikisha', 'Haihusiki'], ['Jumla', 'TZS 12,000']]);
 });

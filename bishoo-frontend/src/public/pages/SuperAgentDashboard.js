@@ -294,7 +294,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     lastWalkQuoteTotal.current = q ? q.total : null;
     setWalkQuote(q);
     // Fill the fee from the office price while the agent has not typed their own.
-    if (q) setWalkForm(p => (p.shippingFeeCollected === '' || Number(p.shippingFeeCollected) === previous)
+    if (q && !q.noSuggestion) setWalkForm(p => (p.shippingFeeCollected === '' || Number(p.shippingFeeCollected) === previous)
       ? { ...p, shippingFeeCollected: String(q.total) } : p);
   };
   const [walkRoute, setWalkRoute]       = useState(null);

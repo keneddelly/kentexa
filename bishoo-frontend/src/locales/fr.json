@@ -1951,9 +1951,9 @@
     "percent": "Pourcentage de la valeur (%)",
     "minimum": "Minimum (TZS)",
     "value_note": "Chaque montant est arrondi aux 100 TZS supérieurs.",
-    "kg_rates_note": "Seules les villes avec un tarif au kilo peuvent être facturées au kilo. Un colis vers une ville sans tarif est refusé au comptoir. Modifiez les tarifs dans le formulaire ci-dessous. Arrondi aux 100 TZS supérieurs.",
+    "kg_rates_note": "Seules les villes avec un tarif au kilo peuvent être facturées au kilo. Pour une ville sans tarif, l’agent saisit le prix au comptoir. Modifiez les tarifs dans le formulaire ci-dessous. Arrondi aux 100 TZS supérieurs.",
 
-    "kg_no_rates": "Aucun tarif au kilo. Ajoutez un tarif pour chaque ville dans le formulaire ci-dessous, sinon chaque colis au kilo sera refusé au comptoir.",
+    "kg_no_rates": "Aucun tarif au kilo. Ajoutez un tarif pour chaque ville dans le formulaire ci-dessous. En attendant, l’agent saisit le prix de chaque colis au comptoir.",
 
     "kg_town": "Ville",
 

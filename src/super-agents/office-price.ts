@@ -2,8 +2,9 @@
  * Office price rule (owner, 2026-10-21; NEXT_STEPS section 12). Each Super Agent office
  * sets HOW it charges for transport: a percent of the goods value (mostly 10%, with a
  * minimum of 5,000 TZS) or by kg (its existing per-destination rates in shipping_rate).
- * By kg, a town with no shipping_rate row is refused (NoDestinationRateError): the office
- * sets a rate for that town first. There is no percent fallback (owner 2026-10-21).
+ * By kg, a town with no shipping_rate row has no suggested price (noSuggestion): the agent
+ * types the price at the counter. No percent fallback and no refusal (owner 2026-10-22,
+ * docs/KENTEXA_ROADMAP.md step 3: the counter always allows a manual price).
  * One calculation gives pickup, transport, delivery and total, so the offer, the counter
  * preview, the receipt and the invoice all show the same numbers.
  *
@@ -39,17 +40,14 @@ export interface PriceLine { status: LineStatus; amount: number; source?: 'boda'
 export interface OfficePriceQuote {
   pickup: PriceLine;
   /** mode 'same_city': a same-city parcel in Dar, which pays only the boda fee (amount 0). */
-  transport: { amount: number; mode: ChargeMode | 'same_city'; percent?: number; minimum: number; ratePerKg?: number; weightKg?: number };
+  transport: { amount: number; mode: ChargeMode | 'same_city'; percent?: number; minimum: number; ratePerKg?: number; weightKg?: number; noRate?: boolean };
   delivery: PriceLine;
   total: number;
   currency: string;
   /** 'office' = the office's own rule; 'default' = no rule saved yet (10%, minimum 5,000). */
   ruleSource: 'office' | 'default';
-}
-
-/** A by-kg office has no shipping_rate row for the parcel's town. */
-export class NoDestinationRateError extends Error {
-  constructor() { super('NO_DESTINATION_RATE'); this.name = 'NoDestinationRateError'; }
+  /** True when a by-kg office has no rate for the parcel's town: no suggested price. */
+  noSuggestion: boolean;
 }
 
 export const roundUpTo100 = (n: number): number => {
@@ -90,8 +88,9 @@ export function quoteOfficePrice(input: QuoteInput): OfficePriceQuote {
   let transport: OfficePriceQuote['transport'];
   if (input.sameCityDar) {
     transport = { amount: 0, mode: 'same_city', minimum: 0 };
-  } else if (rule.chargeMode === 'kg') {
-    if (!input.kgRate || !(Number(input.kgRate.ratePerKg) > 0)) throw new NoDestinationRateError();
+  } else if (rule.chargeMode === 'kg' && !(Number(input.kgRate?.ratePerKg) > 0)) {
+    transport = { amount: 0, mode: 'kg', minimum: 0, weightKg: weight, noRate: true };
+  } else if (rule.chargeMode === 'kg' && input.kgRate) {
     const minimum = roundUpTo100(Number(input.kgRate.minimumCharge) || 0);
     transport = {
       amount: Math.max(roundUpTo100(weight * Number(input.kgRate.ratePerKg)), minimum),
@@ -110,20 +109,23 @@ export function quoteOfficePrice(input: QuoteInput): OfficePriceQuote {
     total: pickup.amount + transport.amount + delivery.amount,
     currency: rule.currency || DEFAULT_CURRENCY,
     ruleSource: input.rule ? 'office' : 'default',
+    noSuggestion: transport.noRate === true,
   };
 }
 
 export const PRICE_CHANGE_REASON_MIN = 3;
 
 /**
- * The agent may charge a different amount than the calculation, but only with a saved
- * reason. Returns the reason to save (null when the charged amount equals the total).
+ * The agent may always charge their own amount. When it differs from the suggestion a
+ * reason is required and saved. With no suggestion (noSuggestion) the typed amount is the
+ * price and a reason is optional. Returns the reason to save (null when none).
  */
-export function checkChargedAmount(quote: Pick<OfficePriceQuote, 'total'>, charged: number, reason: unknown): { changed: boolean; reason: string | null } {
+export function checkChargedAmount(quote: Pick<OfficePriceQuote, 'total'> & { noSuggestion?: boolean }, charged: number, reason: unknown): { changed: boolean; reason: string | null } {
   const amount = Number(charged);
   if (!Number.isFinite(amount) || amount < 0) throw new Error('INVALID_AMOUNT');
-  if (amount === quote.total) return { changed: false, reason: null };
   const text = typeof reason === 'string' ? reason.trim() : '';
+  if (quote.noSuggestion) return { changed: true, reason: text ? text.slice(0, 300) : null };
+  if (amount === quote.total) return { changed: false, reason: null };
   if (text.length < PRICE_CHANGE_REASON_MIN) throw new Error('REASON_REQUIRED');
   return { changed: true, reason: text.slice(0, 300) };
 }
@@ -139,13 +141,17 @@ export function breakdownReceiptLines(b: any): { label: string; value: string }[
   const currency = b.currency || DEFAULT_CURRENCY;
   const lines = [
     { label: 'Kuchukua (pickup)', value: lineText(b.pickup, currency) },
-    { label: 'Usafirishaji (transport)', value: b.transport.mode === 'same_city' ? 'Haihusiki (not included)' : tzs(b.transport.amount, currency) },
+    { label: 'Usafirishaji (transport)', value: b.transport.mode === 'same_city' ? 'Haihusiki (not included)'
+      : b.transport.noRate ? 'Bei ya wakala (agent price)' : tzs(b.transport.amount, currency) },
     { label: 'Kufikisha (delivery)', value: lineText(b.delivery, currency) },
-    { label: 'Jumla (total)', value: tzs(b.total, currency) },
+    // No suggestion: the agent's typed amount is the total.
+    { label: 'Jumla (total)', value: tzs(b.noSuggestion ? b.charged : b.total, currency) },
   ];
-  if (b.changed) {
+  if (b.noSuggestion) {
+    if (b.changeReason) lines.push({ label: 'Sababu (reason)', value: String(b.changeReason).slice(0, 60) });
+  } else if (b.changed) {
     lines.push({ label: 'Imelipwa (charged)', value: tzs(b.charged, currency) });
-    lines.push({ label: 'Sababu (reason)', value: String(b.changeReason || '').slice(0, 60) });
+    if (b.changeReason) lines.push({ label: 'Sababu (reason)', value: String(b.changeReason).slice(0, 60) });
   }
   return lines;
 }

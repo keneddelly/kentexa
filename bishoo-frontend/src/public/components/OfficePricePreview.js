@@ -3,14 +3,15 @@ import api from '../../api/api';
 
 // Counter preview of the office price rule: pickup, transport, delivery and total, from
 // the same calculation the backend uses when the parcel is saved. The agent may charge a
-// different amount, but then must write a reason (it is saved on the receipt).
+// different amount, but then must write a reason (it is saved on the receipt). With no
+// suggestion (by kg, no rate for the town) the agent types the price and no reason is asked.
 // Swahili, like the rest of the dashboard.
 
 const money = (n) => `TZS ${Number(n || 0).toLocaleString('en-US')}`;
 const lineText = (l) => (!l || l.status === 'not_included' ? 'Haihusiki' : l.status === 'free' ? 'Bure' : money(l.amount));
 export const REASON_MIN = 3;
 
-export const feeDiffers = (quote, fee) => !!quote && String(fee ?? '') !== '' && Number(fee) !== Number(quote.total);
+export const feeDiffers = (quote, fee) => !!quote && !quote.noSuggestion && String(fee ?? '') !== '' && Number(fee) !== Number(quote.total);
 
 const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonChange }) => {
   const [quote, setQuote] = useState(null);
@@ -47,7 +48,12 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
       <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', letterSpacing: 0.5, marginBottom: 6 }}>BEI YA OFISI</div>
       {loading && !quote && <div style={{ fontSize: 13, color: '#64748b' }}>Inahesabu bei…</div>}
       {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c' }}>{error}</div>}
-      {quote && (
+      {quote?.noSuggestion && (
+        <div data-testid="office-price-no-suggestion" style={{ fontSize: 13, color: '#334155' }}>
+          Hakuna bei ya kilo ya ofisi kwa mji huu. Andika ada mwenyewe (unaweza kuweka bei ya mji huu kwenye Bei).
+        </div>
+      )}
+      {quote && !quote.noSuggestion && (
         <>
           {[['Kuchukua', lineText(quote.pickup)],
             ['Usafirishaji', quote.transport?.mode === 'same_city' ? 'Haihusiki' : money(quote.transport?.amount)],

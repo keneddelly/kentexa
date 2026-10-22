@@ -1734,9 +1734,9 @@
     "percent": "Asilimia ya thamani (%)",
     "minimum": "Kiwango cha chini (TZS)",
     "value_note": "Kila kiasi kinazungushwa juu hadi TZS 100 iliyo karibu.",
-    "kg_rates_note": "Miji yenye bei ya kilo pekee ndiyo inatozwa kwa kilo. Mzigo kwenda mji usio na bei unakataliwa kaunta. Badilisha bei kwenye fomu ya bei hapa chini. Kila kiasi kinazungushwa juu hadi TZS 100.",
+    "kg_rates_note": "Miji yenye bei ya kilo pekee ndiyo inatozwa kwa kilo. Kwa mji usio na bei, wakala anaandika ada mwenyewe kaunta. Badilisha bei kwenye fomu ya bei hapa chini. Kila kiasi kinazungushwa juu hadi TZS 100.",
 
-    "kg_no_rates": "Bado hakuna bei za kilo. Weka bei ya kila mji kwenye fomu hapa chini, la sivyo kila mzigo wa kilo utakataliwa kaunta.",
+    "kg_no_rates": "Bado hakuna bei za kilo. Weka bei ya kila mji kwenye fomu hapa chini. Hadi hapo, wakala anaandika ada ya kila mzigo kaunta.",
 
     "kg_town": "Mji",
 

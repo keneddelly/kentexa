@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
-  quoteOfficePrice, roundUpTo100, checkChargedAmount, breakdownReceiptLines, isDarEsSalaam, NoDestinationRateError,
+  quoteOfficePrice, roundUpTo100, checkChargedAmount, breakdownReceiptLines, isDarEsSalaam,
 } from './office-price';
-import { OfficePriceService, noDestinationRateMessage } from './office-price.service';
+import { OfficePriceService } from './office-price.service';
 import { OfficeBodaFeeService, darBodaFee } from './office-boda-fee.service';
 import { DEFAULT_DAR_BODA_MATRIX } from '../boda-rates/dar-boda-zones';
 import { SuperAgentsService } from './super-agents.service';
@@ -45,11 +45,15 @@ describe('office price calculation', () => {
     expect(quoteOfficePrice({ rule: kgRule, kgRate: { ratePerKg: 1000, minimumCharge: 4000 }, declaredValue: 500000, weightKg: 1 }).transport.amount).toBe(4000);
   });
 
-  it('by kg with no rate for that destination is refused: no percent fallback', () => {
+  it('by kg with no rate for that destination: no suggestion, no percent fallback, not refused', () => {
     const kgRule = { chargeMode: 'kg' as const, valuePercent: 8, valueMinimum: 6000 };
-    expect(() => quoteOfficePrice({ rule: kgRule, kgRate: null, declaredValue: 150000, weightKg: 4 })).toThrow(NoDestinationRateError);
-    expect(() => quoteOfficePrice({ rule: kgRule, kgRate: { ratePerKg: 0, minimumCharge: 4000 }, declaredValue: 150000, weightKg: 4 }))
-      .toThrow(NoDestinationRateError);
+    for (const kgRate of [null, { ratePerKg: 0, minimumCharge: 4000 }]) {
+      const q = quoteOfficePrice({ rule: kgRule, kgRate, declaredValue: 150000, weightKg: 4 });
+      expect(q.noSuggestion).toBe(true);
+      expect(q.transport).toEqual(expect.objectContaining({ mode: 'kg', amount: 0, noRate: true }));
+      expect(q.transport.percent).toBeUndefined();
+    }
+    expect(quoteOfficePrice({ rule: kgRule, kgRate: { ratePerKg: 3000, minimumCharge: 4000 }, declaredValue: 1, weightKg: 1 }).noSuggestion).toBe(false);
     // By value is unchanged: 10% with a 5,000 minimum, with or without a kg rate.
     expect(quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 150000 }).transport)
       .toEqual(expect.objectContaining({ mode: 'value', percent: 10, minimum: 5000, amount: 15000 }));
@@ -84,6 +88,11 @@ describe('office price calculation', () => {
     expect(() => checkChargedAmount({ total: 16000 }, 15000, '  a ')).toThrow('REASON_REQUIRED');
     expect(checkChargedAmount({ total: 16000 }, 15000, 'Mteja wa kudumu')).toEqual({ changed: true, reason: 'Mteja wa kudumu' });
     expect(() => checkChargedAmount({ total: 16000 }, NaN, 'x')).toThrow('INVALID_AMOUNT');
+    // No suggestion (by kg, no rate for the town): any amount is accepted, a reason is optional.
+    expect(checkChargedAmount({ total: 0, noSuggestion: true }, 12000, undefined)).toEqual({ changed: true, reason: null });
+    expect(checkChargedAmount({ total: 0, noSuggestion: true }, 12000, ' Bei ya kawaida ')).toEqual({ changed: true, reason: 'Bei ya kawaida' });
+    const manual = breakdownReceiptLines({ ...quoteOfficePrice({ rule: { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000 }, kgRate: null, declaredValue: 1, weightKg: 2 }), charged: 12000, changed: true, changeReason: null });
+    expect(manual.map((l) => l.value)).toEqual(['Haihusiki (not included)', 'Bei ya wakala (agent price)', 'Haihusiki (not included)', 'TZS 12,000']);
     const lines = breakdownReceiptLines({ ...quoteOfficePrice({ rule: tenPercent, kgRate: null, declaredValue: 100000 }), charged: 9000, changed: true, changeReason: 'Mteja wa kudumu' });
     expect(lines.slice(-2)).toEqual([{ label: 'Imelipwa (charged)', value: 'TZS 9,000' }, { label: 'Sababu (reason)', value: 'Mteja wa kudumu' }]);
   });
@@ -134,17 +143,14 @@ describe('OfficePriceService', () => {
     expect((await service.getMyRule(me, ctx)).rates).toEqual([{ destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, estimatedDays: 2 }]);
   });
 
-  it('saves the office rule; by kg finds the destination rate (any case); a town with no rate is refused', async () => {
+  it('saves the office rule; by kg finds the destination rate (any case); a town with no rate has no suggestion', async () => {
     const { service, rules } = setup({ city: 'Arusha' });
     await service.setMyRule(me, ctx, { chargeMode: 'kg', valuePercent: 10, valueMinimum: 5000 });
     expect(rules.rows[0]).toEqual(expect.objectContaining({ superAgentId: 10, chargeMode: 'kg', currency: 'TZS', country: 'TZ', updatedByUserId: 1 }));
     const byKg = await service.previewMine(me, ctx, { destinationCity: 'mwanza', declaredValue: 900000, weightKg: 2, servicePath: 'intercity' });
     expect(byKg.transport).toEqual(expect.objectContaining({ mode: 'kg', amount: 6000 }));
-    const noRate = service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 90000, weightKg: 2, servicePath: 'intercity' });
-    await expect(noRate).rejects.toThrow(BadRequestException);
-    await expect(service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 90000, weightKg: 2, servicePath: 'intercity' }))
-      .rejects.toThrow(noDestinationRateMessage('Mbeya'));
-    expect(noDestinationRateMessage('Mbeya')).toContain('hakuna bei ya kilo kwa Mbeya');
+    const noRate = await service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 90000, weightKg: 2, servicePath: 'intercity' });
+    expect(noRate).toEqual(expect.objectContaining({ noSuggestion: true, total: 0 }));
     // Back to by value: 10% with a 5,000 minimum, no kg rate needed.
     await service.setMyRule(me, ctx, { chargeMode: 'value', valuePercent: 10, valueMinimum: 5000 });
     expect((await service.previewMine(me, ctx, { destinationCity: 'Mbeya', declaredValue: 30000, servicePath: 'intercity' })).total).toBe(5000);

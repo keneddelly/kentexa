@@ -6,7 +6,7 @@ import api from '../../api/api';
 // minimum (default 10%, minimum 5,000 TZS), or by kg using the per-destination rates below.
 // The counter uses this rule for its price preview, the receipt and the invoice.
 // By kg, route prices come only from the office's shipping rates (shown here read-only,
-// edited in the rates form below); a town with no rate is refused at the counter.
+// edited in the rates form below); for a town with no rate the agent types the price.
 
 const inp = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box', outline: 'none' };
 

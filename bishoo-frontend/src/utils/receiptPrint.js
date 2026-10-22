@@ -23,17 +23,19 @@ export function paymentMethodSw(method) {
 const money = (n) => `TZS ${Number(n || 0).toLocaleString('en-US')}`;
 
 // The office price rule's lines (pickup, transport, delivery, total), as on the invoice.
-// "Bure" when free, "Haihusiki" when not part of this office's price.
+// "Bure" when free, "Haihusiki" when not part of this office's price. With no suggestion
+// (by kg, no rate for the town) the agent's typed amount is the total.
 export function priceLinesSw(b) {
   if (!b || typeof b !== 'object' || !b.transport) return [];
   const line = (l) => (!l || l.status === 'not_included' ? 'Haihusiki' : l.status === 'free' ? 'Bure' : money(l.amount));
   const lines = [
     ['Kuchukua', line(b.pickup)],
-    ['Usafirishaji', b.transport.mode === 'same_city' ? 'Haihusiki' : money(b.transport.amount)],
+    ['Usafirishaji', b.transport.mode === 'same_city' ? 'Haihusiki' : b.transport.noRate ? 'Bei ya wakala' : money(b.transport.amount)],
     ['Kufikisha', line(b.delivery)],
-    ['Jumla', money(b.total)],
+    ['Jumla', money(b.noSuggestion ? b.charged : b.total)],
   ];
-  if (b.changed) lines.push(['Bei imebadilishwa', String(b.changeReason || '')]);
+  if (b.noSuggestion) { if (b.changeReason) lines.push(['Sababu', String(b.changeReason)]); }
+  else if (b.changed) lines.push(['Bei imebadilishwa', String(b.changeReason || '')]);
   return lines;
 }
 

@@ -9,7 +9,7 @@ import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
 import type { User } from '../users/entities/user.entity';
 import {
-  ChargeMode, DEFAULT_COUNTRY, DEFAULT_CURRENCY, NoDestinationRateError, OfficePriceQuote, OfficePriceRuleInput,
+  ChargeMode, DEFAULT_COUNTRY, DEFAULT_CURRENCY, OfficePriceQuote, OfficePriceRuleInput,
   defaultRule, isDarEsSalaam, quoteOfficePrice,
 } from './office-price';
 
@@ -20,14 +20,6 @@ export const OFFICE_PRICE_MESSAGES = {
   badMinimum: 'Kiwango cha chini kiwe 0 au zaidi.',
   badValue: 'Thamani ya mzigo inahitajika na lazima iwe zaidi ya sifuri',
 } as const;
-
-/** By kg, the parcel's town has no rate: the office sets one first (Mipangilio → Bei za usafirishaji). */
-export const noDestinationRateMessage = (town?: string | null): string => {
-  const name = typeof town === 'string' ? town.trim() : '';
-  return name
-    ? `Ofisi hii inatoza kwa kilo, lakini hakuna bei ya kilo kwa ${name}. Weka bei ya ${name} kwenye Mipangilio → Bei za usafirishaji, kisha ujaribu tena.`
-    : 'Ofisi hii inatoza kwa kilo. Chagua mji wa kufikisha mzigo wenye bei ya kilo, au weka bei ya mji huo kwenye Mipangilio → Bei za usafirishaji.';
-};
 
 export interface OfficeQuoteRequest {
   destinationCity?: string;
@@ -130,12 +122,7 @@ export class OfficePriceService {
 
     // Same-city parcel in Dar (agent delivery from a Dar office): only the boda fee.
     const sameCityDar = inDar && req.servicePath === 'local_agent';
-    try {
-      return quoteOfficePrice({ rule, kgRate, declaredValue, weightKg: req.weightKg ?? null, pickupBodaFee, deliveryBodaFee, sameCityDar });
-    } catch (e) {
-      if (e instanceof NoDestinationRateError) throw new BadRequestException(noDestinationRateMessage(req.destinationCity));
-      throw e;
-    }
+    return quoteOfficePrice({ rule, kgRate, declaredValue, weightKg: req.weightKg ?? null, pickupBodaFee, deliveryBodaFee, sameCityDar });
   }
 
   async previewMine(user: User, roleContext: RoleContext | undefined, req: OfficeQuoteRequest) {
