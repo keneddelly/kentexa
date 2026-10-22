@@ -1,3 +1,4 @@
+import { PARTNER_JOB_MESSAGE, partnerGateSql, sellerPartnerTableReady } from '../partner-invitations/seller-agent-partner-gate';
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
   Logger, NotFoundException, Optional,
@@ -244,6 +245,13 @@ export class PickupTasksService {
       }
       if (t[0].status !== 'requested' || t[0].agentProfileId !== null) {
         throw new ConflictException('Pickup task was claimed or closed');
+      }
+      // Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
+      if (sellerPartnerTableReady()) {
+        const gate: any[] = await em.query(`SELECT ${partnerGateSql('$2::int')} AS ok
+          FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId"
+          JOIN public.shipment s ON s.id = p."shipmentId" WHERE t.id = $1`, [taskId, userId]);
+        if (!gate[0]?.ok) throw new ConflictException(PARTNER_JOB_MESSAGE);
       }
       await em.query(`UPDATE public.parcel_pickup_task SET status='claimed',
         "agentProfileId"=$1,"claimedAt"=now(),"updatedAt"=now() WHERE id=$2`, [role.profileId, taskId]);
@@ -785,8 +793,10 @@ export class PickupTasksService {
           -- D2: a job this agent released ("Siwezi kufika" or timeout) is not offered to him again.
           AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_RELEASED'
                 AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = $2)
+          -- Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
+          AND ${partnerGateSql('$3::int')}
         ORDER BY t."createdAt" ASC LIMIT 50`,
-      [normalizeCity(agent.city), agent.id],
+      [normalizeCity(agent.city), agent.id, userId],
     );
     // Section 18 (b): distance from the agent's base, rounded; nearest first.
     const hasBase = agent.baseLatitude != null && agent.baseLongitude != null;

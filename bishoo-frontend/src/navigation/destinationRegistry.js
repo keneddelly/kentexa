@@ -43,6 +43,8 @@ const DYNAMIC_DESTINATIONS = [
   [/^SellerCheckout-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'SellerCheckout'],
   // A Super Agent's partner invitation (?partnerInvite=<signed token>): public; accepting needs login.
   [/^PartnerInvite-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'PartnerInvite'],
+  // A seller's partner-agent invitation (?agentInvite=<signed token>): public; accepting needs login.
+  [/^SellerAgentInvite-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'SellerAgentInvite'],
 ];
 
 // Destinations that exist ONLY as dynamic routes: their bare names are not
@@ -52,6 +54,7 @@ const DYNAMIC_ONLY_DESTINATIONS = Object.freeze({
   BecomeBusinessServiceProvider: destination('BecomeBusinessServiceProvider', DESTINATION_KIND.ACCOUNT),
   SellerCheckout: destination('SellerCheckout', DESTINATION_KIND.PUBLIC),
   PartnerInvite: destination('PartnerInvite', DESTINATION_KIND.PUBLIC),
+  SellerAgentInvite: destination('SellerAgentInvite', DESTINATION_KIND.PUBLIC),
 });
 
 export const destinationForPage = (page) => {

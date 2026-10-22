@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { PICKUP_TO_BASE_DISTANCE_SQL } from '../shipments/pickup-pin';
+import { partnerGateSql } from '../partner-invitations/seller-agent-partner-gate';
 
 /**
  * D5 (owner 2026-10-14): when an agent goes online, pickups already waiting
@@ -42,6 +43,8 @@ export class AgentPickupReofferService {
                  WHERE e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = a.id
                    AND (e."eventType" = 'PICKUP_RELEASED'
                         OR (e."eventType" = $3 AND e."createdAt" > now() - make_interval(hours => $4::int))))
+           -- Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
+           AND ${partnerGateSql('a."userId"')}
          ORDER BY "distanceM" ASC, t."createdAt" ASC
          LIMIT $5`, [agentId, REOFFER_RADIUS_M, PICKUP_REOFFERED_EVENT, REOFFER_QUIET_HOURS, REOFFER_MAX_JOBS]);
       for (const r of rows) {

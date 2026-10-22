@@ -12,6 +12,7 @@ import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
 import { agentCodSplit, codCollectedOrderUpdate, settleManualAgentCod } from './agent-cod-settlement';
 import { insertSellerCodPickupTask } from '../shipments/pickup-tasks.service';
+import { offerTaskToSellerPartners } from '../partner-invitations/seller-agent-partner-gate';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
 import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from 'crypto';
@@ -4733,15 +4734,17 @@ export class SuperAgentsService {
       // The boda job: a direct (no-hub) pickup at the seller's shop, offered to riders
       // in this city. The rider who accepts gets the buyer's text 2 sent (rider + code).
       if (codPickup) {
-        await this.dataSource.transaction(async (em) => {
+        const codTask = await this.dataSource.transaction(async (em) => {
           const [linked] = await em.query('SELECT "shipmentId" FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
           if (!linked?.shipmentId) throw new ConflictException('The shipment record for this parcel is missing');
-          await insertSellerCodPickupTask(em, {
+          return insertSellerCodPickupTask(em, {
             parcelId: parcel.id, sellerUserId: seller.id,
             contactName: senderDisplayName || seller.name || 'Muuzaji', contactPhone: codPickup!.phone,
             originSnapshot: codPickup!.snapshot,
           });
-        }).catch((e: any) => console.warn('COD boda pickup task not created:', e?.message));
+        }).catch((e: any) => { console.warn('COD boda pickup task not created:', e?.message); return null; });
+        // The seller's own partner agents hear about the job first (never throws).
+        if (codTask?.id) await offerTaskToSellerPartners(this.dataSource, this.smsService, codTask.id);
       }
       codText = codText1({
         goods: codRemainingBalance, partlyPaid: codUpfrontAmount > 0, bodaFee: codBodaFee,

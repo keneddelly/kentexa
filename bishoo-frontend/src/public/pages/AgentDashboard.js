@@ -25,6 +25,7 @@ import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import ShipmentPickupQueue from '../components/ShipmentPickupQueue';
 import AgentBasePoint from '../components/AgentBasePoint';
+import AgentPartnerSellersCard from '../components/AgentPartnerSellersCard';
 
 // ── Status colours used across both order and parcel cards ────────────────
 const STATUS_COLOR = {
@@ -656,6 +657,9 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           <AgentBasePoint hasBasePoint={!!profile?.hasBasePoint} baseSetAt={profile?.baseSetAt}
             onSaved={(d) => setProfile((p) => ({ ...p, hasBasePoint: true, baseSetAt: d?.baseSetAt }))} />
         )}
+
+        {/* Sellers this agent works with as their partner agent (owner 2026-10-22). */}
+        <AgentPartnerSellersCard />
 
         {/* ── NOT APPROVED YET ─────────────────────────────────────────── */}
         {profileStatus !== 'approved' && (

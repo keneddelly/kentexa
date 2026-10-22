@@ -7,6 +7,8 @@ import { AddParcelPickupChallenge1788279000000 } from '../database/migrations/17
 import { AddParcelPickupTask1788283200000 } from '../database/migrations/1788283200000-AddParcelPickupTask';
 import { AddPickupTaskDirectDelivery1788292800000 } from '../database/migrations/1788292800000-AddPickupTaskDirectDelivery';
 import { AddPickupTaskCodeOnAccept1792300000000 } from '../database/migrations/1792300000000-AddPickupTaskCodeOnAccept';
+import { AddSellerAgentPartner1792400000000 } from '../database/migrations/1792400000000-AddSellerAgentPartner';
+import { PARTNER_JOB_MESSAGE, setSellerPartnerTableReadyForTests } from '../partner-invitations/seller-agent-partner-gate';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { COD_CODE_ALREADY_SENT, PickupTasksService, insertSellerCodPickupTask } from './pickup-tasks.service';
 import { PickupReleaseService } from './pickup-release.service';
@@ -430,6 +432,57 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       expect((await task(id)).deliveryCodeHash).not.toBeNull();
       await cod.cancel(SELLER, id);
       expect(await task(id)).toMatchObject({ status: 'cancelled', deliveryCodeHash: null });
+    });
+
+    it("the seller's partner agent has the job alone for the first minutes; then, or once he releases it, every agent", async () => {
+      const runner = db.createQueryRunner();
+      try {
+        await new AddSellerAgentPartner1792400000000().up(runner);
+        await new AddSellerAgentPartner1792400000000().up(runner); // idempotent
+      } finally { await runner.release(); }
+      await q(`INSERT INTO public."user" (id, phone) VALUES (6, '255700000006'), (9, '255700000009'), (10, '255700000010')
+        ON CONFLICT (id) DO NOTHING`);
+      setSellerPartnerTableReadyForTests(true);
+      try {
+        // Agent 10 is the seller's partner (accepted); agent 9 is any other agent in the city.
+        await q(`INSERT INTO public.seller_agent_partner ("sellerUserId", "invitedPhone", channel, "tokenHash", status,
+          "expiresAt", "acceptedAt", "agentUserId") VALUES ($1, '255700000010', 'whatsapp', 'hash-partner-1', 'accepted',
+          now() + interval '7 days', now(), 10)`, [SELLER]);
+
+        // Fresh job: only the partner sees it and can take it.
+        const first = await mkCod();
+        expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).not.toContain(first.taskId);
+        expect((await cod.listAvailable(10, agentRole(10))).map((j) => j.id)).toContain(first.taskId);
+        await expect(cod.claim(first.taskId, 9, agentRole(9))).rejects.toThrow(PARTNER_JOB_MESSAGE);
+        expect(await task(first.id)).toMatchObject({ status: 'requested', agentProfileId: null });
+
+        // After the window it is open to every agent, exactly as before.
+        await q(`UPDATE public.parcel_pickup_task SET "createdAt" = now() - interval '6 minutes' WHERE id = $1`, [first.taskId]);
+        expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(first.taskId);
+        await cod.claim(first.taskId, 9, agentRole(9));
+        expect(await task(first.id)).toMatchObject({ status: 'claimed', agentProfileId: 9 });
+
+        // The partner takes a job, then cannot come: it is open to everyone at once.
+        const second = await mkCod();
+        await cod.claim(second.taskId, 10, agentRole(10));
+        await releases.release(second.taskId, 'agent_cannot_come', 10);
+        expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(second.taskId);
+
+        // A partnership that ended holds nothing back.
+        await q(`UPDATE public.seller_agent_partner SET status = 'ended', "endedAt" = now(), "endedBy" = 'seller'`);
+        const third = await mkCod();
+        expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(third.taskId);
+
+        // Not the seller's job at all: never held back.
+        const other = await mkShipment();
+        const t = await request(other);
+        await q(`UPDATE public.seller_agent_partner SET status = 'accepted', "endedAt" = NULL, "endedBy" = NULL`);
+        expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(t.id);
+        await cod.cancel(SELLER, third.id);
+      } finally {
+        setSellerPartnerTableReadyForTests(false);
+        await q('DROP TABLE IF EXISTS public.seller_agent_partner');
+      }
     });
   });
 
