@@ -46,6 +46,7 @@ import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import PartnerInvitePanel from '../components/PartnerInvitePanel';
 import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/OfficePricePreview';
 import RouteRangePanel from '../components/RouteRangePanel';
+import OfficeRatesList from '../components/OfficeRatesList';
 
 const pendingWalkInRequests = new Map();
 
@@ -518,12 +519,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         const [dashRes, revenueRes, ratesRes, agentsRes] = await Promise.all([
           api.get('/super-agents/dashboard'),
           api.get('/super-agents/revenue').catch(() => ({ data: null })),
-          api.get(`/super-agents/rates/${encodeURIComponent(p.city)}`).catch(() => ({ data: [] })),
+          // The BEI tab: this office's own rates (ratePerKg, minimumCharge, estimatedDays).
+          api.get('/super-agents/me/price-rule').catch(() => ({ data: null })),
           api.get(`/agents/nearby?region=${encodeURIComponent(p.city)}`).catch(() => ({ data: [] })),
         ]);
         setDashData(dashRes.data);
         setRevenue(revenueRes.data);
-        setRates(ratesRes.data || []);
+        setRates(ratesRes.data?.rates || []);
         setLocalAgents(agentsRes.data || []);
         api.get('/collections/hub/handover-requests')
           .then(r => setHandoverRequests(r.data || []))
@@ -2565,53 +2567,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
               💡 Orodha hii inakusaidia kujibu haraka mtu anayeuliza bei ya kutuma mzigo
             </div>
-            {rates.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
-                Bado haujaweka bei zako.
-                <br />
-                <button onClick={() => onNavigate('SuperAgentSettings')}
-                  style={{ marginTop: 12, backgroundColor: '#1d4ed8', color: '#fff',
-                    border: 'none', padding: '10px 20px', borderRadius: 8,
-                    cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                  + Weka Bei Zangu
-                </button>
-              </div>
-            ) : (
-              <>
-                <div style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-                    backgroundColor: '#f8fafc', padding: '10px 14px',
-                    fontSize: 11, fontWeight: 800, color: '#64748b' }}>
-                    <span>MJI</span><span>KWA KG</span><span>BEI YA CHINI</span>
-                  </div>
-                  {rates.map((r, i) => (
-                    <div key={r.id} style={{ display: 'grid',
-                      gridTemplateColumns: '1fr 1fr 1fr',
-                      padding: '10px 14px', fontSize: 13,
-                      backgroundColor: i % 2 === 0 ? '#fff' : '#fafafa',
-                      borderTop: '1px solid #f1f5f9' }}>
-                      <span style={{ fontWeight: 700, color: '#1e293b' }}>
-                        {r.destinationCity}
-                      </span>
-                      <span style={{ color: '#64748b' }}>
-                        TZS {Number(r.perKgFee || 0).toLocaleString()}
-                      </span>
-                      <span style={{ color: '#16a34a', fontWeight: 700 }}>
-                        TZS {Number(r.baseShippingFee || 0).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => onNavigate('SuperAgentSettings')}
-                  style={{ width: '100%', marginTop: 12, background: '#fff',
-                    color: '#1d4ed8', border: '2px solid #1d4ed8', padding: 12,
-                    borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                  ✏️ Hariri Bei
-                </button>
-              </>
-            )}
+            <OfficeRatesList rates={rates} onEdit={() => onNavigate('SuperAgentSettings')} />
           </>
         )}
 
