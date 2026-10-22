@@ -79,7 +79,22 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
   });
 
   // The whole method, with every collaborator faked: what the buyer receives.
+  const place = {
+    displayLabel: 'Kariakoo, Ilala', latitude: -6.82, longitude: 39.27, regionName: 'Dar es Salaam', districtName: 'Ilala',
+    providerKey: 'tz_seed', providerPlaceId: 'ward:6', resolutionMethod: 'admin_seed',
+  };
+  // The create transaction's queries: the parcel's shipment link, then the pickup task insert.
+  const taskRows: any[] = [];
+  const em = {
+    query: jest.fn(async (sql: string, params: any[]) => {
+      if (sql.includes('SELECT "shipmentId"')) return [{ shipmentId: 77 }];
+      if (sql.includes('INSERT INTO public.parcel_pickup_task')) { taskRows.push(params); return [{ id: 501, status: 'requested' }]; }
+      return [];
+    }),
+  };
+  const pickupPlace = { providerKey: 'tz_seed', providerPlaceId: 'ward:6' };
   const full = (sale: any, profile: any = { lipaNamba: '5808450', address: 'Kariakoo' }) => {
+    taskRows.length = 0;
     const sms = { sendSms: jest.fn(async () => true) };
     const parcelRepo = { update: jest.fn(async () => ({})) };
     const fake: any = {
@@ -90,7 +105,11 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
       orderRepo: { create: jest.fn((x) => x), save: jest.fn(async (x) => ({ ...x, id: 900 })), update: jest.fn(async () => ({})) },
       sellerProfileRepo: { update: jest.fn(async () => ({})) },
       createParcelForOrder: jest.fn(async () => ({ parcel: { id: 50 }, transitCity: null, expectedArrival: null, estimatedDays: 1 })),
-      dataSource: { query: jest.fn(async () => [{ waybillNumber: null, createdAt: null }]) },
+      dataSource: {
+        query: jest.fn(async () => [{ waybillNumber: null, createdAt: null }]),
+        transaction: jest.fn(async (cb: any) => cb(em)),
+      },
+      locationIntelligence: { resolve: jest.fn(async () => place) },
       parcelRepo, smsService: sms,
       invoicesService: { recordManualPayment: jest.fn(async () => ({ receiptNumber: 'KNT-RCP-1' })) },
       auditLog: { record: jest.fn(async () => ({})) },
@@ -99,6 +118,7 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
       bodaFees: { feeBetween: jest.fn(async () => 3000) },
     };
     fake.resolveCodBodaFee = (SuperAgentsService.prototype as any).resolveCodBodaFee.bind(fake);
+    fake.resolveCodPickup = (SuperAgentsService.prototype as any).resolveCodPickup.bind(fake);
     return { sms, parcelRepo, fake, call: (dto: any) => SuperAgentsService.prototype.createSellerShipment.call(fake, seller, dto) };
   };
 
@@ -106,8 +126,13 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
     const sale = { id: 3, sellerId: 7, status: 'completed', isCod: true, subtotal: 100000, total: 100000,
       amountPaid: 20000, balanceDue: 80000, customerName: 'Amina', customerPhone: '0700000002', receiptNumber: 'R1' };
     const { sms, parcelRepo, fake, call } = full(sale);
-    await call({ ...base, destinationCity: 'Dar es Salaam', saleId: 3 });
+    await call({ ...base, destinationCity: 'Dar es Salaam', saleId: 3, pickupPlace });
     expect(sms.sendSms).toHaveBeenCalledTimes(1);
+    // The boda job: one direct pickup at the seller's resolved shop, requested by the seller.
+    expect(taskRows).toHaveLength(1);
+    const [parcelId, , , sellerId, origin, contactName, contactPhone] = taskRows[0];
+    expect([parcelId, sellerId, contactName, contactPhone]).toEqual([50, 7, 'Duka', '0700000001']);
+    expect(JSON.parse(origin)).toMatchObject({ city: 'Dar es Salaam', label: 'Kariakoo, Ilala', providerKey: 'tz_seed' });
     const [phone, text] = (sms.sendSms.mock.calls[0] as unknown) as [string, string];
     expect(phone).toBe('0700000002');
     expect(text).toMatch(/^KenteXa: Salio la bidhaa TZS 80,000 \+ boda TZS 3,000 = Jumla TZS 83,000\. Utalipa wakati wa kupokea: taslimu au Lipa Namba 5808450\./);
@@ -124,6 +149,17 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
     expect(sms.sendSms).toHaveBeenCalledTimes(1);
     expect(((sms.sendSms.mock.calls[0] as unknown) as [string, string])[1]).toMatch(/ameanza kutuma bidhaa yako/);
     expect(parcelRepo.update).not.toHaveBeenCalled();
+    expect(taskRows).toHaveLength(0); // no boda job: van/hub shipments are unchanged
+  });
+
+  it('a COD needs the boda pickup place (the seller\'s shop, picked on the map) before anything is saved', async () => {
+    const sale = { id: 5, sellerId: 7, status: 'completed', isCod: true, subtotal: 100000, total: 100000,
+      amountPaid: 20000, balanceDue: 80000, customerName: 'Amina', customerPhone: '0700000002', receiptNumber: 'R3' };
+    const { call, fake } = full(sale);
+    await expect(call({ ...base, destinationCity: 'Dar es Salaam', saleId: 5 })).rejects.toThrow(COD_MESSAGES.pickupPlaceRequired);
+    fake.locationIntelligence.resolve = jest.fn(async () => ({ ...place, regionName: 'Arusha' }));
+    await expect(call({ ...base, destinationCity: 'Dar es Salaam', saleId: 5, pickupPlace })).rejects.toThrow(COD_MESSAGES.pickupPlaceOtherCity);
+    expect(fake.orderRepo.save).not.toHaveBeenCalled();
   });
 
   it('the boda fee: the seller\'s own figure, else the KenteXa Dar default; outside Dar it is required', async () => {

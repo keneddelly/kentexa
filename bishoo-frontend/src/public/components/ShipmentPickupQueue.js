@@ -149,13 +149,29 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
                   {t('pickup_queue.recipient')}: {job.recipient.name} · <a href={`tel:${job.recipient.phone}`}>{job.recipient.phone}</a> · {job.recipient.area}
                 </div>
               )}
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>{t('pickup_queue.recipient_explain')}</div>
-              <div style={{ marginTop: 8 }}>
-                <button style={btn(false)} disabled={busy === job.id}
-                  onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/delivery-code`), t('pickup_queue.code_sent_ok'))}>
-                  {job.recipientCodeIssued ? t('pickup_queue.send_code_again') : t('pickup_queue.send_code')}
-                </button>
+              {/* COD: what to collect at the door (goods + the rider's boda fee). */}
+              {job.cod && (
+                <div data-testid="pickup-cod" style={{ fontSize: 13, fontWeight: 800, color: '#b45309', backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginTop: 6 }}>
+                  {t('pickup_queue.cod_collect', {
+                    total: Number(job.cod.total).toLocaleString('en-US'),
+                    goods: Number(job.cod.goods).toLocaleString('en-US'),
+                    boda: Number(job.cod.bodaFee).toLocaleString('en-US'),
+                  })}
+                </div>
+              )}
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+                {job.cod && job.recipientCodeIssued ? t('pickup_queue.cod_code_sent') : t('pickup_queue.recipient_explain')}
               </div>
+              {/* A COD buyer got their code when the rider accepted; it is never sent again. */}
+              {!(job.cod && job.recipientCodeIssued) && (
+                <div style={{ marginTop: 8 }}>
+                  <button style={btn(false)} disabled={busy === job.id}
+                    onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/delivery-code`), t('pickup_queue.code_sent_ok'))}>
+                    {job.recipientCodeIssued ? t('pickup_queue.send_code_again') : t('pickup_queue.send_code')}
+                  </button>
+                </div>
+              )}
               {codeInput(job.id, t('pickup_queue.recipient_code'))}
               <button style={btn(true)} disabled={busy === job.id || code(job.id).length !== 6}
                 onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/deliver`, { code: code(job.id) }), t('pickup_queue.delivered_ok'))}>

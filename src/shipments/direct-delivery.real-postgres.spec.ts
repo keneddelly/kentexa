@@ -7,7 +7,9 @@ import { AddParcelPickupChallenge1788279000000 } from '../database/migrations/17
 import { AddParcelPickupTask1788283200000 } from '../database/migrations/1788283200000-AddParcelPickupTask';
 import { AddPickupTaskDirectDelivery1788292800000 } from '../database/migrations/1788292800000-AddPickupTaskDirectDelivery';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
-import { PickupTasksService } from './pickup-tasks.service';
+import { COD_CODE_ALREADY_SENT, PickupTasksService, insertSellerCodPickupTask } from './pickup-tasks.service';
+import { PickupReleaseService } from './pickup-release.service';
+import { agentCodSplit } from '../super-agents/agent-cod-settlement';
 
 /**
  * Logistics repair Gate 4 — first mile and DIRECT Agent delivery, on real
@@ -110,14 +112,35 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     await q(`INSERT INTO public.transport_run VALUES (30, 3, '2026-10-08 03:00:00')`);
     await q(`INSERT INTO public.journey_leg ("journeySelectionId", sequence, type, "runId") VALUES (800, 1, 'transport', 30)`);
     await q(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "shipmentId" integer, "orderId" integer, status text NOT NULL,
-      "superAgentId" integer, "trackingNumber" text, "deliveredTime" timestamp, "buyerConfirmed" boolean NOT NULL DEFAULT false)`);
+      "superAgentId" integer, "trackingNumber" text, "deliveredTime" timestamp, "buyerConfirmed" boolean NOT NULL DEFAULT false,
+      "agreedDeliveryFee" numeric, "waybillNumber" text, "createdAt" timestamp,
+      "agentDeliveryCodeHash" text, "agentDeliveryCodeExpiresAt" timestamp, "agentDeliveryCodeIssuedAt" timestamp,
+      "agentDeliveryAgentUserId" integer, "agentDeliveryRecipientPhone" varchar(32), "agentDeliveryAttempts" integer NOT NULL DEFAULT 0,
+      CONSTRAINT "CHK_parcel_agent_delivery_challenge" CHECK (
+        ("agentDeliveryCodeHash" IS NULL AND "agentDeliveryCodeExpiresAt" IS NULL AND "agentDeliveryCodeIssuedAt" IS NULL
+          AND "agentDeliveryAgentUserId" IS NULL AND "agentDeliveryRecipientPhone" IS NULL)
+        OR ("agentDeliveryCodeHash" IS NOT NULL AND "agentDeliveryCodeExpiresAt" IS NOT NULL AND "agentDeliveryCodeIssuedAt" IS NOT NULL
+          AND "agentDeliveryAgentUserId" IS NOT NULL AND "agentDeliveryRecipientPhone" IS NOT NULL)))`);
+    // COD seller shipments on the boda path (2026-10-22): the Order columns the rider
+    // path reads and settles, and the collection ledger it writes.
+    await q(`DROP TABLE IF EXISTS public.agent_cod_collection, public."order" CASCADE`);
+    await q(`CREATE TABLE public."order" (id integer PRIMARY KEY, source text NOT NULL, "paymentMethod" text NOT NULL,
+      "totalAmount" numeric NOT NULL, "codRemainingBalance" numeric, "codBalanceCollected" boolean NOT NULL DEFAULT false,
+      "codBalanceCollectedByLocalAgentId" integer, "codBalanceCollectedAt" timestamp, "paymentStatus" text, status text,
+      "deliveredAt" timestamp)`);
+    await q(`CREATE TABLE public.agent_cod_collection (id SERIAL PRIMARY KEY, "orderId" integer NOT NULL UNIQUE,
+      "parcelId" integer NOT NULL, "custodyEventId" integer NOT NULL, "agentId" integer NOT NULL, "collectedAmount" numeric NOT NULL,
+      "cashLiability" numeric NOT NULL, "handlingFee" numeric NOT NULL, "kentexaShare" numeric NOT NULL, "agentShare" numeric NOT NULL,
+      "orderSource" text NOT NULL)`);
     // Columns from later migrations: isTrainingOffice (1791900000000), the Agent base point
     // (1791800000000; every test Agent has one, it is required to accept a pickup).
     await q(`CREATE TABLE public.super_agent (id integer PRIMARY KEY, "userId" integer, status text NOT NULL, "workspaceId" integer,
       city text, "businessName" text, phone text, address text,
       "isTrainingOffice" boolean NOT NULL DEFAULT false)`);
     await q(`CREATE TABLE public.agent (id integer PRIMARY KEY, "userId" integer, status text, city text, "fullName" text, phone text,
-      "baseLatitude" double precision DEFAULT -6.8161, "baseLongitude" double precision DEFAULT 39.2804, "baseSetAt" timestamptz DEFAULT now())`);
+      "baseLatitude" double precision DEFAULT -6.8161, "baseLongitude" double precision DEFAULT 39.2804, "baseSetAt" timestamptz DEFAULT now(),
+      "totalDeliveriesCompleted" integer NOT NULL DEFAULT 0, "totalEarningsDeliveries" numeric NOT NULL DEFAULT 0,
+      "totalEarningsPayments" numeric NOT NULL DEFAULT 0, "totalEarnings" numeric NOT NULL DEFAULT 0)`);
     // The pickup point (1791800000000) and the tables the Agent pickup lists read.
     await q(`ALTER TABLE public.shipment ADD COLUMN "pickupPinLatitude" double precision, ADD COLUMN "pickupPinLongitude" double precision,
       ADD COLUMN "pickupPinAccuracyM" integer, ADD COLUMN "pickupPinCapturedAt" timestamptz, ADD COLUMN "pickupLandmark" varchar(160),
@@ -280,6 +303,126 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     await q(`UPDATE public.parcel_pickup_task SET "deliveryCodeIssuedAt" = now() - interval '2 minutes' WHERE id=$1`, [taskId]);
     await svc.issueDeliveryCode(taskId, 9, agentRole(9));
     expect(await svc.deliver(taskId, 9, agentRole(9), lastCode())).toMatchObject({ status: 'delivered' });
+  });
+
+  // ── COD seller shipment on the boda path (owner 2026-10-22) ───────────────
+  describe('COD seller shipment: boda pickup and delivery', () => {
+    const SELLER = 6;
+    const receipts: Array<[number, number]> = [];
+    const invoices: any = {
+      recordCodBalanceCollectedForOrderId: async (orderId: number, total: number) => { receipts.push([orderId, total]); },
+    };
+    let cod: PickupTasksService;
+    let releases: PickupReleaseService;
+    beforeAll(async () => {
+      // The rider's phone falls back to their account's phone (the texts read public."user").
+      await q(`CREATE TABLE IF NOT EXISTS public."user" (id integer PRIMARY KEY, phone text)`);
+      // The columns a rider's release writes to the activity record.
+      await q(`ALTER TABLE public.activity_events ADD COLUMN IF NOT EXISTS category text,
+        ADD COLUMN IF NOT EXISTS "actorProfileType" text, ADD COLUMN IF NOT EXISTS "actorType" text,
+        ADD COLUMN IF NOT EXISTS metadata jsonb, ADD COLUMN IF NOT EXISTS severity text, ADD COLUMN IF NOT EXISTS visibility text`);
+      cod = new PickupTasksService(db, sms, undefined, invoices);
+      releases = new PickupReleaseService(db);
+    });
+    // The rest of this file runs without it, exactly as before.
+    afterAll(() => q('DROP TABLE IF EXISTS public."user"'));
+    const textTwo = () => sent.filter((m) => m.phone === RECIPIENT_PHONE && /Namba ya kupokea:/.test(m.message));
+    const codeOf = (m: { message: string }) => /Namba ya kupokea: (\d{6})/.exec(m.message)![1];
+
+    /** A seller's COD order: goods balance 80,000, boda fee 3,000, a direct boda pickup at the shop. */
+    const mkCod = async () => {
+      const id = ++seq;
+      await q(`INSERT INTO public."order" (id, source, "paymentMethod", "totalAmount", "codRemainingBalance", "paymentStatus", status)
+        VALUES ($1,'seller_shipment','cod',100000,80000,'upfront_paid','pending')`, [id]);
+      await q(`INSERT INTO public.shipment (id,"requestedByUserId",status,"originCity","destinationCity",
+        "originHubSource","destinationHubSource","destinationLocationLabel","receiverName","receiverPhone","itemDescription","weightKg","trackingNumber","orderId")
+        VALUES ($1,$2,'confirmed','Dar es Salaam','Dar es Salaam','not_required','not_required','Mbagala, Temeke','Amina Juma',$3,'Simu',1,$4,$1)`,
+      [id, SELLER, RECIPIENT_PHONE, `KTX-SHP-${id}`]);
+      await q(`INSERT INTO public.parcel (id,"shipmentId","orderId",status,"trackingNumber","agreedDeliveryFee")
+        VALUES ($1,$1,$1,'pending',$2,3000)`, [id, `KTX-SHP-${id}`]);
+      const t = await db.transaction((em) => insertSellerCodPickupTask(em, {
+        parcelId: id, sellerUserId: SELLER, contactName: 'Duka la Baraka', contactPhone: '+255713000002',
+        originSnapshot: { city: 'Dar es Salaam', label: 'Kariakoo, Ilala', providerKey: 'tz_seed', resolutionMethod: 'admin_seed' },
+      }));
+      return { id, taskId: t.id };
+    };
+
+    it('text 2 on the rider\'s accept only; a rider change cancels the code; delivery settles the COD once', async () => {
+      receipts.length = 0;
+      const { id, taskId } = await mkCod();
+      // Offered to riders in the city; nothing is sent to the buyer before a rider accepts.
+      expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(taskId);
+      expect(textTwo()).toHaveLength(0);
+      expect((await parcel(id)).agentDeliveryCodeHash).toBeNull();
+
+      // Rider Nine accepts: text 2 to the buyer, once, with the rider's name, phone and the code.
+      await cod.claim(taskId, 9, agentRole(9));
+      expect(textTwo()).toHaveLength(1);
+      expect(textTwo()[0]).toMatchObject({ sensitive: true });
+      expect(textTwo()[0].message).toMatch(/^KenteXa: Boda Agent Nine, simu 0709, ataleta mzigo wako KTX-SHP-\d+\. Namba ya kupokea: \d{6}\./);
+      expect(textTwo()[0].message.length).toBeLessThanOrEqual(160);
+      const firstCode = codeOf(textTwo()[0]);
+      expect(await parcel(id)).toMatchObject({ agentDeliveryAgentUserId: 9, agentDeliveryRecipientPhone: RECIPIENT_PHONE });
+      await cod.claim(taskId, 9, agentRole(9)); // a repeated tap is a replay: no second text
+      expect(textTwo()).toHaveLength(1);
+
+      // Rider Nine releases: the code bound to them is cancelled. Rider Ten accepts: a new text 2.
+      await releases.releaseByAgent(taskId, 9, agentRole(9));
+      expect((await parcel(id)).agentDeliveryCodeHash).toBeNull();
+      await cod.claim(taskId, 10, agentRole(10));
+      expect(textTwo()).toHaveLength(2);
+      expect(textTwo()[1].message).toMatch(/Boda Agent Ten, simu 0710/);
+      const code = codeOf(textTwo()[1]);
+
+      // Collect from the seller; the rider sees what to collect at the door.
+      const { code: handoff } = await cod.issueHandoffCode(SELLER, id);
+      await cod.collect(taskId, 10, agentRole(10), handoff);
+      expect((await cod.listMine(10, agentRole(10))).find((j) => j.id === taskId)).toMatchObject({
+        nextAction: 'deliver_to_recipient', recipientCodeIssued: true, cod: { goods: 80000, bodaFee: 3000, total: 83000 },
+      });
+      // The code sent on accept lasts until delivery and is never repeated.
+      await expect(cod.issueDeliveryCode(taskId, 10, agentRole(10))).rejects.toThrow(COD_CODE_ALREADY_SENT);
+      expect(textTwo()).toHaveLength(2);
+
+      // Only Rider Ten's code, from Rider Ten: the released rider's code no longer works.
+      if (firstCode !== code) {
+        await expect(cod.deliver(taskId, 10, agentRole(10), firstCode)).rejects.toThrow('Incorrect recipient delivery code');
+        expect((await parcel(id)).agentDeliveryAttempts).toBe(1);
+      }
+      await expect(cod.deliver(taskId, 9, agentRole(9), code)).rejects.toThrow('not assigned to you');
+
+      // Delivered: the COD is collected and settled once, the code is gone.
+      expect(await cod.deliver(taskId, 10, agentRole(10), code)).toMatchObject({ status: 'delivered', replay: false });
+      expect(await parcel(id)).toMatchObject({ status: 'delivered', agentDeliveryCodeHash: null, agentDeliveryAttempts: 0 });
+      const [order] = await q('SELECT * FROM public."order" WHERE id=$1', [id]);
+      expect(order).toMatchObject({ codBalanceCollected: true, codBalanceCollectedByLocalAgentId: 10, paymentStatus: 'paid', status: 'delivered' });
+      const rows = await q('SELECT * FROM public.agent_cod_collection WHERE "orderId"=$1', [id]);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ parcelId: id, agentId: 10, orderSource: 'seller_shipment' });
+      expect(Number(rows[0].collectedAmount)).toBe(80000); // the goods balance; the boda fee is the rider's own
+      // Money match: the same split the hub path records (both call agent-cod-settlement.ts);
+      // a seller shipment's rider owes only KenteXa's share, as on the hub path.
+      const split = agentCodSplit(80000);
+      expect([Number(rows[0].handlingFee), Number(rows[0].kentexaShare), Number(rows[0].agentShare), Number(rows[0].cashLiability)])
+        .toEqual([split.handlingFee, split.kentexaShare, split.agentShare, split.kentexaShare]);
+      expect(receipts).toEqual([[id, 100000]]);
+      const [rider] = await q('SELECT * FROM public.agent WHERE id=10');
+      expect(Number(rider.totalEarningsDeliveries)).toBe(3000);
+      expect(Number(rider.totalDeliveriesCompleted)).toBe(1);
+
+      // A lost response replays; the balance is never collected twice.
+      expect(await cod.deliver(taskId, 10, agentRole(10), code)).toMatchObject({ status: 'delivered', replay: true });
+      expect(await q('SELECT * FROM public.agent_cod_collection WHERE "orderId"=$1', [id])).toHaveLength(1);
+      expect(receipts).toHaveLength(1);
+    });
+
+    it('the seller cancels before collection: the COD code is cancelled with the job', async () => {
+      const { id, taskId } = await mkCod();
+      await cod.claim(taskId, 9, agentRole(9));
+      expect((await parcel(id)).agentDeliveryCodeHash).not.toBeNull();
+      await cod.cancel(SELLER, id);
+      expect((await parcel(id)).agentDeliveryCodeHash).toBeNull();
+    });
   });
 
   it('two taps on "deliver" record one delivery', async () => {

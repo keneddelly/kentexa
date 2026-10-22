@@ -2,8 +2,10 @@ import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
   Logger, NotFoundException, Optional,
 } from '@nestjs/common';
-import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes, randomInt, randomUUID, scryptSync, timingSafeEqual } from 'crypto';
 import { DataSource } from 'typeorm';
+import { InvoicesService } from '../invoices/invoices.service';
+import { settleManualAgentCod } from '../super-agents/agent-cod-settlement';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
 import { ShipmentHubSource } from './shipment-hub-source';
@@ -41,6 +43,48 @@ export function pickupAcceptedSms(agentName: string | null, agentPhone: string, 
   return `KenteXa: Wakala ${name}, simu ${agentPhone}, anakuja kuchukua mzigo${reference ? ` ${reference}` : ''}.`;
 }
 
+// COD seller shipment (owner 2026-10-22): the recipient's delivery code is issued when
+// the boda rider accepts the pickup and lasts until delivery. Still one-use, bound to
+// the rider and the recipient's phone, and cleared if the rider changes.
+const COD_CODE_TTL_MS = 30 * 24 * 60 * 60_000;
+export const COD_CODE_ALREADY_SENT = 'Namba ya kupokea ilishatumwa kwa mnunuzi boda alipokubali kazi.';
+/** Clears a Parcel's recipient challenge (all five columns together, as its CHECK requires). */
+export const CLEAR_PARCEL_COD_CODE = `"agentDeliveryCodeHash"=NULL,"agentDeliveryCodeIssuedAt"=NULL,"agentDeliveryCodeExpiresAt"=NULL,
+  "agentDeliveryAgentUserId"=NULL,"agentDeliveryRecipientPhone"=NULL,"agentDeliveryAttempts"=0`;
+
+/** The material a recipient delivery code is hashed with; a COD code also binds the recipient's phone. */
+const deliveryCodeMaterial = (code: string, parcelId: number, agentUserId: number, taskId: number, codPhone: string | null) =>
+  `${code}:${parcelId}:${agentUserId}:${taskId}:deliver${codPhone ? `:${codPhone}` : ''}`;
+
+/** Text 2 (COD): the buyer's one text when the boda rider accepts, one SMS part. */
+export function codRiderSms(riderName: string | null, riderPhone: string, code: string, reference: string) {
+  const name = smsSafeName(riderName).slice(0, 24) || 'Boda';
+  const ref = reference ? ` ${reference}` : '';
+  return `KenteXa: Boda ${name}, simu ${riderPhone}, ataleta mzigo wako${ref}. Namba ya kupokea: ${code}. Mpe boda ukipokea mzigo tu.`;
+}
+
+/**
+ * A direct (no-hub) boda pickup task for a COD seller shipment, written inside the
+ * seller's own create transaction. The public request endpoint stays for independent
+ * Parcels only; this one path takes an Order's Parcel, with a server-resolved origin.
+ */
+export async function insertSellerCodPickupTask(em: any, input: {
+  parcelId: number; sellerUserId: number; contactName: string; contactPhone: string;
+  originSnapshot: Record<string, unknown>;
+}) {
+  const key = randomUUID();
+  const hash = createHash('sha256').update(JSON.stringify([
+    'seller_cod', input.parcelId, input.sellerUserId, input.contactName, input.contactPhone,
+  ])).digest('hex');
+  const rows: any[] = await em.query(`INSERT INTO public.parcel_pickup_task
+    ("parcelId","requestKey","requestPayloadHash","requestedByUserId","servicePath",
+     "originSnapshot","pickupContactName","pickupContactPhone","originHubId")
+    VALUES ($1,$2,$3,$4,'direct_delivery',$5::jsonb,$6,$7,NULL) RETURNING id,status`,
+  [input.parcelId, key, hash, input.sellerUserId, JSON.stringify(input.originSnapshot),
+    input.contactName.slice(0, 160), input.contactPhone.slice(0, 32)]);
+  return { id: Number(rows[0].id), status: rows[0].status };
+}
+
 /** The agent's SMS when the sender cancels a pickup the agent had accepted (review D3). */
 export function pickupCancelledSms(reference: string) {
   return `KenteXa: Kazi ya kuchukua mzigo${reference ? ` ${reference}` : ''} imesitishwa na mtumaji. Usiende kuchukua.`;
@@ -63,7 +107,18 @@ export class PickupTasksService {
     @Optional() private readonly sms?: SmsService,
     // Review D3: in-app message to the agent when an accepted job is cancelled.
     @Optional() private readonly communication?: CommunicationEngineService,
+    // COD seller shipments: the collected balance is receipted like the hub path.
+    @Optional() private readonly invoices?: InvoicesService,
   ) {}
+
+  /** The Order behind a pickup's Parcel when it is a COD seller shipment still to collect; else null. */
+  private async codOrderFor(em: any, orderId: number | null, lock = false) {
+    if (!orderId) return null;
+    const rows: any[] = await em.query(`SELECT id, source, "paymentMethod", "codRemainingBalance", "totalAmount",
+      "codBalanceCollected" FROM public."order" WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [orderId]);
+    const o = rows[0];
+    return o && o.paymentMethod === 'cod' && o.source === 'seller_shipment' ? o : null;
+  }
 
   async requestForShipment(userId: number, shipmentId: number, input: RequestPickupDto) {
     if (!input || !UUID.test(input.requestKey ?? '')) throw new BadRequestException('requestKey must be a UUID');
@@ -193,7 +248,57 @@ export class PickupTasksService {
     });
     // Only a fresh accept tells the sender (a repeated tap is a replay).
     if (!result.replay) await this.tellSenderAgentIsComing(taskId);
+    // COD seller shipment: the buyer's text 2 (rider and delivery code), once, on a fresh accept.
+    if (!result.replay) await this.sendCodCodeOnAccept(taskId, userId);
     return result;
+  }
+
+  /**
+   * Text 2 for a COD seller shipment: when the boda rider accepts, the recipient gets the
+   * rider's name and phone and the delivery code, valid until delivery. Sent once, after
+   * the accept is saved; a failed SMS never undoes the accept and leaves no code behind
+   * (the rider can then send a short-lived one at the door).
+   */
+  private async sendCodCodeOnAccept(taskId: number, agentUserId: number) {
+    if (!this.sms) return;
+    const code = String(randomInt(100000, 1000000));
+    const salt = randomBytes(16).toString('hex');
+    let issued: { hash: string; phone: string; text: string } | null = null;
+    try {
+      issued = await this.db.transaction(async (em) => {
+        const { s, p, t } = await this.lockChain(em, taskId);
+        if (t.status !== 'claimed' || t.servicePath !== 'direct_delivery' || p.agentDeliveryCodeHash) return null;
+        const order = await this.codOrderFor(em, p.orderId);
+        if (!order || order.codBalanceCollected) return null;
+        const phone = typeof s.receiverPhone === 'string' ? s.receiverPhone.trim() : '';
+        if (!phone) return null;
+        const [agent] = await em.query(`SELECT a."fullName", COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS phone
+          FROM public.agent a LEFT JOIN public."user" u ON u.id = a."userId" WHERE a.id = $1`, [t.agentProfileId]);
+        if (!agent?.phone) return null;
+        const hash = `${salt}:${scryptSync(deliveryCodeMaterial(code, p.id, agentUserId, t.id, phone), salt, 32).toString('hex')}`;
+        const now = new Date();
+        // Kept on the Parcel's own recipient challenge (rider + recipient phone), which has
+        // no status rule: the task's code columns allow a code only once collected.
+        await em.query(`UPDATE public.parcel SET "agentDeliveryCodeHash"=$1,"agentDeliveryCodeIssuedAt"=$2,
+          "agentDeliveryCodeExpiresAt"=$3,"agentDeliveryAgentUserId"=$4,"agentDeliveryRecipientPhone"=$5,
+          "agentDeliveryAttempts"=0 WHERE id=$6`,
+        [hash, now, new Date(now.getTime() + COD_CODE_TTL_MS), agentUserId, phone, p.id]);
+        const reference = customerParcelNumber({
+          trackingNumber: s.trackingNumber ?? p.trackingNumber, waybillNumber: p.waybillNumber, createdAt: p.createdAt,
+        }) || '';
+        return { hash, phone, text: codRiderSms(agent.fullName, agent.phone, code, reference) };
+      });
+      if (!issued) return;
+      const sent = await this.sms.sendSms(issued.phone, issued.text, true).catch(() => false);
+      if (!sent) throw new Error('SMS not sent');
+    } catch (err: any) {
+      if (issued) {
+        await this.db.query(`UPDATE public.parcel SET ${CLEAR_PARCEL_COD_CODE}
+          WHERE id=(SELECT "parcelId" FROM public.parcel_pickup_task WHERE id=$1) AND "agentDeliveryCodeHash"=$2`,
+        [taskId, issued.hash]).catch(() => undefined);
+      }
+      this.logger.warn(`COD rider text not sent for task ${taskId}: ${err?.message || err}`);
+    }
   }
 
   /**
@@ -341,7 +446,9 @@ export class PickupTasksService {
       if (!normalizeCity(agent.city) || normalizeCity(agent.city) !== normalizeCity(s.originCity)) {
         throw new ForbiddenException('Agent does not cover this pickup city');
       }
-      if (s.status !== 'confirmed' || p.status !== 'pending' || p.orderId !== null) {
+      // An Order's Parcel is collected here only as a COD seller shipment (its boda job).
+      if (s.status !== 'confirmed' || p.status !== 'pending' ||
+          (p.orderId !== null && !(await this.codOrderFor(em, p.orderId)))) {
         throw new ConflictException('Parcel is not awaiting sender handoff');
       }
       const legacy: any[] = await em.query(`SELECT id FROM public.parcel_collection
@@ -539,10 +646,16 @@ export class PickupTasksService {
       await this.assertAgentHolds(em, p.id, taskId, t.agentProfileId);
       const phone = typeof s.receiverPhone === 'string' ? s.receiverPhone.trim() : '';
       if (!phone) throw new ConflictException('Recipient contact number is missing');
+      // COD: the code sent when the rider accepted lasts until delivery and is never repeated.
+      const cod = await this.codOrderFor(em, p.orderId);
+      if (cod && p.agentDeliveryCodeHash && p.agentDeliveryCodeExpiresAt &&
+          new Date(p.agentDeliveryCodeExpiresAt).getTime() > now.getTime()) {
+        throw new ConflictException(COD_CODE_ALREADY_SENT);
+      }
       if (t.deliveryCodeIssuedAt && now.getTime() - new Date(t.deliveryCodeIssuedAt).getTime() < CODE_COOLDOWN_MS) {
         throw new ConflictException('Wait before sending another delivery code');
       }
-      const hash = `${salt}:${scryptSync(`${code}:${p.id}:${userId}:${t.id}:deliver`, salt, 32).toString('hex')}`;
+      const hash = `${salt}:${scryptSync(deliveryCodeMaterial(code, p.id, userId, t.id, cod ? phone : null), salt, 32).toString('hex')}`;
       await em.query(`UPDATE public.parcel_pickup_task SET "deliveryCodeHash"=$1,"deliveryCodeIssuedAt"=$2,
         "deliveryCodeExpiresAt"=$3,"deliveryAttempts"=0,"updatedAt"=now() WHERE id=$4`,
       [hash, now, new Date(now.getTime() + CODE_TTL_MS), taskId]);
@@ -589,22 +702,47 @@ export class PickupTasksService {
       if (s.status === 'cancelled') throw new ConflictException('This shipment was cancelled');
       await this.assertAgentHolds(em, p.id, taskId, t.agentProfileId);
       if (!SIX_DIGITS.test(code ?? '')) throw new BadRequestException('Enter the six-digit recipient delivery code');
-      if (!t.deliveryCodeHash || !t.deliveryCodeExpiresAt || new Date(t.deliveryCodeExpiresAt).getTime() <= Date.now() ||
-          t.deliveryAttempts >= CODE_MAX_ATTEMPTS) {
+      // COD seller shipment: the code is bound to the rider and the recipient's phone, and the
+      // balance is collected and settled in this same transaction (the hub path's steps).
+      const cod = await this.codOrderFor(em, p.orderId, true);
+      if (cod && cod.codBalanceCollected) throw new ConflictException('COD balance already collected');
+      if (cod && !this.invoices) throw new ConflictException('COD collection is unavailable; try again later');
+      const codPhone = cod && typeof s.receiverPhone === 'string' ? s.receiverPhone.trim() : null;
+      // Which code: a COD's code sent when the rider accepted (on the Parcel), else the task's own.
+      const onParcel = !!(cod && p.agentDeliveryCodeHash);
+      const challenge = onParcel
+        ? { hash: p.agentDeliveryCodeHash, expiresAt: p.agentDeliveryCodeExpiresAt, attempts: p.agentDeliveryAttempts,
+            bound: p.agentDeliveryAgentUserId === userId && !!codPhone && p.agentDeliveryRecipientPhone === codPhone }
+        : { hash: t.deliveryCodeHash, expiresAt: t.deliveryCodeExpiresAt, attempts: t.deliveryAttempts, bound: true };
+      if (!challenge.hash || !challenge.expiresAt || new Date(challenge.expiresAt).getTime() <= Date.now() ||
+          challenge.attempts >= CODE_MAX_ATTEMPTS || !challenge.bound) {
         throw new ConflictException('Recipient delivery code is expired or unavailable');
       }
-      const [salt, expected] = String(t.deliveryCodeHash).split(':');
+      const [salt, expected] = String(challenge.hash).split(':');
       const valid = !!salt && expected?.length === 64 && timingSafeEqual(Buffer.from(expected, 'hex'),
-        scryptSync(`${code}:${p.id}:${userId}:${t.id}:deliver`, salt, 32));
+        scryptSync(deliveryCodeMaterial(code, p.id, userId, t.id, codPhone), salt, 32));
       if (!valid) {
-        await em.query('UPDATE public.parcel_pickup_task SET "deliveryAttempts"="deliveryAttempts"+1,"updatedAt"=now() WHERE id=$1', [taskId]);
+        if (onParcel) await em.query('UPDATE public.parcel SET "agentDeliveryAttempts"="agentDeliveryAttempts"+1 WHERE id=$1', [p.id]);
+        else await em.query('UPDATE public.parcel_pickup_task SET "deliveryAttempts"="deliveryAttempts"+1,"updatedAt"=now() WHERE id=$1', [taskId]);
         return { invalid: true as const };
       }
       await this.recordCustody(em, {
         parcelId: p.id, eventKind: 'recipient_agent_delivery', operationKey: deliveredKey(taskId),
         fromType: 'local_agent', fromId: t.agentProfileId, toType: 'recipient_contact', toId: null, role, hubId: null,
-        evidenceRef: `recipient-code:${createHash('sha256').update(t.deliveryCodeHash).digest('hex')}`,
+        evidenceRef: `recipient-code:${createHash('sha256').update(String(challenge.hash)).digest('hex')}`,
       });
+      // One use: the COD code is gone with the delivery.
+      if (onParcel) await em.query(`UPDATE public.parcel SET ${CLEAR_PARCEL_COD_CODE} WHERE id=$1`, [p.id]);
+      if (cod) {
+        const event = await this.custodyByKey(em, p.id, deliveredKey(taskId));
+        // The rider's delivery earning is the boda fee the buyer pays them in cash.
+        await settleManualAgentCod(em, {
+          order: cod, parcelId: p.id, custodyEventId: Number(event.id),
+          agent: { id: Number(t.agentProfileId), deliveryCommission: p.agreedDeliveryFee },
+          expectedAmount: Number(cod.codRemainingBalance || 0),
+          recordInvoice: (m) => this.invoices!.recordCodBalanceCollectedForOrderId(Number(cod.id), Number(cod.totalAmount || 0), m),
+        });
+      }
       await em.query(`UPDATE public.parcel SET status='delivered',"deliveredTime"=now(),"buyerConfirmed"=true WHERE id=$1`, [p.id]);
       await em.query(`UPDATE public.parcel_pickup_task SET status='delivered',"deliveredAt"=now(),"completedAt"=now(),
         "deliveryCodeHash"=NULL,"deliveryCodeIssuedAt"=NULL,"deliveryCodeExpiresAt"=NULL,"deliveryAttempts"=0,
@@ -691,15 +829,18 @@ export class PickupTasksService {
       `SELECT t.id, t.status, t."servicePath", t."createdAt", t."claimedAt", t."collectedAt", t."deliveredAt",
               t."completedAt", t."originSnapshot", t."pickupContactName", t."pickupContactPhone",
               (t."handoffCodeHash" IS NOT NULL) AS "senderCodeIssued",
-              (t."deliveryCodeHash" IS NOT NULL) AS "recipientCodeIssued",
+              (t."deliveryCodeHash" IS NOT NULL OR p."agentDeliveryCodeHash" IS NOT NULL) AS "recipientCodeIssued",
               s."trackingNumber", s."receiverName", s."receiverPhone", s."destinationLocationLabel",
               s."destinationCity", s."originCity", s."itemDescription", s."weightKg",
               h."businessName" AS "originHubName", h.address AS "originHubAddress",
               s."pickupPinLatitude", s."pickupPinLongitude", s."pickupPinAccuracyM", s."pickupLandmark",
-              pw.name AS "pickupWardName"
+              pw.name AS "pickupWardName",
+              o."paymentMethod" AS "orderPaymentMethod", o.source AS "orderSource",
+              o."codRemainingBalance", o."codBalanceCollected", p."agreedDeliveryFee"
          FROM public.parcel_pickup_task t
          JOIN public.parcel p ON p.id = t."parcelId"
          JOIN public.shipment s ON s.id = p."shipmentId"
+         LEFT JOIN public."order" o ON o.id = p."orderId"
          LEFT JOIN public.super_agent h ON h.id = t."originHubId"
          LEFT JOIN public.tz_ward pw ON pw.id = s."pickupPinWardId"
         WHERE t."agentProfileId" = $1
@@ -731,6 +872,14 @@ export class PickupTasksService {
         originHub: direct ? null : { name: r.originHubName ?? null, address: r.originHubAddress ?? null },
         senderCodeIssued: !!r.senderCodeIssued,
         recipientCodeIssued: !!r.recipientCodeIssued,
+        // COD seller shipment: what the rider collects at the door (goods balance + boda fee).
+        cod: r.orderPaymentMethod === 'cod' && r.orderSource === 'seller_shipment' && !r.codBalanceCollected
+          ? {
+              goods: Number(r.codRemainingBalance) || 0,
+              bodaFee: Number(r.agreedDeliveryFee) || 0,
+              total: (Number(r.codRemainingBalance) || 0) + (Number(r.agreedDeliveryFee) || 0),
+            }
+          : null,
         // What the Agent does next, so every screen says the same thing.
         nextAction:
           r.status === 'claimed' ? 'collect_from_sender'
@@ -838,7 +987,7 @@ export class PickupTasksService {
       const s: any[] = await em.query('SELECT * FROM public.shipment WHERE id=$1 FOR UPDATE', [shipmentId]);
       if (!s[0]) throw new NotFoundException('Shipment not found');
       if (s[0].requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
-      const p: any[] = await em.query('SELECT id FROM public.parcel WHERE "shipmentId"=$1 FOR UPDATE', [shipmentId]);
+      const p: any[] = await em.query('SELECT * FROM public.parcel WHERE "shipmentId"=$1 FOR UPDATE', [shipmentId]);
       if (p.length !== 1) throw new ConflictException('Shipment needs one independent Parcel');
       const t: any[] = await em.query(`SELECT * FROM public.parcel_pickup_task WHERE "parcelId"=$1
         ORDER BY id DESC LIMIT 1 FOR UPDATE`, [p[0].id]);
@@ -850,6 +999,8 @@ export class PickupTasksService {
       await em.query(`UPDATE public.parcel_pickup_task SET status='cancelled',"cancelledAt"=now(),
         "handoffCodeHash"=NULL,"handoffCodeIssuedAt"=NULL,"handoffCodeExpiresAt"=NULL,"handoffAttempts"=0,
         "updatedAt"=now() WHERE id=$1`, [t[0].id]);
+      // A COD code sent when the rider accepted is cancelled with the job.
+      if (p[0].agentDeliveryCodeHash) await em.query(`UPDATE public.parcel SET ${CLEAR_PARCEL_COD_CODE} WHERE id=$1`, [p[0].id]);
       return { id: t[0].id, parcelId: p[0].id, status: 'cancelled', replay: false,
         acceptedByAgent: t[0].status === 'claimed' ? t[0].agentProfileId : null };
     });

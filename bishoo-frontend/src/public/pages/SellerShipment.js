@@ -192,6 +192,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
   // declared on this form. COD is within one city only, by boda (owner 2026-10-22).
   const codActive = (prefill?.saleId && prefill?.isCod && Number(prefill?.balanceDue) > 0) ||
     (!prefill?.saleId && form.isCod);
+  // COD: the shop the boda rider collects from, picked on the map (a resolved place).
+  const [pickupText, setPickupText] = useState('');
+  const [pickupRef, setPickupRef] = useState(null);
 
   // Nearby Super Agent hubs for the chosen destination — previously the
   // "Super Agent" transport option only showed generic reassurance text,
@@ -350,6 +353,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
       return t('seller_shipment.validate_cod_full_paid');
     }
     if (codActive && !isSameCity) return t('seller_shipment.cod_intracity_only');
+    if (codActive && !pickupRef) return t('seller_shipment.cod_pickup_place_required');
     // Shipping validation — required for tracking to work
     if (isSameCity) {
       // boda/local — just need address (already validated above)
@@ -419,6 +423,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
         isCod: !prefill?.saleId && form.isCod ? true : undefined,
         codAmountPaid: !prefill?.saleId && form.isCod ? (Number(form.codAmountPaid) || 0) : undefined,
         bodaFee: codActive && String(form.bodaFee).trim() !== '' ? Number(form.bodaFee) : undefined,
+        pickupPlace: codActive && pickupRef
+          ? { providerKey: pickupRef.providerKey, providerPlaceId: pickupRef.providerPlaceId } : undefined,
       });
       setResult(res.data);
       // Tracking is active immediately — no separate upfront fee payment
@@ -985,6 +991,14 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
                 <Field label={t('seller_shipment.cod_boda_fee_label')} hint={t('seller_shipment.cod_boda_fee_hint')}>
                   <input type="number" min="0" step="100" placeholder="3000" value={form.bodaFee}
                     data-testid="cod-boda-fee" onChange={e => set('bodaFee', e.target.value)} style={inputStyle} />
+                </Field>
+                {/* Where the boda rider collects the parcel: a KenteXa place (resolved on the server). */}
+                <Field label={t('seller_shipment.cod_pickup_place_label')} hint={t('seller_shipment.cod_pickup_place_hint')} required>
+                  <IntelligentLocationInput
+                    label={t('seller_shipment.cod_pickup_place_label')}
+                    value={pickupText}
+                    onTextChange={text => { setPickupText(text); if (!text) setPickupRef(null); }}
+                    onResolved={loc => setPickupRef(loc?.placeRef?.providerKey && loc?.placeRef?.providerPlaceId ? loc.placeRef : null)} />
                 </Field>
               </div>
             )}

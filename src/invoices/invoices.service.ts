@@ -141,6 +141,13 @@ export class InvoicesService {
   // ever created (e.g. a zero-upfront COD order, which skips the online
   // payment step entirely), one is created now, already settled — same
   // "money already changed hands" shape as recordManualPayment().
+  /** The same, for a caller that holds only the Order id (the boda rider COD path). */
+  async recordCodBalanceCollectedForOrderId(orderId: number, fullAmountReceived: number, manager: EntityManager): Promise<Invoice> {
+    const order = await manager.getRepository(Order).findOne({ where: { id: orderId }, relations: { buyer: true, seller: true } });
+    if (!order) throw new Error(`Order ${orderId} not found for COD receipt`);
+    return this.recordCodBalanceCollected(order, fullAmountReceived, manager);
+  }
+
   async recordCodBalanceCollected(order: Order, fullAmountReceived: number, manager?: EntityManager): Promise<Invoice> {
     const repo = manager ? manager.getRepository(Invoice) : this.invoiceRepo;
     const existing = await repo.findOne({ where: { order: { id: order.id } } });
