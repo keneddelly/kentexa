@@ -1512,6 +1512,17 @@ export class ShipmentsService {
     });
   }
 
+  /** The sender's declared value (TZS) from the shipment's journey cargo, or null. */
+  private async declaredValueFromJourney(parcels: Repository<Parcel>, journeySelectionId: number | null | undefined): Promise<number | null> {
+    if (!journeySelectionId || typeof (parcels as any)?.manager?.query !== 'function') return null;
+    const rows: any[] = await parcels.manager.query(
+      `SELECT "cargoRequirements"->>'declaredValue' AS v FROM public.journey_selection WHERE id = $1`, [journeySelectionId],
+    );
+    const v = rows?.[0]?.v;
+    const n = v == null ? NaN : Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  }
+
   private async createParcelForConfirmedShipment(shipment: Shipment, parcels: Repository<Parcel>): Promise<Parcel> {
     const existing = await parcels.findOne({
       where: { shipment: { id: shipment.id } },
@@ -1548,6 +1559,8 @@ export class ShipmentsService {
       estimatedShippingFee: Number(shipment.priceQuoted) || 0,
       superAgent: originSuperAgent || null,
       destinationSuperAgent: destinationSuperAgent || null,
+      // Send form v2: the sender's declared value, set once here and never updated.
+      declaredValue: await this.declaredValueFromJourney(parcels, shipment.journeySelectionId),
       // A plain descriptive string (not a strict enum on this entity) —
       // distinct from 'seller_shipment' (a seller-initiated sale) and
       // 'online_order', since this parcel came from neither: an

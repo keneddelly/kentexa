@@ -1,20 +1,26 @@
 /**
- * SendShipment.js — "Send Something": any authenticated Kentexa user can
- * request a shipment, independent of being a seller, a business, or a
- * Transport Provider. Place at: src/public/pages/SendShipment.js
+ * SendShipment.js — "Tuma mzigo", send form v2 (owner-approved mockup, 2026-10-13;
+ * built 2026-10-23). Any logged-in user can send a parcel.
  *
- * Multi-step outcome-first flow:
- * parcel -> from/to -> available delivery services -> receiver/handoff ->
- * review -> confirm. A normal sender never chooses a transporter before
- * describing the shipment. Provider identity is shown only as part of a
- * concrete priced service option after Kentexa has matched the route.
+ *   1 Nini        what, kg, pieces, declared value (TZS), type
+ *   2 Wapi        from, to, receiver (and sender when sending for someone else)
+ *   3 Huduma      start: office or "Njoo uchukue kwangu" (pin + landmark);
+ *                 end: collect at the office or door delivery
+ *   4 Ofa         only offers that can do everything chosen in step 3
+ *   5 Thibitisha  summary and bill, then send
+ *   6 Imetumwa    the waybill and the parcel's journey with "Hatua inayofuata"
+ *
+ * The form decides same-city vs other-city by itself after step 2: same city is
+ * door to door by an agent; other cities go through a transporter and offices.
+ * The server calls are unchanged (api/shipmentRequests.js, pinned by a contract
+ * test shared with the backend): service-offers discover/commit, quote, shipment,
+ * confirm-and-activate. Prices shown are only the ones the server knows; nothing
+ * is invented. Swahili first, no emojis.
  */
-import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api/api';
 import {
-  quoteBody, shipmentBody, isTransportService,
-  canDeliverDirect, isDirectDelivery,
+  quoteBody, shipmentBody, isTransportService, canDeliverDirect, isDirectDelivery,
   confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
 import { formatWaybill } from '../../utils/waybill';
@@ -22,72 +28,87 @@ import PickupPinFields from '../components/PickupPinFields';
 import NoAgentOfficeCard from '../components/NoAgentOfficeCard';
 import { landmarkOk } from '../../utils/phoneLocation';
 
-const B  = '#2563EB';
-const DK = '#0F172A';
-const GR = '#64748B';
-const WH = '#FFFFFF';
-const OR = '#EA580C';
-const fmt = n => Number(n || 0).toLocaleString();
+const BLUE = '#1d4ed8';
+const INK = '#0f172a';
+const GREY = '#475569';
+const LINE = '#e2e8f0';
+const FIELD = '#cbd5e1';
+const PAPER = '#f8fafc';
+const WHITE = '#ffffff';
+const FONT = 'Manrope, -apple-system, sans-serif';
+const TOTAL_STEPS = 5;
+const tzs = (n) => `TZS ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+const digits = (v) => String(v ?? '').replace(/[^0-9]/g, '');
+const withCommas = (v) => (digits(v) ? Number(digits(v)).toLocaleString('en-US') : '');
 
-// Matches ProviderType on the backend (transport-provider.entity.ts) —
-// showing a bus icon for every provider regardless of what they actually
-// operate told a shipper nothing true about who they were picking.
-const PROVIDER_TYPE_ICON = {
-  bus: '🚌', van: '🚐', courier: '📦', truck: '🚛',
-  boda: '🏍️', rail: '🚆', air: '✈️', boat: '⛵',
+export const CARGO_TYPE_LABELS = [
+  ['kawaida', 'Kawaida'], ['kinavunjika', 'Kinavunjika'], ['chakula', 'Chakula'], ['nyaraka', 'Nyaraka'],
+];
+
+const input = {
+  width: '100%', height: 52, boxSizing: 'border-box', border: `1px solid ${FIELD}`, borderRadius: 12,
+  padding: '0 14px', fontFamily: 'inherit', fontSize: 16, color: INK, background: WHITE, outline: 'none',
 };
+const label = { display: 'block', fontSize: 14, fontWeight: 600, color: INK, marginBottom: 6 };
+const field = { display: 'flex', flexDirection: 'column', marginBottom: 18 };
+const h1 = { margin: '0 0 6px', fontSize: 26, fontWeight: 800, lineHeight: 1.2, color: INK };
+const sub = { fontSize: 15, color: GREY, lineHeight: 1.45, margin: '0 0 20px' };
+const card = { background: WHITE, border: `1px solid ${LINE}`, borderRadius: 16, padding: 14 };
 
-const inputSt = {
-  width: '100%', padding: '12px 14px', borderRadius: 12,
-  border: '1px solid #E2E8F0', fontSize: 14, outline: 'none',
-  fontFamily: 'inherit', marginBottom: 12, boxSizing: 'border-box',
-  display: 'block', backgroundColor: WH,
-};
+const BackIcon = () => (
+  <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+);
 
-// onResolved receives the FULL structured suggestion {type, regionId,
-// districtId?, wardId?, region, district?, ward?, fullAddress} — the
-// actual selection, not just a nicer string. Callers must use it as the
-// source of truth; the text box is just its display.
-const LocationInput = ({ label, value, onChange, onResolved, placeholder, resolved }) => {
+/** A radio-style choice card (step 3). */
+const Choice = ({ selected, title, hint, onClick, testId }) => (
+  <button type="button" role="radio" aria-checked={selected} onClick={onClick} data-testid={testId}
+    style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 56, width: '100%', padding: '8px 14px', marginBottom: 8,
+      borderRadius: 14, border: selected ? `2px solid ${BLUE}` : `1px solid ${FIELD}`, background: selected ? '#eff6ff' : WHITE,
+      fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }}>
+    <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 10, boxSizing: 'border-box', flexShrink: 0, background: WHITE,
+      border: selected ? `6px solid ${BLUE}` : '2px solid #94a3b8' }} />
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <span style={{ fontSize: 16, fontWeight: 600, color: INK }}>{title}</span>
+      {hint && <span style={{ fontSize: 13, color: GREY }}>{hint}</span>}
+    </span>
+  </button>
+);
+
+/** Place search: the selection (with its place reference) is the source of truth. */
+const PlaceInput = ({ id, labelText, value, onChange, onResolved, resolved, placeholder, marker }) => {
   const [suggestions, setSuggestions] = useState([]);
-  const [showList, setShowList] = useState(false);
-
+  const [open, setOpen] = useState(false);
   useEffect(() => {
-    if (!value?.trim() || value.trim().length < 2) { setSuggestions([]); return; }
-    const t = setTimeout(() => {
+    if (!value?.trim() || value.trim().length < 2 || resolved) { setSuggestions([]); return undefined; }
+    const timer = setTimeout(() => {
       api.get('/location-intelligence/places', { params: { q: value.trim(), limit: 8 } })
-        .then(r => setSuggestions(r.data?.candidates || []))
+        .then((r) => setSuggestions(r.data?.candidates || []))
         .catch(() => setSuggestions([]));
     }, 250);
-    return () => clearTimeout(t);
-  }, [value]);
-
+    return () => clearTimeout(timer);
+  }, [value, resolved]);
   return (
-    <div style={{ position: 'relative', marginBottom: 14 }}>
-      <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-        {label}
-      </label>
-      <div style={{ position: 'relative' }}>
-        <input value={value} placeholder={placeholder}
-          onChange={e => { onChange(e.target.value); onResolved(null); setShowList(true); }}
-          onFocus={() => setShowList(true)}
-          onBlur={() => setTimeout(() => setShowList(false), 150)}
-          style={{ ...inputSt, marginBottom: 0, paddingRight: 32 }} />
-        {resolved && (
-          <span title="Selected from location list" style={{ position: 'absolute', right: 10,
-            top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#16A34A' }}>✓</span>
+    <div style={{ position: 'relative', display: 'flex', gap: 12, alignItems: 'center', padding: '12px 0' }}>
+      {marker}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1, minWidth: 0 }}>
+        <label htmlFor={id} style={{ fontSize: 13, fontWeight: 600, color: GREY }}>{labelText}</label>
+        <input id={id} value={value} placeholder={placeholder} autoComplete="off"
+          onChange={(e) => { onChange(e.target.value); onResolved(null); setOpen(true); }}
+          onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+          style={{ border: 0, outline: 0, padding: 0, fontFamily: 'inherit', fontSize: 16, fontWeight: 600, color: INK, background: 'transparent', minWidth: 0 }} />
+        {value?.trim() && !resolved && (
+          <span style={{ fontSize: 12, color: '#b45309' }}>Chagua mahali kwenye orodha</span>
         )}
       </div>
-      {showList && suggestions.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
-          backgroundColor: WH, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-          marginTop: 4, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
+      {open && suggestions.length > 0 && (
+        <div role="listbox" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, background: WHITE, borderRadius: 12,
+          boxShadow: '0 8px 24px rgba(15,23,42,0.14)', maxHeight: 240, overflowY: 'auto' }}>
           {suggestions.map((s, i) => (
-            <button key={i}
-              onClick={() => { onChange(s.displayLabel); onResolved(s); setShowList(false); }}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px',
-                border: 'none', borderBottom: '1px solid #F1F5F9', backgroundColor: WH,
-                cursor: 'pointer', fontSize: 13, color: DK }}>
+            <button type="button" role="option" aria-selected="false" key={i}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onChange(s.displayLabel); onResolved(s); setOpen(false); }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', minHeight: 44, padding: '10px 14px', border: 0,
+                borderBottom: `1px solid #f1f5f9`, background: WHITE, fontFamily: 'inherit', fontSize: 15, color: INK, cursor: 'pointer' }}>
               {s.displayLabel}
             </button>
           ))}
@@ -97,242 +118,242 @@ const LocationInput = ({ label, value, onChange, onResolved, placeholder, resolv
   );
 };
 
+/** Intercity offers the sender can actually book for everything chosen in step 3. */
+export function completeOffers(offers, { pickupOption, deliveryOption }) {
+  const list = (Array.isArray(offers) ? offers : [])
+    .filter((o) => o?.serviceType === 'composed_intercity' && o.fulfillment?.transportOption)
+    .filter((o) => !(pickupOption === 'door' && o.fulfillmentStatus?.pickup === 'pending'))
+    .filter((o) => !(deliveryOption === 'door' && o.fulfillmentStatus?.delivery === 'pending'))
+    // Only a dated trip can be booked; a route with no trip yet cannot.
+    .filter((o) => Number(o.fulfillment.transportOption.runId) > 0)
+    .map((o) => ({
+      ...o.fulfillment.transportOption,
+      servicePrice: o.price,
+      etaLabel: o.etaLabel,
+      fulfillmentStatus: o.fulfillmentStatus,
+    }));
+  // Each provider once: its cheapest priced offer.
+  const byProvider = new Map();
+  for (const o of list) {
+    const prev = byProvider.get(o.providerId);
+    const price = o.servicePrice == null ? Infinity : Number(o.servicePrice);
+    const prevPrice = prev ? (prev.servicePrice == null ? Infinity : Number(prev.servicePrice)) : Infinity;
+    if (!prev || price < prevPrice) byProvider.set(o.providerId, o);
+  }
+  return [...byProvider.values()].sort((a, b) =>
+    (a.servicePrice == null ? Infinity : a.servicePrice) - (b.servicePrice == null ? Infinity : b.servicePrice));
+}
+
+/** "About 12 hours linehaul" -> "Takriban saa 12 safarini". */
+const etaText = (label) => {
+  const m = /([0-9]+(?:\.[0-9]+)?)\s*hours?/i.exec(String(label || ''));
+  if (m) return `Takriban saa ${m[1]} safarini`;
+  if (/same day/i.test(String(label || ''))) return 'Leo hii';
+  return null;
+};
+
+/** The parcel's journey after sending, with the step happening now highlighted. */
+export function journeySteps({ direct, pickupOption, deliveryOption, providerName, destinationLabel, receiverName, nextAction }) {
+  const who = receiverName || 'Mpokeaji';
+  const steps = [{ text: 'Ombi limepokelewa', done: true }];
+  if (pickupOption === 'door') steps.push({ text: 'Wakala anachukua mzigo kwako', key: 'pickup' });
+  else steps.push({ text: 'Unapeleka mzigo ofisini', key: 'dropoff' });
+  if (!direct) steps.push({ text: `${providerName || 'Msafirishaji'} anausafirisha kwenda ${destinationLabel || 'unakoenda'}`, key: 'linehaul' });
+  if (direct || deliveryOption === 'door') steps.push({ text: `${who} anapokea mzigo mlangoni kwa namba ya siri`, key: 'deliver' });
+  else steps.push({ text: `${who} anachukua mzigo ofisini kwa namba ya siri`, key: 'collect' });
+
+  const type = nextAction?.type;
+  let now = 1;
+  let next = '';
+  if (type === 'agent_pickup') {
+    next = Number(nextAction?.agentsAlerted) === 0
+      ? 'Hakuna wakala aliye mtandaoni sasa hivi. Wakala wa kwanza akiingia ataona kazi yako; utapata SMS akikubali.'
+      : 'Wakala wa karibu ameshaarifiwa. Akikubali, utapata SMS yenye jina na simu yake.';
+  } else if (type === 'agent_pickup_pending') {
+    next = 'Ofisi au msafirishaji atakupigia kupanga kuchukua mzigo.';
+  } else if (type === 'customer_dropoff' || type === 'customer_dropoff_pending') {
+    next = 'Peleka mzigo ofisini. Mpe mhudumu namba ya mzigo.';
+  } else {
+    next = 'Tunapanga hatua inayofuata. Utapata SMS.';
+  }
+  return { steps, now, next };
+}
+
 const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
-  const { t } = useTranslation();
   const [step, setStep] = useState(1);
 
-  // Step 1 — what & how much. Captured first so the route search (step 2)
-  // can exclude anything that can't actually carry it.
+  // 1 Nini
   const [itemDescription, setItemDescription] = useState('');
   const [weightKg, setWeightKg] = useState('');
+  const [pieces, setPieces] = useState('1');
+  const [declaredValue, setDeclaredValue] = useState('');
+  const [cargoType, setCargoType] = useState('kawaida');
 
-  // Step 2 — origin/destination, ideally SELECTED (structured), not just typed.
+  // 2 Wapi
   const [origin, setOrigin] = useState(navParams?.origin || '');
   const [destination, setDestination] = useState(navParams?.destination || '');
   const [originResolved, setOriginResolved] = useState(null);
   const [destinationResolved, setDestinationResolved] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [trips, setTrips] = useState([]);
-  // Transport providers are never a standalone choice in normal Tuma Mzigo.
-  // They only appear inside a concrete route service returned by Kentexa.
-  // Entering from a transporter's profile keeps their provider/route, and the
-  // exact trip (Transport Run) when the profile card named one. The trip only
-  // becomes bookable once the search below finds it for these two places.
-  const [selected, setSelected] = useState(() => navParams?.transportProviderId ? { providerId:Number(navParams.transportProviderId), routeId:navParams?.routeId ? Number(navParams.routeId) : undefined } : null);
-  const [tripContextLost, setTripContextLost] = useState(false);
-
-  // Step 3 — receiver + handoff.
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
+  const [forSomeoneElse, setForSomeoneElse] = useState(false);
   const [senderName, setSenderName] = useState(currentUser?.name || '');
   const [senderPhone, setSenderPhone] = useState(currentUser?.phone || '');
-  // Customer chooses the handoff outcome, never an internal worker role.
-  // `door` means Kentexa arranges collection/delivery; `station` means the
-  // sender/recipient uses a Kentexa Point. Agent assignment stays internal.
+
+  // 3 Huduma
   const [pickupOption, setPickupOption] = useState('door');
-  const [deliveryOption, setDeliveryOption] = useState('door');
-  // Door pickup point (section 18): phone GPS pin (asked for) + landmark note (required).
+  const [deliveryOption, setDeliveryOption] = useState('station');
   const [pickupPin, setPickupPin] = useState(null);
   const [pickupLandmark, setPickupLandmark] = useState('');
 
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [confirmed, setConfirmed] = useState(null);
-  const [quote, setQuote] = useState(null);
-  const [originHubs, setOriginHubs] = useState([]);
-  const [destinationHubs, setDestinationHubs] = useState([]);
+  // 4 Ofa
+  const [searching, setSearching] = useState(false);
+  const [searchReason, setSearchReason] = useState(null);
+  const [offers, setOffers] = useState([]);
+  const [directOffer, setDirectOffer] = useState(null);
+  const [doorCheck, setDoorCheck] = useState(null);
+  const [selected, setSelected] = useState(null);
   const [originHubId, setOriginHubId] = useState('');
   const [destinationHubId, setDestinationHubId] = useState('');
-  // Why the last route search came back as it did: a server reason
-  // (available / no_open_trip / no_capacity_for_weight /
-  // provider_does_not_serve_route / no_route) or a client-side failure
-  // (request_failed / invalid_location). A failed request is never shown as
-  // "no transporter".
-  const [searchReason, setSearchReason] = useState(null);
-  // Same-city door pickup: is an agent available right now? (KNOWN_FAULTS #24)
-  // { available, nearestOffice } from the early check, and the same answer
-  // if "Thibitisha Kifurushi" finds no agent after all.
-  const [doorCheck, setDoorCheck] = useState(null);
-  const [noAgentAtConfirm, setNoAgentAtConfirm] = useState(null);
 
-  // Everything the request builders need, in one object (see
-  // api/shipmentRequests.js -- the request shapes are pinned by a contract
-  // test shared with the backend).
+  // 5-6
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [noAgentAtConfirm, setNoAgentAtConfirm] = useState(null);
+  const [confirmed, setConfirmed] = useState(null);
+
+  const sameCity = canDeliverDirect({ originResolved, destinationResolved });
+  const fromCity = originResolved?.regionName || originResolved?.districtName || origin.trim();
+  const toCity = destinationResolved?.regionName || destinationResolved?.districtName || destination.trim();
+  const toShort = destinationResolved?.districtName || destinationResolved?.regionName || destination.split(',')[0]?.trim();
+
+  // Same city is door to door by an agent; the defaults follow the trip.
+  useEffect(() => {
+    if (sameCity) { setPickupOption('door'); setDeliveryOption('door'); }
+    else setDeliveryOption('station');
+  }, [sameCity]);
+
   const requestState = {
-    itemDescription, weightKg, origin, destination, originResolved, destinationResolved,
-    receiverName, receiverPhone, senderName, senderPhone, pickupOption, deliveryOption, pickupPin, pickupLandmark,
+    itemDescription, weightKg, pieces, declaredValue: digits(declaredValue), cargoType,
+    origin, destination, originResolved, destinationResolved,
+    receiverName, receiverPhone,
+    senderName: forSomeoneElse ? senderName : (currentUser?.name || senderName),
+    senderPhone: forSomeoneElse ? senderPhone : (currentUser?.phone || senderPhone),
+    pickupOption, deliveryOption, pickupPin, pickupLandmark,
     transportProviderId: navParams?.transportProviderId, originHubId, destinationHubId,
   };
 
-  const searchRoutes = useCallback(async () => {
-    if (!origin.trim() || !destination.trim()) return;
-    setSearching(true);
-    setSearched(true);
-    setSearchReason(null);
-    setDoorCheck(null);
+  const findOffers = useCallback(async () => {
+    setSearching(true); setSearchReason(null); setOffers([]); setDirectOffer(null); setDoorCheck(null);
+    setSelected(null); setOriginHubId(''); setDestinationHubId('');
     try {
-      // Normal Tuma Mzigo discovers transport SERVICES, not today's
-      // TransportRun. A provider's active route remains bookable even before
-      // an execution run is generated.
-      const fromCity = originResolved?.regionName || originResolved?.districtName || origin.trim();
-      const toCity = destinationResolved?.regionName || destinationResolved?.districtName || destination.trim();
+      const side = (resolved, text) => (resolved?.placeRef
+        ? { place: { providerKey: resolved.placeRef.providerKey, providerPlaceId: resolved.placeRef.providerPlaceId } }
+        : { text: text.trim() });
       const res = await api.post('/transport/service-offers/discover', {
         fromCity, toCity, weightKg: Number(weightKg) || 0,
         pickup: pickupOption === 'door' ? 'door' : 'point',
         delivery: deliveryOption === 'door' ? 'door' : 'collect',
-        origin: originResolved?.placeRef
-          ? { place: { providerKey: originResolved.placeRef.providerKey, providerPlaceId: originResolved.placeRef.providerPlaceId } }
-          : { text: origin.trim() },
-        destination: destinationResolved?.placeRef
-          ? { place: { providerKey: destinationResolved.placeRef.providerKey, providerPlaceId: destinationResolved.placeRef.providerPlaceId } }
-          : { text: destination.trim() },
+        origin: side(originResolved, origin), destination: side(destinationResolved, destination),
         providerId: navParams?.transportProviderId ? Number(navParams.transportProviderId) : undefined,
-        // Step 2 asks only which linehaul services cover the route. Door
-        // pickup/delivery is chosen later and is revalidated fail-closed at
-        // service commitment.
-        discoveryOnly: true,
       });
-      const offers = Array.isArray(res.data) ? res.data : [];
-      const serviceOptions = offers
-        .filter(o => o.serviceType === 'composed_intercity' && o.fulfillment?.transportOption)
-        .map(o => ({
-          ...o.fulfillment.transportOption,
-          servicePrice: o.price,
-          pricingMode: o.pricingMode || (o.price == null ? 'quote_required' : 'instant'),
-          etaLabel: o.etaLabel,
-          serviceName: o.name,
-          fulfillmentStatus: o.fulfillmentStatus,
-        }));
-      setTrips(serviceOptions);
-      setSearchReason(serviceOptions.length || offers.some(o => o.serviceType === 'direct_delivery') ? 'available' : 'no_route');
-      // Early check for "Mlango kwa mlango ndani ya mji": ask now, so the
-      // option is marked before the sender fills in the rest. A failed check
-      // leaves the option as it was (the server checks again at the end).
-      if (canDeliverDirect({ originResolved, destinationResolved }) && !navParams?.transportProviderId) {
-        api.post('/transport/service-offers/door-check', {
-          fromCity, weightKg: Number(weightKg) || 0,
-          origin: { place: { providerKey: originResolved.placeRef.providerKey, providerPlaceId: originResolved.placeRef.providerPlaceId } },
-        }).then(r => setDoorCheck(r.data || null)).catch(() => setDoorCheck(null));
-      }
-
-      const providerId = navParams?.transportProviderId ? Number(navParams.transportProviderId) : null;
-      if (providerId) {
-        const requested = serviceOptions.find(x => navParams?.routeId && Number(x.routeId) === Number(navParams.routeId))
-          || serviceOptions.find(x => Number(x.providerId) === providerId);
-        setSelected(requested || { providerId, routeId: navParams?.routeId ? Number(navParams.routeId) : undefined });
-        setTripContextLost(Boolean(navParams?.routeId) && !requested);
+      const list = Array.isArray(res.data) ? res.data : [];
+      if (sameCity) {
+        const direct = list.find((o) => o.serviceType === 'direct_delivery') || null;
+        setDirectOffer(direct);
+        if (direct) setSelected({ direct: true });
+        else {
+          const check = await api.post('/transport/service-offers/door-check', {
+            fromCity, weightKg: Number(weightKg) || 0, origin: side(originResolved, origin),
+          }).then((r) => r.data).catch(() => null);
+          setDoorCheck(check || { available: false, nearestOffice: null });
+        }
+        setSearchReason(direct ? 'available' : 'no_agent');
+      } else {
+        const complete = completeOffers(list, { pickupOption, deliveryOption });
+        setOffers(complete);
+        const wanted = navParams?.transportProviderId
+          ? complete.find((o) => Number(o.providerId) === Number(navParams.transportProviderId)) : null;
+        const first = wanted || complete[0] || null;
+        if (first) {
+          setSelected(first);
+          setOriginHubId(pickupOption === 'station' && first.originPoints?.length === 1 ? String(first.originPoints[0].hubId) : '');
+          setDestinationHubId(deliveryOption === 'station' && first.destinationPoints?.length === 1 ? String(first.destinationPoints[0].hubId) : '');
+        }
+        setSearchReason(complete.length ? 'available' : 'no_route');
       }
     } catch (err) {
-      setTrips([]);
       setSearchReason(searchOutcome(null, err));
     } finally {
       setSearching(false);
     }
-  }, [origin, destination, weightKg, originResolved, destinationResolved, pickupOption, deliveryOption, navParams?.transportProviderId, navParams?.routeId]);
+  }, [fromCity, toCity, weightKg, pickupOption, deliveryOption, originResolved, destinationResolved, origin, destination, sameCity, navParams?.transportProviderId]);
 
-  // Entering from a transporter's trip card: the places are already known,
-  // so the search runs by itself when the sender reaches this step and the
-  // trip they came for is found and selected -- provider, route and Run are
-  // carried through, not re-chosen from a generic list.
-  useEffect(() => {
-    if (step === 2 && navParams?.transportProviderId && !searched && !searching && origin.trim() && destination.trim()) {
-      searchRoutes();
-    }
-  }, [step, navParams?.transportProviderId, searched, searching, origin, destination, searchRoutes]);
+  const choose = (offer) => {
+    setSelected(offer);
+    setOriginHubId(pickupOption === 'station' && offer.originPoints?.length === 1 ? String(offer.originPoints[0].hubId) : '');
+    setDestinationHubId(deliveryOption === 'station' && offer.destinationPoints?.length === 1 ? String(offer.destinationPoints[0].hubId) : '');
+  };
 
-  // A Transporter profile may preselect provider/route/run context, but it
-  // must never skip the sender's cargo declaration. "Tuma Mzigo" always
-  // starts with what is being sent + weight; those facts drive eligibility,
-  // pricing and the immutable cargo snapshot. Origin/destination supplied by
-  // a route card stay prefilled for Step 2 after Step 1 is completed.
+  const valueOk = Number(digits(declaredValue)) > 0;
+  const step1Ok = itemDescription.trim() && Number(weightKg) > 0 && Number(pieces) >= 1 && valueOk;
+  const step2Ok = origin.trim() && destination.trim() && originResolved && destinationResolved
+    && receiverName.trim() && digits(receiverPhone).length >= 9
+    && (!forSomeoneElse || (senderName.trim() && digits(senderPhone).length >= 9));
+  const step3Ok = pickupOption !== 'door' || landmarkOk(pickupLandmark);
+  const pointsOk = isDirectDelivery(selected) || !selected
+    || ((pickupOption !== 'station' || Boolean(originHubId)) && (deliveryOption !== 'station' || Boolean(destinationHubId)));
+  const step4Ok = Boolean(selected) && pointsOk;
 
-  const loadHubChoices = async () => {
-    // Point choice belongs to the SELECTED transport service. Never ask the
-    // city-wide Super Agent directory which desk happens to be nearby: that
-    // cannot prove the desk can hand this parcel to the chosen provider.
+  // Known prices only: the fare (or the agent's fee for same city). An agent's fee for
+  // a door leg of an intercity trip is paid to the agent and shown as such, never guessed.
+  const bill = useMemo(() => {
     if (isDirectDelivery(selected)) {
-      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId('');
-      return;
+      const fee = directOffer?.price != null ? Number(directOffer.price) : null;
+      return { lines: [['Wakala: kuchukua na kufikisha mlangoni', fee != null ? tzs(fee) : 'Inathibitishwa na wakala']], total: fee };
     }
-    const originPoints = pickupOption === 'station' ? (selected?.originPoints || []) : [];
-    const destinationPoints = deliveryOption === 'station' ? (selected?.destinationPoints || []) : [];
-    setOriginHubs(originPoints);
-    setDestinationHubs(destinationPoints);
-    setOriginHubId(originPoints.length === 1 ? String(originPoints[0].hubId) : '');
-    setDestinationHubId(destinationPoints.length === 1 ? String(destinationPoints[0].hubId) : '');
-   
-  };
-
-  const calculatedTripPrice = (trip) => {
-    if (!trip) return null;
-    const w = Number(weightKg) || 0;
-    const perKg = Number(trip.pricePerKg) || 0;
-    const fixed = Number(trip.fixedFee) || 0;
-    if (!perKg && !fixed) return null;
-    return Math.max(perKg * w, fixed);
-  };
-
-  const priceEstimate = calculatedTripPrice(selected);
-
-  const canContinueStep1 = itemDescription.trim() && Number(weightKg) > 0;
-  const stationOriginReady = pickupOption !== 'station' || originHubs.length > 0;
-  const stationDestinationReady = deliveryOption !== 'station' || destinationHubs.length > 0;
-  const canContinueStep3 = receiverName.trim() && receiverPhone.trim() && (pickupOption !== 'door' || landmarkOk(pickupLandmark));
-  const canConfirmPlan = stationOriginReady && stationDestinationReady &&
-    (pickupOption !== 'station' || Boolean(originHubId)) &&
-    (deliveryOption !== 'station' || Boolean(destinationHubId));
+    if (!selected) return { lines: [], total: null };
+    const fare = selected.servicePrice != null ? Number(selected.servicePrice) : null;
+    const lines = [];
+    if (pickupOption === 'door') lines.push(['Kuchukua kwako', 'Ada ya wakala (unamlipa wakala)']);
+    else lines.push(['Kupeleka ofisini', 'Bure']);
+    lines.push(['Usafiri', fare != null ? tzs(fare) : 'Inathibitishwa na ofisi']);
+    if (deliveryOption === 'door') lines.push([`Kufikishwa mlangoni ${toShort || ''}`.trim(), 'Ada ya wakala (inalipwa kwa wakala)']);
+    else lines.push([`Kuchukua ofisini ${toShort || ''}`.trim(), 'Bure']);
+    return { lines, total: fare };
+  }, [selected, directOffer, pickupOption, deliveryOption, toShort]);
 
   const handleConfirm = async () => {
-    setSubmitting(true);
-    setError('');
-    setNoAgentAtConfirm(null);
+    setSubmitting(true); setError(''); setNoAgentAtConfirm(null);
     try {
       let acceptedQuote = null;
       let journeySelection = null;
-      // A dated trip the server offered: the SERVER composes the journey
-      // from the two places and that trip, then prices and freezes it. The
-      // form never writes journey legs itself.
-      if (isTransportService(selected)) {
+      const direct = isDirectDelivery(selected);
+      if (!direct && isTransportService(selected)) {
         const journey = await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, selected, false));
         journeySelection = journey.data;
         const offered = await api.post('/transport/quotes', quoteBody(journeySelection, selected, requestState));
         const accepted = await api.post(`/transport/quotes/${offered.data.id}/accept`);
         acceptedQuote = accepted.data;
-        setQuote(acceptedQuote);
       }
-      // Same-city door to door: no trip and no transporter. The server
-      // composes the journey from the two places.
-      const direct = isDirectDelivery(selected);
       if (direct) {
         const journey = await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, selected, true));
         journeySelection = journey.data;
       }
       const res = await api.post('/shipments', shipmentBody(requestState, selected, acceptedQuote, direct ? journeySelection : null));
-      const created=res.data;
-      // One orchestration boundary: confirmation freezes the plan and the
-      // server activates FIRST_ACTION. The browser never creates operational
-      // Agent work separately and never mistakes task assignment for custody.
-      const final = await api.patch(`/shipments/${created.id}/confirm-and-activate`, confirmBody(direct ? {} : requestState));
-      const confirmedShipment = final.data.shipment;
-      const nextAction = final.data.nextAction || null;
-      setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber,
-        waybillNumber: final.data.parcel?.waybillNumber || null, direct,
-        pickupPath: ['agent_pickup','agent_pickup_pending'].includes(nextAction?.type) ? (direct ? 'direct_delivery' : 'journey_first_mile') : null,
-        // Only a real pickup task counts as "requested". agent_pickup_pending
-        // means nobody has been told yet (KNOWN_FAULTS.md #5).
-        pickupRequested: nextAction?.type === 'agent_pickup',
-        // The job exists but no online agent was found to alert (#22).
-        noAgentYet: nextAction?.type === 'agent_pickup' && Number(nextAction.agentsAlerted) === 0,
-        pickupContact: nextAction?.type === 'agent_pickup_pending' ? (nextAction.contact || { kind: 'none' }) : null,
-        nextAction,
-        dropOffHub: nextAction?.type === 'customer_dropoff' && selected?.loadHub ? selected.loadHub : null });
-      setStep(5);
+      const final = await api.patch(`/shipments/${res.data.id}/confirm-and-activate`, confirmBody(direct ? {} : requestState));
+      setConfirmed({
+        trackingNumber: final.data.shipment?.trackingNumber,
+        waybillNumber: final.data.parcel?.waybillNumber || null,
+        nextAction: final.data.nextAction || null,
+        total: acceptedQuote?.totalAmount ?? bill.total,
+        direct,
+      });
+      setStep(6);
     } catch (err) {
-      // No agent after all (the last one went offline): the same Swahili
-      // card as the early check, with the nearest office -- not an error line.
       if (err?.response?.data?.code === 'NO_AGENT_NOW') setNoAgentAtConfirm({ office: err.response.data.nearestOffice || null });
-      else setError(err?.response?.data?.message || t('send_shipment.post_error'));
+      else setError(err?.response?.data?.message && /[a-z]/i.test(err.response.data.message)
+        ? `Haikutumwa: ${err.response.data.message}` : 'Haikutumwa. Jaribu tena.');
     } finally {
       setSubmitting(false);
     }
@@ -340,15 +361,90 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
 
   if (!isLoggedIn) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', padding: 24 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🚚</div>
-          <div style={{ fontSize: 15, color: GR, marginBottom: 16 }}>{t('send_shipment.login_required')}</div>
-          <button onClick={() => onNavigate('PublicLogin')}
-            style={{ backgroundColor: B, color: WH, border: 'none', borderRadius: 12,
-              padding: '12px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-            {t('send_shipment.login_button')}
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: PAPER, fontFamily: FONT }}>
+        <div style={{ textAlign: 'center', maxWidth: 320 }}>
+          <h1 style={{ ...h1, fontSize: 22 }}>Tuma mzigo</h1>
+          <p style={sub}>Ingia kwanza ili kutuma mzigo.</p>
+          <button type="button" onClick={() => onNavigate('PublicLogin')}
+            style={{ height: 52, padding: '0 28px', border: 0, borderRadius: 14, background: BLUE, color: WHITE, fontFamily: 'inherit', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+            Ingia
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const goBack = () => (step > 1 && step < 6 ? setStep(step - 1) : onNavigate('back'));
+  const next = (to) => { setError(''); setStep(to); if (to === 4) findOffers(); window.scrollTo?.(0, 0); };
+
+  const footer = (text, onClick, enabled, testId) => (
+    <div style={{ position: 'sticky', bottom: 0, padding: '12px 16px 20px', background: WHITE, borderTop: `1px solid ${LINE}` }}>
+      <div style={{ maxWidth: 520, margin: '0 auto' }}>
+        <button type="button" onClick={onClick} disabled={!enabled} data-testid={testId}
+          style={{ width: '100%', height: 54, border: 0, borderRadius: 14, background: BLUE, color: WHITE, fontFamily: 'inherit',
+            fontSize: 17, fontWeight: 700, cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.5 }}>
+          {text}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── 6 Imetumwa ──────────────────────────────────────────────────────────
+  if (step === 6 && confirmed) {
+    const journey = journeySteps({
+      direct: confirmed.direct, pickupOption, deliveryOption, providerName: selected?.providerName,
+      destinationLabel: toShort, receiverName: receiverName.trim(), nextAction: confirmed.nextAction,
+    });
+    const number = confirmed.waybillNumber ? formatWaybill(confirmed.waybillNumber) : confirmed.trackingNumber;
+    return (
+      <div data-testid="send-form-v2" style={{ minHeight: '100vh', background: PAPER, fontFamily: FONT, color: INK }}>
+        <div style={{ background: WHITE, borderBottom: `1px solid ${LINE}`, padding: '28px 20px 22px', textAlign: 'center' }}>
+          <div aria-hidden="true" style={{ width: 56, height: 56, borderRadius: 28, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+          </div>
+          <h1 style={{ ...h1, fontSize: 24 }}>Mzigo umetumwa</h1>
+          <div style={{ fontSize: 13, fontWeight: 600, color: GREY, marginTop: 8 }}>Namba ya mzigo</div>
+          <div data-testid="waybill" style={{ fontSize: 28, fontWeight: 800, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{number}</div>
+          <div style={{ fontSize: 14, color: GREY, lineHeight: 1.45, maxWidth: 340, margin: '6px auto 0' }}>
+            Namba moja kuanzia sasa hadi {receiverName.trim() || 'mpokeaji'} anaupokea. Tumeituma kwa SMS kwako na kwake.
+          </div>
+          {confirmed.total != null && <div style={{ fontSize: 15, fontWeight: 700, marginTop: 10 }}>Jumla: {tzs(confirmed.total)}</div>}
+        </div>
+        <div style={{ padding: '18px 20px', maxWidth: 520, margin: '0 auto' }}>
+          <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 12 }}>Safari ya mzigo</div>
+          <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {journey.steps.map((s, i) => {
+              const done = s.done; const now = i === journey.now; const last = i === journey.steps.length - 1;
+              return (
+                <li key={s.text} style={{ display: 'flex', gap: 12 }}>
+                  <div aria-hidden="true" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 8, boxSizing: 'border-box',
+                      background: done ? '#15803d' : WHITE, border: done ? 0 : now ? `4px solid ${BLUE}` : '2px solid #94a3b8' }} />
+                    {!last && <div style={{ width: 2, flexGrow: 1, minHeight: 24, background: done ? '#15803d' : FIELD }} />}
+                  </div>
+                  <div style={{ paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ fontSize: 15, fontWeight: now ? 700 : done ? 600 : 400, color: now ? BLUE : done ? INK : GREY }}>
+                      {now ? `Sasa: ${s.text.charAt(0).toLowerCase()}${s.text.slice(1)}` : s.text}
+                    </div>
+                    {now && (
+                      <div data-testid="next-step" style={{ fontSize: 13, color: '#334155', background: '#eff6ff', borderRadius: 8, padding: '8px 10px', lineHeight: 1.4 }}>
+                        Hatua inayofuata: {journey.next}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+        <div style={{ padding: '12px 16px 24px', maxWidth: 520, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button type="button" onClick={() => onNavigate(`TrackParcel-${confirmed.trackingNumber}`)}
+            style={{ height: 54, border: 0, borderRadius: 14, background: BLUE, color: WHITE, fontFamily: 'inherit', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+            Fuatilia mzigo
+          </button>
+          <button type="button" onClick={() => onNavigate('MyShipments')}
+            style={{ height: 48, border: `1px solid ${FIELD}`, borderRadius: 14, background: WHITE, color: INK, fontFamily: 'inherit', fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>
+            Mizigo yangu
           </button>
         </div>
       </div>
@@ -356,486 +452,306 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingBottom: 100,
-      fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 100, backgroundColor: WH,
-        borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center',
-        gap: 12, padding: '12px 16px' }}>
-        <button onClick={() => step > 1 && step < 5 ? setStep(step - 1) : onNavigate('back')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={DK} strokeWidth="2.5">
-            <polyline points="15,18 9,12 15,6" />
-          </svg>
-        </button>
-        <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>
-          🚚 {t('send_shipment.title')}
-        </div>
-      {step < 5 && (
-        <div style={{ padding: '12px 16px 0', maxWidth: 640, margin: '0 auto' }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-            {[1,2,3,4].map(n => <div key={n} style={{ height: 4, flex: 1, borderRadius: 4, backgroundColor: n <= step ? B : '#E2E8F0' }} />)}
+    <div data-testid="send-form-v2" style={{ minHeight: '100vh', background: PAPER, fontFamily: FONT, color: INK, display: 'flex', flexDirection: 'column' }}>
+      {/* Header: back, title, "Hatua n kati ya 5", progress */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: WHITE, borderBottom: `1px solid ${LINE}`, padding: '12px 16px 14px' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button type="button" aria-label="Rudi" onClick={goBack}
+              style={{ width: 44, height: 44, border: 0, background: 'transparent', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <BackIcon />
+            </button>
+            <div style={{ fontSize: 19, fontWeight: 700, flexGrow: 1 }}>Tuma mzigo</div>
+            <div style={{ fontSize: 14, color: GREY }}>Hatua {step} kati ya {TOTAL_STEPS}</div>
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: GR }}>Step {step} of 4</div>
+          <div aria-hidden="true" style={{ display: 'grid', gridTemplateColumns: `repeat(${TOTAL_STEPS}, minmax(0, 1fr))`, gap: 6, marginTop: 10 }}>
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+              <div key={i} style={{ height: 4, borderRadius: 2, background: i < step ? BLUE : LINE }} />
+            ))}
+          </div>
         </div>
-      )}
       </div>
 
-      <div style={{ padding: 16, maxWidth: 520, margin: '0 auto' }}>
-        {navParams?.transportProviderId && step < 5 && (
-          <div style={{ backgroundColor:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:12, padding:'10px 12px', marginBottom:14, display:'flex', alignItems:'center', gap:9 }}>
-            <span style={{ fontSize:20 }}>🚚</span><div><div style={{ fontSize:11, color:GR, fontWeight:700 }}>Unatuma kupitia</div><div style={{ fontSize:14, color:DK, fontWeight:900 }}>{navParams.transportProviderName || 'Transport provider'}</div></div>
+      <div style={{ flexGrow: 1, padding: '24px 16px', maxWidth: 520, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+        {navParams?.transportProviderId && (
+          <div style={{ ...card, background: '#eff6ff', borderColor: '#bfdbfe', marginBottom: 16, fontSize: 14 }}>
+            Unatuma kupitia <strong>{navParams.transportProviderName || 'msafirishaji uliyemchagua'}</strong>
           </div>
         )}
 
-        {/* Step 1 — what & how much, captured before any route is shown */}
+        {/* ── 1 Nini ── */}
         {step === 1 && (
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-              {t('send_shipment.item_description_label')}
-            </label>
-            <textarea value={itemDescription} onChange={e => setItemDescription(e.target.value)}
-              placeholder={t('send_shipment.item_description_placeholder')}
-              style={{ ...inputSt, minHeight: 70, resize: 'vertical' }} />
-
-            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-              {t('send_shipment.weight_label')}
-            </label>
-            <input type="number" min="0" step="0.1" value={weightKg}
-              onChange={e => setWeightKg(e.target.value)}
-              placeholder={t('send_shipment.weight_placeholder')} style={inputSt} />
-            <div style={{ fontSize: 11, color: GR, marginTop: -6, marginBottom: 16 }}>
-              {t('send_shipment.weight_hint')}
+            <h1 style={h1}>Unatuma nini?</h1>
+            <p style={sub}>Tunauliza haya ili tukuonyeshe watoa huduma wanaoweza kuubeba.</p>
+            <div style={field}>
+              <label htmlFor="kitu" style={label}>Maelezo ya mzigo</label>
+              <input id="kitu" value={itemDescription} onChange={(e) => setItemDescription(e.target.value)} placeholder="Mfano: nguo, boksi moja" style={input} />
             </div>
-
-            <button onClick={() => setStep(2)} disabled={!canContinueStep1}
-              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
-                borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
-                fontWeight: 800, opacity: canContinueStep1 ? 1 : 0.5 }}>
-              {t('send_shipment.find_options_button')}
-            </button>
-          </div>
-        )}
-
-        {/* Step 2 — origin/destination (selected, not just typed) + real
-            available options, already filtered to what can carry this weight */}
-        {step === 2 && (
-          <div>
-            <div style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontSize: 13, fontWeight: 700, color: DK }}>
-              📦 {itemDescription} · {weightKg} kg
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+              <div style={field}>
+                <label htmlFor="uzito" style={label}>Uzito (kg)</label>
+                <input id="uzito" inputMode="decimal" value={weightKg} onChange={(e) => setWeightKg(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="2" style={input} />
+              </div>
+              <div style={field}>
+                <label htmlFor="vipande" style={label}>Vipande</label>
+                <input id="vipande" inputMode="numeric" value={pieces} onChange={(e) => setPieces(digits(e.target.value))} placeholder="1" style={input} />
+              </div>
             </div>
-
-            <LocationInput label={t('send_shipment.origin_label')} value={origin}
-              onChange={setOrigin} onResolved={setOriginResolved} resolved={originResolved}
-              placeholder={t('send_shipment.origin_placeholder')} />
-            <LocationInput label={t('send_shipment.destination_label')} value={destination}
-              onChange={setDestination} onResolved={setDestinationResolved} resolved={destinationResolved}
-              placeholder={t('send_shipment.destination_placeholder')} />
-            <button onClick={searchRoutes} disabled={!origin.trim() || !destination.trim() || searching}
-              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
-                borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
-                fontWeight: 800, marginBottom: 20,
-                opacity: (!origin.trim() || !destination.trim()) ? 0.5 : 1 }}>
-              {searching ? t('send_shipment.searching') : 'Find Delivery Options'}
-            </button>
-
-            {searched && !searching && (searchReason === 'request_failed' || searchReason === 'invalid_location') && (
-              <div role="alert" style={{ textAlign: 'center', padding: '20px 12px', color: '#B91C1C', fontSize: 13,
-                backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, marginBottom: 16 }}>
-                {searchReason === 'invalid_location'
-                  ? t('send_shipment.search_invalid_location')
-                  : t('send_shipment.search_request_failed')}
-                <div style={{ marginTop: 10 }}>
-                  <button onClick={searchRoutes} style={{ border: 'none', background: 'none', color: B, fontWeight: 800, cursor: 'pointer', fontSize: 13 }}>
-                    {t('send_shipment.search_retry')}
+            <div style={field}>
+              <label htmlFor="thamani" style={label}>Thamani ya mzigo</label>
+              <div style={{ display: 'flex', alignItems: 'center', height: 52, boxSizing: 'border-box', border: `2px solid ${BLUE}`, borderRadius: 12, padding: '0 14px', background: WHITE, gap: 8 }}>
+                <span style={{ fontSize: 16, fontWeight: 600, color: GREY }}>TZS</span>
+                <input id="thamani" inputMode="numeric" value={withCommas(declaredValue)} onChange={(e) => setDeclaredValue(digits(e.target.value))} placeholder="150,000"
+                  style={{ flexGrow: 1, minWidth: 0, border: 0, outline: 0, fontFamily: 'inherit', fontSize: 16, color: INK, background: 'transparent' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', background: '#eff6ff', borderRadius: 10, padding: '10px 12px', marginTop: 8 }}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /></svg>
+                <div style={{ fontSize: 14, lineHeight: 1.45, color: '#1e3a8a' }}>Hiki ndicho kiasi cha juu kulipwa mzigo ukipotea. Hakibadiliki baada ya kutuma.</div>
+              </div>
+            </div>
+            <div style={field}>
+              <div style={label} id="aina-label">Aina</div>
+              <div role="radiogroup" aria-labelledby="aina-label" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {CARGO_TYPE_LABELS.map(([value, text]) => (
+                  <button key={value} type="button" role="radio" aria-checked={cargoType === value} onClick={() => setCargoType(value)}
+                    style={{ height: 44, padding: '0 16px', borderRadius: 22, fontFamily: 'inherit', fontSize: 14, cursor: 'pointer',
+                      border: `1px solid ${cargoType === value ? BLUE : FIELD}`, background: cargoType === value ? BLUE : WHITE,
+                      color: cargoType === value ? WHITE : INK, fontWeight: cargoType === value ? 600 : 500 }}>
+                    {text}
                   </button>
-                </div>
-              </div>
-            )}
-
-            {/* A same-city trip never has bus/transport trips: the "Mlango kwa mlango
-                ndani ya mji" option below (and its no-agent card) is the answer,
-                so "no route — try nearby cities" would be wrong there. */}
-            {searched && !searching && searchReason !== 'request_failed' && searchReason !== 'invalid_location' &&
-              trips.length === 0 && !(canDeliverDirect(requestState) && !navParams?.transportProviderId) && (
-              <div style={{ textAlign: 'center', padding: '30px 0', color: GR, fontSize: 13 }}>
-                {searchReason === 'no_capacity_for_weight'
-                  ? t('send_shipment.no_options_found_weight', { weight: weightKg })
-                  : searchReason === 'provider_does_not_serve_route'
-                    ? t('send_shipment.provider_does_not_serve_route')
-                    : t('send_shipment.no_options_found')}
-              </div>
-            )}
-
-            {searched && !searching && tripContextLost && (
-              <div role="alert" style={{ padding: '10px 12px', color: '#92400E', fontSize: 12, backgroundColor: '#FFFBEB',
-                border: '1px solid #FDE68A', borderRadius: 12, marginBottom: 12 }}>
-                {t('send_shipment.trip_context_lost')}
-              </div>
-            )}
-
-            {searched && !searching && canDeliverDirect(requestState) && !navParams?.transportProviderId && (() => {
-              // No agent right now: the option is marked and cannot be chosen;
-              // the nearest office card says where to bring the parcel instead.
-              const noAgent = doorCheck?.available === false;
-              return (
-                <>
-                  <div data-testid="direct-option" aria-disabled={noAgent}
-                    onClick={noAgent ? undefined : () => { setSelected({ direct: true }); setPickupOption('door'); setDeliveryOption('door'); setStep(3); }}
-                    style={{ backgroundColor: noAgent ? '#F8FAFC' : WH, borderRadius: 14, padding: 14, marginBottom: noAgent ? 8 : 16,
-                      cursor: noAgent ? 'default' : 'pointer', opacity: noAgent ? 0.75 : 1,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: isDirectDelivery(selected) && !noAgent ? `2px solid ${B}` : '2px solid transparent' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🛵</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('send_shipment.direct_title')}</div>
-                        <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{t('send_shipment.direct_subtitle')}</div>
-                        {noAgent && <div style={{ fontSize: 12, fontWeight: 800, color: '#B45309', marginTop: 4 }}>{t('send_shipment.no_agent_now')}</div>}
-                      </div>
-                      {!noAgent && <span style={{ fontSize: 11, fontWeight: 700, color: OR }}>{t('send_shipment.select_button')}</span>}
-                    </div>
-                  </div>
-                  {noAgent && <NoAgentOfficeCard office={doorCheck.nearestOffice} />}
-                </>
-              );
-            })()}
-
-            {trips.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: GR, textTransform: 'uppercase',
-                  letterSpacing: 0.4, marginBottom: 8 }}>
-                  Available delivery options
-                </div>
-                {trips.map(trip => (
-                  <div key={trip.runId || `${trip.providerId}-${trip.routeId}`} 
-                    onClick={() => { setSelected(trip); setStep(3); }}
-                    style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
-                      cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: selected?.providerId === trip.providerId && selected?.routeId === trip.routeId ? `2px solid ${B}` : '2px solid transparent' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
-                        backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                        {trip.providerLogo
-                          ? <img src={trip.providerLogo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : (PROVIDER_TYPE_ICON[trip.providerType] || '🚚')}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>
-                          {trip.providerName || t('send_shipment.provider_fallback')}
-                          {trip.providerType && (
-                            <span style={{ fontWeight: 700, color: GR, textTransform: 'capitalize' }}> · {trip.providerType}</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
-                          {trip.etaLabel || t('send_shipment.available_service_label', { defaultValue: 'Huduma inapatikana' })}
-                        </div>
-                        {trip.loadStop && trip.unloadStop && (
-                          <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{trip.loadStop} → {trip.unloadStop}</div>
-                        )}
-                        {/* The price on the right is the transport fare only -- the same
-                            number the quote confirms. Door legs are never inside it. */}
-                        {trip.fulfillmentStatus?.pickup === 'separate' && (
-                          <div style={{ fontSize: 11, color: GR, marginTop: 3, fontWeight: 700 }}>Pickup fee: agreed with the agent, not in this price</div>
-                        )}
-                        {trip.fulfillmentStatus?.pickup === 'pending' && (
-                          <div style={{ fontSize: 11, color: OR, marginTop: 3, fontWeight: 700 }}>Pickup fee: pending · not in this price</div>
-                        )}
-                        {trip.fulfillmentStatus?.delivery === 'separate' && (
-                          <div style={{ fontSize: 11, color: GR, marginTop: 2, fontWeight: 700 }}>Delivery fee: agreed with the agent, not in this price</div>
-                        )}
-                        {trip.fulfillmentStatus?.delivery === 'pending' && (
-                          <div style={{ fontSize: 11, color: OR, marginTop: 2, fontWeight: 700 }}>Delivery fee: pending · not in this price</div>
-                        )}
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 12, fontWeight: 900, color: OR }}>
-                          {trip.pricingMode === 'quote_required' ? 'Request quote' : (trip.servicePrice != null ? `TZS ${fmt(trip.servicePrice)}` : (calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable')))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── 2 Wapi ── */}
+        {step === 2 && (
+          <div>
+            <h1 style={h1}>Kutoka wapi, kwenda kwa nani?</h1>
+            <div style={{ ...card, padding: '4px 14px', marginTop: 16, marginBottom: 20 }}>
+              <PlaceInput id="kutoka" labelText="Kutoka" value={origin} onChange={setOrigin} onResolved={setOriginResolved} resolved={originResolved}
+                placeholder="Mtaa, kata au wilaya"
+                marker={<div aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 6, border: `3px solid ${BLUE}`, boxSizing: 'border-box', flexShrink: 0 }} />} />
+              <div style={{ height: 1, background: LINE, marginLeft: 24 }} />
+              <PlaceInput id="kwenda" labelText="Kwenda" value={destination} onChange={setDestination} onResolved={setDestinationResolved} resolved={destinationResolved}
+                placeholder="Mtaa, kata au wilaya"
+                marker={<div aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 2, background: '#f97316', flexShrink: 0 }} />} />
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 12 }}>Mpokeaji</div>
+            <div style={field}>
+              <label htmlFor="jina" style={label}>Jina</label>
+              <input id="jina" value={receiverName} onChange={(e) => setReceiverName(e.target.value)} autoComplete="off" style={input} />
+            </div>
+            <div style={field}>
+              <label htmlFor="simu" style={label}>Simu ya mpokeaji</label>
+              <input id="simu" type="tel" value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} placeholder="0712 000 222" style={input} />
+              <div style={{ fontSize: 13, color: GREY, lineHeight: 1.4, marginTop: 6 }}>Atapokea SMS yenye namba ya mzigo na namba ya siri ya kuuchukua.</div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, fontSize: 15, cursor: 'pointer' }}>
+              <input type="checkbox" checked={forSomeoneElse} onChange={(e) => setForSomeoneElse(e.target.checked)} style={{ width: 20, height: 20 }} />
+              Natuma kwa niaba ya mtu mwingine
+            </label>
+            {forSomeoneElse && (
+              <div style={{ marginTop: 8 }}>
+                <div style={field}>
+                  <label htmlFor="mtumaji" style={label}>Jina la mtumaji</label>
+                  <input id="mtumaji" value={senderName} onChange={(e) => setSenderName(e.target.value)} style={input} />
+                </div>
+                <div style={field}>
+                  <label htmlFor="simu-mtumaji" style={label}>Simu ya mtumaji</label>
+                  <input id="simu-mtumaji" type="tel" value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} style={input} />
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {/* Step 3 — receiver + pickup/delivery */}
+        {/* ── 3 Huduma ── */}
         {step === 3 && (
           <div>
-            <div style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontSize: 13, fontWeight: 700, color: DK }}>
-              {origin} → {destination}
-            </div>
-
-            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-              {t('send_shipment.receiver_name_label')}
-            </label>
-            <input value={receiverName} onChange={e => setReceiverName(e.target.value)}
-              placeholder={t('send_shipment.receiver_name_placeholder')} style={inputSt} />
-
-            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-              {t('send_shipment.receiver_phone_label')}
-            </label>
-            <input value={receiverPhone} onChange={e => setReceiverPhone(e.target.value)}
-              placeholder={t('send_shipment.receiver_phone_placeholder')} style={inputSt} />
-
-            <details style={{ marginBottom: 14 }}>
-              <summary style={{ fontSize: 12, fontWeight: 700, color: B, cursor: 'pointer' }}>
-                {t('send_shipment.sending_on_behalf_toggle')}
-              </summary>
-              <div style={{ marginTop: 10 }}>
-                <input value={senderName} onChange={e => setSenderName(e.target.value)}
-                  placeholder={t('send_shipment.sender_name_placeholder')} style={inputSt} />
-                <input value={senderPhone} onChange={e => setSenderPhone(e.target.value)}
-                  placeholder={t('send_shipment.sender_phone_placeholder')} style={inputSt} />
-              </div>
-            </details>
-
-            {isDirectDelivery(selected) ? (
-              <div style={{ backgroundColor: '#EFF6FF', borderRadius: 12, padding: 12, marginBottom: 20, fontSize: 12, color: '#1E3A8A', lineHeight: 1.5 }}>
-                {t('send_shipment.direct_handoff_note')}
-              </div>
-            ) : (<>
-            <div style={{ fontSize: 12, fontWeight: 800, color: DK, marginBottom: 8 }}>
-              How should we get the parcel from you?
-            </div>
-            <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
-              {[['door', 'Pick up from me', 'Kentexa will arrange pickup from your address'],
-                ['station', "I'll take it to a Kentexa Point", 'Drop it at an available parcel point']].map(([opt, title, hint]) => (
-                <button key={opt} onClick={() => setPickupOption(opt)}
-                  style={{ padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
-                    border: `2px solid ${pickupOption === opt ? B : '#E2E8F0'}`,
-                    backgroundColor: pickupOption === opt ? '#EFF6FF' : WH }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: pickupOption === opt ? B : DK }}>{title}</div>
-                  <div style={{ fontSize: 11, color: GR, marginTop: 3 }}>{hint}</div>
-                </button>
-              ))}
-            </div>
-
-            <div style={{ fontSize: 12, fontWeight: 800, color: DK, marginBottom: 8 }}>
-              How should the recipient receive it?
-            </div>
-            <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
-              {[['door', 'Deliver to recipient', 'Kentexa will arrange delivery to the recipient'],
-                ['station', 'Recipient will collect', 'Recipient collects from an available Kentexa Point']].map(([opt, title, hint]) => (
-                <button key={opt} onClick={() => setDeliveryOption(opt)}
-                  style={{ padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
-                    border: `2px solid ${deliveryOption === opt ? B : '#E2E8F0'}`,
-                    backgroundColor: deliveryOption === opt ? '#EFF6FF' : WH }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: deliveryOption === opt ? B : DK }}>{title}</div>
-                  <div style={{ fontSize: 11, color: GR, marginTop: 3 }}>{hint}</div>
-                </button>
-              ))}
-            </div>
-
-            </>)}
-
-            {pickupOption === 'door' && (
-              <PickupPinFields pin={pickupPin} onPin={setPickupPin} landmark={pickupLandmark} onLandmark={setPickupLandmark} />
-            )}
-
-            <button onClick={async () => { await loadHubChoices(); setStep(4); }} disabled={!canContinueStep3}
-              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
-                borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
-                fontWeight: 800, opacity: canContinueStep3 ? 1 : 0.5 }}>
-              {t('send_shipment.review_button')}
-            </button>
-          </div>
-        )}
-
-        {/* Step 4 — review + confirm */}
-        {step === 4 && (
-          <div>
-            <div style={{ backgroundColor: WH, borderRadius: 16, padding: 18,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-              {[
-                [t('send_shipment.review_route'), `${origin} → ${destination}`],
-                [t('send_shipment.review_item'), itemDescription],
-                [t('send_shipment.review_weight'), `${weightKg} kg`],
-                [t('send_shipment.review_receiver'), `${receiverName} · ${receiverPhone}`],
-                [t('send_shipment.review_pickup'), t(`send_shipment.option_${pickupOption}`)],
-                [t('send_shipment.review_delivery'), t(`send_shipment.option_${deliveryOption}`)],
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between',
-                  gap: 12, padding: '10px 0', borderBottom: '1px solid #F1F5F9' }}>
-                  <span style={{ fontSize: 12, color: GR, flexShrink: 0 }}>{label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: DK, textAlign: 'right' }}>{value}</span>
-                </div>
-              ))}
-              <div style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#EFF6FF', color: '#1E3A8A', fontSize: 12, lineHeight: 1.5 }}>
-                Kentexa will confirm the final transport price securely when you send. Your accepted price is then frozen for this shipment.
-              </div>
-              {priceEstimate != null && (
-                <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12 }}>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>Transport fare</span>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: OR }}>TZS {fmt(priceEstimate)}</span>
-                  </div>
-                  {pickupOption === 'door' && selected?.fulfillmentStatus?.pickup === 'separate' && (
-                    <div style={{ fontSize: 11, color: GR, paddingTop: 6, fontWeight: 700 }}>Pickup fee: agreed with the agent, not in this price</div>
-                  )}
-                  {pickupOption === 'door' && selected?.fulfillmentStatus?.pickup === 'pending' && (
-                    <div style={{ fontSize: 11, color: OR, paddingTop: 6, fontWeight: 700 }}>Pickup fee: pending · not included above</div>
-                  )}
-                  {deliveryOption === 'door' && selected?.fulfillmentStatus?.delivery === 'separate' && (
-                    <div style={{ fontSize: 11, color: GR, paddingTop: 3, fontWeight: 700 }}>Delivery fee: agreed with the agent, not in this price</div>
-                  )}
-                  {deliveryOption === 'door' && selected?.fulfillmentStatus?.delivery === 'pending' && (
-                    <div style={{ fontSize: 11, color: OR, paddingTop: 3, fontWeight: 700 }}>Delivery fee: pending · not included above</div>
-                  )}
-                </>
-              )}
-              {priceEstimate == null && (
-                <div style={{ fontSize: 12, color: GR, paddingTop: 10, fontStyle: 'italic' }}>
-                  {t('send_shipment.price_to_be_confirmed')}
-                </div>
-              )}
-            </div>
-
-            {(selected?.loadHub || selected?.unloadHub) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
-              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>{t('send_shipment.trip_hubs_title')}</div>
-              {selected?.loadHub && <div style={{fontSize:12,color:DK,marginBottom:6}}>
-                <span style={{color:GR}}>{t(pickupOption === 'door' ? 'send_shipment.trip_hub_origin_door' : 'send_shipment.trip_hub_origin')}: </span>
-                <strong>{selected.loadHub.name}</strong>{selected.loadHub.address ? ` · ${selected.loadHub.address}` : (selected.loadHub.city ? ` · ${selected.loadHub.city}` : '')}
-              </div>}
-              {selected?.unloadHub && <div style={{fontSize:12,color:DK}}>
-                <span style={{color:GR}}>{t(deliveryOption === 'door' ? 'send_shipment.trip_hub_destination_door' : 'send_shipment.trip_hub_destination')}: </span>
-                <strong>{selected.unloadHub.name}</strong>{selected.unloadHub.address ? ` · ${selected.unloadHub.address}` : (selected.unloadHub.city ? ` · ${selected.unloadHub.city}` : '')}
-              </div>}
-              <div style={{fontSize:11,color:GR,marginTop:8}}>{t('send_shipment.trip_hubs_note')}</div>
-            </div>}
-
-            {((pickupOption === 'station') || (deliveryOption === 'station')) && !isDirectDelivery(selected) && (
-              <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
-                <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Kentexa Points for this service</div>
-                <div style={{fontSize:11,color:GR,marginBottom:10}}>Only points connected to {selected?.providerName || 'the selected transport service'} are shown.</div>
-                {pickupOption === 'station' && originHubs.length > 0 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
-                  <option value="">Choose drop-off point</option>{originHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name || 'Kentexa Point'} · {h.address || h.city}</option>)}
-                </select>}
-                {deliveryOption === 'station' && destinationHubs.length > 0 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
-                  <option value="">Choose collection point</option>{destinationHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name || 'Kentexa Point'} · {h.address || h.city}</option>)}
-                </select>}
-                {pickupOption === 'station' && originHubs.length === 0 && <div role="alert" style={{fontSize:12,color:'#92400E',marginBottom:8}}>This service has no verified drop-off point at the origin yet. Choose “Pick up from me” or another delivery service.</div>}
-                {deliveryOption === 'station' && destinationHubs.length === 0 && <div role="alert" style={{fontSize:12,color:'#92400E'}}>This service has no verified collection point at the destination yet. Choose “Deliver to recipient” or another delivery service.</div>}
-              </div>
-            )}
-            {error && (
-              <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 12, fontWeight: 600 }}>{error}</div>
-            )}
-            {noAgentAtConfirm && <NoAgentOfficeCard office={noAgentAtConfirm.office} />}
-
-            <button onClick={handleConfirm} disabled={submitting || !canConfirmPlan}
-              style={{ width: '100%', background: 'linear-gradient(135deg,#EA580C,#DC2626)',
-                color: WH, border: 'none', borderRadius: 12, padding: '14px 0',
-                cursor: (submitting || !canConfirmPlan) ? 'not-allowed' : 'pointer', opacity: canConfirmPlan ? 1 : 0.5, fontSize: 15, fontWeight: 800 }}>
-              {submitting ? t('send_shipment.confirming') : t('send_shipment.confirm_button')}
-            </button>
-          </div>
-        )}
-
-        {/* Step 5 — confirmed */}
-        {step === 5 && confirmed && (
-          <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: DK, marginBottom: 8 }}>
-              {t('send_shipment.confirmed_title')}
-            </div>
-            {confirmed.waybillNumber ? (
+            <h1 style={h1}>Huduma gani?</h1>
+            {sameCity ? (
               <>
-                <div style={{ fontSize: 13, color: GR, marginBottom: 4 }}>
-                  {t('send_shipment.waybill_label')}: <strong style={{ fontFamily: 'monospace', fontSize: 15, color: DK }}>{formatWaybill(confirmed.waybillNumber)}</strong>
-                </div>
-                <div style={{ fontSize: 11, color: GR, marginBottom: 8 }}>
-                  {t('send_shipment.tracking_number_label')}: {confirmed.trackingNumber}
-                </div>
-                <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
-                  {t('send_shipment.waybill_keep_hint')}
-                </div>
+                <p style={sub}>Ndani ya mji mmoja: wakala anachukua mzigo kwako na kumfikishia {receiverName.trim() || 'mpokeaji'} mlangoni.</p>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Mahali pa kuchukua mzigo</div>
               </>
             ) : (
               <>
-                <div style={{ fontSize: 13, color: GR, marginBottom: 8 }}>
-                  {t('send_shipment.tracking_number_label')}: <strong>{confirmed.trackingNumber}</strong>
-                </div>
-                <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
-                  Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
+                <div style={{ fontSize: 15, fontWeight: 700, margin: '14px 0 8px' }}>Mzigo unaanzia wapi?</div>
+                <Choice testId="start-office" selected={pickupOption === 'station'} onClick={() => setPickupOption('station')}
+                  title="Nitaupeleka ofisini" hint="Unaleta mzigo kwenye ofisi utakayochagua" />
+                <Choice testId="start-door" selected={pickupOption === 'door'} onClick={() => setPickupOption('door')}
+                  title="Njoo uchukue kwangu" hint="Wakala anakuja mahali ulipo" />
+              </>
+            )}
+            {pickupOption === 'door' && (
+              <PickupPinFields pin={pickupPin} onPin={setPickupPin} landmark={pickupLandmark} onLandmark={setPickupLandmark} />
+            )}
+            {!sameCity && (
+              <>
+                <div style={{ fontSize: 15, fontWeight: 700, margin: '10px 0 8px' }}>Mpokeaji atauchukuaje?</div>
+                <Choice testId="end-office" selected={deliveryOption === 'station'} onClick={() => setDeliveryOption('station')}
+                  title={`Atachukua ofisini ${toShort || ''}`.trim()} hint="Kwa namba ya siri atakayopokea kwa SMS" />
+                <Choice testId="end-door" selected={deliveryOption === 'door'} onClick={() => setDeliveryOption('door')}
+                  title="Uletwe mlangoni kwake" hint={`Wakala wa ${toShort || 'huko'} anampelekea`} />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── 4 Ofa ── */}
+        {step === 4 && (
+          <div>
+            <div style={{ fontSize: 13, color: GREY, lineHeight: 1.5, marginBottom: 8 }}>
+              {[itemDescription.trim(), `${weightKg} kg`, `thamani ${tzs(digits(declaredValue))}`,
+                `${(origin.split(',')[0] || '').trim()} → ${toShort || ''}`,
+                pickupOption === 'door' ? 'kuchukuliwa kwako' : 'unapeleka ofisini',
+                deliveryOption === 'door' ? 'mlangoni' : 'mpokeaji anachukua ofisini'].join(' · ')}
+            </div>
+            {searching && <div role="status" style={{ ...card, color: GREY }}>Tunatafuta huduma…</div>}
+
+            {!searching && (searchReason === 'request_failed' || searchReason === 'invalid_location') && (
+              <div role="alert" style={{ ...card, borderColor: '#fecaca', background: '#fef2f2', color: '#b91c1c' }}>
+                {searchReason === 'invalid_location' ? 'Mahali hapajulikani. Rudi na uchague mahali kwenye orodha.' : 'Imeshindikana kutafuta. Jaribu tena.'}
+                <div><button type="button" onClick={findOffers} style={{ marginTop: 8, minHeight: 44, border: 0, background: 'none', color: BLUE, fontFamily: 'inherit', fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: 0 }}>Jaribu tena</button></div>
+              </div>
+            )}
+
+            {!searching && sameCity && searchReason === 'available' && directOffer && (
+              <>
+                <h1 style={{ ...h1, fontSize: 22 }}>Mlango kwa mlango</h1>
+                <div data-testid="direct-option" style={{ ...card, border: `2px solid ${BLUE}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>Wakala wa karibu</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{directOffer.price != null ? tzs(directOffer.price) : 'Bei: wakala'}</div>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#334155' }}>Anachukua kwako na kumfikishia mpokeaji mlangoni</div>
+                  <div style={{ fontSize: 13, color: GREY }}>{etaText(directOffer.etaLabel) || 'Leo hii'}</div>
                 </div>
               </>
             )}
-            {['fulfillment_setup_pending','customer_dropoff_pending','transport_planning'].includes(confirmed.nextAction?.type) && (
-              <div style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
-                margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5, color: '#92400E' }}>
-                Shipment confirmed. Kentexa is arranging the next fulfillment step from your selected delivery plan. Pending pickup/delivery fees are not charged until that service is assigned.
+            {!searching && sameCity && searchReason === 'no_agent' && <NoAgentOfficeCard office={doorCheck?.nearestOffice || null} />}
+
+            {!searching && !sameCity && searchReason === 'available' && (
+              <>
+                <h1 style={{ ...h1, fontSize: 22 }}>{offers.length === 1 ? 'Ofa 1 inayoweza kufanya yote' : `Ofa ${offers.length} zinazoweza kufanya yote`}</h1>
+                <div role="radiogroup" aria-label="Ofa" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+                  {offers.map((o) => {
+                    const on = selected && !isDirectDelivery(selected) && selected.providerId === o.providerId && selected.routeId === o.routeId;
+                    const eta = etaText(o.etaLabel);
+                    return (
+                      <button key={`${o.providerId}-${o.routeId}`} type="button" role="radio" aria-checked={!!on} onClick={() => choose(o)} data-testid="offer"
+                        style={{ ...card, border: on ? `2px solid ${BLUE}` : `1px solid ${FIELD}`, display: 'flex', flexDirection: 'column', gap: 8,
+                          textAlign: 'left', fontFamily: 'inherit', color: INK, cursor: 'pointer', width: '100%' }}>
+                        <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', width: '100%' }}>
+                          <span style={{ fontSize: 16, fontWeight: 700, overflowWrap: 'anywhere' }}>{o.providerName || 'Msafirishaji'}</span>
+                          <span style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{o.servicePrice != null ? tzs(o.servicePrice) : 'Bei: ofisi'}</span>
+                        </span>
+                        <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 13, color: '#334155' }}>
+                          <span>{pickupOption === 'door' ? 'Kuchukua: ada ya wakala' : 'Kupeleka ofisini: bure'}</span>
+                          <span>Usafiri {o.servicePrice != null ? Math.round(o.servicePrice).toLocaleString('en-US') : 'inathibitishwa'}</span>
+                          <span>{deliveryOption === 'door' ? 'Mlangoni: ada ya wakala' : `Ofisini ${toShort || ''}: bure`}</span>
+                        </span>
+                        {(o.loadHub?.name || o.unloadHub?.name) && (
+                          <span style={{ fontSize: 13, color: GREY }}>{[o.loadHub?.name, o.unloadHub?.name].filter(Boolean).join(' → ')}</span>
+                        )}
+                        <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                          <span style={{ fontSize: 13, color: GREY }}>{eta || 'Safari imepangwa'}</span>
+                          {on && <span style={{ fontSize: 12, fontWeight: 700, color: '#1e3a8a', background: '#dbeafe', borderRadius: 6, padding: '3px 8px' }}>Imechaguliwa</span>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {selected && !isDirectDelivery(selected) && pickupOption === 'station' && (
+                  <div style={{ ...field, marginTop: 16 }}>
+                    <label htmlFor="ofisi-kuanzia" style={label}>Ofisi utakayopeleka mzigo</label>
+                    {selected.originPoints?.length ? (
+                      <select id="ofisi-kuanzia" value={originHubId} onChange={(e) => setOriginHubId(e.target.value)} style={input}>
+                        <option value="">Chagua ofisi</option>
+                        {selected.originPoints.map((h) => <option key={h.hubId} value={h.hubId}>{h.name || 'Ofisi'}{h.address ? ` · ${h.address}` : ''}</option>)}
+                      </select>
+                    ) : <div role="alert" style={{ fontSize: 14, color: '#92400e' }}>Msafirishaji huyu hana ofisi ya kupokea mzigo hapa bado. Rudi uchague "Njoo uchukue kwangu" au ofa nyingine.</div>}
+                  </div>
+                )}
+                {selected && !isDirectDelivery(selected) && deliveryOption === 'station' && (
+                  <div style={{ ...field, marginTop: pickupOption === 'station' ? 0 : 16 }}>
+                    <label htmlFor="ofisi-kufika" style={label}>Ofisi ya kuchukulia {toShort || ''}</label>
+                    {selected.destinationPoints?.length ? (
+                      <select id="ofisi-kufika" value={destinationHubId} onChange={(e) => setDestinationHubId(e.target.value)} style={input}>
+                        <option value="">Chagua ofisi</option>
+                        {selected.destinationPoints.map((h) => <option key={h.hubId} value={h.hubId}>{h.name || 'Ofisi'}{h.address ? ` · ${h.address}` : ''}</option>)}
+                      </select>
+                    ) : <div role="alert" style={{ fontSize: 14, color: '#92400e' }}>Msafirishaji huyu hana ofisi ya kuchukulia huko bado. Rudi uchague "Uletwe mlangoni" au ofa nyingine.</div>}
+                  </div>
+                )}
+                <div style={{ fontSize: 13, color: GREY, lineHeight: 1.45, marginTop: 12 }}>Huduma zisizoweza kufanya yote uliyochagua hazionyeshwi hapa.</div>
+              </>
+            )}
+            {!searching && !sameCity && searchReason === 'no_route' && (
+              <div style={{ ...card, color: '#334155', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 4 }}>Hakuna ofa inayoweza kufanya yote kwa sasa</div>
+                Hakuna safari iliyopangwa kwenda {toShort || 'huko'} inayoweza kufanya huduma ulizochagua. Rudi ubadilishe huduma (mfano "Nitaupeleka ofisini"), au jaribu tena baadaye.
               </div>
             )}
-            {confirmed.pickupContact && (
-              <div role="alert" style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
-                margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5, color: '#92400E', textAlign: 'left' }}>
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>{t('send_shipment.pickup_not_assigned_title')}</div>
-                {(() => {
-                  const c = confirmed.pickupContact;
-                  const name = c.name || (c.kind === 'origin_office' ? 'Super Agent' : t('send_shipment.provider_fallback'));
-                  const phone = c.phone ? <a href={`tel:${c.phone}`} style={{ color: '#92400E', fontWeight: 800 }}>{c.phone}</a> : null;
-                  if (c.kind === 'origin_office') {
-                    return phone
-                      ? <>{t('send_shipment.pickup_call_office', { name, phone: '' })}{phone}</>
-                      : t('send_shipment.pickup_call_office_no_phone', { name });
-                  }
-                  if (c.kind === 'transporter') {
-                    return phone
-                      ? <>{t('send_shipment.pickup_call_transporter', { name, phone: '' })}{phone}</>
-                      : t('send_shipment.pickup_call_transporter_no_phone', { name });
-                  }
-                  return t('send_shipment.pickup_no_contact');
-                })()}
+          </div>
+        )}
+
+        {/* ── 5 Thibitisha ── */}
+        {step === 5 && (
+          <div>
+            <h1 style={{ ...h1, fontSize: 24 }}>Angalia kabla ya kutuma</h1>
+            <div style={{ ...card, padding: '4px 14px', marginTop: 12 }}>
+              {[
+                ['Mzigo', `${itemDescription.trim()} · ${weightKg} kg${Number(pieces) > 1 ? ` · vipande ${pieces}` : ''} · ${tzs(digits(declaredValue))}`],
+                ['Aina', (CARGO_TYPE_LABELS.find(([v]) => v === cargoType) || [null, 'Kawaida'])[1]],
+                ['Njia', `${origin.trim()} → ${destination.trim()}`],
+                ['Kuchukuliwa', pickupOption === 'door' ? `Kwako: ${pickupLandmark.trim()}` : 'Unapeleka ofisini'],
+                ['Mpokeaji', `${receiverName.trim()} · ${receiverPhone.trim()}`],
+                ['Kufika', deliveryOption === 'door' ? 'Mlangoni kwa mpokeaji' : `Anachukua ofisini ${toShort || ''}`.trim()],
+                [isDirectDelivery(selected) ? 'Huduma' : 'Msafirishaji', isDirectDelivery(selected) ? 'Wakala wa karibu' : (selected?.providerName || '—')],
+              ].map(([k, v], i, all) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: i < all.length - 1 ? '1px solid #f1f5f9' : 0 }}>
+                  <span style={{ fontSize: 14, color: GREY, flexShrink: 0 }}>{k}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, textAlign: 'right', overflowWrap: 'anywhere' }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ ...card, marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Ankara</div>
+              {bill.lines.map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+                  <span style={{ color: '#334155' }}>{k}</span><span style={{ textAlign: 'right' }}>{v}</span>
+                </div>
+              ))}
+              <div style={{ height: 1, background: LINE }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 800 }}>
+                <span>Jumla</span><span data-testid="bill-total">{bill.total != null ? tzs(bill.total) : 'Inathibitishwa'}</span>
               </div>
-            )}
-            {confirmed.pickupPath && !confirmed.pickupContact && (
-              <div style={{ backgroundColor: confirmed.pickupRequested ? '#ECFDF5' : '#FFFBEB', borderRadius: 12, padding: 12,
-                margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5,
-                color: confirmed.pickupRequested ? '#065F46' : '#92400E' }}>
-                {!confirmed.pickupRequested ? t('send_shipment.direct_pickup_not_requested')
-                  : confirmed.noAgentYet ? t('send_shipment.direct_pickup_no_agent_yet')
-                  : t('send_shipment.direct_pickup_requested')}
+              {!isDirectDelivery(selected) && (pickupOption === 'door' || deliveryOption === 'door') && (
+                <div style={{ fontSize: 13, color: GREY, lineHeight: 1.4 }}>Ada ya wakala hailipwi hapa: unamlipa wakala moja kwa moja.</div>
+              )}
+            </div>
+            <div style={{ ...card, marginTop: 14, fontSize: 14, lineHeight: 1.5, color: '#334155' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: INK, marginBottom: 2 }}>
+                {pickupOption === 'door' ? 'Utalipa wakala akija kuchukua' : 'Utalipa ofisini ukipeleka mzigo'}
               </div>
-            )}
-            {confirmed.dropOffHub && (
-              <div style={{ backgroundColor: '#EFF6FF', borderRadius: 12, padding: 12, margin: '0 auto 18px', maxWidth: 320,
-                fontSize: 12, lineHeight: 1.5, color: '#1E3A8A' }}>
-                {t('send_shipment.drop_off_at')}: <strong>{confirmed.dropOffHub.name}</strong>
-                {confirmed.dropOffHub.address ? ` · ${confirmed.dropOffHub.address}` : ''}
-              </div>
-            )}
-            {quote?.totalAmount != null && (
-              <div style={{ backgroundColor:'#EFF6FF', borderRadius:12, padding:12, margin:'0 auto 18px', maxWidth:300, color:'#1E3A8A', fontSize:13 }}>
-                <strong>TZS {fmt(quote.totalAmount)}</strong><br/>Transport price confirmed
-              </div>
-            )}
-            <button onClick={() => onNavigate(`TrackParcel-${confirmed.trackingNumber}`)}
-              style={{ width: '100%', maxWidth: 300, backgroundColor: B, color: WH, border: 'none',
-                borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14, fontWeight: 800,
-                marginBottom: 10 }}>
-              {t('send_shipment.track_button')}
-            </button>
-            <button onClick={() => onNavigate('MyShipments')}
-              style={{ width: '100%', maxWidth: 300, backgroundColor: WH, color: B,
-                border:'1px solid #BFDBFE', borderRadius:12, padding:'13px 0',
-                cursor:'pointer', fontSize:14, fontWeight:800, marginBottom:10 }}>
-              My Shipments
-            </button>
-            <button onClick={() => onNavigate('Home')}
-              style={{ width: '100%', maxWidth: 300, backgroundColor: WH, color: GR,
-                border: '1px solid #E2E8F0', borderRadius: 12, padding: '13px 0',
-                cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-              {t('send_shipment.done_button')}
-            </button>
+              Taslimu au pesa kwa simu. KenteXa haishikilii pesa yako.
+            </div>
+            {error && <div role="alert" style={{ fontSize: 14, color: '#b91c1c', marginTop: 12 }}>{error}</div>}
+            {noAgentAtConfirm && <div style={{ marginTop: 12 }}><NoAgentOfficeCard office={noAgentAtConfirm.office} /></div>}
           </div>
         )}
       </div>
+
+      {step === 1 && footer('Endelea', () => next(2), step1Ok, 'next-1')}
+      {step === 2 && footer('Endelea', () => next(3), step2Ok, 'next-2')}
+      {step === 3 && footer('Ona ofa', () => next(4), step3Ok, 'next-3')}
+      {step === 4 && footer(selected && !isDirectDelivery(selected) ? `Chagua ${selected.providerName || 'ofa hii'}${selected.servicePrice != null ? ` · ${tzs(selected.servicePrice)}` : ''}` : 'Endelea',
+        () => next(5), step4Ok && !searching, 'next-4')}
+      {step === 5 && footer(submitting ? 'Inatuma…' : 'Thibitisha na tuma', handleConfirm, !submitting, 'confirm')}
     </div>
   );
 };

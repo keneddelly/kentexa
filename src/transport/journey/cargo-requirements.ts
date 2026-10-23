@@ -32,6 +32,10 @@ export interface CargoRequirements {
   liftingEquipmentRequired?: boolean;
   specialHandlingNotes?: string | null;
   photoUrls?: string[];
+  // Send form v2 (owner 2026-10-23): the sender's declared value in TZS -- the most
+  // paid if the parcel is lost. Copied once onto the Parcel when the shipment is
+  // confirmed (Parcel.declaredValue has no update path), so it is locked from then.
+  declaredValue?: number | null;
   evidenceLevel: CargoEvidenceLevel;
   capturedAt: string;
 }
@@ -58,8 +62,13 @@ export function normalizeCargoRequirements(input: CargoRequirements): CargoRequi
       throw new BadRequestException(`${key} must be a non-negative number`);
     }
   }
+  const value = input.declaredValue;
+  if (value != null && (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100_000_000_000)) {
+    throw new BadRequestException('Thamani ya mzigo si sahihi');
+  }
   return {
     ...input,
+    declaredValue: value == null ? null : Math.round(value),
     description: input.description.trim(),
     specialHandlingNotes: input.specialHandlingNotes?.trim() || null,
     photoUrls: [...new Set(Array.isArray(input.photoUrls) ? input.photoUrls : [])],
