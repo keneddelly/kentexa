@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { Product } from '../products/entities/products.entity';
 import {
   InventoryMovement,
   InventoryMovementReason,
 } from './entities/inventory-movement.entity';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
 /**
  * InventoryService — the single place every sales channel touches a
@@ -14,7 +15,10 @@ import {
  */
 @Injectable()
 export class InventoryService {
-  constructor(private dataSource: DataSource) {}
+  constructor(
+    private dataSource: DataSource,
+    @Optional() private inAppNotif?: InAppNotificationService,
+  ) {}
 
   /**
    * Applies `delta` to a product's stock and writes one audit row for it,
@@ -42,6 +46,7 @@ export class InventoryService {
   ): Promise<Product> {
     if (!delta) return this.dataSource.getRepository(Product).findOneOrFail({ where: { id: productId } });
 
+    let soldOut = false;
     const run = async (manager: EntityManager) => {
       const productRepo = manager.getRepository(Product);
       const product = await productRepo
@@ -58,6 +63,9 @@ export class InventoryService {
         );
       }
 
+      // Only the step from "in stock" to zero counts, so a product that stays
+      // at zero never sends a second restock notice.
+      soldOut = product.stock > 0 && newStock <= 0;
       product.stock = newStock;
       // Matches ProductsService.decreaseStock()'s existing behavior exactly —
       // only ever flips isAvailable off at zero, never back on automatically
@@ -82,7 +90,35 @@ export class InventoryService {
       return product;
     };
 
-    return opts.manager ? run(opts.manager) : this.dataSource.transaction(run);
+    const result = await (opts.manager ? run(opts.manager) : this.dataSource.transaction(run));
+    if (soldOut) await this.sendRestockNotice(productId);
+    return result;
+  }
+
+  /** One in-app notice to the seller when a product's stock reaches zero. Never throws. */
+  private async sendRestockNotice(productId: number): Promise<void> {
+    if (!this.inAppNotif) return;
+    try {
+      const product = await this.dataSource.getRepository(Product).findOne({
+        where: { id: productId },
+        relations: { seller: true },
+      });
+      const sellerId = product?.seller?.id;
+      if (!sellerId) return;
+      await this.inAppNotif.notify({
+        userId: sellerId,
+        type: 'restock',
+        title: 'Bidhaa imeisha',
+        body: `"${product.name}" imeisha. Wanunuzi hawaioni tena hadi uongeze idadi.`,
+        icon: '📦',
+        actionPage: 'SellerProducts',
+        actionParam: String(productId),
+        sourceType: 'product',
+        sourceId: productId,
+      });
+    } catch (e: any) {
+      console.error(`Restock notice failed for product #${productId} (non-critical):`, e?.message);
+    }
   }
 
   async getMovements(productId: number, limit = 50): Promise<InventoryMovement[]> {

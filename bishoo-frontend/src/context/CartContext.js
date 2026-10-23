@@ -59,7 +59,9 @@ export const CartProvider = ({ children }) => {
     };
   }, [refreshUserKey]);
 
+  // A sold-out product (stock 0) is never added; returns false so the caller can say so.
   const addToCart = (product, quantity = 1) => {
+    if (product.productType !== 'digital' && Number(product.stock) <= 0) return false;
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -69,8 +71,16 @@ export const CartProvider = ({ children }) => {
             : item
         );
       }
-      return [...prev, { ...product, quantity }];
+      return [...prev, { ...product, quantity: product.productType === 'digital' ? quantity : Math.min(quantity, Number(product.stock)) }];
     });
+    return true;
+  };
+
+  // The server's current stock for a cart item: lowers the quantity when fewer are left.
+  const syncStock = (productId, stock) => {
+    setCart(prev => prev.map(item =>
+      item.id === productId ? { ...item, stock, quantity: Math.min(item.quantity, stock) } : item
+    ));
   };
 
   const removeFromCart = (productId) => {
@@ -105,6 +115,7 @@ export const CartProvider = ({ children }) => {
       addToCart,
       removeFromCart,
       updateQuantity,
+      syncStock,
       clearCart,
       cartCount,
       cartTotal,

@@ -207,8 +207,8 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                         <span style={{ fontSize: '16px', fontWeight: '800', color: '#7c3aed' }}>
                           TZS {Number(product.price).toLocaleString()}
                         </span>
-                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', backgroundColor: product.isAvailable ? '#dcfce7' : '#fee2e2', color: product.isAvailable ? '#16a34a' : '#dc2626' }}>
-                          {product.isAvailable ? t('seller_store.in_stock') : t('seller_store.out_of_stock')}
+                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', backgroundColor: product.isAvailable && Number(product.stock) > 0 ? '#dcfce7' : '#fee2e2', color: product.isAvailable && Number(product.stock) > 0 ? '#16a34a' : '#dc2626' }}>
+                          {product.isAvailable && Number(product.stock) > 0 ? t('seller_store.in_stock') : t('seller_store.out_of_stock')}
                         </span>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -219,7 +219,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                           {t('seller_store.view_button')}
                         </button>
                         <button
-                          onClick={() => { if (product.isAvailable) addToCart(product); }}
+                          onClick={() => { if (product.isAvailable && Number(product.stock) > 0) addToCart(product); }}
                           disabled={!product.isAvailable}
                           style={{ flex: 1, background: product.isAvailable ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#e2e8f0', color: product.isAvailable ? '#fff' : '#94a3b8', border: 'none', padding: '8px', borderRadius: '8px', cursor: product.isAvailable ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '700' }}
                         >

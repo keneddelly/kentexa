@@ -18,7 +18,7 @@ import {
   OrderPaymentMethod,
 } from './entities/order.entity';
 import { CreateOrderDto, CheckoutPaymentMethod } from './dto/create-order.dto';
-import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { CreateCheckoutDto, CheckoutLipaProofDto } from './dto/create-checkout.dto';
 import {
   NoticeOrder,
   buildSellerCheckoutMessage,
@@ -32,6 +32,7 @@ import {
 } from './seller-checkout-notice';
 import {
   DIRECT_PAYMENT_MESSAGES, DIRECT_PAYMENT_MODE, DirectPaymentMethod, directPaymentOptions,
+  soldOutMessage, shortStockMessage,
   isDirectPaymentOrder, isSameRegion, marketplacePaymentMode,
 } from './direct-payment';
 import { ProductsService } from '../products/products.service';
@@ -128,6 +129,7 @@ import { CommunicationEngineService } from '../communication/communication-engin
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
 import { normalizeWaybill } from '../shipments/waybill';
+import { LIPA_PROOF_REF, signedLipaProofUrl } from './lipa-proof';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -143,6 +145,32 @@ const calcCommission = (baseAmount: number, category: string) => {
   const sellerAmount = parseFloat((baseAmount - categoryFee).toFixed(2));
   return { rate, platformFee, sellerAmount };
 };
+
+/** create() options used by createCheckout() / quoteCheckout() only. */
+interface CreateOrderOptions {
+  /** Part of POST /orders/checkout: the seller gets ONE notice for the checkout, not one per order. */
+  checkout?: boolean;
+  /** Lipa Namba proof the buyer sent; required for a Lipa Namba order. */
+  lipaProof?: { url: string; reference: string | null } | null;
+  /** Pricing only (quoteCheckout): no proof needed yet, nothing is written. */
+  quote?: boolean;
+}
+
+/** The one delivery place picked at checkout. Its label is the only location saved, sent and shown. */
+interface CheckoutPlace {
+  regionId: number;
+  regionName: string;
+  districtId: number | null;
+  districtName: string | null;
+  wardId: number | null;
+  wardName: string | null;
+  label: string;
+}
+
+// A repeated POST /orders/checkout with the same checkoutKey (double tap, retry
+// after a lost response) returns the first result instead of creating orders twice.
+const CHECKOUT_REPLAY_MS = 15 * 60 * 1000;
+const checkoutRuns = new Map<string, { expires: number; result: Promise<any> }>();
 
 @Injectable()
 export class OrdersService {
@@ -227,28 +255,17 @@ export class OrdersService {
     }
   }
 
-  // ── Create Order ──────────────────────────────────────────────────────────
-  async create(dto: CreateOrderDto, user: User) {
-    const product = await this.productsService.findOne(dto.productId);
-    if (!product.isAvailable)
-      throw new BadRequestException('Product not available');
-    if (product.stock < dto.quantity)
-      throw new BadRequestException('Insufficient stock');
-
-    // Snapshot only — see Order.brandId's own comment. Resolved once here
-    // rather than joined at read time, so the name stays frozen even if
-    // the Brand row is later renamed.
-    const brandId = (product as any).brandId ?? null;
-    const brandNameSnapshot = brandId
-      ? (await this.brandRepo.findOne({ where: { id: brandId } }))?.name ?? null
-      : null;
-
+  // ── Price and payment terms of one order line ────────────────────────────
+  // Shared by create() and quoteCheckout(), so the amount the buyer is asked to
+  // pay by Lipa Namba is exactly the amount the order will carry.
+  private async priceOrder(product: any, dto: CreateOrderDto, opts: CreateOrderOptions = {}) {
     const basePrice = Number(product.basePrice || 0);
 
     // Release F (MARKETPLACE_PAYMENT_MODE): in cod_lipa the buyer pays the seller directly. The
     // server decides "same city" and which ways to pay are allowed; the checkout only shows them.
     const paymentMode = marketplacePaymentMode();
     let direct: { method: DirectPaymentMethod; sameCity: boolean } | null = null;
+    let lipaNamba: { number: string; name: string | null } | null = null;
     if (paymentMode === 'cod_lipa') {
       const ctx = await this.directPaymentContext(product, dto.regionId ?? null);
       const chosen = dto.paymentMethod;
@@ -260,6 +277,11 @@ export class OrdersService {
         throw new BadRequestException(chosen === CheckoutPaymentMethod.COD ? DIRECT_PAYMENT_MESSAGES.codNotHere : DIRECT_PAYMENT_MESSAGES.noLipaNamba);
       }
       direct = { method: chosen as DirectPaymentMethod, sameCity: ctx.sameCity };
+      lipaNamba = ctx.lipaNamba;
+      // Lipa Namba: no order exists until the buyer has paid and sent proof (createCheckout()).
+      if (direct.method === 'lipa_namba' && !opts.lipaProof && !opts.quote) {
+        throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaProofRequired);
+      }
     } else if (dto.paymentMethod === CheckoutPaymentMethod.LIPA_NAMBA) {
       throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.noLipaNamba);
     }
@@ -386,6 +408,33 @@ export class OrdersService {
     // requirement) keeps the existing PENDING_PAYMENT gate unchanged.
     const codSkipsPayment = isCod && codUpfrontAmount === 0;
 
+    return {
+      direct, lipaNamba, chosenMethod, needsCollection, isRuralCollection, collectionFee, totalAmount,
+      baseAmount, deliveryAmount, commission, isCod, codUpfrontAmount, codRemainingBalance, codSkipsPayment,
+    };
+  }
+
+  // ── Create Order ──────────────────────────────────────────────────────────
+  async create(dto: CreateOrderDto, user: User, opts: CreateOrderOptions = {}) {
+    const product = await this.productsService.findOne(dto.productId);
+    if (!product.isAvailable || Number(product.stock) <= 0)
+      throw new BadRequestException(soldOutMessage([product.name]));
+    if (product.stock < dto.quantity)
+      throw new BadRequestException(shortStockMessage(product.name, product.stock));
+
+    // Snapshot only — see Order.brandId's own comment. Resolved once here
+    // rather than joined at read time, so the name stays frozen even if
+    // the Brand row is later renamed.
+    const brandId = (product as any).brandId ?? null;
+    const brandNameSnapshot = brandId
+      ? (await this.brandRepo.findOne({ where: { id: brandId } }))?.name ?? null
+      : null;
+
+    const {
+      direct, chosenMethod, needsCollection, isRuralCollection, collectionFee, totalAmount,
+      baseAmount, deliveryAmount, commission, isCod, codUpfrontAmount, codRemainingBalance, codSkipsPayment,
+    } = await this.priceOrder(product, dto, opts);
+
     const order = this.repo.create({
       buyer: user,
       product,
@@ -431,6 +480,10 @@ export class OrdersService {
       payoutStatus: direct ? null : 'pending',
       paymentMode: direct ? DIRECT_PAYMENT_MODE : null,
       sameCity: direct ? direct.sameCity : null,
+      // Lipa Namba: the buyer's payment screenshot and optional reference, sent before the order existed.
+      lipaProofUrl: opts.lipaProof?.url ?? null,
+      lipaReference: opts.lipaProof?.reference ?? null,
+      lipaConfirmedAt: opts.lipaProof ? new Date() : null,
       // Collection fields
       needsCollection: needsCollection,
       isRuralCollection: isRuralCollection,
@@ -529,7 +582,8 @@ export class OrdersService {
       this.smsService
         .sendSms(
           dto.phone,
-          `KenteXa: Oda #${saved.id} imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS ${totalAmount.toLocaleString()} wakati wa kupokea.`,
+          `KenteXa: Oda #${saved.id} imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS ${totalAmount.toLocaleString()} wakati wa kupokea.` +
+            (dto.deliveryAddress ? ` Mahali: ${dto.deliveryAddress}` : ''),
         )
         .catch((e) => console.error('COD confirmation SMS failed (non-critical):', e.message));
     }
@@ -696,9 +750,10 @@ export class OrdersService {
       );
     }
 
-    // Notify seller of new order
+    // Notify seller of new order (a direct-payment checkout sends ONE notice
+    // per seller instead, from notifySellersOfDirectCheckout()).
     try {
-      if (saved.seller?.id) {
+      if (saved.seller?.id && !(opts.checkout && direct)) {
         await this.inAppNotif.orderPlacedById(
           saved.seller.id,
           saved.id,
@@ -752,27 +807,167 @@ export class OrdersService {
   // direct-payment (cod_lipa) orders of this checkout. If an item fails, the
   // orders already created stay (as with the old per-item loop), their sellers
   // are still told, and the error is returned to the buyer.
+  //
+  // Every item is checked (still offered, enough stock) before ANY order exists;
+  // a sold-out item refuses the whole checkout and names it, so the buyer's cart
+  // can drop it. Lipa Namba: the orders are created only here, once, with the
+  // buyer's payment proof attached (one screenshot per seller).
   async createCheckout(dto: CreateCheckoutDto, user: User) {
-    const { items, districtId, ...shared } = dto;
+    const key = dto.checkoutKey ? `${user?.id}:${dto.checkoutKey}` : null;
+    const now = Date.now();
+    for (const [k, v] of checkoutRuns) if (v.expires <= now) checkoutRuns.delete(k);
+    if (key && checkoutRuns.has(key)) return checkoutRuns.get(key)!.result;
+    const result = this.runCheckout(dto, user);
+    if (key) {
+      checkoutRuns.set(key, { expires: now + CHECKOUT_REPLAY_MS, result });
+      result.catch(() => checkoutRuns.delete(key));
+    }
+    return result;
+  }
+
+  private async runCheckout(dto: CreateCheckoutDto, user: User) {
+    const { items, districtId, wardId, checkoutKey, lipaProofs, ...shared } = dto;
+    const place = await this.resolveCheckoutPlace(dto.regionId ?? null, districtId ?? null, wardId ?? null);
+    if (place) shared.deliveryAddress = place.label;
+    const lines = await this.checkCheckoutItems(items);
+    const lipa = marketplacePaymentMode() === 'cod_lipa' && dto.paymentMethod === CheckoutPaymentMethod.LIPA_NAMBA;
+    const proofs = lipa ? this.checkLipaProofs(lines, lipaProofs) : new Map<number, { url: string; reference: string | null }>();
     const orders: any[] = [];
     let failure: unknown = null;
-    for (const item of items) {
+    for (const { item, product } of lines) {
       try {
-        orders.push(await this.create({ ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto, user));
+        orders.push(await this.create(
+          { ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto,
+          user,
+          { checkout: true, lipaProof: proofs.get(product.seller?.id) ?? null },
+        ));
       } catch (err) {
         failure = err;
         break;
       }
     }
     const sellerNotices = await this.notifySellersOfDirectCheckout(orders, {
-      regionId: dto.regionId ?? null,
-      districtId: districtId ?? null,
+      place,
       buyerName: user?.name ?? null,
       buyerPhone: dto.phone?.trim() || null,
       buyerId: user?.id ?? null,
+      lipaReferences: new Map([...proofs].map(([sellerId, proof]) => [sellerId, proof.reference])),
     });
+    if (lipa && orders.length > 0 && dto.phone) {
+      const total = orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+      this.smsService
+        .sendSms(
+          dto.phone,
+          `KenteXa: Umethibitisha malipo ya TZS ${Math.round(total).toLocaleString('en-US')} kwa Lipa Namba, oda ${orders.map((o) => `#${o.id}`).join(', ')}. Muuzaji ataangalia malipo na kuwasiliana nawe.` +
+            (shared.deliveryAddress ? ` Mahali: ${shared.deliveryAddress}` : ''),
+        )
+        .catch((e) => console.error('Lipa confirmation SMS failed (non-critical):', e?.message));
+    }
     if (failure) throw failure;
-    return { orders, sellerNotices };
+    return { orders, sellerNotices, place: place?.label ?? null };
+  }
+
+  // ── POST /orders/checkout/quote: what the buyer will pay, per seller ─────────
+  // Same checks and the same prices as createCheckout(), nothing written. The
+  // Lipa payment step shows these amounts and each seller's Lipa Namba.
+  async quoteCheckout(dto: CreateCheckoutDto, _user: User) {
+    const { items, districtId, wardId, checkoutKey, lipaProofs, ...shared } = dto;
+    const place = await this.resolveCheckoutPlace(dto.regionId ?? null, districtId ?? null, wardId ?? null);
+    if (place) shared.deliveryAddress = place.label;
+    const lines = await this.checkCheckoutItems(items);
+    const sellers = new Map<number, any>();
+    for (const { item, product } of lines) {
+      const price = await this.priceOrder(
+        product,
+        { ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto,
+        { quote: true },
+      );
+      const sellerId = product.seller?.id ?? 0;
+      const group = sellers.get(sellerId) ?? {
+        sellerId,
+        storeName: product.seller?.storeName ?? product.seller?.name ?? null,
+        lipaNamba: price.lipaNamba,
+        total: 0,
+        items: [],
+      };
+      group.total += price.totalAmount;
+      group.items.push({ productId: product.id, name: product.name, quantity: item.quantity, totalAmount: price.totalAmount });
+      sellers.set(sellerId, group);
+    }
+    const groups = [...sellers.values()];
+    return { place: place?.label ?? null, total: groups.reduce((sum, g) => sum + g.total, 0), sellers: groups };
+  }
+
+  // The checkout place from the tz place list: region, plus district and ward
+  // when picked. A ward outside the district (or district outside the region)
+  // is refused, never guessed.
+  private async resolveCheckoutPlace(regionId: number | null, districtId: number | null, wardId: number | null): Promise<CheckoutPlace | null> {
+    if (!regionId) return null;
+    const q = (sql: string, params: any[]) => this.repo.manager.query(sql, params).then((rows: any[]) => rows?.[0] ?? null);
+    const region = await q(`SELECT id, name FROM public.tz_region WHERE id = $1`, [regionId]);
+    const district = region && districtId
+      ? await q(`SELECT id, name FROM public.tz_district WHERE id = $1 AND region_id = $2`, [districtId, region.id])
+      : null;
+    const ward = district && wardId
+      ? await q(`SELECT id, name FROM public.tz_ward WHERE id = $1 AND district_id = $2`, [wardId, district.id])
+      : null;
+    if (!region || (districtId && !district) || (wardId && !ward)) {
+      throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.placeInvalid);
+    }
+    return {
+      regionId: region.id,
+      regionName: region.name,
+      districtId: district?.id ?? null,
+      districtName: district?.name ?? null,
+      wardId: ward?.id ?? null,
+      wardName: ward?.name ?? null,
+      label: [ward?.name, district?.name, region.name].filter(Boolean).join(', '),
+    };
+  }
+
+  // Stock is checked for the whole cart before anything is created. Sold-out
+  // items are named and listed (soldOut: product ids) so the checkout can drop them.
+  private async checkCheckoutItems(items: CreateCheckoutDto['items']) {
+    const lines: { item: CreateCheckoutDto['items'][number]; product: any }[] = [];
+    const wanted = new Map<number, number>();
+    for (const item of items) wanted.set(item.productId, (wanted.get(item.productId) ?? 0) + item.quantity);
+    const soldOut: { id: number; name: string }[] = [];
+    for (const item of items) {
+      const product: any = await this.productsService.findOne(item.productId).catch(() => null);
+      if (!product || !product.isAvailable || Number(product.stock) <= 0) {
+        if (!soldOut.some((s) => s.id === item.productId)) soldOut.push({ id: item.productId, name: product?.name ?? 'Bidhaa' });
+        continue;
+      }
+      lines.push({ item, product });
+    }
+    if (soldOut.length > 0) {
+      throw new BadRequestException({ message: soldOutMessage(soldOut.map((s) => s.name)), soldOut: soldOut.map((s) => s.id) });
+    }
+    for (const { item, product } of lines) {
+      if (Number(product.stock) < (wanted.get(item.productId) ?? 0)) {
+        throw new BadRequestException({
+          message: shortStockMessage(product.name, Number(product.stock)),
+          shortStock: [{ productId: product.id, stock: Number(product.stock) }],
+        });
+      }
+    }
+    return lines;
+  }
+
+  // One proof per seller in the cart: our own private screenshot (reference from
+  // POST /upload/payment-proof), plus an optional payment reference (at most 60 characters).
+  private checkLipaProofs(lines: { product: any }[], proofs: CheckoutLipaProofDto[] | undefined) {
+    const bySeller = new Map<number, { url: string; reference: string | null }>();
+    for (const sellerId of new Set(lines.map((l) => l.product.seller?.id).filter((id) => id != null))) {
+      const proof = (proofs ?? []).find((pr) => pr.sellerId === sellerId);
+      if (!proof?.proofId) throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaProofRequired);
+      if (!LIPA_PROOF_REF.test(proof.proofId)) {
+        throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaProofInvalid);
+      }
+      const reference = String(proof.reference ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      bySeller.set(sellerId, { url: proof.proofId, reference: reference || null });
+    }
+    return bySeller;
   }
 
   // One message per seller: SMS to the seller's phone (skipped and logged when there is none),
@@ -780,8 +975,14 @@ export class OrdersService {
   // storeWhatsApp. Never throws: a notice problem must not fail an order that was created.
   private async notifySellersOfDirectCheckout(
     orders: any[],
-    ctx: { regionId: number | null; districtId: number | null; buyerName: string | null; buyerPhone: string | null; buyerId: number | null },
-  ): Promise<{ sellerId: number; storeName: string | null; orderIds: number[]; whatsappUrl: string | null }[]> {
+    ctx: {
+      place: CheckoutPlace | null;
+      buyerName: string | null;
+      buyerPhone: string | null;
+      buyerId: number | null;
+      lipaReferences?: Map<number, string | null>;
+    },
+  ): Promise<{ sellerId: number; storeName: string | null; orderIds: number[]; whatsappUrl: string | null; phone: string | null }[]> {
     try {
       const noticeOrders: NoticeOrder[] = orders.map((o) => ({
         id: o.id,
@@ -795,20 +996,20 @@ export class OrdersService {
       }));
       const groups = groupDirectOrdersBySeller(noticeOrders);
       if (groups.length === 0) return [];
-      const place = await this.checkoutPlaceNames(ctx.regionId, ctx.districtId);
-      const notices: { sellerId: number; storeName: string | null; orderIds: number[]; whatsappUrl: string | null }[] = [];
+      const place = ctx.place;
+      const notices: { sellerId: number; storeName: string | null; orderIds: number[]; whatsappUrl: string | null; phone: string | null }[] = [];
       for (const group of groups) {
         const source = orders.find((o) => (o.seller?.id ?? o.product?.seller?.id) === group.sellerId);
         const seller = source?.seller ?? source?.product?.seller;
         const orderIds = group.orders.map((o) => o.id);
         const token = signSellerCheckoutToken(
-          { s: group.sellerId, o: orderIds, r: place.regionId, d: place.districtId, e: sellerCheckoutExpiry() },
+          { s: group.sellerId, o: orderIds, r: place?.regionId ?? null, d: place?.districtId ?? null, e: sellerCheckoutExpiry() },
           process.env.JWT_SECRET,
         );
         const text = buildSellerCheckoutMessage({
           orders: group.orders,
-          regionName: place.regionName,
-          districtName: place.districtName,
+          place: place?.label ?? null,
+          lipaReference: ctx.lipaReferences?.get(group.sellerId) ?? null,
           buyerName: ctx.buyerName,
           buyerPhone: ctx.buyerPhone,
           link: sellerCheckoutLink(token),
@@ -831,11 +1032,22 @@ export class OrdersService {
           targetId: orderIds[0],
           metadata: { orderIds, channel: 'sms', smsSent, sellerHasPhone: !!seller?.phone, total: checkoutTotal(group.orders) },
         });
+        // The one in-app notice for this seller's part of the checkout.
+        await this.inAppNotif
+          .orderPlacedById(
+            group.sellerId,
+            orderIds[0],
+            orderIds.map((id) => `KTX-ORD-${id}`).join(', '),
+            group.orders.map((o) => o.productName).join(', '),
+            source?.commerceProfileId ?? null,
+          )
+          .catch((e) => console.error(`Seller in-app notice failed for orders ${orderIds.join(',')}:`, e?.message));
         notices.push({
           sellerId: group.sellerId,
           storeName: seller?.storeName ?? seller?.name ?? null,
           orderIds,
           whatsappUrl: whatsappLink(seller?.storeWhatsApp, text),
+          phone: seller?.phone ?? null,
         });
       }
       return notices;
@@ -895,6 +1107,11 @@ export class OrdersService {
       regionName: place.regionName,
       districtName: place.districtName,
       deliveryAddress: first.deliveryAddress ?? null,
+      // The one place picked at checkout (= deliveryAddress); the only location to show.
+      place: first.deliveryAddress ?? null,
+      // Private screenshot: a signed link valid for 10 minutes, only after the check above.
+      lipaProofUrl: signedLipaProofUrl(first.lipaProofUrl),
+      lipaReference: first.lipaReference ?? null,
       buyerName: first.buyer?.name ?? null,
       buyerPhone: first.phone ?? null,
       recipientName: first.recipientName ?? null,
@@ -3329,11 +3546,11 @@ export class OrdersService {
         methods: [
           {
             key: 'agent',
-            label: 'KenteXa Super Agent',
+            label: 'Usafiri hadi mkoa wako',
             icon: '🏢',
             fee: deliveryFee,
             totalPrice: basePrice + deliveryFee,
-            desc: 'Intercity delivery via KenteXa agent network',
+            desc: 'Inatumwa hadi mji wako; gharama ya usafiri imo kwenye bei',
           },
         ],
       };

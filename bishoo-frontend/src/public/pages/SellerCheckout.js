@@ -58,7 +58,6 @@ const SellerCheckout = ({ token, onNavigate }) => {
   }
   if (!view) return page(<div style={{ ...card, color: GREY, fontSize: 14 }}>{t('seller_checkout.loading')}</div>);
 
-  const place = [view.districtName, view.regionName].filter(Boolean).join(', ');
   return page(
     <>
       <div style={card}>
@@ -89,8 +88,14 @@ const SellerCheckout = ({ token, onNavigate }) => {
           {view.buyerPhone ? <a href={`tel:${view.buyerPhone}`} style={{ color: '#1d4ed8' }}>{view.buyerPhone}</a> : '—'}
         </Row>
         {view.recipientName && <Row label={t('seller_checkout.recipient')}>{view.recipientName}</Row>}
-        <Row label={t('seller_checkout.place')}>{place || '—'}</Row>
-        <Row label={t('seller_checkout.address')}>{view.deliveryAddress || '—'}</Row>
+        {/* The one place the buyer picked at checkout: the only location shown. */}
+        <Row label={t('seller_checkout.place')}>{view.place || view.deliveryAddress || '—'}</Row>
+        {view.lipaReference && <Row label={t('seller_checkout.reference')}>{view.lipaReference}</Row>}
+        {view.lipaProofUrl && (
+          <Row label={t('seller_checkout.proof')}>
+            <a href={view.lipaProofUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#1d4ed8' }}>{t('seller_checkout.proof_open')}</a>
+          </Row>
+        )}
       </div>
       <div style={{ fontSize: 12, color: GREY, lineHeight: 1.45 }}>
         {t('seller_checkout.expires', { date: new Date(view.expiresAt).toLocaleDateString() })}

@@ -963,7 +963,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
                 {[
                   ...products.map(p => ({ kind:'product', id:p.id, image:p.images?.[0], icon:'🛍️',
-                    createdAt:p.createdAt, available:p.isAvailable })),
+                    createdAt:p.createdAt, available:p.isAvailable && Number(p.stock) > 0 })),
                   ...classifieds.map(c => ({ kind:'classified', id:c.id, image:c.images?.[0], icon:'🏷️',
                     createdAt:c.createdAt })),
                 ]

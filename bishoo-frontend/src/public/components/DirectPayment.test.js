@@ -24,16 +24,16 @@ test('Lipa Namba box: number, registered name, the exact note, and a copy button
   render(<LipaNambaBox number="55771234" name="Juma Shop" />);
   expect(screen.getByText('55771234')).toBeInTheDocument();
   expect(screen.getByText('Juma Shop')).toBeInTheDocument();
-  expect(screen.getByText('Lipa kwenye namba hii, kisha utume ujumbe kwa muuzaji.')).toBeInTheDocument();
+  expect(screen.getByText('Lipa kwenye namba hii, kisha pakia picha ya malipo hapa chini.')).toBeInTheDocument();
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: dp.copy })); });
   expect(writeText).toHaveBeenCalledWith('55771234');
   expect(screen.getByRole('button', { name: dp.copied })).toBeInTheDocument();
 });
 
 describe('checkout choice', () => {
-  const props = { loading: false, regionChosen: true, digital: false, lipaNambas: [{ number: '55771234', name: 'Juma Shop' }], choice: null, onChoose: jest.fn() };
+  const props = { loading: false, regionChosen: true, digital: false, choice: null, onChoose: jest.fn() };
 
-  test('same city: both ways, the city note, and the number only after choosing Lipa Namba', () => {
+  test('same city: both ways and the city note; the Lipa Namba itself comes in the payment step', () => {
     const { rerender } = render(<DirectPaymentChoice {...props} options={['cod', 'lipa_namba']} sameCity />);
     expect(screen.getByTestId('direct-payment-city')).toHaveTextContent(dp.same_city);
     expect(screen.getByTestId('pay-cod')).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe('checkout choice', () => {
     fireEvent.click(screen.getByTestId('pay-cod'));
     expect(props.onChoose).toHaveBeenCalledWith('cod');
     rerender(<DirectPaymentChoice {...props} options={['cod', 'lipa_namba']} sameCity choice="lipa_namba" />);
-    expect(screen.getByTestId('lipa-namba-box')).toHaveTextContent('55771234');
+    expect(screen.queryByTestId('lipa-namba-box')).toBeNull();
   });
 
   test('other city: Lipa Namba only, never COD', () => {

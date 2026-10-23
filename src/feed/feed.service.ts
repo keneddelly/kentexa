@@ -909,6 +909,7 @@ export class FeedService {
           .createQueryBuilder('p')
           .where('p.isAvailable = true')
           .andWhere('p.availableOnline = true')
+          .andWhere('p.stock > 0')
           .orderBy('p.createdAt', 'DESC')
           .take(10)
           .getMany(),

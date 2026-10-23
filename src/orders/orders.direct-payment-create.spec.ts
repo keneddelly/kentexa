@@ -40,8 +40,9 @@ function setup(opts: { codEnabled?: boolean; lipaNamba?: string | null } = {}) {
   const svc = build<OrdersService>({ repo, productsService, invoicesService, payoutRepo });
   return { svc, repo, invoicesService, payoutRepo };
 }
-const place = (svc: OrdersService, regionId: number | undefined, paymentMethod?: string) =>
-  svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kariakoo', regionId, paymentMethod } as any, buyer as any);
+const PROOF = { url: 'kentexa/payment-proofs/abc123.jpg', reference: 'QX12' };
+const place = (svc: OrdersService, regionId: number | undefined, paymentMethod?: string, opts?: any) =>
+  svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kariakoo', regionId, paymentMethod } as any, buyer as any, opts);
 
 describe('OrdersService.create() — MARKETPLACE_PAYMENT_MODE cod_lipa', () => {
   const savedMode = process.env.MARKETPLACE_PAYMENT_MODE;
@@ -59,13 +60,31 @@ describe('OrdersService.create() — MARKETPLACE_PAYMENT_MODE cod_lipa', () => {
     expect(payoutRepo.save).not.toHaveBeenCalled();
   });
 
-  it('Lipa Namba, same city and other city', async () => {
+  it('Lipa Namba, same city and other city: created only with the payment proof, which is kept', async () => {
     let t = setup();
-    await place(t.svc, 1, 'lipa_namba');
-    expect(t.repo.create).toHaveBeenCalledWith(expect.objectContaining({ paymentMethod: 'lipa_namba', paymentMode: 'cod_lipa', sameCity: true, escrowStatus: null }));
+    await place(t.svc, 1, 'lipa_namba', { checkout: true, lipaProof: PROOF });
+    expect(t.repo.create).toHaveBeenCalledWith(expect.objectContaining({
+      paymentMethod: 'lipa_namba', paymentMode: 'cod_lipa', sameCity: true, escrowStatus: null,
+      lipaProofUrl: PROOF.url, lipaReference: 'QX12', lipaConfirmedAt: expect.any(Date),
+    }));
     t = setup();
-    await place(t.svc, 3, 'lipa_namba');
+    await place(t.svc, 3, 'lipa_namba', { checkout: true, lipaProof: PROOF });
     expect(t.repo.create).toHaveBeenCalledWith(expect.objectContaining({ paymentMethod: 'lipa_namba', sameCity: false, codUpfrontAmount: null }));
+  });
+
+  it('Lipa Namba without proof (e.g. POST /orders): refused, nothing written', async () => {
+    const { svc, repo } = setup();
+    await expect(place(svc, 1, 'lipa_namba')).rejects.toThrow('pakia picha ya malipo');
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('sold out or short stock: refused with the product named, in Swahili', async () => {
+    const { svc, repo } = setup();
+    (svc as any).productsService.findOne.mockResolvedValue({ id: 10, name: 'Simu A', isAvailable: false, stock: 0 });
+    await expect(place(svc, 1, 'cod')).rejects.toThrow('"Simu A" imeisha');
+    (svc as any).productsService.findOne.mockResolvedValue({ id: 10, name: 'Simu A', isAvailable: true, stock: 0 });
+    await expect(place(svc, 1, 'cod')).rejects.toThrow('"Simu A" imeisha');
+    expect(repo.save).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -77,7 +96,7 @@ describe('OrdersService.create() — MARKETPLACE_PAYMENT_MODE cod_lipa', () => {
     ['Lipa Namba when the seller has none', 1, 'lipa_namba', { lipaNamba: null }],
   ])('refuses %s, writes nothing', async (_label, region, method, opts) => {
     const { svc, repo } = setup(opts as any);
-    await expect(place(svc, region as any, method as any)).rejects.toThrow(BadRequestException);
+    await expect(place(svc, region as any, method as any, { checkout: true, lipaProof: PROOF })).rejects.toThrow(BadRequestException);
     expect(repo.save).not.toHaveBeenCalled();
   });
 

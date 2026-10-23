@@ -14,8 +14,8 @@ const LINE = '#e2e8f0';
 const card = { backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 };
 const note = (bg, color) => ({ backgroundColor: bg, color, borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.45 });
 
-/** The seller's Lipa Namba with a copy button and the payment note. */
-export function LipaNambaBox({ number, name }) {
+/** The seller's Lipa Namba with a copy button and (optionally) the payment note. */
+export function LipaNambaBox({ number, name, showNote = true }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -43,7 +43,7 @@ export function LipaNambaBox({ number, name }) {
           {t('direct_payment.lipa_name_label')}: <strong style={{ color: DARK }}>{name}</strong>
         </div>
       )}
-      <div style={{ fontSize: 13, color: '#1e3a8a', marginTop: 8, lineHeight: 1.45 }}>{t('direct_payment.lipa_note')}</div>
+      {showNote && <div style={{ fontSize: 13, color: '#1e3a8a', marginTop: 8, lineHeight: 1.45 }}>{t('direct_payment.lipa_note')}</div>}
     </div>
   );
 }
@@ -68,7 +68,7 @@ function Option({ selected, title, sub, onClick, testId }) {
  * options: what the server allows for every item ('cod' | 'lipa_namba').
  * lipaNambas: the sellers' numbers ([{ number, name }]).
  */
-export function DirectPaymentChoice({ loading, options = [], sameCity, regionChosen, digital, lipaNambas = [], choice, onChoose }) {
+export function DirectPaymentChoice({ loading, options = [], sameCity, regionChosen, digital, choice, onChoose }) {
   const { t } = useTranslation();
   return (
     <div data-testid="direct-payment" style={card}>
@@ -93,7 +93,106 @@ export function DirectPaymentChoice({ loading, options = [], sameCity, regionCho
           <Option testId="pay-lipa" selected={choice === 'lipa_namba'} onClick={() => onChoose('lipa_namba')}
             title={t('direct_payment.lipa')} sub={t('direct_payment.lipa_sub')} />
         )}
-        {!loading && choice === 'lipa_namba' && lipaNambas.map((l) => <LipaNambaBox key={l.number} number={l.number} name={l.name} />)}
+        <div style={{ fontSize: 12, color: GREY, lineHeight: 1.45 }}>{t('direct_payment.kentexa_note')}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One payment screenshot: picked from the phone, uploaded at once and privately
+ * (POST /upload/payment-proof). The thumbnail is the local file; only the seller
+ * sees the stored copy, through a short-lived link.
+ */
+function ProofUpload({ value, onChange, testId }) {
+  const { t } = useTranslation();
+  const [state, setState] = useState('idle'); // idle | uploading | failed
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setState('uploading');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post('/upload/payment-proof', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const proofId = res?.data?.proofId;
+      if (!proofId) throw new Error('no proof');
+      onChange({ proofId, preview: URL.createObjectURL(file) });
+      setState('idle');
+    } catch {
+      setState('failed');
+    }
+  };
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: DARK, marginBottom: 6 }}>{t('direct_payment.proof_label')} *</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {value && <img src={value} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: `1px solid ${LINE}` }} />}
+        <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 16px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14,
+          border: `1px solid ${BLUE}`, color: BLUE, backgroundColor: '#fff' }}>
+          {state === 'uploading' ? t('direct_payment.proof_uploading') : value ? t('direct_payment.proof_change') : t('direct_payment.proof_choose')}
+          <input data-testid={testId} type="file" accept="image/*" onChange={pick} disabled={state === 'uploading'}
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} />
+        </label>
+        {value && state === 'idle' && <span style={{ fontSize: 13, color: '#166534', fontWeight: 600 }}>{t('direct_payment.proof_done')}</span>}
+      </div>
+      {state === 'failed' && <div role="alert" style={{ fontSize: 13, color: '#b91c1c', marginTop: 6 }}>{t('direct_payment.proof_failed')}</div>}
+    </div>
+  );
+}
+
+/**
+ * Lipa Namba payment step ("Lipa na uthibitishe"). quote: POST /orders/checkout/quote, one group
+ * per seller with the exact amount and their Lipa Namba. The buyer pays each seller, uploads the
+ * screenshot (reference optional) and confirms; only then is the order created.
+ */
+export function LipaPaymentStep({ quote, proofs, onProofChange, onConfirm, onBack, confirming, error }) {
+  const { t } = useTranslation();
+  const sellers = quote?.sellers || [];
+  const ready = sellers.length > 0 && sellers.every((s) => proofs[s.sellerId]?.proofId);
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div data-testid="lipa-step" style={{ padding: '16px', maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <button type="button" onClick={onBack} disabled={confirming}
+          style={{ minHeight: 44, background: 'none', border: 'none', color: BLUE, fontWeight: 700, fontSize: 15, cursor: 'pointer', padding: 0, marginBottom: 8 }}>
+          ‹ {t('direct_payment.back')}
+        </button>
+        <div style={card}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: DARK, margin: '0 0 6px' }}>{t('direct_payment.lipa_step_title')}</h2>
+          <p style={{ fontSize: 14, color: GREY, margin: 0, lineHeight: 1.5 }}>{t('direct_payment.lipa_step_intro')}</p>
+        </div>
+        {!quote && <div style={{ ...card, fontSize: 14, color: GREY }}>{t('direct_payment.lipa_step_loading')}</div>}
+        {sellers.map((s) => (
+          <div key={s.sellerId} data-testid="lipa-seller" style={{ ...card, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {sellers.length > 1 && s.storeName && (
+              <div style={{ fontSize: 13, color: GREY }}>{t('direct_payment.seller_label')}: <strong style={{ color: DARK }}>{s.storeName}</strong></div>
+            )}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: GREY }}>{t('direct_payment.amount_label')}</div>
+              <div data-testid="lipa-amount" style={{ fontSize: 26, fontWeight: 800, color: DARK, fontVariantNumeric: 'tabular-nums' }}>
+                TZS {Number(s.total || 0).toLocaleString()}
+              </div>
+            </div>
+            {s.lipaNamba?.number && <LipaNambaBox number={s.lipaNamba.number} name={s.lipaNamba.name} />}
+            <ProofUpload testId={`proof-${s.sellerId}`} value={proofs[s.sellerId]?.proofId ? proofs[s.sellerId].preview || '' : ''}
+              onChange={(proof) => onProofChange(s.sellerId, proof)} />
+            <label style={{ display: 'block' }}>
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: DARK, marginBottom: 6 }}>{t('direct_payment.reference_label')}</span>
+              <input data-testid={`reference-${s.sellerId}`} value={proofs[s.sellerId]?.reference || ''} maxLength={60}
+                placeholder={t('direct_payment.reference_placeholder')}
+                onChange={(e) => onProofChange(s.sellerId, { reference: e.target.value })}
+                style={{ width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '10px 12px', borderRadius: 10, border: '1px solid #cbd5e1', fontSize: 16 }} />
+            </label>
+          </div>
+        ))}
+        {error && <div role="alert" style={{ ...note('#fef2f2', '#b91c1c'), marginBottom: 14 }}>{error}</div>}
+        {quote && !ready && <div style={{ fontSize: 13, color: GREY, marginBottom: 10 }}>{t('direct_payment.need_all_proofs')}</div>}
+        <button type="button" data-testid="confirm-payment" onClick={onConfirm} disabled={!ready || confirming}
+          style={{ width: '100%', minHeight: 52, borderRadius: 12, border: 'none', fontSize: 16, fontWeight: 800,
+            backgroundColor: !ready || confirming ? '#93c5fd' : BLUE, color: '#fff', cursor: !ready || confirming ? 'not-allowed' : 'pointer', marginBottom: 10 }}>
+          {confirming ? t('direct_payment.confirming') : t('direct_payment.confirm_payment')}
+        </button>
         <div style={{ fontSize: 12, color: GREY, lineHeight: 1.45 }}>{t('direct_payment.kentexa_note')}</div>
       </div>
     </div>
@@ -121,9 +220,41 @@ function WhatsAppSellerButton({ notice, showStore }) {
   );
 }
 
-/** Checkout success screen in cod_lipa mode. */
-export function DirectPaymentSuccess({ method, total, lipaNambas = [], whatsapp = [], onNavigate }) {
+/**
+ * The seller's contact on the confirmation screen: WhatsApp with the order summary (the same
+ * text as the seller's notice) pre-filled, and the phone with a call button. No WhatsApp: the
+ * phone alone, and for Lipa Namba a note to send the payment slip to it.
+ */
+function SellerContact({ notice, method, showStore }) {
   const { t } = useTranslation();
+  if (!notice.whatsappUrl && !notice.phone) return null;
+  return (
+    <div data-testid="seller-contact" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {showStore && notice.storeName && <div style={{ fontSize: 14, fontWeight: 700, color: DARK }}>{notice.storeName}</div>}
+      {notice.whatsappUrl && <WhatsAppSellerButton notice={notice} showStore={false} />}
+      {notice.phone && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span data-testid="seller-phone" style={{ flex: 1, minWidth: 0, fontSize: 17, fontWeight: 700, color: DARK, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>
+            {notice.phone}
+          </span>
+          <a data-testid="call-seller" href={`tel:${notice.phone}`}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, padding: '0 18px', borderRadius: 10,
+              border: `1px solid ${BLUE}`, color: BLUE, fontWeight: 700, fontSize: 15, textDecoration: 'none' }}>
+            {t('direct_payment.call_seller')}
+          </a>
+        </div>
+      )}
+      {!notice.whatsappUrl && method === 'lipa_namba' && (
+        <div data-testid="no-whatsapp-note" style={note('#fefce8', '#854d0e')}>{t('direct_payment.no_whatsapp_note')}</div>
+      )}
+    </div>
+  );
+}
+
+/** Checkout success screen in cod_lipa mode. notices: one per seller (sellerId, storeName, whatsappUrl, phone). */
+export function DirectPaymentSuccess({ method, total, notices = [], onNavigate }) {
+  const { t } = useTranslation();
+  const contacts = notices.filter((n) => n.whatsappUrl || n.phone);
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
       <div data-testid="direct-payment-success" style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -138,13 +269,11 @@ export function DirectPaymentSuccess({ method, total, lipaNambas = [], whatsapp 
               : t('direct_payment.success_lipa', { amount: Number(total || 0).toLocaleString() })}
           </p>
         </div>
-        {method === 'lipa_namba' && lipaNambas.map((l) => (
-          <div key={l.number} style={{ marginBottom: 14 }}><LipaNambaBox number={l.number} name={l.name} /></div>
-        ))}
-        {whatsapp.length > 0 && (
-          <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 13, color: GREY, lineHeight: 1.45 }}>{t('direct_payment.whatsapp_note')}</div>
-            {whatsapp.map((n) => <WhatsAppSellerButton key={n.sellerId} notice={n} showStore={whatsapp.length > 1} />)}
+        {contacts.length > 0 && (
+          <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: DARK, margin: 0 }}>{t('direct_payment.contact_title')}</h3>
+            {contacts.some((n) => n.whatsappUrl) && <div style={{ fontSize: 13, color: GREY, lineHeight: 1.45 }}>{t('direct_payment.whatsapp_note')}</div>}
+            {contacts.map((n) => <SellerContact key={n.sellerId} notice={n} method={method} showStore={contacts.length > 1} />)}
           </div>
         )}
         <div style={{ fontSize: 12, color: GREY, lineHeight: 1.45, marginBottom: 14 }}>{t('direct_payment.kentexa_note')}</div>
@@ -172,7 +301,8 @@ export function DirectPaymentNotice({ order }) {
   const [lipa, setLipa] = useState(null);
   const productId = order?.product?.id ?? order?.productId ?? null;
   const isLipa = order?.paymentMethod === 'lipa_namba';
-  const settled = order?.paymentStatus === 'paid' || order?.status === 'completed' || order?.status === 'cancelled';
+  // A Lipa Namba order with proof (lipaConfirmedAt) was paid before it existed: nothing left to pay.
+  const settled = order?.paymentStatus === 'paid' || order?.status === 'completed' || order?.status === 'cancelled' || !!order?.lipaConfirmedAt;
   useEffect(() => {
     let alive = true;
     if (!isLipa || settled || !productId) return undefined;
@@ -188,7 +318,7 @@ export function DirectPaymentNotice({ order }) {
         {isLipa ? t('direct_payment.order_lipa', { amount }) : t('direct_payment.order_cod', { amount })}
       </div>
       <div style={{ fontSize: 12, color: GREY, marginTop: 4, lineHeight: 1.45 }}>{t('direct_payment.kentexa_note')}</div>
-      {isLipa && !settled && lipa?.number && <div style={{ marginTop: 10 }}><LipaNambaBox number={lipa.number} name={lipa.name} /></div>}
+      {isLipa && !settled && lipa?.number && <div style={{ marginTop: 10 }}><LipaNambaBox number={lipa.number} name={lipa.name} showNote={false} /></div>}
     </div>
   );
 }
