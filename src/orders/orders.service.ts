@@ -26,8 +26,8 @@ import {
   groupDirectOrdersBySeller,
   sellerCheckoutExpiry,
   sellerCheckoutLink,
-  signSellerCheckoutToken,
-  verifySellerCheckoutToken,
+  signSellerCheckoutShortToken,
+  verifyAnySellerCheckoutToken,
   whatsappLink,
 } from './seller-checkout-notice';
 import {
@@ -1002,7 +1002,7 @@ export class OrdersService {
         const source = orders.find((o) => (o.seller?.id ?? o.product?.seller?.id) === group.sellerId);
         const seller = source?.seller ?? source?.product?.seller;
         const orderIds = group.orders.map((o) => o.id);
-        const token = signSellerCheckoutToken(
+        const token = signSellerCheckoutShortToken(
           { s: group.sellerId, o: orderIds, r: place?.regionId ?? null, d: place?.districtId ?? null, e: sellerCheckoutExpiry() },
           process.env.JWT_SECRET,
         );
@@ -1078,7 +1078,7 @@ export class OrdersService {
   // access as getOrderDetail's seller side: the seller, their staff with canViewOrders, or
   // an active admin. Shows only that seller's orders from that checkout.
   async getSellerCheckoutView(token: string, user: User, roleContext?: RoleContext) {
-    const payload = verifySellerCheckoutToken(token, process.env.JWT_SECRET);
+    const payload = verifyAnySellerCheckoutToken(token, process.env.JWT_SECRET);
     if (!payload) throw new NotFoundException('Kiungo hiki si sahihi au muda wake umekwisha.');
     const allowed =
       payload.s === user?.id ||

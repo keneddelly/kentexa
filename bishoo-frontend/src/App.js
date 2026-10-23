@@ -155,6 +155,11 @@ import { identityState, afterIdentitySent } from './utils/identityState';
 import useIdentityRefresh from './utils/useIdentityRefresh';
 import useAgentPresence from './utils/useAgentPresence';
 
+// Seller's private order link tokens: the long signed form (?sellerCheckout=a.b) and the
+// short one sent since 2026-10-23 (?so=<5 base-36 parts>.<16-char signature>).
+const SHORT_SELLER_TOKEN = /^[0-9a-z]{1,12}\.[0-9a-z-]{1,200}\.[0-9a-z]{1,12}\.[0-9a-z]{0,12}\.[0-9a-z]{0,12}\.[A-Za-z0-9_-]{16}$/;
+const SELLER_TOKEN = { test: (v) => /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(v) || SHORT_SELLER_TOKEN.test(v) };
+
 // Register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -209,6 +214,9 @@ function App() {
       // Seller's private new-order link (SMS / WhatsApp): signed token; the page asks for login first.
       const sellerCheckout = params.get('sellerCheckout');
       if (sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)) return `SellerCheckout-${sellerCheckout}`;
+      // The short seller link (?so=..., owner 2026-10-23): same page, shorter token that fits the SMS.
+      const shortSeller = params.get('so');
+      if (shortSeller && SHORT_SELLER_TOKEN.test(shortSeller)) return `SellerCheckout-${shortSeller}`;
       // A Super Agent's partner invitation (WhatsApp / the sender's own SMS): public page.
       const partnerInvite = params.get('partnerInvite');
       if (partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)) return `PartnerInvite-${partnerInvite}`;
@@ -331,13 +339,13 @@ function App() {
     const receive = params.get('receive');
     // Same for the seller's new-order link (SMS / WhatsApp): a logged-in seller opening it
     // must land on that order, not on the role home.
-    const sellerCheckout = params.get('sellerCheckout');
+    const sellerCheckout = params.get('sellerCheckout') || (SHORT_SELLER_TOKEN.test(params.get('so') || '') ? params.get('so') : null);
     const partnerInvite = params.get('partnerInvite');
     const agentInvite = params.get('agentInvite');
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
-        : sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)
+        : sellerCheckout && SELLER_TOKEN.test(sellerCheckout)
           ? `SellerCheckout-${sellerCheckout}`
           : partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)
             ? `PartnerInvite-${partnerInvite}`
@@ -448,13 +456,13 @@ function App() {
             const params = new URLSearchParams(window.location.search);
             const receive = params.get('receive');
             // The seller's new-order link asks for login first; after login it opens that order.
-            const sellerCheckout = params.get('sellerCheckout');
+            const sellerCheckout = params.get('sellerCheckout') || (SHORT_SELLER_TOKEN.test(params.get('so') || '') ? params.get('so') : null);
             // A partner invitation: back to the join page after login.
             const partnerInvite = params.get('partnerInvite');
             const agentInvite = params.get('agentInvite');
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
-              : sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)
+              : sellerCheckout && SELLER_TOKEN.test(sellerCheckout)
                 ? `SellerCheckout-${sellerCheckout}`
                 : partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)
                   ? `PartnerInvite-${partnerInvite}`

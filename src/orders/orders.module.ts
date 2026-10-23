@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
+import { LipaReviewService } from './lipa-review.service';
 import { OrdersController } from './orders.controller';
 import { Order } from './entities/order.entity';
 import { Payout } from '../payouts/entities/payout.entity';
@@ -76,7 +77,7 @@ import { PaymentCoreModule } from '../payments/payment-core.module';
     PaymentCoreModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService],
+  providers: [OrdersService, LipaReviewService],
   exports: [OrdersService],
 })
 export class OrdersModule {}

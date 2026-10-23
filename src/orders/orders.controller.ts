@@ -12,6 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { LipaReviewService } from './lipa-review.service';
 import { marketplacePaymentMode } from './direct-payment';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
@@ -38,7 +39,35 @@ export class OrdersController {
     private sellerScope: SellerScopeService,
     private verification: VerificationService,
     private codCalculation: CodCalculationService,
+    private lipaReview: LipaReviewService,
   ) {}
+
+  // ── Lipa Namba payment review (owner 2026-10-23) ─────────────────────────
+  // The seller sees the buyer's screenshot and confirms or rejects it; the buyer
+  // sees the decision and, after a rejection, sends a new screenshot.
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/lipa')
+  getLipaReview(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.lipaReview.get(req.user, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/lipa/confirm')
+  confirmLipa(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.lipaReview.confirm(req.user, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/lipa/reject')
+  rejectLipa(@Param('id', ParseIntPipe) id: number, @Body() body: { reason?: string }, @Request() req) {
+    return this.lipaReview.reject(req.user, id, body?.reason);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/lipa/proof')
+  resendLipaProof(@Param('id', ParseIntPipe) id: number, @Body() body: { proofId?: string; reference?: string }, @Request() req) {
+    return this.lipaReview.resend(req.user, id, body);
+  }
 
   // ── Customer ──────────────────────────────────────────────────────────────
   // Security closure pass, item 2: private buyer commerce must not silently
