@@ -16,6 +16,11 @@ const inp = {
   boxSizing: 'border-box', outline: 'none',
 };
 
+// A saved rate row as the form shows it: a saved 0 (no minimum) shows as an empty
+// field, so a field shows a number only when the office typed one.
+const shown = (v) => (v === '' || v == null || Number(v) === 0 ? '' : String(Number(v)));
+const fromServer = (r) => ({ ...r, ratePerKg: shown(r.ratePerKg), minimumCharge: shown(r.minimumCharge) });
+
 const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const [profile, setProfile]   = useState(null);
@@ -68,7 +73,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
         setLocationText(res.data.locationLabel || res.data.address || res.data.city || '');
         if (res.data.city) {
           api.get(`/super-agents/rates/${encodeURIComponent(res.data.city)}`)
-            .then(r => setRates(r.data?.length ? r.data : [blankRate()]))
+            .then(r => setRates(r.data?.length ? r.data.map(fromServer) : [blankRate()]))
             .catch(() => setRates([blankRate()]));
         } else {
           setRates([blankRate()]);
@@ -76,10 +81,10 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
       })
       .catch(() => setError(t('super_agent_settings.load_failed')))
       .finally(() => setLoading(false));
-    // Real Tanzania location hierarchy — used only as autocomplete
-    // suggestions for the destination field below, never a hard whitelist:
-    // a Super Agent can still type any real place a hardcoded/region list
-    // might be missing.
+    // The region list the shipment engine matches a parcel against: a resolved
+    // place's regionName (deriveLegacyRoutingCity) is looked up in
+    // shipping_rate.destinationCity. The destination is picked from this list
+    // so a typo can't save a route no parcel ever matches.
     api.get('/locations/regions')
       .then(r => setRegionNames((r.data || []).map(x => x.name).filter(Boolean)))
       .catch(() => {});
@@ -114,10 +119,22 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
     setRates(prev => prev.map((r, idx) => idx === i ? { ...r, [key]: val } : r));
   };
 
+  // A saved destination the engine can match: the listed region name (any case),
+  // or null for an old free-text row, which is kept and flagged until re-picked.
+  const regionFor = (city) => {
+    const c = (city || '').trim().toLowerCase();
+    return c ? regionNames.find(n => n.toLowerCase() === c) || null : null;
+  };
+  // Route rows are the per-kg prices: shown only "By kg" (or with no charging rule).
+  // "By value" hides them; the saved rows stay as they are.
+  const showRoutes = !rule || ruleForm.chargeMode === 'kg';
+
   // One Save for the Bei card: how the office charges (PUT me/price-rule), then the
   // route rows (POST rates). Routes are optional when the charging rule is shown.
   const handleSaveRates = async () => {
-    const valid = rates.filter(r => r.destinationCity?.trim() && Number(r.ratePerKg) > 0);
+    // Only rows on screen with a listed destination are sent; an old free-text row
+    // is left untouched (not re-saved, not deleted) until it is re-picked.
+    const valid = !showRoutes ? [] : rates.filter(r => regionFor(r.destinationCity) && Number(r.ratePerKg) > 0);
     if (!rule && !valid.length) { setRateError(t('super_agent_settings.rate_validation_error')); return; }
     try {
       setRateSaving(true); setRateError(''); setRateMessage('');
@@ -130,6 +147,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
       if (!valid.length) { setRateMessage(t('office_price_rule.saved')); return; }
       await api.post('/super-agents/rates', {
         rates: valid.map(r => ({
+          ...(r.id != null && { id: r.id }),
           destinationCity: r.destinationCity.trim(),
           ratePerKg: Number(r.ratePerKg),
           minimumCharge: Number(r.minimumCharge) || 0,
@@ -141,7 +159,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
       // rows silently skipped by the backend for other reasons).
       if (form.city) {
         const r = await api.get(`/super-agents/rates/${encodeURIComponent(form.city)}`).catch(() => null);
-        if (r?.data?.length) setRates(r.data);
+        if (r?.data?.length) setRates(r.data.map(fromServer));
       }
     } catch (err) {
       setRateError(err?.response?.data?.message || t('super_agent_settings.rate_save_failed'));
@@ -239,13 +257,11 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
               📋 {t('super_agent_settings.rates_title')}
             </div>
             {rule && <ChargeRuleSection rule={rule} form={ruleForm} onChange={setRuleForm} />}
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-              {t('super_agent_settings.rates_desc', { city: form.city || '—' })}
-            </div>
-
-            <datalist id="kentexa-region-suggestions">
-              {regionNames.map(n => <option key={n} value={n} />)}
-            </datalist>
+            {showRoutes && (
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+                {t('super_agent_settings.rates_desc', { city: form.city || '—' })}
+              </div>
+            )}
 
             {rateError && (
               <div style={{ color: '#dc2626', backgroundColor: '#fee2e2',
@@ -261,26 +277,38 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
               </div>
             )}
 
-            {rates.map((r, i) => (
-              <div key={r.id || `new-${i}`} style={{ display: 'grid',
-                gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10,
+            {showRoutes && rates.map((r, i) => {
+              const region = regionFor(r.destinationCity);
+              const legacy = !region && Boolean(r.destinationCity?.trim());
+              const taken = new Set(rates.filter((_, j) => j !== i).map(x => regionFor(x.destinationCity)).filter(Boolean));
+              return (
+              <div key={r.id || `new-${i}`} data-testid="route-row" style={{ display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8, marginBottom: 10,
                 paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_destination_label')}
                   </label>
-                  <input type="text" list="kentexa-region-suggestions"
-                    placeholder={t('super_agent_settings.rate_destination_placeholder')}
-                    value={r.destinationCity} onChange={e => updateRate(i, 'destinationCity', e.target.value)}
-                    style={inp} />
+                  <select aria-label={t('super_agent_settings.rate_destination_label')}
+                    value={region || ''} onChange={e => updateRate(i, 'destinationCity', e.target.value)}
+                    style={{ ...inp, backgroundColor: '#fff', borderColor: legacy ? '#f59e0b' : '#e2e8f0' }}>
+                    <option value="" disabled>{t('super_agent_settings.rate_destination_pick')}</option>
+                    {regionNames.map(n => <option key={n} value={n} disabled={taken.has(n)}>{n}</option>)}
+                  </select>
+                  {legacy && (
+                    <div data-testid="route-legacy-warning" style={{ fontSize: 11, color: '#b45309',
+                      backgroundColor: '#fef3c7', padding: '6px 10px', borderRadius: 8, marginTop: 6 }}>
+                      ⚠️ {t('super_agent_settings.rate_destination_unknown', { city: r.destinationCity.trim() })}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_per_kg_label')}
                   </label>
-                  <input type="number" placeholder="3000" value={r.ratePerKg}
+                  <input type="number" placeholder="" value={r.ratePerKg}
                     onChange={e => updateRate(i, 'ratePerKg', e.target.value)} style={inp} />
                 </div>
                 <div>
@@ -288,7 +316,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_minimum_label')}
                   </label>
-                  <input type="number" placeholder="5000" value={r.minimumCharge}
+                  <input type="number" placeholder="" value={r.minimumCharge}
                     onChange={e => updateRate(i, 'minimumCharge', e.target.value)} style={inp} />
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
@@ -300,14 +328,15 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
                     onChange={e => updateRate(i, 'estimatedDays', e.target.value)} style={inp} />
                 </div>
               </div>
-            ))}
+              );
+            })}
 
-            <button onClick={() => setRates(prev => [...prev, blankRate()])}
+            {showRoutes && <button onClick={() => setRates(prev => [...prev, blankRate()])}
               style={{ width: '100%', background: '#fff', color: '#1d4ed8',
                 border: '2px dashed #bfdbfe', padding: 10, borderRadius: 10,
                 cursor: 'pointer', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
               + {t('super_agent_settings.rate_add_route')}
-            </button>
+            </button>}
 
             <button onClick={handleSaveRates} disabled={rateSaving}
               style={{ width: '100%', backgroundColor: rateSaving ? '#94a3b8' : '#16a34a',

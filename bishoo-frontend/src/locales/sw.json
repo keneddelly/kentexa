@@ -5235,6 +5235,8 @@
     "rates_desc": "Bei unazotoza kutoka {{city}} kwenda kila mahali — zinaonekana kwa wauzaji wanaokadiria gharama ya usafirishaji na zinatumiwa na mfumo wa Kentexa.",
     "rate_destination_label": "Unakoenda",
     "rate_destination_placeholder": "mfano Mwanza",
+    "rate_destination_pick": "Chagua mkoa",
+    "rate_destination_unknown": "“{{city}}” haiko kwenye orodha ya mikoa, kwa hiyo hakuna mzigo unaolingana nayo. Chagua mkoa tena; mstari huu unabaki hadi hapo.",
     "rate_per_kg_label": "Bei kwa kg (TZS)",
     "rate_minimum_label": "Bei ya chini kabisa (TZS)",
     "rate_days_label": "Siku za kadirio",
