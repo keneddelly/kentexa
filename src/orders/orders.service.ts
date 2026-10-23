@@ -129,6 +129,7 @@ import { CommunicationEngineService } from '../communication/communication-engin
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
 import { normalizeWaybill } from '../shipments/waybill';
+import { LIPA_PROOF_REF, signedLipaProofUrl } from './lipa-proof';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -170,9 +171,6 @@ interface CheckoutPlace {
 // after a lost response) returns the first result instead of creating orders twice.
 const CHECKOUT_REPLAY_MS = 15 * 60 * 1000;
 const checkoutRuns = new Map<string, { expires: number; result: Promise<any> }>();
-
-// The proof screenshot must be one of our own uploads (POST /upload/images -> Cloudinary).
-const LIPA_PROOF_URL = /^https:\/\/res\.cloudinary\.com\/[A-Za-z0-9_-]+\/image\/upload\/\S+$/;
 
 @Injectable()
 export class OrdersService {
@@ -956,18 +954,18 @@ export class OrdersService {
     return lines;
   }
 
-  // One proof per seller in the cart: our own uploaded screenshot, plus an
-  // optional payment reference (at most 60 characters).
+  // One proof per seller in the cart: our own private screenshot (reference from
+  // POST /upload/payment-proof), plus an optional payment reference (at most 60 characters).
   private checkLipaProofs(lines: { product: any }[], proofs: CheckoutLipaProofDto[] | undefined) {
     const bySeller = new Map<number, { url: string; reference: string | null }>();
     for (const sellerId of new Set(lines.map((l) => l.product.seller?.id).filter((id) => id != null))) {
       const proof = (proofs ?? []).find((pr) => pr.sellerId === sellerId);
-      if (!proof?.proofUrl) throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaProofRequired);
-      if (!LIPA_PROOF_URL.test(proof.proofUrl) || proof.proofUrl.length > 500) {
+      if (!proof?.proofId) throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaProofRequired);
+      if (!LIPA_PROOF_REF.test(proof.proofId)) {
         throw new BadRequestException(DIRECT_PAYMENT_MESSAGES.lipaProofInvalid);
       }
       const reference = String(proof.reference ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
-      bySeller.set(sellerId, { url: proof.proofUrl, reference: reference || null });
+      bySeller.set(sellerId, { url: proof.proofId, reference: reference || null });
     }
     return bySeller;
   }
@@ -1111,7 +1109,8 @@ export class OrdersService {
       deliveryAddress: first.deliveryAddress ?? null,
       // The one place picked at checkout (= deliveryAddress); the only location to show.
       place: first.deliveryAddress ?? null,
-      lipaProofUrl: first.lipaProofUrl ?? null,
+      // Private screenshot: a signed link valid for 10 minutes, only after the check above.
+      lipaProofUrl: signedLipaProofUrl(first.lipaProofUrl),
       lipaReference: first.lipaReference ?? null,
       buyerName: first.buyer?.name ?? null,
       buyerPhone: first.phone ?? null,

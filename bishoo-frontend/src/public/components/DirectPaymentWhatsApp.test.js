@@ -67,16 +67,17 @@ describe('Lipa payment step', () => {
     expect(screen.getByTestId('confirm-payment')).toBeDisabled();
     expect(screen.getByTestId('confirm-payment')).toHaveTextContent(dp.confirm_payment);
 
-    api.post.mockResolvedValueOnce({ data: { urls: ['https://res.cloudinary.com/kentexa/image/upload/v1/slip.jpg'] } });
+    api.post.mockResolvedValueOnce({ data: { proofId: 'kentexa/payment-proofs/abc123.jpg' } });
+    URL.createObjectURL = jest.fn(() => 'blob:slip');
     const file = new File(['x'], 'slip.jpg', { type: 'image/jpeg' });
     fireEvent.change(screen.getByTestId('proof-2'), { target: { files: [file] } });
-    await waitFor(() => expect(onProofChange).toHaveBeenCalledWith(2, { proofUrl: 'https://res.cloudinary.com/kentexa/image/upload/v1/slip.jpg' }));
-    expect(api.post).toHaveBeenCalledWith('/upload/images', expect.any(FormData), expect.anything());
+    await waitFor(() => expect(onProofChange).toHaveBeenCalledWith(2, { proofId: 'kentexa/payment-proofs/abc123.jpg', preview: 'blob:slip' }));
+    expect(api.post).toHaveBeenCalledWith('/upload/payment-proof', expect.any(FormData), expect.anything());
 
     fireEvent.change(screen.getByTestId('reference-2'), { target: { value: 'QX12' } });
     expect(onProofChange).toHaveBeenCalledWith(2, { reference: 'QX12' });
 
-    rerender(<LipaPaymentStep quote={quote} proofs={{ 2: { proofUrl: 'https://res.cloudinary.com/kentexa/image/upload/v1/slip.jpg' } }}
+    rerender(<LipaPaymentStep quote={quote} proofs={{ 2: { proofId: 'kentexa/payment-proofs/abc123.jpg', preview: 'blob:slip' } }}
       onProofChange={onProofChange} onConfirm={onConfirm} onBack={() => {}} />);
     fireEvent.click(screen.getByTestId('confirm-payment'));
     expect(onConfirm).toHaveBeenCalledTimes(1);

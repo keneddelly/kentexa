@@ -40,7 +40,7 @@ function setup(opts: { codEnabled?: boolean; lipaNamba?: string | null } = {}) {
   const svc = build<OrdersService>({ repo, productsService, invoicesService, payoutRepo });
   return { svc, repo, invoicesService, payoutRepo };
 }
-const PROOF = { url: 'https://res.cloudinary.com/kentexa/image/upload/v1/slip.jpg', reference: 'QX12' };
+const PROOF = { url: 'kentexa/payment-proofs/abc123.jpg', reference: 'QX12' };
 const place = (svc: OrdersService, regionId: number | undefined, paymentMethod?: string, opts?: any) =>
   svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kariakoo', regionId, paymentMethod } as any, buyer as any, opts);
 

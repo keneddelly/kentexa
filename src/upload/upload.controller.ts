@@ -12,6 +12,7 @@ import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { v2 as cloudinary } from 'cloudinary';
+import { LIPA_PROOF_FOLDER, lipaProofRef } from '../orders/lipa-proof';
 
 // ✅ Cloudinary configuration
 cloudinary.config({
@@ -74,6 +75,48 @@ export class UploadController {
     }
 
     return { urls };
+  }
+
+  // Lipa Namba payment screenshot: a private Cloudinary image (type: 'private'),
+  // never public. Returns only the reference the checkout sends back; the seller
+  // sees it through a signed link (see orders/lipa-proof.ts).
+  @UseGuards(JwtAuthGuard)
+  @Post('payment-proof')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (req, file, cb) => {
+        const allowed = /jpeg|jpg|png|webp|heic|heif/;
+        const valid = allowed.test(extname(file.originalname).toLowerCase());
+        if (valid) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Only images allowed'), false);
+        }
+      },
+      limits: { fileSize: 15 * 1024 * 1024 },
+    }),
+  )
+  async uploadPaymentProof(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
+
+    const result = await new Promise<{ public_id: string; format: string }>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: LIPA_PROOF_FOLDER,
+          resource_type: 'image',
+          type: 'private',
+          transformation: [{ width: 1600, crop: 'limit' }],
+        },
+        (error, uploadResult) => {
+          if (error) return reject(error);
+          resolve(uploadResult as { public_id: string; format: string });
+        },
+      );
+      stream.end(file.buffer);
+    });
+
+    return { proofId: lipaProofRef(result.public_id, result.format) };
   }
 
   // Private, non-public Cloudinary raw asset (type: 'private'), unlike

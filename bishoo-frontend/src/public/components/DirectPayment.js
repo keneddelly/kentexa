@@ -99,7 +99,11 @@ export function DirectPaymentChoice({ loading, options = [], sameCity, regionCho
   );
 }
 
-/** One payment screenshot: picked from the phone, uploaded at once (POST /upload/images). */
+/**
+ * One payment screenshot: picked from the phone, uploaded at once and privately
+ * (POST /upload/payment-proof). The thumbnail is the local file; only the seller
+ * sees the stored copy, through a short-lived link.
+ */
 function ProofUpload({ value, onChange, testId }) {
   const { t } = useTranslation();
   const [state, setState] = useState('idle'); // idle | uploading | failed
@@ -110,11 +114,11 @@ function ProofUpload({ value, onChange, testId }) {
     setState('uploading');
     try {
       const form = new FormData();
-      form.append('files', file);
-      const res = await api.post('/upload/images', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const url = res?.data?.urls?.[0];
-      if (!url) throw new Error('no url');
-      onChange(url);
+      form.append('file', file);
+      const res = await api.post('/upload/payment-proof', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const proofId = res?.data?.proofId;
+      if (!proofId) throw new Error('no proof');
+      onChange({ proofId, preview: URL.createObjectURL(file) });
       setState('idle');
     } catch {
       setState('failed');
@@ -146,7 +150,7 @@ function ProofUpload({ value, onChange, testId }) {
 export function LipaPaymentStep({ quote, proofs, onProofChange, onConfirm, onBack, confirming, error }) {
   const { t } = useTranslation();
   const sellers = quote?.sellers || [];
-  const ready = sellers.length > 0 && sellers.every((s) => proofs[s.sellerId]?.proofUrl);
+  const ready = sellers.length > 0 && sellers.every((s) => proofs[s.sellerId]?.proofId);
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <div data-testid="lipa-step" style={{ padding: '16px', maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -171,8 +175,8 @@ export function LipaPaymentStep({ quote, proofs, onProofChange, onConfirm, onBac
               </div>
             </div>
             {s.lipaNamba?.number && <LipaNambaBox number={s.lipaNamba.number} name={s.lipaNamba.name} />}
-            <ProofUpload testId={`proof-${s.sellerId}`} value={proofs[s.sellerId]?.proofUrl || ''}
-              onChange={(url) => onProofChange(s.sellerId, { proofUrl: url })} />
+            <ProofUpload testId={`proof-${s.sellerId}`} value={proofs[s.sellerId]?.proofId ? proofs[s.sellerId].preview || '' : ''}
+              onChange={(proof) => onProofChange(s.sellerId, proof)} />
             <label style={{ display: 'block' }}>
               <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: DARK, marginBottom: 6 }}>{t('direct_payment.reference_label')}</span>
               <input data-testid={`reference-${s.sellerId}`} value={proofs[s.sellerId]?.reference || ''} maxLength={60}

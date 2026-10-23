@@ -151,13 +151,13 @@ function setup(opts: { sellerPhone?: string | null; storeWhatsApp?: string | nul
   const svc = build<OrdersService>({ repo, productsService, smsService, activityEvents, inAppNotif, invoicesService: { createForOrder: jest.fn() }, payoutRepo: { save: jest.fn(), create: jest.fn((v) => v) } });
   return { svc, smsService, activityEvents, repo, inAppNotif, productsService };
 }
-const PROOF_URL = 'https://res.cloudinary.com/kentexa/image/upload/v1/slip.jpg';
+const PROOF_ID = 'kentexa/payment-proofs/abc123.jpg';
 const checkout = (svc: OrdersService, paymentMethod: 'cod' | 'lipa_namba', extra: Record<string, unknown> = {}) =>
   svc.createCheckout({
     items: [{ productId: 31, quantity: 1 }, { productId: 34, quantity: 1 }],
     deliveryAddress: 'typed by the buyer, never kept', phone: '0712345678', regionId: 1, districtId: 1,
     shippingMethod: 'boda', paymentMethod,
-    ...(paymentMethod === 'lipa_namba' ? { lipaProofs: [{ sellerId: 2, proofUrl: PROOF_URL, reference: 'QX12' }] } : {}),
+    ...(paymentMethod === 'lipa_namba' ? { lipaProofs: [{ sellerId: 2, proofId: PROOF_ID, reference: 'QX12' }] } : {}),
     ...extra,
   } as any, { id: 7, name: 'Asha Juma' } as any);
 
@@ -228,7 +228,7 @@ describe('OrdersService.createCheckout() — one seller notice per checkout', ()
     const { svc, smsService, repo, inAppNotif } = setup({ storeWhatsApp: '0754000111' });
     const res = await checkout(svc, 'lipa_namba');
     expect(res.orders).toHaveLength(2);
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ lipaProofUrl: PROOF_URL, lipaReference: 'QX12' }));
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ lipaProofUrl: PROOF_ID, lipaReference: 'QX12' }));
     const seller = sellerSms(smsService.sendSms);
     expect(seller).toHaveLength(1);
     expect(seller[0][1]).toContain('Malipo: Lipa Namba yako (mnunuzi ametuma picha ya malipo)');
@@ -243,8 +243,8 @@ describe('OrdersService.createCheckout() — one seller notice per checkout', ()
     expect(res.sellerNotices[0].phone).toBe('255700000002');
   });
 
-  it('Lipa Namba without proof, or with a foreign image link: no order, no seller notice', async () => {
-    for (const lipaProofs of [[], [{ sellerId: 2, proofUrl: 'https://evil.example/slip.jpg' }]]) {
+  it('Lipa Namba without proof, or with a link instead of a private proof: no order, no seller notice', async () => {
+    for (const lipaProofs of [[], [{ sellerId: 2, proofId: 'https://evil.example/slip.jpg' }], [{ sellerId: 2, proofId: 'https://res.cloudinary.com/kentexa/image/upload/v1/slip.jpg' }]]) {
       const { svc, smsService, repo, inAppNotif } = setup();
       await expect(checkout(svc, 'lipa_namba', { lipaProofs })).rejects.toThrow(BadRequestException);
       expect(repo.save).not.toHaveBeenCalled();

@@ -70,7 +70,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // created only when the buyer confirms with a screenshot per seller.
   const [lipaStep, setLipaStep]         = useState(false);
   const [lipaQuote, setLipaQuote]       = useState(null);
-  const [lipaProofs, setLipaProofs]     = useState({}); // { [sellerId]: { proofUrl, reference } }
+  const [lipaProofs, setLipaProofs]     = useState({}); // { [sellerId]: { proofId, preview, reference } }
   const [lipaError, setLipaError]       = useState('');
   // Same key on a retry = the server returns the first result, never a second set of orders.
   const checkoutKeyRef = React.useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -353,7 +353,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       await submitDirectCheckout({
         lipaProofs: (lipaQuote?.sellers || []).map((s) => ({
           sellerId: s.sellerId,
-          proofUrl: lipaProofs[s.sellerId]?.proofUrl,
+          proofId: lipaProofs[s.sellerId]?.proofId,
           ...(lipaProofs[s.sellerId]?.reference?.trim() ? { reference: lipaProofs[s.sellerId].reference.trim() } : {}),
         })),
       });

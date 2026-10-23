@@ -3,14 +3,14 @@ import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsNumber, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
 import { CreateOrderDto } from './create-order.dto';
 
-/** Lipa Namba proof for one seller of the cart: the uploaded screenshot and an optional reference. */
+/** Lipa Namba proof for one seller of the cart: the private screenshot (POST /upload/payment-proof) and an optional reference. */
 export class CheckoutLipaProofDto {
   @IsInt()
   sellerId: number;
 
   @IsString()
-  @MaxLength(500)
-  proofUrl: string;
+  @MaxLength(200)
+  proofId: string;
 
   @IsOptional()
   @IsString()
