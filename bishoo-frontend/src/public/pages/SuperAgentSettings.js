@@ -9,6 +9,7 @@ import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import OfficePoint from '../components/OfficePoint';
 import ChargeRuleSection from '../components/ChargeRuleSection';
+import OfficePickupCard from '../components/OfficePickupCard';
 
 const inp = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
@@ -347,6 +348,9 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
             </button>
           </div>
         )}
+
+        {/* Pickup from the sender: free or the office's own price (shown in the send form). */}
+        {!loading && <OfficePickupCard />}
       </div>
     </div>
   );

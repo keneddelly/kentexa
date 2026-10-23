@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { officeChargeText, officeEtaLabel, officeServesOrigin, pickOfficeRates, rateServesDestination } from './office-offers';
+import { distanceKm, officeChargeText, officeEtaLabel, officePickupFeeFor, officeServesOrigin, pickOfficeRates, rateServesDestination, readOfficePickupInput, setOfficePickupReadyForTests } from './office-offers';
 import { LogisticsServiceOfferService } from './logistics-service-offer.service';
 
 const row = (officeId: number, officeCity: string, destinationCity: string, extra: any = {}) => ({
@@ -83,5 +83,49 @@ describe('LogisticsServiceOfferService.officeOffers', () => {
     const [offer] = await svc.officeOffers({ ...dto, pickup: 'door' });
     expect(offer.fulfillmentStatus).toEqual({ pickup: 'included', delivery: 'included' });
     expect((officePrices.quoteFor.mock.calls[0] as any[])[1]).toMatchObject({ pickupAddress: 'Kariakoo, Ilala, Dar es Salaam', declaredValue: 150000 });
+  });
+});
+
+describe('office pickup offer', () => {
+  const OFFICE = { latitude: -6.8161, longitude: 39.2804 };           // Kariakoo
+  const NEAR = { latitude: -6.8200, longitude: 39.2750 };             // under 1 km
+  const FAR = { latitude: -6.7700, longitude: 39.2400 };              // about 6.7 km
+
+  it('reads the settings: free, a price, or none; a distance is optional', () => {
+    expect(readOfficePickupInput({ mode: 'free' })).toEqual({ mode: 'free', fee: null, maxKm: null });
+    expect(readOfficePickupInput({ mode: 'fixed', fee: '2000', maxKm: '3' })).toEqual({ mode: 'fixed', fee: 2000, maxKm: 3 });
+    expect(() => readOfficePickupInput({ mode: 'fixed', fee: 0 })).toThrow('badFee');
+    expect(() => readOfficePickupInput({ mode: 'free', maxKm: 500 })).toThrow('badKm');
+    expect(() => readOfficePickupInput({ mode: 'sometimes' })).toThrow('badMode');
+  });
+
+  it('the fee, or null when the office does not collect here', () => {
+    expect(distanceKm(OFFICE, FAR)).toBeGreaterThan(5);
+    expect(officePickupFeeFor({ mode: 'free', fee: null, maxKm: null }, OFFICE, null)).toBe(0);
+    expect(officePickupFeeFor({ mode: 'fixed', fee: 2000, maxKm: 3 }, OFFICE, NEAR)).toBe(2000);
+    expect(officePickupFeeFor({ mode: 'fixed', fee: 2000, maxKm: 3 }, OFFICE, FAR)).toBeNull();
+    expect(officePickupFeeFor({ mode: 'free', fee: null, maxKm: 3 }, { latitude: null, longitude: null }, NEAR)).toBeNull(); // no office point
+    expect(officePickupFeeFor({ mode: 'none', fee: null, maxKm: null }, OFFICE, NEAR)).toBeNull();
+    expect(officePickupFeeFor(undefined, OFFICE, NEAR)).toBeNull();
+  });
+});
+
+describe('LogisticsServiceOfferService.officeOffers: an office that collects', () => {
+  afterEach(() => setOfficePickupReadyForTests(false));
+
+  it('free pickup replaces the boda fee and is inside the total; the offer says the office collects', async () => {
+    setOfficePickupReadyForTests(true);
+    const rows = [{ ...row(1, 'Dar es Salaam', 'Mbeya'), officeLatitude: -6.8161, officeLongitude: 39.2804 }];
+    const db: any = { query: jest.fn(async (sql: string) => (/office_pickup_offer/.test(sql)
+      ? [{ superAgentId: 1, mode: 'free', fee: null, maxKm: null }] : rows)) };
+    const locations: any = { resolve: jest.fn(async () => ({ regionName: 'Dar es Salaam', districtName: 'Ilala', displayLabel: 'Kariakoo' })) };
+    const officePrices: any = { quoteFor: jest.fn(async () => ({ pickup: { amount: 0 }, transport: { amount: 15000, mode: 'value', percent: 10, minimum: 5000 },
+      delivery: { amount: 0 }, total: 15000, currency: 'TZS', ruleSource: 'office', noSuggestion: false })) };
+    const svc = new LogisticsServiceOfferService({} as any, {} as any, {} as any, db, locations, officePrices);
+    const [offer] = await svc.officeOffers({ fromCity: 'Dar es Salaam', toCity: 'Mbeya', weightKg: 2, pickup: 'door', delivery: 'collect',
+      declaredValue: 150000, origin: { place: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' } }, destination: { text: 'Mbeya' } } as any);
+    expect(offer).toMatchObject({ price: 15000, fulfillmentStatus: { pickup: 'included' }, fulfillment: { officeOption: { pickupBy: 'office', quote: { pickup: 0 } } } });
+    // No boda fee is asked for when the office collects itself.
+    expect((officePrices.quoteFor.mock.calls[0] as any[])[1].pickupAddress).toBeNull();
   });
 });

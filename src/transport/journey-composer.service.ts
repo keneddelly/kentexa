@@ -443,13 +443,18 @@ export class JourneyComposerService {
       composedByServer: true, servicePath: OFFICE_SERVICE_PATH, officeId,
       officeName: dto.officeName, officeQuote: dto.office?.quote ?? null,
       destinationCity: dto.office?.destinationCity ?? null, estimatedDays: dto.office?.estimatedDays ?? null,
+      pickupBy: dto.pickup === 'door' ? (dto.office?.pickupBy === 'office' ? 'office' : 'agent') : null,
     };
     const hub = { kind: 'hub', superAgentId: officeId, name: dto.officeName };
     const agent = { kind: 'agent', role: 'local_agent' };
     const legs: any[] = [];
     if (dto.pickup === 'door') {
-      legs.push({ type: JourneyLegType.FIRST_MILE, fromNode: origin.snapshot, toNode: hub,
-        requiredActorCapability: 'local_agent', executionRequirements: requirements });
+      // The office collects itself, or "an agent, whoever claims it".
+      legs.push(requirements.pickupBy === 'office'
+        ? { type: JourneyLegType.FIRST_MILE, fromNode: origin.snapshot, toNode: hub, superAgentId: officeId,
+          requiredActorCapability: 'super_agent', executionRequirements: requirements }
+        : { type: JourneyLegType.FIRST_MILE, fromNode: origin.snapshot, toNode: hub,
+          requiredActorCapability: 'local_agent', executionRequirements: requirements });
     }
     legs.push({ type: JourneyLegType.HUB_INTAKE, fromNode: dto.pickup === 'door' ? agent : origin.snapshot, toNode: hub,
       superAgentId: officeId, requiredActorCapability: 'kentexa_point', executionRequirements: requirements });

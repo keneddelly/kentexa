@@ -157,6 +157,7 @@ export function officeOffers(offers) {
       rating: o.fulfillment.officeOption.rating,
       totalRatings: o.fulfillment.officeOption.totalRatings,
       chargeText: o.fulfillment.officeOption.chargeText,
+      pickupBy: o.fulfillment.officeOption.pickupBy || null,
       quote: o.fulfillment.officeOption.quote,
       servicePrice: o.price,
       etaLabel: o.etaLabel,
@@ -184,7 +185,8 @@ const etaText = (label) => {
 export function journeySteps({ direct, pickupOption, deliveryOption, providerName, destinationLabel, receiverName, nextAction }) {
   const who = receiverName || 'Mpokeaji';
   const steps = [{ text: 'Ombi limepokelewa', done: true }];
-  if (pickupOption === 'door') steps.push({ text: 'Wakala anachukua mzigo kwako', key: 'pickup' });
+  if (pickupOption === 'door' && nextAction?.type === 'office_pickup') steps.push({ text: `${providerName || 'Ofisi'} inachukua mzigo kwako`, key: 'pickup' });
+  else if (pickupOption === 'door') steps.push({ text: 'Wakala anachukua mzigo kwako', key: 'pickup' });
   else steps.push({ text: 'Unapeleka mzigo ofisini', key: 'dropoff' });
   if (!direct) steps.push({ text: `${providerName || 'Msafirishaji'} anausafirisha kwenda ${destinationLabel || 'unakoenda'}`, key: 'linehaul' });
   if (direct || deliveryOption === 'door') steps.push({ text: `${who} anapokea mzigo mlangoni kwa namba ya siri`, key: 'deliver' });
@@ -197,6 +199,8 @@ export function journeySteps({ direct, pickupOption, deliveryOption, providerNam
     next = Number(nextAction?.agentsAlerted) === 0
       ? 'Hakuna wakala aliye mtandaoni sasa hivi. Wakala wa kwanza akiingia ataona kazi yako; utapata SMS akikubali.'
       : 'Wakala wa karibu ameshaarifiwa. Akikubali, utapata SMS yenye jina na simu yake.';
+  } else if (type === 'office_pickup') {
+    next = `${providerName || 'Ofisi'} imearifiwa kwa SMS na itakupigia kupanga muda wa kuchukua mzigo.`;
   } else if (type === 'agent_pickup_pending') {
     next = 'Ofisi au msafirishaji atakupigia kupanga kuchukua mzigo.';
   } else if (type === 'customer_dropoff' || type === 'customer_dropoff_pending') {
@@ -285,6 +289,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         origin: side(originResolved, origin), destination: side(destinationResolved, destination),
         providerId: navParams?.transportProviderId ? Number(navParams.transportProviderId) : undefined,
         declaredValue: Number(digits(declaredValue)) || undefined,
+        // An office that collects only near itself needs the sender's pin.
+        pickupPoint: pickupOption === 'door' && pickupPin ? { latitude: pickupPin.latitude, longitude: pickupPin.longitude } : undefined,
       });
       const list = Array.isArray(res.data) ? res.data : [];
       if (sameCity) {
@@ -316,7 +322,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     } finally {
       setSearching(false);
     }
-  }, [fromCity, toCity, weightKg, declaredValue, pickupOption, deliveryOption, originResolved, destinationResolved, origin, destination, sameCity, navParams?.transportProviderId]);
+  }, [fromCity, toCity, weightKg, declaredValue, pickupPin, pickupOption, deliveryOption, originResolved, destinationResolved, origin, destination, sameCity, navParams?.transportProviderId]);
 
   const choose = (offer) => {
     setSelected(offer);
@@ -345,7 +351,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     if (selected.office) {
       const q = selected.quote || {};
       const lines = [];
-      if (pickupOption === 'door') lines.push(['Kuchukua kwako', Number(q.pickup) > 0 ? tzs(q.pickup) : 'Ada ya wakala (unamlipa wakala)']);
+      if (pickupOption === 'door') {
+        lines.push(selected.pickupBy === 'office'
+          ? [`Kuchukua kwako (${selected.providerName})`, Number(q.pickup) > 0 ? tzs(q.pickup) : 'Bure']
+          : ['Kuchukua kwako', Number(q.pickup) > 0 ? tzs(q.pickup) : 'Ada ya wakala (unamlipa wakala)']);
+      }
       else lines.push(['Kupeleka ofisini', 'Bure']);
       lines.push([`Usafiri${selected.chargeText ? ` (${selected.chargeText})` : ''}`, selected.servicePrice != null ? tzs(q.transport ?? selected.servicePrice) : 'Ofisi itakuambia']);
       if (deliveryOption === 'door') lines.push([`Kufikishwa mlangoni ${toShort || ''}`.trim(), 'Ada ya wakala (inalipwa kwa wakala)']);
@@ -713,7 +723,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                         )}
                         <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 13, color: '#334155' }}>
                           <span>{pickupOption === 'door'
-                            ? (o.office && Number(o.quote?.pickup) > 0 ? `Kuchukua ${Math.round(o.quote.pickup).toLocaleString('en-US')}` : 'Kuchukua: ada ya wakala')
+                            ? (o.office && o.pickupBy === 'office'
+                              ? (Number(o.quote?.pickup) > 0 ? `Ofisi inachukua: ${Math.round(o.quote.pickup).toLocaleString('en-US')}` : 'Ofisi inachukua bure')
+                              : o.office && Number(o.quote?.pickup) > 0 ? `Kuchukua ${Math.round(o.quote.pickup).toLocaleString('en-US')}` : 'Kuchukua: ada ya wakala')
                             : 'Kupeleka ofisini: bure'}</span>
                           <span>Usafiri {o.office
                             ? (o.servicePrice != null ? Math.round(o.quote?.transport ?? o.servicePrice).toLocaleString('en-US') : 'ofisi itakuambia')

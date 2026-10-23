@@ -224,3 +224,31 @@ test('other city: an office offer is booked through the office journey; the valu
   expect(calls.some(([u]) => u === '/transport/quotes')).toBe(false);
   expect(await screen.findByText(/Peleka mzigo:/)).toBeTruthy();
 });
+
+test('an office that collects itself: its pickup is in the total, and it is told instead of agents', async () => {
+  places({ Kariakoo: KARIAKOO, Mbeya: MBEYA });
+  const offer = officeOffer(10, 'Ar SAMATTA', 15000, 15000, 0);
+  offer.fulfillment.officeOption.pickupBy = 'office';
+  api.post.mockImplementation((url) => {
+    if (url === '/transport/service-offers/discover') return Promise.resolve({ data: [offer] });
+    if (url === '/transport/service-offers/commit') return Promise.resolve({ data: { id: 902 } });
+    if (url === '/shipments') return Promise.resolve({ data: { id: 58 } });
+    return Promise.reject(new Error(`unexpected ${url}`));
+  });
+  api.patch.mockResolvedValue({ data: { shipment: { trackingNumber: 'KTX-SHP-58' }, parcel: { waybillNumber: 'KTX7288804602' },
+    nextAction: { type: 'office_pickup', officeId: 10 } } });
+
+  render(<SendShipment isLoggedIn currentUser={user} onNavigate={jest.fn()} />);
+  await fillSteps1and2(MBEYA, MBEYA.displayLabel, 'Mbeya');
+  fireEvent.click(await screen.findByTestId('start-door'));
+  fireEvent.change(screen.getByTestId('pickup-pin-fields').querySelector('textarea'), { target: { value: 'Duka la bluu, mtaa wa Msimbazi' } });
+  fireEvent.click(screen.getByTestId('next-3'));
+
+  const [card] = await screen.findAllByTestId('offer');
+  expect(within(card).getByText('Ofisi inachukua bure')).toBeTruthy();
+  fireEvent.click(screen.getByTestId('next-4'));
+  expect(await screen.findByText('Kuchukua kwako (Ar SAMATTA)')).toBeTruthy();
+  expect(screen.getByTestId('bill-total').textContent).toBe('TZS 15,000');
+  fireEvent.click(screen.getByTestId('confirm'));
+  expect((await screen.findByTestId('next-step')).textContent).toMatch(/Ar SAMATTA imearifiwa kwa SMS/);
+});

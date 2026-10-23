@@ -27,6 +27,17 @@ export class OfficePriceController {
     return this.prices.setMyRule(req.user, roleContext, dto);
   }
 
+  // Does this office collect from senders (free, or for its own fee)? Shown in the send form.
+  @Get('me/pickup')
+  getPickup(@Request() req, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.prices.getMyPickup(req.user, roleContext);
+  }
+
+  @Put('me/pickup')
+  setPickup(@Request() req, @Body() dto: any, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.prices.setMyPickup(req.user, roleContext, dto);
+  }
+
   // The counter preview: pickup, transport, delivery and total for this parcel.
   @Post('me/price-quote')
   quote(@Request() req, @Body() dto: any, @CurrentRoleContext() roleContext: RoleContext) {

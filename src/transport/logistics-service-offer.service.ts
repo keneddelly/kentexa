@@ -6,7 +6,7 @@ import { findNearestOffice, NO_AGENT_NOW } from './nearest-office';
 import { TransportService } from './transport.service';
 import { JourneyComposerService } from './journey-composer.service';
 import { OfficePriceService } from '../super-agents/office-price.service';
-import { OfficeRateRow, officeChargeText, officeEtaLabel, pickOfficeRates } from './office-offers';
+import { OfficePickupOffer, OfficeRateRow, officeChargeText, officeEtaLabel, officePickupFeeFor, officePickupTableReady, pickOfficeRates } from './office-offers';
 
 export interface DiscoverServiceOffersDto {
   fromCity: string; toCity: string; weightKg: number;
@@ -16,6 +16,8 @@ export interface DiscoverServiceOffersDto {
   discoveryOnly?: boolean;
   /** Send form v2: the sender's declared value (TZS). Office offers need it (% of value). */
   declaredValue?: number;
+  /** The sender's phone pin, when given: an office that collects within a distance needs it. */
+  pickupPoint?: { latitude?: number; longitude?: number } | null;
 }
 export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { serviceType: 'direct_delivery' | 'composed_intercity' | 'office'; routeId?: number; runId?: number; officeId?: number; paymentMethod?: 'cash' | 'prepaid'; cargoRequirements?: any; }
 
@@ -270,9 +272,10 @@ export class LogisticsServiceOfferService {
     const place = side?.place;
     if (this.locations && typeof place?.providerKey === 'string' && typeof place?.providerPlaceId === 'string') {
       const c: any = await this.locations.resolve({ providerKey: place.providerKey, providerPlaceId: place.providerPlaceId }).catch(() => null);
-      if (c) return { regionName: c.regionName ?? null, districtName: c.districtName ?? null, city: typed, label: c.displayLabel ?? typed };
+      if (c) return { regionName: c.regionName ?? null, districtName: c.districtName ?? null, city: typed, label: c.displayLabel ?? typed,
+        latitude: c.latitude ?? null, longitude: c.longitude ?? null };
     }
-    return { regionName: null, districtName: null, city: typed, label: typed };
+    return { regionName: null, districtName: null, city: typed, label: typed, latitude: null, longitude: null };
   }
 
   /**
@@ -286,6 +289,7 @@ export class LogisticsServiceOfferService {
     const [origin, destination] = await Promise.all([this.placeNames(dto.origin, from), this.placeNames(dto.destination, to)]);
     const rows: OfficeRateRow[] = (await this.db.query(`
       SELECT sa.id AS "officeId", sa."businessName", sa.city AS "officeCity", sa.address AS "officeAddress",
+             sa.latitude AS "officeLatitude", sa.longitude AS "officeLongitude",
              sa.rating, sa."totalRatings", sr."destinationCity", sr."ratePerKg", sr."minimumCharge", sr."estimatedDays"
         FROM public.super_agent sa
         JOIN public.shipping_rate sr ON sr."superAgentId" = sa.id AND sr."isActive" = true
@@ -295,16 +299,33 @@ export class LogisticsServiceOfferService {
       rating: r.rating == null ? null : Number(r.rating), totalRatings: r.totalRatings == null ? null : Number(r.totalRatings),
     }));
     const chosen = pickOfficeRates(rows, origin, destination);
+    // Offices that collect from the sender themselves (free or their own fee).
+    const pickupOffers = new Map<number, OfficePickupOffer>();
+    if (dto.pickup === 'door' && chosen.length && await officePickupTableReady(this.db)) {
+      const offers: any[] = await this.db.query(`SELECT "superAgentId", mode, fee, "maxKm" FROM public.office_pickup_offer
+        WHERE "superAgentId" = ANY($1::int[]) AND mode <> 'none'`, [chosen.map((r) => r.officeId)]).catch(() => []);
+      for (const o of offers) {
+        pickupOffers.set(Number(o.superAgentId), { mode: o.mode, fee: o.fee == null ? null : Number(o.fee), maxKm: o.maxKm == null ? null : Number(o.maxKm) });
+      }
+    }
+    const senderPoint = dto.pickupPoint?.latitude != null ? dto.pickupPoint : { latitude: (origin as any).latitude, longitude: (origin as any).longitude };
     const out: LogisticsServiceOffer[] = [];
     for (const rate of chosen) {
       const office: any = { id: rate.officeId, city: rate.officeCity, address: rate.officeAddress };
-      // Dar es Salaam: an agent pickup to the office is the boda fee, inside the total.
-      const quote = await this.officePrices.quoteFor(office, {
+      const officePickupFee = dto.pickup === 'door'
+        ? officePickupFeeFor(pickupOffers.get(rate.officeId), { latitude: (rate as any).officeLatitude, longitude: (rate as any).officeLongitude }, senderPoint)
+        : null;
+      // The office collects itself: its own fee (0 = free). Otherwise, in Dar es Salaam an
+      // agent pickup to the office is the boda fee; both are inside the total.
+      const quoted = await this.officePrices.quoteFor(office, {
         destinationCity: rate.destinationCity, declaredValue: value, weightKg: weight, servicePath: 'intercity',
-        pickupAddress: dto.pickup === 'door' ? origin.label : null,
+        pickupAddress: dto.pickup === 'door' && officePickupFee == null ? origin.label : null,
       }).catch(() => null);
-      if (!quote) continue;
-      const pickupInTotal = dto.pickup === 'door' && quote.pickup.amount > 0;
+      if (!quoted) continue;
+      const quote = officePickupFee == null ? quoted : {
+        ...quoted, pickup: { ...quoted.pickup, amount: officePickupFee }, total: quoted.total - quoted.pickup.amount + officePickupFee,
+      };
+      const pickupInTotal = dto.pickup === 'door' && (officePickupFee != null || quote.pickup.amount > 0);
       out.push({
         serviceType: 'office',
         name: rate.businessName,
@@ -328,6 +349,7 @@ export class LogisticsServiceOfferService {
             officeAddress: rate.officeAddress, rating: rate.rating, totalRatings: rate.totalRatings,
             destinationCity: rate.destinationCity, estimatedDays: rate.estimatedDays,
             chargeText: officeChargeText(quote.transport),
+            pickupBy: officePickupFee != null ? 'office' : (dto.pickup === 'door' ? 'agent' : null),
             quote: { pickup: quote.pickup.amount, transport: quote.transport.amount, total: quote.total, ruleSource: quote.ruleSource },
           },
         },

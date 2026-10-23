@@ -77,3 +77,81 @@ export function officeChargeText(transport: { mode: string; percent?: number; mi
   }
   return '';
 }
+
+// ── Office pickup offer (owner 2026-10-23) ────────────────────────────────────
+// An office may collect from the sender itself: free, or for its own fee, and
+// optionally only within maxKm of its own point. Table office_pickup_offer
+// (migration 1792700000000); until it exists every office is "does not collect".
+
+export type OfficePickupMode = 'none' | 'free' | 'fixed';
+export interface OfficePickupOffer { mode: OfficePickupMode; fee: number | null; maxKm: number | null }
+
+export const OFFICE_PICKUP_MESSAGES = {
+  badMode: 'Chagua: sichukui, nachukua bure, au nachukua kwa bei.',
+  badFee: 'Weka bei ya kuchukua (zaidi ya 0, isizidi TZS 1,000,000).',
+  badKm: 'Umbali uwe kati ya km 1 na 200, au uache wazi.',
+  notReady: 'Huduma hii bado haijawashwa. Jaribu tena baadaye.',
+} as const;
+
+/** Validates what an office sends from its settings; throws a message key on error. */
+export function readOfficePickupInput(dto: any): OfficePickupOffer {
+  const mode = String(dto?.mode || '') as OfficePickupMode;
+  if (!['none', 'free', 'fixed'].includes(mode)) throw new Error('badMode');
+  let fee: number | null = null;
+  if (mode === 'fixed') {
+    fee = Math.round(Number(dto?.fee));
+    if (!Number.isFinite(fee) || fee <= 0 || fee > 1_000_000) throw new Error('badFee');
+  }
+  let maxKm: number | null = null;
+  if (dto?.maxKm !== undefined && dto?.maxKm !== null && String(dto.maxKm).trim() !== '') {
+    maxKm = Math.round(Number(dto.maxKm));
+    if (!Number.isFinite(maxKm) || maxKm < 1 || maxKm > 200) throw new Error('badKm');
+  }
+  return { mode, fee, maxKm };
+}
+
+const toRad = (d: number) => (d * Math.PI) / 180;
+/** Straight-line distance in km. */
+export function distanceKm(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }): number {
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLng = toRad(b.longitude - a.longitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+const point = (lat: unknown, lng: unknown) => {
+  const latitude = Number(lat); const longitude = Number(lng);
+  return lat != null && lng != null && Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null;
+};
+
+/**
+ * The fee the office charges to collect from this sender, or null when it does not
+ * collect here. With a distance limit, both points must be known and within it.
+ */
+export function officePickupFeeFor(
+  offer: OfficePickupOffer | null | undefined,
+  office: { latitude?: unknown; longitude?: unknown },
+  sender: { latitude?: unknown; longitude?: unknown } | null | undefined,
+): number | null {
+  if (!offer || offer.mode === 'none') return null;
+  if (offer.maxKm != null) {
+    const o = point(office.latitude, office.longitude);
+    const s = sender ? point(sender.latitude, sender.longitude) : null;
+    if (!o || !s || distanceKm(o, s) > offer.maxKm) return null;
+  }
+  return offer.mode === 'free' ? 0 : Number(offer.fee) || null;
+}
+
+// Does the table exist yet? Checked at most once a minute.
+let pickupReady = false;
+let pickupCheckedAt = 0;
+export async function officePickupTableReady(db: { query: (sql: string, p?: any[]) => Promise<any> }, force = false, now = Date.now()) {
+  if (pickupReady || (!force && now - pickupCheckedAt < 60_000)) return pickupReady;
+  pickupCheckedAt = now;
+  try {
+    pickupReady = !!(await db.query(`SELECT to_regclass('public.office_pickup_offer') IS NOT NULL AS ok`))?.[0]?.ok;
+  } catch { pickupReady = false; }
+  return pickupReady;
+}
+/** Tests only. */
+export function setOfficePickupReadyForTests(ready: boolean) { pickupReady = ready; pickupCheckedAt = ready ? Date.now() : 0; }
