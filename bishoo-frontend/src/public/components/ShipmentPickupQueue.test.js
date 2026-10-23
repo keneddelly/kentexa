@@ -33,6 +33,19 @@ test('the agent job card is in Swahili (accepted job and a waiting job)', async 
   expect(screen.queryByText(/Confirm collection|Claim this pickup|Collect from the sender|Shipment pickups/)).toBeNull();
 });
 
+test('COD boda job: the rider sees what to collect, and no "send code" once the buyer has it', async () => {
+  const codJob = { id: 9, trackingNumber: 'KTX 1', itemDescription: 'Simu', pickupArea: 'Kariakoo', deliverTo: 'recipient',
+    destinationArea: 'Mbagala', weightKg: 1, nextAction: 'deliver_to_recipient', recipientCodeIssued: true,
+    recipient: { name: 'Amina', phone: '0712000001', area: 'Mbagala' }, cod: { goods: 80000, bodaFee: 3000, total: 83000 } };
+  api.get.mockImplementation(async (url) => ({ data: url === '/pickup-tasks/mine' ? [codJob] : [] }));
+  await act(async () => { render(<ShipmentPickupQueue />); });
+  expect(screen.getByTestId('pickup-cod')).toHaveTextContent('Kusanya TZS 83,000 (bidhaa 80,000 + boda 3,000)');
+  expect(screen.getByText(sw.pickup_queue.cod_code_sent)).toBeInTheDocument();
+  expect(screen.queryByText(sw.pickup_queue.send_code)).toBeNull();
+  expect(screen.queryByText(sw.pickup_queue.send_code_again)).toBeNull();
+  expect(screen.getByText(sw.pickup_queue.confirm_delivery)).toBeInTheDocument();
+});
+
 test('"Siwezi kufika" asks first, then gives the job back and keeps the message visible', async () => {
   await act(async () => { render(<ShipmentPickupQueue />); });
   fireEvent.click(screen.getByText(sw.pickup_queue.cannot_come));

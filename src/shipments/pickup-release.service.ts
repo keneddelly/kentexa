@@ -7,6 +7,7 @@ import { LogisticsDispatchService } from './logistics-dispatch.service';
 import { customerParcelNumber } from '../super-agents/customer-parcel-number';
 import { findNearestOffice } from '../transport/nearest-office';
 import { smsSafeName } from '../super-agents/customer-parcel-number';
+import { CLEAR_TASK_DELIVERY_CODE } from './pickup-tasks.service';
 import type { RoleContext } from '../role-context/role-context.types';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
@@ -78,7 +79,7 @@ export class PickupReleaseService {
       // Same lock order as claim/collect: shipment -> parcel -> task, so a release
       // and a collection at the same moment can never both succeed.
       await em.query('SELECT id FROM public.shipment WHERE id = $1 FOR UPDATE', [pre[0].shipmentId]);
-      const p: any[] = await em.query('SELECT id, status FROM public.parcel WHERE id = $1 FOR UPDATE', [pre[0].parcelId]);
+      const p: any[] = await em.query('SELECT * FROM public.parcel WHERE id = $1 FOR UPDATE', [pre[0].parcelId]);
       const t: any[] = await em.query('SELECT * FROM public.parcel_pickup_task WHERE id = $1 FOR UPDATE', [taskId]);
       const task = t[0];
       if (!task) throw new NotFoundException('Pickup task not found');
@@ -93,9 +94,11 @@ export class PickupReleaseService {
         throw new ForbiddenException('Only the agent who accepted this pickup can release it');
       }
       const agentProfileId = Number(task.agentProfileId);
+      // A COD recipient code is bound to this rider: it is cancelled with the release,
+      // and the next rider's accept sends a new one.
       await em.query(`UPDATE public.parcel_pickup_task SET status = 'requested', "agentProfileId" = NULL, "claimedAt" = NULL,
         "handoffCodeHash" = NULL, "handoffCodeIssuedAt" = NULL, "handoffCodeExpiresAt" = NULL, "handoffAttempts" = 0,
-        "updatedAt" = now() WHERE id = $1`, [taskId]);
+        ${task.deliveryCodeHash ? `${CLEAR_TASK_DELIVERY_CODE},` : ''} "updatedAt" = now() WHERE id = $1`, [taskId]);
       await em.query(`INSERT INTO public.parcel_tracking ("parcelId", status, city, note, "updatedBy", "handlerPhone", "handlerLocation", "handlerType")
         VALUES ($1, $2, NULL, $3, NULL, NULL, NULL, 'local_agent')`,
         [p[0].id, p[0].status, 'Wakala hawezi kufika; tunatafuta wakala mwingine']);

@@ -23,6 +23,7 @@ import { LogisticsDispatchService } from './logistics-dispatch.service';
 import { PickupOfferSmsService } from './pickup-offer-sms.service';
 import { PickupReleaseService } from './pickup-release.service';
 import { CommunicationModule } from '../communication/communication.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 
 @Module({
   imports: [
@@ -38,6 +39,8 @@ import { CommunicationModule } from '../communication/communication.module';
     // Gate 4: the recipient's delivery code for a direct Agent delivery.
     SmsModule,
     CommunicationModule,
+    // COD seller shipments on the boda path: the collected balance is receipted.
+    InvoicesModule,
   ],
   controllers: [ShipmentsController, PickupTasksController],
   providers: [ShipmentsService, PickupTasksService, ShipmentActivationService, LogisticsDispatchService, PickupOfferSmsService, PickupReleaseService],
