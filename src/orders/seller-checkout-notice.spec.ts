@@ -8,6 +8,9 @@ import {
   sellerCheckoutLink,
   signSellerCheckoutToken,
   verifySellerCheckoutToken,
+  signSellerCheckoutShortToken,
+  verifySellerCheckoutShortToken,
+  verifyAnySellerCheckoutToken,
   whatsappLink,
   whatsappNumber,
 } from './seller-checkout-notice';
@@ -36,14 +39,13 @@ describe('seller checkout notice — message text', () => {
 
   it('two-product COD cart: order numbers, items with quantity and price, total, place, buyer, method, link', () => {
     expect(buildSellerCheckoutMessage({ ...base, orders: [camera, keychain] })).toBe([
-      'KenteXa: Agizo jipya #157, #158.',
+      'KenteXa: Agizo jipya #157, #158. Fungua: https://kentexa.com/?sellerCheckout=abc.def',
       '1) SPY CAMERA ON REMOTE CONTROL x1: TZS 300,000',
       '2) CAR KEY CHAIN SPY CAMERA x2: TZS 303,000 (pamoja na usafiri TZS 1,500)',
       'Jumla: TZS 603,000',
       'Malipo: Pesa mkononi wakati wa kupokea (COD)',
       'Mahali: Ilala, Dar es Salaam',
       'Mnunuzi: Asha Juma, 0712345678',
-      'Maelezo: https://kentexa.com/?sellerCheckout=abc.def',
     ].join('\n'));
   });
 
@@ -83,6 +85,41 @@ describe('seller checkout notice — signed link (7 days)', () => {
     expect(verifySellerCheckoutToken(token, undefined, now)).toBeNull();
     expect(verifySellerCheckoutToken('garbage', SECRET, now)).toBeNull();
     expect(() => signSellerCheckoutToken(payload, undefined)).toThrow();
+  });
+});
+
+describe('seller checkout notice — short link (owner 2026-10-23: the long one did not open on phones)', () => {
+  const now = 1_800_000_000;
+  const payload = { s: 2, o: [157, 158], r: 1, d: 1, e: sellerCheckoutExpiry(now) };
+
+  it('round-trips, is short, and goes in a short ?so= link', () => {
+    const token = signSellerCheckoutShortToken(payload, SECRET);
+    expect(token.length).toBeLessThanOrEqual(40);
+    expect(verifySellerCheckoutShortToken(token, SECRET, now)).toEqual(payload);
+    expect(verifyAnySellerCheckoutToken(token, SECRET, now)).toEqual(payload);
+    expect(sellerCheckoutLink(token, 'https://kentexa.com')).toBe(`https://kentexa.com/?so=${token}`);
+    expect(sellerCheckoutLink(token, 'https://kentexa.com').length).toBeLessThanOrEqual(64);
+    // A region or district may be unknown.
+    const none = { ...payload, r: null, d: null };
+    expect(verifySellerCheckoutShortToken(signSellerCheckoutShortToken(none, SECRET), SECRET, now)).toEqual(none);
+  });
+
+  it('refuses expired, forged, other-secret and malformed tokens', () => {
+    const token = signSellerCheckoutShortToken(payload, SECRET);
+    expect(verifySellerCheckoutShortToken(token, SECRET, payload.e)).toBeNull();
+    expect(verifySellerCheckoutShortToken(token, 'other-secret', now)).toBeNull();
+    const parts = token.split('.');
+    parts[1] = '9999';                                   // someone else's order
+    expect(verifySellerCheckoutShortToken(parts.join('.'), SECRET, now)).toBeNull();
+    expect(verifySellerCheckoutShortToken('a.b.c.d.e.f', SECRET, now)).toBeNull();
+    expect(verifySellerCheckoutShortToken('garbage', SECRET, now)).toBeNull();
+    expect(() => signSellerCheckoutShortToken(payload, undefined)).toThrow();
+  });
+
+  it('a long link already sent (7 days) still opens', () => {
+    const old = signSellerCheckoutToken(payload, SECRET);
+    expect(verifyAnySellerCheckoutToken(old, SECRET, now)).toEqual(payload);
+    expect(sellerCheckoutLink(old, 'https://kentexa.com')).toBe(`https://kentexa.com/?sellerCheckout=${old}`);
   });
 });
 
@@ -178,8 +215,11 @@ describe('OrdersService.createCheckout() — one seller notice per checkout', ()
     const seller = sellerSms(smsService.sendSms);
     expect(seller).toHaveLength(1);
     const text: string = seller[0][1];
-    expect(text.split('\n').slice(0, 7)).toEqual([
-      'KenteXa: Agizo jipya #901, #902.',
+    const first = text.split('\n')[0];
+    // The short link is on the FIRST line, whole, so it survives a split SMS.
+    expect(first).toMatch(/^KenteXa: Agizo jipya #901, #902\. Fungua: https:\/\/kentexa\.com\/\?so=[0-9a-z.\-]+\.[A-Za-z0-9_-]{16}$/);
+    expect(first.length).toBeLessThanOrEqual(110);
+    expect(text.split('\n').slice(1, 7)).toEqual([
       '1) SPY CAMERA ON REMOTE CONTROL x1: TZS 300,000',
       '2) CAR KEY CHAIN SPY CAMERA x1: TZS 150,000',
       'Jumla: TZS 450,000',
@@ -187,8 +227,8 @@ describe('OrdersService.createCheckout() — one seller notice per checkout', ()
       'Mahali: Ilala, Dar es Salaam',
       'Mnunuzi: Asha Juma, 0712345678',
     ]);
-    const token = text.split('?sellerCheckout=')[1];
-    expect(verifySellerCheckoutToken(token, SECRET)).toEqual(expect.objectContaining({ s: 2, o: [901, 902], r: 1, d: 1 }));
+    const token = first.split('?so=')[1];
+    expect(verifyAnySellerCheckoutToken(token, SECRET)).toEqual(expect.objectContaining({ s: 2, o: [901, 902], r: 1, d: 1 }));
     expect(buyerSms(smsService.sendSms).map(([, m]) => m)).toEqual([
       'KenteXa: Oda #901 imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS 300,000 wakati wa kupokea. Mahali: Ilala, Dar es Salaam',
       'KenteXa: Oda #902 imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS 150,000 wakati wa kupokea. Mahali: Ilala, Dar es Salaam',

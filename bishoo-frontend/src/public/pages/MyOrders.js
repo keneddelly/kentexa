@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
 import { DirectPaymentNotice } from '../components/DirectPayment';
+import LipaPaymentReview from '../components/LipaPaymentReview';
 import { isDirectPaymentOrder, usePaymentMode } from '../../utils/paymentMode';
 import { API_BASE_URL } from '../../api/baseUrl';
 
@@ -555,6 +556,10 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       const codRemaining = Number(order.codRemainingBalance || 0);
                       if (order.status === 'cancelled') return null;
                       // Release F: paid to the seller directly; show how, never a KenteXa "Pay Now".
+                      // Lipa Namba: the seller's decision on the screenshot, and a new screenshot after a rejection.
+                      if (isDirectPaymentOrder(order) && order.paymentMethod === 'lipa_namba') {
+                        return (<><DirectPaymentNotice order={order} /><LipaPaymentReview orderId={order.id} /></>);
+                      }
                       if (isDirectPaymentOrder(order)) return <DirectPaymentNotice order={order} />;
                       if (isCodOrder && (codUpfront === 0 || order.paymentStatus === 'upfront_paid' || order.paymentStatus === 'paid')) {
                         // Nothing payable online — either 100%-on-delivery,

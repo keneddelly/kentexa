@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import LipaPaymentReview from '../components/LipaPaymentReview';
 
 const DARK = '#0f172a';
 const GREY = '#475569';
@@ -97,6 +98,13 @@ const SellerCheckout = ({ token, onNavigate }) => {
           </Row>
         )}
       </div>
+      {/* Lipa Namba: confirm or reject the buyer's payment (shows only once the server has it switched on). */}
+      {view.paymentMethod === 'lipa_namba' && view.items.map((item) => (
+        <div key={`lipa-${item.orderId}`} style={card}>
+          <div style={{ fontSize: 13, color: GREY, marginBottom: 2 }}>#{item.orderId}</div>
+          <LipaPaymentReview orderId={item.orderId} />
+        </div>
+      ))}
       <div style={{ fontSize: 12, color: GREY, lineHeight: 1.45 }}>
         {t('seller_checkout.expires', { date: new Date(view.expiresAt).toLocaleDateString() })}
       </div>

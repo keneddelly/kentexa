@@ -20,7 +20,9 @@ export const SELLER_CHECKOUT_LINK_DAYS = 7;
 /** The seller link's site: FRONTEND_URL when set, else the live site (never the onrender.com fallback). */
 export function sellerCheckoutLink(token: string, frontendUrl = process.env.FRONTEND_URL): string {
   const base = (frontendUrl || 'https://kentexa.com').replace(/\/+$/, '');
-  return `${base}/?sellerCheckout=${token}`;
+  // A short token (signSellerCheckoutShortToken) goes in the short ?so= link; an old
+  // long token keeps its ?sellerCheckout= link so links already sent still open.
+  return isShortSellerToken(token) ? `${base}/?so=${token}` : `${base}/?sellerCheckout=${token}`;
 }
 const TOKEN_KEY_LABEL = 'kentexa-seller-checkout-link-v1';
 const MAX_NAME = 40;
@@ -79,7 +81,9 @@ export function buildSellerCheckoutMessage(input: SellerMessageInput): string {
   const { orders } = input;
   const method = orders[0]?.paymentMethod;
   const lines = [
-    `KenteXa: Agizo jipya ${orders.map((o) => `#${o.id}`).join(', ')}.`,
+    // The link goes FIRST: a long text arrives as several SMS, and on many phones the parts
+    // come separately; a link split across two parts does not open (owner 2026-10-23).
+    `KenteXa: Agizo jipya ${orders.map((o) => `#${o.id}`).join(', ')}. Fungua: ${input.link}`,
     ...orders.map((o, i) => {
       const fee = Number(o.deliveryFeeAmount || 0);
       return `${i + 1}) ${short(o.productName)} x${o.quantity}: ${tzs(Number(o.totalAmount || 0))}` +
@@ -90,7 +94,6 @@ export function buildSellerCheckoutMessage(input: SellerMessageInput): string {
     ...(method === 'lipa_namba' && input.lipaReference ? [`Kumbukumbu ya malipo: ${input.lipaReference}`] : []),
     `Mahali: ${input.place || 'haijulikani'}`,
     `Mnunuzi: ${[input.buyerName, input.buyerPhone].filter(Boolean).join(', ') || 'haijulikani'}`,
-    `Maelezo: ${input.link}`,
   ];
   return lines.join('\n');
 }
@@ -161,4 +164,60 @@ export function whatsappNumber(value: string | null | undefined): string | null 
 export function whatsappLink(storeWhatsApp: string | null | undefined, text: string): string | null {
   const number = whatsappNumber(storeWhatsApp);
   return number ? `https://wa.me/${number}?text=${encodeURIComponent(text)}` : null;
+}
+
+// ── Short link token (owner 2026-10-23: the long link did not open on phones) ──
+//
+// "<s>.<o1-o2>.<e>.<r>.<d>.<sig>": numbers in base 36, empty for null, and a
+// 96-bit HMAC (16 base64url characters) under the same key. About 30 characters,
+// so the whole link (~55) fits on the first line of the SMS. The page still needs
+// login as that seller, exactly as with the long token.
+
+const SHORT_SIG_BYTES = 12;
+const b36 = (n: number | null) => (n == null ? '' : n.toString(36));
+const fromB36 = (v: string): number | null => (v === '' ? null : /^[0-9a-z]{1,12}$/.test(v) ? parseInt(v, 36) : NaN);
+
+export const isShortSellerToken = (token: string | null | undefined) =>
+  typeof token === 'string' && token.split('.').length === 6;
+
+function shortSig(secret: string, body: string): string {
+  return b64url(crypto.createHmac('sha256', tokenKey(secret)).update(`short:${body}`).digest().subarray(0, SHORT_SIG_BYTES));
+}
+
+export function signSellerCheckoutShortToken(payload: SellerCheckoutTokenPayload, secret: string | undefined): string {
+  if (!secret) throw new Error('JWT_SECRET is required to sign seller checkout links');
+  const body = [b36(payload.s), payload.o.map((id) => b36(id)).join('-'), b36(payload.e), b36(payload.r), b36(payload.d)].join('.');
+  return `${body}.${shortSig(secret, body)}`;
+}
+
+/** Never throws: anything not valid, or expired, is null. */
+export function verifySellerCheckoutShortToken(
+  token: string | null | undefined,
+  secret: string | undefined,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): SellerCheckoutTokenPayload | null {
+  if (!secret || typeof token !== 'string' || token.length > 200) return null;
+  const parts = token.split('.');
+  if (parts.length !== 6) return null;
+  const body = parts.slice(0, 5).join('.');
+  const expected = Buffer.from(shortSig(secret, body), 'utf8');
+  const given = Buffer.from(parts[5], 'utf8');
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return null;
+  const s = fromB36(parts[0]);
+  const e = fromB36(parts[2]);
+  const r = fromB36(parts[3]);
+  const d = fromB36(parts[4]);
+  const o = parts[1].split('-').map(fromB36);
+  if (!Number.isInteger(s) || !Number.isInteger(e) || o.length === 0 || o.length > 20
+    || !o.every((id) => Number.isInteger(id) && (id as number) > 0)
+    || (r !== null && !Number.isInteger(r)) || (d !== null && !Number.isInteger(d))) return null;
+  if ((e as number) <= nowSeconds) return null;
+  return { s: s as number, o: o as number[], r, d, e: e as number };
+}
+
+/** Either token form: the short one now sent, or a long one already sent (valid 7 days). */
+export function verifyAnySellerCheckoutToken(token: string | null | undefined, secret: string | undefined, nowSeconds?: number) {
+  return isShortSellerToken(token)
+    ? verifySellerCheckoutShortToken(token, secret, nowSeconds)
+    : verifySellerCheckoutToken(token, secret, nowSeconds);
 }

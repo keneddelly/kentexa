@@ -6,6 +6,7 @@ import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
 // eslint-disable-next-line no-unused-vars
 import { buildCreationMessage, buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
+import LipaPaymentReview from '../components/LipaPaymentReview';
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
@@ -564,6 +565,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         {order.paymentMethod === 'lipa_namba' ? t('direct_payment.seller_order_lipa') : t('direct_payment.seller_order_cod')}
                       </div>
                     </div>
+                  )}
+
+                  {/* Lipa Namba: view the buyer's screenshot, then confirm or reject the payment. */}
+                  {isDirectPaymentOrder(order) && order.paymentMethod === 'lipa_namba' && (
+                    <LipaPaymentReview orderId={order.id} />
                   )}
 
                   {/* COD status — order.paymentMethod/codRemainingBalance/

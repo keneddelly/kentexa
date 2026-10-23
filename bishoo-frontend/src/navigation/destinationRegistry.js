@@ -41,6 +41,8 @@ const DYNAMIC_DESTINATIONS = [
   [/^BecomeBusinessServiceProvider-\d+$/, 'BecomeBusinessServiceProvider'],
   // The seller's private new-order link (?sellerCheckout=<signed token>): public, the token is the key.
   [/^SellerCheckout-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'SellerCheckout'],
+  // The short seller link (?so=..., 2026-10-23): five base-36 parts and a 16-character signature.
+  [/^SellerCheckout-[0-9a-z]{1,12}\.[0-9a-z-]{1,200}\.[0-9a-z]{1,12}\.[0-9a-z]{0,12}\.[0-9a-z]{0,12}\.[A-Za-z0-9_-]{16}$/, 'SellerCheckout'],
   // A Super Agent's partner invitation (?partnerInvite=<signed token>): public; accepting needs login.
   [/^PartnerInvite-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'PartnerInvite'],
   // A seller's partner-agent invitation (?agentInvite=<signed token>): public; accepting needs login.
