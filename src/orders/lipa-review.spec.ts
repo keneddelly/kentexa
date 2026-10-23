@@ -5,6 +5,12 @@ import {
 } from './lipa-review';
 import { LipaReviewService } from './lipa-review.service';
 
+// The signed Cloudinary link needs real keys; the review only passes it through.
+jest.mock('./lipa-proof', () => ({
+  ...jest.requireActual('./lipa-proof'),
+  signedLipaProofUrl: (ref: string | null) => (ref ? `signed:${ref}` : null),
+}));
+
 describe('Lipa payment review: texts and actions', () => {
   it('buyer SMS on confirm names the shop, the amount and the next step, one plain SMS', () => {
     const physical = lipaConfirmedSms({ shopName: 'BIS', orderId: 181, amount: 302000, digital: false });
@@ -73,6 +79,7 @@ describe('LipaReviewService', () => {
     const { svc, sms, activity, updates } = make();
     const view = await svc.confirm(SELLER, 181);
     expect(view).toMatchObject({ decision: 'confirmed', canConfirm: false, canReject: false });
+    expect(view.proofUrl).toBe('signed:kentexa/payment-proofs/abc.jpg');
     expect(updates).toHaveLength(1);
     expect(updates[0].sql).toContain(`"paymentStatus" = 'paid'`);
     expect(updates[0].params).toEqual([181, 2, false]);                 // physical: status kept
