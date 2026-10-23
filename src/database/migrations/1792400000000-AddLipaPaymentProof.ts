@@ -10,8 +10,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * Nullable columns without a default: metadata-only, every existing row keeps NULL.
  */
-export class AddLipaPaymentProof1792300000000 implements MigrationInterface {
-  name = 'AddLipaPaymentProof1792300000000';
+export class AddLipaPaymentProof1792400000000 implements MigrationInterface {
+  name = 'AddLipaPaymentProof1792400000000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

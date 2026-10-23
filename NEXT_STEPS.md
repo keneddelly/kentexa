@@ -923,7 +923,7 @@ Branch `cod-lipa` (from 604b11c). Never pushed before migration 1792000000000 is
 
 ## Marketplace checkout fixes — branch `feature/checkout-fixes` (2026-10-22, not pushed)
 
-- **Migration `1792300000000-AddLipaPaymentProof`** (adds only, every existing row NULL):
+- **Migration `1792400000000-AddLipaPaymentProof`** (adds only, every existing row NULL):
   `order."lipaProofUrl"` text, `order."lipaReference"` varchar(60), `order."lipaConfirmedAt"` timestamptz.
   Must be applied on live BEFORE this code deploys (the code writes these columns on every Lipa Namba order).
 - No new environment variable.
