@@ -307,7 +307,7 @@ export class Order {
   @Column({ type: 'boolean', nullable: true })
   sameCity: boolean | null;
 
-  // Lipa Namba proof (migration 1792400000000): the buyer's payment screenshot,
+  // Lipa Namba proof (migration 1792500000000): the buyer's payment screenshot,
   // optional payment reference, and when they confirmed. A Lipa Namba order is
   // created only at that moment, so all three are set together; NULL otherwise.
   // lipaProofUrl holds the private screenshot reference "<publicId>.<format>",
