@@ -34,6 +34,7 @@ import BecomeSellerInfo from './public/pages/BecomeSellerInfo';
 import ConfirmDelivery    from './public/pages/ConfirmDelivery';
 import SellerCheckout     from './public/pages/SellerCheckout';
 import PartnerInvite      from './public/pages/PartnerInvite';
+import SellerAgentInvite  from './public/pages/SellerAgentInvite';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import SellerPayouts     from './public/pages/SellerPayouts';
@@ -211,6 +212,9 @@ function App() {
       // A Super Agent's partner invitation (WhatsApp / the sender's own SMS): public page.
       const partnerInvite = params.get('partnerInvite');
       if (partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)) return `PartnerInvite-${partnerInvite}`;
+      // A seller's invitation to their delivery person to be their partner agent: public page.
+      const agentInvite = params.get('agentInvite');
+      if (agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)) return `SellerAgentInvite-${agentInvite}`;
       if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
       if (track) return `TrackParcel-${track}`;
       // Real shareable paths (/product/42, /store/7, ...) — resolves
@@ -329,6 +333,7 @@ function App() {
     // must land on that order, not on the role home.
     const sellerCheckout = params.get('sellerCheckout');
     const partnerInvite = params.get('partnerInvite');
+    const agentInvite = params.get('agentInvite');
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
@@ -336,6 +341,8 @@ function App() {
           ? `SellerCheckout-${sellerCheckout}`
           : partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)
             ? `PartnerInvite-${partnerInvite}`
+            : agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)
+              ? `SellerAgentInvite-${agentInvite}`
             : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
               ? 'Activity' : homeForRole(activeContext.roleType));
   }, [contextEpoch, activeContext?.roleType]);
@@ -444,12 +451,15 @@ function App() {
             const sellerCheckout = params.get('sellerCheckout');
             // A partner invitation: back to the join page after login.
             const partnerInvite = params.get('partnerInvite');
+            const agentInvite = params.get('agentInvite');
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
               : sellerCheckout && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(sellerCheckout)
                 ? `SellerCheckout-${sellerCheckout}`
                 : partnerInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(partnerInvite)
                   ? `PartnerInvite-${partnerInvite}`
+                  : agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)
+                    ? `SellerAgentInvite-${agentInvite}`
                   : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
                     ? 'Activity' : (intentDestination || 'Home'));
           } else {
@@ -745,6 +755,8 @@ function App() {
       return requireLogin(<SellerCheckout token={page.slice('SellerCheckout-'.length)} onNavigate={publicProps.onNavigate} />);
     if (page.startsWith('PartnerInvite-'))
       return <PartnerInvite token={page.slice('PartnerInvite-'.length)} isLoggedIn={isLoggedIn} onNavigate={publicProps.onNavigate} />;
+    if (page.startsWith('SellerAgentInvite-'))
+      return <SellerAgentInvite token={page.slice('SellerAgentInvite-'.length)} isLoggedIn={isLoggedIn} onNavigate={publicProps.onNavigate} />;
     if (page.startsWith('BuyerParcelAction-'))
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))

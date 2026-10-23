@@ -6,6 +6,7 @@ import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
 import api from '../../api/api';
 import SellerLipaNambaCard from '../components/SellerLipaNambaCard';
+import SellerPartnerAgentsCard from '../components/SellerPartnerAgentsCard';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 
@@ -478,6 +479,9 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               <MenuRow t={t} icon="🏪" label={t('seller_dashboard.store_settings')} onClick={() => onNavigate('StoreSettings')} last
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
             </div>
+
+            {/* Partner agents: the person who delivers for this seller (owner 2026-10-22). */}
+            <SellerPartnerAgentsCard />
 
             {/* Recent Orders */}
             <div style={{ backgroundColor: WH, borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16 }}>

@@ -194,7 +194,7 @@ jobs:
           npx jest --runInBand --json --outputFile=jest-logistics.json
           version.controller
           shipments/ transport/ super-agents/ super-agent-commission/
-          parcel-collections/ agents/ location-intelligence/
+          parcel-collections/ agents/ location-intelligence/ partner-invitations/
           database/migrations/
           > jest-logistics.log 2>&1 || true
       - name: Compare with the known-failure baseline

@@ -12,6 +12,7 @@ import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
 import { agentCodSplit, codCollectedOrderUpdate, settleManualAgentCod } from './agent-cod-settlement';
 import { insertSellerCodPickupTask } from '../shipments/pickup-tasks.service';
+import { offerTaskToSellerPartners } from '../partner-invitations/seller-agent-partner-gate';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
 import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from 'crypto';
@@ -524,6 +525,7 @@ export class SuperAgentsService {
   async setShippingRates(
     user: User,
     rates: {
+      id?: number;
       destinationCity: string;
       ratePerKg: number;
       minimumCharge: number;
@@ -541,14 +543,22 @@ export class SuperAgentsService {
       // Agents ship to real districts/wards, not only regional capitals, so
       // this only requires a non-empty destination now.
       if (!rate.destinationCity?.trim()) continue;
-      const existing = await this.rateRepo.findOne({
-        where: {
-          superAgent: { id: agent.id },
-          originCity: agent.city,
-          destinationCity: rate.destinationCity,
-        },
-      });
+      // A row sent with its id is that office row (e.g. an old free-text
+      // destination re-picked from the region list): it is updated in place,
+      // destination included, never duplicated. Another office's id is ignored.
+      const existing =
+        (rate.id != null
+          ? await this.rateRepo.findOne({ where: { id: rate.id, superAgent: { id: agent.id }, originCity: agent.city } })
+          : null) ??
+        (await this.rateRepo.findOne({
+          where: {
+            superAgent: { id: agent.id },
+            originCity: agent.city,
+            destinationCity: rate.destinationCity,
+          },
+        }));
       if (existing) {
+        existing.destinationCity = rate.destinationCity;
         existing.ratePerKg = rate.ratePerKg;
         existing.minimumCharge = rate.minimumCharge;
         existing.estimatedDays = rate.estimatedDays;
@@ -4733,15 +4743,17 @@ export class SuperAgentsService {
       // The boda job: a direct (no-hub) pickup at the seller's shop, offered to riders
       // in this city. The rider who accepts gets the buyer's text 2 sent (rider + code).
       if (codPickup) {
-        await this.dataSource.transaction(async (em) => {
+        const codTask = await this.dataSource.transaction(async (em) => {
           const [linked] = await em.query('SELECT "shipmentId" FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
           if (!linked?.shipmentId) throw new ConflictException('The shipment record for this parcel is missing');
-          await insertSellerCodPickupTask(em, {
+          return insertSellerCodPickupTask(em, {
             parcelId: parcel.id, sellerUserId: seller.id,
             contactName: senderDisplayName || seller.name || 'Muuzaji', contactPhone: codPickup!.phone,
             originSnapshot: codPickup!.snapshot,
           });
-        }).catch((e: any) => console.warn('COD boda pickup task not created:', e?.message));
+        }).catch((e: any) => { console.warn('COD boda pickup task not created:', e?.message); return null; });
+        // The seller's own partner agents hear about the job first (never throws).
+        if (codTask?.id) await offerTaskToSellerPartners(this.dataSource, this.smsService, codTask.id);
       }
       codText = codText1({
         goods: codRemainingBalance, partlyPaid: codUpfrontAmount > 0, bodaFee: codBodaFee,
