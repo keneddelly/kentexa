@@ -28,6 +28,13 @@ import { TransportRunService } from './transport-run.service';
 import { ParcelRunAssignmentService } from './parcel-run-assignment.service';
 import { ParcelJourneyService } from './parcel-journey.service';
 import { TransportController } from './transport.controller';
+// Office offers in the send form (2026-10-23): the office price authority is provided
+// here from its entities only -- SuperAgentsModule is not imported (no cycle).
+import { OfficePriceService } from '../super-agents/office-price.service';
+import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
+import { SuperAgentPriceRule } from '../super-agents/entities/super-agent-price-rule.entity';
+import { ShippingRate } from '../super-agents/entities/shipping-rate.entity';
+import { BodaRateCard } from '../boda-rates/boda-rate-card.entity';
 import { VanPilotController } from './van-pilot.controller';
 import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
@@ -94,10 +101,13 @@ import { PartnerInvitationsModule } from '../partner-invitations/partner-invitat
       ParcelCustodyEvent,
       SuperAgent,
       Shipment,
+      SuperAgentPriceRule,
+      ShippingRate,
+      BodaRateCard,
     ]),
   ],
   controllers: [TransportController, VanPilotController],
-  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService, LogisticsServiceOfferService],
+  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService, LogisticsServiceOfferService, OfficePriceService, OfficeBodaFeeService],
   // Exported now (unused by any other module yet) per Issue #61's own
   // design requirement: a future Super Agent counter or Intent caller
   // should be able to inject these same canonical authorities without a

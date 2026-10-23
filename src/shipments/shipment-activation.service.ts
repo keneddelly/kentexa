@@ -81,6 +81,12 @@ export class ShipmentActivationService {
           const started = await this.startSameCityPickup(userId, confirmed.shipment, first.id);
           if (started) return { ...confirmed, nextAction: started };
         }
+        // Office journey (send form v2): an agent picks the parcel up and brings it to
+        // the office the sender chose -- the same hub-routed pickup job as before.
+        if (!transportLeg && first.executionRequirements?.servicePath === 'office_routed') {
+          const started = await this.startPickup(userId, confirmed.shipment, first.id, 'hub_routed');
+          if (started) return { ...confirmed, nextAction: { ...started, officeId: confirmed.shipment['origin' + 'Hub' + 'Id'] ?? null } };
+        }
         // No pickup task is created on this path (KNOWN_FAULTS.md #5), so
         // nobody has been told. Give the sender someone real to call instead.
         return { ...confirmed, nextAction: {
@@ -141,6 +147,10 @@ export class ShipmentActivationService {
    * "nobody assigned yet" answer instead.
    */
   private async startSameCityPickup(userId: number, shipment: any, journeyLegId: number) {
+    return this.startPickup(userId, shipment, journeyLegId, 'direct_delivery');
+  }
+
+  private async startPickup(userId: number, shipment: any, journeyLegId: number, servicePath: 'direct_delivery' | 'hub_routed') {
     let contactName = String(shipment.senderName || '').trim();
     let contactPhone = String(shipment.senderPhone || '').trim();
     if (!contactName || !contactPhone) {
@@ -153,7 +163,7 @@ export class ShipmentActivationService {
     try {
       task = await this.pickupTasks.requestForShipment(userId, shipment.id, {
         requestKey: this.activationKey(userId, shipment.id),
-        servicePath: 'direct_delivery',
+        servicePath,
         pickupContactName: contactName,
         pickupContactPhone: contactPhone,
       });

@@ -5,6 +5,8 @@ import { LocationIntelligenceService } from '../location-intelligence/location-i
 import { findNearestOffice, NO_AGENT_NOW } from './nearest-office';
 import { TransportService } from './transport.service';
 import { JourneyComposerService } from './journey-composer.service';
+import { OfficePriceService } from '../super-agents/office-price.service';
+import { OfficeRateRow, officeChargeText, officeEtaLabel, pickOfficeRates } from './office-offers';
 
 export interface DiscoverServiceOffersDto {
   fromCity: string; toCity: string; weightKg: number;
@@ -12,11 +14,13 @@ export interface DiscoverServiceOffersDto {
   origin?: any; destination?: any;
   providerId?: number;
   discoveryOnly?: boolean;
+  /** Send form v2: the sender's declared value (TZS). Office offers need it (% of value). */
+  declaredValue?: number;
 }
-export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { serviceType: 'direct_delivery' | 'composed_intercity'; routeId?: number; runId?: number; paymentMethod?: 'cash' | 'prepaid'; cargoRequirements?: any; }
+export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { serviceType: 'direct_delivery' | 'composed_intercity' | 'office'; routeId?: number; runId?: number; officeId?: number; paymentMethod?: 'cash' | 'prepaid'; cargoRequirements?: any; }
 
 export interface LogisticsServiceOffer {
-  serviceType: 'direct_delivery' | 'composed_intercity';
+  serviceType: 'direct_delivery' | 'composed_intercity' | 'office';
   name: string; price: number | null; currency: 'TZS'; etaLabel: string;
   pricingMode?: 'instant' | 'quote_required';
   // For an intercity offer `price` is the transport fare only -- the same
@@ -25,7 +29,7 @@ export interface LogisticsServiceOffer {
   // 'pending' means no Agent covers it yet, 'included' means no door leg.
   fulfillmentStatus?: { pickup: 'included' | 'separate' | 'pending'; delivery: 'included' | 'separate' | 'pending' };
   firstAction: { type: 'offer_pickup_task' | 'customer_dropoff'; actorCapability: 'local_agent' | 'kentexa_point'; candidateAgentIds?: number[] };
-  fulfillment: { pickup: 'agent' | 'customer_dropoff'; linehaul: 'none' | 'transport_provider'; delivery: 'agent' | 'customer_collect'; transportOption?: any };
+  fulfillment: { pickup: 'agent' | 'customer_dropoff'; linehaul: 'none' | 'transport_provider' | 'office'; delivery: 'agent' | 'customer_collect'; transportOption?: any; officeOption?: any };
 }
 
 export interface DoorCheckDto { fromCity: string; weightKg: number; origin?: any; }
@@ -39,6 +43,7 @@ export class LogisticsServiceOfferService {
     // Optional only so hand-built test instances keep constructing.
     @Optional() private readonly db?: DataSource,
     @Optional() private readonly locations?: LocationIntelligenceService,
+    @Optional() private readonly officePrices?: OfficePriceService,
   ) {}
 
   /**
@@ -70,6 +75,7 @@ export class LogisticsServiceOfferService {
 
   async commit(userId: number, dto: CommitServiceOfferDto) {
     // Re-discover immediately: the client cannot commit a stale/fabricated service.
+    if (dto.serviceType === 'office') return this.commitOffice(userId, dto);
     const offers = await this.discover(dto);
     if (dto.serviceType === 'direct_delivery') {
       if (!offers.some(o => o.serviceType === 'direct_delivery')) {
@@ -248,11 +254,104 @@ export class LogisticsServiceOfferService {
     // remain visible instead of disappearing merely because pricing has not
     // been configured yet. Sort the whole list BEFORE keeping the top 8, so
     // the cheapest services are never dropped for older route ids.
-    return offers.sort((a, b) => {
+    const transportOffers = offers.sort((a, b) => {
       if (a.price == null && b.price == null) return a.name.localeCompare(b.name);
       if (a.price == null) return 1;
       if (b.price == null) return -1;
       return a.price - b.price;
     }).slice(0, 8);
+    // Offices compete too (owner 2026-10-23). Never fails the transporter answer.
+    const officeOffers = await this.officeOffers(dto).catch(() => [] as LogisticsServiceOffer[]);
+    return [...transportOffers, ...officeOffers];
+  }
+
+  /** A side's place names (region, district) for matching offices and their rates. */
+  private async placeNames(side: any, typed: string) {
+    const place = side?.place;
+    if (this.locations && typeof place?.providerKey === 'string' && typeof place?.providerPlaceId === 'string') {
+      const c: any = await this.locations.resolve({ providerKey: place.providerKey, providerPlaceId: place.providerPlaceId }).catch(() => null);
+      if (c) return { regionName: c.regionName ?? null, districtName: c.districtName ?? null, city: typed, label: c.displayLabel ?? typed };
+    }
+    return { regionName: null, districtName: null, city: typed, label: typed };
+  }
+
+  /**
+   * Every active, non-training office in the sender's city with an active rate to the
+   * destination, priced by its own rule for this parcel (value, kg). Intercity only.
+   */
+  async officeOffers(dto: DiscoverServiceOffersDto): Promise<LogisticsServiceOffer[]> {
+    const value = Number(dto?.declaredValue);
+    if (!this.db || !this.officePrices || !Number.isFinite(value) || value <= 0) return [];
+    const from = dto.fromCity.trim(); const to = dto.toCity.trim(); const weight = Number(dto.weightKg) || 0;
+    const [origin, destination] = await Promise.all([this.placeNames(dto.origin, from), this.placeNames(dto.destination, to)]);
+    const rows: OfficeRateRow[] = (await this.db.query(`
+      SELECT sa.id AS "officeId", sa."businessName", sa.city AS "officeCity", sa.address AS "officeAddress",
+             sa.rating, sa."totalRatings", sr."destinationCity", sr."ratePerKg", sr."minimumCharge", sr."estimatedDays"
+        FROM public.super_agent sa
+        JOIN public.shipping_rate sr ON sr."superAgentId" = sa.id AND sr."isActive" = true
+       WHERE sa.status = 'active' AND sa."isTrainingOffice" = false`)).map((r: any) => ({
+      ...r, officeId: Number(r.officeId), ratePerKg: Number(r.ratePerKg), minimumCharge: Number(r.minimumCharge),
+      estimatedDays: r.estimatedDays == null ? null : Number(r.estimatedDays),
+      rating: r.rating == null ? null : Number(r.rating), totalRatings: r.totalRatings == null ? null : Number(r.totalRatings),
+    }));
+    const chosen = pickOfficeRates(rows, origin, destination);
+    const out: LogisticsServiceOffer[] = [];
+    for (const rate of chosen) {
+      const office: any = { id: rate.officeId, city: rate.officeCity, address: rate.officeAddress };
+      // Dar es Salaam: an agent pickup to the office is the boda fee, inside the total.
+      const quote = await this.officePrices.quoteFor(office, {
+        destinationCity: rate.destinationCity, declaredValue: value, weightKg: weight, servicePath: 'intercity',
+        pickupAddress: dto.pickup === 'door' ? origin.label : null,
+      }).catch(() => null);
+      if (!quote) continue;
+      const pickupInTotal = dto.pickup === 'door' && quote.pickup.amount > 0;
+      out.push({
+        serviceType: 'office',
+        name: rate.businessName,
+        price: quote.noSuggestion ? null : quote.total,
+        pricingMode: quote.noSuggestion ? 'quote_required' : 'instant',
+        currency: 'TZS',
+        etaLabel: officeEtaLabel(rate.estimatedDays),
+        fulfillmentStatus: {
+          pickup: dto.pickup === 'door' ? (pickupInTotal ? 'included' : 'separate') : 'included',
+          delivery: dto.delivery === 'door' ? 'separate' : 'included',
+        },
+        firstAction: dto.pickup === 'door'
+          ? { type: 'offer_pickup_task', actorCapability: 'local_agent' }
+          : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
+        fulfillment: {
+          pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff',
+          linehaul: 'office',
+          delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect',
+          officeOption: {
+            officeId: rate.officeId, officeName: rate.businessName, officeCity: rate.officeCity,
+            officeAddress: rate.officeAddress, rating: rate.rating, totalRatings: rate.totalRatings,
+            destinationCity: rate.destinationCity, estimatedDays: rate.estimatedDays,
+            chargeText: officeChargeText(quote.transport),
+            quote: { pickup: quote.pickup.amount, transport: quote.transport.amount, total: quote.total, ruleSource: quote.ruleSource },
+          },
+        },
+      });
+    }
+    return out.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity)).slice(0, 10);
+  }
+
+  /** The sender chose an office: re-price it now (never the client's numbers) and compose the journey. */
+  private async commitOffice(userId: number, dto: CommitServiceOfferDto) {
+    const officeId = Number(dto.officeId);
+    if (!Number.isInteger(officeId) || officeId <= 0) throw new BadRequestException('Chagua ofisi');
+    const value = Number(dto.declaredValue ?? dto.cargoRequirements?.declaredValue);
+    const offers = await this.officeOffers({ ...dto, declaredValue: value });
+    const chosen = offers.find((o) => Number(o.fulfillment.officeOption?.officeId) === officeId);
+    if (!chosen) throw new BadRequestException('Ofisi hii haipatikani tena kwa safari hii. Chagua ofa nyingine.');
+    return this.journeys.selectOfficeService(userId, {
+      origin: dto.origin, destination: dto.destination,
+      originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
+      destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
+      cargoRequirements: { ...(dto.cargoRequirements ?? { weightKg: dto.weightKg }), declaredValue: value },
+      paymentMethod: dto.paymentMethod,
+      pickup: dto.pickup, delivery: dto.delivery,
+      officeId, officeName: chosen.name, office: chosen.fulfillment.officeOption,
+    } as any);
   }
 }

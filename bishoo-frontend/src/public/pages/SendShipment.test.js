@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import SendShipment, { completeOffers, journeySteps } from './SendShipment';
+import SendShipment, { completeOffers, journeySteps, allOffers } from './SendShipment';
 import api from '../../api/api';
 
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn(), patch: jest.fn() }));
@@ -166,4 +166,61 @@ test('the journey shows only the steps of this trip', () => {
   const far = journeySteps({ direct: false, pickupOption: 'station', deliveryOption: 'station', providerName: 'Ofisi B', destinationLabel: 'Mbeya', receiverName: 'Amina' });
   expect(far.steps).toHaveLength(4);
   expect(far.steps[2].text).toBe('Ofisi B anausafirisha kwenda Mbeya');
+});
+
+const officeOffer = (officeId, name, total, transport, pickup = 0) => ({
+  serviceType: 'office', name, price: total, etaLabel: 'Inafika baada ya siku 2',
+  fulfillmentStatus: { pickup: 'included', delivery: 'included' },
+  fulfillment: { linehaul: 'office', officeOption: { officeId, officeName: name, officeCity: 'Dar es Salaam', officeAddress: 'Kariakoo',
+    rating: 4.8, totalRatings: 120, chargeText: '10% ya thamani · chini kabisa TZS 5,000', quote: { pickup, transport, total } } },
+});
+
+test('offices compete with transporters, cheapest first, each once', () => {
+  const list = [
+    { serviceType: 'composed_intercity', price: 18000, fulfillmentStatus: { pickup: 'included', delivery: 'included' },
+      fulfillment: { transportOption: { providerId: 1, routeId: 1, runId: 1, providerName: 'Basi A' } } },
+    officeOffer(10, 'Ar SAMATTA', 15000, 15000),
+    officeOffer(11, 'MTANDAO', 20000, 20000),
+  ];
+  expect(allOffers(list, { pickupOption: 'station', deliveryOption: 'station' }).map((o) => o.providerName))
+    .toEqual(['Ar SAMATTA', 'Basi A', 'MTANDAO']);
+});
+
+test('other city: an office offer is booked through the office journey; the value goes to the server', async () => {
+  places({ Kariakoo: KARIAKOO, Mbeya: MBEYA });
+  const calls = [];
+  api.post.mockImplementation((url, body) => {
+    calls.push([url, body]);
+    if (url === '/transport/service-offers/discover') {
+      expect(body.declaredValue).toBe(150000);
+      return Promise.resolve({ data: [officeOffer(10, 'Ar SAMATTA', 15000, 15000)] });
+    }
+    if (url === '/transport/service-offers/commit') return Promise.resolve({ data: { id: 901 } });
+    if (url === '/shipments') return Promise.resolve({ data: { id: 57 } });
+    return Promise.reject(new Error(`unexpected ${url}`));
+  });
+  api.patch.mockResolvedValue({ data: { shipment: { trackingNumber: 'KTX-SHP-57' }, parcel: { waybillNumber: 'KTX7288804601' },
+    nextAction: { type: 'customer_dropoff', hubId: 10 } } });
+
+  render(<SendShipment isLoggedIn currentUser={user} onNavigate={jest.fn()} />);
+  await fillSteps1and2(MBEYA, MBEYA.displayLabel, 'Mbeya');
+  fireEvent.click(await screen.findByTestId('start-office'));
+  fireEvent.click(screen.getByTestId('next-3'));
+
+  const [card] = await screen.findAllByTestId('offer');
+  expect(within(card).getByText('Ar SAMATTA')).toBeTruthy();
+  expect(within(card).getByText(/10% ya thamani/)).toBeTruthy();
+  expect(screen.getByText(/Utapeleka mzigo:/)).toBeTruthy();
+  fireEvent.click(screen.getByTestId('next-4'));
+  expect((await screen.findByTestId('bill-total')).textContent).toBe('TZS 15,000');
+  fireEvent.click(screen.getByTestId('confirm'));
+
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/shipments/57/confirm-and-activate', {}));
+  const commit = calls.find(([u]) => u === '/transport/service-offers/commit')[1];
+  expect(commit).toMatchObject({ serviceType: 'office', officeId: 10, declaredValue: 150000 });
+  expect(commit.providerId).toBeUndefined();
+  const shipment = calls.find(([u]) => u === '/shipments')[1];
+  expect(shipment).toMatchObject({ journeySelectionId: 901 });
+  expect(calls.some(([u]) => u === '/transport/quotes')).toBe(false);
+  expect(await screen.findByText(/Peleka mzigo:/)).toBeTruthy();
 });

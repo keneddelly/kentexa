@@ -688,6 +688,9 @@ export class ShipmentsService {
       priceQuoted = Number(quote.totalAmount);
     } else if (effectiveRouteId) {
       priceQuoted = await this.estimateShipmentPrice(effectiveRouteId, weightKg);
+    } else if (directJourneyId != null) {
+      // An office journey carries the office's own quote, priced by the server.
+      priceQuoted = (await this.officeOfJourney(this.shipmentRepo.manager, directJourneyId))?.total ?? null;
     }
 
     // Capacity boundary: a reservation FOLLOWS availabilityId -- acquired
@@ -1304,9 +1307,14 @@ export class ShipmentsService {
     // actually stop. That is decided by the server from the committed
     // Journey, never by the request: a request naming a different hub for
     // such a side is refused, and one naming none gets the trip's hub.
-    const tripHubs = shipment.journeySelectionId != null
+    let tripHubs: { origin: number | null; destination: number | null } = shipment.journeySelectionId != null
       ? await this.transportService.journeyRunStopHubs(shipment.journeySelectionId, em)
       : { origin: null, destination: null };
+    // An office journey (send form v2): the origin hub IS the office the sender chose.
+    if (shipment.journeySelectionId != null && tripHubs.origin == null) {
+      const office = await this.officeOfJourney(em, shipment.journeySelectionId);
+      if (office) tripHubs = { ...tripHubs, origin: office.officeId };
+    }
     const decideSide = async (side: HubSide): Promise<HubDecision> => {
       const input = inputs[side];
       const tripHubId = tripHubs[side];
@@ -1510,6 +1518,19 @@ export class ShipmentsService {
       }
       return this.createParcelForConfirmedShipment(current, em.getRepository(Parcel));
     });
+  }
+
+  /** The office of an office journey (send form v2) and its quoted total, or null for any other journey. */
+  private async officeOfJourney(em: { query: (sql: string, p?: any[]) => Promise<any> }, journeySelectionId: number): Promise<{ officeId: number; total: number | null } | null> {
+    if (typeof em?.query !== 'function') return null;
+    const rows: any[] = await em.query(
+      `SELECT "superAgentId", "executionRequirements"->'officeQuote'->>'total' AS total FROM public.journey_leg
+        WHERE "journeySelectionId" = $1 AND type = 'hub_intake' AND "executionRequirements"->>'servicePath' = 'office_routed'
+        ORDER BY sequence ASC LIMIT 1`, [journeySelectionId]);
+    const row = rows?.[0];
+    if (!row?.superAgentId) return null;
+    const total = row.total == null ? null : Number(row.total);
+    return { officeId: Number(row.superAgentId), total: Number.isFinite(total as number) ? (total as number) : null };
   }
 
   /** The sender's declared value (TZS) from the shipment's journey cargo, or null. */
