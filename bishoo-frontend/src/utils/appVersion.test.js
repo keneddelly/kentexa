@@ -53,3 +53,49 @@ describe('safe to reload = nothing would be lost', () => {
     expect(isSafeToReload(document)).toBe(true);
   });
 });
+
+describe('reopening the same screen after an automatic update', () => {
+  const {
+    rememberPageForUpdate, takeResumePage, RESUME_MAX_AGE_MS, alreadyTriedUpdate, markUpdateTried,
+  } = require('./appVersion');
+  const store = () => {
+    const m = new Map();
+    return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
+  };
+
+  test('the open page, its details and role come back once', () => {
+    const s = store();
+    expect(rememberPageForUpdate({ page: 'SendShipment', navParams: { from: 'x' }, roleType: 'super_agent' }, s, 1000)).toBe(true);
+    expect(takeResumePage(s, 2000)).toEqual({ page: 'SendShipment', navParams: { from: 'x' }, roleType: 'super_agent' });
+    expect(takeResumePage(s, 2000)).toBeNull();
+  });
+
+  test('too old: not reopened', () => {
+    const s = store();
+    rememberPageForUpdate({ page: 'SellerOrders' }, s, 0);
+    expect(takeResumePage(s, RESUME_MAX_AGE_MS + 1)).toBeNull();
+  });
+
+  test('details that cannot be kept: the page is not kept either', () => {
+    const s = store();
+    const loop = {}; loop.self = loop;
+    expect(rememberPageForUpdate({ page: 'X', navParams: loop }, s, 0)).toBe(false);
+    expect(takeResumePage(s, 0)).toBeNull();
+  });
+
+  test('no storage (private mode): nothing breaks', () => {
+    const broken = { getItem: () => { throw new Error('no'); }, setItem: () => { throw new Error('no'); }, removeItem: () => {} };
+    expect(rememberPageForUpdate({ page: 'Home' }, broken)).toBe(false);
+    expect(takeResumePage(broken)).toBeNull();
+    expect(() => markUpdateTried('/static/js/main.1.js', broken)).not.toThrow();
+    expect(alreadyTriedUpdate('/static/js/main.1.js', broken)).toBe(false);
+  });
+
+  test('a tried version is remembered', () => {
+    const s = store();
+    expect(alreadyTriedUpdate('/static/js/main.1.js', s)).toBe(false);
+    markUpdateTried('/static/js/main.1.js', s);
+    expect(alreadyTriedUpdate('/static/js/main.1.js', s)).toBe(true);
+    expect(alreadyTriedUpdate('/static/js/main.2.js', s)).toBe(false);
+  });
+});

@@ -5737,7 +5737,9 @@
   "app_update": {
     "available": "Une nouvelle version de KenteXa est prête — touchez pour mettre à jour",
     "finish_first": "Terminez d'abord ce que vous faites (un formulaire contient du texte).",
-    "update_anyway": "Mettre à jour quand même"
+    "update_anyway": "Mettre à jour quand même",
+    "after_form": "Une nouvelle version de KenteXa s’installera d’elle-même quand vous aurez fini ce formulaire.",
+    "update_now": "Mettre à jour"
   },
   "pickup_pin": {
     "title": "Lieu de ramassage du colis",
