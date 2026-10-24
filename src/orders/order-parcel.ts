@@ -24,7 +24,8 @@ import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
  *     own delivery (nothing for the network to carry).
  */
 
-export const NETWORK_SHIPPING_METHODS = ['agent'] as const;
+/** Delivered through the network: an office ('agent') or the Dar van runs ('kentexa_delivery'). */
+export const NETWORK_SHIPPING_METHODS = ['agent', 'kentexa_delivery'] as const;
 
 const CONFIRMED_STATUSES = ['paid', 'preparing'];
 

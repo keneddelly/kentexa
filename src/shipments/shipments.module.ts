@@ -24,6 +24,9 @@ import { PickupOfferSmsService } from './pickup-offer-sms.service';
 import { PickupReleaseService } from './pickup-release.service';
 import { CommunicationModule } from '../communication/communication.module';
 import { InvoicesModule } from '../invoices/invoices.module';
+import { ActivityModule } from '../activity/activity.module';
+import { OfficeShipmentPaymentService } from './office-shipment-payment.service';
+import { OfficeShipmentPaymentController } from './office-shipment-payment.controller';
 
 @Module({
   imports: [
@@ -41,9 +44,11 @@ import { InvoicesModule } from '../invoices/invoices.module';
     CommunicationModule,
     // COD seller shipments on the boda path: the collected balance is receipted.
     InvoicesModule,
+    // Office payments for send-form shipments: an activity event per payment.
+    ActivityModule,
   ],
-  controllers: [ShipmentsController, PickupTasksController],
-  providers: [ShipmentsService, PickupTasksService, ShipmentActivationService, LogisticsDispatchService, PickupOfferSmsService, PickupReleaseService],
+  controllers: [ShipmentsController, PickupTasksController, OfficeShipmentPaymentController],
+  providers: [ShipmentsService, PickupTasksService, ShipmentActivationService, LogisticsDispatchService, PickupOfferSmsService, PickupReleaseService, OfficeShipmentPaymentService],
   exports: [ShipmentsService],
 })
 export class ShipmentsModule {}

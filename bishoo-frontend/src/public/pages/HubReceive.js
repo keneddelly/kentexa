@@ -53,6 +53,8 @@ const HubReceive = ({ onNavigate }) => {
       const allParcels  = (manifestRes.data?.zones || []).flatMap(z => z.parcels);
       const found       = allParcels.find(p =>
         p.trackingNumber?.toUpperCase() === val ||
+        // The one KenteXa waybill, typed with or without spaces.
+        (p.waybill && p.waybill.replace(/\s/g, '') === val.replace(/[\s-]/g, '')) ||
         String(p.orderId) === val
       );
 
@@ -182,7 +184,7 @@ const HubReceive = ({ onNavigate }) => {
             </div>
 
             {[
-              { label: t('hub_receive.label_tracking_number'), value: parcel.trackingNumber, mono: true },
+              { label: t('hub_receive.label_tracking_number'), value: parcel.waybill || parcel.trackingNumber, mono: true },
               { label: t('hub_receive.label_recipient'), value: parcel.recipientName },
               { label: t('hub_receive.label_phone'), value: parcel.recipientPhone || '—' },
               { label: t('hub_receive.label_product'), value: parcel.productName },
@@ -235,7 +237,7 @@ const HubReceive = ({ onNavigate }) => {
                 onClick={() => { setTrackingInput(p.trackingNumber); setParcel(p); }}
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#fef9c3', borderRadius: 10, marginBottom: 8, cursor: 'pointer', border: '1px solid #fde68a' }}>
                 <div>
-                  <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#92400e' }}>{p.trackingNumber}</div>
+                  <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#92400e' }}>{p.waybill || p.trackingNumber}</div>
                   <div style={{ fontSize: 12, color: '#78350f', marginTop: 2 }}>{p.recipientName} · {p.zoneName}</div>
                 </div>
                 <button onClick={e => { e.stopPropagation(); setTrackingInput(p.trackingNumber); setParcel(p); }}
@@ -256,7 +258,7 @@ const HubReceive = ({ onNavigate }) => {
             {recentlyReceived.map((p, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
                 <div>
-                  <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8' }}>{p.trackingNumber}</div>
+                  <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8' }}>{p.waybill || p.trackingNumber}</div>
                   <div style={{ fontSize: 11, color: '#64748b' }}>{p.recipientName} · {p.zone}</div>
                 </div>
                 <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.time}</div>
