@@ -440,7 +440,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const next = (to) => { setError(''); setStep(to); if (to === 4) findOffers(); window.scrollTo?.(0, 0); };
 
   const footer = (text, onClick, enabled, testId) => (
-    <div style={{ position: 'sticky', bottom: 0, padding: '12px 16px 20px', background: WHITE, borderTop: `1px solid ${LINE}` }}>
+    <div data-testid="form-footer" style={{ position: 'sticky', bottom: 0, zIndex: 40, padding: '12px 16px calc(20px + env(safe-area-inset-bottom, 0px))', background: WHITE, borderTop: `1px solid ${LINE}` }}>
       <div style={{ maxWidth: 520, margin: '0 auto' }}>
         <button type="button" onClick={onClick} disabled={!enabled} data-testid={testId}
           style={{ width: '100%', height: 54, border: 0, borderRadius: 14, background: BLUE, color: WHITE, fontFamily: 'inherit',
