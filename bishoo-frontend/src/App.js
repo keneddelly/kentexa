@@ -973,7 +973,10 @@ function App() {
           it, covering the send button (and on the conversation list, the
           bottom rows) since nothing in SellerInbox reserved space for it. */}
       {isLoggedIn && !needsProfilePhoto && !needsOnboarding && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
-        && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational'))) && (
+        && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational')))
+        // Tuma mzigo (send form v2) is a focused 5-step form with its own back button and an
+        // "Endelea" bar pinned to the bottom: the menu bar would cover it on a phone.
+        && !(typeof page === 'string' && page.startsWith('SendShipment')) && (
         <BottomNav
           // Remount protection (profile-switch architecture spec): a stable
           // profile-context key forces React to tear down and rebuild this
