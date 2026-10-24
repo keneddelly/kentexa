@@ -21,6 +21,8 @@ import { CommunicationEngineService } from '../communication/communication-engin
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 import { OrderReleaseService } from '../money-routing/order-release.service';
 import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
+import { ensureBatchOrderParcel, mirrorBatchStep } from './batch-waybill';
+import { formatWaybill } from '../shipments/waybill';
 
 @Injectable()
 export class DailyBatchesService {
@@ -246,7 +248,8 @@ export class DailyBatchesService {
     )) as unknown as Order;
 
     const batch = await this.getOrCreateOpenBatch();
-    const trackingNumber = `KTX-OFFLINE-${batch.id}-${order.id}`;
+    // One number for the order, its van parcel and its network Parcel (2026-10-24).
+    const trackingNumber = `KTX-ORD-${order.id}`;
 
     const parcel = await this.parcelRepo.save(
       this.parcelRepo.create({
@@ -262,10 +265,14 @@ export class DailyBatchesService {
     await this.orderRepo.update(order.id, {
       trackingNumber,
     });
+    // Its network Parcel and one KenteXa waybill (2026-10-24).
+    const network = await ensureBatchOrderParcel(this.orderRepo.manager, order.id);
+    const waybill = network?.waybillNumber ? formatWaybill(network.waybillNumber) : null;
 
     return {
       success: true,
       orderId: order.id,
+      waybill,
       batchId: batch.id,
       runDate: batch.runDate,
       cutoffTime: batch.cutoffTime,
@@ -279,7 +286,7 @@ export class DailyBatchesService {
       ),
       trackingNumber,
       parcelId: parcel.id,
-      message: `Offline order created and assigned to ${zone.name} batch. Hand off at Kariakoo hub before ${new Date(batch.cutoffTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.`,
+      message: `Offline order created and assigned to ${zone.name} batch${waybill ? ` (waybill ${waybill})` : ''}. Hand off at Kariakoo hub before ${new Date(batch.cutoffTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.`,
     };
   }
 
@@ -337,8 +344,8 @@ export class DailyBatchesService {
 
     const batch = await this.getOrCreateOpenBatch();
 
-    // Generate a simple tracking reference for this batch parcel
-    const trackingNumber = `KTX-BATCH-${batch.id}-${order.id}`;
+    // The order keeps its one number (KTX-ORD-…, and its waybill); the van parcel uses it too.
+    const trackingNumber = order.trackingNumber || `KTX-ORD-${order.id}`;
 
     const parcel = await this.parcelRepo.save(
       this.parcelRepo.create({
@@ -356,9 +363,13 @@ export class DailyBatchesService {
       status: 'preparing' as any,
       shippingMethod: 'kentexa_delivery',
     });
+    // Its network Parcel and one KenteXa waybill (2026-10-24).
+    const network = await ensureBatchOrderParcel(this.orderRepo.manager, order.id);
+    const waybill = network?.waybillNumber ? formatWaybill(network.waybillNumber) : null;
 
     return {
       success: true,
+      waybill,
       batchId: batch.id,
       runDate: batch.runDate,
       cutoffTime: batch.cutoffTime,
@@ -372,7 +383,7 @@ export class DailyBatchesService {
       ),
       trackingNumber,
       parcelId: parcel.id,
-      message: `Parcel assigned to ${this.dateOnly(batch.runDate) === this.dateOnly(new Date()) ? "today's" : "tomorrow's"} van run to ${zone.name}. Hand off at Kariakoo hub before ${new Date(batch.cutoffTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.`,
+      message: `Parcel assigned to ${this.dateOnly(batch.runDate) === this.dateOnly(new Date()) ? "today's" : "tomorrow's"} van run to ${zone.name}${waybill ? ` (waybill ${waybill})` : ''}. Hand off at Kariakoo hub before ${new Date(batch.cutoffTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}.`,
     };
   }
 
@@ -388,6 +399,8 @@ export class DailyBatchesService {
       status: BatchParcelStatus.AT_HUB,
       handedOverAt: new Date(),
     });
+    await ensureBatchOrderParcel(this.orderRepo.manager, parcel.order.id);
+    await mirrorBatchStep(this.orderRepo.manager, { batchParcelId: parcelId }, BatchParcelStatus.AT_HUB);
 
     return { success: true, message: 'Parcel marked as received at hub.' };
   }
@@ -427,7 +440,16 @@ export class DailyBatchesService {
     return this.buildManifestResponse(batch);
   }
 
-  private buildManifestResponse(batch: DailyBatch) {
+  private async buildManifestResponse(batch: DailyBatch) {
+    // Each order's one KenteXa waybill, for the dispatcher's list.
+    const orderIds = batch.parcels.map((p) => Number(p.order?.id)).filter((id) => Number.isInteger(id));
+    const waybills = new Map<number, string>();
+    if (orderIds.length) {
+      const rows: any[] = await this.orderRepo.manager.query(
+        `SELECT "orderId", "waybillNumber" FROM public.parcel WHERE "orderId" = ANY($1::int[]) AND "waybillNumber" IS NOT NULL`,
+        [orderIds]).catch(() => []);
+      for (const r of rows) waybills.set(Number(r.orderId), formatWaybill(r.waybillNumber));
+    }
     const zoneMap = new Map<number, any>();
     for (const p of batch.parcels) {
       if (!p.zone) continue;
@@ -449,6 +471,7 @@ export class DailyBatchesService {
         parcelId: p.id,
         orderId: p.order?.id,
         trackingNumber: p.trackingNumber,
+        waybill: waybills.get(Number(p.order?.id)) ?? null,
         status: p.status,
         productName:
           p.order?.product?.name || p.order?.manualProductName || '—',
@@ -520,6 +543,7 @@ export class DailyBatchesService {
       .set({ status: BatchParcelStatus.ON_VAN })
       .where('batchId = :batchId', { batchId })
       .execute();
+    await mirrorBatchStep(this.orderRepo.manager, { batchId }, BatchParcelStatus.ON_VAN);
 
     // Notify buyers — email only, this is a status update not a critical event
     for (const parcel of batch.parcels) {
@@ -586,6 +610,7 @@ export class DailyBatchesService {
       })
       .where('batchId = :batchId AND zoneId = :zoneId', { batchId, zoneId })
       .execute();
+    await mirrorBatchStep(this.orderRepo.manager, { batchId, zoneId }, BatchParcelStatus.AT_ZONE);
 
     return {
       success: true,
@@ -606,6 +631,7 @@ export class DailyBatchesService {
       status: BatchParcelStatus.DELIVERED,
       deliveredAt: new Date(),
     });
+    await mirrorBatchStep(this.orderRepo.manager, { batchParcelId: parcelId }, BatchParcelStatus.DELIVERED);
 
     // SMS — mandatory delivered/ready event
     await this.notificationsService.delivered(

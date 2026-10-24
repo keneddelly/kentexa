@@ -32,6 +32,7 @@ import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
+import OfficeShipmentPayments from '../components/OfficeShipmentPayments';
 import StaleParcelsNotice from '../components/StaleParcelsNotice';
 import { buildReceiptHtml, formatClaimSecret } from '../../utils/receiptPrint';
 import { displayParcelNumber, otherParcelNumbers } from '../../utils/counterReceipt';
@@ -204,6 +205,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [refLinkCopied, setRefLinkCopied] = useState(false);
   const [success, setSuccess]           = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [receivedCount, setReceivedCount] = useState(0); // refreshes the payments list after a receipt
   const [handoverRequests, setHandoverRequests] = useState([]);
   const [vanIncoming, setVanIncoming] = useState([]);
   const [vanReady, setVanReady] = useState([]);
@@ -1147,7 +1149,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 )}
 
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
-                <HubExpectedShipments onReceived={fetchAll} />
+                <HubExpectedShipments onReceived={() => { fetchAll(); setReceivedCount((n) => n + 1); }} />
+                {/* Send-form parcels received here: record what the sender paid (2026-10-24). */}
+                <OfficeShipmentPayments refreshKey={receivedCount} />
 
                 {/* Four action buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 20 }}>
