@@ -12,6 +12,7 @@ import { ProviderVerification } from './providers/payment-provider.interface';
 import { parseAmountToMinor, minorEquals, isSupportedCurrency } from './payment-money';
 import { computeEvidenceSeal } from './payment-evidence';
 import { deriveOrderPaymentObligation } from './order-payment-obligation';
+import { ensureOrderParcelWithin } from '../orders/order-parcel';
 
 /** TypeORM's SELECT ... FOR UPDATE cannot be combined with a LEFT JOIN to a nullable relation
  * (Postgres itself rejects it: "FOR UPDATE cannot be applied to the nullable side of an outer
@@ -352,6 +353,9 @@ export class PaymentConfirmationService {
         isCod ? OrderPaymentStatus.UPFRONT_PAID : OrderPaymentStatus.PAID,
         isCod ? OrderStatus.PREPARING : OrderStatus.PAID,
       ]);
+      // The order's one KenteXa waybill once it is paid (network deliveries only).
+      // Inside a savepoint: a problem there never holds up the payment.
+      await ensureOrderParcelWithin(manager, order.id);
     }
 
     const invoiceRows = await manager.query(`SELECT id, status FROM invoice WHERE "orderId" = $1`, [order.id]);

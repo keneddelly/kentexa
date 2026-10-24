@@ -261,6 +261,8 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
         try {
           await api.patch(`/orders/${selectedOrder.id}/hand-to-agent`, {
             superAgentCity: selectedHub.city || selectedHub.region || 'Tanzania',
+            // The office itself, so it sees this order coming with its waybill.
+            superAgentId: selectedHub.id || undefined,
             notes: `Handing to ${selectedHub.businessName || selectedHub.user?.name || 'Super Agent'}`,
           });
         } catch {}

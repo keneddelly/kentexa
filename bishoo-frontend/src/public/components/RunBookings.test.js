@@ -50,45 +50,67 @@ describe('RunBookings — the transporter sees what was booked on their trip', (
   });
 });
 
-describe('HubExpectedShipments — the desk receives by the customer\'s Shipment number', () => {
+describe('HubExpectedShipments — the office receives every parcel by its one waybill', () => {
   const expected = [
-    { parcelId: 11, trackingNumber: 'KTX-SHP-1', itemDescription: 'Nguo', weightKg: 2, destinationCity: 'Mwanza', sender: { name: 'Baraka', phone: '0713' },
+    { parcelId: 11, trackingNumber: 'KTX-SHP-1', waybill: 'KTX 4829 1037 52', itemDescription: 'Nguo', weightKg: 2, destinationCity: 'Mwanza', sender: { name: 'Baraka', phone: '0713' },
       bookedTrip: { departureAt: '2026-10-08T03:00:00.000Z', providerName: 'Kentexa Van' }, pickupTask: null, nextAction: 'receive_from_sender' },
     { parcelId: 12, trackingNumber: 'KTX-SHP-2', itemDescription: 'Viatu', weightKg: 1, destinationCity: 'Mwanza', sender: { name: 'Asha', phone: null },
       bookedTrip: null, pickupTask: { id: 40, status: 'awaiting_hub', agentName: 'Agent Nine' }, nextAction: 'confirm_agent_handover' },
     { parcelId: 13, trackingNumber: 'KTX-SHP-3', itemDescription: 'Vitabu', weightKg: 0, destinationCity: 'Arusha', sender: { name: 'Neema', phone: null },
       bookedTrip: null, pickupTask: { id: 41, status: 'claimed', agentName: 'Agent Ten' }, nextAction: 'agent_on_the_way' },
+    { parcelId: 14, trackingNumber: 'KTX-ORD-77', waybill: 'KTX 9815 9515 21', orderId: 77, itemDescription: 'Saa ya ukutani', weightKg: 0, destinationCity: 'Mbeya',
+      sender: { name: 'BIS', phone: null }, bookedTrip: null, pickupTask: null, nextAction: 'receive_order' },
   ];
 
-  test('a typed customer number is received through the parcel status door', async () => {
+  test('a typed number is received through the parcel status door', async () => {
     api.get.mockResolvedValue({ data: [] });
     api.patch.mockResolvedValue({ data: {} });
     const onReceived = jest.fn();
     render(<HubExpectedShipments onReceived={onReceived} />);
-    fireEvent.change(await screen.findByLabelText('Shipment number'), { target: { value: ' ktx-shp-42 ' } });
-    fireEvent.click(screen.getByText('Receive'));
+    fireEvent.change(await screen.findByLabelText('Namba ya mzigo'), { target: { value: ' ktx-shp-42 ' } });
+    fireEvent.click(screen.getByText('Pokea'));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/super-agents/parcels/KTX-SHP-42/status', { status: 'received_at_hub' }));
     await waitFor(() => expect(onReceived).toHaveBeenCalled());
   });
 
-  test('each expected parcel offers exactly the action the server allows', async () => {
+  test('each expected parcel shows its waybill and offers exactly the action the server allows', async () => {
     api.get.mockResolvedValue({ data: expected });
     api.post.mockResolvedValue({ data: {} });
     render(<HubExpectedShipments />);
-    expect(await screen.findByText('Sender is here — receive parcel')).toBeInTheDocument();
-    expect(screen.getByText(/Booked on Kentexa Van/)).toBeInTheDocument();
-    expect(screen.getByText('Agent Ten is bringing this parcel.')).toBeInTheDocument();
+    expect(await screen.findByText('Mtumaji yuko hapa — pokea mzigo')).toBeInTheDocument();
+    expect(screen.getByText('KTX 4829 1037 52')).toBeInTheDocument();
+    expect(screen.getByText(/Imewekwa kwenye Kentexa Van/)).toBeInTheDocument();
+    expect(screen.getByText('Agent Ten analeta mzigo huu.')).toBeInTheDocument();
     // A parcel an Agent is carrying has no "receive" button of its own.
-    expect(screen.getAllByText('Sender is here — receive parcel')).toHaveLength(1);
-    fireEvent.click(screen.getByText('Confirm receipt from Agent Nine'));
+    expect(screen.getAllByText('Mtumaji yuko hapa — pokea mzigo')).toHaveLength(1);
+    fireEvent.click(screen.getByText('Thibitisha umepokea kutoka kwa Agent Nine'));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/pickup-tasks/40/hub-receive'));
+  });
+
+  test('a marketplace order the seller brings is received with its order step', async () => {
+    api.get.mockResolvedValue({ data: expected });
+    api.patch.mockResolvedValue({ data: {} });
+    render(<HubExpectedShipments />);
+    expect(await screen.findByText('KTX 9815 9515 21')).toBeInTheDocument();
+    expect(screen.getByText('Oda #77')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Muuzaji yuko hapa — pokea oda'));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/orders/77/super-agent-receive', {}));
+  });
+
+  test('typing an order\'s waybill uses the order step too', async () => {
+    api.get.mockResolvedValue({ data: expected });
+    api.patch.mockResolvedValue({ data: {} });
+    render(<HubExpectedShipments />);
+    fireEvent.change(await screen.findByLabelText('Namba ya mzigo'), { target: { value: 'ktx9815951521' } });
+    fireEvent.click(screen.getByText('Pokea'));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/orders/77/super-agent-receive', {}));
   });
 
   test('a refusal is shown as the server worded it', async () => {
     api.get.mockResolvedValue({ data: [expected[0]] });
     api.patch.mockRejectedValue({ response: { data: { message: 'Parcel has an open Agent pickup' } } });
     render(<HubExpectedShipments />);
-    fireEvent.click(await screen.findByText('Sender is here — receive parcel'));
+    fireEvent.click(await screen.findByText('Mtumaji yuko hapa — pokea mzigo'));
     expect(await screen.findByRole('alert')).toHaveTextContent('open Agent pickup');
   });
 });

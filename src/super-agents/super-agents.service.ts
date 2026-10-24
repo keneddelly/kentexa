@@ -3930,6 +3930,11 @@ export class SuperAgentsService {
       ) {
         throw new ForbiddenException('A verified origin hub must receive this parcel.');
       }
+      // A marketplace order has its own receive step (fees, order status): the
+      // office list sends it there, and a typed number is refused here.
+      if ((parcel.order as any)?.source === 'online') {
+        throw new BadRequestException('Hii ni oda ya mtandaoni. Ipokee kwa kitufe "Pokea oda" kwenye Mizigo inayokuja.');
+      }
       const note = dto.note || this.statusLabel(dto.status, dto.city);
       await this.dataSource.transaction(async (manager) => {
         const current = await manager.getRepository(Parcel).findOne({
