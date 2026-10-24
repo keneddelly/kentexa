@@ -22,3 +22,10 @@ test('personal Classified destination is registered as an authenticated account 
   expect(destinationForPage('MyClassifieds')).toMatchObject({ kind: 'account' });
   expect(destinationForPage('CreateClassified')).toMatchObject({ kind: 'account' });
 });
+test('an admin can open every page in the admin menu (Businesses went back to the Dashboard, 2026-10-24)', () => {
+  const { evaluateDestination } = require('./navigationPolicy');
+  ADMIN_NAVIGATION.forEach((entry) => {
+    expect(evaluateDestination({ page: entry.destination, isAuthenticated: true, roleType: 'admin' }))
+      .toMatchObject({ allowed: true, page: entry.destination });
+  });
+});
