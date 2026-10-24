@@ -12,7 +12,7 @@ import {
   ChargeMode, DEFAULT_COUNTRY, DEFAULT_CURRENCY, OfficePriceQuote, OfficePriceRuleInput,
   defaultRule, isDarEsSalaam, quoteOfficePrice,
 } from './office-price';
-import { OFFICE_PICKUP_MESSAGES, officePickupTableReady, readOfficePickupInput } from '../transport/office-offers';
+import { OFFICE_PICKUP_MESSAGES, officePickupTableReady, officeSameCityColumnReady, readOfficePickupInput } from '../transport/office-offers';
 
 export const OFFICE_PRICE_MESSAGES = {
   activeOfficeOnly: 'Ofisi hai (Super Agent) pekee inaweza kuweka au kuona bei.',
@@ -130,11 +130,14 @@ export class OfficePriceService {
   async getMyPickup(user: User, roleContext: RoleContext | undefined) {
     const office = await this.activeOffice(user, roleContext);
     if (!(await officePickupTableReady(this.rules.manager, true))) throw new ServiceUnavailableException(OFFICE_PICKUP_MESSAGES.notReady);
+    const sameCityOn = await officeSameCityColumnReady(this.rules.manager, true);
     const rows: any[] = await this.rules.manager.query(
-      `SELECT mode, fee, "maxKm" FROM public.office_pickup_offer WHERE "superAgentId" = $1`, [office.id]);
+      `SELECT mode, fee, "maxKm"${sameCityOn ? ', "sameCityDelivery"' : ''} FROM public.office_pickup_offer WHERE "superAgentId" = $1`, [office.id]);
     const r = rows[0];
     return {
       mode: r?.mode ?? 'none', fee: r?.fee == null ? null : Number(r.fee), maxKm: r?.maxKm == null ? null : Number(r.maxKm),
+      // Delivers inside its own city too (null = setting not switched on yet on the server).
+      sameCityDelivery: sameCityOn ? r?.sameCityDelivery === true : null,
       // A distance limit needs the office's own point on the map.
       officePointSet: office.latitude != null && office.longitude != null,
     };
@@ -152,6 +155,11 @@ export class OfficePriceService {
       ON CONFLICT ("superAgentId") DO UPDATE SET mode = EXCLUDED.mode, fee = EXCLUDED.fee, "maxKm" = EXCLUDED."maxKm",
         "updatedByUserId" = EXCLUDED."updatedByUserId", "updatedAt" = now()`,
     [office.id, offer.mode, offer.fee, offer.maxKm, user.id]);
+    // Same-city delivery: changed only when sent, and only once the column exists.
+    if (typeof dto?.sameCityDelivery === 'boolean' && await officeSameCityColumnReady(this.rules.manager, true)) {
+      await this.rules.manager.query(`UPDATE public.office_pickup_offer SET "sameCityDelivery" = $2, "updatedAt" = now()
+        WHERE "superAgentId" = $1`, [office.id, dto.sameCityDelivery]);
+    }
     return this.getMyPickup(user, roleContext);
   }
 

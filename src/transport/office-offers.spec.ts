@@ -129,3 +129,64 @@ describe('LogisticsServiceOfferService.officeOffers: an office that collects', (
     expect((officePrices.quoteFor.mock.calls[0] as any[])[1].pickupAddress).toBeNull();
   });
 });
+
+describe('same-city trips: no office unless it chose same-city delivery (owner 2026-10-24)', () => {
+  const { isSameCityTrip, setOfficeSameCityReadyForTests } = require('./office-offers');
+  afterEach(() => setOfficeSameCityReadyForTests(false));
+
+  const KARIAKOO = { regionName: 'Dar es Salaam', districtName: 'Ilala', displayLabel: 'Kariakoo, Ilala, Dar es Salaam' };
+  const MBEZI = { regionName: 'Dar es Salaam', districtName: 'Ubungo', displayLabel: 'Mbezi, Ubungo, Dar es Salaam' };
+  const make = (sameCityIds: number[]) => {
+    const db: any = { query: jest.fn(async (sql: string) => (sql.includes('"sameCityDelivery" = true')
+      ? sameCityIds.map((id) => ({ superAgentId: id }))
+      : [row(1, 'Dar es Salaam', 'Dar es Salaam'), row(2, 'Dar es Salaam', 'Ubungo')])) };
+    const locations: any = { resolve: jest.fn(async (p: any) => (p.providerPlaceId === 'ward:6' ? KARIAKOO : MBEZI)) };
+    const total = (n: number) => ({ pickup: { amount: 0 }, transport: { amount: n, mode: 'value', percent: 10, minimum: 5000 },
+      delivery: { amount: 0 }, total: n, currency: 'TZS', ruleSource: 'office', noSuggestion: false });
+    const officePrices: any = { quoteFor: jest.fn(async (office: any) => total(office.id === 1 ? 7000 : 6000)) };
+    return { svc: new LogisticsServiceOfferService({} as any, {} as any, {} as any, db, locations, officePrices), db };
+  };
+  const kariakooToMbezi: any = {
+    fromCity: 'Dar es Salaam', toCity: 'Dar es Salaam', weightKg: 2, pickup: 'point', delivery: 'collect', declaredValue: 50000,
+    origin: { place: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' } },
+    destination: { place: { providerKey: 'tz_seed', providerPlaceId: 'ward:9' } },
+  };
+
+  it('knows a same-city trip, however the city is written', () => {
+    expect(isSameCityTrip('Dar es Salaam', 'Dar es Salaam')).toBe(true);
+    expect(isSameCityTrip('Dar', 'dar es salaam')).toBe(true);
+    expect(isSameCityTrip('Kariakoo', 'Mbezi', { regionName: 'Dar es Salaam' }, { regionName: 'Dar es Salaam' })).toBe(true);
+    expect(isSameCityTrip('Dar es Salaam', 'Mbeya')).toBe(false);
+  });
+
+  it('Kariakoo -> Mbezi: no office when none chose same-city delivery', async () => {
+    setOfficeSameCityReadyForTests(true);
+    const { svc } = make([]);
+    expect(await svc.officeOffers(kariakooToMbezi)).toEqual([]);
+  });
+
+  it('Kariakoo -> Mbezi: only the office that chose same-city delivery competes', async () => {
+    setOfficeSameCityReadyForTests(true);
+    const { svc } = make([2]);
+    const offers = await svc.officeOffers(kariakooToMbezi);
+    expect(offers.map((o: any) => o.fulfillment.officeOption.officeId)).toEqual([2]);
+  });
+
+  it('before the setting exists on the server: no office on same-city trips, and no query for it', async () => {
+    const { svc, db } = make([1, 2]);
+    expect(await svc.officeOffers(kariakooToMbezi)).toEqual([]);
+    expect(db.query.mock.calls.some(([sql]: any[]) => String(sql).includes('"sameCityDelivery" = true'))).toBe(false);
+  });
+
+  it('intercity trips are unchanged: offices compete without the setting', async () => {
+    const { svc } = make([]);
+    const dto = { ...kariakooToMbezi, toCity: 'Mbeya', destination: undefined };
+    const db: any = { query: jest.fn(async () => [row(1, 'Dar es Salaam', 'Mbeya')]) };
+    const officePrices: any = { quoteFor: jest.fn(async () => ({ pickup: { amount: 0 }, transport: { amount: 9000, mode: 'value', percent: 10, minimum: 5000 },
+      delivery: { amount: 0 }, total: 9000, currency: 'TZS', ruleSource: 'office', noSuggestion: false })) };
+    const intercity = new LogisticsServiceOfferService({} as any, {} as any, {} as any, db,
+      { resolve: jest.fn(async () => ({ regionName: 'Dar es Salaam', districtName: 'Ilala', displayLabel: 'Kariakoo' })) } as any, officePrices);
+    expect(svc).toBeTruthy();
+    expect((await intercity.officeOffers(dto)).length).toBe(1);
+  });
+});
