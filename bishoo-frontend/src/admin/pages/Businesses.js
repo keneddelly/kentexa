@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
+import BusinessApplications from '../components/BusinessApplications';
 
 export default function Businesses({ activePage, onNavigate, onLogout }) {
   const [businesses, setBusinesses] = useState([]);
@@ -39,6 +40,8 @@ export default function Businesses({ activePage, onNavigate, onLogout }) {
     <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
     <main style={{ marginLeft: 250, padding: 24 }}>
       <h1>Businesses</h1>
+      <BusinessApplications />
+      <h2>All businesses</h2>
       <p>Business status is separate from Seller status. If selling remains suspended after restoring a Business, open Sellers and restore the linked Seller profile there.</p>
       <form onSubmit={event => { event.preventDefault(); load(); }}>
         <input aria-label="Search business name" value={search} onChange={event => setSearch(event.target.value)} placeholder="Business name" />
