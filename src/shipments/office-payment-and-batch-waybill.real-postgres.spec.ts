@@ -105,8 +105,8 @@ suite('one waybill: office payments and van runs', () => {
         'confirmed', 'KTX-SHP-' || nextval(pg_get_serial_sequence('public.shipment', 'id'))) RETURNING id`,
     [desk.id, opts.price === undefined ? 12000 : opts.price, opts.channel ?? 'self_service']);
     const [p] = await ds.query(`INSERT INTO public.parcel ("shipmentId", status, "superAgentId", "originCity", "destinationCity", "trackingNumber")
-      VALUES ($1, $2, $3, 'Dar es Salaam', 'Mbeya', 'KTX-P-' || $1) RETURNING id, "waybillNumber"`,
-    [s.id, opts.status ?? 'received_at_hub', (opts.office ?? hub).id]);
+      VALUES ($1, $2, $3, 'Dar es Salaam', 'Mbeya', $4) RETURNING id, "waybillNumber"`,
+    [s.id, opts.status ?? 'received_at_hub', (opts.office ?? hub).id, `KTX-P-${s.id}`]);
     return { parcelId: Number(p.id), waybill: p.waybillNumber as string };
   };
   const ledger = (parcelId: number) => ds.query(
@@ -195,7 +195,7 @@ suite('one waybill: office payments and van runs', () => {
       [desk.id, p.id]);
       await ds.query(`UPDATE public."order" SET "trackingNumber" = 'KTX-ORD-' || id WHERE id = $1`, [o.id]);
       const [bp] = await ds.query(`INSERT INTO public.batch_parcel ("batchId", "orderId", "zoneId", status, "trackingNumber")
-        VALUES ($1, $2, $3, 'awaiting_handover', 'KTX-ORD-' || $2) RETURNING id`, [batchId, o.id, zoneId]);
+        VALUES ($1, $2, $3, 'awaiting_handover', $4) RETURNING id`, [batchId, o.id, zoneId, `KTX-ORD-${o.id}`]);
       return { orderId: Number(o.id), batchParcelId: Number(bp.id) };
     };
     const parcelOf = async (orderId: number) => (await ds.query(
