@@ -10,11 +10,14 @@ import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
  * 'agent') used to get its Parcel -- and so its waybill -- only when an office
  * typed the order number at its counter. Now the Parcel exists from the moment
  * the order is confirmed (pay on delivery / Lipa at checkout, or online payment
- * received), with its Shipment (same lifecycle and customer number as every
- * other parcel). The database gives the Parcel its waybill (KTX + 10 digits).
+ * received). The database gives the Parcel its waybill (KTX + 10 digits), and
+ * every lookup and tracking page accepts it.
  *
  *   - status PENDING, no office guessed: an office is set only when the seller
  *     says which office they are taking it to (or the office receives it);
+ *   - its Shipment (the shared lifecycle) is linked once an office is known, so
+ *     the Shipment's hub decision is written once, at insert, with that office
+ *     (shipment-hub-selection: a decision is never rewritten);
  *   - idempotent: an order that already has its Parcel keeps it; the counter's
  *     receive step and the agent collection request both reuse it;
  *   - never for a digital product, a cancelled or unpaid order, or a seller's
@@ -72,13 +75,11 @@ export async function ensureOrderParcel(
     const p = linked[0];
     let officeId = p.superAgentId == null ? null : Number(p.superAgentId);
     if (office && ['pending', 'collection_requested'].includes(p.status) && officeId !== office.id) {
+      // The office the parcel is now addressed to: its "coming to this hub" list.
       await manager.query(`UPDATE public.parcel SET "superAgentId" = $2 WHERE id = $1`, [p.id, office.id]);
-      if (p.shipmentId != null) {
-        await manager.query(`UPDATE public.shipment SET "originHubId" = $2, "originHubSource" = 'sender_selected',
-            "hubDecidedAt" = now() WHERE id = $1`, [p.shipmentId, office.id]);
-      }
       officeId = office.id;
     }
+    if (officeId != null && p.shipmentId == null) await linkShipment(manager, Number(p.id), opts.actorUserId ?? order.sellerId);
     return { parcelId: Number(p.id), trackingNumber: p.trackingNumber ?? null, waybillNumber: p.waybillNumber ?? null, created: false, officeId };
   }
 
@@ -101,10 +102,7 @@ export async function ensureOrderParcel(
       Number.isFinite(declaredValue) && declaredValue > 0 ? declaredValue : null,
       Number(order.deliveryFeeAmount) || 0,
     ]);
-  await linkIntakeShipmentWithin(manager, {
-    parcelId: Number(created.id), channel: 'order',
-    actorUserId: Number(opts.actorUserId ?? order.sellerId ?? order.buyerId ?? 0),
-  }, (error) => console.warn(`Order #${order.id} shipment link failed:`, (error as any)?.message ?? error));
+  if (office) await linkShipment(manager, Number(created.id), opts.actorUserId ?? order.sellerId ?? order.buyerId);
   return {
     parcelId: Number(created.id), trackingNumber: created.trackingNumber ?? trackingNumber,
     waybillNumber: created.waybillNumber ?? null, created: true, officeId: office?.id ?? null,
@@ -130,6 +128,12 @@ export async function ensureOrderParcelWithin(
     console.warn(`Order #${orderId} parcel not created yet:`, (error as any)?.message ?? error);
     return null;
   }
+}
+
+/** Its Shipment, with the office (parcel.superAgentId) as the one hub decision. */
+async function linkShipment(manager: EntityManager, parcelId: number, actorUserId: unknown) {
+  await linkIntakeShipmentWithin(manager, { parcelId, channel: 'order', actorUserId: Number(actorUserId ?? 0) },
+    (error) => console.warn(`Parcel ${parcelId} shipment link failed:`, (error as any)?.message ?? error));
 }
 
 async function activeOffice(db: Db, officeId: number): Promise<{ id: number; city: string | null } | null> {

@@ -100,7 +100,7 @@ suite('a marketplace order gets its one KenteXa waybill when it is confirmed', (
     otherOffice = await hub('Ubungo Office');
   });
 
-  it('a confirmed order gets a Parcel with a real, valid waybill and its Shipment, no office guessed', async () => {
+  it('a confirmed order gets a Parcel with a real, valid waybill, no office guessed', async () => {
     const id = await order();
     const result = await inTx((m) => ensureOrderParcel(m, id, { actorUserId: seller.id }));
     expect(result).toMatchObject({ created: true, trackingNumber: `KTX-ORD-${id}`, officeId: null });
@@ -110,8 +110,8 @@ suite('a marketplace order gets its one KenteXa waybill when it is confirmed', (
     expect(p).toMatchObject({ status: 'pending', orderId: id, superAgentId: null, originCity: 'Dar es Salaam',
       destinationCity: 'Mbeya', description: 'Saa ya ukutani', source: 'online_order' });
     expect(Number(p.declaredValue)).toBe(300000);
-    const [s] = await ds.query(`SELECT * FROM public.shipment WHERE id = $1`, [p.shipmentId]);
-    expect(s).toMatchObject({ orderId: id, intakeChannel: 'order', trackingNumber: `KTX-ORD-${id}` });
+    // Its Shipment waits for an office: the hub decision is written once, with a real office.
+    expect(p.shipmentId).toBeNull();
   });
 
   it('once only: calling again keeps the same parcel and waybill', async () => {
@@ -129,19 +129,34 @@ suite('a marketplace order gets its one KenteXa waybill when it is confirmed', (
     expect(new Set(waybills).size).toBe(3);
   });
 
-  it('the seller names the office: the parcel and its Shipment are addressed to it', async () => {
+  it('the seller names the office: the parcel is addressed to it, with its Shipment and one hub decision', async () => {
     const id = await order();
     await inTx((m) => ensureOrderParcel(m, id));
-    const handed = await inTx((m) => ensureOrderParcel(m, id, { officeId: office.id }));
+    const handed = await inTx((m) => ensureOrderParcel(m, id, { officeId: office.id, actorUserId: seller.id }));
     expect(handed).toMatchObject({ created: false, officeId: office.id });
     const [p] = await ds.query(`SELECT "superAgentId", "shipmentId" FROM public.parcel WHERE "orderId" = $1`, [id]);
     expect(p.superAgentId).toBe(office.id);
-    const [s] = await ds.query(`SELECT "originHubId", "originHubSource" FROM public.shipment WHERE id = $1`, [p.shipmentId]);
-    expect(s).toMatchObject({ originHubId: office.id, originHubSource: 'sender_selected' });
+    const [s] = await ds.query(`SELECT "originHubId", "originHubSource", "orderId", "intakeChannel", "trackingNumber"
+      FROM public.shipment WHERE id = $1`, [p.shipmentId]);
+    expect(s).toMatchObject({ originHubId: office.id, originHubSource: 'sender_selected', orderId: id,
+      intakeChannel: 'order', trackingNumber: `KTX-ORD-${id}` });
 
-    // Changed mind before handing over: another office.
+    // Changed mind before handing over: the parcel goes to the other office's list;
+    // the Shipment's recorded decision is never rewritten, and there is still one Shipment.
     await inTx((m) => ensureOrderParcel(m, id, { officeId: otherOffice.id }));
-    expect((await ds.query(`SELECT "superAgentId" FROM public.parcel WHERE "orderId" = $1`, [id]))[0].superAgentId).toBe(otherOffice.id);
+    const [moved] = await ds.query(`SELECT "superAgentId", "shipmentId" FROM public.parcel WHERE "orderId" = $1`, [id]);
+    expect(moved).toEqual({ superAgentId: otherOffice.id, shipmentId: p.shipmentId });
+    expect((await ds.query(`SELECT count(*)::int AS n FROM public.shipment WHERE "orderId" = $1`, [id]))[0].n).toBe(1);
+  });
+
+  it('an order handed over straight away gets its parcel and Shipment in one step', async () => {
+    const id = await order();
+    const r = await inTx((m) => ensureOrderParcel(m, id, { officeId: office.id }));
+    expect(r).toMatchObject({ created: true, officeId: office.id });
+    const [p] = await ds.query(`SELECT "superAgentId", "shipmentId", "waybillNumber" FROM public.parcel WHERE id = $1`, [r!.parcelId]);
+    expect(p.superAgentId).toBe(office.id);
+    expect(p.shipmentId).not.toBeNull();
+    expect(normalizeWaybill(p.waybillNumber)).toBe(p.waybillNumber);
   });
 
   it('never moves a parcel an office already holds, and never to an inactive or training office', async () => {

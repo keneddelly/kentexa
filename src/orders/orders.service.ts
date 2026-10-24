@@ -1785,11 +1785,6 @@ export class OrdersService {
       if (existingParcel) {
         await manager.getRepository(Parcel).update(existingParcel.id, parcelFields);
         savedParcel = existingParcel;
-        // Its Shipment (made when the order was confirmed) follows the receiving office.
-        await manager.query(`UPDATE public.shipment s SET "originHubId" = $2, "originHubSource" = 'sender_selected',
-            "hubDecidedAt" = now() FROM public.parcel p
-          WHERE p.id = $1 AND s.id = p."shipmentId" AND s."originHubId" IS DISTINCT FROM $2`,
-        [existingParcel.id, superAgentProfile.id]);
       } else {
         savedParcel = (await manager.getRepository(Parcel).save(
           manager.getRepository(Parcel).create({
