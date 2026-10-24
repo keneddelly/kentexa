@@ -315,7 +315,7 @@ export class OrdersController {
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
     @CurrentRoleContext() roleContext: RoleContext,
-    @Body() body: { superAgentCity: string; notes?: string },
+    @Body() body: { superAgentCity: string; superAgentId?: number; notes?: string },
   ) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
@@ -361,8 +361,8 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Get(':id/agent-lookup')
-  lookupForAgent(@Param('id') id: string) {
-    return this.ordersService.lookupForAgent(parseOrderIdParam(id));
+  async lookupForAgent(@Param('id') id: string) {
+    return this.ordersService.lookupForAgent(await this.ordersService.resolveOrderRef(id));
   }
 
   // ── Super Agent: Scan & receive order ─────────────────────────────────────
@@ -371,7 +371,7 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard, RoleContextGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Patch(':id/super-agent-receive')
-  superAgentReceiveOrder(
+  async superAgentReceiveOrder(
     @Param('id') id: string,
     @Request() req,
     @Body()
@@ -386,7 +386,7 @@ export class OrdersController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     return this.ordersService.superAgentReceiveOrder(
-      parseOrderIdParam(id),
+      await this.ordersService.resolveOrderRef(id),
       req.user,
       body,
       roleContext,

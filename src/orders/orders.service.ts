@@ -128,7 +128,9 @@ import { FRONTEND_URL } from '../config/urls.config';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
-import { normalizeWaybill } from '../shipments/waybill';
+import { formatWaybill, normalizeWaybill } from '../shipments/waybill';
+import { parseOrderIdParam } from '../common/utils/order-id.util';
+import { ensureOrderParcel, ensureOrderParcelWithin } from './order-parcel';
 import { LIPA_PROOF_REF, signedLipaProofUrl } from './lipa-proof';
 
 const calcCommission = (baseAmount: number, category: string) => {
@@ -606,6 +608,15 @@ export class OrdersService {
       } catch (err) {
         console.error('Batch auto-assign failed:', err.message);
       }
+    }
+
+    // One KenteXa waybill from the start (owner 2026-10-24): a confirmed order
+    // that travels through the network gets its Parcel now, not at the counter.
+    // Never blocks the order; the counter's receive step still creates it if this fails.
+    try {
+      await this.repo.manager.transaction((m) => ensureOrderParcelWithin(m, saved.id, { actorUserId: user.id }));
+    } catch (e) {
+      console.warn(`Order #${saved.id} waybill not created yet:`, (e as any)?.message);
     }
 
     // ── Create collection request if seller needs agent pickup ───────────────
@@ -1285,12 +1296,30 @@ export class OrdersService {
     return { message: 'Order marked as shipped. Buyer notified.' };
   }
 
+  /**
+   * The order an office means, from whatever it typed: the order number
+   * (123 / KTX-ORD-123) or the parcel's waybill (KTX 4829 1037 52) -- one
+   * number known everywhere, wherever the order came from.
+   */
+  async resolveOrderRef(raw: string): Promise<number> {
+    const waybill = normalizeWaybill(raw);
+    if (waybill) {
+      const [row] = await this.repo.manager.query(
+        `SELECT "orderId" FROM public.parcel WHERE "waybillNumber" = $1 AND "orderId" IS NOT NULL LIMIT 1`, [waybill]);
+      if (!row) throw new NotFoundException(`Hakuna oda yenye namba ${formatWaybill(waybill)}`);
+      return Number(row.orderId);
+    }
+    return parseOrderIdParam(raw);
+  }
+
   // ── Seller: Hand to Super Agent ───────────────────────────────────────────
   async sellerHandToSuperAgent(
     orderId: number,
     seller: User,
     data: {
       superAgentCity: string;
+      /** The office the seller is taking it to (from the seller's office list). */
+      superAgentId?: number;
       notes?: string;
     },
     scope?: SellerScope,
@@ -1303,22 +1332,53 @@ export class OrdersService {
     assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
-    if (order.status !== OrderStatus.PAID)
+    // A pay-on-delivery / Lipa order starts as "preparing": it is handed over too.
+    if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.PREPARING)
       throw new BadRequestException('Order must be paid');
     await this.assertVerifiedPaymentEvidence(order, 'Cannot hand off an order without verified payment evidence');
 
-    await this.repo.update(orderId, {
-      status: OrderStatus.PREPARING,
-      shippingMethod: 'agent',
-      shippingNote:
-        data.notes || `Handed to Super Agent in ${data.superAgentCity}`,
+    const officeId = Number(data.superAgentId);
+    const result = await this.repo.manager.transaction(async (manager) => {
+      await manager.query(
+        `UPDATE public."order" SET status = $2, "shippingMethod" = 'agent', "shippingNote" = $3, "updatedAt" = now()
+          WHERE id = $1`,
+        [orderId, OrderStatus.PREPARING, data.notes || `Handed to Super Agent in ${data.superAgentCity}`],
+      );
+      // The order's one waybill, now addressed to the office the seller chose: it
+      // appears in that office's "coming to this hub" list.
+      return ensureOrderParcel(manager, orderId, {
+        officeId: Number.isInteger(officeId) && officeId > 0 ? officeId : null, actorUserId: seller.id,
+      });
     });
+    const waybill = result?.waybillNumber ? formatWaybill(result.waybillNumber) : (order.trackingNumber || `KTX-ORD-${orderId}`);
+    if (result?.officeId) await this.tellOfficeOrderIsComing(result.officeId, orderId, order, waybill);
 
     return {
-      message: `Imerekodiwa. Peleka kifurushi kwa Super Agent — nambari ya ufuatiliaji: KTX-ORD-${orderId}`,
+      message: `Imerekodiwa. Peleka kifurushi ofisini — namba ya mzigo: ${waybill}`,
       orderId,
       status: OrderStatus.PREPARING,
+      waybill,
+      officeId: result?.officeId ?? null,
     };
+  }
+
+  /** One short SMS to the office the seller is bringing a marketplace order to. */
+  private async tellOfficeOrderIsComing(officeId: number, orderId: number, order: Order, waybill: string) {
+    try {
+      const [office] = await this.repo.manager.query(`SELECT phone FROM public.super_agent WHERE id = $1`, [officeId]);
+      const [shop] = await this.repo.manager.query(
+        `SELECT COALESCE(NULLIF(btrim(sp."businessName"), ''), NULLIF(btrim(u."storeName"), ''), u.name) AS name
+           FROM public."user" u
+           LEFT JOIN LATERAL (SELECT x."businessName" FROM public.seller_profile x WHERE x."userId" = u.id
+                               ORDER BY x.id ASC LIMIT 1) sp ON true
+          WHERE u.id = $1`, [order.seller?.id]);
+      if (!office?.phone) return;
+      const name = String(shop?.name || 'Muuzaji').replace(/[^A-Za-z0-9 .,'&()\-/]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+      await this.smsService.sendSms(office.phone,
+        `${name} analeta oda #${orderId} ofisini kwako. Namba ya mzigo: ${waybill}. Ipokee kwenye "Mizigo inayokuja".`);
+    } catch (e) {
+      console.warn(`Office SMS for order #${orderId} not sent:`, (e as any)?.message);
+    }
   }
 
   // ── Seller: Settle a COD balance the seller collected themselves ──────────
@@ -1680,7 +1740,11 @@ export class OrdersService {
       if (existingParcel && ![ParcelStatus.PENDING, ParcelStatus.RECEIVED_AT_HUB].includes(existingParcel.status)) {
         throw new BadRequestException('Parcel was already moved beyond hub intake.');
       }
-      if (existingParcel?.superAgent?.id && existingParcel.superAgent.id !== superAgentProfile.id) {
+      // A parcel still waiting for intake goes to the office it is physically brought
+      // to, even if the seller named another one (owner 2026-10-24: one waybill
+      // wherever it goes). One an office already holds stays with that office.
+      if (existingParcel?.superAgent?.id && existingParcel.superAgent.id !== superAgentProfile.id &&
+          existingParcel.status !== ParcelStatus.PENDING) {
         throw new ForbiddenException('Parcel belongs to another origin hub.');
       }
       await manager.getRepository(Order).update(orderId, orderUpdate);

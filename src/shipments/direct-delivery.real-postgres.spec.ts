@@ -557,7 +557,8 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
 
       // Nobody is bringing it: the sender drops it off, the desk receives it by its number.
       expect(await expectedFor(s)).toEqual({
-        parcelId: s, trackingNumber: `KTX-SHP-${s}`, itemDescription: 'Nguo za watoto', weightKg: 2, destinationCity: 'Mwanza',
+        parcelId: s, trackingNumber: `KTX-SHP-${s}`, waybill: null, orderId: null,
+        itemDescription: 'Nguo za watoto', weightKg: 2, destinationCity: 'Mwanza',
         sender: { name: 'Baraka', phone: '+255713000002' },
         bookedTrip: { departureAt: expect.any(Date), providerName: 'Kentexa Van' },
         pickupTask: null, nextAction: 'receive_from_sender',

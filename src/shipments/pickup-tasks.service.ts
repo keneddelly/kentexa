@@ -15,6 +15,7 @@ import { SmsService } from '../sms/sms.service';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { customerParcelNumber, smsSafeName } from '../super-agents/customer-parcel-number';
 import { AGENT_BASE_MESSAGES, distanceM, pickupPointForAgent, roughDistanceLabel, SHOW_PIN_WARD } from './pickup-pin';
+import { formatWaybill } from './waybill';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
@@ -913,11 +914,13 @@ export class PickupTasksService {
     }
     const rows: any[] = await this.db.query(
       `SELECT p.id AS "parcelId", COALESCE(s."trackingNumber", p."trackingNumber") AS "trackingNumber",
+              p."waybillNumber", p."orderId", o.source::text AS "orderSource",
               p.status AS "parcelStatus", s."senderName", s."senderPhone", s."itemDescription", s."weightKg",
               s."destinationCity", t.id AS "taskId", t.status AS "taskStatus", a."fullName" AS "agentName",
               trip."scheduledDeparture", trip."providerName"
          FROM public.parcel p
          JOIN public.shipment s ON s.id = p."shipmentId"
+         LEFT JOIN public."order" o ON o.id = p."orderId"
          LEFT JOIN LATERAL (
            SELECT x.id, x.status, x."agentProfileId" FROM public.parcel_pickup_task x
             WHERE x."parcelId" = p.id AND x.status IN ('requested','claimed','collected','awaiting_hub')
@@ -938,6 +941,9 @@ export class PickupTasksService {
     return rows.map((r) => ({
       parcelId: r.parcelId,
       trackingNumber: r.trackingNumber,
+      // The one KenteXa number for this parcel, wherever it came from.
+      waybill: r.waybillNumber ? formatWaybill(r.waybillNumber) : null,
+      orderId: r.orderId == null ? null : Number(r.orderId),
       itemDescription: r.itemDescription,
       weightKg: Number(r.weightKg) || 0,
       destinationCity: r.destinationCity,
@@ -947,6 +953,8 @@ export class PickupTasksService {
       nextAction:
         r.taskStatus === 'awaiting_hub' ? 'confirm_agent_handover'
         : r.taskId ? 'agent_on_the_way'
+        // A marketplace order the seller is bringing: received with its order step.
+        : r.orderId != null && r.orderSource === 'online' ? 'receive_order'
         : 'receive_from_sender',
     }));
   }
