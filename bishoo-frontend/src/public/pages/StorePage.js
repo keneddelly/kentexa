@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import api from '../../api/api';
 import BackBar          from '../components/BackBar';
 import ReputationBadge from '../components/ReputationBadge';
+import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => {
   const { t } = useTranslation();
@@ -172,7 +173,8 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
             </button>
           )}
           {seller?.phone && (
-            <a href={`https://wa.me/${seller.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
+            <a href={listingWhatsAppHref({ phone: seller.phone, kind: 'store', url: listingUrl('store', sellerId),
+              shopName: seller.storeName || seller.name })} target="_blank" rel="noreferrer"
               style={{ padding: '10px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 800, backgroundColor: '#16a34a', color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
               {t('store_page.whatsapp_button')}
             </a>

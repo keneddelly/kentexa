@@ -7,6 +7,7 @@ import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import LocationPicker from '../components/LocationPicker';
 import { useTranslation } from 'react-i18next';
+import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 // Simple countdown for ClassifiedDetail
 const FlashCountdown = ({ endsAt }) => {
@@ -586,8 +587,11 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                         💬 {t('classified_detail.message_seller')}
                       </button>
                     )}
-                    {contactInfo?.sellerPhone && (
-                      <a href={`https://wa.me/${contactInfo.sellerPhone?.replace('+','')}?text=${encodeURIComponent(`Hi, I'm interested in: ${classified.title}`)}`} target="_blank" rel="noreferrer"
+                    {contactInfo?.sellerPhone && listingWhatsAppHref({ phone: contactInfo.sellerPhone }) && (
+                      <a href={listingWhatsAppHref({
+                        phone: contactInfo.sellerPhone, kind: 'classified', title: classified.title, price: classified.price,
+                        url: listingUrl('classified', classified.id), shopName: sellerName,
+                      })} target="_blank" rel="noreferrer"
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 800 }}>
                         💬 WhatsApp
                       </a>

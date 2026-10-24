@@ -8,7 +8,7 @@ jest.mock('../../api/api', () => ({
   default: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: key => key }) }));
-jest.mock('../components/LocationPicker', () => () => null);
+jest.mock('../components/PlaceSearchField', () => ({ __esModule: true, default: () => null, placeLabel: () => '' }));
 jest.mock('../components/VerifyIdentityModal', () => () => null);
 
 beforeEach(() => {

@@ -3,7 +3,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { getAccessToken } from '../../api/tokenStore';
 import { useTranslation } from 'react-i18next';
-import LocationPicker from '../components/LocationPicker';
+import PlaceSearchField, { placeLabel } from '../components/PlaceSearchField';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import { createSubmissionLock, emptyLocation, locationFromText, normalizeListingError, runOnce, validateImageSelection, validateProductListing } from '../utils/listingForm';
 
@@ -1373,15 +1373,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
               <div style={{ marginTop: 12 }}>
                 <label style={labelStyle}>{t('seller_products.ship_from_city_label')}</label>
-                <LocationPicker
+                <PlaceSearchField
+                  id="product-place"
                   value={productLocation}
-                  onLoadError={() => setError(t('listing_validation.location_load_failed'))}
                   onChange={loc => {
                     setProductLocation(loc);
-                    setForm(prev => ({
-                      ...prev,
-                      sellerCity: [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', '),
-                    }));
+                    setForm(prev => ({ ...prev, sellerCity: placeLabel(loc) }));
                   }}
                 />
                 {form.sellerCity && (

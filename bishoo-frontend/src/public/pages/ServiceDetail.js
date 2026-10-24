@@ -9,6 +9,7 @@ import api             from '../../api/api';
 import ReputationBadge from '../components/ReputationBadge';
 import WishlistHeart   from '../components/WishlistHeart';
 import CommerceCommentSection from '../components/CommerceCommentSection';
+import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 const getPriceLabels = (t) => ({
   per_hour: t('service_detail.price_per_hour'), per_job: t('service_detail.price_per_job'), per_day: t('service_detail.price_per_day'),
@@ -132,8 +133,11 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
       setTimeout(() => setShareMsg(''), 3000);
     }
   };
-  const waPhone  = whatsapp.replace(/^0/, '255').replace(/[^0-9]/g, '');
-  const waMsg    = `Hi! I found your service "${ad.title}" on KenteXa. I need some help.`;
+  // The provider sees which service and that the customer came from KenteXa.
+  const waHref = listingWhatsAppHref({
+    phone: whatsapp, kind: 'service', title: ad.title, price: ad.price,
+    url: listingUrl('service', ad.id), shopName: ad.commerceProfile?.displayName || ad.provider?.name,
+  });
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
@@ -444,12 +448,12 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                           style={{ display: 'block', textAlign: 'center', width: '100%',
                             backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
                             borderRadius: 12, padding: '12px 0', fontSize: 14, cursor: 'pointer',
-                            fontWeight: 700, boxSizing: 'border-box', marginBottom: waPhone ? 10 : 0 }}>
+                            fontWeight: 700, boxSizing: 'border-box', marginBottom: waHref ? 10 : 0 }}>
                           💬 {t('service_detail.message_provider_button')}
                         </button>
                       )}
-                      {waPhone && (
-                        <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
+                      {waHref && (
+                        <a href={waHref}
                           target="_blank" rel="noreferrer"
                           style={{ display: 'block', textAlign: 'center', width: '100%',
                             backgroundColor: '#dcfce7', color: '#16a34a', textDecoration: 'none',

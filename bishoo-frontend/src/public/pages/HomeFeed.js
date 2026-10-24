@@ -24,6 +24,7 @@ import HomeQuickActions from '../components/HomeQuickActions';
 import api             from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
+import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -86,9 +87,15 @@ const Engagement = {
 const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const biz   = post.business || {};
-  const phone = (biz.storeWhatsApp || biz.phone || '').replace(/^0/,'255').replace(/[^0-9]/g,'');
   const title = post.title || '';
-  const waMsg = encodeURIComponent(`Hi! I have a question about: ${title}`);
+  // The seller sees which listing and that the customer came from KenteXa.
+  const kindOf = post.entityType || post.feedType || post.linkedEntityType || 'classified';
+  const kind = kindOf === 'product' ? 'product' : (kindOf === 'service' || kindOf === 'new_service') ? 'service' : 'classified';
+  const waHref = listingWhatsAppHref({
+    phone: biz.storeWhatsApp || biz.phone, kind, title,
+    price: post.price || post.data?.price || post.data?.basePrice,
+    url: listingUrl(kind, post.entityId || post.linkedEntityId), shopName: biz.storeName || biz.name,
+  });
 
   return (
     <div style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)',
@@ -112,8 +119,8 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
               <div style={{ fontSize:11, color:GR }}>{t('home_feed.send_in_app_desc')}</div>
             </div>
           </button>
-          {phone && (
-            <a href={`https://wa.me/${phone}?text=${waMsg}`}
+          {waHref && (
+            <a href={waHref}
               target="_blank" rel="noreferrer"
               onClick={onClose}
               style={{ display:'flex', alignItems:'center', gap:14, padding:'16px',

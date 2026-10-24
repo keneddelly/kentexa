@@ -15,6 +15,7 @@ import api             from '../../api/api';
 import { commenterIdentity } from '../utils/publicActor';
 
 import ProfileConnections from '../components/ProfileConnections';
+import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -654,7 +655,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {t('commerce_profile.message_button')}
               </button>
               {isBusinessProfile && (profile?.storeWhatsApp || profile?.phone) && (
-                <a href={`https://wa.me/${(profile.storeWhatsApp||profile.phone).replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
+                <a href={listingWhatsAppHref({ phone: profile.storeWhatsApp || profile.phone, kind: 'store',
+                  url: listingUrl('store', targetId), shopName: profile.storeName || profile.displayName || profile.name })}
                   target="_blank" rel="noreferrer"
                   style={{ backgroundColor:'#dcfce7', color:'#16a34a',
                     border:'1px solid #bbf7d0', borderRadius:10,
@@ -672,7 +674,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   transport providers as using (Search.js's TransportCard,
                   the settings form, etc). */}
               {isTransportProfile && publicTransportData?.whatsappPhone && (
-                <a href={`https://wa.me/${publicTransportData.whatsappPhone.replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
+                <a href={listingWhatsAppHref({ phone: publicTransportData.whatsappPhone, kind: 'transport',
+                  url: listingUrl('store', targetId), shopName: publicTransportData.name || profile?.name })}
                   target="_blank" rel="noreferrer"
                   style={{ backgroundColor:'#dcfce7', color:'#16a34a',
                     border:'1px solid #bbf7d0', borderRadius:10,

@@ -19,6 +19,7 @@ import ReputationBadge from '../components/ReputationBadge';
 import { trackSearch } from '../hooks/useAnalytics';
 import { isAppleMobile } from '../utils/isAppleMobile';
 import api           from '../../api/api';
+import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -138,7 +139,7 @@ const TRANSPORT_ICONS = {
 const TransportCard = ({ item, isLoggedIn, onNavigate }) => {
   const { t } = useTranslation();
   const contactHref = item.whatsappPhone
-    ? `https://wa.me/${item.whatsappPhone.replace(/[^0-9]/g,'')}`
+    ? listingWhatsAppHref({ phone: item.whatsappPhone, kind: 'transport', url: listingUrl('store', item.userId), shopName: item.name })
     : item.contactPhone ? `tel:${item.contactPhone}` : null;
   // Previously the only action on this whole card was the WhatsApp/call
   // button — there was no way to actually see the provider's routes or
