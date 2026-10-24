@@ -155,3 +155,32 @@ export async function officePickupTableReady(db: { query: (sql: string, p?: any[
 }
 /** Tests only. */
 export function setOfficePickupReadyForTests(ready: boolean) { pickupReady = ready; pickupCheckedAt = ready ? Date.now() : 0; }
+
+// ── Same-city trips (owner 2026-10-24) ────────────────────────────────────────
+// Inside one city an agent or a transporter carries the parcel; an office is not
+// needed. An office appears there only when it has chosen same-city delivery
+// (office_pickup_offer."sameCityDelivery", migration 1792800000000).
+
+/** Is this trip inside one city (Kariakoo -> Mbezi is Dar es Salaam -> Dar es Salaam)? */
+export function isSameCityTrip(
+  fromCity: string | null | undefined, toCity: string | null | undefined,
+  origin?: { regionName?: string | null } | null, destination?: { regionName?: string | null } | null,
+): boolean {
+  if (isSameCity(fromCity, toCity)) return true;
+  return !!(origin?.regionName && destination?.regionName && isSameCity(origin.regionName, destination.regionName));
+}
+
+let sameCityReady = false;
+let sameCityCheckedAt = 0;
+/** Does the "sameCityDelivery" column exist yet? Checked at most once a minute. */
+export async function officeSameCityColumnReady(db: { query: (sql: string, p?: any[]) => Promise<any> }, force = false, now = Date.now()) {
+  if (sameCityReady || (!force && now - sameCityCheckedAt < 60_000)) return sameCityReady;
+  sameCityCheckedAt = now;
+  try {
+    sameCityReady = !!(await db.query(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'office_pickup_offer' AND column_name = 'sameCityDelivery') AS ok`))?.[0]?.ok;
+  } catch { sameCityReady = false; }
+  return sameCityReady;
+}
+/** Tests only. */
+export function setOfficeSameCityReadyForTests(ready: boolean) { sameCityReady = ready; sameCityCheckedAt = ready ? Date.now() : 0; }

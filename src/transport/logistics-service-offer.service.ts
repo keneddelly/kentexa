@@ -6,7 +6,7 @@ import { findNearestOffice, NO_AGENT_NOW } from './nearest-office';
 import { TransportService } from './transport.service';
 import { JourneyComposerService } from './journey-composer.service';
 import { OfficePriceService } from '../super-agents/office-price.service';
-import { OfficePickupOffer, OfficeRateRow, officeChargeText, officeEtaLabel, officePickupFeeFor, officePickupTableReady, pickOfficeRates } from './office-offers';
+import { OfficePickupOffer, OfficeRateRow, officeChargeText, officeEtaLabel, officePickupFeeFor, officePickupTableReady, officeSameCityColumnReady, isSameCityTrip, pickOfficeRates } from './office-offers';
 
 export interface DiscoverServiceOffersDto {
   fromCity: string; toCity: string; weightKg: number;
@@ -287,6 +287,16 @@ export class LogisticsServiceOfferService {
     if (!this.db || !this.officePrices || !Number.isFinite(value) || value <= 0) return [];
     const from = dto.fromCity.trim(); const to = dto.toCity.trim(); const weight = Number(dto.weightKg) || 0;
     const [origin, destination] = await Promise.all([this.placeNames(dto.origin, from), this.placeNames(dto.destination, to)]);
+    // Inside one city an agent or a transporter carries it; only offices that chose
+    // same-city delivery compete there (owner 2026-10-24).
+    let sameCityOffices: Set<number> | null = null;
+    if (isSameCityTrip(from, to, origin, destination)) {
+      if (!(await officeSameCityColumnReady(this.db))) return [];
+      const ids: any[] = await this.db.query(
+        `SELECT "superAgentId" FROM public.office_pickup_offer WHERE "sameCityDelivery" = true`).catch(() => []);
+      sameCityOffices = new Set(ids.map((r) => Number(r.superAgentId)));
+      if (!sameCityOffices.size) return [];
+    }
     const rows: OfficeRateRow[] = (await this.db.query(`
       SELECT sa.id AS "officeId", sa."businessName", sa.city AS "officeCity", sa.address AS "officeAddress",
              sa.latitude AS "officeLatitude", sa.longitude AS "officeLongitude",
@@ -298,7 +308,8 @@ export class LogisticsServiceOfferService {
       estimatedDays: r.estimatedDays == null ? null : Number(r.estimatedDays),
       rating: r.rating == null ? null : Number(r.rating), totalRatings: r.totalRatings == null ? null : Number(r.totalRatings),
     }));
-    const chosen = pickOfficeRates(rows, origin, destination);
+    const chosen = pickOfficeRates(rows, origin, destination)
+      .filter((r) => !sameCityOffices || sameCityOffices.has(r.officeId));
     // Offices that collect from the sender themselves (free or their own fee).
     const pickupOffers = new Map<number, OfficePickupOffer>();
     if (dto.pickup === 'door' && chosen.length && await officePickupTableReady(this.db)) {

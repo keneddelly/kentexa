@@ -35,3 +35,22 @@ test('hidden until switched on, or for a non-office account', async () => {
   await waitFor(() => expect(api.get).toHaveBeenCalled());
   expect(container.querySelector('[data-testid="office-pickup-card"]')).toBeNull();
 });
+
+test('an office chooses to deliver inside its own city too (Kariakoo -> Mbezi)', async () => {
+  api.get.mockResolvedValue({ data: { mode: 'none', fee: null, maxKm: null, officePointSet: true, sameCityDelivery: false } });
+  api.put.mockImplementation(async (url, body) => ({ data: { mode: body.mode, fee: null, maxKm: null, officePointSet: true, sameCityDelivery: body.sameCityDelivery } }));
+  render(<OfficePickupCard />);
+  const box = await screen.findByRole('checkbox', { name: /Nasafirisha pia ndani ya mji wangu/ });
+  expect(box.checked).toBe(false);
+  fireEvent.click(box);
+  fireEvent.click(screen.getByRole('button', { name: 'Hifadhi' }));
+  await waitFor(() => expect(api.put).toHaveBeenCalledWith('/super-agents/me/pickup',
+    { mode: 'none', fee: undefined, maxKm: null, sameCityDelivery: true }));
+});
+
+test('no same-city choice before the server has it', async () => {
+  api.get.mockResolvedValue({ data: { mode: 'none', fee: null, maxKm: null, officePointSet: true, sameCityDelivery: null } });
+  render(<OfficePickupCard />);
+  await screen.findByRole('button', { name: 'Hifadhi' });
+  expect(screen.queryByRole('checkbox')).toBeNull();
+});

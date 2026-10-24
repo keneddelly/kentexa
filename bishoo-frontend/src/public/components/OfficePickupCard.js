@@ -20,6 +20,7 @@ const OfficePickupCard = () => {
   const [mode, setMode] = useState('none');
   const [fee, setFee] = useState('');
   const [maxKm, setMaxKm] = useState('');
+  const [sameCity, setSameCity] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -29,6 +30,7 @@ const OfficePickupCard = () => {
     setMode(d.mode || 'none');
     setFee(d.fee != null ? String(d.fee) : '');
     setMaxKm(d.maxKm != null ? String(d.maxKm) : '');
+    setSameCity(d.sameCityDelivery === true);
   };
 
   useEffect(() => {
@@ -42,6 +44,7 @@ const OfficePickupCard = () => {
     try {
       const { data: saved } = await api.put('/super-agents/me/pickup', {
         mode, fee: mode === 'fixed' ? Number(digits(fee)) : undefined, maxKm: mode !== 'none' && digits(maxKm) ? Number(digits(maxKm)) : null,
+        ...(data.sameCityDelivery !== null && data.sameCityDelivery !== undefined ? { sameCityDelivery: sameCity } : {}),
       });
       apply(saved);
       setMessage('Imehifadhiwa. Wateja wataona huduma hii wakituma mzigo.');
@@ -88,6 +91,19 @@ const OfficePickupCard = () => {
             {digits(maxKm) && !data.officePointSet ? ' Weka kwanza mahali pa ofisi kwenye ramani juu, la sivyo umbali hautaweza kupimwa.' : ''}
           </div>
         </div>
+      )}
+      {data.sameCityDelivery !== null && data.sameCityDelivery !== undefined && (
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginTop: 14, padding: '10px 12px', borderRadius: 12,
+          border: sameCity ? '2px solid #1d4ed8' : '1px solid #cbd5e1', background: sameCity ? '#eff6ff' : '#fff', cursor: 'pointer' }}>
+          <input type="checkbox" checked={sameCity} onChange={(e) => setSameCity(e.target.checked)}
+            style={{ width: 20, height: 20, marginTop: 2, flexShrink: 0 }} />
+          <span style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Nasafirisha pia ndani ya mji wangu</span>
+            <span style={{ fontSize: 12, color: '#475569', lineHeight: 1.4 }}>
+              Mfano Kariakoo kwenda Mbezi. Usipochagua, ofisi yako haionekani kwa mizigo ya ndani ya mji; wakala au msafirishaji anaibeba.
+            </span>
+          </span>
+        </label>
       )}
       {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c', marginTop: 10 }}>{error}</div>}
       {message && <div role="status" style={{ fontSize: 13, color: '#15803d', marginTop: 10 }}>{message}</div>}
