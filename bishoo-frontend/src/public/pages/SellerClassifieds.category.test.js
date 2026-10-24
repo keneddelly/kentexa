@@ -5,7 +5,7 @@ import api from '../../api/api';
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: key => key }) }));
 jest.mock('../components/BackBar', () => () => null);
-jest.mock('../components/LocationPicker', () => () => null);
+jest.mock('../components/PlaceSearchField', () => ({ __esModule: true, default: () => null, placeLabel: () => '' }));
 const categories = [
   { key: 'general', label: 'General', subcategories: [{ key: 'other', label: 'Other', attributes: [] }] },
   { key: 'electronics', label: 'Electronics', subcategories: [{ key: 'phones', label: 'Phones', attributes: [

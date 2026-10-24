@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import api      from '../../api/api';
-import LocationPicker from '../components/LocationPicker';
+import PlaceSearchField, { placeLabel } from '../components/PlaceSearchField';
 import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 
@@ -95,7 +95,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const accountArea = (currentUser?.city || '').trim();
-  const pickedArea = [areaLocation.districtName, areaLocation.regionName].filter(Boolean).join(', ');
+  const pickedArea = [areaLocation.districtName, areaLocation.regionName].filter(Boolean).join(', ') || placeLabel(areaLocation);
   const area = changeArea ? pickedArea : accountArea;
   const accountPhone = currentUser?.phone || '';
   const idWaiting = identityState(identityStatus) === 'waiting';
@@ -281,7 +281,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
         </div>
         {changeArea && (
           <div style={{ marginBottom: 12 }}>
-            <LocationPicker value={areaLocation} onChange={setAreaLocation} />
+            <PlaceSearchField id="service-place" value={areaLocation} onChange={setAreaLocation} />
             {pickedArea && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>✓ {pickedArea}</div>}
           </div>
         )}

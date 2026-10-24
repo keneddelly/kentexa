@@ -13,7 +13,8 @@ jest.mock('react-i18next', () => {
 });
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn(), patch: jest.fn() }));
 jest.mock('../components/BackBar', () => () => null);
-jest.mock('../components/LocationPicker', () => () => <div>location-picker</div>);
+jest.mock('../components/PlaceSearchField', () => ({ __esModule: true, default: () => <div>location-picker</div>,
+  placeLabel: (l) => [l?.wardName, l?.districtName, l?.regionName].filter(Boolean).join(', ') }));
 jest.mock('../components/VerifyIdentityModal', () => () => <div>identity-modal</div>);
 afterEach(() => jest.clearAllMocks());
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
-import LocationPicker from '../components/LocationPicker';
+import PlaceSearchField, { placeLabel } from '../components/PlaceSearchField';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import { createSubmissionLock, emptyLocation, locationFromText, normalizeListingError, runOnce, validateClassifiedListing, validateImageSelection } from '../utils/listingForm';
 
@@ -767,15 +767,12 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               </div>
               <div>
                   <label style={labelStyle}>{t('seller_classifieds.location_label')} *</label>
-                  <LocationPicker
+                  <PlaceSearchField
+                    id="classified-place"
                     value={classifiedLocation}
-                    onLoadError={() => setError(t('listing_validation.location_load_failed'))}
                     onChange={loc => {
                       setClassifiedLocation(loc);
-                      setForm(prev => ({
-                        ...prev,
-                        location: [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', '),
-                      }));
+                      setForm(prev => ({ ...prev, location: placeLabel(loc) }));
                     }}
                   />
                   {form.location && (
