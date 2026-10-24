@@ -5688,7 +5688,9 @@
   "app_update": {
     "available": "Toleo jipya la KenteXa — gusa kusasisha",
     "finish_first": "Maliza kazi uliyonayo kwanza (kuna maandishi kwenye fomu).",
-    "update_anyway": "Sasisha hata hivyo"
+    "update_anyway": "Sasisha hata hivyo",
+    "after_form": "Toleo jipya la KenteXa litawekwa lenyewe ukimaliza fomu hii.",
+    "update_now": "Sasisha sasa"
   },
   "pickup_pin": {
     "title": "Mahali pa kuchukua mzigo",

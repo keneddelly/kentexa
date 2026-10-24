@@ -5758,7 +5758,9 @@
   "app_update": {
     "available": "A new version of KenteXa is ready — tap to update",
     "finish_first": "Finish what you are doing first (a form has text in it).",
-    "update_anyway": "Update anyway"
+    "update_anyway": "Update anyway",
+    "after_form": "A new KenteXa version will install by itself when you finish this form.",
+    "update_now": "Update now"
   },
   "pickup_pin": {
     "title": "Where we pick up the parcel",

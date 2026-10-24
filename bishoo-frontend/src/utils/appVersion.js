@@ -56,3 +56,52 @@ export function isSafeToReload(doc = document) {
   }
   return true;
 }
+
+// ── Automatic update without a tap (owner, 2026-10-24) ──────────────────────
+// The page is reloaded by itself, so it must come back on the same screen:
+// just before the reload the open page is kept for this tab only, and the
+// fresh copy opens it again (within 2 minutes, same role).
+
+const RESUME_KEY = 'kentexa_update_resume';
+const TRIED_KEY = 'kentexa_update_tried';
+export const RESUME_MAX_AGE_MS = 2 * 60 * 1000;
+
+function tabStorage() {
+  try { return window.sessionStorage; } catch { return null; }
+}
+
+/** Keep the open page for the fresh copy. Never throws. */
+export function rememberPageForUpdate({ page, navParams = null, roleType = null }, storage = tabStorage(), now = Date.now()) {
+  if (!storage || typeof page !== 'string' || !page) return false;
+  try {
+    let params = null;
+    try { params = navParams == null ? null : JSON.parse(JSON.stringify(navParams)); } catch { return false; }
+    storage.setItem(RESUME_KEY, JSON.stringify({ page, navParams: params, roleType: roleType || null, at: now }));
+    return true;
+  } catch { return false; }
+}
+
+/** The page to reopen after an automatic update, once; null when none or too old. */
+export function takeResumePage(storage = tabStorage(), now = Date.now()) {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(RESUME_KEY);
+    storage.removeItem(RESUME_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved.page !== 'string' || !saved.page) return null;
+    if (!(now - Number(saved.at) >= 0 && now - Number(saved.at) <= RESUME_MAX_AGE_MS)) return null;
+    return { page: saved.page, navParams: saved.navParams ?? null, roleType: saved.roleType || null };
+  } catch { return null; }
+}
+
+/**
+ * A reload is tried once per new version. If the site still gives the old code
+ * afterwards (a cache on the way), the page does not reload again and again.
+ */
+export function alreadyTriedUpdate(latest, storage = tabStorage()) {
+  try { return !!latest && storage?.getItem(TRIED_KEY) === latest; } catch { return false; }
+}
+export function markUpdateTried(latest, storage = tabStorage()) {
+  try { storage?.setItem(TRIED_KEY, latest); } catch { /* private mode: still reloads */ }
+}

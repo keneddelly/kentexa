@@ -8,6 +8,7 @@ import useAnalytics from './public/hooks/useAnalytics';
 import { pageToPath, pathToPage, pathToNavParams } from './utils/urlSync';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
 import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
+import { rememberPageForUpdate, takeResumePage } from './utils/appVersion';
 import { useRoleContext } from './context/RoleContext';
 import ContextEpochBoundary from './context/ContextEpochBoundary';
 import { contextTransitionState } from './context/contextTransition';
@@ -199,7 +200,11 @@ function App() {
   // ConversationService.getUnreadConversationCount comment).
   const [inboxUnread, setInboxUnread] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
+  // After an automatic update the fresh copy reopens the screen that was open (once).
+  const updateResume = React.useRef(undefined);
+  if (updateResume.current === undefined) updateResume.current = takeResumePage();
   const [page, setPage]             = useState(() => {
+    if (updateResume.current && !updateResume.current.roleType) return updateResume.current.page;
     // Bootstrap from a real URL — lets external links (WhatsApp, SMS) deep-link
     // straight into tracking instead of always landing on Home.
     // e.g. https://kentexa.com/?track=KTX-ORD-47  →  TrackParcel-KTX-ORD-47
@@ -233,6 +238,7 @@ function App() {
     return 'Home';
   });
   const [navParams, setNavParams]   = useState(() => {
+    if (updateResume.current && !updateResume.current.roleType) return updateResume.current.navParams;
     // Companion to the /store/:id?cp= boot-time deep-link above — carries
     // WHICH of that account's profiles (personal/business/hub/transport)
     // to show, since CommerceProfile.js can't tell from the bare id alone.
@@ -342,6 +348,14 @@ function App() {
     const sellerCheckout = params.get('sellerCheckout') || (SHORT_SELLER_TOKEN.test(params.get('so') || '') ? params.get('so') : null);
     const partnerInvite = params.get('partnerInvite');
     const agentInvite = params.get('agentInvite');
+    // Back from an automatic update in the same role: the same screen again, once.
+    const resume = updateResume.current;
+    if (activeContext?.roleType) updateResume.current = null;
+    if (resume?.roleType && resume.roleType === activeContext?.roleType) {
+      setNavParams(resume.navParams ?? null);
+      setPage(resume.page);
+      return;
+    }
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
@@ -958,7 +972,8 @@ function App() {
       <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>
 
       {/* A phone that kept the app open gets a new website version by itself, never mid-form. */}
-      <UpdateNotice />
+      <UpdateNotice page={page}
+        beforeReload={() => rememberPageForUpdate({ page, navParams, roleType: activeContext?.roleType })} />
       <TrainingSmsNotice />
 
       {/* ── Social Commerce Navigation ─────────────────────── */}
