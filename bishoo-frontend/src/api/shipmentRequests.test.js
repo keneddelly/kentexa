@@ -4,7 +4,7 @@ import path from 'path';
 import {
   routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody,
   confirmBody, placeRefParam, journeySide, searchOutcome, isBookableTrip, isTransportService, serviceOfferCommitBody,
-  canDeliverDirect, isDirectDelivery, directJourneyBody, pickupTaskBody,
+  canDeliverDirect, isDirectDelivery, directJourneyBody, pickupTaskBody, cargoRequirements,
 } from './shipmentRequests';
 
 // The contract both test suites share. Read from disk (it lives outside
@@ -155,5 +155,33 @@ describe('send-shipment request contract', () => {
       'the server reason %s is passed through',
       (reason) => expect(searchOutcome({ availability: { reason } })).toBe(reason),
     );
+  });
+
+  describe('send form v2: pieces, declared value and type', () => {
+    it('added only when given, so the pinned bodies above stay exactly the same', () => {
+      expect(cargoRequirements(state, now)).toEqual({
+        description: 'Nguo za watoto', cargoClass: 'normal', quantity: 1, weightKg: 2,
+        evidenceLevel: 'declared', capturedAt: contract.now,
+      });
+    });
+
+    it('pieces, the value in whole shillings ("150,000") and a fragile type', () => {
+      const body = cargoRequirements({ ...state, pieces: '3', declaredValue: '150,000', cargoType: 'kinavunjika' }, now);
+      expect(body).toMatchObject({ quantity: 3, declaredValue: 150000, fragile: true, specialHandlingNotes: 'Kinavunjika', cargoClass: 'normal' });
+    });
+
+    it('the type never changes the cargo class; bad pieces fall back to 1; an empty value is left out', () => {
+      for (const t of ['kawaida', 'chakula', 'nyaraka', 'kinavunjika', undefined]) {
+        expect(cargoRequirements({ ...state, cargoType: t }, now).cargoClass).toBe('normal');
+      }
+      const body = cargoRequirements({ ...state, pieces: '0', declaredValue: '' }, now);
+      expect(body.quantity).toBe(1);
+      expect('declaredValue' in body).toBe(false);
+    });
+
+    it('the value reaches the commit body (it is locked on the parcel at confirmation)', () => {
+      const body = wire(serviceOfferCommitBody({ ...state, declaredValue: '20000' }, selected, false, now));
+      expect(body.cargoRequirements.declaredValue).toBe(20000);
+    });
   });
 });

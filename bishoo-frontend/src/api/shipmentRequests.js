@@ -51,14 +51,34 @@ export const routeSearchParams = ({ origin, destination, originResolved, destina
 // GET /shipments/hubs
 export const hubSearchParams = (resolved, side) => ({ place: placeRefParam(resolved?.placeRef), side });
 
-export const cargoRequirements = ({ itemDescription, weightKg }, now = new Date()) => ({
-  description: (itemDescription || '').trim(),
-  cargoClass: 'normal',
-  quantity: 1,
-  weightKg: Number(weightKg) || 0,
-  evidenceLevel: 'declared',
-  capturedAt: now.toISOString(),
-});
+// Send form v2 (2026-10-23): pieces, declared value (TZS) and type are added only
+// when the sender gave them, so the pinned contract bodies stay exactly as before.
+// The type never changes cargoClass: a non-"normal" class hides every transporter
+// that has not listed accepted classes, so it travels as a handling note instead.
+export const CARGO_TYPES = {
+  kawaida: null,
+  kinavunjika: { fragile: true, specialHandlingNotes: 'Kinavunjika' },
+  chakula: { specialHandlingNotes: 'Chakula' },
+  nyaraka: { specialHandlingNotes: 'Nyaraka' },
+};
+const wholeShillings = (value) => {
+  const n = Number(String(value ?? '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : undefined;
+};
+export const cargoRequirements = ({ itemDescription, weightKg, pieces, declaredValue, cargoType }, now = new Date()) => {
+  const quantity = Number.isInteger(Number(pieces)) && Number(pieces) >= 1 ? Number(pieces) : 1;
+  const value = wholeShillings(declaredValue);
+  return {
+    description: (itemDescription || '').trim(),
+    cargoClass: 'normal',
+    quantity,
+    weightKg: Number(weightKg) || 0,
+    ...(value !== undefined ? { declaredValue: value } : {}),
+    ...(CARGO_TYPES[cargoType] || {}),
+    evidenceLevel: 'declared',
+    capturedAt: now.toISOString(),
+  };
+};
 
 // A trip the server offered is a Transport Run (Gate 2): `runId`.
 export const isBookableTrip = (selected) =>

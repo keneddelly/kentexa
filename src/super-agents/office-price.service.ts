@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { SuperAgent, SuperAgentStatus } from './entities/super-agent.entity';
@@ -12,6 +12,7 @@ import {
   ChargeMode, DEFAULT_COUNTRY, DEFAULT_CURRENCY, OfficePriceQuote, OfficePriceRuleInput,
   defaultRule, isDarEsSalaam, quoteOfficePrice,
 } from './office-price';
+import { OFFICE_PICKUP_MESSAGES, officePickupTableReady, readOfficePickupInput } from '../transport/office-offers';
 
 export const OFFICE_PRICE_MESSAGES = {
   activeOfficeOnly: 'Ofisi hai (Super Agent) pekee inaweza kuweka au kuona bei.',
@@ -123,6 +124,35 @@ export class OfficePriceService {
     // Same-city parcel in Dar (agent delivery from a Dar office): only the boda fee.
     const sameCityDar = inDar && req.servicePath === 'local_agent';
     return quoteOfficePrice({ rule, kgRate, declaredValue, weightKg: req.weightKg ?? null, pickupBodaFee, deliveryBodaFee, sameCityDar });
+  }
+
+  // ── Pickup offer: does this office collect from senders, free or for a fee? ──
+  async getMyPickup(user: User, roleContext: RoleContext | undefined) {
+    const office = await this.activeOffice(user, roleContext);
+    if (!(await officePickupTableReady(this.rules.manager, true))) throw new ServiceUnavailableException(OFFICE_PICKUP_MESSAGES.notReady);
+    const rows: any[] = await this.rules.manager.query(
+      `SELECT mode, fee, "maxKm" FROM public.office_pickup_offer WHERE "superAgentId" = $1`, [office.id]);
+    const r = rows[0];
+    return {
+      mode: r?.mode ?? 'none', fee: r?.fee == null ? null : Number(r.fee), maxKm: r?.maxKm == null ? null : Number(r.maxKm),
+      // A distance limit needs the office's own point on the map.
+      officePointSet: office.latitude != null && office.longitude != null,
+    };
+  }
+
+  async setMyPickup(user: User, roleContext: RoleContext | undefined, dto: any) {
+    const office = await this.activeOffice(user, roleContext);
+    if (!(await officePickupTableReady(this.rules.manager, true))) throw new ServiceUnavailableException(OFFICE_PICKUP_MESSAGES.notReady);
+    let offer;
+    try { offer = readOfficePickupInput(dto); } catch (e: any) {
+      throw new BadRequestException((OFFICE_PICKUP_MESSAGES as any)[e?.message] || OFFICE_PICKUP_MESSAGES.badMode);
+    }
+    await this.rules.manager.query(`INSERT INTO public.office_pickup_offer ("superAgentId", mode, fee, "maxKm", "updatedByUserId", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, now())
+      ON CONFLICT ("superAgentId") DO UPDATE SET mode = EXCLUDED.mode, fee = EXCLUDED.fee, "maxKm" = EXCLUDED."maxKm",
+        "updatedByUserId" = EXCLUDED."updatedByUserId", "updatedAt" = now()`,
+    [office.id, offer.mode, offer.fee, offer.maxKm, user.id]);
+    return this.getMyPickup(user, roleContext);
   }
 
   async previewMine(user: User, roleContext: RoleContext | undefined, req: OfficeQuoteRequest) {

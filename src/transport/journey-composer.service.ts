@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CargoRequirements, normalizeCargoRequirements } from './journey/cargo-requirements';
+import { OFFICE_SERVICE_PATH } from './office-offers';
 import { JourneyCommitmentLevel, JourneyLegType } from './entities/journey-selection.entity';
 import { parseTravelDate } from './run-supply';
 import { JourneySelectionService } from './journey-selection.service';
@@ -419,6 +420,55 @@ export class JourneyComposerService {
           requiredActorCapability: 'local_agent', executionRequirements: requirements,
         },
       ],
+    });
+  }
+
+  /**
+   * The sender chose an OFFICE (owner 2026-10-23): no transporter leg. The parcel goes
+   * to that office -- brought in by the sender, or picked up by an agent -- and the
+   * office sends it on with its own transport, as with a walk-in. The office and the
+   * price it quoted (re-priced by the server just before this call) are kept on the
+   * legs; the shipment takes its price and its origin hub from them.
+   */
+  async selectOfficeService(userId: number, dto: ComposeJourneyDto & {
+    pickup?: 'door' | 'point'; delivery?: 'door' | 'collect';
+    officeId: number; officeName: string; office: Record<string, any>;
+  }) {
+    const cargo = normalizeCargoRequirements(dto.cargoRequirements);
+    const origin = await this.resolveSide('Origin', dto.origin, dto.originSnapshot);
+    const destination = await this.resolveSide('Destination', dto.destination, dto.destinationSnapshot);
+    const officeId = Number(dto.officeId);
+    if (!Number.isInteger(officeId) || officeId <= 0) throw new BadRequestException('Chagua ofisi');
+    const requirements = {
+      composedByServer: true, servicePath: OFFICE_SERVICE_PATH, officeId,
+      officeName: dto.officeName, officeQuote: dto.office?.quote ?? null,
+      destinationCity: dto.office?.destinationCity ?? null, estimatedDays: dto.office?.estimatedDays ?? null,
+      pickupBy: dto.pickup === 'door' ? (dto.office?.pickupBy === 'office' ? 'office' : 'agent') : null,
+    };
+    const hub = { kind: 'hub', superAgentId: officeId, name: dto.officeName };
+    const agent = { kind: 'agent', role: 'local_agent' };
+    const legs: any[] = [];
+    if (dto.pickup === 'door') {
+      // The office collects itself, or "an agent, whoever claims it".
+      legs.push(requirements.pickupBy === 'office'
+        ? { type: JourneyLegType.FIRST_MILE, fromNode: origin.snapshot, toNode: hub, superAgentId: officeId,
+          requiredActorCapability: 'super_agent', executionRequirements: requirements }
+        : { type: JourneyLegType.FIRST_MILE, fromNode: origin.snapshot, toNode: hub,
+          requiredActorCapability: 'local_agent', executionRequirements: requirements });
+    }
+    legs.push({ type: JourneyLegType.HUB_INTAKE, fromNode: dto.pickup === 'door' ? agent : origin.snapshot, toNode: hub,
+      superAgentId: officeId, requiredActorCapability: 'kentexa_point', executionRequirements: requirements });
+    legs.push(dto.delivery === 'door'
+      ? { type: JourneyLegType.LAST_MILE, fromNode: hub, toNode: destination.snapshot,
+        requiredActorCapability: 'local_agent', executionRequirements: requirements }
+      : { type: JourneyLegType.CUSTOMER_PICKUP, fromNode: hub, toNode: destination.snapshot,
+        requiredActorCapability: 'kentexa_point', executionRequirements: requirements });
+    return this.selections.select(userId, {
+      originSnapshot: origin.snapshot,
+      destinationSnapshot: destination.snapshot,
+      cargoRequirements: cargo,
+      paymentMethod: dto.paymentMethod,
+      legs,
     });
   }
 }

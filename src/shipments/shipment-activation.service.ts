@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import { SmsService } from '../sms/sms.service';
+import { customerParcelNumber, smsSafeName } from '../super-agents/customer-parcel-number';
 import { createHash } from 'crypto';
 import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto } from './shipments.service';
@@ -21,6 +23,8 @@ export class ShipmentActivationService {
     private readonly pickupTasks: PickupTasksService,
     private readonly dispatch: LogisticsDispatchService,
     private readonly dataSource: DataSource,
+    // Office pickup (send form v2): the office is told by SMS. Optional for hand-built specs.
+    @Optional() private readonly sms?: SmsService,
   ) {}
 
   private activationKey(userId: number, shipmentId: number) {
@@ -81,6 +85,24 @@ export class ShipmentActivationService {
           const started = await this.startSameCityPickup(userId, confirmed.shipment, first.id);
           if (started) return { ...confirmed, nextAction: started };
         }
+        // Office journey (send form v2): an agent picks the parcel up and brings it to
+        // the office the sender chose -- the same hub-routed pickup job as before.
+        // The office collects itself (it offered pickup, free or for its fee): no agent job;
+        // the office is told by SMS and the sender is told the office will call.
+        if (!transportLeg && first.executionRequirements?.servicePath === 'office_routed'
+            && first.executionRequirements?.pickupBy === 'office') {
+          const officeId = Number(first.superAgentId ?? first.executionRequirements?.officeId);
+          await this.tellOfficeToCollect(userId, confirmed, officeId).catch((err: any) =>
+            this.logger.warn(`Office pickup SMS for shipment ${confirmed.shipment.id} not sent: ${err?.message || err}`));
+          return { ...confirmed, nextAction: {
+            type: 'office_pickup', actor: 'super_agent', journeyLegId: first.id, officeId,
+            status: 'awaiting_office', custodyStarted: false,
+          } };
+        }
+        if (!transportLeg && first.executionRequirements?.servicePath === 'office_routed') {
+          const started = await this.startPickup(userId, confirmed.shipment, first.id, 'hub_routed');
+          if (started) return { ...confirmed, nextAction: { ...started, officeId: confirmed.shipment['origin' + 'Hub' + 'Id'] ?? null } };
+        }
         // No pickup task is created on this path (KNOWN_FAULTS.md #5), so
         // nobody has been told. Give the sender someone real to call instead.
         return { ...confirmed, nextAction: {
@@ -140,7 +162,33 @@ export class ShipmentActivationService {
    * the confirmed booking: it returns null and the sender gets the honest
    * "nobody assigned yet" answer instead.
    */
+  /** One SMS to the office: who to collect from, where, and the parcel number. */
+  private async tellOfficeToCollect(userId: number, confirmed: any, officeId: number) {
+    if (!this.sms || !officeId) return;
+    const [office] = await this.dataSource.query(`SELECT phone FROM public.super_agent WHERE id = $1`, [officeId]);
+    if (!office?.phone) return;
+    const s = confirmed.shipment;
+    let name = String(s.senderName || '').trim();
+    let phone = String(s.senderPhone || '').trim();
+    if (!name || !phone) {
+      const [u] = await this.dataSource.query(`SELECT name, phone FROM public."user" WHERE id = $1`, [userId]);
+      name = name || String(u?.name || '').trim() || 'Mtumaji';
+      phone = phone || String(u?.phone || '').trim();
+    }
+    const reference = customerParcelNumber({
+      trackingNumber: s.trackingNumber, waybillNumber: confirmed.parcel?.waybillNumber ?? null, createdAt: confirmed.parcel?.createdAt ?? null,
+    });
+    const where = smsSafeName(s.pickupLandmark || s.originLocationLabel || s.originCity).slice(0, 50);
+    const text = `KenteXa: Mteja amechagua ofisi yako kuchukua mzigo ${reference}. ${smsSafeName(name).slice(0, 25)} ${phone}, ${where}. `
+      + `Kwenda ${smsSafeName(s.destinationCity).slice(0, 20)}.`;
+    await this.sms.sendSms(office.phone, text.length > 160 ? text.slice(0, 160) : text);
+  }
+
   private async startSameCityPickup(userId: number, shipment: any, journeyLegId: number) {
+    return this.startPickup(userId, shipment, journeyLegId, 'direct_delivery');
+  }
+
+  private async startPickup(userId: number, shipment: any, journeyLegId: number, servicePath: 'direct_delivery' | 'hub_routed') {
     let contactName = String(shipment.senderName || '').trim();
     let contactPhone = String(shipment.senderPhone || '').trim();
     if (!contactName || !contactPhone) {
@@ -153,7 +201,7 @@ export class ShipmentActivationService {
     try {
       task = await this.pickupTasks.requestForShipment(userId, shipment.id, {
         requestKey: this.activationKey(userId, shipment.id),
-        servicePath: 'direct_delivery',
+        servicePath,
         pickupContactName: contactName,
         pickupContactPhone: contactPhone,
       });

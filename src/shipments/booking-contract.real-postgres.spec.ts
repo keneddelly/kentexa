@@ -942,4 +942,67 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
       await expect(composer.selectComposed(SENDER, rest as any)).rejects.toBeInstanceOf(BadRequestException);
     });
   });
+
+  // ── Send form v2: an OFFICE offer is booked like any other (2026-10-23) ──────
+  describe('an office (Super Agent) chosen in the send form', () => {
+    const mkOffice = async (name: string) => {
+      const u = await ds.getRepository(User).save(ds.getRepository(User).create({
+        email: `office-${++userSeq}@v2.local`, phone: `+2557${String(userSeq).padStart(8, '0')}`, password: 'x', name,
+      } as any));
+      const office: any = await ds.getRepository(SuperAgent).save(ds.getRepository(SuperAgent).create({
+        userId: (u as any).id, businessName: name, city: 'Dar es Salaam', address: `${name} Street`, status: 'active',
+      } as any) as any);
+      return office.id as number;
+    };
+    const officeJourney = (officeId: number, total: number) => composer.selectOfficeService(SENDER, {
+      origin: { place: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' } },
+      destination: { place: { providerKey: 'tz_seed', providerPlaceId: 'region:2' } },
+      cargoRequirements: { ...requests.selectJourney.body.cargoRequirements, declaredValue: 150000 },
+      paymentMethod: 'cash', pickup: 'point', delivery: 'collect',
+      officeId, officeName: 'Ofisi ya Kariakoo', office: { quote: { pickup: 0, transport: total, total }, destinationCity: 'Mwanza', estimatedDays: 2 },
+    } as any);
+    const officeShipment = (journeySelectionId: number) => shipments.createShipment(SENDER, {
+      receiverName: 'Amina Juma', receiverPhone: '0712000001',
+      originPlace: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' },
+      destinationPlace: { providerKey: 'tz_seed', providerPlaceId: 'region:2' },
+      itemDescription: 'Nguo za watoto', weightKg: 2, journeySelectionId,
+      pickupOption: 'station', deliveryOption: 'station',
+    } as any);
+
+    afterEach(async () => {
+      await ds.query('DELETE FROM public.parcel');
+      await ds.query('DELETE FROM public.shipment');
+      await ds.query('DELETE FROM public.super_agent');
+    });
+
+    it('no transporter: the office price is the shipment price, the office is the origin hub, one Parcel at that office', async () => {
+      const officeId = await mkOffice('Ofisi ya Kariakoo');
+      const journey = await officeJourney(officeId, 15000);
+      const legs = await ds.query('SELECT type, "superAgentId", "executionRequirements" FROM public.journey_leg WHERE "journeySelectionId" = $1 ORDER BY sequence', [journey.id]);
+      expect(legs.map((l: any) => l.type)).toEqual(['hub_intake', 'customer_pickup']);
+      expect(legs[0]).toMatchObject({ superAgentId: officeId });
+      expect(legs[0].executionRequirements).toMatchObject({ servicePath: 'office_routed', officeId });
+      expect((await ds.query('SELECT "cargoRequirements" FROM public.journey_selection WHERE id = $1', [journey.id]))[0].cargoRequirements.declaredValue).toBe(150000);
+
+      const created = await officeShipment(journey.id);
+      expect(Number(created.priceQuoted)).toBe(15000);
+      expect(created.providerId).toBeNull();
+
+      const confirmed = await shipments.confirmShipment(SENDER, created.id, {});
+      expect(confirmed.shipment).toMatchObject({ status: 'confirmed', originHubId: officeId, originHubSource: 'sender_selected', destinationHubSource: 'not_required' });
+      const parcels = await parcelsOf(created.id);
+      expect(parcels).toHaveLength(1);
+      expect(parcels[0].superAgentId).toBe(officeId);
+      expect((await ds.query('SELECT status FROM public.journey_selection WHERE id = $1', [journey.id]))[0].status).toBe('committed');
+    });
+
+    it('the shipment cannot be moved to another office at confirmation', async () => {
+      const officeId = await mkOffice('Ofisi A');
+      const other = await mkOffice('Ofisi B');
+      const created = await officeShipment((await officeJourney(officeId, 15000)).id);
+      await expect(shipments.confirmShipment(SENDER, created.id, { originHubId: other, requestOriginHub: true })).rejects.toThrow(/different origin hub/);
+      expect(await parcelsOf(created.id)).toHaveLength(0);
+    });
+  });
 });
+

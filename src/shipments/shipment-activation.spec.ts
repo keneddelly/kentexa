@@ -89,3 +89,39 @@ describe('same-city door booking from the send form (#22)', () => {
     expect(r.nextAction).toMatchObject({ type: 'agent_pickup_pending', pickupTaskCreated: false });
   });
 });
+
+// Send form v2 (2026-10-23): an office booking.
+describe('office booking from the send form', () => {
+  const officeLegs = (pickupBy: 'office' | 'agent') => [
+    { id: 61, type: JourneyLegType.FIRST_MILE, sequence: 1, superAgentId: pickupBy === 'office' ? 10 : null,
+      executionRequirements: { servicePath: 'office_routed', officeId: 10, pickupBy } },
+    { id: 62, type: JourneyLegType.HUB_INTAKE, sequence: 2, superAgentId: 10, executionRequirements: { servicePath: 'office_routed', officeId: 10 } },
+    { id: 63, type: JourneyLegType.CUSTOMER_PICKUP, sequence: 3, executionRequirements: { servicePath: 'office_routed' } },
+  ];
+
+  it('an agent picks up for the office: the usual hub-routed job to that office', async () => {
+    const t = build({ legs: officeLegs('agent'), shipment: { originHubId: 10 } });
+    const r: any = await t.svc.confirmAndActivate(50, 18, {} as any);
+    expect(t.pickupTasks.requestForShipment).toHaveBeenCalledWith(50, 18, expect.objectContaining({ servicePath: 'hub_routed' }));
+    expect(r.nextAction).toMatchObject({ type: 'agent_pickup', taskId: 77, officeId: 10 });
+  });
+
+  it('the office collects itself: no agent job; the office gets one SMS', async () => {
+    const t = build({ legs: officeLegs('office'), shipment: { originHubId: 10, trackingNumber: 'KTX-SHP-18', pickupLandmark: 'Duka la bluu, Msimbazi', destinationCity: 'Mbeya' } });
+    const sms = { sendSms: jest.fn(async () => true) };
+    (t.svc as any).sms = sms;
+    (t.dataSource.query as jest.Mock).mockImplementation(async (sql: string) => {
+      if (/waybillNumber/.test(sql)) return [{ waybillNumber: 'KTX9815951521' }];
+      if (/FROM public\.super_agent/.test(sql)) return [{ phone: '255700000010' }];
+      return [];
+    });
+    const r: any = await t.svc.confirmAndActivate(50, 18, {} as any);
+    expect(t.pickupTasks.requestForShipment).not.toHaveBeenCalled();
+    expect(r.nextAction).toMatchObject({ type: 'office_pickup', officeId: 10, custodyStarted: false });
+    expect(sms.sendSms).toHaveBeenCalledTimes(1);
+    const [phone, text] = (sms.sendSms.mock.calls[0] as unknown) as [string, string];
+    expect(phone).toBe('255700000010');
+    expect(text).toMatch(/^KenteXa: Mteja amechagua ofisi yako kuchukua mzigo .+ Asha 255700000001, Duka la bluu, Msimbazi\. Kwenda Mbeya\.$/);
+    expect(text.length).toBeLessThanOrEqual(160);
+  });
+});
