@@ -1568,7 +1568,10 @@ export class ShipmentsService {
     const created: Parcel = parcels.create({
       shipment: { id: shipment.id } as any,
       journeySelectionId: shipment.journeySelectionId,
-      order: null,
+      // One shipment engine for every order (owner 2026-10-25): a seller's sale booked
+      // through the engine carries its Order, so pay-on-delivery and the order views follow it.
+      order: shipment.orderId ? ({ id: shipment.orderId } as any) : null,
+      ...(shipment.orderId ? { seller: { id: shipment.requestedByUserId } as any } : {}),
       senderName: shipment.senderName,
       senderPhone: shipment.senderPhone,
       buyerPhone: shipment.receiverPhone,
@@ -1586,7 +1589,7 @@ export class ShipmentsService {
       // distinct from 'seller_shipment' (a seller-initiated sale) and
       // 'online_order', since this parcel came from neither: an
       // independent, non-seller "send something" request.
-      source: 'shipment',
+      source: shipment.orderId ? 'seller_shipment' : 'shipment',
       status: ParcelStatus.PENDING,
     });
     // Concurrent confirmations take the Shipment lock in order, so only the

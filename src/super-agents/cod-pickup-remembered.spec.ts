@@ -34,7 +34,8 @@ describe('the seller\'s shop place for COD boda pickups is asked once', () => {
 
   it('the form gets the saved label', async () => {
     await expect(build([{ snap: kariakoo }]).getLastCodPickup(seller, 'Dar es Salaam'))
-      .resolves.toEqual({ label: 'Kariakoo, Ilala, Dar es Salaam', city: 'Dar es Salaam' });
+      .resolves.toEqual({ label: 'Kariakoo, Ilala, Dar es Salaam', city: 'Dar es Salaam',
+        placeRef: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' }, point: { latitude: -6.82, longitude: 39.28 } });
     await expect(build([]).getLastCodPickup(seller, 'Dar es Salaam')).resolves.toBeNull();
   });
 });

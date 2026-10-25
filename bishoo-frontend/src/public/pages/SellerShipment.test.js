@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import SellerShipment, { firstStep, sameCity } from './SellerShipment';
+import SellerShipment, { firstStep, sameCity, sellerOffers } from './SellerShipment';
 import api from '../../api/api';
 
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn() }));
@@ -21,7 +21,8 @@ const GETS = {
   '/store/profile': { businessLocation: 'Dar es Salaam, Kariakoo' },
   '/products/my/products': [{ id: 4, name: 'Saa ya ukutani', price: 300000, weightKg: 2 }],
   '/classifieds/user/mine': [],
-  '/super-agents/shipments/last-pickup': { pickup: { label: 'Kariakoo, Ilala, Dar es Salaam' } },
+  '/super-agents/shipments/last-pickup': { pickup: { label: 'Kariakoo, Ilala, Dar es Salaam', city: 'Dar es Salaam',
+    placeRef: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' }, point: { latitude: -6.82, longitude: 39.27 } } },
   '/super-agents/shipments/boda-fee': { fee: 3000 },
 };
 beforeEach(() => {
@@ -30,8 +31,19 @@ beforeEach(() => {
     if (url.startsWith('/business/customers')) return { data: { customers: [{ id: 1, name: 'Amina Juma', phone: '0712000222', region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mbezi Beach' }] } };
     return { data: GETS[url] ?? null };
   });
-  api.post.mockResolvedValue({ data: { trackingNumber: 'KTX-ORD-9', customerNumber: 'KTX 4829 1037 52', billing: null } });
+  api.post.mockImplementation(async (url, body) => {
+    if (url === '/transport/service-offers/discover') {
+      return { data: body.toCity === 'Mbeya' ? [OFFICE_MBEYA] : [{ serviceType: 'direct_delivery', price: 4000 }, OFFICE_DAR] };
+    }
+    if (url === '/transport/service-offers/commit') return { data: { id: 31 } };
+    if (url === '/shipments') return { data: { id: 88 } };
+    return { data: { trackingNumber: 'KTX-ORD-9', customerNumber: 'KTX 4829 1037 52', billing: null } };
+  });
 });
+const office = (id, name, city, price) => ({ serviceType: 'office', name, price, fulfillment: { officeOption: { officeId: id, officeCity: city, officeAddress: `${city} stendi` } } });
+const OFFICE_DAR = office(5, 'Ofisi Kariakoo', 'Dar es Salaam', 5000);
+const OFFICE_MBEYA = office(6, 'Ofisi Ubungo', 'Dar es Salaam', 12000);
+const posted = (url) => api.post.mock.calls.filter((c) => c[0] === url).map((c) => c[1]);
 const nextBtn = (n) => screen.getByTestId(`next-${n}`);
 
 test('four short steps: product, a recent customer in one tap, paid; KenteXa picks the agent in the city', async () => {
@@ -44,12 +56,21 @@ test('four short steps: product, a recent customer in one tap, paid; KenteXa pic
   fireEvent.click(nextBtn(2));
   fireEvent.click(screen.getByTestId('pay-paid'));
   fireEvent.click(nextBtn(3));
-  expect(screen.getByTestId('delivery-choice').textContent).toMatch(/Wakala wa karibu/);
+  // The same engine as the customer form: the agent first, the office that delivers in town too.
+  expect(await screen.findByTestId('offer-direct')).toHaveAttribute('aria-checked', 'true');
+  expect(screen.getByTestId('offer-office-5')).toHaveTextContent('Ofisi Kariakoo · TZS 5,000');
+  expect(posted('/transport/service-offers/discover')[0]).toMatchObject({
+    fromCity: 'Dar es Salaam', toCity: 'Dar es Salaam', pickup: 'door', delivery: 'door',
+    origin: { place: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' } }, pickupPoint: { latitude: -6.82, longitude: 39.27 },
+  });
   fireEvent.click(nextBtn(4));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/super-agents/shipments', expect.objectContaining({
+    shipmentId: 88, confirm: {},
     recipientName: 'Amina Juma', recipientPhone: '0712000222', destinationCity: 'Dar es Salaam', originCity: 'Dar es Salaam',
-    transportMethod: 'boda', totalValue: 300000, weightKg: 2, isCod: undefined,
+    totalValue: 300000, weightKg: 2, isCod: undefined,
   })));
+  expect(posted('/transport/service-offers/commit')[0]).toMatchObject({ serviceType: 'direct_delivery' });
+  expect(posted('/shipments')[0]).toMatchObject({ journeySelectionId: 31, receiverName: 'Amina Juma', pickupOption: 'door', deliveryOption: 'door' });
   expect(await screen.findByTestId('seller-send-number')).toHaveTextContent('KTX 4829 1037 52');
 });
 
@@ -64,9 +85,12 @@ test('pay on delivery: the boda fee and the shop place are already filled in, no
   expect(screen.getByTestId('last-pickup')).toHaveTextContent('Kariakoo, Ilala, Dar es Salaam');
   fireEvent.click(nextBtn(3));
   expect(screen.getByText(/Amina Juma atalipa/).nextSibling).toHaveTextContent('TZS 303,000');
+  // Pay-on-delivery rides only on the agent: no office to choose.
+  expect(await screen.findByTestId('offer-direct')).toBeTruthy();
+  expect(screen.queryByTestId('offer-office-5')).toBeNull();
   fireEvent.click(nextBtn(4));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/super-agents/shipments', expect.objectContaining({
-    isCod: true, codAmountPaid: 0, bodaFee: undefined, pickupPlace: undefined, transportMethod: 'boda',
+    shipmentId: 88, isCod: true, codAmountPaid: 0, bodaFee: undefined,
   })));
 });
 
@@ -79,13 +103,14 @@ test('from POS (paid): opens at the customer, skips payment, sends the sale', as
   fireEvent.change(screen.getByLabelText('Mahali pa mteja'), { target: { value: 'mbezi' } });
   fireEvent.click(nextBtn(2));
   expect(screen.getByText('Hatua 4 kati ya 4')).toBeTruthy();
+  await screen.findByTestId('offer-direct');
   fireEvent.click(nextBtn(4));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/super-agents/shipments', expect.objectContaining({
     saleId: 77, recipientName: 'Neema', totalValue: 90000, isCod: undefined,
   })));
 });
 
-test('another city: the office carries it, and pay-on-delivery is refused', async () => {
+test('another city: offices compete, and pay-on-delivery is refused', async () => {
   render(<SellerShipment isLoggedIn onNavigate={jest.fn()} />);
   fireEvent.click(await screen.findByRole('radio', { name: /Saa ya ukutani/ }));
   fireEvent.click(nextBtn(1));
@@ -98,11 +123,14 @@ test('another city: the office carries it, and pay-on-delivery is refused', asyn
   expect(nextBtn(3).disabled).toBe(true);
   fireEvent.click(screen.getByTestId('pay-paid'));
   fireEvent.click(nextBtn(3));
-  expect(screen.getByTestId('delivery-choice').textContent).toMatch(/Ofisi ya KenteXa/);
+  expect(await screen.findByTestId('offer-office-6')).toHaveTextContent('Ofisi Ubungo · TZS 12,000');
+  expect(screen.queryByTestId('offer-direct')).toBeNull();
   fireEvent.click(nextBtn(4));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/super-agents/shipments', expect.objectContaining({
-    destinationCity: 'Mbeya', transportMethod: 'super_agent',
+    shipmentId: 88, destinationCity: 'Mbeya',
   })));
+  expect(posted('/transport/service-offers/commit')[0]).toMatchObject({ serviceType: 'office', officeId: 6, declaredValue: 300000 });
+  expect(posted('/shipments')[0]).toMatchObject({ journeySelectionId: 31, pickupOption: 'station', deliveryOption: 'station' });
 });
 
 test('where to open, and same city', () => {
@@ -111,4 +139,14 @@ test('where to open, and same city', () => {
   expect(firstStep({ items: [{}], name: 'A', phone: '0712000111', place: { regionName: 'Dar es Salaam' }, paymentKnown: true })).toBe(4);
   expect(sameCity('Dar es Salaam', 'dar')).toBe(true);
   expect(sameCity('Mbeya', 'Dar es Salaam')).toBe(false);
+});
+
+test('the offers: the agent, offices, and transporters only when nothing more must be asked', () => {
+  const t = (id, origins, dests) => ({ serviceType: 'composed_intercity', price: 9000,
+    fulfillment: { transportOption: { providerId: id, routeId: 1, runId: 2, originPoints: origins, destinationPoints: dests } } });
+  const list = [{ serviceType: 'direct_delivery', price: 4000 }, OFFICE_DAR, t(1, [{ hubId: 1 }], [{ hubId: 2 }]), t(2, [{ hubId: 1 }, { hubId: 3 }], [{ hubId: 2 }])];
+  expect(sellerOffers(list, { inCity: true, cod: true }).map((o) => o.key)).toEqual(['direct']);
+  expect(sellerOffers(list, { inCity: true, cod: false }).map((o) => o.key)).toEqual(['direct', 'office-5']);
+  expect(sellerOffers(list, { inCity: false, cod: false }).map((o) => o.key)).toEqual(['direct', 'office-5', 't-1-1']);
+  expect(sellerOffers(list, { inCity: false, cod: true })).toEqual([]);
 });

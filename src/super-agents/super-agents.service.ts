@@ -7,6 +7,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { OfficePriceService } from './office-price.service';
+import { ShipmentActivationService } from '../shipments/shipment-activation.service';
 import { checkChargedAmount, isDarEsSalaam } from './office-price';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
@@ -227,6 +228,9 @@ export class SuperAgentsService {
     @Optional() private officePrices?: OfficePriceService,
     // The KenteXa Dar boda fee: the default COD delivery fee on a seller shipment.
     @Optional() private bodaFees?: OfficeBodaFeeService,
+    // One shipment engine for every order (owner 2026-10-25): a seller's sale booked
+    // through it is confirmed and started by the same activation as the send form.
+    @Optional() private shipmentActivation?: ShipmentActivationService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -4427,6 +4431,34 @@ export class SuperAgentsService {
     };
   }
 
+  /**
+   * One shipment engine (owner 2026-10-25): the seller's engine-booked Shipment gets this
+   * sale's Order, then is confirmed and started by the same activation as the send form
+   * (its Parcel carries the Order: shipments.service createParcelForConfirmedShipment).
+   * The sale's own facts (goods value, sale, listing) go on the Parcel. If starting fails,
+   * the just-saved Order is cancelled so no order is left without its parcel.
+   */
+  private async startEngineShipment(order: Order, seller: User, shipmentId: number, dto: any,
+    extra: { declaredValue: number; saleId: number | null; classifiedId: number | null }) {
+    await this.dataSource.query(`UPDATE public.shipment SET "orderId" = $2 WHERE id = $1 AND "orderId" IS NULL`, [shipmentId, order.id]);
+    let activated: any;
+    try {
+      activated = await this.shipmentActivation!.confirmAndActivate(seller.id, shipmentId, dto.confirm || {});
+    } catch (e) {
+      await this.dataSource.query(`UPDATE public.shipment SET "orderId" = NULL WHERE id = $1 AND "orderId" = $2`, [shipmentId, order.id]).catch(() => undefined);
+      await this.orderRepo.update(order.id, { status: OrderStatus.CANCELLED } as any).catch(() => undefined);
+      throw e;
+    }
+    const parcelId = Number(activated?.parcel?.id);
+    const parcel = parcelId ? await this.parcelRepo.findOne({ where: { id: parcelId } }) : null;
+    if (!parcel) throw new ConflictException('The parcel for this shipment is missing');
+    await this.parcelRepo.update(parcel.id, {
+      declaredValue: extra.declaredValue, saleId: extra.saleId, classifiedId: extra.classifiedId,
+      description: dto.description || parcel.description, deliveryAddress: dto.deliveryAddress || parcel.deliveryAddress,
+    } as any);
+    return { parcel, transitCity: null, expectedArrival: '', estimatedDays: null, nextAction: activated?.nextAction ?? null };
+  }
+
   /** The shop place of this seller's last pay-on-delivery boda pickup in this city, or null. */
   private async lastCodPickupSnapshot(sellerUserId: number, city: string): Promise<Record<string, unknown> | null> {
     const rows: any[] = await this.dataSource.query(
@@ -4456,7 +4488,14 @@ export class SuperAgentsService {
   /** For the seller's form: the shop place the boda will use unless changed. */
   async getLastCodPickup(seller: User, city: string) {
     const snap = await this.lastCodPickupSnapshot(seller.id, String(city || 'Dar es Salaam'));
-    return snap ? { label: String(snap.label), city: snap.city ?? null } : null;
+    if (!snap) return null;
+    // The place reference and point, when kept: the engine journey starts at the shop.
+    const ref = snap.providerKey && snap.providerPlaceId ? { providerKey: String(snap.providerKey), providerPlaceId: String(snap.providerPlaceId) } : null;
+    const lat = Number(snap.latitude); const lng = Number(snap.longitude);
+    return {
+      label: String(snap.label), city: snap.city ?? null, placeRef: ref,
+      point: Number.isFinite(lat) && Number.isFinite(lng) && snap.latitude != null ? { latitude: lat, longitude: lng } : null,
+    };
   }
 
   async createSellerShipment(
@@ -4532,6 +4571,11 @@ export class SuperAgentsService {
       // COD only: where the boda rider collects the parcel (the seller's shop), a
       // KenteXa place picked on the map; resolved on the server.
       pickupPlace?: { providerKey?: string; providerPlaceId?: string };
+      // One shipment engine (2026-10-25): the Shipment the seller's form booked through
+      // the engine (offer -> journey -> POST /shipments, not yet confirmed). This sale is
+      // attached to it, then it is confirmed and started like every other shipment.
+      shipmentId?: number;
+      confirm?: { originHubId?: number; destinationHubId?: number; requestOriginHub?: boolean; requestDestinationHub?: boolean };
     },
     scope?: SellerScope,
   ) {
@@ -4549,6 +4593,23 @@ export class SuperAgentsService {
       if (linkedSale.status !== SaleStatus.COMPLETED) {
         throw new BadRequestException('Only a completed sale can be shipped');
       }
+    }
+
+    // The engine Shipment, checked before anything is saved: the seller's own, not yet
+    // confirmed, not already carrying an order. Pay-on-delivery rides only on an agent's
+    // direct delivery (that job carries the buyer's code and collects the cash).
+    let engineShipment: { id: number; direct: boolean } | null = null;
+    if (dto.shipmentId != null) {
+      if (!this.shipmentActivation) throw new BadRequestException('Huduma hii bado haijawashwa. Jaribu tena baadaye.');
+      const [s] = await this.dataSource.query(
+        `SELECT id, "requestedByUserId", status::text AS status, "orderId", "journeySelectionId" FROM public.shipment WHERE id = $1`,
+        [Number(dto.shipmentId)]);
+      if (!s || Number(s.requestedByUserId) !== seller.id) throw new NotFoundException('Shipment not found');
+      if (s.status !== 'pending' || s.orderId != null) throw new ConflictException('Usafiri huu umeshatumika. Chagua usafiri tena.');
+      const legs: any[] = s.journeySelectionId == null ? [] : await this.dataSource.query(
+        `SELECT type, "executionRequirements"->>'servicePath' AS path FROM public.journey_leg WHERE "journeySelectionId" = $1 ORDER BY sequence ASC`,
+        [s.journeySelectionId]);
+      engineShipment = { id: Number(s.id), direct: legs.length > 0 && !legs.some((l) => l.type === 'transport') && legs[0].path === 'direct_delivery' };
     }
 
     // Billing applies only to actual sellers — an ADMIN/MANAGER/SUPER_AGENT
@@ -4640,7 +4701,11 @@ export class SuperAgentsService {
     if (isCodSale) {
       if (!isSameCity(dto.originCity, dto.destinationCity)) throw new BadRequestException(COD_MESSAGES.intercity);
       codBodaFee = await this.resolveCodBodaFee(dto, sellerProfile);
-      codPickup = await this.resolveCodPickup(dto, seller);
+      if (engineShipment && !engineShipment.direct) {
+        throw new BadRequestException('Kulipa ukipokea kunafanya kazi na wakala wa karibu tu. Chagua "Wakala wa karibu".');
+      }
+      // Engine booking: the agent job comes from the journey (origin = the seller's shop).
+      if (!engineShipment) codPickup = await this.resolveCodPickup(dto, seller);
     }
 
     const order = (await this.orderRepo.save(
@@ -4732,12 +4797,11 @@ export class SuperAgentsService {
       );
     }
 
-    const {
-      parcel,
-      transitCity,
-      expectedArrival: expectedArrivalStr,
-      estimatedDays,
-    } = await this.createParcelForOrder(order, seller, null, {
+    const parcelResult: { parcel: Parcel; transitCity: string | null; expectedArrival: string; estimatedDays: number | null; nextAction?: any } = engineShipment
+      ? await this.startEngineShipment(order, seller, engineShipment.id, dto, {
+          declaredValue: computedGoodsValue, saleId: linkedSale?.id ?? null, classifiedId: dto.classifiedId ?? null,
+        })
+      : await this.createParcelForOrder(order, seller, null, {
       trackingNumber,
       source: 'seller_shipment',
       senderName: senderDisplayName,
@@ -4768,6 +4832,7 @@ export class SuperAgentsService {
         type: 'system',
       },
     });
+    const { parcel, transitCity, expectedArrival: expectedArrivalStr, estimatedDays } = parcelResult;
     // The database gives the waybill on insert; the insert does not return it.
     const [storedNumbers] = await this.dataSource.query(
       `SELECT "waybillNumber", "createdAt" FROM public.parcel WHERE id = $1`, [parcel.id],
@@ -4980,6 +5045,8 @@ export class SuperAgentsService {
       trackingNumber,
       waybillNumber: storedNumbers?.waybillNumber ?? null,
       customerNumber,
+      // Engine booking: what happens next (agent alerted, office collects, drop at office).
+      nextAction: parcelResult.nextAction ?? null,
       originCity: dto.originCity,
       destinationCity: dto.destinationCity,
       transitCity,
