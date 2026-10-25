@@ -167,7 +167,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     setItems([{ id: 'typed', name: typedName.trim(), qty: 1, price: Number(digits(typedPrice)), weight: 0, productId: null, classifiedId: null }]);
     setTyping(false);
   };
-  const useCustomer = (c) => {
+  const chooseCustomer = (c) => {
     setName(c.name || ''); setPhone(c.phone || '');
     setPlace({ regionName: c.region || '', districtName: c.district || '', wardName: c.ward || '' });
     setLandmark(c.address || '');
@@ -334,7 +334,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                   {customers.filter((c) => c.name).slice(0, 5).map((c) => {
                     const on = Boolean(digits(c.phone)) && digits(c.phone) === digits(phone);
                     return (
-                      <button key={c.id || c.phone} type="button" onClick={() => useCustomer(c)}
+                      <button key={c.id || c.phone} type="button" onClick={() => chooseCustomer(c)}
                         style={{ minHeight: 44, padding: '0 14px', borderRadius: 22, border: on ? `2px solid ${BLUE}` : `1px solid ${FIELD}`,
                           background: on ? '#eff6ff' : WHITE, fontFamily: FONT, fontSize: 14, fontWeight: 700, color: INK, cursor: 'pointer' }}>{c.name}</button>
                     );
