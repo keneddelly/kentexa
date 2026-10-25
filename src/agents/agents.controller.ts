@@ -21,6 +21,7 @@ import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { AgentOnlineExpiryService, agentOnlineExpiryMinutes } from './agent-online-expiry.service';
+import { agentOnlineRequired } from './agent-online';
 
 @Controller('agents')
 @UseGuards(JwtAuthGuard)
@@ -128,6 +129,8 @@ export class AgentsController {
       ...profile,
       offlineReason: await this.onlineExpiry.offlineReason(profile.id, profile.isOnline, profile.lastOnlineAt),
       onlineExpiryMinutes: agentOnlineExpiryMinutes(),
+      // False while KenteXa is new: nearby jobs reach every agent, online or not.
+      onlineRequired: agentOnlineRequired(),
     };
   }
 

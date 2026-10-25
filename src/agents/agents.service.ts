@@ -33,6 +33,7 @@ import {
   AccountRoleType,
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
+import { agentOnlineRequired } from './agent-online';
 
 /** Vehicle types an agent can choose (step 3 of sign-up). */
 export const AGENT_VEHICLE_TYPES = ['boda', 'car', 'van', 'truck', 'foot'] as const;
@@ -616,9 +617,12 @@ export class AgentsService {
         const matchCity = agentCity === city.toLowerCase();
         const maxKg = Number((a as any).maxWeightKg || 20);
         const matchWeight = !weightKg || weightKg <= maxKg;
-        const online = (a as any).isOnline === true;
+        // Online is not required by default (agent-online.ts, owner 2026-10-25).
+        const online = (a as any).isOnline === true || !agentOnlineRequired();
         return matchCity && matchWeight && online;
       })
+      // Online agents first, then the rest (each group keeps the rating order).
+      .sort((x, y) => Number((y as any).isOnline === true) - Number((x as any).isOnline === true))
       .map((a) => ({
         id: a.id,
         userId: a.user?.id,
@@ -639,7 +643,7 @@ export class AgentsService {
         totalDeliveries: a.totalDeliveriesCompleted || 0,
         // Yes/no only: the base point itself never leaves the server.
         hasBasePoint: a.baseLatitude != null && a.baseLongitude != null,
-        isOnline: true,
+        isOnline: (a as any).isOnline === true,
       }));
   }
 
