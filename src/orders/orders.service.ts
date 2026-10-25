@@ -9,6 +9,9 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ShipmentActivationService } from '../shipments/shipment-activation.service';
+import { LogisticsServiceOfferService } from '../transport/logistics-service-offer.service';
+import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
+import { engineDeliveryFees } from './engine-delivery-price';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, EntityManager } from 'typeorm';
 import {
@@ -219,6 +222,8 @@ export class OrdersService {
     private paymentEvidence: PaymentEvidenceService,
     private orderRelease: OrderReleaseService,
     @Optional() private shipmentActivation?: ShipmentActivationService,
+    @Optional() private serviceOffers?: LogisticsServiceOfferService,
+    @Optional() private bodaRateCard?: OfficeBodaFeeService,
   ) {}
 
   /** S0 shared guard — every checkout->fulfilment/COD-collection transition on Order goes through this. */
@@ -303,36 +308,31 @@ export class OrdersService {
     // enum ('direct'|'agent' only) -- this was previously masked by the
     // removed (dto as any) cast collapsing the whole expression to `any`.
     let chosenMethod: string = product.shippingMethod || 'agent';
-    if (dto.shippingMethod) {
-      const { methods } = await this.getDeliveryMethods(
-        dto.deliveryAddress || '',
-        dto.productId,
-      );
-      const eligible = methods.some((m: any) => m.key === dto.shippingMethod);
-      if (!eligible) {
-        throw new BadRequestException(
-          `Shipping method "${dto.shippingMethod}" is not available for this delivery address`,
-        );
+    // Owner 2026-10-25: "seller should no longer set price". Delivery through the
+    // KenteXa network is priced by the shipment engine (offices, agents and
+    // transporters, their own prices), recomputed here on the server - never the
+    // seller's product fee and never a client-submitted amount. The checkout UI lists
+    // the same methods (getDeliveryMethods), so what the buyer saw is what is charged.
+    let engineFee: number | null = null;
+    const sellerDelivers = chosenMethod === 'direct' && !dto.shippingMethod;
+    if ((product as any).productType !== 'digital' && !sellerDelivers) {
+      const { methods } = await this.getDeliveryMethods(dto.deliveryAddress || '', dto.productId);
+      const wanted = dto.shippingMethod || chosenMethod;
+      const method: any = methods.find((m: any) => m.key === wanted) || (dto.shippingMethod ? null : methods[0]);
+      if (!method) {
+        throw new BadRequestException(dto.shippingMethod
+          ? `Shipping method "${dto.shippingMethod}" is not available for this delivery address`
+          : 'Hakuna usafiri kwenda mahali hapo kwa sasa. Jaribu tena baadaye.');
       }
-      chosenMethod = dto.shippingMethod;
+      chosenMethod = method.key;
+      engineFee = Number(method.fee) || 0;
     }
 
-    // Pricing logic:
-    // - Dar intra-city (boda/kentexa_delivery): basePrice + bodaFee or flat van fee
-    // - Intercity (agent/bus/courier): basePrice + deliveryFee (baked in by seller)
-    const bodaFee = Number((product as any).bodaFee || 0);
-    const BATCH_FEE = 3000;
-
     let deliveryFee: number;
-    if (chosenMethod === 'boda') {
-      // Server-derived only. A client-submitted fee amount is never
-      // trusted here — whatever the checkout UI displayed as a quote, the
-      // charged amount is always recomputed from the product's own bodaFee.
-      deliveryFee = bodaFee;
-    } else if (chosenMethod === 'kentexa_delivery') {
-      deliveryFee = BATCH_FEE;
+    if (engineFee != null) {
+      deliveryFee = engineFee;
     } else {
-      // Intercity — use product's delivery fee
+      // The seller's own delivery (shippingMethod 'direct'): the seller's own figure.
       deliveryFee = Number(product.deliveryFee || 0);
     }
 
@@ -3656,36 +3656,50 @@ export class OrdersService {
       }
     }
 
-    const bodaFee = Number((product as any).bodaFee || 0);
-    const deliveryFee = Number(product.deliveryFee || 0);
     const basePrice = Number(product.basePrice || 0);
     const BATCH_FEE = 3000;
+    // The shipment engine's prices for this trip (owner 2026-10-25: the seller no
+    // longer sets a delivery price). A method the engine cannot price is not offered.
+    // KenteXa is growing (owner 2026-10-25): where the engine has no transport yet the
+    // order is still placed and the seller chooses how to ship ('direct').
+    const sellerArranges = {
+      key: 'direct', label: 'Muuzaji atapanga usafiri', icon: '📦', fee: 0, totalPrice: basePrice,
+      desc: 'KenteXa haina usafiri huko bado; muuzaji atachagua njia ya kutuma na kukuambia gharama',
+    };
+    const fees = await engineDeliveryFees(this.serviceOffers, {
+      fromCity: sellerCity, toCity: isSameCity ? sellerCity : (String(buyerAddress || '').split(',').map((p) => p.trim()).filter(Boolean).pop() || ''),
+      origin: String((product as any).seller?.businessLocation || sellerCity), destination: String(buyerAddress || ''),
+      weightKg: Number((product as any).weightKg) || 1, sameCity: isSameCity, declaredValue: basePrice,
+      rateCard: isSameCity && this.bodaRateCard
+        ? () => this.bodaRateCard!.feeBetween(String((product as any).seller?.businessLocation || sellerCity), String(buyerAddress || ''))
+        : undefined,
+    });
 
     if (!isSameCity) {
       return {
         isSameCity: false,
         batchZone: null,
-        methods: [
+        methods: fees.intercity == null ? [sellerArranges] : [
           {
             key: 'agent',
             label: 'Usafiri hadi mkoa wako',
             icon: '🏢',
-            fee: deliveryFee,
-            totalPrice: basePrice + deliveryFee,
-            desc: 'Inatumwa hadi mji wako; gharama ya usafiri imo kwenye bei',
+            fee: fees.intercity,
+            totalPrice: basePrice + fees.intercity,
+            desc: 'Ofisi ya KenteXa inaupeleka mji wako; unachukua ofisini',
           },
         ],
       };
     }
 
-    const methods: any[] = [
+    const methods: any[] = fees.sameCity == null ? [] : [
       {
         key: 'boda',
-        label: 'Boda Boda',
+        label: 'Wakala wa KenteXa',
         icon: '🛵',
-        fee: bodaFee,
-        totalPrice: basePrice + bodaFee,
-        desc: 'Muuzaji atapanga boda boda — utoaji wa siku hiyo hiyo',
+        fee: fees.sameCity,
+        totalPrice: basePrice + fees.sameCity,
+        desc: 'Wakala anachukua kwa muuzaji na kukuletea mlangoni, siku hiyo hiyo',
       },
     ];
 
@@ -3703,6 +3717,7 @@ export class OrdersService {
       });
     }
 
+    if (!methods.length) methods.push(sellerArranges);
     return { isSameCity: true, batchZone, methods };
   }
 

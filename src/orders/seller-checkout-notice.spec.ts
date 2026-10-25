@@ -157,7 +157,9 @@ const anyStub: any = new Proxy(function () {}, {
   apply: () => Promise.resolve(undefined),
 });
 const build = <T>(props: Record<string, unknown>): T =>
-  new Proxy(Object.assign(Object.create(OrdersService.prototype), props), {
+  // The delivery methods priced by the shipment engine (orders/engine-delivery-price.ts).
+  new Proxy(Object.assign(Object.create(OrdersService.prototype),
+    { getDeliveryMethods: jest.fn(async () => ({ isSameCity: false, batchZone: null, methods: [{ key: 'agent', fee: 0 }, { key: 'boda', fee: 0 }] })) }, props), {
     get: (t, p, r) => (p in t ? Reflect.get(t, p, r) : typeof p === 'symbol' ? undefined : anyStub),
   }) as T;
 

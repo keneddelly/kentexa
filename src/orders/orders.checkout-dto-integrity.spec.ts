@@ -22,7 +22,9 @@ const anyStub: any = new Proxy(function () {}, {
   apply: () => Promise.resolve(undefined),
 });
 const build = <T>(props: Record<string, unknown>): T =>
-  new Proxy(Object.assign(Object.create(OrdersService.prototype), props), {
+  // The delivery methods priced by the shipment engine (orders/engine-delivery-price.ts).
+  new Proxy(Object.assign(Object.create(OrdersService.prototype),
+    { getDeliveryMethods: jest.fn(async () => ({ isSameCity: false, batchZone: null, methods: [{ key: 'agent', fee: 4000 }] })) }, props), {
     get: (t, p, r) => (p in t ? Reflect.get(t, p, r) : typeof p === 'symbol' ? undefined : anyStub),
   }) as T;
 
@@ -70,7 +72,7 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
 
     expect(getDeliveryMethods).toHaveBeenCalledWith('Kariakoo', 10);
     expect(repo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ shippingMethod: 'boda', deliveryFeeAmount: 2500 }), // product.bodaFee, NOT a request-supplied value
+      expect.objectContaining({ shippingMethod: 'boda', deliveryFeeAmount: 2500 }), // the engine's method fee, NOT a request-supplied value
     );
   });
 
@@ -90,17 +92,26 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('falls back to the product default when shippingMethod is omitted (unchanged pre-hotfix behavior)', async () => {
-    const product = baseProduct({ shippingMethod: 'agent' });
+  it('shippingMethod omitted: the product default when the engine offers it, priced by the engine (never the seller\'s fee)', async () => {
+    const product = baseProduct({ shippingMethod: 'agent', deliveryFee: 9999 });
     const productsService = { findOne: jest.fn().mockResolvedValue(product), decreaseStock: jest.fn().mockResolvedValue(undefined) };
     const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 901 })), update: jest.fn().mockResolvedValue(undefined) };
-    const getDeliveryMethods = jest.fn();
+    const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: false, batchZone: null, methods: [{ key: 'agent', fee: 6000 }] });
     const svc = build<OrdersService>({ repo, productsService, getDeliveryMethods });
 
     await svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kariakoo' } as any, buyer as any);
 
-    expect(getDeliveryMethods).not.toHaveBeenCalled(); // no eligibility check needed when the buyer made no choice
-    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ shippingMethod: 'agent' }));
+    expect(getDeliveryMethods).toHaveBeenCalledWith('Kariakoo', 10);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ shippingMethod: 'agent', deliveryFeeAmount: 6000 }));
+  });
+
+  it('no KenteXa transport there: the order is placed and the seller chooses how to ship (no delivery fee charged)', async () => {
+    const productsService = { findOne: jest.fn().mockResolvedValue(baseProduct()), decreaseStock: jest.fn().mockResolvedValue(undefined) };
+    const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 903 })), update: jest.fn().mockResolvedValue(undefined) };
+    const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: false, batchZone: null, methods: [{ key: 'direct', fee: 0 }] });
+    const svc = build<OrdersService>({ repo, productsService, getDeliveryMethods });
+    await svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kigoma' } as any, buyer as any);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ shippingMethod: 'direct', deliveryFeeAmount: 0 }));
   });
 
   it('honors needsCollection/isRuralCollection as buyer intent, but the fee is always the fixed server rate', async () => {

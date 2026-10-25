@@ -112,6 +112,6 @@ import { PartnerInvitationsModule } from '../partner-invitations/partner-invitat
   // design requirement: a future Super Agent counter or Intent caller
   // should be able to inject these same canonical authorities without a
   // module change here — neither is wired in during this gate.
-  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService],
+  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService, LogisticsServiceOfferService, OfficeBodaFeeService],
 })
 export class TransportModule {}
