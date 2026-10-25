@@ -97,6 +97,35 @@ test('same city: door to door by an agent, the agent fee is the total, then the 
   expect(screen.getByTestId('next-step').textContent).toMatch(/^Hatua inayofuata: Wakala wa karibu ameshaarifiwa/);
 });
 
+test('same city, no agent online: an office that delivers inside the city is offered and booked (no dead end)', async () => {
+  places({ Kariakoo: KARIAKOO, Mbagala: MBAGALA });
+  let committed = null;
+  api.post.mockImplementation((url, body) => {
+    if (url === '/transport/service-offers/discover') return Promise.resolve({ data: [{
+      serviceType: 'office', name: 'DATY Transportation', price: 6000, etaLabel: 'Inafika baada ya siku 1',
+      fulfillment: { officeOption: { officeId: 9, officeName: 'DATY Transportation', officeCity: 'Dar es Salaam',
+        pickupBy: 'agent', quote: { pickup: 0, transport: 6000, total: 6000 } } },
+    }] });
+    if (url === '/transport/service-offers/commit') { committed = body; return Promise.resolve({ data: { id: 901 } }); }
+    if (url === '/shipments') return Promise.resolve({ data: { id: 57 } });
+    return Promise.reject(new Error(`unexpected ${url}`));
+  });
+  api.patch.mockResolvedValue({ data: { shipment: { trackingNumber: 'KTX-SHP-57' }, parcel: { waybillNumber: 'KTX7288804599' } } });
+
+  render(<SendShipment isLoggedIn currentUser={user} onNavigate={jest.fn()} />);
+  await fillSteps1and2(MBAGALA, MBAGALA.displayLabel, 'Mbagala');
+  fireEvent.change((await screen.findByTestId('pickup-pin-fields')).querySelector('input, textarea'), { target: { value: 'Duka la bluu, mtaa wa Msimbazi' } });
+  fireEvent.click(screen.getByTestId('next-3'));
+
+  expect(await screen.findByText('DATY Transportation')).toBeTruthy();
+  expect(screen.queryByTestId('no-agent-office')).toBeNull();
+  expect(screen.queryByTestId('direct-option')).toBeNull();
+  expect(screen.getByTestId('next-4').disabled).toBe(false);
+  fireEvent.click(screen.getByTestId('next-4'));
+  fireEvent.click(await screen.findByTestId('confirm'));
+  await waitFor(() => expect(committed).toMatchObject({ serviceType: 'office', officeId: 9 }));
+});
+
 test('other city: only complete, bookable offers, each provider once, cheapest first; office choice; fare is the total', async () => {
   places({ Kariakoo: KARIAKOO, Mbeya: MBEYA });
   const offer = (providerId, routeId, price, runId, extra = {}) => ({

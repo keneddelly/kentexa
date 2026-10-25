@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { LogisticsServiceOfferService } from './logistics-service-offer.service';
 import { findNearestOffice, NO_AGENT_NOW } from './nearest-office';
+import { setOfficeSameCityReadyForTests } from './office-offers';
 
 // KNOWN_FAULTS #24: same-city door pickup with no agent available. Checked
 // EARLY (door-check) and again at "Thibitisha Kifurushi" (commit), with the
@@ -34,6 +35,10 @@ describe('same-city door pickup needs an online agent WITH a base point', () => 
 });
 
 describe('early check (door-check)', () => {
+  // Offices can choose same-city delivery (migration 1792800000000 is applied).
+  beforeEach(() => setOfficeSameCityReadyForTests(true));
+  afterEach(() => setOfficeSameCityReadyForTests(false));
+
   it('agent available: no office card', async () => {
     const t = build([withBase]);
     expect(await t.svc.doorCheck(sameCity)).toEqual({ available: true, nearestOffice: null });
@@ -48,6 +53,15 @@ describe('early check (door-check)', () => {
       mapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=-6.8185,39.277', distance: '~600 m' } });
     expect(t.locations.resolve).toHaveBeenCalledWith({ providerKey: 'tz_seed', providerPlaceId: 'kariakoo' });
     expect((t.db.query as jest.Mock).mock.calls[0][1]).toEqual([-6.816, 39.2895, 'Dar es Salaam']);
+    // Only an office that delivers inside the city (owner 2026-10-24).
+    expect(String((t.db.query as jest.Mock).mock.calls[0][0])).toMatch(/"sameCityDelivery" = true/);
+  });
+
+  it('before offices can choose same-city delivery: no office is suggested at all', async () => {
+    setOfficeSameCityReadyForTests(false);
+    const t = build([noBase]);
+    const r = await t.svc.doorCheck(sameCity);
+    expect(r).toMatchObject({ available: false, code: 'NO_AGENT_NOW', nearestOffice: null });
   });
 
   it('no agent and no office in that city: nearestOffice is null (the screen says so)', async () => {
@@ -61,6 +75,8 @@ describe('early check (door-check)', () => {
 });
 
 describe('"Thibitisha Kifurushi" with no agent', () => {
+  beforeEach(() => setOfficeSameCityReadyForTests(true));
+  afterEach(() => setOfficeSameCityReadyForTests(false));
   it('the English "no longer fulfillable" is replaced by the same Swahili answer with the office', async () => {
     const t = build([noBase]);
     const err: any = await t.svc.commit(50, { ...sameCity, serviceType: 'direct_delivery' }).catch((e) => e);
