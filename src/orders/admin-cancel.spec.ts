@@ -11,7 +11,7 @@ describe('OrdersService.adminCancel', () => {
     const m = { query: jest.fn(async (sql: string) => {
       if (sql.includes('FROM public."order"')) return order ? [order] : [];
       if (sql.includes('FROM public.parcel WHERE')) return parcels;
-      writes.push(sql.replace(/\s+/g, ' ').trim().slice(0, 40));
+      writes.push(sql.replace(/\s+/g, ' ').trim());
       return [];
     }) };
     const svc: any = Object.create(OrdersService.prototype);
