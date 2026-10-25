@@ -92,7 +92,9 @@ describe('nearest first', () => {
     const r = await s.dispatchPickup(9);
     const sql = s.db.query.mock.calls[0][0];
     expect(sql).toMatch(/COALESCE\(s\."pickupPinLatitude", s\."originLatitude"\)/);
-    expect(sql).toMatch(/ORDER BY \(a\."baseLatitude" IS NULL\) ASC, "distanceM" ASC NULLS LAST, COALESCE\(a\.rating,0\) DESC/);
+    // Equally near: an agent who is online first, then rating (2026-10-25: online is not required).
+    expect(sql).toMatch(/ORDER BY \(a\."baseLatitude" IS NULL\) ASC, "distanceM" ASC NULLS LAST, \(a\."isOnline" IS TRUE\) DESC, COALESCE\(a\.rating,0\) DESC/);
+    expect(sql).not.toMatch(/a\."isOnline"\s*=\s*true/);
     expect(r).toMatchObject({ dispatched: 1, candidateAgentIds: [3], candidateDistancesM: [812] });
   });
 });
