@@ -33,6 +33,7 @@ const NEAREST_OFFICE_SQL = `
     FROM public.super_agent sa
    WHERE sa.status = 'active' AND sa."isTrainingOffice" = false AND sa.latitude IS NOT NULL AND sa.longitude IS NOT NULL
      AND (lower(btrim(sa.city)) = lower(btrim($3)) OR lower(btrim(COALESCE(sa."regionName", ''))) = lower(btrim($3)))
+     /*SAME_CITY*/
    ORDER BY "distanceM" ASC NULLS LAST, sa.id ASC   -- no pickup point: lowest id among offices WITH a point
    LIMIT 1`;
 
@@ -40,9 +41,14 @@ export async function findNearestOffice(
   db: { query(sql: string, params?: any[]): Promise<any> },
   city: string,
   point: { latitude: number; longitude: number } | null,
+  opts: { sameCityDeliveryOnly?: boolean } = {},
 ): Promise<NearestOffice | null> {
   if (!city?.trim()) return null;
-  const rows: any[] = await db.query(NEAREST_OFFICE_SQL, [point?.latitude ?? null, point?.longitude ?? null, city.trim()]);
+  // Inside one city only an office that chose same-city delivery (owner 2026-10-24):
+  // bringing a parcel to an office that does not deliver in the city goes nowhere.
+  const sql = NEAREST_OFFICE_SQL.replace('/*SAME_CITY*/', opts.sameCityDeliveryOnly
+    ? `AND EXISTS (SELECT 1 FROM public.office_pickup_offer o WHERE o."superAgentId" = sa.id AND o."sameCityDelivery" = true)` : '');
+  const rows: any[] = await db.query(sql, [point?.latitude ?? null, point?.longitude ?? null, city.trim()]);
   const r = Array.isArray(rows) ? rows[0] : null;
   if (!r) return null;
   const hasPoint = r.latitude != null && r.longitude != null;

@@ -624,7 +624,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       <div style={{ padding: '16px', maxWidth: 700, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 
         {/* D1: a clear "Uko offline" note, with the reason when it happened by itself. */}
-        {profile?.status === 'approved' && !isOnline && (
+        {/* Only when going online is required for jobs (agent-online.ts); by default it is not. */}
+        {profile?.status === 'approved' && !isOnline && profile?.onlineRequired === true && (
           <div role="status" data-testid="agent-offline-banner" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, lineHeight: 1.5 }}>
             <strong>{t('agent_presence.offline_title')}</strong><br />
             {profile?.offlineReason === 'inactive'

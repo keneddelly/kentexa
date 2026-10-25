@@ -5,6 +5,7 @@ import { SmsService } from '../sms/sms.service';
 import { PICKUP_TO_BASE_DISTANCE_SQL } from './pickup-pin';
 import { partnerGateSql } from '../partner-invitations/seller-agent-partner-gate';
 import { customerParcelNumber, smsSafeName } from '../super-agents/customer-parcel-number';
+import { agentOnlineSql } from '../agents/agent-online';
 
 /**
  * Job offer by SMS (owner 2026-10-14). The in-app alert reaches only agents
@@ -78,7 +79,7 @@ export class PickupOfferSmsService {
           SELECT a.id, COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS phone
             FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId" JOIN public.shipment s ON s.id = p."shipmentId"
             JOIN public.agent a ON a.status = 'approved' AND lower(trim(a.city)) = lower(trim(s."originCity"))
-             AND a."isOnline" = true AND (a."maxWeightKg" IS NULL OR a."maxWeightKg" >= s."weightKg")
+             ${agentOnlineSql('a')} AND (a."maxWeightKg" IS NULL OR a."maxWeightKg" >= s."weightKg")
             LEFT JOIN public."user" u ON u.id = a."userId"
            WHERE t.id = $1
              AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" IN ('PICKUP_OFFER_SMS_SENT', 'PICKUP_RELEASED')

@@ -295,15 +295,19 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       const list = Array.isArray(res.data) ? res.data : [];
       if (sameCity) {
         const direct = list.find((o) => o.serviceType === 'direct_delivery') || null;
+        // Offices that chose same-city delivery compete with the agent (owner 2026-10-24).
+        const offices = officeOffers(list);
         setDirectOffer(direct);
+        setOffers(offices);
         if (direct) setSelected({ direct: true });
-        else {
+        else if (offices.length) setSelected(offices[0]);
+        if (!direct && !offices.length) {
           const check = await api.post('/transport/service-offers/door-check', {
             fromCity, weightKg: Number(weightKg) || 0, origin: side(originResolved, origin),
           }).then((r) => r.data).catch(() => null);
           setDoorCheck(check || { available: false, nearestOffice: null });
         }
-        setSearchReason(direct ? 'available' : 'no_agent');
+        setSearchReason(direct || offices.length ? 'available' : 'no_agent');
       } else {
         const complete = allOffers(list, { pickupOption, deliveryOption });
         setOffers(complete);
@@ -689,21 +693,25 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             {!searching && sameCity && searchReason === 'available' && directOffer && (
               <>
                 <h1 style={{ ...h1, fontSize: 22 }}>Mlango kwa mlango</h1>
-                <div data-testid="direct-option" style={{ ...card, border: `2px solid ${BLUE}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <button type="button" role="radio" aria-checked={isDirectDelivery(selected)} onClick={() => setSelected({ direct: true })}
+                  data-testid="direct-option" style={{ ...card, border: isDirectDelivery(selected) ? `2px solid ${BLUE}` : `1px solid ${FIELD}`,
+                    display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'left', fontFamily: 'inherit', color: INK, cursor: 'pointer', width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                     <div style={{ fontSize: 16, fontWeight: 700 }}>Wakala wa karibu</div>
                     <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{directOffer.price != null ? tzs(directOffer.price) : 'Bei: wakala'}</div>
                   </div>
                   <div style={{ fontSize: 13, color: '#334155' }}>Anachukua kwako na kumfikishia mpokeaji mlangoni</div>
                   <div style={{ fontSize: 13, color: GREY }}>{etaText(directOffer.etaLabel) || 'Leo hii'}</div>
-                </div>
+                </button>
               </>
             )}
             {!searching && sameCity && searchReason === 'no_agent' && <NoAgentOfficeCard office={doorCheck?.nearestOffice || null} />}
 
-            {!searching && !sameCity && searchReason === 'available' && (
+            {!searching && searchReason === 'available' && (!sameCity || offers.length > 0) && (
               <>
-                <h1 style={{ ...h1, fontSize: 22 }}>{offers.length === 1 ? 'Ofa 1 inayoweza kufanya yote' : `Ofa ${offers.length} zinazoweza kufanya yote`}</h1>
+                <h1 style={{ ...h1, fontSize: 22 }}>{sameCity
+                  ? (directOffer ? 'Au ofisi inayosafirisha ndani ya mji' : 'Ofisi zinazosafirisha ndani ya mji')
+                  : offers.length === 1 ? 'Ofa 1 inayoweza kufanya yote' : `Ofa ${offers.length} zinazoweza kufanya yote`}</h1>
                 <div role="radiogroup" aria-label="Ofa" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
                   {offers.map((o) => {
                     const on = selected && !isDirectDelivery(selected) && offerKey(selected) === offerKey(o);

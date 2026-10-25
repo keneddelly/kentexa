@@ -62,8 +62,9 @@ export class LogisticsServiceOfferService {
     return { available: false, ...NO_AGENT_NOW, nearestOffice: await this.nearestOffice(city, dto.origin) };
   }
 
+  /** The nearest office that delivers inside the city (it chose same-city delivery), or null. */
   private async nearestOffice(city: string, origin: any) {
-    if (!this.db) return null;
+    if (!this.db || !(await officeSameCityColumnReady(this.db))) return null;
     let point: { latitude: number; longitude: number } | null = null;
     const place = origin?.place;
     if (this.locations && typeof place?.providerKey === 'string' && typeof place?.providerPlaceId === 'string') {
@@ -72,7 +73,7 @@ export class LogisticsServiceOfferService {
         point = { latitude: Number(candidate.latitude), longitude: Number(candidate.longitude) };
       }
     }
-    return findNearestOffice(this.db, city, point);
+    return findNearestOffice(this.db, city, point, { sameCityDeliveryOnly: true });
   }
 
   async commit(userId: number, dto: CommitServiceOfferDto) {
@@ -156,7 +157,10 @@ export class LogisticsServiceOfferService {
       // the early check, doorCheck): pickups go to the nearest base first.
       const pickupAgents = originAgents.filter((a: any) => a.hasBasePoint);
       const directAgent: any = dto.pickup === 'door' ? pickupAgents[0] : deliveryAgent;
-      if (!directAgent) return [];
+      // Offices that chose same-city delivery compete here too (owner 2026-10-24);
+      // officeOffers keeps every other office out of a same-city trip.
+      const sameCityOffices = await this.officeOffers(dto).catch(() => [] as LogisticsServiceOffer[]);
+      if (!directAgent) return sameCityOffices;
       const directPickupFee = dto.pickup === 'door' ? Number(directAgent.collectionFeeUrban ?? directAgent.deliveryFee ?? 0) : 0;
       return [{
         serviceType: 'direct_delivery', name: 'Direct Delivery', price: Math.max(directPickupFee, deliveryFee), currency: 'TZS',
@@ -165,7 +169,7 @@ export class LogisticsServiceOfferService {
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: pickupAgents.map((a: any) => a.id) }
           : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
         fulfillment: { pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff', linehaul: 'none', delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect' },
-      }];
+      }, ...sameCityOffices];
     }
 
     // Customer-facing discovery is route coverage, not today's schedule.

@@ -172,6 +172,13 @@ describe('same-city trips: no office unless it chose same-city delivery (owner 2
     expect(offers.map((o: any) => o.fulfillment.officeOption.officeId)).toEqual([2]);
   });
 
+  it('the same-city search itself returns that office, so the sender can book it (no agent online)', async () => {
+    setOfficeSameCityReadyForTests(true);
+    const { svc } = make([2]);
+    const offers = await svc.discover({ ...kariakooToMbezi, weightKg: 2 });
+    expect(offers.map((o: any) => [o.serviceType, o.fulfillment.officeOption?.officeId])).toEqual([['office', 2]]);
+  });
+
   it('before the setting exists on the server: no office on same-city trips, and no query for it', async () => {
     const { svc, db } = make([1, 2]);
     expect(await svc.officeOffers(kariakooToMbezi)).toEqual([]);
