@@ -44,10 +44,15 @@ describe('OrdersService.getDeliveryMethods priced by the engine', () => {
     expect(r.methods[0]).toMatchObject({ key: 'boda', fee: 4000, totalPrice: 24000 });
   });
 
-  it('another city: the office method at the engine price; none when the engine has no price', async () => {
+  it('another city: the office method at the engine price', async () => {
     const r: any = await build([{ serviceType: 'office', price: 12000 }]).getDeliveryMethods('Sokoine, Mbeya', 10);
     expect(r).toMatchObject({ isSameCity: false, methods: [{ key: 'agent', fee: 12000 }] });
-    const none: any = await build([]).getDeliveryMethods('Sokoine, Mbeya', 10);
-    expect(none.methods).toEqual([]);
+  });
+
+  it('no KenteXa transport there yet: the order can still be placed and the seller chooses how to ship', async () => {
+    const far: any = await build([]).getDeliveryMethods('Kibondo, Kigoma', 10);
+    expect(far.methods).toEqual([expect.objectContaining({ key: 'direct', fee: 0, totalPrice: 20000 })]);
+    const town: any = await build([]).getDeliveryMethods('Ilala, Dar es Salaam', 10);
+    expect(town.methods.map((m: any) => m.key)).toEqual(['direct']);
   });
 });

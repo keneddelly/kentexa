@@ -3660,6 +3660,12 @@ export class OrdersService {
     const BATCH_FEE = 3000;
     // The shipment engine's prices for this trip (owner 2026-10-25: the seller no
     // longer sets a delivery price). A method the engine cannot price is not offered.
+    // KenteXa is growing (owner 2026-10-25): where the engine has no transport yet the
+    // order is still placed and the seller chooses how to ship ('direct').
+    const sellerArranges = {
+      key: 'direct', label: 'Muuzaji atapanga usafiri', icon: '📦', fee: 0, totalPrice: basePrice,
+      desc: 'KenteXa haina usafiri huko bado; muuzaji atachagua njia ya kutuma na kukuambia gharama',
+    };
     const fees = await engineDeliveryFees(this.serviceOffers, {
       fromCity: sellerCity, toCity: isSameCity ? sellerCity : (String(buyerAddress || '').split(',').map((p) => p.trim()).filter(Boolean).pop() || ''),
       origin: String((product as any).seller?.businessLocation || sellerCity), destination: String(buyerAddress || ''),
@@ -3673,7 +3679,7 @@ export class OrdersService {
       return {
         isSameCity: false,
         batchZone: null,
-        methods: fees.intercity == null ? [] : [
+        methods: fees.intercity == null ? [sellerArranges] : [
           {
             key: 'agent',
             label: 'Usafiri hadi mkoa wako',
@@ -3711,6 +3717,7 @@ export class OrdersService {
       });
     }
 
+    if (!methods.length) methods.push(sellerArranges);
     return { isSameCity: true, batchZone, methods };
   }
 

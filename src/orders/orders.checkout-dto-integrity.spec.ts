@@ -105,13 +105,13 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ shippingMethod: 'agent', deliveryFeeAmount: 6000 }));
   });
 
-  it('no delivery the engine can price: the order is refused with a clear message, nothing saved', async () => {
+  it('no KenteXa transport there: the order is placed and the seller chooses how to ship (no delivery fee charged)', async () => {
     const productsService = { findOne: jest.fn().mockResolvedValue(baseProduct()), decreaseStock: jest.fn().mockResolvedValue(undefined) };
-    const repo = { create: jest.fn((v) => v), save: jest.fn(), update: jest.fn() };
-    const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: false, batchZone: null, methods: [] });
+    const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 903 })), update: jest.fn().mockResolvedValue(undefined) };
+    const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: false, batchZone: null, methods: [{ key: 'direct', fee: 0 }] });
     const svc = build<OrdersService>({ repo, productsService, getDeliveryMethods });
-    await expect(svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kigoma' } as any, buyer as any)).rejects.toThrow(/Hakuna usafiri/);
-    expect(repo.save).not.toHaveBeenCalled();
+    await svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kigoma' } as any, buyer as any);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ shippingMethod: 'direct', deliveryFeeAmount: 0 }));
   });
 
   it('honors needsCollection/isRuralCollection as buyer intent, but the fee is always the fixed server rate', async () => {
