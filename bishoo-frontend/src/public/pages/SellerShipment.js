@@ -111,7 +111,9 @@ const Row = ({ left, right, strong }) => (
 );
 
 const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileId }) => {
-  const fromSale = Boolean(prefill?.saleId);
+  // A marketplace order (from Oda zangu) is known like a POS sale: items, customer, paid.
+  const fromOrder = Boolean(prefill?.orderId);
+  const fromSale = Boolean(prefill?.saleId) || fromOrder;
   const [sellerCity, setSellerCity] = useState('Dar es Salaam');
   const [products, setProducts] = useState([]);
   const [classifieds, setClassifieds] = useState([]);
@@ -304,6 +306,12 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
       const points = chosen.direct || chosen.office ? {} : confirmBody({
         originHubId: chosen.originPoints?.[0]?.hubId, destinationHubId: chosen.destinationPoints?.[0]?.hubId,
       });
+      // 3 A marketplace order: the order goes on the Shipment and it starts (its waybill stays).
+      if (fromOrder) {
+        const res = await api.post(`/orders/${prefill.orderId}/ship-engine`, { shipmentId: shipment.id, confirm: points });
+        setResult(res.data);
+        return;
+      }
       // 3 The sale on top: the order, pay-on-delivery and the customer's SMS; the server starts the Shipment.
       const res = await api.post('/super-agents/shipments', {
         shipmentId: shipment.id, confirm: points,
@@ -356,7 +364,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
             <div data-testid="seller-send-number" style={{ fontSize: 24, fontWeight: 800, letterSpacing: 1 }}>{number}</div>
           </div>
           <div style={{ width: '100%', maxWidth: 480, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15 }}>
-            <div>{`${name || 'Mteja'} amepata SMS yenye ${cod ? 'bei na ' : ''}namba ya kufuatilia.`}</div>
+            <div>{fromOrder ? `Oda #${prefill.orderId} imeanza safari; ${name || 'mteja'} anafuatilia kwa namba hii.`
+              : `${name || 'Mteja'} amepata SMS yenye ${cod ? 'bei na ' : ''}namba ya kufuatilia.`}</div>
             <div>{chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
               : chosen?.office ? `Peleka mzigo ${chosen.officeAddress || chosen.officeCity || 'ofisini'} (${chosen.providerName}).`
                 : `Peleka mzigo ${chosen?.originPoints?.[0]?.name || 'kituoni'} (${chosen?.providerName || 'msafirishaji'}).`}</div>
@@ -366,7 +375,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 16px 24px', background: WHITE, borderTop: `1px solid ${LINE}` }}>
-          <button type="button" onClick={restart} style={{ height: 54, border: 0, borderRadius: 14, background: BLUE, color: WHITE, fontFamily: FONT, fontSize: 17, fontWeight: 800, cursor: 'pointer' }}>Tuma nyingine</button>
+          <button type="button" onClick={fromOrder ? () => onNavigate('SellerOrders') : restart} style={{ height: 54, border: 0, borderRadius: 14, background: BLUE, color: WHITE, fontFamily: FONT, fontSize: 17, fontWeight: 800, cursor: 'pointer' }}>{fromOrder ? 'Rudi kwenye oda' : 'Tuma nyingine'}</button>
           <button type="button" onClick={() => onNavigate(`TrackParcel-${result.trackingNumber}`)}
             style={{ height: 54, borderRadius: 14, border: `1px solid ${FIELD}`, background: WHITE, color: INK, fontFamily: FONT, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>Fuatilia mzigo</button>
         </div>
@@ -399,7 +408,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
           <>
             <h1 style={h1}>Unauza nini?</h1>
             {fromSale ? (
-              <div style={{ ...card, marginBottom: 12, fontSize: 14, color: GREY }}>Kutoka kwenye mauzo ya POS.</div>
+              <div style={{ ...card, marginBottom: 12, fontSize: 14, color: GREY }}>{fromOrder ? `Oda #${prefill.orderId} ya sokoni.` : 'Kutoka kwenye mauzo ya POS.'}</div>
             ) : (
               <input aria-label="Tafuta bidhaa yako" placeholder="Tafuta bidhaa yako" value={search} onChange={(e) => setSearch(e.target.value)} style={{ ...input, marginBottom: 12 }} />
             )}
@@ -481,7 +490,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
             <h1 style={h1}>Mteja analipaje?</h1>
             {fromSale ? (
               <div data-testid="pos-payment" style={{ ...card, fontSize: 15 }}>
-                {cod ? `Atalipa akipokea: ${tzs(prefill?.balanceDue)} (kutoka kwenye mauzo ya POS).` : 'Ameshalipa kwenye POS.'}
+                {cod ? `Atalipa akipokea: ${tzs(prefill?.balanceDue)} (kutoka kwenye mauzo ya POS).` : fromOrder ? 'Ameshalipa oda.' : 'Ameshalipa kwenye POS.'}
               </div>
             ) : (
               <div role="radiogroup" aria-label="Malipo">

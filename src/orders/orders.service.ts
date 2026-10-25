@@ -6,7 +6,9 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
+import { ShipmentActivationService } from '../shipments/shipment-activation.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, EntityManager } from 'typeorm';
 import {
@@ -216,6 +218,7 @@ export class OrdersService {
     private communicationEngine: CommunicationEngineService,
     private paymentEvidence: PaymentEvidenceService,
     private orderRelease: OrderReleaseService,
+    @Optional() private shipmentActivation?: ShipmentActivationService,
   ) {}
 
   /** S0 shared guard — every checkout->fulfilment/COD-collection transition on Order goes through this. */
@@ -1359,6 +1362,61 @@ export class OrdersService {
       status: OrderStatus.PREPARING,
       waybill,
       officeId: result?.officeId ?? null,
+    };
+  }
+
+  /**
+   * One shipment engine (owner 2026-10-25): the seller ships a marketplace order the
+   * same way as every other send. The seller form booked an offer and created the
+   * Shipment (POST /shipments, requested by `actorUserId`); here the Order goes on it
+   * and the same activation starts it. The order's Parcel from checkout joins that
+   * Shipment (shipments.service createParcelForConfirmedShipment), so the buyer's
+   * waybill does not change. Pay-on-delivery orders with money still to collect stay
+   * on the counter path for now: the agent job does not collect marketplace cash yet.
+   */
+  async shipWithEngine(
+    orderId: number, seller: User, actorUserId: number,
+    body: { shipmentId: number; confirm?: Record<string, unknown> }, scope?: SellerScope,
+  ) {
+    if (!this.shipmentActivation) throw new BadRequestException('Huduma hii bado haijawashwa. Jaribu tena baadaye.');
+    const order = await this.repo.findOne({ where: { id: orderId }, relations: { seller: true, product: true } });
+    if (!order) throw new NotFoundException('Order not found');
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
+    if (order.seller?.id !== seller.id) throw new ForbiddenException('Not your order');
+    if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.PREPARING)
+      throw new BadRequestException('Order must be paid');
+    if ((order as any).product?.productType === 'digital') throw new BadRequestException('Bidhaa ya kidijitali haisafirishwi');
+    if (Number((order as any).codRemainingBalance) > 0)
+      throw new BadRequestException('Oda ya kulipa ukipokea: peleka ofisini kama kawaida kwa sasa.');
+    await this.assertVerifiedPaymentEvidence(order, 'Cannot ship an order without verified payment evidence');
+
+    const shipmentId = Number(body?.shipmentId);
+    const [s] = await this.repo.manager.query(
+      `SELECT id, "requestedByUserId", status::text AS status, "orderId" FROM public.shipment WHERE id = $1`, [shipmentId]);
+    if (!s || Number(s.requestedByUserId) !== Number(actorUserId)) throw new NotFoundException('Shipment not found');
+    if (s.status !== 'pending' || s.orderId != null) throw new ConflictException('Usafiri huu umeshatumika. Chagua usafiri tena.');
+    const [taken] = await this.repo.manager.query(
+      `SELECT 1 FROM public.shipment WHERE "orderId" = $1 AND status::text <> 'cancelled' LIMIT 1`, [orderId]);
+    if (taken) throw new ConflictException('Oda hii imeshatumwa.');
+
+    await this.repo.manager.query(`UPDATE public.shipment SET "orderId" = $2 WHERE id = $1 AND "orderId" IS NULL`, [shipmentId, orderId]);
+    let activated: any;
+    try {
+      activated = await this.shipmentActivation.confirmAndActivate(actorUserId, shipmentId, body?.confirm || {});
+    } catch (e) {
+      await this.repo.manager.query(`UPDATE public.shipment SET "orderId" = NULL WHERE id = $1 AND "orderId" = $2`, [shipmentId, orderId]).catch(() => undefined);
+      throw e;
+    }
+    await this.repo.manager.query(
+      `UPDATE public."order" SET status = $2, "shippingNote" = $3, "updatedAt" = now() WHERE id = $1 AND status::text IN ('paid', 'preparing')`,
+      [orderId, OrderStatus.PREPARING, 'Imetumwa kupitia KenteXa']);
+    const parcelId = Number(activated?.parcel?.id);
+    const [p] = parcelId ? await this.repo.manager.query(
+      `SELECT "trackingNumber", "waybillNumber" FROM public.parcel WHERE id = $1`, [parcelId]) : [];
+    const waybill = p?.waybillNumber ? formatWaybill(p.waybillNumber) : (p?.trackingNumber || order.trackingNumber || `KTX-ORD-${orderId}`);
+    return {
+      orderId, status: OrderStatus.PREPARING, trackingNumber: p?.trackingNumber || waybill, customerNumber: waybill,
+      nextAction: activated?.nextAction ?? null,
     };
   }
 

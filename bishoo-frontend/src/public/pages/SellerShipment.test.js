@@ -166,3 +166,23 @@ test('a saved place is matched only when exactly one known place fits', () => {
   expect(matchSavedPlace([MBEZI_BEACH, { ...MBEZI_BEACH, placeRef: { providerKey: 'x', providerPlaceId: '2' } }], { wardName: 'Mbezi Beach' })).toBeNull();
   expect(matchSavedPlace([MBEZI_BEACH], { wardName: 'Sinza' })).toBeNull();
 });
+
+test('a marketplace order: opens at the delivery check, books with the engine, ships the order (its waybill stays)', async () => {
+  api.post.mockImplementation(async (url, body) => {
+    if (url === '/transport/service-offers/discover') return { data: [{ serviceType: 'direct_delivery', price: 4000 }] };
+    if (url === '/transport/service-offers/commit') return { data: { id: 31 } };
+    if (url === '/shipments') return { data: { id: 88 } };
+    if (url === '/orders/9/ship-engine') return { data: { orderId: 9, trackingNumber: 'KTX-ORD-9', customerNumber: 'KTX 0000 0000 18' } };
+    return { data: {} };
+  });
+  render(<SellerShipment isLoggedIn onNavigate={jest.fn()} prefill={{
+    orderId: 9, name: 'Neema', phone: '0754000111', region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mbezi Beach',
+    items: [{ name: 'Taa ya mezani', qty: 1, price: 45000 }],
+  }} />);
+  expect(screen.getByText('Hatua 4 kati ya 4')).toBeTruthy();
+  await screen.findByTestId('offer-direct');
+  fireEvent.click(nextBtn(4));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/orders/9/ship-engine', { shipmentId: 88, confirm: {} }));
+  expect(posted('/super-agents/shipments')).toEqual([]);
+  expect(await screen.findByTestId('seller-send-number')).toHaveTextContent('KTX 0000 0000 18');
+});

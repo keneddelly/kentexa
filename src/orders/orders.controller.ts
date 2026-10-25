@@ -319,6 +319,21 @@ export class OrdersController {
     return this.ordersService.markShipped(id, { id: sellerId } as User, scope);
   }
 
+  // ── Seller: ship through the shipment engine (one engine for every order) ─
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Post(':id/ship-engine')
+  async sellerShipWithEngine(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+    @Body() body: { shipmentId: number; confirm?: Record<string, unknown> },
+  ) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canCreateOrders');
+    await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.ordersService.shipWithEngine(id, { id: sellerId } as User, req.user.id, body, scope);
+  }
+
   // ── Seller: Hand parcel to Super Agent ────────────────────────────────────
   // Called when seller physically hands parcel to super agent
   // System records handover — super agent will scan and generate tracking
