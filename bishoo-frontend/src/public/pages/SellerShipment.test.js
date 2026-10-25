@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import SellerShipment, { firstStep, sameCity, sellerOffers } from './SellerShipment';
+import SellerShipment, { firstStep, sameCity, sellerOffers, matchSavedPlace } from './SellerShipment';
 import api from '../../api/api';
 
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn() }));
@@ -13,7 +13,9 @@ jest.mock('../components/PlaceSearchField', () => {
         ? { wardName: '', districtName: 'Mbeya Mjini', regionName: 'Mbeya' }
         : { wardName: 'Mbezi Beach', districtName: 'Kinondoni', regionName: 'Dar es Salaam' })} />
   );
-  return { __esModule: true, default: Field, placeLabel };
+  const fromCandidate = (c) => ({ regionName: c.regionName || '', districtName: c.districtName || '', wardName: c.wardName || '',
+    displayLabel: c.displayLabel || '', placeRef: c.placeRef || null });
+  return { __esModule: true, default: Field, placeLabel, fromCandidate };
 });
 jest.mock('../components/IntelligentLocationInput', () => () => null);
 
@@ -29,6 +31,7 @@ beforeEach(() => {
   api.get.mockReset(); api.post.mockReset();
   api.get.mockImplementation(async (url) => {
     if (url.startsWith('/business/customers')) return { data: { customers: [{ id: 1, name: 'Amina Juma', phone: '0712000222', region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mbezi Beach' }] } };
+    if (url === '/location-intelligence/places') return { data: { candidates: [MBEZI_BEACH, { ...MBEZI_BEACH, districtName: 'Ubungo', wardName: 'Mbezi', placeRef: { providerKey: 'tz_seed', providerPlaceId: 'ward:99' } }] } };
     return { data: GETS[url] ?? null };
   });
   api.post.mockImplementation(async (url, body) => {
@@ -40,6 +43,8 @@ beforeEach(() => {
     return { data: { trackingNumber: 'KTX-ORD-9', customerNumber: 'KTX 4829 1037 52', billing: null } };
   });
 });
+const MBEZI_BEACH = { displayLabel: 'Mbezi Beach, Kinondoni', wardName: 'Mbezi Beach', districtName: 'Kinondoni', regionName: 'Dar es Salaam',
+  placeRef: { providerKey: 'tz_seed', providerPlaceId: 'ward:41' } };
 const office = (id, name, city, price) => ({ serviceType: 'office', name, price, fulfillment: { officeOption: { officeId: id, officeCity: city, officeAddress: `${city} stendi` } } });
 const OFFICE_DAR = office(5, 'Ofisi Kariakoo', 'Dar es Salaam', 5000);
 const OFFICE_MBEYA = office(6, 'Ofisi Ubungo', 'Dar es Salaam', 12000);
@@ -59,7 +64,10 @@ test('four short steps: product, a recent customer in one tap, paid; KenteXa pic
   // The same engine as the customer form: the agent first, the office that delivers in town too.
   expect(await screen.findByTestId('offer-direct')).toHaveAttribute('aria-checked', 'true');
   expect(screen.getByTestId('offer-office-5')).toHaveTextContent('Ofisi Kariakoo · TZS 5,000');
-  expect(posted('/transport/service-offers/discover')[0]).toMatchObject({
+  // The saved customer's place is matched to the known ward, so the agent can be offered.
+  await waitFor(() => expect(posted('/transport/service-offers/discover').at(-1)).toMatchObject({
+    destination: { place: { providerKey: 'tz_seed', providerPlaceId: 'ward:41' } } }));
+  expect(posted('/transport/service-offers/discover').at(-1)).toMatchObject({
     fromCity: 'Dar es Salaam', toCity: 'Dar es Salaam', pickup: 'door', delivery: 'door',
     origin: { place: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' } }, pickupPoint: { latitude: -6.82, longitude: 39.27 },
   });
@@ -149,4 +157,12 @@ test('the offers: the agent, offices, and transporters only when nothing more mu
   expect(sellerOffers(list, { inCity: true, cod: false }).map((o) => o.key)).toEqual(['direct', 'office-5']);
   expect(sellerOffers(list, { inCity: false, cod: false }).map((o) => o.key)).toEqual(['direct', 'office-5', 't-1-1']);
   expect(sellerOffers(list, { inCity: false, cod: true })).toEqual([]);
+});
+
+test('a saved place is matched only when exactly one known place fits', () => {
+  const other = { ...MBEZI_BEACH, wardName: 'Mbezi', districtName: 'Ubungo', placeRef: { providerKey: 'tz_seed', providerPlaceId: 'ward:99' } };
+  expect(matchSavedPlace([MBEZI_BEACH, other], { wardName: 'mbezi beach', districtName: 'Kinondoni', regionName: 'Dar es Salaam' })).toBe(MBEZI_BEACH);
+  expect(matchSavedPlace([MBEZI_BEACH], { wardName: 'Mbezi Beach', regionName: 'Arusha' })).toBeNull();
+  expect(matchSavedPlace([MBEZI_BEACH, { ...MBEZI_BEACH, placeRef: { providerKey: 'x', providerPlaceId: '2' } }], { wardName: 'Mbezi Beach' })).toBeNull();
+  expect(matchSavedPlace([MBEZI_BEACH], { wardName: 'Sinza' })).toBeNull();
 });
