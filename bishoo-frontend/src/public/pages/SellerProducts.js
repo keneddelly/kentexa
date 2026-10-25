@@ -60,8 +60,6 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm]               = useState(EMPTY_FORM);
   const [productLocation, setProductLocation] = useState(emptyLocation);
-  const [shippingEstimate, setShippingEstimate] = useState(null);
-  const [estimateLoading, setEstimateLoading]   = useState(false);
   const [descGenerating, setDescGenerating]     = useState(false);
   // Auto-suggests category/subcategory from the title as the seller types
   // (fires on blur, not per-keystroke — see AiCategorySuggestionService's
@@ -115,18 +113,6 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [officialProductResults, setOfficialProductResults] = useState([]);
   const [selectedOfficialProduct, setSelectedOfficialProduct] = useState(null);
 
-  // Boda fee suggestions
-  const [bodaSuggestions, setBodaSuggestions]   = useState([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-
-  const fetchBodaSuggestions = async () => {
-    try {
-      setLoadingSuggestions(true);
-      const res = await api.get(`/daily-batches/boda-fee-suggestions?sellerAddress=${encodeURIComponent(form.sellerCity || 'Kariakoo')}`);
-      setBodaSuggestions(res.data.suggestions || []);
-    } catch { setBodaSuggestions([]); }
-    finally { setLoadingSuggestions(false); }
-  };
   const [originCity, setOriginCity]             = useState('');
   const [featureInput, setFeatureInput]         = useState('');
 
@@ -287,18 +273,6 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const handleOriginCityChange = (city) => {
     setOriginCity(city);
     localStorage.setItem('sellerOriginCity', city);
-    if (form.weightKg) fetchShippingEstimate(form.weightKg, city);
-  };
-
-  const fetchShippingEstimate = async (weight, cityOverride) => {
-    const city = cityOverride || originCity;
-    if (!weight || Number(weight) <= 0 || !city) { setShippingEstimate(null); return; }
-    try {
-      setEstimateLoading(true);
-      const res = await api.get(`/super-agents/estimate-shipping?originCity=${encodeURIComponent(city)}&weightKg=${weight}`);
-      setShippingEstimate(res.data);
-    } catch { setShippingEstimate(null); }
-    finally { setEstimateLoading(false); }
   };
 
   const fetchMyProducts = async () => {
@@ -390,7 +364,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     setImagePreviews([]); setForm(EMPTY_FORM); setProductLocation(emptyLocation());
     setSelectedBrand(null); setBrandQuery(''); setBrandResults([]); setBrandBadge(null);
     setSelectedOfficialProduct(null); setOfficialProductQuery(''); setOfficialProductResults([]);
-    setFeatureInput(''); setShippingEstimate(null);
+    setFeatureInput('');
     setCategoryManuallySet(false); setCategorySuggested(false);
   };
 
@@ -424,7 +398,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       setError('');
       await runOnce(submitLock.current, async () => {
       const base = Number(form.basePrice);
-      const delivery = Number(form.deliveryFee) || 0;
+      // Owner 2026-10-25: "seller should no longer set price". Delivery is priced by
+      // KenteXa at checkout (the shipment engine), so the product carries none.
+      const delivery = 0;
       const payload = {
         name:         form.name,
         description:  form.description,
@@ -440,7 +416,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         images:       form.images,
         basePrice:    base,
         deliveryFee:  delivery,
-        bodaFee:      Number(form.bodaFee) || 0,
+        bodaFee:      0,
         sellerCity:   form.sellerCity || 'Dar es Salaam',
         displayPrice: base + delivery,
         price:        base + delivery,
@@ -1280,96 +1256,14 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <div>
                   <label style={labelStyle}>{t('seller_products.weight')}</label>
                   <input type="number" placeholder="e.g. 0.5" value={form.weightKg}
-                    onChange={e => { setForm({ ...form, weightKg: e.target.value }); fetchShippingEstimate(e.target.value); }}
+                    onChange={e => setForm({ ...form, weightKg: e.target.value })}
                     style={inputStyle} />
                 </div>
               </div>
 
-              {estimateLoading && <div style={{ fontSize: 11, color: '#94a3b8' }}>{`⏳ ${t('seller_products.estimating')}`}</div>}
-              {shippingEstimate && !shippingEstimate.available && <div style={{ fontSize: 11, color: '#94a3b8' }}>{shippingEstimate.message}</div>}
-              {shippingEstimate?.available && (
-                <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, color: '#1d4ed8' }}>
-                    {t('seller_products.suggested_label')} <strong>TZS {shippingEstimate.min.toLocaleString()} – {shippingEstimate.max.toLocaleString()}</strong>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{shippingEstimate.routeCount} {t('seller_products.routes_from')} {shippingEstimate.originCity}</div>
-                  </div>
-                  <button onClick={() => updatePrices('deliveryFee', String(shippingEstimate.suggested))}
-                    style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                    {t('seller_products.use_suggested')} TZS {shippingEstimate.suggested.toLocaleString()}
-                  </button>
-                </div>
-              )}
-
-              <div>
-                <label style={labelStyle}>{t('seller_products.intercity_fee_label')} <span style={{fontSize:10,fontWeight:400,color:'#94a3b8'}}>{t('seller_products.intercity_fee_note')}</span></label>
-                <input type="number" placeholder="e.g. 10000" value={form.deliveryFee}
-                  onChange={e => updatePrices('deliveryFee', e.target.value)} style={inputStyle} />
-                <p style={{ fontSize: 10, color: '#94a3b8', margin: '3px 0 0' }}>{t('seller_products.intercity_fee_hint')}</p>
-
+              <div data-testid="engine-price-note" style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#1d4ed8', lineHeight: 1.45 }}>
+                Bei ya usafiri inawekwa na KenteXa mteja anaponunua, kulingana na alipo mteja (ofisi, mawakala na wasafirishaji). Wewe weka bei ya bidhaa tu.
               </div>
-
-              {/* Boda Fee — KenteXa suggestions for Dar es Salaam buyers */}
-              <div style={{ marginTop: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={labelStyle}>{`🛵 ${t('seller_products.boda_fee')}`} <span style={{fontSize:10,fontWeight:400,color:'#94a3b8'}}>{t('seller_products.boda_fee_note')}</span></label>
-                  <button type="button" onClick={fetchBodaSuggestions}
-                    style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', background: 'none', border: '1px solid #c4b5fd', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
-                    {loadingSuggestions ? '⏳' : t('seller_products.boda_fee_check_button')}
-                  </button>
-                </div>
-                <input type="number" placeholder="e.g. 5000" value={form.bodaFee}
-                  onChange={e => setForm({...form, bodaFee: e.target.value})} style={inputStyle} />
-                <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>
-                  {t('seller_products.boda_fee_formula_note', { formula: t('seller_products.boda_fee_formula') })}
-                </p>
-
-                {/* KenteXa suggestions — shown when button clicked */}
-                {bodaSuggestions?.suggestions?.length > 0 && (
-                  <div style={{ marginTop: 10, backgroundColor: '#faf5ff', borderRadius: 12, padding: 12, border: '1px solid #e9d5ff' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', marginBottom: 4 }}>
-                      {t('seller_products.kentexa_suggestions_title')}
-                    </div>
-                    {bodaSuggestions.sellerZone && (
-                      <div style={{ fontSize: 10, color: '#7c3aed', marginBottom: 6, fontWeight: 600 }}>
-                        {t('seller_products.sending_from_label')} {bodaSuggestions.sellerZone}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 8 }}>
-                      {t('seller_products.tap_buyer_area_hint')}
-                    </div>
-                    {(bodaSuggestions?.suggestions || []).map((s, i) => (
-                      <button key={i} type="button"
-                        onClick={() => setForm({...form, bodaFee: String(s.maxFee)})}
-                        style={{
-                          width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          padding: '10px 12px', borderRadius: 10, cursor: 'pointer', marginBottom: 6,
-                          backgroundColor: String(form.bodaFee) === String(s.maxFee) ? '#ede9fe' : '#fff',
-                          border: String(form.bodaFee) === String(s.maxFee) ? '2px solid #7c3aed' : '1px solid #e9d5ff',
-                          textAlign: 'left',
-                        }}>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>📍 {s.zone}</div>
-                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{s.note}</div>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
-                          <div style={{ fontSize: 12, fontWeight: 900, color: '#7c3aed' }}>
-                            TZS {s.minFee.toLocaleString()} – {s.maxFee.toLocaleString()}
-                          </div>
-                          {String(form.bodaFee) === String(s.maxFee) && (
-                            <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>{t('seller_products.selected_label')}</div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                    <p style={{ fontSize: 10, color: '#94a3b8', margin: '6px 0 0' }}>
-                      {t('seller_products.choose_furthest_hint')}
-                    </p>
-                  </div>
-                )}
-
-              </div>
-
-
 
               <div style={{ marginTop: 12 }}>
                 <label style={labelStyle}>{t('seller_products.ship_from_city_label')}</label>
@@ -1390,14 +1284,14 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             )}
 
             {/* Buyer price preview */}
-            {(Number(form.basePrice) > 0 || Number(form.deliveryFee) > 0) && (
+            {Number(form.basePrice) > 0 && (
               <div style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>{t('seller_products.buyer_sees')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: '#ffd200' }}>
-                    TZS {(Number(form.basePrice || 0) + Number(form.deliveryFee || 0)).toLocaleString()}
+                    TZS {Number(form.basePrice || 0).toLocaleString()}
                   </span>
-                  <span style={{ backgroundColor: '#16a34a', color: '#fff', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{t('seller_products.free_delivery_badge')}</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>+ usafiri (KenteXa)</span>
                 </div>
               </div>
             )}

@@ -812,6 +812,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         </div>
 
         {/* Delivery Method Selector — shown when address is filled */}
+        {!isDigitalOnlyCart && !deliveryOptionsHidden && !detectingMethods && deliveryMethods.length === 0 && (form.deliveryAddress || '').trim().length >= 3 && (
+          <div role="alert" data-testid="no-delivery" style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 13, color: '#92400e' }}>
+            Hakuna usafiri wa KenteXa kwenda mahali hapo kwa sasa. Jaribu mahali pengine karibu au baadaye.
+          </div>
+        )}
         {!isDigitalOnlyCart && !deliveryOptionsHidden && (detectingMethods || deliveryMethods.length > 0) && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>

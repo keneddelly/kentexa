@@ -32,6 +32,7 @@ import { Brand } from '../brands/entities/brand.entity';
 import { CommunicationModule } from '../communication/communication.module';
 import { PaymentCoreModule } from '../payments/payment-core.module';
 import { ShipmentsModule } from '../shipments/shipments.module';
+import { TransportModule } from '../transport/transport.module';
 
 @Module({
   imports: [
@@ -64,6 +65,9 @@ import { ShipmentsModule } from '../shipments/shipments.module';
     InvoicesModule,
     // One shipment engine: a marketplace order is started by ShipmentActivationService.
     ShipmentsModule,
+    // Delivery prices at checkout come from the shipment engine (owner 2026-10-25:
+    // "seller should no longer set price").
+    TransportModule,
     NotificationsModule,
     ParcelCollectionsModule, // ← Fix #1: enables collection request on order creation
     SmsModule,
