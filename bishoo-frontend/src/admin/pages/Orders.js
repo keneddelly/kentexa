@@ -71,12 +71,13 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
   };
 
   const handleCancel = async (orderId) => {
-    const reason = window.prompt('Sababu ya kufuta agizo:');
-    if (!reason) return;
+    const reason = window.prompt('Sababu ya kufuta agizo (inahifadhiwa):');
+    if (!reason || !reason.trim()) return;
     try {
       setActionLoading(true);
-      await api.patch(`/orders/${orderId}/cancel`, { reason });
-      showMsg('✅ Agizo limefutwa');
+      // The admin's own step (any order not yet delivered), never the buyer's cancel.
+      await api.patch(`/orders/${orderId}/admin-cancel`, { reason: reason.trim() });
+      showMsg(`✅ Agizo #${orderId} limefutwa`);
       fetchOrders();
       setSelected(null);
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
@@ -376,7 +377,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                   )
                 )}
 
-                {!['cancelled','refunded'].includes(selected.status) && (
+                {!['cancelled','refunded','delivered','completed'].includes(selected.status) && (
                   <button onClick={() => handleCancel(selected.id)} disabled={actionLoading}
                     style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
                     ❌ Futa Agizo

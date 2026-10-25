@@ -214,6 +214,19 @@ export class OrdersController {
   // be admin/manager (RolesGuard resolves this via RoleContext, never the
   // account's legacy User.role — an admin operating as buyer/seller must not
   // retain this override until they switch back).
+  // Admin: remove (cancel) an order with a reason -- same active-role guard as below.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @Patch(':id/admin-cancel')
+  adminCancel(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @Body() body: { reason?: string },
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.ordersService.adminCancel(id, req.user, body?.reason, roleContext);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @Patch(':id/admin-status')
