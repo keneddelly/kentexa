@@ -13,7 +13,9 @@ jest.mock('../components/PlaceSearchField', () => {
         ? { wardName: '', districtName: 'Mbeya Mjini', regionName: 'Mbeya' }
         : { wardName: 'Mbezi Beach', districtName: 'Kinondoni', regionName: 'Dar es Salaam' })} />
   );
-  return { __esModule: true, default: Field, placeLabel };
+  const fromCandidate = (c) => ({ regionName: c.regionName || '', districtName: c.districtName || '', wardName: c.wardName || '',
+    displayLabel: c.displayLabel || '', placeRef: c.placeRef || null });
+  return { __esModule: true, default: Field, placeLabel, fromCandidate };
 });
 jest.mock('../components/IntelligentLocationInput', () => () => null);
 
