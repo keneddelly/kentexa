@@ -1,3 +1,4 @@
+import { fromTyped } from '../components/PlaceSearchField';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
@@ -86,6 +87,34 @@ const getShippingMethods = (t) => [
     isBatch: true,
   },
 ];
+
+/**
+ * One shipment engine (owner 2026-10-25): a paid marketplace order that travels through
+ * the KenteXa network is sent with the same seller form as every other send. Its waybill
+ * from checkout stays. Pay-on-delivery with money still to collect keeps the counter path.
+ */
+export const engineShippable = (order) => ['paid', 'preparing'].includes(order?.status)
+  && ['agent', 'kentexa_delivery'].includes(order?.shippingMethod)
+  && order?.source !== 'seller_shipment' && !(Number(order?.codRemainingBalance) > 0)
+  && !String(order?.shippingNote || '').startsWith('Imetumwa kupitia KenteXa')
+  && order?.product?.productType !== 'digital';
+
+/** The seller form's prefill for an order: nothing the order already says is asked again. */
+export const orderToSend = (order) => {
+  const qty = Number(order.quantity) || 1;
+  const place = fromTyped(order.deliveryAddress || '');
+  return {
+    orderId: order.id,
+    name: order.recipientName || order.buyer?.name || order.manualBuyerName || '',
+    phone: order.phone || order.buyer?.phone || order.recipientPhone || '',
+    region: place.regionName, district: place.districtName, ward: place.wardName,
+    items: [{
+      name: order.productNameSnapshot || order.product?.name || order.manualProductName || 'Bidhaa', qty,
+      price: Math.round((Number(order.baseAmount) || 0) / qty), weight: Number(order.product?.weightKg) || 0,
+      productId: order.product?.id || null, classifiedId: null,
+    }],
+  };
+};
 
 const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
   const { t, i18n } = useTranslation();
@@ -630,7 +659,13 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {isPaid && order.source !== 'seller_shipment' && (
+                    {engineShippable(order) && (
+                      <button data-testid={`ship-engine-${order.id}`} onClick={() => onNavigate('SellerShipment', orderToSend(order))}
+                        style={{ background: '#1d4ed8', color: '#ffffff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 900 }}>
+                        Tuma kwa KenteXa
+                      </button>
+                    )}
+                    {isPaid && order.source !== 'seller_shipment' && !engineShippable(order) && (
                       <button onClick={() => openShipModal(order)}
                         style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 900, boxShadow: '0 4px 12px rgba(247,151,30,0.4)' }}>
                         {t('seller_orders.start_shipping_button')}

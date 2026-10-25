@@ -31,6 +31,7 @@ import { CodModule } from '../cod/cod.module';
 import { Brand } from '../brands/entities/brand.entity';
 import { CommunicationModule } from '../communication/communication.module';
 import { PaymentCoreModule } from '../payments/payment-core.module';
+import { ShipmentsModule } from '../shipments/shipments.module';
 
 @Module({
   imports: [
@@ -61,6 +62,8 @@ import { PaymentCoreModule } from '../payments/payment-core.module';
     ]),
     ProductsModule,
     InvoicesModule,
+    // One shipment engine: a marketplace order is started by ShipmentActivationService.
+    ShipmentsModule,
     NotificationsModule,
     ParcelCollectionsModule, // ← Fix #1: enables collection request on order creation
     SmsModule,

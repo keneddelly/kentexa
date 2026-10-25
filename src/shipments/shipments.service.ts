@@ -1550,6 +1550,28 @@ export class ShipmentsService {
     });
     if (existing) return existing;
 
+    // A marketplace order already has its Parcel (and the waybill the buyer was given)
+    // from checkout (orders/order-parcel.ts). Booked through the engine, that same
+    // Parcel joins the Shipment: one order, one parcel, one waybill.
+    if (shipment.orderId && this.hasHubDecision(shipment)) {
+      const waiting = await parcels.findOne({
+        where: { order: { id: shipment.orderId }, status: ParcelStatus.PENDING, shipment: IsNull() } as any, order: { id: 'ASC' },
+      });
+      if (waiting) {
+        Object.assign(waiting, {
+          shipment: { id: shipment.id } as any,
+          journeySelectionId: shipment.journeySelectionId,
+          superAgent: shipment.originHubId ? ({ id: shipment.originHubId } as SuperAgent) : null,
+          destinationSuperAgent: shipment.destinationHubId ? ({ id: shipment.destinationHubId } as SuperAgent) : null,
+          weightKg: shipment.weightKg ?? waiting.weightKg,
+          originCity: shipment.originCity || waiting.originCity,
+          destinationCity: shipment.destinationCity || waiting.destinationCity,
+          estimatedShippingFee: Number(shipment.priceQuoted) || Number(waiting.estimatedShippingFee) || 0,
+        });
+        return parcels.save(waiting);
+      }
+    }
+
     // Stage 2F: the hubs come ONLY from the Shipment's durable decision. No
     // search, no city match, no fallback and no re-selection -- a retry after
     // a crash reproduces exactly the custody decision that caused the
