@@ -4441,6 +4441,18 @@ export class SuperAgentsService {
     return null;
   }
 
+  /**
+   * For the seller's form: the boda fee KenteXa would set for a COD delivery to this
+   * address (Dar rate card, from the seller's shop), or null when it cannot (outside
+   * Dar the seller types it). The same rule as resolveCodBodaFee.
+   */
+  async previewCodBodaFee(seller: User, toAddress: string, toCity: string): Promise<number | null> {
+    if (!this.bodaFees || !isDarEsSalaam(toCity)) return null;
+    const [sp] = await this.dataSource.query(
+      `SELECT address FROM public.seller_profile WHERE "userId" = $1 ORDER BY id ASC LIMIT 1`, [seller.id]).catch(() => []);
+    return this.bodaFees.feeBetween(sp?.address || toCity || null, toAddress || null).catch(() => null);
+  }
+
   /** For the seller's form: the shop place the boda will use unless changed. */
   async getLastCodPickup(seller: User, city: string) {
     const snap = await this.lastCodPickupSnapshot(seller.id, String(city || 'Dar es Salaam'));

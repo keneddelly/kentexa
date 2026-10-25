@@ -991,7 +991,7 @@ function App() {
         && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational')))
         // Tuma mzigo (send form v2) is a focused 5-step form with its own back button and an
         // "Endelea" bar pinned to the bottom: the menu bar would cover it on a phone.
-        && !(typeof page === 'string' && page.startsWith('SendShipment')) && (
+        && !(typeof page === 'string' && (page.startsWith('SendShipment') || page.startsWith('SellerShipment'))) && (
         <BottomNav
           // Remount protection (profile-switch architecture spec): a stable
           // profile-context key forces React to tear down and rebuild this
