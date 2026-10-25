@@ -197,6 +197,7 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
       if (sql.includes('UPDATE public.shipment')) { updates.push(params); return []; }
       return [{ waybillNumber: null, createdAt: null }];
     });
+    h.fake.startEngineShipment = (SuperAgentsService.prototype as any).startEngineShipment.bind(h.fake);
     h.fake.shipmentActivation = { confirmAndActivate: jest.fn(async () => ({ parcel: { id: 50 }, nextAction: { kind: 'agent_pickup' } })) };
     (h.parcelRepo as any).findOne = jest.fn(async () => ({ id: 50, description: 'x', deliveryAddress: 'y' }));
     return { ...h, updates };
