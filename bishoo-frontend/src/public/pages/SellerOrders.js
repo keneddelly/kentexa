@@ -665,7 +665,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         Tuma kwa KenteXa
                       </button>
                     )}
-                    {isPaid && order.source !== 'seller_shipment' && !engineShippable(order) && (
+                    {isPaid && order.source !== 'seller_shipment' && (
                       <button onClick={() => openShipModal(order)}
                         style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 900, boxShadow: '0 4px 12px rgba(247,151,30,0.4)' }}>
                         {t('seller_orders.start_shipping_button')}

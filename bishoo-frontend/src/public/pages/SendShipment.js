@@ -26,6 +26,7 @@ import {
 import { formatWaybill } from '../../utils/waybill';
 import PickupPinFields from '../components/PickupPinFields';
 import NoAgentOfficeCard from '../components/NoAgentOfficeCard';
+import InviteCarrier from '../components/InviteCarrier';
 import { landmarkOk } from '../../utils/phoneLocation';
 
 const BLUE = '#1d4ed8';
@@ -793,6 +794,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{ ...card, color: '#334155', lineHeight: 1.5 }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 4 }}>Hakuna ofa inayoweza kufanya yote kwa sasa</div>
                 Hakuna safari iliyopangwa kwenda {toShort || 'huko'} inayoweza kufanya huduma ulizochagua. Rudi ubadilishe huduma (mfano "Nitaupeleka ofisini"), au jaribu tena baadaye.
+                <div style={{ marginTop: 6 }}><InviteCarrier shopName={null} destCity={toShort} /></div>
               </div>
             )}
           </div>

@@ -186,3 +186,28 @@ test('a marketplace order: opens at the delivery check, books with the engine, s
   expect(posted('/super-agents/shipments')).toEqual([]);
   expect(await screen.findByTestId('seller-send-number')).toHaveTextContent('KTX 0000 0000 18');
 });
+
+test('no KenteXa transport there: the seller sends their own way and can invite a carrier', async () => {
+  api.post.mockImplementation(async (url) => {
+    if (url === '/transport/service-offers/discover') return { data: [] };
+    return { data: { trackingNumber: 'KTX-ORD-11', customerNumber: 'KTX 1111 1111 11', billing: null } };
+  });
+  render(<SellerShipment isLoggedIn onNavigate={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('radio', { name: /Saa ya ukutani/ }));
+  fireEvent.click(nextBtn(1));
+  fireEvent.change(await screen.findByLabelText('Jina'), { target: { value: 'Juma' } });
+  fireEvent.change(screen.getByLabelText('Simu'), { target: { value: '0713000999' } });
+  fireEvent.change(screen.getByLabelText('Mahali pa mteja'), { target: { value: 'mbeya' } });
+  fireEvent.click(nextBtn(2));
+  fireEvent.click(screen.getByTestId('pay-paid'));
+  fireEvent.click(nextBtn(3));
+  fireEvent.click(await screen.findByTestId('offer-own'));
+  fireEvent.click(screen.getByTestId('invite-carrier'));
+  expect(screen.getByTestId('invite-carrier-send').getAttribute('href')).toMatch(/join%3Dtransport/);
+  fireEvent.click(nextBtn(4));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/super-agents/shipments', expect.objectContaining({
+    transportMethod: 'direct', destinationCity: 'Mbeya', recipientName: 'Juma',
+  })));
+  expect(posted('/super-agents/shipments')[0].shipmentId).toBeUndefined();
+  expect(await screen.findByTestId('seller-send-number')).toHaveTextContent('KTX 1111 1111 11');
+});
