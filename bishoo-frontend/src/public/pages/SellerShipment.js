@@ -24,7 +24,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
-import PlaceSearchField, { placeLabel } from '../components/PlaceSearchField';
+import PlaceSearchField, { placeLabel, fromCandidate } from '../components/PlaceSearchField';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { serviceOfferCommitBody, shipmentBody, quoteBody, confirmBody } from '../../api/shipmentRequests';
 import { officeOffers, allOffers } from './SendShipment';
@@ -58,6 +58,20 @@ export function firstStep({ items, name, phone, place, paymentKnown }) {
   if (!items?.length) return 1;
   if (!String(name || '').trim() || digits(phone).length < 9 || !placeLabel(place)) return 2;
   return paymentKnown ? 4 : 3;
+}
+
+/**
+ * A saved customer's (or a POS sale's) place, written as names, matched to one known
+ * place so the engine knows exactly where it is: the same ward (or district, when no
+ * ward is saved) in the same region. Anything less certain is left as typed.
+ */
+export function matchSavedPlace(candidates, { wardName, districtName, regionName }) {
+  const n = (v) => String(v || '').trim().toLowerCase();
+  const sameRegion = (c) => !n(regionName) || sameCity(c.regionName, regionName);
+  const hits = (Array.isArray(candidates) ? candidates : []).filter((c) => c?.placeRef && sameRegion(c) && (n(wardName)
+    ? n(c.wardName) === n(wardName) && (!n(districtName) || n(c.districtName) === n(districtName))
+    : n(districtName) && !n(c.wardName) && n(c.districtName) === n(districtName)));
+  return hits.length === 1 ? hits[0] : null;
 }
 
 /**
@@ -161,6 +175,19 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     api.get('/super-agents/shipments/last-pickup', { params: { city: sellerCity } })
       .then((r) => setLastPickup(r.data?.pickup || null)).catch(() => setLastPickup(null));
   }, [sellerCity]);
+
+  // A place known only by its names (a saved customer, a POS sale) is looked up once.
+  useEffect(() => {
+    if (place.placeRef || !(place.wardName || place.districtName)) return undefined;
+    let live = true;
+    const want = { wardName: place.wardName, districtName: place.districtName, regionName: place.regionName };
+    api.get('/location-intelligence/places', { params: { q: place.wardName || place.districtName, limit: 8 } })
+      .then((r) => {
+        const hit = live ? matchSavedPlace(r.data?.candidates, want) : null;
+        if (hit) setPlace((cur) => (cur.placeRef || cur.wardName !== want.wardName || cur.districtName !== want.districtName ? cur : fromCandidate(hit)));
+      }).catch(() => {});
+    return () => { live = false; };
+  }, [place.wardName, place.districtName, place.regionName, place.placeRef]);
 
   const destCity = place.regionName || place.districtName || place.wardName || '';
   const inCity = sameCity(destCity, sellerCity);
