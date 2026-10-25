@@ -3822,6 +3822,73 @@ export class OrdersService {
   // is defense-in-depth against the SAME resolved RoleContext, never the
   // legacy admin.role field (an admin operating as another role loses this
   // override until they switch back).
+  /**
+   * Admin removes an order (owner 2026-10-25: "give admin the way to delete some
+   * orders; deleting is not working" -- the admin button used the buyer's cancel,
+   * which accepts only unpaid orders and dropped the reason).
+   *
+   * The order is cancelled, never erased: money, custody and activity records stay
+   * as they are (they are the audit trail). Its parcel, if it never left the seller,
+   * leaves every office and agent list; stock comes back. One activity event with
+   * the reason. Refused once the parcel is with an office or on the way, once it is
+   * delivered, or when the buyer paid online (refund first).
+   */
+  async adminCancel(orderId: number, admin: User, reason: unknown, roleContext: RoleContext) {
+    if (roleContext?.roleType !== AccountRoleType.ADMIN && roleContext?.roleType !== AccountRoleType.MANAGER) {
+      throw new ForbiddenException('Admin only');
+    }
+    const why = typeof reason === 'string' ? reason.trim().slice(0, 300) : '';
+    if (why.length < 3) throw new BadRequestException('Andika sababu ya kufuta oda (angalau herufi 3).');
+
+    const result = await this.repo.manager.transaction(async (m) => {
+      const [o] = await m.query(
+        `SELECT id, status::text AS status, "paymentMethod"::text AS "paymentMethod", "paymentStatus"::text AS "paymentStatus",
+                "productId", quantity, "sellerId", "buyerId"
+           FROM public."order" WHERE id = $1 FOR UPDATE`, [orderId]);
+      if (!o) throw new NotFoundException('Order not found');
+      if (o.status === OrderStatus.CANCELLED) return { o, replay: true, parcels: 0 };
+      if ([OrderStatus.DELIVERED, OrderStatus.COMPLETED].includes(o.status)) {
+        throw new BadRequestException('Oda hii imeshafikishwa kwa mnunuzi; haiwezi kufutwa.');
+      }
+      if (o.paymentMethod === OrderPaymentMethod.ONLINE && ['paid', 'upfront_paid'].includes(o.paymentStatus)) {
+        throw new BadRequestException('Mnunuzi alilipa mtandaoni. Mrudishie pesa kwanza, kisha ufute oda.');
+      }
+      const parcels: any[] = await m.query(
+        `SELECT id, status::text AS status, "shipmentId" FROM public.parcel WHERE "orderId" = $1 FOR UPDATE`, [orderId]);
+      if (parcels.some((p) => !['pending', 'collection_requested'].includes(p.status))) {
+        throw new BadRequestException('Mzigo wa oda hii umeshapokelewa ofisini au uko njiani. Urudishe kwa muuzaji kwanza, kisha ufute oda.');
+      }
+      await m.query(`UPDATE public."order" SET status = 'cancelled', "updatedAt" = now() WHERE id = $1`, [orderId]);
+      for (const p of parcels) {
+        // Out of every office and agent list: its shipment, pickup jobs and collection request close.
+        if (p.shipmentId != null) {
+          await m.query(`UPDATE public.shipment SET status = 'cancelled' WHERE id = $1 AND status::text IN ('pending', 'confirmed')`, [p.shipmentId]);
+        }
+        await m.query(`UPDATE public.parcel_pickup_task SET status = 'cancelled', "updatedAt" = now()
+          WHERE "parcelId" = $1 AND status IN ('requested', 'claimed')`, [p.id]).catch(() => undefined);
+        await m.query(`UPDATE public.parcel_collection SET status = 'cancelled' WHERE "parcelId" = $1 AND status::text IN ('requested', 'claimed')`,
+          [p.id]).catch(() => undefined);
+      }
+      return { o, replay: false, parcels: parcels.length };
+    });
+
+    if (!result.replay) {
+      if (result.o.productId) {
+        await this.productsService.decreaseStock(
+          Number(result.o.productId), -Number(result.o.quantity || 1), InventoryMovementReason.ORDER_CANCELLED,
+          { referenceType: 'order', referenceId: orderId, userId: admin?.id },
+        ).catch((e: any) => console.error(`Stock restoration for admin-cancelled order #${orderId} failed:`, e?.message));
+      }
+      this.activityEvents.record({
+        eventType: 'ORDER_CANCELLED', category: ActivityCategory.COMMERCE,
+        actorId: admin?.id ?? null, actorType: 'admin',
+        relatedUserId: result.o.sellerId ?? null, targetType: 'order', targetId: orderId,
+        metadata: { reason: why, previousStatus: result.o.status, by: 'admin', parcels: result.parcels },
+      });
+    }
+    return { message: `Oda #${orderId} imefutwa.`, orderId, status: OrderStatus.CANCELLED, replay: result.replay };
+  }
+
   async adminChangeStatus(
     orderId: number,
     status: string,
