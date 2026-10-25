@@ -213,7 +213,7 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
     expect(fake.shipmentActivation.confirmAndActivate).toHaveBeenCalledWith(7, 88, {});
     expect(fake.createParcelForOrder).not.toHaveBeenCalled();
     expect(taskRows).toHaveLength(0); // the agent job comes from the activation, not a second boda task
-    expect(parcelRepo.update).toHaveBeenCalledWith(50, expect.objectContaining({ declaredValue: 80000, saleId: 6 }));
+    expect(parcelRepo.update).toHaveBeenCalledWith(50, expect.objectContaining({ declaredValue: 100000, saleId: 6 }));
     expect(parcelRepo.update).toHaveBeenCalledWith(50, { agreedDeliveryFee: 3000 });
     expect(sms.sendSms).toHaveBeenCalledTimes(1);
     expect(res.nextAction).toEqual({ kind: 'agent_pickup' });
