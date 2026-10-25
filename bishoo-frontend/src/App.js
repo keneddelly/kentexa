@@ -230,6 +230,10 @@ function App() {
       if (agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)) return `SellerAgentInvite-${agentInvite}`;
       if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
       if (track) return `TrackParcel-${track}`;
+      // A seller's invitation to a transporter or an office (components/InviteCarrier.js).
+      const join = params.get('join');
+      if (join === 'transport') return 'BecomeTransportProvider';
+      if (join === 'office') return 'BecomeSuperAgentInfo';
       // Real shareable paths (/product/42, /store/7, ...) — resolves
       // synchronously from the URL alone, no network round trip needed.
       const fromPath = pathToPage(window.location.pathname);

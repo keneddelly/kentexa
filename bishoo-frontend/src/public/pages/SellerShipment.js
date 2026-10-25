@@ -28,6 +28,7 @@ import PlaceSearchField, { placeLabel, fromCandidate } from '../components/Place
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { serviceOfferCommitBody, shipmentBody, quoteBody, confirmBody } from '../../api/shipmentRequests';
 import { officeOffers, allOffers } from './SendShipment';
+import InviteCarrier from '../components/InviteCarrier';
 
 const BLUE = '#1d4ed8';
 const INK = '#0f172a';
@@ -282,6 +283,21 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const send = async () => {
     setBusy(true); setError('');
     try {
+      // No KenteXa transport there yet: the seller ships their own way.
+      if (chosen.own) {
+        if (fromOrder) { onNavigate('SellerOrders'); return; }
+        const res = await api.post('/super-agents/shipments', {
+          description, items: items.map((i) => ({ name: i.name, qty: i.qty, price: i.price, weight: i.weight, productId: i.productId, classifiedId: i.classifiedId })),
+          classifiedId: items.find((i) => i.classifiedId)?.classifiedId || null,
+          weightKg: weight || undefined, parcelSize: 'small',
+          recipientName: name.trim(), recipientPhone: phone.trim(), destinationCity: destCity, deliveryAddress: address,
+          regionName: place.regionName || null, districtName: place.districtName || null, wardName: place.wardName || null,
+          originCity: sellerCity, transportMethod: 'direct', notes: notes.trim() || null, totalValue: goods,
+          commerceProfileId: activeProfileId || undefined, paymentMethod: 'cash', saleId: prefill?.saleId || undefined,
+        });
+        setResult(res.data);
+        return;
+      }
       // 1 Book the chosen offer with the shipment engine, exactly as the customer form does.
       let journey = null;
       let acceptedQuote = null;
@@ -366,7 +382,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
           <div style={{ width: '100%', maxWidth: 480, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15 }}>
             <div>{fromOrder ? `Oda #${prefill.orderId} imeanza safari; ${name || 'mteja'} anafuatilia kwa namba hii.`
               : `${name || 'Mteja'} amepata SMS yenye ${cod ? 'bei na ' : ''}namba ya kufuatilia.`}</div>
-            <div>{chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
+            <div>{chosen?.own ? 'Tuma mzigo kwa njia yako na umpe mteja namba hii ya kufuatilia.'
+              : chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
               : chosen?.office ? `Peleka mzigo ${chosen.officeAddress || chosen.officeCity || 'ofisini'} (${chosen.providerName}).`
                 : `Peleka mzigo ${chosen?.originPoints?.[0]?.name || 'kituoni'} (${chosen?.providerName || 'msafirishaji'}).`}</div>
             {result.billing && !result.billing.isFreeOrder && (
@@ -559,8 +576,17 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
             ) : finding ? (
               <div data-testid="delivery-finding" style={{ ...card, marginBottom: 12, fontSize: 15, color: GREY }}>KenteXa inatafuta usafiri…</div>
             ) : offers.length === 0 ? (
-              <div role="alert" data-testid="delivery-none" style={{ ...card, marginBottom: 12, borderColor: '#fde68a', background: '#fffbeb', fontSize: 14 }}>
-                {cod ? 'Hakuna wakala wa karibu kwa sasa wa kulipa ukipokea. Chagua "Ameshalipa" au jaribu tena baadaye.' : `Hakuna usafiri kwenda ${destCity || 'huko'} kwa sasa. Jaribu tena baadaye.`}
+              <div data-testid="delivery-none" style={{ marginBottom: 12 }}>
+                <div role="status" style={{ ...card, borderColor: '#fde68a', background: '#fffbeb', fontSize: 14, marginBottom: 10 }}>
+                  {cod ? 'Hakuna wakala wa karibu kwa sasa wa kulipa ukipokea. Chagua "Ameshalipa" ili utume kwa njia yako.'
+                    : `KenteXa haina usafiri kwenda ${destCity || 'huko'} bado. Tuma kwa njia yako; mzigo unapata namba ya KenteXa.`}
+                </div>
+                {/* KenteXa is growing (owner 2026-10-25): no transport yet never stops a sale. */}
+                {!cod && (
+                  <Choice testId="offer-own" selected={chosen?.own === true} onClick={() => setChosen({ own: true, key: 'own' })}
+                    title="Nitatuma kwa njia yangu" hint={fromOrder ? 'Unachagua basi, courier au boda kwenye oda zako' : 'Basi, courier, boda au wewe mwenyewe'} />
+                )}
+                <InviteCarrier shopName={null} destCity={destCity} />
               </div>
             ) : (
               <div role="radiogroup" aria-label="Usafiri" data-testid="delivery-choice" style={{ marginBottom: 2 }}>
@@ -572,6 +598,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                       : o.office ? `Peleka mzigo ${o.officeAddress || o.officeCity || 'ofisini'}; ofisi inaupeleka ${destCity}`
                         : `Peleka mzigo ${o.originPoints?.[0]?.name || 'kituoni'}; ${name || 'mteja'} anachukua ${o.destinationPoints?.[0]?.name || destCity}`} />
                 ))}
+                <InviteCarrier shopName={null} destCity={destCity} />
               </div>
             )}
             <div style={{ ...card, background: '#f0fdf4', borderColor: '#bbf7d0', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
