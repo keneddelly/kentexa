@@ -465,7 +465,8 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="🏷️" label={t('seller_dashboard.my_brands')} onClick={() => onNavigate('MyBrands')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
-              <MenuRow t={t} icon="🚚" label="Send / Track Shipment" onClick={() => onNavigate('SendShipment')} />
+              {/* "Send / Track Shipment" removed (owner 2026-10-25): for a seller it is the same
+                  job as "Ship an item" above, so there is one way to send. */}
               <MenuRow t={t} icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="👛" label={t('seller_dashboard.wallet')} onClick={() => onNavigate('SellerWallet')}
