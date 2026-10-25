@@ -195,6 +195,15 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
   // COD: the shop the boda rider collects from, picked on the map (a resolved place).
   const [pickupText, setPickupText] = useState('');
   const [pickupRef, setPickupRef] = useState(null);
+  // The shop place is asked once (owner 2026-10-25): the server keeps the last one.
+  const [lastPickup, setLastPickup] = useState(null);
+  const [changePickup, setChangePickup] = useState(false);
+  useEffect(() => {
+    if (!sellerCity) return;
+    api.get('/super-agents/shipments/last-pickup', { params: { city: sellerCity } })
+      .then((r) => setLastPickup(r.data?.pickup || null)).catch(() => setLastPickup(null));
+  }, [sellerCity]);
+  const useLastPickup = Boolean(lastPickup) && !changePickup;
 
   // Nearby Super Agent hubs for the chosen destination — previously the
   // "Super Agent" transport option only showed generic reassurance text,
@@ -353,7 +362,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
       return t('seller_shipment.validate_cod_full_paid');
     }
     if (codActive && !isSameCity) return t('seller_shipment.cod_intracity_only');
-    if (codActive && !pickupRef) return t('seller_shipment.cod_pickup_place_required');
+    if (codActive && !pickupRef && !useLastPickup) return t('seller_shipment.cod_pickup_place_required');
     // Shipping validation — required for tracking to work
     if (isSameCity) {
       // boda/local — just need address (already validated above)
@@ -993,6 +1002,15 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
                     data-testid="cod-boda-fee" onChange={e => set('bodaFee', e.target.value)} style={inputStyle} />
                 </Field>
                 {/* Where the boda rider collects the parcel: a KenteXa place (resolved on the server). */}
+                {useLastPickup ? (
+                  <div data-testid="cod-last-pickup" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 12px', fontSize: 13, color: '#14532d', marginBottom: 12 }}>
+                    Boda atachukua mzigo hapa: <strong>{lastPickup.label}</strong>{' '}
+                    <button type="button" onClick={() => setChangePickup(true)}
+                      style={{ background: 'none', border: 0, padding: 0, color: '#1d4ed8', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'underline' }}>
+                      Badilisha
+                    </button>
+                  </div>
+                ) : (
                 <Field label={t('seller_shipment.cod_pickup_place_label')} hint={t('seller_shipment.cod_pickup_place_hint')} required>
                   <IntelligentLocationInput
                     label={t('seller_shipment.cod_pickup_place_label')}
@@ -1000,6 +1018,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
                     onTextChange={text => { setPickupText(text); if (!text) setPickupRef(null); }}
                     onResolved={loc => setPickupRef(loc?.placeRef?.providerKey && loc?.placeRef?.providerPlaceId ? loc.placeRef : null)} />
                 </Field>
+                )}
               </div>
             )}
           </div>

@@ -4398,7 +4398,15 @@ export class SuperAgentsService {
     seller: User,
   ): Promise<{ snapshot: Record<string, unknown>; phone: string }> {
     const ref = dto.pickupPlace;
-    if (!ref?.providerKey || !ref?.providerPlaceId) throw new BadRequestException(COD_MESSAGES.pickupPlaceRequired);
+    const phone0 = typeof seller.phone === 'string' ? seller.phone.trim() : '';
+    if (!ref?.providerKey || !ref?.providerPlaceId) {
+      // Asked once (owner 2026-10-25): no place sent = the shop place of this
+      // seller's last pay-on-delivery shipment in this city.
+      const last = await this.lastCodPickupSnapshot(seller.id, dto.originCity);
+      if (!last) throw new BadRequestException(COD_MESSAGES.pickupPlaceRequired);
+      if (!phone0) throw new BadRequestException(COD_MESSAGES.sellerPhoneRequired);
+      return { phone: phone0, snapshot: last };
+    }
     const place = await this.locationIntelligence
       .resolve({ providerKey: ref.providerKey, providerPlaceId: ref.providerPlaceId })
       .catch(() => null);
@@ -4414,9 +4422,29 @@ export class SuperAgentsService {
         city: dto.originCity, label: place.displayLabel,
         latitude: place.latitude ?? null, longitude: place.longitude ?? null,
         region: place.regionName ?? null, district: place.districtName ?? null,
-        providerKey: place.providerKey, resolutionMethod: place.resolutionMethod,
+        providerKey: place.providerKey, providerPlaceId: ref.providerPlaceId, resolutionMethod: place.resolutionMethod,
       },
     };
+  }
+
+  /** The shop place of this seller's last pay-on-delivery boda pickup in this city, or null. */
+  private async lastCodPickupSnapshot(sellerUserId: number, city: string): Promise<Record<string, unknown> | null> {
+    const rows: any[] = await this.dataSource.query(
+      `SELECT "originSnapshot" AS snap FROM public.parcel_pickup_task
+        WHERE "requestedByUserId" = $1 AND "servicePath" = 'direct_delivery'
+          AND COALESCE("originSnapshot"->>'label', '') <> ''
+        ORDER BY id DESC LIMIT 5`, [sellerUserId]).catch(() => []);
+    for (const r of rows) {
+      const snap = r?.snap && typeof r.snap === 'object' ? r.snap : null;
+      if (snap && isSameCity(String(snap.city || snap.region || ''), city)) return snap;
+    }
+    return null;
+  }
+
+  /** For the seller's form: the shop place the boda will use unless changed. */
+  async getLastCodPickup(seller: User, city: string) {
+    const snap = await this.lastCodPickupSnapshot(seller.id, String(city || 'Dar es Salaam'));
+    return snap ? { label: String(snap.label), city: snap.city ?? null } : null;
   }
 
   async createSellerShipment(

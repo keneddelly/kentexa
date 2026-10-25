@@ -728,6 +728,13 @@ export class SuperAgentsController {
   // administratively (billing tools), not as a commerce participant
   // shipping their own goods; an active SUPER_AGENT already clears any
   // level requirement automatically (getLevel() returns 4 for one).
+  // The seller's saved shop place for pay-on-delivery boda pickups (asked once, 2026-10-25).
+  @UseGuards(JwtAuthGuard)
+  @Get('shipments/last-pickup')
+  async lastSellerPickup(@Request() req, @Query('city') city?: string) {
+    return { pickup: await this.service.getLastCodPickup(req.user, city || 'Dar es Salaam') };
+  }
+
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post('shipments')
   async createSellerShipment(
