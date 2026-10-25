@@ -18,6 +18,7 @@ import { Agent } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
 import { User } from '../users/entities/user.entity';
 import { AgentsModule } from '../agents/agents.module';
+import { ShipmentsModule } from '../shipments/shipments.module';
 import { PartnerInvitationsModule } from '../partner-invitations/partner-invitations.module';
 import { SmsModule } from '../sms/sms.module';
 import { BusinessModule } from '../business/business.module';
@@ -69,6 +70,8 @@ import { RouteRangeService } from './route-range.service';
       BodaRateCard, // read-only: the Dar boda fee for the office price rule
     ]),
     AgentsModule,
+    // One shipment engine: seller sales are confirmed and started by ShipmentActivationService.
+    ShipmentsModule,
     PartnerInvitationsModule,
     SmsModule,
     BusinessModule,

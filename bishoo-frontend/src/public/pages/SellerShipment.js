@@ -15,12 +15,19 @@
  *
  * From POS ("Ship It"): the items, the customer and the payment are already known,
  * so the form opens at the first thing still missing (usually the customer's place).
- * The request to POST /super-agents/shipments is the same as before.
+ *
+ * One shipment engine (owner 2026-10-25: "parcel shipping should be the same for all
+ * orders regardless where it comes from"): step 4 asks the same engine as the customer
+ * send form for offers (service-offers discover), books the chosen one (commit, quote),
+ * creates the Shipment (POST /shipments), then hands it to POST /super-agents/shipments,
+ * which adds the sale (order, pay-on-delivery, the customer's SMS) and starts it.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
 import PlaceSearchField, { placeLabel } from '../components/PlaceSearchField';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
+import { serviceOfferCommitBody, shipmentBody, quoteBody, confirmBody } from '../../api/shipmentRequests';
+import { officeOffers, allOffers } from './SendShipment';
 
 const BLUE = '#1d4ed8';
 const INK = '#0f172a';
@@ -51,6 +58,22 @@ export function firstStep({ items, name, phone, place, paymentKnown }) {
   if (!items?.length) return 1;
   if (!String(name || '').trim() || digits(phone).length < 9 || !placeLabel(place)) return 2;
   return paymentKnown ? 4 : 3;
+}
+
+/**
+ * The offers the seller can pick from one discovery answer. Same city: the nearby agent
+ * plus offices that chose same-city delivery. Another city: offices and transporters
+ * (a transporter only when its drop-off and collection points are each a single one,
+ * so nothing more has to be asked). Pay-on-delivery rides only on the agent.
+ */
+export function sellerOffers(list, { inCity, cod }) {
+  const all = Array.isArray(list) ? list : [];
+  const direct = all.find((o) => o?.serviceType === 'direct_delivery');
+  const agent = direct ? [{ direct: true, key: 'direct', providerName: 'Wakala wa karibu', servicePrice: direct.price ?? null }] : [];
+  if (cod) return inCity ? agent : [];
+  const others = inCity ? officeOffers(all) : allOffers(all, { pickupOption: 'station', deliveryOption: 'station' })
+    .filter((o) => o.office || (o.originPoints?.length === 1 && o.destinationPoints?.length === 1));
+  return [...agent, ...others.map((o) => ({ ...o, key: o.office ? `office-${o.officeId}` : `t-${o.providerId}-${o.routeId}` }))];
 }
 
 const Choice = ({ selected, title, hint, onClick, testId }) => (
@@ -105,7 +128,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const [editFee, setEditFee] = useState(false);
   const [changePickup, setChangePickup] = useState(false);
   const [pickupText, setPickupText] = useState('');
-  const [pickupRef, setPickupRef] = useState(null);
+  const [pickupLoc, setPickupLoc] = useState(null);
   // 4 Thibitisha
   const [notes, setNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
@@ -117,6 +140,10 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  // The engine's offers for step 4.
+  const [offers, setOffers] = useState([]);
+  const [finding, setFinding] = useState(false);
+  const [chosen, setChosen] = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -142,6 +169,13 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const address = [landmark.trim(), placeLabel(place)].filter(Boolean).join(', ');
   const cod = payMode === 'cod';
   const useLastPickup = Boolean(lastPickup) && !changePickup;
+  const pickupRef = pickupLoc?.placeRef?.providerKey && pickupLoc?.placeRef?.providerPlaceId ? pickupLoc.placeRef : null;
+  // The seller's shop: where the journey starts (remembered, or picked once).
+  const shop = useLastPickup && lastPickup.placeRef
+    ? { label: lastPickup.label, placeRef: lastPickup.placeRef, regionName: lastPickup.city || sellerCity, point: lastPickup.point }
+    : pickupRef ? { label: pickupText, placeRef: pickupRef, regionName: pickupLoc.regionName || sellerCity,
+      point: Number.isFinite(Number(pickupLoc.latitude)) && pickupLoc.latitude != null ? { latitude: Number(pickupLoc.latitude), longitude: Number(pickupLoc.longitude) } : null }
+      : null;
 
   // The boda fee KenteXa would set (Dar rate card); the seller may change it.
   useEffect(() => {
@@ -150,6 +184,41 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
       .then((r) => setBodaFeeAuto(r.data?.fee ?? null)).catch(() => setBodaFeeAuto(null));
   }, [cod, inCity, address, destCity]); // eslint-disable-line react-hooks/exhaustive-deps
   const fee = digits(bodaFee) ? Number(digits(bodaFee)) : bodaFeeAuto;
+
+  // The same request state the customer send form builds (api/shipmentRequests).
+  const description = items.map((i) => `${i.name}${Number(i.qty) > 1 ? ` x${i.qty}` : ''}`).join(', ');
+  const requestState = {
+    itemDescription: description, weightKg: weight || 1, pieces: 1, declaredValue: goods, cargoType: 'kawaida',
+    origin: shop?.label || sellerCity, originResolved: shop ? { placeRef: shop.placeRef, regionName: shop.regionName } : null,
+    destination: placeLabel(place) || destCity,
+    destinationResolved: place.placeRef ? { placeRef: place.placeRef, regionName: place.regionName || destCity } : null,
+    receiverName: name.trim(), receiverPhone: phone.trim(),
+    pickupOption: inCity ? 'door' : 'station', deliveryOption: inCity ? 'door' : 'station',
+    pickupLandmark: inCity ? shop?.label : undefined, pickupPin: inCity ? shop?.point || null : null,
+  };
+  const needShop = inCity && !shop;
+
+  // Step 4: ask the engine. Runs again when what it depends on changes.
+  const findKey = step === 4 && !needShop ? [sellerCity, destCity, shop?.placeRef?.providerPlaceId, place.placeRef?.providerPlaceId, address, weight, goods, cod].join('|') : '';
+  useEffect(() => {
+    if (!findKey) return undefined;
+    let live = true;
+    setFinding(true); setOffers([]); setChosen(null);
+    api.post('/transport/service-offers/discover', {
+      fromCity: sellerCity, toCity: destCity, weightKg: weight || 1,
+      pickup: inCity ? 'door' : 'point', delivery: inCity ? 'door' : 'collect',
+      origin: shop ? { place: shop.placeRef } : { text: sellerCity },
+      destination: place.placeRef ? { place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId } } : { text: address || destCity },
+      declaredValue: goods || undefined,
+      pickupPoint: inCity && shop?.point ? shop.point : undefined,
+    }).then((r) => {
+      if (!live) return;
+      const list = sellerOffers(r.data, { inCity, cod });
+      setOffers(list); setChosen(list[0] || null);
+    }).catch(() => { if (live) setOffers([]); })
+      .finally(() => { if (live) setFinding(false); });
+    return () => { live = false; };
+  }, [findKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choices = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -178,14 +247,40 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     2: Boolean(name.trim() && digits(phone).length >= 9 && placeLabel(place)),
     3: payMode === 'paid' || (cod && inCity && fee != null && Boolean(useLastPickup || pickupRef)
       && (fromSale || (Number(digits(paidPart)) || 0) < goods)),
-    4: true,
+    4: Boolean(chosen) && !finding,
   };
 
   const send = async () => {
     setBusy(true); setError('');
     try {
+      // 1 Book the chosen offer with the shipment engine, exactly as the customer form does.
+      let journey = null;
+      let acceptedQuote = null;
+      if (chosen.direct) {
+        journey = (await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, chosen, true))).data;
+      } else if (chosen.office) {
+        journey = (await api.post('/transport/service-offers/commit', {
+          ...serviceOfferCommitBody(requestState, chosen, false),
+          serviceType: 'office', officeId: Number(chosen.officeId), providerId: undefined, routeId: undefined, runId: undefined,
+          declaredValue: goods || undefined,
+        })).data;
+      } else {
+        const j = (await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, chosen, false))).data;
+        const offered = await api.post('/transport/quotes', quoteBody(j, chosen, requestState));
+        acceptedQuote = (await api.post(`/transport/quotes/${offered.data.id}/accept`)).data;
+      }
+      // 2 The Shipment, as the seller's.
+      const shipment = (await api.post('/shipments', {
+        ...shipmentBody(requestState, chosen, acceptedQuote, chosen.direct || chosen.office ? journey : null),
+        senderPhone: undefined, senderName: undefined,
+      })).data;
+      const points = chosen.direct || chosen.office ? {} : confirmBody({
+        originHubId: chosen.originPoints?.[0]?.hubId, destinationHubId: chosen.destinationPoints?.[0]?.hubId,
+      });
+      // 3 The sale on top: the order, pay-on-delivery and the customer's SMS; the server starts the Shipment.
       const res = await api.post('/super-agents/shipments', {
-        description: items.map((i) => `${i.name}${Number(i.qty) > 1 ? ` x${i.qty}` : ''}`).join(', '),
+        shipmentId: shipment.id, confirm: points,
+        description,
         items: items.map((i) => ({ name: i.name, qty: i.qty, price: i.price, weight: i.weight, productId: i.productId, classifiedId: i.classifiedId })),
         classifiedId: items.find((i) => i.classifiedId)?.classifiedId || null,
         weightKg: weight || undefined, parcelSize: 'small',
@@ -203,7 +298,6 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
         isCod: !fromSale && cod ? true : undefined,
         codAmountPaid: !fromSale && cod ? (Number(digits(paidPart)) || 0) : undefined,
         bodaFee: cod && digits(bodaFee) ? Number(digits(bodaFee)) : undefined,
-        pickupPlace: cod && pickupRef && !useLastPickup ? { providerKey: pickupRef.providerKey, providerPlaceId: pickupRef.providerPlaceId } : undefined,
       });
       setResult(res.data);
     } catch (e) {
@@ -236,7 +330,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
           </div>
           <div style={{ width: '100%', maxWidth: 480, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15 }}>
             <div>{`${name || 'Mteja'} amepata SMS yenye ${cod ? 'bei na ' : ''}namba ya kufuatilia.`}</div>
-            <div>{inCity ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.' : 'Peleka mzigo kwenye ofisi ya KenteXa; ofisi itaweka usafiri.'}</div>
+            <div>{chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
+              : chosen?.office ? `Peleka mzigo ${chosen.officeAddress || chosen.officeCity || 'ofisini'} (${chosen.providerName}).`
+                : `Peleka mzigo ${chosen?.originPoints?.[0]?.name || 'kituoni'} (${chosen?.providerName || 'msafirishaji'}).`}</div>
             {result.billing && !result.billing.isFreeOrder && (
               <div style={{ color: GREY }}>Ada ya KenteXa {tzs(result.billing.platformFeeCharged)} imeongezwa kwenye deni lako.</div>
             )}
@@ -396,8 +492,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                 ) : (
                   <div><span style={label}>Duka lako (boda atachukua hapa)</span>
                     <IntelligentLocationInput label="Duka lako" value={pickupText}
-                      onTextChange={(text) => { setPickupText(text); if (!text) setPickupRef(null); }}
-                      onResolved={(loc) => setPickupRef(loc?.placeRef?.providerKey && loc?.placeRef?.providerPlaceId ? loc.placeRef : null)} /></div>
+                      onTextChange={(text) => { setPickupText(text); if (!text) setPickupLoc(null); }}
+                      onResolved={(loc) => setPickupLoc(loc || null)} /></div>
                 )}
                 {!fromSale && (
                   <div><label htmlFor="paid-part" style={label}>Amelipa sehemu? <span style={{ color: GREY, fontWeight: 400 }}>(hiari)</span></label>
@@ -416,16 +512,32 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
               <Row left="Kwa" right={`${name} · ${placeLabel(place)}`} />
               <Row left="Malipo" right={cod ? 'Atalipa akipokea' : 'Ameshalipa'} />
             </div>
-            <div data-testid="delivery-choice" style={{ ...card, border: `2px solid ${BLUE}`, display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>{inCity ? 'Wakala wa karibu' : 'Ofisi ya KenteXa'}</span>
-                {inCity && cod && fee != null && <span style={{ fontSize: 16, fontWeight: 800 }}>{tzs(fee)}</span>}
+            {needShop ? (
+              <div style={{ ...card, marginBottom: 12 }}>
+                <span style={label}>Duka lako (mzigo unachukuliwa hapa)</span>
+                <IntelligentLocationInput label="Duka lako" value={pickupText}
+                  onTextChange={(text) => { setPickupText(text); if (!text) setPickupLoc(null); }}
+                  onResolved={(loc) => setPickupLoc(loc || null)} />
+                <div style={{ fontSize: 12, color: GREY, marginTop: 6 }}>Inaulizwa mara moja tu; KenteXa itakumbuka.</div>
               </div>
-              <span style={{ fontSize: 13, color: '#334155' }}>{inCity
-                ? `Anachukua dukani kwako na kumfikishia ${name || 'mteja'} mlangoni`
-                : `Peleka mzigo ofisini; ofisi inaupeleka ${destCity} na kuweka usafiri`}</span>
-              <span style={{ fontSize: 12, color: GREY }}>KenteXa imechagua.</span>
-            </div>
+            ) : finding ? (
+              <div data-testid="delivery-finding" style={{ ...card, marginBottom: 12, fontSize: 15, color: GREY }}>KenteXa inatafuta usafiri…</div>
+            ) : offers.length === 0 ? (
+              <div role="alert" data-testid="delivery-none" style={{ ...card, marginBottom: 12, borderColor: '#fde68a', background: '#fffbeb', fontSize: 14 }}>
+                {cod ? 'Hakuna wakala wa karibu kwa sasa wa kulipa ukipokea. Chagua "Ameshalipa" au jaribu tena baadaye.' : `Hakuna usafiri kwenda ${destCity || 'huko'} kwa sasa. Jaribu tena baadaye.`}
+              </div>
+            ) : (
+              <div role="radiogroup" aria-label="Usafiri" data-testid="delivery-choice" style={{ marginBottom: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: GREY, marginBottom: 6 }}>Usafiri {offers.length > 1 ? '(KenteXa imechagua wa bei nafuu; unaweza kubadilisha)' : ''}</div>
+                {offers.map((o) => (
+                  <Choice key={o.key} testId={`offer-${o.key}`} selected={chosen?.key === o.key} onClick={() => setChosen(o)}
+                    title={`${o.providerName}${cod && o.direct && fee != null ? ` · ${tzs(fee)}` : o.servicePrice != null ? ` · ${tzs(o.servicePrice)}` : ''}`}
+                    hint={o.direct ? `Anachukua dukani kwako na kumfikishia ${name || 'mteja'} mlangoni`
+                      : o.office ? `Peleka mzigo ${o.officeAddress || o.officeCity || 'ofisini'}; ofisi inaupeleka ${destCity}`
+                        : `Peleka mzigo ${o.originPoints?.[0]?.name || 'kituoni'}; ${name || 'mteja'} anachukua ${o.destinationPoints?.[0]?.name || destCity}`} />
+                ))}
+              </div>
+            )}
             <div style={{ ...card, background: '#f0fdf4', borderColor: '#bbf7d0', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
               <Row left="Bidhaa" right={goods.toLocaleString('en-US')} />
               {cod && <Row left="Usafiri" right={(fee || 0).toLocaleString('en-US')} />}

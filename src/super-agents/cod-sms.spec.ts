@@ -186,6 +186,61 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
     expect(fake.orderRepo.save).not.toHaveBeenCalled();
   });
 
+  // The engine path: the seller form booked a journey and created the Shipment; the seller
+  // endpoint adds the sale and starts that same Shipment (one shipment engine for all orders).
+  const engine = (sale: any, legs: any[], shipment: any = { id: 88, requestedByUserId: 7, status: 'pending', orderId: null, journeySelectionId: 12 }) => {
+    const h = full(sale);
+    const updates: any[] = [];
+    h.fake.dataSource.query = jest.fn(async (sql: string, params: any[]) => {
+      if (sql.includes('FROM public.shipment WHERE id')) return [shipment];
+      if (sql.includes('FROM public.journey_leg')) return legs;
+      if (sql.includes('UPDATE public.shipment')) { updates.push(params); return []; }
+      return [{ waybillNumber: null, createdAt: null }];
+    });
+    h.fake.startEngineShipment = (SuperAgentsService.prototype as any).startEngineShipment.bind(h.fake);
+    h.fake.shipmentActivation = { confirmAndActivate: jest.fn(async () => ({ parcel: { id: 50 }, nextAction: { kind: 'agent_pickup' } })) };
+    (h.parcelRepo as any).findOne = jest.fn(async () => ({ id: 50, description: 'x', deliveryAddress: 'y' }));
+    return { ...h, updates };
+  };
+  const codSale = { id: 6, sellerId: 7, status: 'completed', isCod: true, subtotal: 100000, total: 100000,
+    amountPaid: 20000, balanceDue: 80000, customerName: 'Amina', customerPhone: '0700000002', receiptNumber: 'R6' };
+  const directLegs = [{ type: 'pickup', path: 'direct_delivery' }];
+
+  it('engine path: a COD on a direct agent journey starts the seller\'s Shipment with the Order on it', async () => {
+    const { fake, sms, parcelRepo, updates, call } = engine(codSale, directLegs);
+    const res: any = await call({ ...base, destinationCity: 'Dar es Salaam', saleId: 6, shipmentId: 88, confirm: {} });
+    expect(updates[0]).toEqual([88, 900]); // the Order goes on the Shipment before it starts
+    expect(fake.shipmentActivation.confirmAndActivate).toHaveBeenCalledWith(7, 88, {});
+    expect(fake.createParcelForOrder).not.toHaveBeenCalled();
+    expect(taskRows).toHaveLength(0); // the agent job comes from the activation, not a second boda task
+    expect(parcelRepo.update).toHaveBeenCalledWith(50, expect.objectContaining({ declaredValue: 100000, saleId: 6 }));
+    expect(parcelRepo.update).toHaveBeenCalledWith(50, { agreedDeliveryFee: 3000 });
+    expect(sms.sendSms).toHaveBeenCalledTimes(1);
+    expect(res.nextAction).toEqual({ kind: 'agent_pickup' });
+  });
+
+  it('engine path: pay-on-delivery is refused on an office or transporter journey, before anything is saved', async () => {
+    const { fake, call } = engine(codSale, [{ type: 'pickup', path: 'office_dropoff' }, { type: 'transport', path: null }]);
+    await expect(call({ ...base, destinationCity: 'Dar es Salaam', saleId: 6, shipmentId: 88 })).rejects.toThrow(/wakala wa karibu/);
+    expect(fake.orderRepo.save).not.toHaveBeenCalled();
+    expect(fake.shipmentActivation.confirmAndActivate).not.toHaveBeenCalled();
+  });
+
+  it('engine path: another seller\'s or an already used Shipment is refused', async () => {
+    const other = engine(codSale, directLegs, { id: 88, requestedByUserId: 99, status: 'pending', orderId: null, journeySelectionId: 12 });
+    await expect(other.call({ ...base, destinationCity: 'Dar es Salaam', saleId: 6, shipmentId: 88 })).rejects.toThrow('Shipment not found');
+    const used = engine(codSale, directLegs, { id: 88, requestedByUserId: 7, status: 'pending', orderId: 5, journeySelectionId: 12 });
+    await expect(used.call({ ...base, destinationCity: 'Dar es Salaam', saleId: 6, shipmentId: 88 })).rejects.toThrow(/umeshatumika/);
+  });
+
+  it('engine path: if starting fails the Order is cancelled and the Shipment freed', async () => {
+    const { fake, updates, call } = engine(codSale, directLegs);
+    fake.shipmentActivation.confirmAndActivate = jest.fn(async () => { throw new BadRequestException('no hub'); });
+    await expect(call({ ...base, destinationCity: 'Dar es Salaam', saleId: 6, shipmentId: 88 })).rejects.toThrow('no hub');
+    expect(updates).toEqual([[88, 900], [88, 900]]);
+    expect(fake.orderRepo.update).toHaveBeenCalledWith(900, { status: 'cancelled' });
+  });
+
   it('the boda fee: the seller\'s own figure, else the KenteXa Dar default; outside Dar it is required', async () => {
     const { fake } = make();
     expect(await fake.resolveCodBodaFee({ bodaFee: 2500, destinationCity: 'Dar es Salaam', originCity: 'Dar es Salaam', deliveryAddress: 'x' }, null)).toBe(2500);
