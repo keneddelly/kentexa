@@ -4,11 +4,15 @@ import api from '../../api/api';
 import CreateMomentModal from './CreateMomentModal';
 
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(() => Promise.resolve({ data: [] })), post: jest.fn() } }));
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k) => k }) }));
+// A stable t: the modal's item effect depends on it.
+const mockT = (k) => k;
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: mockT }) }));
 
+const profile = { id: 7, type: 'personal', displayName: 'Asha' };
+const user = { id: 1 };
 const open = (onNavigate) => render(
-  <CreateMomentModal onClose={jest.fn()} onPosted={jest.fn()} currentUser={{ id: 1 }} activeProfileId={7}
-    activeProfile={{ id: 7, type: 'personal', displayName: 'Asha' }} onNavigate={onNavigate} />);
+  <CreateMomentModal onClose={jest.fn()} onPosted={jest.fn()} currentUser={user} activeProfileId={7}
+    activeProfile={profile} onNavigate={onNavigate} />);
 
 test('a sale written as a Moment goes to the classified form, filled in', async () => {
   const onNavigate = jest.fn();

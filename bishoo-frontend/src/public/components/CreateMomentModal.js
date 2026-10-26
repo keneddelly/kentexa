@@ -57,7 +57,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   // post sale items as Moments, so buyers never find them in search). The user can
   // still keep it a Moment with one tap; never blocked.
   const [keepMoment, setKeepMoment] = useState(false);
-  const intent = mode === 'moment' ? saleIntent(caption, { tagged: !!tagged }) : { sale: false, price: null };
+  const intent = mode === 'moment' ? saleIntent(caption, { tagged: !!tagged && tagged.type !== 'business' }) : { sale: false, price: null };
   const asAd = intent.sale && !keepMoment && !!onNavigate;
   const fileRef = useRef(null);
 
