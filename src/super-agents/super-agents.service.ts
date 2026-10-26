@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { OfficePriceService } from './office-price.service';
 import { ShipmentActivationService } from '../shipments/shipment-activation.service';
-import { withOfficePhone } from './office-sms';
+import { customerCollectsSelf, withOfficePhone } from './office-sms';
 import { ShehenaTransportService } from './shehena-transport.service';
 import { checkChargedAmount, isDarEsSalaam } from './office-price';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
@@ -3368,8 +3368,10 @@ export class SuperAgentsService {
       lastMileAgent?.address || (shipment as any).lastMileContactAddress || null;
 
     let buyerSmsSentCount = 0;
+    // The customer collects it himself: his one SMS goes out at dispatch, with the transport.
+    const selfCollect = customerCollectsSelf(lastMileAgent, (shipment as any).lastMileContactPhone, parcels as any);
     for (const parcel of parcels) {
-      if (!(parcel as any).buyerPhone) continue;
+      if (selfCollect || !(parcel as any).buyerPhone) continue;
       try {
         const sent = await this.smsService.sendSms(
           (parcel as any).buyerPhone,
@@ -3572,7 +3574,26 @@ export class SuperAgentsService {
       trackingList.length <= 8
         ? trackingList.join(', ')
         : `${trackingList.slice(0, 8).join(', ')} na vingine ${trackingList.length - 8}`;
-    if (receiverPhone) {
+    if (customerCollectsSelf(lastMileAgent, receiverPhone, parcels as any)) {
+      // One SMS to the customer: where it goes, by which transport, the ticket, and that he collects it.
+      for (const parcel of parcels) {
+        try {
+          const sent = await this.smsService.sendSms(
+            receiverPhone,
+            withOfficePhone(`${smsSafeName(agent?.businessName)}\n\n` +
+              `Habari ${smsSafeName((parcel as any).recipientName || receiverName)}! Mzigo wako (${customerParcelNumber(parcel)}) umetumwa kwenda ${shipment.destinationCity}.\n` +
+              (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
+              (dto.transportRef ? `Tiketi/Rejea: ${dto.transportRef}\n` : '') +
+              `Utauchukua mwenyewe ukifika.\n\n` +
+              `Fuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
+              `Verified by Kentexa`, agent),
+          );
+          agentNotifySent = agentNotifySent || !!sent;
+        } catch (e: any) {
+          console.warn('Shehena self-collect SMS failed:', e?.message);
+        }
+      }
+    } else if (receiverPhone) {
       try {
         agentNotifySent = await this.smsService.sendSms(
           receiverPhone,

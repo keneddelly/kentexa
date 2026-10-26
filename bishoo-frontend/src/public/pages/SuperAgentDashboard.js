@@ -395,6 +395,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setBulkHubs([]); setBulkLastMileAgentId(null);
     setBulkDestText('');
     setBulkManualContact({ name: '', phone: '', city: '', address: '' });
+    setBulkReceiverMode(null);
     setBulkTransport({ transportCompany: '', transportProviderId: null, transportRef: '', totalShippingCost: '' });
     setBulkActiveShipment(null);
     setInviteParcel(null);
@@ -404,6 +405,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // parcel chosen, its town and its receiving office (or the recipient) filled in; once
   // created it goes straight to sending (transport picker, ticket, fare).
   const [singleShehena, setSingleShehena] = useState(null);
+  // "Huko, mzigo utapokelewa na nani?" - one question, three answers, nothing chosen
+  // in advance (owner 2026-10-26: the buyer pre-filled as receiver confused staff):
+  //   'office'   a KenteXa office in that town
+  //   'manual'   an office or person not on KenteXa (typed by staff)
+  //   'customer' the customer collects it himself (one parcel only)
+  const [bulkReceiverMode, setBulkReceiverMode] = useState(null);
   // The parcel of a shehena of one: its waybill carries the partner invitation (PartnerInvitePanel).
   const [inviteParcel, setInviteParcel] = useState(null);
   const startSingleShehena = (parcel) => {
@@ -413,14 +420,24 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setSingleShehena(parcel.trackingNumber); setInviteParcel(parcel);
     setBulkDestText(city); setBulkDestCity(city);
     fetchBulkCandidates(city, [parcel.trackingNumber]); fetchBulkHubs(city);
-    if (parcel.destinationSuperAgent?.id) setBulkLastMileAgentId(parcel.destinationSuperAgent.id);
-    else setBulkManualContact({ name: parcel.recipientName || '', phone: parcel.buyerPhone || '', city, address: parcel.deliveryAddress || '' });
   };
+  const chooseReceiver = (mode) => {
+    setBulkReceiverMode(mode);
+    setBulkLastMileAgentId(null);
+    if (mode === 'customer' && inviteParcel) {
+      setBulkManualContact({ name: inviteParcel.recipientName || '', phone: inviteParcel.buyerPhone || inviteParcel.recipientPhone || '', city: bulkDestCity, address: '' });
+    } else {
+      setBulkManualContact({ name: '', phone: '', city: bulkDestCity, address: '' });
+    }
+  };
+  const receiverReady = bulkReceiverMode === 'office' ? !!bulkLastMileAgentId
+    : (bulkReceiverMode === 'manual' || bulkReceiverMode === 'customer')
+      ? !!bulkManualContact.name.trim() && !!bulkManualContact.phone.trim() : false;
 
   const handleCreateBulkShipment = async () => {
     if (!bulkSelected.size) return;
-    if (!bulkLastMileAgentId && !bulkManualContact.name) {
-      setError('Chagua ofisi ya huko au jaza mawasiliano ya atakayepokea'); return;
+    if (!receiverReady) {
+      setError('Chagua atakayepokea mzigo huko'); return;
     }
     try {
       setActionLoading(true); setError('');
@@ -1597,52 +1614,99 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           if (!loc) return;
                           setBulkLastMileAgentId(null);
                           const cityStr = loc.regionName || loc.districtName || '';
-                          setBulkDestCity(cityStr); fetchBulkCandidates(cityStr); fetchBulkHubs(cityStr);
+                          setBulkDestCity(cityStr); fetchBulkCandidates(cityStr); fetchBulkHubs(cityStr); setBulkReceiverMode(null); setBulkLastMileAgentId(null);
                         }} placeholder="Tafuta eneo la shehena…" required
                       />
                     </div>
 
-                    {bulkHubsLoading ? (
-                      <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>Inatafuta ofisi...</div>
-                    ) : bulkHubs.length > 0 && (
-                      <>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
-                          Ofisi zilizo kwenye KenteXa {bulkDestCity}
-                        </div>
-                        {bulkHubs.map(h => (
-                          <label key={h.id} onClick={() => setBulkLastMileAgentId(h.id)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                              borderRadius: 10, marginBottom: 6, cursor: 'pointer',
-                              border: `2px solid ${bulkLastMileAgentId === h.id ? '#d97706' : '#e2e8f0'}`,
-                              backgroundColor: bulkLastMileAgentId === h.id ? '#fff7ed' : '#f8fafc' }}>
-                            <input type="radio" checked={bulkLastMileAgentId === h.id} readOnly />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{h.businessName}</div>
-                              <div style={{ fontSize: 11, color: '#64748b' }}>📍 {h.address || h.city}</div>
+                    {bulkDestCity && (() => {
+                      const choice = (mode, title, sub) => (
+                        <button type="button" key={mode} data-testid={`receiver-${mode}`} onClick={() => chooseReceiver(mode)}
+                          style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', textAlign: 'left',
+                            padding: '12px 12px', borderRadius: 12, marginBottom: 8, cursor: 'pointer',
+                            border: `2px solid ${bulkReceiverMode === mode ? '#d97706' : '#e2e8f0'}`,
+                            background: bulkReceiverMode === mode ? '#fff7ed' : '#fff' }}>
+                          <span style={{ width: 18, height: 18, marginTop: 1, borderRadius: '50%', flexShrink: 0,
+                            border: `2px solid ${bulkReceiverMode === mode ? '#d97706' : '#94a3b8'}`,
+                            background: bulkReceiverMode === mode ? 'radial-gradient(#d97706 45%, #fff 50%)' : '#fff' }} />
+                          <span>
+                            <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{title}</span>
+                            <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2 }}>{sub}</span>
+                          </span>
+                        </button>
+                      );
+                      const hub = bulkHubs.find((h) => h.id === bulkLastMileAgentId);
+                      const who = bulkReceiverMode === 'office' ? hub?.businessName
+                        : bulkReceiverMode === 'customer' ? `${bulkManualContact.name || 'mteja'} (mteja mwenyewe)`
+                        : bulkReceiverMode === 'manual' ? bulkManualContact.name.trim() : '';
+                      return (
+                        <div style={{ marginTop: 6 }}>
+                          <div style={{ fontSize: 13, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+                            Huko {bulkDestCity}, mzigo utapokelewa na nani?
+                          </div>
+                          {choice('office', 'Ofisi ya KenteXa', bulkHubsLoading ? 'Inatafuta ofisi…' : bulkHubs.length ? `Ofisi ${bulkHubs.length} ziko ${bulkDestCity}` : `Hakuna ofisi ya KenteXa ${bulkDestCity} bado`)}
+                          {bulkReceiverMode === 'office' && (
+                            <div style={{ margin: '0 0 8px 14px' }}>
+                              {bulkHubs.length === 0 && !bulkHubsLoading && (
+                                <div style={{ fontSize: 12, color: '#94a3b8', padding: '4px 0' }}>Chagua jibu lingine hapa chini.</div>
+                              )}
+                              {bulkHubs.map(h => (
+                                <label key={h.id} onClick={() => setBulkLastMileAgentId(h.id)}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                                    borderRadius: 10, marginBottom: 6, cursor: 'pointer',
+                                    border: `2px solid ${bulkLastMileAgentId === h.id ? '#d97706' : '#e2e8f0'}`,
+                                    backgroundColor: bulkLastMileAgentId === h.id ? '#fff7ed' : '#f8fafc' }}>
+                                  <input type="radio" checked={bulkLastMileAgentId === h.id} readOnly />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                                      {h.businessName}
+                                      {inviteParcel?.destinationSuperAgent?.id === h.id && (
+                                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: '#16a34a' }}>· mteja aliichagua</span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#64748b' }}>📍 {h.address || h.city}</div>
+                                  </div>
+                                </label>
+                              ))}
                             </div>
-                          </label>
-                        ))}
-                      </>
-                    )}
-                    {!bulkLastMileAgentId && (
-                      <>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginTop: 8, marginBottom: 8 }}>
-                          {inviteParcel ? 'AU ATAKAYEPOKEA HUKO (mpokeaji au mshirika asiye kwenye KenteXa)' : 'AU ATAKAYEPOKEA HUKO (mshirika asiye kwenye KenteXa)'}
+                          )}
+                          {choice('manual', 'Ofisi au mtu asiye kwenye KenteXa', 'Andika jina, simu na mahali')}
+                          {bulkReceiverMode === 'manual' && (
+                            <div style={{ margin: '0 0 8px 14px' }}>
+                              <input type="text" placeholder="Jina la ofisi au mtu" data-testid="manual-name"
+                                value={bulkManualContact.name}
+                                onChange={e => setBulkManualContact(p => ({ ...p, name: e.target.value }))}
+                                style={{ ...inp, marginBottom: 8 }} />
+                              <input type="tel" placeholder="Namba ya simu" data-testid="manual-phone"
+                                value={bulkManualContact.phone}
+                                onChange={e => setBulkManualContact(p => ({ ...p, phone: e.target.value }))}
+                                style={{ ...inp, marginBottom: 8 }} />
+                              <input type="text" placeholder="Mahali (mf. Stendi kuu, Ofisi 23)"
+                                value={bulkManualContact.address}
+                                onChange={e => setBulkManualContact(p => ({ ...p, address: e.target.value }))}
+                                style={{ ...inp, marginBottom: 8 }} />
+                            </div>
+                          )}
+                          {inviteParcel && choice('customer', 'Mteja mwenyewe atauchukua', 'Atauchukua kwenye basi au stendi')}
+                          {bulkReceiverMode === 'customer' && (
+                            <div style={{ margin: '0 0 8px 14px', padding: '10px 12px', borderRadius: 10, background: '#f8fafc', fontSize: 12, color: '#334155' }}>
+                              <div style={{ fontWeight: 800 }}>{bulkManualContact.name || '—'}</div>
+                              <div>{bulkManualContact.phone || 'Mteja hana namba ya simu: chagua jibu lingine'}</div>
+                            </div>
+                          )}
+                          {receiverReady && who && (
+                            <div data-testid="receiver-summary" style={{ marginTop: 4, marginBottom: 6, padding: '10px 12px', borderRadius: 10, background: '#ecfdf5', color: '#065f46', fontSize: 12, fontWeight: 700 }}>
+                              {inviteParcel
+                                ? `Mzigo ${displayParcelNumber(inviteParcel)} unaenda ${bulkDestCity}. Atakayepokea: ${who}.`
+                                : `Shehena inaenda ${bulkDestCity}. Atakayepokea: ${who}.`}
+                              {bulkReceiverMode === 'customer'
+                                ? ' Mteja atapata SMS moja yenye usafiri na tiketi.'
+                                : ' Mteja atapata SMS ya atakayepokea; mpokeaji atapata SMS mzigo ukitumwa.'}
+                            </div>
+                          )}
                         </div>
-                        <input type="text" placeholder="Jina la mshirika/biashara"
-                          value={bulkManualContact.name}
-                          onChange={e => setBulkManualContact(p => ({ ...p, name: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Namba ya simu"
-                          value={bulkManualContact.phone}
-                          onChange={e => setBulkManualContact(p => ({ ...p, phone: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Mahali/Ofisi (e.g. China Plaza, Ofisi 23, Kariakoo)"
-                          value={bulkManualContact.address}
-                          onChange={e => setBulkManualContact(p => ({ ...p, address: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                      </>
-                    )}
+                      );
+                    })()}
 
                     {bulkLoading ? (
                       <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳</div>
@@ -1679,9 +1743,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       </>
                     )}
                     <button onClick={handleCreateBulkShipment}
-                      disabled={actionLoading || !bulkSelected.size || (!bulkLastMileAgentId && !bulkManualContact.name)}
+                      disabled={actionLoading || !bulkSelected.size || !receiverReady}
                       style={{ width: '100%', marginTop: 10,
-                        backgroundColor: (!bulkSelected.size || (!bulkLastMileAgentId && !bulkManualContact.name)) ? '#94a3b8' : '#d97706',
+                        backgroundColor: (!bulkSelected.size || !receiverReady) ? '#94a3b8' : '#d97706',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
                       {actionLoading ? 'Inaendelea…' : inviteParcel ? 'Endelea: chagua usafiri' : `Unda shehena ya vifurushi ${bulkSelected.size}, SMS kwa wapokeaji`}
