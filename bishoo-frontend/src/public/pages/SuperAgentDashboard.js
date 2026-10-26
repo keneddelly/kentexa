@@ -28,6 +28,7 @@
 import { BOTTOM_NAV_CLEARANCE } from '../components/BottomNav';
 import { OfficeHome, OfficeScreenHeader, OfficeMenu, OfficeRow, officeSection, OFFICE_COLORS } from '../components/OfficeDashboardShell';
 import OfficePartners from '../components/OfficePartners';
+import PartnerInvitePanel from '../components/PartnerInvitePanel';
 import ShehenaTransportPicker from '../components/ShehenaTransportPicker';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -48,7 +49,6 @@ import {
 } from '../../utils/counterReceipt';
 import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
-import PartnerInvitePanel from '../components/PartnerInvitePanel';
 import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/OfficePricePreview';
 import RouteRangePanel from '../components/RouteRangePanel';
 import OfficeRatesList from '../components/OfficeRatesList';
@@ -369,13 +369,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     finally { setBulkOpenLoading(false); }
   };
 
-  const fetchBulkCandidates = async (city) => {
+  const fetchBulkCandidates = async (city, preselect = []) => {
     if (!city) { setBulkCandidates([]); return; }
     try {
       setBulkLoading(true);
       const res = await api.get('/super-agents/bulk-shipments/candidates', { params: { destinationCity: city } });
       setBulkCandidates(res.data || []);
-      setBulkSelected(new Set());
+      setBulkSelected(new Set(preselect));
     } catch { setBulkCandidates([]); }
     finally { setBulkLoading(false); }
   };
@@ -397,6 +397,24 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setBulkManualContact({ name: '', phone: '', city: '', address: '' });
     setBulkTransport({ transportCompany: '', transportProviderId: null, transportRef: '', totalShippingCost: '' });
     setBulkActiveShipment(null);
+    setInviteParcel(null);
+  };
+
+  // A single parcel goes out as a shehena of one: the shehena screen opens with this
+  // parcel chosen, its town and its receiving office (or the recipient) filled in; once
+  // created it goes straight to sending (transport picker, ticket, fare).
+  const [singleShehena, setSingleShehena] = useState(null);
+  // The parcel of a shehena of one: its waybill carries the partner invitation (PartnerInvitePanel).
+  const [inviteParcel, setInviteParcel] = useState(null);
+  const startSingleShehena = (parcel) => {
+    resetBulkForm();
+    const city = parcel.destinationCity || '';
+    setActiveTab('tuma'); setTumaMode('shehena'); setDispatchParcel(null); setBulkStep('new');
+    setSingleShehena(parcel.trackingNumber); setInviteParcel(parcel);
+    setBulkDestText(city); setBulkDestCity(city);
+    fetchBulkCandidates(city, [parcel.trackingNumber]); fetchBulkHubs(city);
+    if (parcel.destinationSuperAgent?.id) setBulkLastMileAgentId(parcel.destinationSuperAgent.id);
+    else setBulkManualContact({ name: parcel.recipientName || '', phone: parcel.buyerPhone || '', city, address: parcel.deliveryAddress || '' });
   };
 
   const handleCreateBulkShipment = async () => {
@@ -415,6 +433,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         manualContactAddress: bulkLastMileAgentId ? undefined : bulkManualContact.address,
         trackingNumbers: [...bulkSelected],
       });
+      if (singleShehena) {
+        // Straight to sending this one parcel.
+        const hub = bulkHubs.find((h) => h.id === bulkLastMileAgentId) || null;
+        setBulkActiveShipment({ id: res.data.shipmentId, destinationCity: bulkDestCity, lastMileSuperAgent: hub });
+        setSingleShehena(null); setBulkStep('dispatch');
+        return;
+      }
       setSuccess(`✅ Shehena imeundwa — vifurushi ${res.data.linkedCount} vimeongezwa, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
       resetBulkForm();
       setBulkStep('open'); fetchOpenShipments();
@@ -457,14 +482,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   };
 
   // ── Transport Assignment ──────────────────────────────────────────────────
-  const [assignTransport,    setAssignTransport]    = useState(null); // { trackingNumber, fromCity, toCity }
-  const [transportOptions,   setTransportOptions]   = useState(null); // { published, providers }
-  const [loadingTransport,   setLoadingTransport]   = useState(false);
-  const [selectedProvider,   setSelectedProvider]   = useState(null);
-  const [selectedAvailId,    setSelectedAvailId]    = useState(null);
-  const [transportNotes,     setTransportNotes]     = useState('');
-  const [agreedPrice,        setAgreedPrice]        = useState('');
-  const [assigningTransport, setAssigningTransport] = useState(false);
   const [dispatchForm, setDispatchForm] = useState({
     transportType: 'bus', busCompany: '', busTicketNumber: '',
     busDeparture: '', courierName: '', courierTrackingRef: '', notes: '',
@@ -472,13 +489,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     departureDate: '', departureTime: '', expectedArrivalDate: '', expectedArrivalTime: '',
     destinationSuperAgentId: null,
   });
-  const [dispatchMode, setDispatchMode] = useState('transport');
+  const [dispatchMode, setDispatchMode] = useState('agent'); // a single parcel to another town goes as a shehena of one
   const [selectedAgent, setSelectedAgent] = useState(null);
   // Destination Super Agent hub picker — shown only when dispatching via
   // bus/courier. Optional: the receiving hub sees this parcel in their own
   // "Inakuja" tray and can mark it collected once it physically arrives.
-  const [destinationHubs, setDestinationHubs] = useState([]);
-  const [loadingHubs, setLoadingHubs] = useState(false);
 
   // ── Status update ─────────────────────────────────────────────────────────
   const [statusParcel, setStatusParcel] = useState(null);
@@ -720,40 +735,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // ── Transport Assignment functions ────────────────────────────────────────
 
-  const openAssignTransport = async (trackingNumber, fromCity, toCity) => {
-    setAssignTransport({ trackingNumber, fromCity, toCity });
-    setTransportOptions(null);
-    setSelectedProvider(null);
-    setSelectedAvailId(null);
-    setTransportNotes('');
-    setAgreedPrice('');
-    try {
-      setLoadingTransport(true);
-      const res = await api.get(
-        `/transport/available?from=${encodeURIComponent(fromCity)}&to=${encodeURIComponent(toCity)}`
-      );
-      setTransportOptions(res.data);
-    } catch { setTransportOptions({ published: [], providers: [] }); }
-    finally { setLoadingTransport(false); }
-  };
-
-  const handleAssignTransport = async () => {
-    if (!selectedProvider) return alert('Chagua msafirishaji kwanza');
-    try {
-      setAssigningTransport(true);
-      await api.post('/transport/assignments', {
-        trackingNumber:  assignTransport.trackingNumber,
-        providerId:      selectedProvider.id,
-        availabilityId:  selectedAvailId || undefined,
-        agreedPrice:     agreedPrice ? Number(agreedPrice) : undefined,
-        superAgentNotes: transportNotes || undefined,
-      });
-      alert(`✅ ${selectedProvider.name} wamepewa mgawo!`);
-      setAssignTransport(null);
-    } catch (e) {
-      alert('Imeshindwa: ' + (e.response?.data?.message || 'Jaribu tena'));
-    } finally { setAssigningTransport(false); }
-  };
 
   const openParcelHistory = async (trackingNumber) => {
     setHistoryModal({ trackingNumber, loading: true, data: null, error: '' });
@@ -799,16 +780,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     } finally {
       setResendLoading('');
     }
-  };
-
-  const fetchDestinationHubs = async (city) => {
-    if (!city) { setDestinationHubs([]); return; }
-    try {
-      setLoadingHubs(true);
-      const res = await api.get(`/super-agents/hubs/${encodeURIComponent(city)}`);
-      setDestinationHubs(res.data || []);
-    } catch { setDestinationHubs([]); }
-    finally { setLoadingHubs(false); }
   };
 
   const handleDispatch = async () => {
@@ -1546,150 +1517,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   </span>}
                 </div>
 
-                {/* Mode toggle — C2: an intercity parcel goes by bus/courier only; the
-                    local agent choice is for same-city parcels (and the backend refuses it too). */}
-                {!isIntercityPlace(dispatchParcel.originCity || profile?.city, dispatchParcel.destinationCity) && (
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                  {[
-                    { k: 'transport', l: '🚌 Basi / Courier' },
-                    { k: 'agent',     l: '🏍️ Wakala wa Mtaa' },
-                  ].map(m => (
-                    <button key={m.k} onClick={() => setDispatchMode(m.k)}
-                      style={{ flex: 1, padding: '9px 8px', borderRadius: 8,
-                        cursor: 'pointer', fontSize: 12, fontWeight: 700, border: 'none',
-                        backgroundColor: dispatchMode === m.k ? '#1d4ed8' : '#f1f5f9',
-                        color: dispatchMode === m.k ? '#fff' : '#475569' }}>
-                      {m.l}
-                    </button>
-                  ))}
-                </div>
-                )}
-
-                {dispatchMode === 'transport' && (
-                  <>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                      {[{ k: 'bus', l: '🚌 Basi' }, { k: 'courier', l: '📦 Courier' }].map(t => (
-                        <button key={t.k}
-                          onClick={() => setDispatchForm(f => ({ ...f, transportType: t.k }))}
-                          style={{ flex: 1, padding: 8, borderRadius: 8, cursor: 'pointer',
-                            fontSize: 12, fontWeight: 700,
-                            border: dispatchForm.transportType === t.k
-                              ? '2px solid #1d4ed8' : '2px solid #e2e8f0',
-                            backgroundColor: dispatchForm.transportType === t.k ? '#eff6ff' : '#fff',
-                            color: dispatchForm.transportType === t.k ? '#1d4ed8' : '#64748b' }}>
-                          {t.l}
-                        </button>
-                      ))}
-                    </div>
-
-                    {dispatchForm.transportType === 'bus' && (
-                      <>
-                        <input type="text" placeholder="Jina la Basi (e.g. Abood, Tahmeed, Scandinavian...)"
-                          value={dispatchForm.busCompany}
-                          onChange={e => setDispatchForm(f => ({ ...f, busCompany: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Namba ya Tiketi *"
-                          value={dispatchForm.busTicketNumber}
-                          onChange={e => setDispatchForm(f => ({ ...f, busTicketNumber: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Saa ya Kuondoka (e.g. 6am)"
-                          value={dispatchForm.busDeparture}
-                          onChange={e => setDispatchForm(f => ({ ...f, busDeparture: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                      </>
-                    )}
-                    {dispatchForm.transportType === 'courier' && (
-                      <>
-                        <input type="text" placeholder="Jina la Courier"
-                          value={dispatchForm.courierName}
-                          onChange={e => setDispatchForm(f => ({ ...f, courierName: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Namba ya Kufuatilia"
-                          value={dispatchForm.courierTrackingRef}
-                          onChange={e => setDispatchForm(f => ({ ...f, courierTrackingRef: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                      </>
-                    )}
-
-                    {/* Hub-to-hub hand-off — send to another Super Agent's hub
-                        in the destination city, who then arranges last-mile
-                        delivery to the customer themselves. Optional: skip
-                        this and the parcel just travels to the buyer directly. */}
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
-                      marginTop: 10, marginBottom: 6, textTransform: 'uppercase' }}>
-                      Chagua Super Agent Atakayepokea (hiari)
-                    </div>
-                    {loadingHubs ? (
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>⏳ Inatafuta...</div>
-                    ) : destinationHubs.length === 0 ? (
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-                        Hakuna Super Agent mwingine katika {dispatchParcel.destinationCity}
-                      </div>
-                    ) : (
-                      <div style={{ marginBottom: 8 }}>
-                        {destinationHubs.map(h => (
-                          <div key={h.id}
-                            onClick={() => setDispatchForm(f => ({ ...f,
-                              destinationSuperAgentId: f.destinationSuperAgentId === h.id ? null : h.id }))}
-                            style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                              marginBottom: 6,
-                              border: dispatchForm.destinationSuperAgentId === h.id
-                                ? '2px solid #7c3aed' : '1px solid #e2e8f0',
-                              backgroundColor: dispatchForm.destinationSuperAgentId === h.id ? '#f5f3ff' : '#fff' }}>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>
-                              {h.businessName} {dispatchForm.destinationSuperAgentId === h.id && '✅'}
-                            </div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
-                              ⭐ {Number(h.rating || 5).toFixed(1)} · {h.address || h.city}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Optional — only fields actually filled in get included in the receiver SMS */}
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
-                      marginTop: 6, marginBottom: 6, textTransform: 'uppercase' }}>
-                      Maelezo ya ziada (hiari)
-                    </div>
-                    <input type="text" placeholder="Jina la Dereva (hiari)"
-                      value={dispatchForm.driverName}
-                      onChange={e => setDispatchForm(f => ({ ...f, driverName: e.target.value }))}
-                      style={{ ...inp, marginBottom: 8 }} />
-                    <input type="text" placeholder="Namba ya Simu ya Dereva (hiari)"
-                      value={dispatchForm.driverPhone}
-                      onChange={e => setDispatchForm(f => ({ ...f, driverPhone: e.target.value }))}
-                      style={{ ...inp, marginBottom: 8 }} />
-                    <input type="text" placeholder="Namba ya Gari (hiari)"
-                      value={dispatchForm.vehicleNumber}
-                      onChange={e => setDispatchForm(f => ({ ...f, vehicleNumber: e.target.value }))}
-                      style={{ ...inp, marginBottom: 8 }} />
-                    {/* Partner invitation: the driver / transport not yet on KenteXa joins through this waybill. */}
-                    <PartnerInvitePanel parcel={dispatchParcel}
-                      defaultPhone={dispatchForm.driverPhone} defaultName={dispatchForm.driverName} />
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                      <input type="date" placeholder="Tarehe ya Kuondoka"
-                        value={dispatchForm.departureDate}
-                        onChange={e => setDispatchForm(f => ({ ...f, departureDate: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                      <input type="time" placeholder="Saa ya Kuondoka"
-                        value={dispatchForm.departureTime}
-                        onChange={e => setDispatchForm(f => ({ ...f, departureTime: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                      <input type="date" placeholder="Tarehe ya Kufika"
-                        value={dispatchForm.expectedArrivalDate}
-                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalDate: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                      <input type="time" placeholder="Saa ya Kufika"
-                        value={dispatchForm.expectedArrivalTime}
-                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalTime: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                    </div>
-                  </>
-                )}
-
                 {dispatchMode === 'agent' && (
                   <>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
@@ -1979,6 +1806,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
                     <ShehenaTransportPicker value={bulkTransport} inputStyle={inp}
                       onChange={(t) => setBulkTransport(p => ({ ...p, ...t }))} />
+                    {/* The transporter is not on KenteXa yet: invite them through this parcel's waybill. */}
+                    {inviteParcel && <PartnerInvitePanel parcel={inviteParcel} />}
                     <input type="text" placeholder="Namba ya Tiketi/Rejea (hiari)"
                       value={bulkTransport.transportRef}
                       onChange={e => setBulkTransport(p => ({ ...p, transportRef: e.target.value }))}
@@ -2023,13 +1852,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         }},
                       ] : [
                         { label: '🏢 Hamisha Hub', color: '#7c3aed', fn: (parcel) => setTransferModal(parcel) },
-                        { label: '🚌 Panga Usafiri', color: '#1d4ed8', fn: (parcel) => openAssignTransport(
-                          parcel.trackingNumber, parcel.originCity || profile?.city || 'Dar es Salaam', parcel.destinationCity) },
-                        { label: '📤 Tuma', color: '#16a34a', fn: (parcel) => {
-                          setDispatchParcel(parcel);
-                          setDispatchForm({ transportType: 'bus', busCompany: '', busTicketNumber: '', busDeparture: '', courierName: '', courierTrackingRef: '', notes: '', driverName: '', driverPhone: '', vehicleNumber: '', departureDate: '', departureTime: '', expectedArrivalDate: '', expectedArrivalTime: '', destinationSuperAgentId: null });
-                          setSelectedAgent(null); setDispatchMode('transport'); fetchDestinationHubs(parcel.destinationCity);
-                        }},
+                        // One way to send (owner 2026-10-26): a single parcel is a shehena of one -
+                        // the same screen, own/partner transport, and the transporter sees it.
+                        { label: 'Tuma', color: '#16a34a', fn: (parcel) => startSingleShehena(parcel) },
                       ]} />
                     ))}
                   </>
@@ -2663,162 +2488,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 Ghairi
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Assign Transport Modal ──────────────────────────────────── */}
-      {assignTransport && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)',
-          zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0',
-            padding: 20, width: '100%', maxWidth: 560, maxHeight: '85vh',
-            overflowY: 'auto', boxShadow: '0 -8px 32px rgba(0,0,0,0.2)' }}>
-
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between',
-              alignItems: 'center', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b' }}>
-                  🚌 Panga Usafiri
-                </div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  {assignTransport.fromCity} → {assignTransport.toCity}
-                  {assignTransport.trackingNumber && ` · ${assignTransport.trackingNumber}`}
-                </div>
-              </div>
-              <button onClick={() => setAssignTransport(null)}
-                style={{ background: 'none', border: 'none', fontSize: 24,
-                  cursor: 'pointer', color: '#64748b' }}>×</button>
-            </div>
-
-            {loadingTransport ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                🔍 Inatafuta wasafirishaji...
-              </div>
-            ) : (<>
-
-              {/* Published availability — today/tomorrow */}
-              {transportOptions?.published?.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a',
-                    marginBottom: 8 }}>✅ NAFASI ZILIZOCHAPISHWA LEO / KESHO</div>
-                  {transportOptions.published.map(avail => (
-                    <div key={avail.id}
-                      onClick={() => { setSelectedProvider(avail.provider); setSelectedAvailId(avail.id); }}
-                      style={{ padding: 12, borderRadius: 12, marginBottom: 8, cursor: 'pointer',
-                        border: `2px solid ${selectedAvailId === avail.id ? '#16a34a' : '#e2e8f0'}`,
-                        backgroundColor: selectedAvailId === avail.id ? '#f0fdf4' : '#fff' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                            {avail.provider?.name}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#64748b' }}>
-                            📅 {avail.date} {avail.departureTime && `· ${avail.departureTime}`}
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>
-                            {avail.totalSlots - avail.usedSlots} nafasi
-                          </div>
-                          {avail.notes && (
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>{avail.notes}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* All verified providers on this route */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>
-                  🚌 WASAFIRISHAJI KWENYE NJIA HII
-                </div>
-                {transportOptions?.providers?.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8',
-                    backgroundColor: '#f8fafc', borderRadius: 10 }}>
-                    Hakuna msafirishaji aliyesajiliwa kwenye njia hii bado.
-                    <br />
-                    <span style={{ fontSize: 11 }}>Unaweza bado kumpa mgawo mtu yeyote hapa chini.</span>
-                  </div>
-                ) : transportOptions?.providers?.map(p => (
-                  <div key={p.id}
-                    onClick={() => { setSelectedProvider(p); setSelectedAvailId(null); }}
-                    style={{ padding: 12, borderRadius: 12, marginBottom: 8, cursor: 'pointer',
-                      border: `2px solid ${selectedProvider?.id === p.id && !selectedAvailId ? '#1d4ed8' : '#e2e8f0'}`,
-                      backgroundColor: selectedProvider?.id === p.id && !selectedAvailId ? '#eff6ff' : '#fff' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                          {p.type === 'bus' ? '🚌' : p.type === 'van' ? '🚐' : p.type === 'courier' ? '📦' : '🚛'} {p.name}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>
-                          {p.contactPhone}
-                          {p.rating > 0 && ` · ⭐ ${p.rating}`}
-                          {p.completedAssignments > 0 && ` · ${p.completedAssignments} zilizokamilika`}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                        {p.confirmMode === 'auto' ? '⚡ Auto' : '✋ Manual'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Selected provider details + confirm */}
-              {selectedProvider && (
-                <div style={{ backgroundColor: '#f8fafc', borderRadius: 12,
-                  padding: 14, marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
-                    ✅ Umechagua: {selectedProvider.name}
-                    {selectedAvailId && ' (nafasi iliyochapishwa)'}
-                  </div>
-                  <div style={{ marginBottom: 10 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b',
-                      display: 'block', marginBottom: 4 }}>
-                      Bei Iliyokubaliwa (TZS) — hiari
-                    </label>
-                    <input type="number"
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8,
-                        border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }}
-                      placeholder="Bei mnayokubaliwa nje ya KenteXa"
-                      value={agreedPrice}
-                      onChange={e => setAgreedPrice(e.target.value)} />
-                  </div>
-                  <div style={{ marginBottom: 14 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b',
-                      display: 'block', marginBottom: 4 }}>
-                      Maelezo / Maagizo
-                    </label>
-                    <input
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8,
-                        border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }}
-                      placeholder="e.g. Parcel nyepesi, iangaliwe vizuri"
-                      value={transportNotes}
-                      onChange={e => setTransportNotes(e.target.value)} />
-                  </div>
-                  <button onClick={handleAssignTransport} disabled={assigningTransport}
-                    style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-                      color: '#fff', border: 'none', borderRadius: 10, padding: '12px 0',
-                      fontSize: 14, fontWeight: 800,
-                      cursor: assigningTransport ? 'not-allowed' : 'pointer' }}>
-                    {assigningTransport ? '⏳ Inatuma...' :
-                      selectedProvider.confirmMode === 'auto'
-                        ? `⚡ Panga Moja kwa Moja — ${selectedProvider.name}`
-                        : `📲 Tuma Ombi — ${selectedProvider.name}`}
-                  </button>
-                  {selectedProvider.confirmMode === 'manual' && (
-                    <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 6 }}>
-                      Msafirishaji atapata arifa na atathibitisha
-                    </div>
-                  )}
-                </div>
-              )}
-            </>)}
           </div>
         </div>
       )}
