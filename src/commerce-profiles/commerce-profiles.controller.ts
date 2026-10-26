@@ -73,6 +73,13 @@ export class CommerceProfilesController {
     return this.service.findAccessibleForUser(req.user.id);
   }
 
+  // Home feed "Wafuate" (owner 2026-10-26): identities to follow, every kind.
+  @Get('suggestions')
+  @UseGuards(OptionalJwtAuthGuard)
+  followSuggestions(@Request() req, @Query('city') city?: string, @Query('limit') limit?: string) {
+    return this.service.getFollowSuggestions(req.user?.id, city, Number(limit) || 6);
+  }
+
   @Get('onboarding/suggestions')
   @UseGuards(JwtAuthGuard)
   onboardingSuggestions(@Request() req, @Query('city') city?: string) {

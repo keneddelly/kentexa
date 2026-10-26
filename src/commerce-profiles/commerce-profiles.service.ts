@@ -201,6 +201,40 @@ export class CommerceProfilesService {
     })));
   }
 
+  /**
+   * Home feed "Wafuate" (owner 2026-10-26): businesses, offices, transport, service
+   * providers and people to follow - never the viewer's own profiles, never ones the
+   * viewer already follows, never hidden or inactive ones. KenteXa's own profile
+   * first, then the viewer's town, verified, most followed. Identity first: every
+   * kind of profile, not only sellers.
+   */
+  async getFollowSuggestions(userId: number | undefined, city?: string, limit = 6) {
+    const take = Math.min(Math.max(Number(limit) || 6, 1), 20);
+    const location = (city || '').trim().toLowerCase().slice(0, 80);
+    const q = this.repo.createQueryBuilder('p')
+      .where('p.status = :status', { status: CommerceProfileStatus.ACTIVE })
+      .andWhere('p.hiddenFromPublic = false')
+      .andWhere("COALESCE(TRIM(p.displayName), '') <> ''");
+    if (userId) {
+      q.andWhere('p.ownerId != :userId', { userId })
+        .andWhere('NOT EXISTS (SELECT 1 FROM commerce_profile_follow f WHERE f."commerceProfileId" = p.id AND f."followerId" = :userId)', { userId });
+    }
+    // Raw ORDER BY expressions with LIMIT (no joins, so no take() subquery needed).
+    q.orderBy(`CASE WHEN LOWER(COALESCE(p.username, '')) = 'kentexa' THEN 1 ELSE 0 END`, 'DESC');
+    if (location) q.addOrderBy(`CASE WHEN POSITION(:loc IN LOWER(COALESCE(p.location, ''))) > 0 THEN 1 ELSE 0 END`, 'DESC');
+    q.addOrderBy('p.isVerified', 'DESC')
+      .addOrderBy('p.followersCount', 'DESC')
+      .addOrderBy('p.id', 'DESC')
+      .limit(take);
+    if (location) q.setParameter('loc', location);
+    const rows = await q.getMany();
+    return rows.map((p) => ({
+      id: p.id, ownerId: p.ownerId, displayName: p.displayName, username: p.username, photoUrl: p.photoUrl,
+      location: p.location, type: p.type, category: (p as any).category ?? null, isVerified: p.isVerified,
+      followersCount: p.followersCount || 0,
+    }));
+  }
+
   async search(q: string, limit = 15): Promise<CommerceProfile[]> {
     const query = q?.trim();
     if (!query) return [];
