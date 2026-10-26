@@ -502,11 +502,10 @@ export class FeedService {
           storeName: m.business?.storeName,
           logo: m.business?.logo,
           businessLocation: (m.business as any)?.businessLocation,
-          isVerified: (m.business as any)?.isVerified,
           isFollowing: m.business ? followedIds.has(m.business.id) : false,
           // I2B: canonical actor -- exact stamped profile only; unresolved
           // rows are explicitly flagged, never guessed from the owner.
-          ...momentActorFields(profile, m.business?.logo ?? null),
+          ...momentActorFields(profile, m.business?.logo ?? null, (m.business as any)?.isOfficialStore),
         },
       };
     });
@@ -1192,7 +1191,7 @@ export class FeedService {
       const business = rawBiz
         ? {
             ...rawBiz,
-            ...momentActorFields(profile, rawBiz.logo),
+            ...momentActorFields(profile, rawBiz.logo, rawBiz.isOfficialStore),
           }
         : rawBiz;
       return {

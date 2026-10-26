@@ -64,7 +64,8 @@ export const sellerOf = (item) => {
   const p = item?.commerceProfile;
   if (p?.displayName) return { name: p.displayName, photo: p.photoUrl, verified: !!p.isVerified };
   const s = item?.seller || item?.business || item?.provider;
-  if (s && (s.storeName || s.name)) return { name: s.storeName || s.name, photo: s.logo || s.photoUrl, verified: !!s.isVerified };
+  // The account's own isVerified only means its phone passed OTP: the tick needs an official store.
+  if (s && (s.storeName || s.name)) return { name: s.storeName || s.name, photo: s.logo || s.photoUrl, verified: !!s.isOfficialStore };
   return null;
 };
 export const SellerLine = ({ item, place }) => {

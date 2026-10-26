@@ -15,6 +15,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
+import { identityVerified } from '../commerce-profiles/moment-actor';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
@@ -173,6 +174,14 @@ export class ProductsService {
     return this.rankByRelevance(products);
   }
 
+  /** Search cards carry the identity behind each listing (name, photo, verified tick). Never fails a search. */
+  private async withIdentities<T extends { commerceProfileId?: number | null; seller?: any }>(list: T[]): Promise<T[]> {
+    try {
+      const out = await this.commerceProfiles.attachListingIdentities(list);
+      return Array.isArray(out) ? (out as any) : list;
+    } catch { return list; }
+  }
+
   async search(
     query: string,
     filters?: {
@@ -262,7 +271,7 @@ export class ProductsService {
     }
 
     const products = await qb.orderBy('p.createdAt', 'DESC').getMany();
-    return this.rankByRelevance(products);
+    return this.withIdentities(await this.rankByRelevance(products));
   }
 
   async findOne(id: number) {
@@ -389,6 +398,7 @@ export class ProductsService {
             photoUrl: commerceProfile.photoUrl,
             followersCount: commerceProfile.followersCount,
             rating: commerceProfile.rating,
+            isVerified: identityVerified(commerceProfile, (product.seller as any)?.isOfficialStore),
           }
         : null,
     };

@@ -208,7 +208,9 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   const sellerNavParams = classified.commerceProfile?.id ? { commerceProfileId: classified.commerceProfile.id } : undefined;
   // Tags the conversation to this exact classified, so the inbox shows it.
   const messageSellerNavParams = { ...sellerNavParams, contextType: 'classified', contextId: classified.id };
-  const isVerifiedSeller = ['seller','admin','manager'].includes(classified.seller?.role);
+  // One rule (server: identityVerified): the profile is verified, or it is an official KenteXa store.
+  // Having the seller role alone is not verification.
+  const isVerifiedSeller = !!(classified.commerceProfile?.isVerified || classified.seller?.isOfficialStore);
   const openSeller = () => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`, sellerNavParams);
   const isOwner = isLoggedIn && currentUser?.id === classified.seller?.id;
   const flashOn = classified.isFlashSale && classified.flashSalePrice;
@@ -333,7 +335,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                     {isVerifiedSeller && <Verified />}
                   </span>
                   <span style={{ fontSize:13, color:GR, display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
-                    <span>{isVerifiedSeller ? t('classified_detail.verified_store') : 'Muuzaji binafsi'}</span>
+                    <span>{isVerifiedSeller ? t('classified_detail.verified_store') : classified.commerceProfile ? 'Biashara' : 'Muuzaji binafsi'}</span>
                     {sellerFollowers != null && <span>· {Number(sellerFollowers).toLocaleString('en-US')} {t('commerce_profile.stat_followers')}</span>}
                     {classified.seller?.reputationScore > 0 && <ReputationBadge score={classified.seller.reputationScore} size="xs" />}
                   </span>
