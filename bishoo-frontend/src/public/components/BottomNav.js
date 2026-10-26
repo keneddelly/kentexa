@@ -26,7 +26,6 @@ export const BOTTOM_NAV_CLEARANCE = 'calc(124px + env(safe-area-inset-bottom, 0p
 // Instagram-style tab icons (owner 2026-10-26: "more bold and professional, like
 // Instagram"): one bold set, always ink; the tab you are on is drawn SOLID (filled),
 // the others as a 2px outline. Shapes are closed so the solid version reads well. No emoji.
-const B = '#1d4ed8';
 const INK = '#0f1419';
 
 // d: the shape (outline when idle, filled when active). cut: detail drawn in white on
