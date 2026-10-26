@@ -464,7 +464,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
   };
 
   useEffect(() => { fetchInbox(); }, [fetchInbox]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => {
     // Seller-only CRM tool (the share-product/quick-invoice picker) — no
     // point fetching a business's catalog for a buyer or an unsupported
