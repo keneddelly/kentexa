@@ -54,3 +54,25 @@ test('inbox: an office gives its price', async () => {
   fireEvent.click(screen.getByText('Tuma bei'));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/quote-requests/5/offer', { price: 120000, note: undefined }));
 });
+
+test('accepted trip: the waybill shows and opens tracking; the transporter moves it on', async () => {
+  api.get.mockResolvedValueOnce({ data: [{ id: 4, kind: 'vehicle', vehicleType: 'fuso', status: 'accepted', fromCity: 'Dar es Salaam', toCity: 'Dodoma',
+    fromText: 'Dar es Salaam', toText: 'Dodoma', description: 'Kuhama', trip: { waybill: 'KX 1234 5678 90', trackRef: 'KX1234567890', status: 'pending' },
+    offers: [{ id: 20, responderName: 'Mtandao', price: 700000, status: 'accepted', phone: '255700000001' }] }] });
+  const onNavigate = jest.fn();
+  render(<MyQuoteRequests onNavigate={onNavigate} />);
+  fireEvent.click(await screen.findByTestId('trip-waybill'));
+  expect(onNavigate).toHaveBeenCalledWith('TrackParcel-KX1234567890');
+});
+
+test('inbox: the chosen transporter marks the trip on the way', async () => {
+  api.get.mockResolvedValue({ data: { responder: { type: 'transport', name: 'Mtandao' }, requests: [
+    { id: 4, kind: 'vehicle', vehicleType: 'fuso', status: 'accepted', fromCity: 'Dar es Salaam', toCity: 'Dodoma', fromText: 'Dar es Salaam', toText: 'Dodoma',
+      description: 'Kuhama', phone: '255712345678', myOffer: { id: 20, price: 700000, status: 'accepted' },
+      trip: { waybill: 'KX 1234 5678 90', trackRef: 'KX1234567890', status: 'pending' } },
+  ] } });
+  api.post.mockResolvedValue({ data: {} });
+  render(<QuoteInbox onNavigate={jest.fn()} />);
+  fireEvent.click(await screen.findByText('Mzigo uko njiani'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/quote-requests/4/trip', { step: 'in_transit' }));
+});

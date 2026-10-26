@@ -3,6 +3,9 @@ import { DataSource } from 'typeorm';
 import { normalizeTzPhone } from '../common/utils/phone.util';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { RoleContext } from '../role-context/role-context.types';
+import { linkIntakeShipment } from '../shipments/intake-shipment';
+import { projectShipment } from '../shipments/shipment-projection';
+import { customerParcelNumber, customerTrackRef } from '../super-agents/customer-parcel-number';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 /**
@@ -193,8 +196,10 @@ export class QuoteRequestsService {
          LEFT JOIN public.super_agent sa ON o."responderType" = 'office' AND sa.id = o."responderId"
          LEFT JOIN public.transport_provider tp ON o."responderType" = 'transport' AND tp.id = o."responderId"
         WHERE o."requestId" = ANY($1::int[]) ORDER BY o.price ASC`, [requests.map((r) => r.id)]);
+    const trips = await this.tripsFor(requests.filter((r) => r.status === 'accepted').map((r) => Number(r.id)));
     return requests.map((r) => ({
       ...this.publicRequest(r),
+      trip: trips.get(Number(r.id)) ?? null,
       offers: offers.filter((o) => Number(o.requestId) === Number(r.id)).map((o) => ({
         id: Number(o.id), responderType: o.responderType, responderName: o.responderName || '—',
         price: Number(o.price), note: o.note || null, status: o.status,
@@ -224,10 +229,12 @@ export class QuoteRequestsService {
       await m.query(`UPDATE public.quote_offer SET status = CASE WHEN id = $2 THEN 'accepted' ELSE 'declined' END, "updatedAt" = now()
                       WHERE "requestId" = $1`, [id, offerId]);
       await m.query(`UPDATE public.quote_request SET status = 'accepted', "acceptedOfferId" = $2, "updatedAt" = now() WHERE id = $1`, [id, offerId]);
+      const waybill = await this.openTripWaybill(m, r, o);
       this.notif?.notify({ userId: Number(o.responderUserId), type: 'system', title: 'Bei yako imekubaliwa', icon: '✅',
-        body: `Mteja amekubali bei yako TZS ${Number(o.price).toLocaleString('en-US')} (${r.fromCity} → ${r.toCity}). Mpigie: ${r.phone}`,
+        body: `Mteja amekubali bei yako TZS ${Number(o.price).toLocaleString('en-US')} (${r.fromCity} → ${r.toCity}). Mpigie: ${r.phone}`
+          + (waybill ? ` · Namba ya mzigo: ${waybill.number}` : ''),
         actionPage: 'QuoteInbox' }).catch(() => {});
-      return { id, status: 'accepted', offerId };
+      return { id, status: 'accepted', offerId, waybill: waybill?.number ?? null };
     });
   }
 
@@ -278,10 +285,12 @@ export class QuoteRequestsService {
           AND r."createdAt" > now() - interval '30 days'
         ORDER BY r."createdAt" DESC LIMIT 100`,
       [me.type, me.id, me.type === 'transport' ? 'vehicle' : 'goods', userId]);
+    const trips = await this.tripsFor(rows.filter((r) => r.myStatus === 'accepted').map((r) => Number(r.id)));
     return {
       responder: { type: me.type, name: me.name },
       requests: rows.filter((r) => r.myOfferId || QuoteRequestsService.canAnswer(me, r)).map((r) => ({
         ...this.publicRequest(r),
+        trip: r.myStatus === 'accepted' ? trips.get(Number(r.id)) ?? null : null,
         // The requester's phone only once they accepted this responder's price.
         phone: r.myStatus === 'accepted' ? r.phone : null,
         myOffer: r.myOfferId ? { id: Number(r.myOfferId), price: Number(r.myPrice), status: r.myStatus } : null,
@@ -309,6 +318,94 @@ export class QuoteRequestsService {
     this.notif?.notify({ userId: Number(r.requesterUserId), type: 'system', title: 'Umepata bei', icon: '💬',
       body: `${me.name}: TZS ${price.toLocaleString('en-US')} (${r.fromCity} → ${r.toCity}).`, actionPage: 'MyQuoteRequests' }).catch(() => {});
     return { id: Number(row.id), price, status: 'offered' };
+  }
+
+  // ── The trip's waybill: the same one every parcel on KenteXa gets ─────────
+
+  static tripTrackingNumber(requestId: number) { return `KTX-QR-${requestId}`; }
+
+  /**
+   * Accepted price -> one Parcel + its Shipment through the shared intake
+   * (linkIntakeShipment): the same waybill number, tracking page and status
+   * projection as any parcel, whichever way it came in. Office (large goods): the
+   * office is the parcel's origin office. Inside the accept transaction.
+   */
+  private async openTripWaybill(m: any, r: any, o: any): Promise<{ parcelId: number; number: string } | null> {
+    const tracking = QuoteRequestsService.tripTrackingNumber(Number(r.id));
+    const [existing] = await m.query(`SELECT id, "trackingNumber", "waybillNumber", "createdAt" FROM public.parcel WHERE "trackingNumber" = $1`, [tracking]);
+    if (existing) return { parcelId: Number(existing.id), number: customerParcelNumber(existing) || tracking };
+    const [who] = await m.query(`SELECT name FROM public."user" WHERE id = $1`, [r.requesterUserId]);
+    const [resp] = await m.query(
+      `SELECT COALESCE(sa."businessName", tp.name) AS name, COALESCE(sa.phone, tp."contactPhone", tp."whatsappPhone") AS phone
+         FROM (SELECT 1) x
+         LEFT JOIN public.super_agent sa ON $1 = 'office' AND sa.id = $2
+         LEFT JOIN public.transport_provider tp ON $1 = 'transport' AND tp.id = $2`, [o.responderType, o.responderId]);
+    const name = String(who?.name || 'Mteja').slice(0, 100);
+    const what = r.kind === 'vehicle' ? `Gari zima (${r.vehicleType})` : r.goodsType === 'container' ? 'Kontena' : 'Mzigo mkubwa';
+    const [p] = await m.query(
+      `INSERT INTO public.parcel ("trackingNumber", "senderName", "senderPhone", "recipientName", "buyerPhone",
+          "originCity", "destinationCity", "weightKg", description, "estimatedShippingFee", "superAgentId", source, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'quote_request','pending')
+       RETURNING id, "trackingNumber", "waybillNumber", "createdAt"`,
+      [tracking, name, r.phone, name, r.phone, r.fromCity, r.toCity, r.weightKg ?? 0,
+       `${what}: ${String(r.description).slice(0, 400)}`, Number(o.price),
+       o.responderType === 'office' ? Number(o.responderId) : null]);
+    await m.query(
+      `INSERT INTO public.parcel_tracking ("parcelId", status, city, note, "updatedBy", "handlerPhone", "handlerType")
+       VALUES ($1, 'pending', $2, $3, $4, $5, $6)`,
+      [p.id, r.fromCity, `Bei imekubaliwa: TZS ${Number(o.price).toLocaleString('en-US')} (${r.fromCity} → ${r.toCity})`,
+       resp?.name || null, resp?.phone || null, o.responderType === 'office' ? 'super_agent' : 'transport']);
+    await linkIntakeShipment(m, { parcelId: Number(p.id), channel: 'self_service', actorUserId: Number(r.requesterUserId) });
+    return { parcelId: Number(p.id), number: customerParcelNumber(p) || tracking };
+  }
+
+  /**
+   * The chosen office / transporter moves the trip on: on the way, then arrived.
+   * Written to the same parcel tracking every KenteXa parcel uses.
+   */
+  async tripStep(userId: number, roleContext: RoleContext | undefined, id: number, step: unknown) {
+    await this.mustBeReady();
+    const next = step === 'in_transit' ? 'in_transit' : step === 'delivered' ? 'delivered' : null;
+    if (!next) throw new BadRequestException('Hatua si sahihi.');
+    const me = await this.responderOf(userId, roleContext);
+    if (!me) throw new ForbiddenException(QUOTE_MESSAGES.notResponder);
+    return this.db.transaction(async (m) => {
+      const [r] = await m.query(`SELECT * FROM public.quote_request WHERE id = $1`, [id]);
+      if (!r) throw new NotFoundException(QUOTE_MESSAGES.notFound);
+      const [o] = r.acceptedOfferId ? await m.query(`SELECT * FROM public.quote_offer WHERE id = $1`, [r.acceptedOfferId]) : [];
+      if (r.status !== 'accepted' || !o || o.responderType !== me.type || Number(o.responderId) !== me.id) {
+        throw new ForbiddenException('Safari hii si yako.');
+      }
+      const [p] = await m.query(`SELECT id, status::text AS status, "shipmentId" FROM public.parcel WHERE "trackingNumber" = $1 FOR UPDATE`,
+        [QuoteRequestsService.tripTrackingNumber(id)]);
+      if (!p) throw new NotFoundException('Namba ya mzigo haipatikani.');
+      if (p.status === 'delivered') throw new BadRequestException('Mzigo umeshafika.');
+      if (next === 'in_transit' && p.status !== 'pending') throw new BadRequestException('Mzigo uko njiani tayari.');
+      await m.query(`UPDATE public.parcel SET status = $2 WHERE id = $1`, [p.id, next]);
+      const note = next === 'in_transit' ? `Mzigo uko njiani: ${r.fromCity} → ${r.toCity}` : `Mzigo umefika ${r.toCity}`;
+      await m.query(
+        `INSERT INTO public.parcel_tracking ("parcelId", status, city, note, "updatedBy", "handlerPhone", "handlerType")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [p.id, next, next === 'delivered' ? r.toCity : r.fromCity, note, me.name, me.phone, me.type === 'office' ? 'super_agent' : 'transport']);
+      if (p.shipmentId) await projectShipment(m, Number(p.shipmentId), new Date());
+      this.notif?.notify({ userId: Number(r.requesterUserId), type: 'system', title: next === 'delivered' ? 'Mzigo umefika' : 'Mzigo uko njiani',
+        icon: next === 'delivered' ? '✅' : '🚚', body: `${me.name}: ${note}.`, actionPage: 'MyQuoteRequests' }).catch(() => {});
+      return { id, step: next };
+    });
+  }
+
+  /** Waybill number, link ref and status of each accepted trip, by request id. */
+  private async tripsFor(ids: number[]): Promise<Map<number, { waybill: string; trackRef: string; status: string }>> {
+    const out = new Map<number, { waybill: string; trackRef: string; status: string }>();
+    if (!ids.length) return out;
+    const rows: any[] = await this.db.query(
+      `SELECT "trackingNumber", "waybillNumber", "createdAt", status::text AS status FROM public.parcel WHERE "trackingNumber" = ANY($1::text[])`,
+      [ids.map((i) => QuoteRequestsService.tripTrackingNumber(i))]).catch(() => []);
+    for (const p of rows) {
+      const id = Number(String(p.trackingNumber).replace('KTX-QR-', ''));
+      out.set(id, { waybill: customerParcelNumber(p) || p.trackingNumber, trackRef: customerTrackRef(p) || p.trackingNumber, status: p.status });
+    }
+    return out;
   }
 
   private async requestOf(id: number) {

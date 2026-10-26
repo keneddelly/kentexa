@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import api from '../../api/api';
 import BackBar from '../components/BackBar';
-import { STATUS_LABEL, what, tzs, localPhone, page, body, card, primary, outline, MUTED, LINE } from './quoteShared';
+import { STATUS_LABEL, TRIP_LABEL, what, tzs, localPhone, page, body, card, primary, outline, MUTED, LINE } from './quoteShared';
 
 /** "Maombi yangu ya bei": my requests and the prices I got; pick one, then call them. */
 export default function MyQuoteRequests({ onNavigate }) {
@@ -39,6 +39,15 @@ export default function MyQuoteRequests({ onNavigate }) {
             </div>
             <div style={{ fontSize: 15, color: MUTED, marginTop: 2 }}>{what(r)}{r.travelDate ? ` · ${r.travelDate}` : ''}</div>
             <div style={{ fontSize: 15, marginTop: 6 }}>{r.description}</div>
+            {r.trip && (
+              <button type="button" data-testid="trip-waybill" onClick={() => onNavigate(`TrackParcel-${r.trip.trackRef}`)}
+                style={{ width: '100%', textAlign: 'left', marginTop: 12, padding: 12, borderRadius: 12, border: '1px solid #eff3f4',
+                  background: '#f7f9f9', cursor: 'pointer', fontFamily: 'inherit', color: '#0f1419' }}>
+                <span style={{ display: 'block', fontSize: 13, color: MUTED }}>Namba ya mzigo · {TRIP_LABEL[r.trip.status] || r.trip.status}</span>
+                <span style={{ display: 'block', fontSize: 17, fontWeight: 800, letterSpacing: 0.5 }}>{r.trip.waybill}</span>
+                <span style={{ display: 'block', fontSize: 13, color: '#1d4ed8' }}>Fuatilia</span>
+              </button>
+            )}
 
             <div style={{ marginTop: 12, borderTop: `1px solid ${LINE}` }}>
               {r.offers.length === 0 && r.status === 'open' && (
