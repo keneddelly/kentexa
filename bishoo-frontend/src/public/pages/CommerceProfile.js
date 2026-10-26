@@ -7,7 +7,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import ReputationBadge from '../components/ReputationBadge';
+import ExpandableText from '../components/ExpandableText';
 import { trackProfileView } from '../hooks/useAnalytics';
 import ProfileCompletion from '../components/ProfileCompletion';
 import CommerceCommentSection from '../components/CommerceCommentSection';
@@ -41,6 +41,19 @@ const VerifiedBadge = ({ official = false }) => (
   </span>
 );
 
+// Twitter-style type and colors for the identity page (owner 2026-10-26).
+const TW_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+const INK = '#0f1419';
+const MUTED = '#536471';
+const LINE = '#eff3f4';
+const iconBtn = { width:40, height:40, borderRadius:20, border:'none', background:'none', cursor:'pointer',
+  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 };
+const pillOutline = { height:40, padding:'0 16px', borderRadius:20, border:'1px solid #cfd9de', backgroundColor:'#fff',
+  color:INK, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' };
+const iconPill = { width:40, height:40, borderRadius:20, border:'1px solid #cfd9de', display:'flex',
+  alignItems:'center', justifyContent:'center', boxSizing:'border-box', textDecoration:'none' };
+const countBtn = { background:'none', border:'none', padding:0, cursor:'pointer', fontSize:15, fontFamily:'inherit' };
+
 const fmt  = n => Number(n||0).toLocaleString();
 const fmtM = n => { const v=Number(n||0); return v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1000?`${(v/1e3).toFixed(0)}K`:String(v); };
 
@@ -59,15 +72,6 @@ const getTiers = t => [
   {min:100,name:t('my_profile.tier_trusted'),icon:'⭐',color:'#16a34a',bg:'#dcfce7'},
   {min:0,  name:t('my_profile.tier_new'),    icon:'🌱',color:'#64748b',bg:'#f1f5f9'},
 ];
-
-// ─── Stat pill ────────────────────────────────────────────────────────────────
-const Stat = ({ value, label, onClick }) => (
-  <button type="button" onClick={onClick} disabled={!onClick}
-    style={{ textAlign:'center', padding:'8px 10px', cursor: onClick ? 'pointer' : 'default', border: 'none', background: 'transparent', fontFamily: 'inherit', flex: 1, minWidth: 0 }}>
-    <div style={{ fontSize:18, fontWeight:900, color:DK }}>{value}</div>
-    <div style={{ fontSize:12, color:GR, marginTop:2, fontWeight:600 }}>{label}</div>
-  </button>
-);
 
 // ─── Action button ────────────────────────────────────────────────────────────
 const Action = ({ icon, label, onClick, color=B, bg='#eff6ff' }) => (
@@ -543,6 +547,41 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     ? `MessageOperational-${OPERATIONAL_TARGET_TYPE[activeProfile.type]}-${activeProfile.id}`
     : `MessageSeller-${activeProfile.ownerId}`;
 
+  // ── Brand header (owner 2026-10-26: "make KenteXa a brand authority") ──
+  const KIND_LABEL = { business:'Biashara', hub:'Ofisi ya usafirishaji', agent:'Wakala wa KenteXa',
+    transport_provider:'Usafiri', service_provider:'Huduma', personal:'' };
+  const identityKind = KIND_LABEL[activeProfile.type] ?? '';
+  const place = activeProfile.location || (isBusinessProfile && profile?.businessLocation) || '';
+  const joined = activeProfile.createdAt
+    ? new Date(activeProfile.createdAt).toLocaleDateString('sw-TZ', { month:'long', year:'numeric' }) : '';
+  const isVerifiedIdentity = !!(activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore));
+  const waPhone = isBusinessProfile ? (profile?.storeWhatsApp || profile?.phone)
+    : isTransportProfile ? publicTransportData?.whatsappPhone : null;
+  const waHref = waPhone ? listingWhatsAppHref({ phone: waPhone, kind: isTransportProfile ? 'transport' : 'store',
+    url: listingUrl('store', targetId),
+    shopName: isTransportProfile ? (publicTransportData?.name || profile?.name) : (profile?.storeName || profile?.displayName || profile?.name) }) : null;
+  // Trust numbers come only from records KenteXa keeps (orders, deliveries, reviews,
+  // reputation), never from what the owner typed.
+  const ratingNum = Number(isTransportProfile ? publicTransportData?.rating : activeProfile.rating) || 0;
+  const ratingCount = Number(isTransportProfile ? publicTransportData?.totalRatings : activeProfile.reviewsCount) || 0;
+  const trustStats = [
+    ratingCount > 0 || ratingNum > 0
+      ? { value: ratingNum.toFixed(1), label: ratingCount ? `Maoni ${fmt(ratingCount)}` : t('commerce_profile.stat_rating') } : null,
+    isBusinessProfile ? { value: fmtM(profile?.completedOrders || 0), label: 'Oda zilizokamilika' } : null,
+    isTransportProfile && publicTransportData ? { value: fmtM(publicTransportData.completedAssignments || 0), label: 'Mizigo imefika' } : null,
+    isTransportProfile && publicTransportData ? { value: fmtM(publicTransportData.routes?.length || 0), label: 'Njia' } : null,
+    { value: fmt(score), label: `Alama · ${tier.name}` },
+  ].filter(Boolean);
+  const trustBadges = [
+    isOfficialKentexa ? { label: 'KenteXa rasmi', bg:'#eff6ff', color:'#1e40af' } : null,
+    !isOfficialKentexa && isVerifiedIdentity ? { label: 'Imethibitishwa na KenteXa', bg:'#eff6ff', color:'#1e40af' } : null,
+    isBusinessProfile && profile?.verificationTier === 'verified_business' ? { label: t('commerce_profile.tier_verified_business'), bg:'#fef3c7', color:'#92400e' } : null,
+    isBusinessProfile && profile?.verificationTier === 'verified_seller' ? { label: t('commerce_profile.tier_verified_seller'), bg:'#f0fdf4', color:'#166534' } : null,
+    isTransportProfile && publicTransportData ? (publicTransportData.isVerified
+      ? { label: 'Msafirishaji amethibitishwa', bg:'#f0fdf4', color:'#166534' }
+      : { label: 'Uthibitisho unasubiri', bg:'#fef3c7', color:'#92400e' }) : null,
+  ].filter(Boolean);
+
   // Links to the standalone /share backend route so a pasted link into
   // WhatsApp/Facebook shows a real preview card — crawlers don't execute
   // JS, so only a server-rendered response can carry this profile's actual
@@ -561,259 +600,168 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   };
 
   return (
-    <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', paddingBottom:100,
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
+    <div style={{ minHeight:'100vh', backgroundColor:'#f7f9f9', paddingBottom:100, color:INK,
+      fontFamily:TW_FONT }}>
 
-      {/* Top bar */}
-      <div style={{ position:'sticky', top:0, zIndex:100,
-        backgroundColor:WH, borderBottom:'1px solid #f1f5f9',
-        display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
-        boxShadow:'0 1px 4px rgba(0,0,0,0.04)' }}>
-        <button onClick={() => onNavigate('back')}
-          style={{ background:'none', border:'none', cursor:'pointer', padding:4 }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke={DK} strokeWidth="2.5">
+      {/* Top bar: name and what this identity is, Twitter-style */}
+      <div style={{ position:'sticky', top:0, zIndex:100, backgroundColor:'rgba(255,255,255,0.92)',
+        backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', borderBottom:`1px solid ${LINE}`,
+        display:'flex', alignItems:'center', gap:8, padding:'4px 8px', minHeight:52, boxSizing:'border-box' }}>
+        <button onClick={() => onNavigate('back')} aria-label={t('common.back', 'Rudi')} style={iconBtn}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2" aria-hidden="true">
             <polyline points="15,18 9,12 15,6"/>
           </svg>
         </button>
-        <div style={{ flex:1, fontSize:15, fontWeight:900, color:DK, overflow:'hidden',
-          textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {displayName || t('commerce_profile.profile_fallback')}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:17, fontWeight:700, color:INK, lineHeight:'20px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {displayName || t('commerce_profile.profile_fallback')}
+          </div>
+          {identityKind && <div style={{ fontSize:13, color:MUTED, lineHeight:'16px' }}>{identityKind}</div>}
         </div>
-        <button onClick={handleShare} title={t('share.button')}
-          style={{ background:'none', border:'none', cursor:'pointer', fontSize:17, color:DK, padding:'4px 8px' }}>
-          🔗
+        <button onClick={handleShare} aria-label={t('share.button')} title={t('share.button')} style={iconBtn}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2" aria-hidden="true">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/>
+          </svg>
         </button>
-        {isOwnProfile && (
-          <button onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile.id })}
-            style={{ background:'none', border:'none', cursor:'pointer',
-              color:B, fontSize:13, fontWeight:700 }}>
-            {t('commerce_profile.edit_button')}
-          </button>
-        )}
       </div>
 
       {shareMsg && (
-        <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 16px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
-          ✅ {shareMsg}
+        <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '10px 16px', fontSize: 14, textAlign: 'center' }}>
+          {shareMsg}
         </div>
       )}
 
-      {/* Cover */}
-      <div style={{ position:'relative' }}>
-        <div style={{ height:140, overflow:'hidden',
-          background: (activeProfile.coverImage || (isBusinessProfile && profile?.coverImage))
-            ? `url(${activeProfile.coverImage || profile.coverImage}) center/cover`
-            : 'linear-gradient(135deg,#1e1b4b,#1d4ed8)' }} />
-
-        {/* Avatar */}
-        <div style={{ position:'absolute', bottom:-36, left:16,
-          width:76, height:76, borderRadius:20,
-          border:'4px solid #fff', overflow:'hidden',
-          backgroundColor:B,
-          display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:32, color:'#fff', fontWeight:900,
-          boxShadow:'0 4px 16px rgba(0,0,0,0.15)' }}>
-          {displayPhoto
-            ? <img src={displayPhoto} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-            : (displayName||'K').charAt(0).toUpperCase()}
+      <div style={{ backgroundColor:WH, marginBottom:4 }}>
+        {/* Cover + logo */}
+        <div style={{ position:'relative' }}>
+          <div style={{ height:132, overflow:'hidden',
+            background: (activeProfile.coverImage || (isBusinessProfile && profile?.coverImage))
+              ? `url(${activeProfile.coverImage || profile.coverImage}) center/cover`
+              : B }} />
+          <div style={{ position:'absolute', bottom:-42, left:16,
+            width:88, height:88, borderRadius:22, border:`4px solid ${WH}`, overflow:'hidden',
+            backgroundColor:INK, display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:34, color:WH, fontWeight:800, boxSizing:'border-box' }}>
+            {displayPhoto
+              ? <img src={displayPhoto} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+              : (displayName||'K').charAt(0).toUpperCase()}
+          </div>
         </div>
 
-        {/* Action buttons top-right */}
-        <div style={{ position:'absolute', bottom:-24, right:16,
-          display:'flex', gap:8 }}>
+        {/* Actions, right-aligned under the cover */}
+        <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8, padding:'12px 16px 0', minHeight:40, flexWrap:'wrap' }}>
           {isOwnProfile ? (
-            <button onClick={() => onNavigate('RoleActivation')}
-              style={{ backgroundColor:WH, color:B,
-                border:'1px solid #e2e8f0', borderRadius:10,
-                padding:'8px 16px', cursor:'pointer',
-                fontSize:12, fontWeight:800,
-                boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-              {t('commerce_profile.add_role_button')}
-            </button>
+            <>
+              <button onClick={() => onNavigate('RoleActivation')} style={pillOutline}>
+                {t('commerce_profile.add_role_button')}
+              </button>
+              <button onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile.id })} style={pillOutline}>
+                {t('commerce_profile.edit_button')}
+              </button>
+            </>
           ) : (
             <>
+              {waHref && (
+                <a href={waHref} target="_blank" rel="noreferrer" aria-label="WhatsApp" style={iconPill}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2" aria-hidden="true">
+                    <path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8 9.8a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.7.7a2 2 0 011.7 2z"/>
+                  </svg>
+                </a>
+              )}
+              <button onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
+                style={pillOutline}>
+                {t('commerce_profile.message_button')}
+              </button>
               <button onClick={handleFollow} disabled={followBusy}
-                style={{ backgroundColor: following ? WH : B,
-                  color: following ? GR : WH,
-                  border:`1px solid ${following ? '#e2e8f0' : B}`,
-                  borderRadius:10, padding:'8px 16px',
-                  cursor:'pointer', fontSize:12, fontWeight:800,
-                  boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
+                style={following ? pillOutline : { ...pillOutline, backgroundColor:INK, color:WH, borderColor:INK }}>
                 {following
                   ? t('commerce_profile.unfollow_button')
                   : isFollowedBy
                     ? t('commerce_profile.follow_back_button')
                     : t('commerce_profile.follow_button')}
               </button>
-              <button onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
-                style={{ backgroundColor:'#eff6ff', color:B,
-                  border:'1px solid #bfdbfe', borderRadius:10,
-                  padding:'8px 14px', cursor:'pointer',
-                  fontSize:12, fontWeight:800,
-                  boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-                {t('commerce_profile.message_button')}
-              </button>
-              {isBusinessProfile && (profile?.storeWhatsApp || profile?.phone) && (
-                <a href={listingWhatsAppHref({ phone: profile.storeWhatsApp || profile.phone, kind: 'store',
-                  url: listingUrl('store', targetId), shopName: profile.storeName || profile.displayName || profile.name })}
-                  target="_blank" rel="noreferrer"
-                  style={{ backgroundColor:'#dcfce7', color:'#16a34a',
-                    border:'1px solid #bbf7d0', borderRadius:10,
-                    padding:'8px 12px', cursor:'pointer', fontSize:16,
-                    textDecoration:'none', display:'flex', alignItems:'center',
-                    boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-                  📲
-                </a>
-              )}
-              {/* Same quick-contact button businesses already get — a
-                  transport provider's whatsappPhone was fetched into
-                  publicTransportData all along but never actually
-                  surfaced anywhere on their own profile page, even though
-                  WhatsApp is the primary contact channel this app treats
-                  transport providers as using (Search.js's TransportCard,
-                  the settings form, etc). */}
-              {isTransportProfile && publicTransportData?.whatsappPhone && (
-                <a href={listingWhatsAppHref({ phone: publicTransportData.whatsappPhone, kind: 'transport',
-                  url: listingUrl('store', targetId), shopName: publicTransportData.name || profile?.name })}
-                  target="_blank" rel="noreferrer"
-                  style={{ backgroundColor:'#dcfce7', color:'#16a34a',
-                    border:'1px solid #bbf7d0', borderRadius:10,
-                    padding:'8px 12px', cursor:'pointer', fontSize:16,
-                    textDecoration:'none', display:'flex', alignItems:'center',
-                    boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-                  📲
-                </a>
-              )}
             </>
           )}
         </div>
-      </div>
 
-      {/* Profile info */}
-      <div style={{ backgroundColor:WH, paddingTop:50, paddingBottom:4,
-        paddingLeft:16, paddingRight:16, marginBottom:4 }}>
+        {/* Name, badge, handle, bio */}
+        <div style={{ padding:'18px 16px 14px', display:'flex', flexDirection:'column', gap:10 }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+              <h1 style={{ fontSize:22, fontWeight:800, color:INK, margin:0, lineHeight:'26px' }}>
+                {displayName || t('commerce_profile.default_name')}
+              </h1>
+              {isOfficialKentexa ? <VerifiedBadge official /> : isVerifiedIdentity && <VerifiedBadge />}
+            </div>
+            {(displayHandle || activeProfile.category) && (
+              <div style={{ fontSize:15, color:MUTED, lineHeight:'20px', marginTop:2 }}>
+                {[displayHandle, activeProfile.category].filter(Boolean).join(' · ')}
+              </div>
+            )}
+          </div>
 
-        {/* Name + verified */}
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2, flexWrap:'wrap' }}>
-          <h1 style={{ fontSize:20, fontWeight:900, color:DK, margin:0 }}>
-            {displayName || t('commerce_profile.default_name')}
-          </h1>
-          {isOfficialKentexa ? (
-            <VerifiedBadge official />
-          ) : (activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore)) && (
-            <VerifiedBadge />
+          {(activeProfile.bio || (isBusinessProfile && profile?.storeDescription)) && (
+            <ExpandableText text={activeProfile.bio || profile.storeDescription} lines={4} />
           )}
-          {isBusinessProfile && profile?.verificationTier === 'verified_business' && (
-            <span style={{ fontSize:10, fontWeight:800, padding:'2px 9px', borderRadius:100,
-              backgroundColor:'#FEF3C7', color:'#B45309' }}>
-              🏆 {t('commerce_profile.tier_verified_business')}
-            </span>
+
+          {(place || joined) && (
+            <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 14px', fontSize:15, color:MUTED }}>
+              {place && (
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0119 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+                  {place}
+                </span>
+              )}
+              {joined && (
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                  Kwenye KenteXa tangu {joined}
+                </span>
+              )}
+            </div>
           )}
-          {isBusinessProfile && profile?.verificationTier === 'verified_seller' && (
-            <span style={{ fontSize:10, fontWeight:800, padding:'2px 9px', borderRadius:100,
-              backgroundColor:'#DCFCE7', color:'#16A34A' }}>
-              ✅ {t('commerce_profile.tier_verified_seller')}
-            </span>
+
+          <div style={{ display:'flex', gap:16, fontSize:15 }}>
+            <button type="button" onClick={() => setConnections('followers')} style={countBtn}>
+              <b style={{ color:INK }}>{fmt(activeProfile.followersCount||0)}</b> <span style={{ color:MUTED }}>{t('commerce_profile.stat_followers')}</span>
+            </button>
+            <button type="button" onClick={() => setConnections('following')} style={countBtn}>
+              <b style={{ color:INK }}>{fmt(activeProfile.followingCount||0)}</b> <span style={{ color:MUTED }}>{t(activeProfile.type === 'personal' ? 'profile_connections.following' : 'profile_connections.account_following')}</span>
+            </button>
+          </div>
+
+          {isTransportProfile && publicTransportData && !isOwnProfile && (
+            <button onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin', isLoggedIn ? { transportProviderId: publicTransportData.id, transportProviderName: publicTransportData.name, transportProfileId: activeProfile.id } : undefined)}
+              style={{ height:48, borderRadius:24, border:'none', backgroundColor:B, color:WH, fontSize:15, fontWeight:700, cursor:'pointer' }}>
+              Tuma mzigo
+            </button>
           )}
-          <ReputationBadge score={score} size="sm" />
         </div>
 
-        {/* Handle + location — the identity anchors for THIS profile only.
-            No role badges here by design: an account's roles are internal
-            bookkeeping for what it's allowed to manage, never a public
-            label. A visitor to a business page sees that business; a
-            visitor to a personal page sees a person — never both, and
-            never a hint of what else the owner runs on the side. */}
-        {(displayHandle || activeProfile.location || (isBusinessProfile && profile?.businessLocation)) && (
-          <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', marginBottom:8 }}>
-            {displayHandle && (
-              <div style={{ fontSize:12, fontWeight:800, color:DK,
-                display:'inline-flex', alignItems:'center', gap:4 }}>
-                {displayHandle}
-              </div>
-            )}
-            {(activeProfile.location || (isBusinessProfile && profile?.businessLocation)) && (
-              <span style={{ fontSize:11, color:GR }}>📍 {activeProfile.location || profile.businessLocation}</span>
-            )}
+        {/* Trust on KenteXa: only numbers KenteXa recorded, never typed by the owner */}
+        <div data-testid="trust-card" style={{ margin:'0 16px 16px', border:`1px solid ${LINE}`, borderRadius:16, padding:14, display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={B} strokeWidth="2" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+            <span style={{ fontSize:15, fontWeight:700, color:INK }}>Imani kwenye KenteXa</span>
           </div>
-        )}
-
-        {/* Bio */}
-        {(activeProfile.bio || (isBusinessProfile && profile?.storeDescription)) && (
-          <p style={{ fontSize:16, color:'#475569', whiteSpace:'pre-wrap', margin:'0 0 10px',
-            lineHeight:1.5 }}>
-            {activeProfile.bio || profile.storeDescription}
-          </p>
-        )}
-
-        {/* Stats — Sales (profile.completedOrders) and Rating
-            (activeProfile.rating) only ever hold real numbers for the
-            business type: Sales comes from the seller/business payload,
-            and only submitReview()/addReview() stamp commerceProfileId
-            for BUSINESS profiles, so every other type's `rating` is
-            permanently 0. Showing them elsewhere is either a straight
-            leak of the account's business numbers onto a different
-            identity (personal, worst case) or a dead "0.0" stat that
-            duplicates what agent/hub/transport already show in their own
-            tab (deliveries completed, parcels handled, etc.). Followers
-            and Reputation (account-level trust) are the only two that
-            genuinely apply to every type. */}
-        {isTransportProfile && publicTransportData && (
-          <div style={{ margin:'12px 0 10px' }}>
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
-              <span style={{ fontSize:12, fontWeight:800, color: publicTransportData.isVerified ? '#166534' : '#B45309',
-                backgroundColor: publicTransportData.isVerified ? '#DCFCE7' : '#FEF3C7',
-                borderRadius:100, padding:'6px 10px' }}>
-                {publicTransportData.isVerified ? '✓ Verified transporter' : 'Verification pending'}
-              </span>
-              <span style={{ fontSize:12, fontWeight:800, color:DK, backgroundColor:'#F1F5F9',
-                borderRadius:100, padding:'6px 10px', textTransform:'capitalize' }}>
-                {PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'} {publicTransportData.type}
-              </span>
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12 }}>
-              <div style={{ background:'#F8FAFC', borderRadius:12, padding:'10px 8px', textAlign:'center' }}>
-                <div style={{ fontSize:17, fontWeight:900, color:DK }}>{fmtM(publicTransportData.completedAssignments||0)}</div>
-                <div style={{ fontSize:10, color:GR, fontWeight:700 }}>Deliveries</div>
+          <div style={{ display:'grid', gridTemplateColumns:`repeat(${trustStats.length}, minmax(0, 1fr))`, gap:8 }}>
+            {trustStats.map(s => (
+              <div key={s.label} style={{ display:'flex', flexDirection:'column', gap:2, minWidth:0 }}>
+                <span style={{ fontSize:20, fontWeight:800, color:INK }}>{s.value}</span>
+                <span style={{ fontSize:13, color:MUTED }}>{s.label}</span>
               </div>
-              <div style={{ background:'#F8FAFC', borderRadius:12, padding:'10px 8px', textAlign:'center' }}>
-                <div style={{ fontSize:17, fontWeight:900, color:DK }}>⭐ {Number(publicTransportData.rating||0).toFixed(1)}</div>
-                <div style={{ fontSize:10, color:GR, fontWeight:700 }}>{fmtM(publicTransportData.totalRatings||0)} ratings</div>
-              </div>
-              <div style={{ background:'#F8FAFC', borderRadius:12, padding:'10px 8px', textAlign:'center' }}>
-                <div style={{ fontSize:17, fontWeight:900, color:DK }}>{fmtM(publicTransportData.routes?.length||0)}</div>
-                <div style={{ fontSize:10, color:GR, fontWeight:700 }}>Routes</div>
-              </div>
-            </div>
-            {!isOwnProfile && (
-              <button onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin', isLoggedIn ? { transportProviderId: publicTransportData.id, transportProviderName: publicTransportData.name, transportProfileId: activeProfile.id } : undefined)}
-                style={{ width:'100%', backgroundColor:B, color:WH, border:'none', borderRadius:12,
-                  padding:'13px 16px', cursor:'pointer', fontSize:15, fontWeight:900 }}>
-                📦 Tuma Mzigo
-              </button>
-            )}
+            ))}
           </div>
-        )}
-
-        <div style={{ display:'flex', borderTop:'1px solid #f1f5f9',
-          marginTop:8 }}>
-          {isBusinessProfile && (
-            <>
-              <Stat value={fmtM(profile?.completedOrders||0)} label={t('commerce_profile.stat_sales')} />
-              <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-            </>
+          {trustBadges.length > 0 && (
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {trustBadges.map(b => (
+                <span key={b.label} style={{ fontSize:13, padding:'4px 10px', borderRadius:999, background:b.bg, color:b.color }}>{b.label}</span>
+              ))}
+            </div>
           )}
-          <Stat value={fmtM(activeProfile.followersCount||0)} label={t('commerce_profile.stat_followers')} onClick={() => setConnections('followers')} />
-          <Stat value={fmtM(activeProfile.followingCount||0)} label={t(activeProfile.type === 'personal' ? 'profile_connections.following' : 'profile_connections.account_following')} onClick={() => setConnections('following')} />
-          {isBusinessProfile && (
-            <>
-              <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-              <Stat value={Number(activeProfile.rating||0).toFixed(1)} label={t('commerce_profile.stat_rating')} />
-            </>
-          )}
-          <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-          <Stat value={score} label={t('commerce_profile.stat_reputation')} />
+          <div style={{ fontSize:13, color:MUTED, lineHeight:'18px' }}>
+            Taarifa hizi zinatoka kwenye oda, mizigo na maoni halisi kwenye KenteXa. Mwenye wasifu hawezi kuzibadilisha.
+          </div>
         </div>
       </div>
 
@@ -921,7 +869,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       )}
 
       {/* Tabs */}
-      <div style={{ backgroundColor:WH, borderBottom:'1px solid #f1f5f9',
+      <div style={{ backgroundColor:WH, borderBottom:`1px solid ${LINE}`,
         position:'sticky', top:52, zIndex:90,
         display:'flex', overflowX:'auto', scrollbarWidth:'none' }}>
         {profileTabs.map(tabItem => (
@@ -931,12 +879,15 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               api.get('/services/my').then(r=>setServices(r.data||[])).catch(()=>{});
             }
           }}
-            style={{ padding:'12px 16px', border:'none', cursor:'pointer',
-              backgroundColor:'transparent', fontSize:12, fontWeight:700,
-              whiteSpace:'nowrap', flexShrink:0,
-              color: tab===tabItem.key ? B : GR,
-              borderBottom: tab===tabItem.key ? `2px solid ${B}` : '2px solid transparent' }}>
+            style={{ padding:'0 16px', height:52, border:'none', cursor:'pointer',
+              backgroundColor:'transparent', fontSize:15, fontFamily:'inherit',
+              fontWeight: tab===tabItem.key ? 700 : 500,
+              whiteSpace:'nowrap', flexShrink:0, flexGrow:1, position:'relative',
+              color: tab===tabItem.key ? INK : MUTED }}>
             {tabItem.label}
+            <span aria-hidden="true" style={{ position:'absolute', left:'50%', bottom:0, transform:'translateX(-50%)',
+              width:'min(56px, 70%)', height:4, borderRadius:2,
+              backgroundColor: tab===tabItem.key ? B : 'transparent' }} />
           </button>
         ))}
       </div>
