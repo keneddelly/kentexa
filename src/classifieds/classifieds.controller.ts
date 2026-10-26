@@ -207,9 +207,10 @@ export class ClassifiedsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('invoices/seller-requests')
-  async getSellerInvoiceRequests(@Request() req) {
+  async getSellerInvoiceRequests(@Request() req, @Query('commerceProfileId') commerceProfileId?: string) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
-    return this.service.getSellerInvoiceRequests({ id: sellerId } as User);
+    return this.service.getSellerInvoiceRequests({ id: sellerId } as User,
+      commerceProfileId ? Number(commerceProfileId) : undefined);
   }
 
   @UseGuards(JwtAuthGuard, RoleContextGuard)

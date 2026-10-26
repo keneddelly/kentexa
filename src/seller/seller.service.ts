@@ -435,6 +435,67 @@ export class SellerService {
   // Stage 6). Legacy rows with no commerceProfileId of their own still
   // resolve here, same NULL-fallback rule used everywhere else this
   // session — a business's dashboard isn't missing pre-migration data.
+  /**
+   * Every order that is this seller's, in ONE query: a catalog product of theirs, a sale they
+   * shipped themselves, or a paid classified invoice. The same three sources the dashboard
+   * lists, without the per-source cap, so totals count every order, not the latest 30.
+   */
+  private sellerOrdersQuery(sellerId: number, commerceProfileId?: number) {
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoin('o.product', 'p')
+      .where(new Brackets((w) => w
+        .where('p."sellerId" = :sid')
+        .orWhere(`(o."sellerId" = :sid AND o.source IN ('seller_shipment', 'offline', 'offline_intercity'))`)
+        .orWhere('(o."sellerId" = :sid AND o."classifiedInvoiceId" IS NOT NULL)')), { sid: sellerId });
+    if (commerceProfileId) {
+      qb.andWhere(new Brackets((w) => w
+        .where('o."commerceProfileId" = :cpid', { cpid: commerceProfileId })
+        .orWhere('(o."commerceProfileId" IS NULL AND o."sellerId" = :sid)', { sid: sellerId })));
+    }
+    return qb;
+  }
+
+  /** Counts and money over ALL the seller's orders, plus paid revenue for the last 7 days. */
+  async getOrderTotals(sellerId: number, commerceProfileId?: number) {
+    const totals = await this.sellerOrdersQuery(sellerId, commerceProfileId)
+      .select('COUNT(o.id)', 'total')
+      .addSelect(`COUNT(o.id) FILTER (WHERE o.status::text = 'paid')`, 'toSend')
+      .addSelect(`COUNT(o.id) FILTER (WHERE o.status::text IN ('preparing', 'ready_for_pickup', 'in_transit'))`, 'onTheWay')
+      .addSelect(`COUNT(o.id) FILTER (WHERE o.status::text IN ('delivered', 'completed'))`, 'done')
+      .addSelect(`COUNT(o.id) FILTER (WHERE o.status::text IN ('disputed', 'cancelled'))`, 'problem')
+      .addSelect(`COALESCE(SUM(o."totalAmount") FILTER (WHERE o."paymentStatus"::text IN ('paid', 'released')), 0)`, 'paidRevenue')
+      .getRawOne();
+    const since = new Date(); since.setHours(0, 0, 0, 0); since.setDate(since.getDate() - 6);
+    const days: any[] = await this.sellerOrdersQuery(sellerId, commerceProfileId)
+      .select(`to_char(o."createdAt", 'YYYY-MM-DD')`, 'day')
+      .addSelect('COALESCE(SUM(o."totalAmount"), 0)', 'revenue')
+      .addSelect('COUNT(o.id)', 'orders')
+      .andWhere('o."createdAt" >= :since', { since })
+      .andWhere(`o."paymentStatus"::text IN ('paid', 'released')`)
+      .andWhere(`o.status::text NOT IN ('cancelled', 'disputed')`)
+      .groupBy('day')
+      .getRawMany();
+    const n = (v: any) => Number(v || 0);
+    return {
+      totalOrders: n(totals?.total), toSend: n(totals?.toSend), onTheWay: n(totals?.onTheWay),
+      done: n(totals?.done), problem: n(totals?.problem), paidRevenue: n(totals?.paidRevenue),
+      // Paid money only: an unpaid or cancelled order is never shown as revenue.
+      paidLast7Days: days.map((d) => ({ day: d.day, revenue: n(d.revenue), orders: n(d.orders) })),
+    };
+  }
+
+  /** The seller's orders page: every order, newest first (up to 500), with the buyer and product. */
+  async getSellerOrders(sellerId: number, commerceProfileId?: number) {
+    return this.sellerOrdersQuery(sellerId, commerceProfileId)
+      .addSelect(['p.id', 'p.name', 'p.images', 'p.weightKg', 'p.productType', 'p.workspaceId'])
+      .leftJoin('o.buyer', 'b')
+      .addSelect(['b.id', 'b.name', 'b.phone'])
+      .orderBy('o.createdAt', 'DESC')
+      .take(500)
+      .getMany();
+  }
+
   async getDashboardStats(user: User, commerceProfileId?: number) {
     // Tolerant lookup — unlike getMyProfile(), never throws for a user who
     // hasn't applied yet; `profile` in the response below is simply null,
@@ -663,17 +724,20 @@ export class SellerService {
       revenue,
     }));
 
+    // The totals count EVERY order (one SQL aggregate), not the latest 30 per source loaded above.
+    const totals = await this.getOrderTotals(user.id, commerceProfileId).catch(() => null);
     return {
       profile,
+      totals,
       stats: {
         totalProducts: myProducts.length,
         activeProducts: myProducts.filter((p) => p.isAvailable).length,
         totalClassifieds: myClassifieds.length,
-        totalOrders: myOrders.length,
+        totalOrders: totals ? totals.totalOrders : myOrders.length,
         pendingOrders,
-        completedOrders,
-        needsShipping,
-        totalRevenue,
+        completedOrders: totals ? totals.done : completedOrders,
+        needsShipping: totals ? totals.toSend : needsShipping,
+        totalRevenue: totals ? totals.paidRevenue : totalRevenue,
         repeatRate,
         totalCustomers,
       },

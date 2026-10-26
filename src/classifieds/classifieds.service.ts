@@ -797,12 +797,17 @@ export class ClassifiedsService {
   }
 
   // ─── Seller: Get incoming invoice requests ────────────────────────────────
-  async getSellerInvoiceRequests(user: User) {
-    const requests = await this.invoiceRequestRepo.find({
+  async getSellerInvoiceRequests(user: User, commerceProfileId?: number) {
+    const all = await this.invoiceRequestRepo.find({
       where: { seller: { id: user.id } },
       order: { createdAt: 'DESC' },
       relations: { classified: true, buyer: true, order: true },
     });
+    // One business at a time: a request belongs to the business whose listing it is (a listing
+    // from before businesses were split has none and shows under every business, as elsewhere).
+    const requests = commerceProfileId
+      ? all.filter((r) => r.classified?.commerceProfileId == null || Number(r.classified.commerceProfileId) === commerceProfileId)
+      : all;
     return requests.map((r) => ({
       id: r.id,
       invoiceNumber: r.invoiceNumber,

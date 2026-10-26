@@ -39,7 +39,7 @@ const PhoneNudgeBanner = ({ userId, onSaved }) => {
     <div style={{ backgroundColor: '#fffbeb', border: '2px solid #fde68a', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
       {!editing ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 22, flexShrink: 0 }}>📱</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="M7 2h10v20H7zM11 18h2" /></svg>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>{t('phone_nudge.add_phone_title')}</div>
             <div style={{ fontSize: 11, color: '#92400e' }}>{t('phone_nudge.add_phone_desc')}</div>
@@ -53,7 +53,7 @@ const PhoneNudgeBanner = ({ userId, onSaved }) => {
         </div>
       ) : (
         <div>
-          {error && <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>❌ {error}</div>}
+          {error && <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
             <input type="tel" placeholder="255712345678" value={phone} onChange={e => setPhone(e.target.value)}
               style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '2px solid #fde68a', fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
@@ -61,7 +61,7 @@ const PhoneNudgeBanner = ({ userId, onSaved }) => {
               style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>{t('common.cancel')}</button>
             <button onClick={handleSave} disabled={saving}
               style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-              {saving ? '⏳' : t('common.save')}
+              {saving ? '…' : t('common.save')}
             </button>
           </div>
         </div>
