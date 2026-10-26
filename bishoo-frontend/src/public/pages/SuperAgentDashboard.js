@@ -25,6 +25,7 @@
  * 🚐 VAN YA LEO (Dar es Salaam only):
  *   Daily batch for same-city deliveries
  */
+import { BOTTOM_NAV_CLEARANCE } from '../components/BottomNav';
 import { OfficeHome, OfficeScreenHeader, OfficeMenu, OfficeRow, officeSection, OFFICE_COLORS } from '../components/OfficeDashboardShell';
 import OfficePartners from '../components/OfficePartners';
 import ShehenaTransportPicker from '../components/ShehenaTransportPicker';
@@ -924,7 +925,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   if (!loading && profileStatus === 'not_applied') return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.apply_title')} top={0} />
-      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', paddingBottom: 32 }}>
+      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', paddingBottom: BOTTOM_NAV_CLEARANCE }}>
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24,
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: 16 }}>
           <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>🏢</div>
@@ -1054,7 +1055,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto',
-        width: '100%', boxSizing: 'border-box', paddingBottom: 80 }}>
+        width: '100%', boxSizing: 'border-box', paddingBottom: BOTTOM_NAV_CLEARANCE }}>
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626',
