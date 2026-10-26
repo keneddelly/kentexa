@@ -1,33 +1,33 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import { LineIcon } from '../components/LineIcon';
 
 const HowItWorks = ({ onNavigate }) => {
   const { t } = useTranslation();
   const [activeRole, setActiveRole] = useState('buyer');
 
-  const buildSteps = (roleKey, icons) => icons.map((icon, i) => ({
-    icon,
+  const buildSteps = (roleKey, count = 6) => Array.from({ length: count }, (_, i) => ({
     title: t(`how_it_works.${roleKey}_step${i + 1}_title`),
     desc: t(`how_it_works.${roleKey}_step${i + 1}_desc`),
   }));
 
   const roles = {
     buyer: {
-      icon: '🛒', label: t('how_it_works.role_buyer_label'), color: '#1d4ed8',
-      steps: buildSteps('buyer', ['🔍', '🛒', '📍', '💳', '📦', '✅']),
+      icon: 'person', label: t('how_it_works.role_buyer_label'), color: '#1d4ed8',
+      steps: buildSteps('buyer'),
     },
     seller: {
-      icon: '🏪', label: t('how_it_works.role_seller_label'), color: '#16a34a',
-      steps: buildSteps('seller', ['📝', '📦', '🔔', '🚚', '🧾', '💰']),
+      icon: 'store', label: t('how_it_works.role_seller_label'), color: '#16a34a',
+      steps: buildSteps('seller'),
     },
     agent: {
-      icon: '🤝', label: t('how_it_works.role_agent_label'), color: '#7c3aed',
-      steps: buildSteps('agent', ['📋', '🏪', '🔍', '💵', '✅', '💰']),
+      icon: 'moto', label: t('how_it_works.role_agent_label'), color: '#7c3aed',
+      steps: buildSteps('agent'),
     },
     super_agent: {
-      icon: '🏢', label: t('how_it_works.role_super_agent_label'), color: '#ea580c',
-      steps: buildSteps('super_agent', ['📋', '📦', '🗂️', '🚚', '🤝', '💰']),
+      icon: 'office', label: t('how_it_works.role_super_agent_label'), color: '#ea580c',
+      steps: buildSteps('super_agent'),
     },
   };
 
@@ -62,7 +62,7 @@ const HowItWorks = ({ onNavigate }) => {
           {Object.entries(roles).map(([key, r]) => (
             <button key={key} onClick={() => setActiveRole(key)}
               style={{ padding: '12px 4px', borderRadius: 12, border: '2px solid', borderColor: activeRole === key ? r.color : '#e2e8f0', backgroundColor: activeRole === key ? `${r.color}15` : '#fff', cursor: 'pointer', textAlign: 'center' }}>
-              <div style={{ fontSize: 20, marginBottom: 4 }}>{r.icon}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}><LineIcon name={r.icon} size={22} /></div>
               <div style={{ fontSize: 11, fontWeight: 800, color: activeRole === key ? r.color : '#64748b' }}>{r.label}</div>
             </button>
           ))}
@@ -71,14 +71,14 @@ const HowItWorks = ({ onNavigate }) => {
         {/* Steps */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 20px', fontFamily:'inherit' }}>
-            {current.icon} {t('how_it_works.for_role_title', { role: current.label })}
+            {t('how_it_works.for_role_title', { role: current.label })}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {current.steps.map((step, i) => (
               <div key={i} style={{ display: 'flex', gap: 14 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: current.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                    {step.icon}
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: current.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
+                    {i + 1}
                   </div>
                   {i < current.steps.length - 1 && <div style={{ width: 2, flex: 1, backgroundColor: '#e2e8f0', margin: '4px 0' }} />}
                 </div>
@@ -98,14 +98,12 @@ const HowItWorks = ({ onNavigate }) => {
           <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 16px', fontFamily:'inherit' }}>{t('how_it_works.payment_methods_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10 }}>
             {[
-              { icon: '📱', name: 'M-Pesa', desc: t('how_it_works.payment_mpesa_desc') },
-              { icon: '📱', name: 'Airtel Money', desc: t('how_it_works.payment_airtel_desc') },
-              { icon: '📱', name: 'Tigo Pesa', desc: t('how_it_works.payment_tigo_desc') },
-              { icon: '📱', name: 'HaloPesa', desc: t('how_it_works.payment_halopesa_desc') },
-              { icon: '🤝', name: t('how_it_works.payment_agent_name'), desc: t('how_it_works.payment_agent_desc') },
+              // How buyers pay today (owner 2026-10-19): to the seller, never through KenteXa.
+              { icon: 'phone', name: t('how_it_works.payment_lipa_name'), desc: t('how_it_works.payment_lipa_desc') },
+              { icon: 'home', name: t('how_it_works.payment_cod_name'), desc: t('how_it_works.payment_cod_desc') },
             ].map(p => (
               <div key={p.name} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '14px 12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 24, marginBottom: 6 }}>{p.icon}</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><LineIcon name={p.icon} size={24} color="#1d4ed8" /></div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{p.name}</div>
                 <div style={{ fontSize: 11, color: '#64748b' }}>{p.desc}</div>
               </div>
@@ -142,10 +140,9 @@ const HowItWorks = ({ onNavigate }) => {
               t('how_it_works.protection_point2'),
               t('how_it_works.protection_point3'),
               t('how_it_works.protection_point4'),
-              t('how_it_works.protection_point5'),
             ].map((point, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 16, flexShrink: 0, color: '#16a34a', fontWeight:800, marginTop: 1 }}>✓</span>
+                <LineIcon name="check" size={18} color="#16a34a" strokeWidth={2.6} style={{ marginTop: 2 }} />
                 <span style={{ fontSize: 14, color: '#166534', lineHeight: 1.6 }}>{point}</span>
               </div>
             ))}

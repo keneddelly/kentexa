@@ -6,6 +6,7 @@
  * unified Product/inventory the Kentexa online store and manual sales
  * already share (POST /sales -> InventoryService, one stock number).
  */
+import { LineIcon } from '../components/LineIcon';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
@@ -22,13 +23,13 @@ const GREEN = '#16A34A';
 const fmt = n => Number(n || 0).toLocaleString();
 
 const PAYMENT_METHODS = [
-  { value: 'cash',         icon: '💵' },
-  { value: 'mpesa',        icon: '📱' },
-  { value: 'airtel_money', icon: '📱' },
-  { value: 'tigo_pesa',    icon: '📱' },
-  { value: 'halopesa',     icon: '📱' },
-  { value: 'bank',         icon: '🏦' },
-  { value: 'other',        icon: '💳' },
+  { value: 'cash',         icon: 'money' },
+  { value: 'mpesa',        icon: 'phone' },
+  { value: 'airtel_money', icon: 'phone' },
+  { value: 'tigo_pesa',    icon: 'phone' },
+  { value: 'halopesa',     icon: 'phone' },
+  { value: 'bank',         icon: 'bank' },
+  { value: 'other',        icon: 'card' },
 ];
 
 const inputStyle = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' };
@@ -216,7 +217,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
             {step === 'cart' && (
               <button onClick={openHistory}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: B, fontWeight: 700 }}>
-                📜 {t('pos.history_button')}
+                {t('pos.history_button')}
               </button>
             )}
             <TourTrigger tourKey="pos_first_sale" />
@@ -226,7 +227,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
 
       {error && (
         <div style={{ backgroundColor: '#FEE2E2', color: '#DC2626', padding: '10px 16px', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
-          <span>❌ {error}</span>
+          <span>{error}</span>
           <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontWeight: 'bold' }}>×</button>
         </div>
       )}
@@ -263,7 +264,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
             <div style={{ textAlign: 'center', padding: 40, color: GR }}>{t('pos.loading')}</div>
           ) : cart.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: GR }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🛒</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><LineIcon name="cart" size={36} color="#94a3b8" /></div>
               <div style={{ fontSize: 13 }}>{t('pos.empty_cart')}</div>
             </div>
           ) : (
@@ -331,7 +332,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
                 <button key={m.value} onClick={() => setPaymentMethod(m.value)}
                   style={{ padding: '10px 4px', borderRadius: 10, border: `2px solid ${paymentMethod === m.value ? B : '#E2E8F0'}`,
                     backgroundColor: paymentMethod === m.value ? '#EFF6FF' : WH, cursor: 'pointer', textAlign: 'center' }}>
-                  <div style={{ fontSize: 16 }}>{m.icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={m.icon} size={18} /></div>
                   <div style={{ fontSize: 9, fontWeight: 700, color: paymentMethod === m.value ? B : GR }}>{t(`pos.method_${m.value}`)}</div>
                 </button>
               ))}
@@ -361,10 +362,10 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
               backgroundColor: isCod ? '#EFF6FF' : WH, border: `2px solid ${isCod ? B : '#E2E8F0'}`, marginBottom: 14 }}>
             <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${isCod ? B : '#94A3B8'}`,
               backgroundColor: isCod ? B : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              {isCod && <span style={{ color: WH, fontSize: 12 }}>✓</span>}
+              {isCod && <LineIcon name="check" size={12} color="#fff" strokeWidth={3} />}
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: isCod ? B : DK }}>🚚 {t('pos.cod_toggle')}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: isCod ? B : DK }}>{t('pos.cod_toggle')}</div>
               <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{t('pos.cod_toggle_sub')}</div>
             </div>
           </div>
@@ -388,7 +389,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
         <div style={{ flex: 1, padding: 16, maxWidth: 420, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ backgroundColor: WH, borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ textAlign: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 32 }}>✅</div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name="check" size={30} color="#16a34a" strokeWidth={2.6} /></div>
               <div style={{ fontSize: 16, fontWeight:800, color: DK, marginTop: 6 }}>
                 {currentUser?.storeName || currentUser?.name}
               </div>
@@ -421,12 +422,12 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
             )}
             {receipt.isCod && Number(receipt.balanceDue) > 0 && (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 13, fontWeight: 800, color: '#EA580C', display: 'flex', justifyContent: 'space-between' }}>
-                <span>🚚 {t('pos.balance_due')}</span><span>TZS {fmt(receipt.balanceDue)}</span>
+                <span>{t('pos.balance_due')}</span><span>TZS {fmt(receipt.balanceDue)}</span>
               </div>
             )}
             {receipt.isCod && Number(receipt.balanceDue) <= 0 && (
               <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 12, fontWeight: 700, color: GREEN, textAlign: 'center' }}>
-                ✅ {t('pos.balance_settled')}
+                {t('pos.balance_settled')}
               </div>
             )}
           </div>
@@ -434,13 +435,13 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
             <button onClick={handleCollectBalance} disabled={collectingBalance} style={{ width: '100%', marginTop: 16, padding: '14px 0',
               background: collectingBalance ? '#94A3B8' : '#EA580C', color: WH, border: 'none',
               borderRadius: 14, cursor: collectingBalance ? 'default' : 'pointer', fontSize: 14, fontWeight:800 }}>
-              {collectingBalance ? t('pos.processing') : `💰 ${t('pos.collect_balance_button', { amount: fmt(receipt.balanceDue) })}`}
+              {collectingBalance ? t('pos.processing') : `${t('pos.collect_balance_button', { amount: fmt(receipt.balanceDue) })}`}
             </button>
           )}
           <button onClick={handleShipIt} style={{ width: '100%', marginTop: 16, padding: '14px 0',
             background: WH, color: B, border: `2px solid ${B}`,
             borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
-            {`🚚 ${t('pos.ship_it')}`}
+            {`${t('pos.ship_it')}`}
           </button>
           <button onClick={resetSale} style={{ width: '100%', marginTop: 10, padding: '14px 0',
             background: `linear-gradient(135deg,${B},#7C3AED)`, color: WH, border: 'none',
@@ -457,7 +458,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
           <div onClick={e => e.stopPropagation()}
             style={{ backgroundColor: WH, borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight:800, color: DK }}>📜 {t('pos.history_title')}</div>
+              <div style={{ fontSize: 15, fontWeight:800, color: DK }}>{t('pos.history_title')}</div>
               <button onClick={() => { setShowHistory(false); setHistoryDetailId(null); }}
                 style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: GR }}>×</button>
             </div>
@@ -466,7 +467,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
               <div style={{ textAlign: 'center', padding: 40, color: GR }}>{t('pos.loading')}</div>
             ) : historySales.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: GR }}>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>🧾</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="receipt" size={32} color="#94a3b8" /></div>
                 {t('pos.history_empty')}
               </div>
             ) : (
@@ -488,7 +489,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           <div style={{ fontSize: 13, fontWeight:800, color: DK }}>TZS {fmt(sale.total)}</div>
                           {owesBalance && (
-                            <div style={{ fontSize: 10, fontWeight: 800, color: '#EA580C' }}>🚚 {t('pos.balance_due')}: TZS {fmt(sale.balanceDue)}</div>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: '#EA580C' }}>{t('pos.balance_due')}: TZS {fmt(sale.balanceDue)}</div>
                           )}
                           {sale.status === 'voided' && (
                             <div style={{ fontSize: 10, fontWeight: 800, color: '#DC2626' }}>{t('pos.voided_label')}</div>
@@ -522,26 +523,26 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
                               been COD in the first place. */}
                           {sale.isCod && owesBalance && (
                             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 12, fontWeight: 800, color: '#EA580C', display: 'flex', justifyContent: 'space-between' }}>
-                              <span>🚚 {t('pos.balance_due')}</span><span>TZS {fmt(sale.balanceDue)}</span>
+                              <span>{t('pos.balance_due')}</span><span>TZS {fmt(sale.balanceDue)}</span>
                             </div>
                           )}
                           {sale.isCod && !owesBalance && (
                             <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 12, fontWeight: 700, color: GREEN, textAlign: 'center' }}>
-                              🚚 ✅ {t('pos.balance_settled')}
+                              {t('pos.balance_settled')}
                             </div>
                           )}
                           {sale.customerPhone && (
-                            <div style={{ fontSize: 11, color: GR, marginTop: 4 }}>📞 {sale.customerPhone}</div>
+                            <div style={{ fontSize: 11, color: GR, marginTop: 4 }}>{sale.customerPhone}</div>
                           )}
                           {sale.shipmentTrackingNumber && (
-                            <div style={{ fontSize: 11, color: B, marginTop: 4, fontFamily: 'monospace' }}>🔗 {sale.shipmentTrackingNumber}</div>
+                            <div style={{ fontSize: 11, color: B, marginTop: 4, fontFamily: 'monospace' }}>{sale.shipmentTrackingNumber}</div>
                           )}
                           {owesBalance && (
                             <button onClick={() => handleCollectHistoryBalance(sale.id)} disabled={collectingHistoryId === sale.id}
                               style={{ width: '100%', marginTop: 10, padding: '11px 0',
                                 background: collectingHistoryId === sale.id ? '#94A3B8' : '#EA580C', color: WH, border: 'none',
                                 borderRadius: 10, cursor: collectingHistoryId === sale.id ? 'default' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-                              {collectingHistoryId === sale.id ? t('pos.processing') : `💰 ${t('pos.collect_balance_button', { amount: fmt(sale.balanceDue) })}`}
+                              {collectingHistoryId === sale.id ? t('pos.processing') : `${t('pos.collect_balance_button', { amount: fmt(sale.balanceDue) })}`}
                             </button>
                           )}
                         </div>

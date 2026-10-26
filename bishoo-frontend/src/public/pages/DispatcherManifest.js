@@ -1,3 +1,5 @@
+import { LineIcon } from '../components/LineIcon';
+import { Spinner } from '../components/Loading';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
@@ -84,7 +86,9 @@ const DispatcherManifest = ({ onNavigate }) => {
     }
   };
 
-  const showMsg = (msg) => {
+  const [messageIsError, setMessageIsError] = useState(false);
+  const showMsg = (msg, isError = false) => {
+    setMessageIsError(isError);
     setMessage(msg);
     setTimeout(() => setMessage(''), 4000);
   };
@@ -95,13 +99,13 @@ const DispatcherManifest = ({ onNavigate }) => {
       showMsg(t('dispatcher_manifest.received_at_hub_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
+      showMsg((err?.response?.data?.message || t('dispatcher_manifest.action_failed')), true);
     }
   };
 
   const handleDepart = async () => {
     if (!departForm.driverName.trim()) {
-      showMsg('❌ ' + t('dispatcher_manifest.driver_name_required')); return;
+      showMsg(t('dispatcher_manifest.driver_name_required'), true); return;
     }
     try {
       setDeparting(true);
@@ -110,7 +114,7 @@ const DispatcherManifest = ({ onNavigate }) => {
       showMsg(t('dispatcher_manifest.departed_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
+      showMsg((err?.response?.data?.message || t('dispatcher_manifest.action_failed')), true);
     } finally {
       setDeparting(false);
     }
@@ -122,7 +126,7 @@ const DispatcherManifest = ({ onNavigate }) => {
       showMsg(t('dispatcher_manifest.zone_arrived_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
+      showMsg((err?.response?.data?.message || t('dispatcher_manifest.action_failed')), true);
     }
   };
 
@@ -133,7 +137,7 @@ const DispatcherManifest = ({ onNavigate }) => {
       showMsg(t('dispatcher_manifest.delivered_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
+      showMsg((err?.response?.data?.message || t('dispatcher_manifest.action_failed')), true);
     }
   };
 
@@ -148,7 +152,7 @@ const DispatcherManifest = ({ onNavigate }) => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title={t('dispatcher_manifest.page_title')} top={0} />
       <div style={{ textAlign: 'center', padding: '60px 16px', color: '#64748b' }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="#94a3b8" /></div>
         <div>{t('dispatcher_manifest.loading')}</div>
       </div>
     </div>
@@ -164,8 +168,8 @@ const DispatcherManifest = ({ onNavigate }) => {
       {message && (
         <div style={{
           position: 'fixed', top: 60, left: 0, right: 0, zIndex: 9999,
-          backgroundColor: message.startsWith('❌') ? '#fee2e2' : '#dcfce7',
-          color: message.startsWith('❌') ? '#dc2626' : '#15803d',
+          backgroundColor: messageIsError ? '#fee2e2' : '#dcfce7',
+          color: messageIsError ? '#dc2626' : '#15803d',
           padding: '12px 16px', textAlign: 'center', fontSize: 13, fontWeight: 700,
         }}>
           {message}
@@ -176,7 +180,7 @@ const DispatcherManifest = ({ onNavigate }) => {
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: 14, borderRadius: 12, marginBottom: 14, fontSize: 13 }}>
-            ❌ {error}
+            {error}
             <button onClick={fetchManifest} style={{ marginLeft: 12, background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 700 }}>{t('dispatcher_manifest.try_again')}</button>
           </div>
         )}
@@ -184,7 +188,7 @@ const DispatcherManifest = ({ onNavigate }) => {
         {/* No batch today */}
         {!batch && !error && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="box" size={40} color="#94a3b8" /></div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('dispatcher_manifest.no_batch_title')}</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>
               {t('dispatcher_manifest.no_batch_desc')}
@@ -244,12 +248,12 @@ const DispatcherManifest = ({ onNavigate }) => {
               {/* Stats row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
                 {[
-                  { label: t('dispatcher_manifest.stat_parcels'), value: totalParcels, icon: '📦' },
-                  { label: t('dispatcher_manifest.stat_zones'), value: zones.length, icon: '📍' },
-                  { label: t('dispatcher_manifest.stat_departure_time'), value: new Date(batch.plannedDepartureTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }), icon: '🕗' },
+                  { label: t('dispatcher_manifest.stat_parcels'), value: totalParcels, icon: 'box' },
+                  { label: t('dispatcher_manifest.stat_zones'), value: zones.length, icon: 'pin' },
+                  { label: t('dispatcher_manifest.stat_departure_time'), value: new Date(batch.plannedDepartureTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }), icon: 'clock' },
                 ].map(s => (
                   <div key={s.label} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 20 }}>{s.icon}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={20} /></div>
                     <div style={{ fontSize: 18, fontWeight:800, color: '#1e293b' }}>{s.value}</div>
                     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{s.label.toUpperCase()}</div>
                   </div>
@@ -269,8 +273,8 @@ const DispatcherManifest = ({ onNavigate }) => {
                 <div style={{ backgroundColor: '#dbeafe', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
                   <div style={{ fontWeight: 700, color: '#1d4ed8', marginBottom: 2 }}>{t('dispatcher_manifest.driver_today_title')}</div>
                   <div style={{ color: '#1e293b' }}>{batch.driverName}</div>
-                  {batch.driverPhone && <div style={{ color: '#64748b' }}>📞 {batch.driverPhone}</div>}
-                  {batch.vehicleInfo && <div style={{ color: '#64748b' }}>🚗 {batch.vehicleInfo}</div>}
+                  {batch.driverPhone && <div style={{ color: '#64748b' }}>{batch.driverPhone}</div>}
+                  {batch.vehicleInfo && <div style={{ color: '#64748b' }}>{batch.vehicleInfo}</div>}
                   {batch.actualDepartureTime && (
                     <div style={{ color: '#64748b' }}>
                       {t('dispatcher_manifest.departed_at_label', { time: new Date(batch.actualDepartureTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) })}
@@ -288,7 +292,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                   <React.Fragment key={zone.zoneId}>
                     <span style={{ color: '#94a3b8', fontSize: 16 }}>→</span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', padding: '4px 10px', backgroundColor: '#ede9fe', borderRadius: 20 }}>
-                      📍 {zone.zoneName} ({zone.parcels.length})
+                      {zone.zoneName} ({zone.parcels.length})
                     </span>
                   </React.Fragment>
                 ))}
@@ -310,7 +314,7 @@ const DispatcherManifest = ({ onNavigate }) => {
 
               {batch.status === 'completed' && (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-                  <div style={{ fontSize: 32, marginBottom: 6 }}>🎉</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><LineIcon name="check" size={30} color="#16a34a" /></div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#15803d' }}>{t('dispatcher_manifest.batch_completed_title')}</div>
                   <div style={{ fontSize: 12, color: '#16a34a' }}>{t('dispatcher_manifest.batch_completed_desc', { count: totalParcels })}</div>
                 </div>
@@ -336,7 +340,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>
-                        📍 {zone.zoneName}
+                        {zone.zoneName}
                         {allDelivered && <span style={{ marginLeft: 8, fontSize: 12, color: '#16a34a' }}>{t('dispatcher_manifest.zone_completed_badge')}</span>}
                       </div>
                       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
@@ -375,14 +379,14 @@ const DispatcherManifest = ({ onNavigate }) => {
                                 {parcel.recipientName}
                               </div>
                               <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
-                                📦 {parcel.productName}
+                                {parcel.productName}
                               </div>
                               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
-                                📍 {parcel.deliveryAddress}
+                                {parcel.deliveryAddress}
                               </div>
                               {parcel.recipientPhone && (
                                 <a href={`tel:${parcel.recipientPhone}`} style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
-                                  📞 {parcel.recipientPhone}
+                                  {parcel.recipientPhone}
                                 </a>
                               )}
                             </div>
@@ -484,8 +488,8 @@ const DispatcherManifest = ({ onNavigate }) => {
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{t('dispatcher_manifest.parcel_label')}</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 2 }}>{confirmParcel.recipientName}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>📦 {confirmParcel.productName}</div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>📍 {confirmParcel.deliveryAddress}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>{confirmParcel.productName}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{confirmParcel.deliveryAddress}</div>
               <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#2563eb', marginTop: 6 }}>{confirmParcel.trackingNumber}</div>
             </div>
 

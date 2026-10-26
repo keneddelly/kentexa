@@ -1,3 +1,4 @@
+import { LineIcon } from '../components/LineIcon';
 import React, { useEffect, useRef, useState } from 'react';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
@@ -22,12 +23,12 @@ const TZ_CITIES = [
 // before that fetch resolves.
 const DEFAULT_MEDIA_RULES = { minImages: 2, recommendedImages: 6, maxImages: 10, guidanceText: 'Clear photos from multiple angles help buyers trust your listing.' };
 const FALLBACK_CATEGORIES = {
-  general: { label: 'General', icon: '📦', mediaRules: DEFAULT_MEDIA_RULES, subcategories: { other: { label: 'Other', attributes: [
+  general: { label: 'General', icon: 'box', mediaRules: DEFAULT_MEDIA_RULES, subcategories: { other: { label: 'Other', attributes: [
     { key: 'brand', label: 'Brand', type: 'text' }, { key: 'model', label: 'Model', type: 'text' },
     { key: 'condition', label: 'Condition', type: 'select', allowedValues: ['New', 'Used', 'Refurbished'] },
     { key: 'color', label: 'Color', type: 'multiselect' },
   ] } } },
-  digital_general: { label: 'Digital — Other', icon: '🗂️', isDigital: true, mediaRules: { minImages: 1, recommendedImages: 3, maxImages: 5, guidanceText: 'Add a cover image or screenshots that represent this item.' }, subcategories: { other: { label: 'Other Digital' } } },
+  digital_general: { label: 'Digital — Other', icon: 'list', isDigital: true, mediaRules: { minImages: 1, recommendedImages: 3, maxImages: 5, guidanceText: 'Add a cover image or screenshots that represent this item.' }, subcategories: { other: { label: 'Other Digital' } } },
 };
 
 const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' };
@@ -696,7 +697,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_products.title')}`} top={0} />
+      <BackBar onBack={() => onNavigate('back')} title={`${t('seller_products.title')}`} top={0} />
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '20px 16px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
@@ -706,7 +707,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => onNavigate('POS')} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-              {`🖥️ ${t('seller_products.open_pos')}`}
+              {`${t('seller_products.open_pos')}`}
             </button>
             <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: '#fff', color: '#1d4ed8', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
               {`+ ${t('seller_products.add')}`}
@@ -717,17 +718,17 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
       <div style={{ padding: '14px 16px 32px', maxWidth: 1100, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
-        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}><span>✅ {message}</span><button onClick={() => setMessage('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}><span>❌ {error}</span><button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
+        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}><span>{message}</span><button onClick={() => setMessage('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}><span>{error}</span><button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
           {[
-            { label: t('seller_products.total'), value: products.length, bg: '#ede9fe', color: '#7c3aed', icon: '📦' },
-            { label: t('seller_products.available'), value: products.filter(p => p.isZipo).length, bg: '#dcfce7', color: '#16a34a', icon: '✅' },
-            { label: t('seller_products.hidden'), value: products.filter(p => !p.isZipo).length, bg: '#fee2e2', color: '#dc2626', icon: '❌' },
+            { label: t('seller_products.total'), value: products.length, bg: '#ede9fe', color: '#7c3aed', icon: 'box' },
+            { label: t('seller_products.available'), value: products.filter(p => p.isZipo).length, bg: '#dcfce7', color: '#16a34a', icon: 'check' },
+            { label: t('seller_products.hidden'), value: products.filter(p => !p.isZipo).length, bg: '#fee2e2', color: '#dc2626', icon: 'cross' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '16px 12px', textAlign: 'center' }}>
-              <div style={{ fontSize: 24 }}>{s.icon}</div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={22} color={s.color} /></div>
               <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
             </div>
@@ -738,7 +739,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>{t('seller_products.loading')}</div>
         ) : products.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>📦</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><LineIcon name="box" size={48} color="#94a3b8" /></div>
             <h3 style={{ color: '#1e293b', marginBottom: 8 }}>{t('seller_products.no_products')}</h3>
             <p style={{ color: '#64748b', marginBottom: 24 }}>{t('seller_products.no_products_desc')}</p>
             <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>{`+ ${t('seller_products.add_first')}`}</button>
@@ -762,7 +763,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 style={{ position: 'relative', aspectRatio: '1', backgroundColor: '#F8FAFC', cursor: 'pointer', overflow: 'hidden' }}>
                 {product.images?.[0]
                   ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>}
+                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name="box" size={28} color="#94a3b8" /></div>}
 
                 {!product.isZipo && (
                   <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex',
@@ -783,7 +784,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     {t('seller_products.sold_out_badge')}
                   </span>
                 ) : lowStock && (
-                  <span style={{ position: 'absolute', top: 4, left: 4, fontSize: 12 }} title={t('seller_products.low_stock_badge')}>⚠️</span>
+                  <span style={{ position: 'absolute', top: 4, left: 4, fontSize: 12 }} title={t('seller_products.low_stock_badge')}><LineIcon name="alert" size={14} color="#b45309" /></span>
                 )}
 
                 <button
@@ -800,23 +801,23 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                       boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 10, minWidth: 130, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
                     <div onClick={() => { setMenuForProductId(null); handleEdit(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
-                      {`✏️ ${t('seller_products.edit')}`}
+                      {`${t('seller_products.edit')}`}
                     </div>
                     <div onClick={() => { setMenuForProductId(null); openVariantModal(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
-                      {`➕ ${t('seller_products.add_variant')}`}
+                      {`${t('seller_products.add_variant')}`}
                     </div>
                     <div onClick={() => { setMenuForProductId(null); openSerialsModal(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
-                      {`🔢 ${t('seller_products.manage_serials')}`}
+                      {`${t('seller_products.manage_serials')}`}
                     </div>
                     <div onClick={() => { setMenuForProductId(null); handleToggleZipo(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: product.isZipo ? '#dc2626' : '#16a34a', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
-                      {product.isZipo ? `🚫 ${t('seller_products.hide')}` : `✅ ${t('seller_products.show')}`}
+                      {product.isZipo ? `${t('seller_products.hide')}` : `${t('seller_products.show')}`}
                     </div>
                     <div onClick={() => { setMenuForProductId(null); handleDelete(product.id); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#dc2626', cursor: 'pointer' }}>
-                      {`🗑 ${t('seller_products.delete_action')}`}
+                      {`${t('seller_products.delete_action')}`}
                     </div>
                   </div>
                 )}
@@ -840,7 +841,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           <div style={{ padding: '20px 16px 0', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 18px', fontFamily:'inherit' }}>
-              {editProduct ? `✏️ ${t('seller_products.edit_modal_title')}` : `+ ${t('seller_products.add_modal_title')}`}
+              {editProduct ? `${t('seller_products.edit_modal_title')}` : `+ ${t('seller_products.add_modal_title')}`}
             </h2>
 
             {error && (
@@ -860,7 +861,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     backgroundColor: form.productType === 'physical' ? '#eff6ff' : '#fff',
                     color: form.productType === 'physical' ? '#1d4ed8' : '#64748b',
                   }}>
-                  {`📦 ${t('seller_products.product_type_physical')}`}
+                  {`${t('seller_products.product_type_physical')}`}
                 </button>
                 <button type="button" disabled={!!editProduct}
                   onClick={() => handleProductTypeChange('digital')}
@@ -870,7 +871,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     backgroundColor: form.productType === 'digital' ? '#faf5ff' : '#fff',
                     color: form.productType === 'digital' ? '#7c3aed' : '#64748b',
                   }}>
-                  {`💾 ${t('seller_products.product_type_digital')}`}
+                  {`${t('seller_products.product_type_digital')}`}
                 </button>
               </div>
             </div>
@@ -893,7 +894,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
                   <input type="file" accept="image/*" multiple disabled={uploading || saving} onChange={handleImageUpload} style={{ display: 'none' }} id="productImages" />
                   <label htmlFor="productImages" style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                    {uploading ? `⏳ ${t('seller_products.uploading')}` : `📷 ${t('seller_products.choose_images')}`}
+                    {uploading ? `${t('seller_products.uploading')}` : `${t('seller_products.choose_images')}`}
                   </label>
                   <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
                     {imagePreviews.length}/{mediaRules.maxImages} · {t('seller_products.min_recommended_images', { min: mediaRules.minImages, recommended: mediaRules.recommendedImages })}
@@ -915,11 +916,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <label style={labelStyle}>
                   {t('seller_products.category')} *
                   {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_products.category_detecting')}</span>}
-                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>✨ {t('seller_products.category_suggested')}</span>}
+                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>{t('seller_products.category_suggested')}</span>}
                 </label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {visibleCategories.map(([key, cat]) => (
-                    <option key={key} value={key}>{cat.icon} {cat.label}</option>
+                    <option key={key} value={key}>{cat.label}</option>
                   ))}
                 </select>
               </div>
@@ -963,7 +964,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 </div>
               )}
               {selectedBrand && brandBadge === 'brand_authorized' && (
-                <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: '#16a34a' }}>✓ {t('seller_products.brand_authorized_hint')}</div>
+                <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: '#16a34a' }}>{t('seller_products.brand_authorized_hint')}</div>
               )}
               {selectedBrand && brandBadge !== 'brand_authorized' && (
                 <div style={{ marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{t('seller_products.brand_not_authorized_hint')}</div>
@@ -1017,7 +1018,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
                     cursor: (descGenerating || !form.name || !form.images.length) ? 'not-allowed' : 'pointer',
                     opacity: (!form.name || !form.images.length) ? 0.5 : 1 }}>
-                  {descGenerating ? `⏳ ${t('seller_products.ai_description_generating')}` : `✨ ${t('seller_products.ai_description_button')}`}
+                  {descGenerating ? `${t('seller_products.ai_description_generating')}` : `${t('seller_products.ai_description_button')}`}
                 </button>
               </div>
               <textarea placeholder={t('seller_products.description_placeholder')} value={form.description}
@@ -1032,7 +1033,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             {attrFields.length > 0 && (
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                  {`📋 ${t('seller_products.specs')}`}
+                  {`${t('seller_products.specs')}`}
                   <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.specs_hint')}</span>
                 </div>
                 {attrFields.some(a => !a.required && a.key !== 'condition') && (
@@ -1108,12 +1109,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             {/* ── FEATURES (bullet points) ── */}
             <details style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
               <summary style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 10, cursor: 'pointer' }}>
-                {`✨ ${t('seller_products.features')}`}
+                {`${t('seller_products.features')}`}
                 <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.features_hint')}</span>
               </summary>
               {(form.features || []).map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: 12, flex: 1, color: '#1e293b' }}>✓ {f}</span>
+                  <span style={{ fontSize: 12, flex: 1, color: '#1e293b' }}>{f}</span>
                   <button onClick={() => removeFeature(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, fontWeight:800 }}>×</button>
                 </div>
               ))}
@@ -1149,22 +1150,22 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
             {form.productType === 'digital' && (
               <div style={{ backgroundColor: '#faf5ff', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e9d5ff' }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`💾 ${t('seller_products.digital_file_section')}`}</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`${t('seller_products.digital_file_section')}`}</div>
 
                 {editProduct ? (
                   <div style={{ fontSize: 12, color: '#7c3aed', backgroundColor: '#fff', borderRadius: 8, padding: 10, border: '1px solid #e9d5ff' }}>
-                    {`🔒 ${t('seller_products.digital_file_locked')}`}
+                    {`${t('seller_products.digital_file_locked')}`}
                   </div>
                 ) : (
                   <>
                     <input type="file" accept=".pdf,.epub,.zip" id="digitalFile" style={{ display: 'none' }}
                       onChange={e => handleDigitalFileUpload(e.target.files?.[0])} />
                     <label htmlFor="digitalFile" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', color: '#fff', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                      {uploadingDigitalFile ? `⏳ ${t('seller_products.uploading')}` : `📎 ${t('seller_products.choose_digital_file')}`}
+                      {uploadingDigitalFile ? `${t('seller_products.uploading')}` : `${t('seller_products.choose_digital_file')}`}
                     </label>
                     {form.digitalFile && (
                       <div style={{ fontSize: 11, color: '#16a34a', marginTop: 8, fontWeight: 600 }}>
-                        {`✅ ${form.digitalFile.fileName} (${(form.digitalFile.sizeBytes / 1024 / 1024).toFixed(2)} MB)`}
+                        {`${form.digitalFile.fileName} (${(form.digitalFile.sizeBytes / 1024 / 1024).toFixed(2)} MB)`}
                       </div>
                     )}
                   </>
@@ -1192,7 +1193,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             {/* Unified inventory — the same stock number this product uses
                 across the local POS, Kentexa online, and manual sales. */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.inventory_section')}`}</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`${t('seller_products.inventory_section')}`}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
                 <div>
                   <label style={labelStyle}>{t('seller_products.sku')}</label>
@@ -1236,7 +1237,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   <input type="checkbox" checked={form.codEnabled}
                     onChange={e => setForm({ ...form, codEnabled: e.target.checked })}
                     style={{ width: 16, height: 16, cursor: 'pointer' }} />
-                  🚚 {t('seller_products.allow_cod')}
+                  {t('seller_products.allow_cod')}
                 </label>
                 <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0 22px' }}>{t('seller_products.allow_cod_hint')}</p>
               </div>
@@ -1244,7 +1245,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
             {/* Shipping calculator */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.shipping_calc')}`}</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`${t('seller_products.shipping_calc')}`}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 10 }}>
                 <div>
                   <label style={labelStyle}>{t('seller_products.your_city')}</label>
@@ -1276,7 +1277,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   }}
                 />
                 {form.sellerCity && (
-                  <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>✅ {form.sellerCity}</div>
+                  <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>{form.sellerCity}</div>
                 )}
               </div>
             </div>
@@ -1313,7 +1314,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               <button onClick={cancelForm} disabled={saving} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_products.cancel')}</button>
               <button onClick={handleSubmit} disabled={uploading || uploadingDigitalFile || saving}
                 style={{ flex: 2, background: (uploading || saving) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: (uploading || saving) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-                {saving ? t('listing_validation.saving') : uploading ? t('seller_products.please_wait') : editProduct ? `✅ ${t('seller_products.update')}` : `+ ${t('seller_products.add_product')}`}
+                {saving ? t('listing_validation.saving') : uploading ? t('seller_products.please_wait') : editProduct ? `${t('seller_products.update')}` : `+ ${t('seller_products.add_product')}`}
               </button>
           </div>
         </div>

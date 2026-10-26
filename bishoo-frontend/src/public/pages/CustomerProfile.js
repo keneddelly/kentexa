@@ -1,3 +1,5 @@
+import { LineIcon } from '../components/LineIcon';
+import { Spinner } from '../components/Loading';
 import React, { useEffect, useState } from 'react';
 import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ReputationBadge from '../components/ReputationBadge';
@@ -107,7 +109,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         avatarUrl: avatarUrl || undefined,
       });
       setSaving(false);
-      setMessage('✅ Wasifu umebadilishwa!');
+      setMessage('Wasifu umebadilishwa!');
       setEditing(false);
       fetchData();
     } catch (err) {
@@ -143,7 +145,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
       if (url) {
         setAvatarUrl(url);
         await api.patch(`/users/${profile.id}`, { avatarUrl: url });
-        setMessage('✅ Picha imesasishwa!');
+        setMessage('Picha imesasishwa!');
         fetchData();
       }
     } catch {
@@ -174,11 +176,11 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   }[status] || { backgroundColor: '#F1F5F9', color: GR });
 
   const getRoleInfo = (role) => ({
-    admin:  { icon: '🛡️', bg: '#FEE2E2', color: '#DC2626', label: t('profile.role_admin') },
-    seller: { icon: '🏪', bg: '#EFF6FF', color: B,          label: t('profile.role_seller') },
-    agent:  { icon: '🏍️', bg: '#FDF2F8', color: '#A21CAF',  label: t('profile.role_agent') },
-    user:   { icon: '👤', bg: '#F1F5F9', color: GR,          label: t('profile.role_user') },
-  }[role] || { icon: '👤', bg: '#F1F5F9', color: GR, label: t('profile.role_user') });
+    admin:  { icon: 'shield', bg: '#FEE2E2', color: '#DC2626', label: t('profile.role_admin') },
+    seller: { icon: 'store', bg: '#EFF6FF', color: B,          label: t('profile.role_seller') },
+    agent:  { icon: 'moto', bg: '#FDF2F8', color: '#A21CAF',  label: t('profile.role_agent') },
+    user:   { icon: 'person', bg: '#F1F5F9', color: GR,          label: t('profile.role_user') },
+  }[role] || { icon: 'person', bg: '#F1F5F9', color: GR, label: t('profile.role_user') });
 
   const Card = ({ children, style = {} }) => (
     <div style={{ backgroundColor: WH, borderRadius: 16, padding: 18,
@@ -198,7 +200,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         <span style={{ fontSize: 15, fontWeight: 800, color: DK }}>{t('profile.title')}</span>
       </div>
       <div style={{ textAlign: 'center', padding: 80, color: GR }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>{t('profile.loading')}
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="#94a3b8" /></div>{t('profile.loading')}
       </div>
     </div>
   );
@@ -230,7 +232,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
             fontSize: 30, fontWeight:800, color: WH,
             boxShadow: '0 8px 24px rgba(0,0,0,0.25)', border: '3px solid rgba(255,255,255,0.35)' }}>
             {avatarUploading ? (
-              <span style={{ fontSize: 16 }}>⏳</span>
+              <Spinner size={16} color="#fff" />
             ) : avatarUrl ? (
               <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
@@ -239,7 +241,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           </div>
           <div style={{ position: 'absolute', bottom: -4, right: -4, width: 26, height: 26, borderRadius: '50%',
             backgroundColor: WH, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>📷</div>
+            fontSize: 12, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}><LineIcon name="camera" size={14} color="#fff" /></div>
           <input id="profile-photo" type="file" accept="image/*" onChange={handleAvatarUpload} style={{ position:'absolute', width:1, height:1, opacity:0 }} disabled={avatarUploading} />
         </label>
         <h1 style={{ fontSize: 20, fontWeight:800, color: WH, margin: '0 0 4px', fontFamily:'inherit' }}>
@@ -251,7 +253,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
             backgroundColor: 'rgba(255,255,255,0.18)', color: WH, border: '1px solid rgba(255,255,255,0.3)' }}>
-            {roleInfo.icon} {roleInfo.label}
+            {roleInfo.label}
           </span>
           {score > 0 && <ReputationBadge score={score} size="sm" />}
         </div>
@@ -261,12 +263,12 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
         {message && (
           <div style={{ backgroundColor: '#DCFCE7', color: '#16A34A', padding: '12px 14px', borderRadius: 12,
-            marginBottom: 12, fontSize: 16, fontWeight: 700 }}>✅ {message}</div>
+            marginBottom: 12, fontSize: 16, fontWeight: 700 }}>{message}</div>
         )}
         {error && (
           <div style={{ backgroundColor: '#FEE2E2', color: '#DC2626', padding: '12px 14px', borderRadius: 12,
             marginBottom: 12, fontSize: 16, display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-            <span>❌ {error}</span>
+            <span>{error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
@@ -277,13 +279,13 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {/* Stats — Instagram-style stat row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
           {[
-            { label: t('profile.orders'),    value: orders.length,                                       icon: '🛒', bg: '#EDE9FE', color: '#7C3AED' },
-            { label: t('profile.delivered'), value: orders.filter(o => o.status === 'delivered').length,  icon: '📦', bg: '#DCFCE7', color: '#16A34A' },
-            { label: t('profile.pending'),   value: orders.filter(o => o.status === 'pending').length,    icon: '⏳', bg: '#FEF9C3', color: '#CA8A04' },
-            { label: t('profile.since'),     value: new Date(profile?.createdAt).getFullYear(),           icon: '📅', bg: '#DBEAFE', color: B },
+            { label: t('profile.orders'),    value: orders.length,                                       icon: 'cart', bg: '#EDE9FE', color: '#7C3AED' },
+            { label: t('profile.delivered'), value: orders.filter(o => o.status === 'delivered').length,  icon: 'box', bg: '#DCFCE7', color: '#16A34A' },
+            { label: t('profile.pending'),   value: orders.filter(o => o.status === 'pending_payment').length,    icon: 'clock', bg: '#FEF9C3', color: '#CA8A04' },
+            { label: t('profile.since'),     value: new Date(profile?.createdAt).getFullYear(),           icon: 'calendar', bg: '#DBEAFE', color: B },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '12px 6px', textAlign: 'center' }}>
-              <div style={{ fontSize: 18 }}>{s.icon}</div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={18} color={s.color} /></div>
               <div style={{ fontSize: 16, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 9.5, color: GR, fontWeight: 700 }}>{s.label}</div>
             </div>
@@ -301,7 +303,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   <div style={{ width: 44, height: 44, borderRadius: 12,
                     background: `linear-gradient(135deg,#1E1B4B,${B})`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 22, color: WH, flexShrink: 0 }}>🏪</div>
+                    fontSize: 22, color: WH, flexShrink: 0 }}><LineIcon name="store" size={22} color="#fff" /></div>
                 )}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight:800, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.storeName}</div>
@@ -310,7 +312,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   )}
                   {profile.rating > 0 && (
                     <div style={{ fontSize: 12, color: '#F59E0B', marginTop: 2 }}>
-                      {'⭐'.repeat(Math.round(profile.rating))} {profile.rating}/5 · {profile.completedOrders} mauzo
+                      {profile.rating}/5 · {profile.completedOrders} mauzo
                     </div>
                   )}
                 </div>
@@ -328,19 +330,19 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {/* Profile */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>👤 {t('profile.profile')}</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>{t('profile.profile')}</h2>
             <div style={{ display: 'flex', gap: 8 }}>
               {hasAnyRole(userRole, currentUser, ['seller', 'admin']) && (
                 <button onClick={() => onNavigate('StoreSettings')}
                   style={{ backgroundColor: '#F5F3FF', color: '#7C3AED',
                     border: 'none', padding: '6px 14px', borderRadius: 8,
                     cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                  🏪 Mipangilio ya Duka
+                  Mipangilio ya Duka
                 </button>
               )}
               {!editing && (
                 <button onClick={() => setEditing(true)} style={{ backgroundColor: B, color: WH, border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                  ✏️ {t('profile.edit')}
+                  {t('profile.edit')}
                 </button>
               )}
             </div>
@@ -359,11 +361,11 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
             <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.email || '—'}</div>
           </div>
           <div style={{ marginBottom: 10, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>📍 Mahali</div>
+            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>Mahali</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.city || '—'}</div>
           </div>
           <div style={{ marginBottom: editing ? 10 : 0, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>📝 Kuhusu mimi</div>
+            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>Kuhusu mimi</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.bio || '—'}</div>
           </div>
 
@@ -393,20 +395,20 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                 <div style={{ fontSize: 14, color: '#94A3B8', marginTop: 4 }}>Email inatumiwa kuingia kwenye akaunti</div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>📍 Mahali (Jiji)</label>
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>Mahali (Jiji)</label>
                 <input id="profile-city" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
                   placeholder="mfano: Dar es Salaam"
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>📝 Kuhusu mimi</label>
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>Kuhusu mimi</label>
                 <textarea id="profile-bio" value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
                   placeholder="Maelezo mafupi kukuhusu..." rows={3} maxLength={200}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 16, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setEditing(false)} style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 16 }}>{t('profile.cancel')}</button>
-                <button disabled={saving} onClick={handleUpdateProfile} style={{ flex: 1, backgroundColor: B, color: WH, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>{saving ? '⏳ Inahifadhi...' : '💾 Hifadhi Mabadiliko'}</button>
+                <button disabled={saving} onClick={handleUpdateProfile} style={{ flex: 1, backgroundColor: B, color: WH, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>{saving ? 'Inahifadhi...' : 'Hifadhi Mabadiliko'}</button>
               </div>
             </>
           )}
@@ -415,10 +417,10 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {/* Security */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>🔒 {t('profile.security')}</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>{t('profile.security')}</h2>
             {!changingPassword && (
               <button onClick={() => setChangingPassword(true)} style={{ backgroundColor: '#FEF2F2', color: '#DC2626', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                🔐 {t('profile.change')}
+                {t('profile.change')}
               </button>
             )}
           </div>
@@ -431,7 +433,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
               </div>
               <div style={{ padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10, marginBottom: 10 }}>
                 <div style={{ fontSize: 14, color: GR, marginBottom: 4 }}>{t('profile.role')}</div>
-                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 8, backgroundColor: roleInfo.bg, color: roleInfo.color }}>{roleInfo.icon} {roleInfo.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 8, backgroundColor: roleInfo.bg, color: roleInfo.color }}>{roleInfo.label}</span>
               </div>
               <div style={{ padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
                 <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>{t('profile.member_since')}</div>
@@ -465,7 +467,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {/* Recent Orders */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>🛒 {t('profile.recent_orders')}</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>{t('profile.recent_orders')}</h2>
             <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: '#F0FDF4', color: '#16A34A', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
               {t('profile.view_all')} →
             </button>
@@ -473,10 +475,10 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
           {orders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#94A3B8' }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🛒</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><LineIcon name="cart" size={36} color="#94a3b8" /></div>
               <p style={{ marginBottom: 14, fontSize: 16 }}>{t('profile.no_orders')}</p>
               <button onClick={() => onNavigate('Stores')} style={{ backgroundColor: B, color: WH, border: 'none', padding: '9px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                🏪 {t('profile.start_shopping')}
+                {t('profile.start_shopping')}
               </button>
             </div>
           ) : (
@@ -486,7 +488,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: '#E2E8F0', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {order.product?.images?.[0]
                       ? <img src={order.product.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <span style={{ fontSize: 18 }}>📦</span>}
+                      : <LineIcon name="box" size={18} color="#94a3b8" />}
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.product?.name || 'Product'}</div>
@@ -505,10 +507,10 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {/* Quick Actions */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           {[
-            { label: `🏪 ${t('profile.stores')}`,     page: 'Stores',            bg: '#EFF6FF', color: B },
-            { label: `📋 ${t('profile.classifieds')}`, page: 'ClassifiedsPublic', bg: '#FDF2F8', color: '#A21CAF' },
-            { label: `🛒 ${t('profile.my_orders')}`,    page: 'MyOrders',          bg: '#F0FDF4', color: '#16A34A' },
-            { label: `🛒 ${t('profile.cart')}`,         page: 'Cart',              bg: '#FEF9C3', color: '#CA8A04' },
+            { label: `${t('profile.stores')}`,     page: 'Stores',            bg: '#EFF6FF', color: B },
+            { label: `${t('profile.classifieds')}`, page: 'ClassifiedsPublic', bg: '#FDF2F8', color: '#A21CAF' },
+            { label: `${t('profile.my_orders')}`,    page: 'MyOrders',          bg: '#F0FDF4', color: '#16A34A' },
+            { label: `${t('profile.cart')}`,         page: 'Cart',              bg: '#FEF9C3', color: '#CA8A04' },
           ].map(action => (
             <button key={action.label} onClick={() => onNavigate(action.page)}
               style={{ backgroundColor: action.bg, color: action.color, border: 'none', padding: 14, borderRadius: 14,
@@ -522,7 +524,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {orders.filter(o => o.buyerRating).length > 0 && (
           <Card>
             <div style={{ fontSize: 15, fontWeight:800, color: DK, marginBottom: 14 }}>
-              ⭐ Tathmini Zangu
+              Tathmini Zangu
             </div>
             {orders.filter(o => o.buyerRating).map(o => (
               <div key={o.id} style={{ padding: '12px 0',
@@ -530,7 +532,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                 <div style={{ width: 40, height: 40, borderRadius: 10,
                   backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                  🏪
+                  
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: DK }}>
@@ -540,7 +542,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                     {o.seller?.storeName || o.seller?.businessName || 'Duka'}
                   </div>
                   <div style={{ fontSize: 18, marginTop: 4 }}>
-                    {'⭐'.repeat(o.buyerRating)}{'☆'.repeat(5 - o.buyerRating)}
+                    {`Nyota ${o.buyerRating} kati ya 5`}
                   </div>
                   {o.buyerReview && (
                     <div style={{ fontSize: 12, color: '#475569', marginTop: 4,
@@ -562,7 +564,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           <div style={{ marginBottom: 14, backgroundColor: '#FEF9C3', borderRadius: 16,
             padding: 16, border: '1px solid #FDE68A' }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#92400E', marginBottom: 12 }}>
-              ⭐ Tathmini Zinazokungoja ({orders.filter(o => o.status === 'delivered' && !o.buyerRating).length})
+              Tathmini Zinazokungoja ({orders.filter(o => o.status === 'delivered' && !o.buyerRating).length})
             </div>
             {orders.filter(o => o.status === 'delivered' && !o.buyerRating).map(o => (
               <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between',
@@ -581,7 +583,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   style={{ backgroundColor: '#F59E0B', color: WH, border: 'none',
                     padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
                     fontSize: 14, fontWeight: 800, flexShrink: 0, marginLeft: 8 }}>
-                  ✅ Thibitisha & Tathmini
+                  Thibitisha & Tathmini
                 </button>
               </div>
             ))}
