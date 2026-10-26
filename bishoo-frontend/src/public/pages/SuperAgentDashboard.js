@@ -289,7 +289,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   };
 
   // ── POKEA sub-modes ───────────────────────────────────────────────────────
-  // 'list' | 'walk_in' | 'online_order' | 'confirm_arrival'
+  // 'list' | 'walk_in' | 'confirm_arrival'
   const [pokeaMode, setPokeaMode]       = useState('list');
 
   // Walk-in sender form (inline SuperAgentParcel)
@@ -325,9 +325,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [walkResult, setWalkResult]     = useState(null);
 
   // Online order receive
-  const [onlineOrderId, setOnlineOrderId] = useState('');
-  const [orderLookup, setOrderLookup]   = useState(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
 
   // Confirm arrival form
   const [arrivalTracking, setArrivalTracking] = useState('');
@@ -700,38 +697,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   };
 
   // ── Online order handlers ─────────────────────────────────────────────────
-
-  const handleLookupOrder = async () => {
-    if (!onlineOrderId.trim()) return;
-    try {
-      setLookupLoading(true); setError('');
-      const res = await api.get(`/orders/${onlineOrderId.trim()}/agent-lookup`).catch(() => null)
-        || await api.get(`/super-agents/track/${onlineOrderId.trim()}`).catch(() => null);
-      setOrderLookup(res?.data || null);
-      if (!res?.data) setError('Agizo halipatikani — angalia namba');
-    } catch { setError('Imeshindwa kutafuta'); }
-    finally { setLookupLoading(false); }
-  };
-
-  const handleReceiveOnline = async () => {
-    if (!onlineOrderId.trim()) return;
-    try {
-      setActionLoading(true); setError('');
-      // Backend now falls back to the agent's own hub city and the order's
-      // known destination if these are omitted, but sending them directly
-      // (already visible on-screen from the lookup) avoids relying on that
-      // fallback and lets the agent correct the destination if it's wrong.
-      await api.patch(`/orders/${onlineOrderId.trim()}/super-agent-receive`, {
-        originCity: profile?.city || undefined,
-        destinationCity: orderLookup?.destinationCity || orderLookup?.guessedCity || undefined,
-      });
-      setSuccess(`✅ Agizo #${onlineOrderId} limepokewa hubuni!`);
-      setOnlineOrderId(''); setOrderLookup(null);
-      setPokeaMode('list'); fetchAll();
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kupokea');
-    } finally { setActionLoading(false); }
-  };
 
   // ── Confirm arrival handlers ──────────────────────────────────────────────
 
@@ -1138,9 +1103,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 </button>
 
                 <div style={officeSection}>KUTOKA KENTEXA</div>
-                <div style={{ fontSize: 13, color: '#475569', margin: '-4px 0 10px' }}>Oda za sokoni, mizigo ya wateja na oda za wauzaji. Anayetuma ndiye analipa ada ya usafiri.</div>
+                <div style={{ fontSize: 13, color: '#475569', margin: '-4px 0 10px' }}>Orodha moja: oda za sokoni, oda za wauzaji na mizigo ya wateja, zote kwa namba moja ya mzigo. Andika namba yoyote kupokea. Anayetuma ndiye analipa ada ya usafiri.</div>
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
-                <HubExpectedShipments onReceived={() => { fetchAll(); setReceivedCount((n) => n + 1); }} />
+                <HubExpectedShipments officeCity={profile?.city} onReceived={() => { fetchAll(); setReceivedCount((n) => n + 1); }} />
                 {/* Send-form parcels received here: record what the sender paid (2026-10-24). */}
                 <OfficeShipmentPayments refreshKey={receivedCount} />
                 {handoverRequests.length > 0 && (
@@ -1157,7 +1122,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ))}
                   </section>
                 )}
-                <OfficeRow testId="pokea-order" title="Pokea oda kwa namba" hint="Oda ya sokoni au ya muuzaji ambayo haiko kwenye orodha" onClick={() => setPokeaMode('online_order')} />
 
                 <div style={officeSection}>KUTOKA OFISI NYINGINE</div>
                 {/* Incoming intercity parcels */}
@@ -1503,147 +1467,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* ── B) ONLINE ORDER ──────────────────────────────────────── */}
-            {pokeaMode === 'online_order' && (
-              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between',
-                  alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
-                    Pokea oda
-                  </div>
-                  <button onClick={() => setPokeaMode('list')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 20, color: '#64748b' }}>×</button>
-                </div>
-                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-                  Muuzaji ameleta mzigo. Weka namba ya oda yake ili kuthibitisha.
-                  Muuzaji analipa ada ya usafirishaji hapa ofisini; KenteXa hailipi.
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <input type="text" placeholder="Namba ya Agizo (e.g. 147)"
-                    value={onlineOrderId}
-                    onChange={e => { setOnlineOrderId(e.target.value); setOrderLookup(null); }}
-                    style={{ ...inp, flex: 1 }} />
-                  <button onClick={handleLookupOrder} disabled={lookupLoading}
-                    style={{ backgroundColor: '#64748b', color: '#fff', border: 'none',
-                      padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }}>
-                    {lookupLoading ? '⏳' : '🔍'}
-                  </button>
-                </div>
-
-                {orderLookup && (() => {
-                  const isCod         = !!orderLookup.isCod && !orderLookup.codBalanceCollected;
-                  const isOnlinePaid  = !isCod && orderLookup.source === 'online' && orderLookup.paymentStatus === 'paid';
-                  const isOffline     = !isCod && ['offline', 'offline_intercity', 'seller_shipment'].includes(orderLookup.source);
-                  const shippingFee   = Number(orderLookup.deliveryFeeAmount || orderLookup.shippingFee || 0);
-                  return (
-                    <div style={{ borderRadius: 12, padding: 14, marginBottom: 14,
-                      border: `2px solid ${isCod ? '#93c5fd' : isOnlinePaid ? '#86efac' : isOffline ? '#fed7aa' : '#e2e8f0'}`,
-                      backgroundColor: isCod ? '#eff6ff' : isOnlinePaid ? '#f0fdf4' : isOffline ? '#fff7ed' : '#f8fafc' }}>
-
-                      {/* Payment status header */}
-                      {isCod ? (
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 10 }}>
-                          🚚 Agizo la KenteXa — Malipo Baada ya Kupokea (COD)
-                        </div>
-                      ) : isOnlinePaid ? (
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#15803d', marginBottom: 10 }}>
-                          Oda ya sokoni — mteja amemlipa muuzaji
-                        </div>
-                      ) : isOffline ? (
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#c2410c', marginBottom: 10 }}>
-                          💵 Agizo la Nje ya Mtandao — Seller Analipa Cash Sasa
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', marginBottom: 10 }}>
-                          📋 Agizo Limepatikana
-                        </div>
-                      )}
-
-                      {/* COD banner — the amount to collect from the BUYER at
-                          delivery, distinct from Ada ya Usafirishaji below
-                          (which is KenteXa's own shipping fee, unrelated to
-                          what the buyer still owes for the goods). */}
-                      {isCod && (
-                        <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8,
-                          backgroundColor: '#dbeafe', border: '1px solid #93c5fd' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
-                              Kusanya kutoka kwa Mteja
-                            </span>
-                            <span style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8' }}>
-                              TZS {Number(orderLookup.codRemainingBalance || 0).toLocaleString()}
-                            </span>
-                          </div>
-                          {Number(orderLookup.codUpfrontAmount || 0) > 0 && (
-                            <div style={{ fontSize: 11, marginTop: 4, color: '#1e40af' }}>
-                              Mteja tayari amelipa TZS {Number(orderLookup.codUpfrontAmount).toLocaleString()} mtandaoni.
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Order details */}
-                      {[
-                        ['Bidhaa',   orderLookup.productName || orderLookup.description || orderLookup.manualProductName || '—'],
-                        ['Mteja',    orderLookup.buyerName   || orderLookup.recipientName || '—'],
-                        ['Simu',     orderLookup.buyerPhone  || orderLookup.recipientPhone || '—'],
-                        ['Kwenda',   orderLookup.destinationCity || orderLookup.deliveryAddress || '—'],
-                      ].map(([l, v]) => (
-                        <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
-                          fontSize: 12, padding: '5px 0',
-                          borderBottom: `1px solid ${isOnlinePaid ? '#dcfce7' : isOffline ? '#fed7aa' : '#f1f5f9'}` }}>
-                          <span style={{ color: '#64748b' }}>{l}</span>
-                          <span style={{ fontWeight: 700, color: '#1e293b' }}>{v}</span>
-                        </div>
-                      ))}
-
-                      {/* Shipping fee — the most important part */}
-                      <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8,
-                        backgroundColor: isOnlinePaid ? '#dcfce7' : isOffline ? '#fed7aa' : '#f1f5f9' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between',
-                          alignItems: 'center' }}>
-                          <span style={{ fontSize: 12, fontWeight: 700,
-                            color: isOnlinePaid ? '#15803d' : isOffline ? '#92400e' : '#475569' }}>
-                            Ada ya Usafirishaji
-                          </span>
-                          <span style={{ fontSize: 18, fontWeight: 900,
-                            color: isOnlinePaid ? '#15803d' : isOffline ? '#c2410c' : '#1e293b' }}>
-                            {shippingFee > 0 ? `TZS ${shippingFee.toLocaleString()}` : '—'}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 11, marginTop: 4,
-                          color: isOnlinePaid ? '#16a34a' : isOffline ? '#92400e' : '#64748b' }}>
-                          {isOnlinePaid
-                            ? 'Mteja amemlipa muuzaji. Kusanya ada ya usafiri kutoka kwa muuzaji.'
-                            : isOffline
-                            ? '💵 Kusanya cash kutoka kwa seller KABLA ya kupokea kifurushi'
-                            : ''}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={handleReceiveOnline}
-                    disabled={actionLoading || !onlineOrderId.trim()}
-                    style={{ flex: 2, backgroundColor: !onlineOrderId.trim() ? '#94a3b8' : '#1d4ed8',
-                      color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                      cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
-                    {actionLoading ? '⏳' : '✅ Pokea Hubuni'}
-                  </button>
-                  <button onClick={() => { setPokeaMode('list'); setOrderLookup(null); }}
-                    style={{ flex: 1, background: '#fff', color: '#64748b',
-                      border: '2px solid #e2e8f0', padding: 14, borderRadius: 10,
-                      cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                    Ghairi
-                  </button>
-                </div>
               </div>
             )}
 

@@ -19,11 +19,13 @@ const plain = (v) => String(v || '').toUpperCase().replace(/[\s-]/g, '');
 // sender (customer, seller or business) pays the office.
 export const KIND_LABEL = { marketplace: 'Oda ya sokoni', seller: 'Oda ya muuzaji', shipment: 'Mzigo wa mteja' };
 
-export default function HubExpectedShipments({ onReceived }) {
+export default function HubExpectedShipments({ onReceived, officeCity }) {
   const [rows, setRows] = useState([]);
   const [number, setNumber] = useState('');
   const [busy, setBusy] = useState(null);
   const [message, setMessage] = useState(null);
+  // An order found by its number that is not in the list yet (a seller brought it unannounced).
+  const [found, setFound] = useState(null);
 
   const load = useCallback(async () => {
     try { const res = await api.get('/pickup-tasks/hub/expected'); setRows(res.data || []); }
@@ -36,7 +38,7 @@ export default function HubExpectedShipments({ onReceived }) {
     try {
       await request();
       setMessage({ type: 'ok', text: okText });
-      setNumber('');
+      setNumber(''); setFound(null);
       await load();
       if (onReceived) onReceived();
     } catch (err) {
@@ -55,19 +57,36 @@ export default function HubExpectedShipments({ onReceived }) {
     `${label(row)} imepokewa kutoka kwa wakala.`);
 
   const typed = number.trim().toUpperCase();
-  // A typed number that is a marketplace order in the list goes to its order step.
-  const receiveTyped = () => {
-    const row = rows.find((r) => [r.waybill, r.trackingNumber].some((n) => n && plain(n) === plain(typed)));
+  // ONE box for every parcel (owner 2026-10-26: "one tab, not three - they use the same
+  // waybill"): the waybill, the order number or the tracking number. The list is checked
+  // first; then an order by that number (marketplace or seller order) is shown to receive;
+  // anything else is a parcel the sender brings.
+  const receiveTyped = async () => {
+    setMessage(null); setFound(null);
+    const row = rows.find((r) => [r.waybill, r.trackingNumber].some((n) => n && plain(n) === plain(typed))
+      || (r.orderId != null && plain(typed).replace(/^KTXORD/, '') === String(r.orderId)));
     if (row?.nextAction === 'receive_order') return receiveOrder(row);
+    if (row?.nextAction === 'confirm_agent_handover') return confirmAgentHandover(row);
+    if (row) return receiveFromSender(row.trackingNumber, label(row));
+    setBusy(typed);
+    const order = await api.get(`/orders/${encodeURIComponent(typed)}/agent-lookup`).then((r) => r.data).catch(() => null);
+    setBusy(null);
+    if (order?.orderId) { setFound(order); return undefined; }
     return receiveFromSender(typed);
   };
+  const receiveFound = () => act(`order-${found.orderId}`,
+    () => api.patch(`/orders/${found.orderId}/super-agent-receive`, {
+      originCity: officeCity || undefined, destinationCity: found.destinationCity || undefined,
+    }),
+    `Oda #${found.orderId} imepokewa ofisini.`);
+  const foundKind = found ? (found.source === 'online' ? 'marketplace' : 'seller') : null;
   return (
     <div style={{ marginBottom: 20 }} data-testid="hub-expected-shipments">
       <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
         Mizigo inayokuja ofisini ({rows.length})
       </div>
       <div style={{ ...card, display: 'flex', gap: 8 }}>
-        <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="Namba ya mzigo, mfano KTX 4829 1037 52" aria-label="Namba ya mzigo"
+        <input value={number} onChange={(e) => { setNumber(e.target.value); setFound(null); }} placeholder="Namba ya mzigo au ya oda, mfano KTX 4829 1037 52" aria-label="Namba ya mzigo"
           style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, border: '1px solid #E2E8F0', fontSize: 14 }} />
         <button style={btn} disabled={!typed || busy === typed} onClick={receiveTyped}>Pokea</button>
       </div>
@@ -75,6 +94,19 @@ export default function HubExpectedShipments({ onReceived }) {
         <div role={message.type === 'error' ? 'alert' : 'status'} style={{ ...card, padding: 10, fontSize: 12, fontWeight: 700,
           color: message.type === 'error' ? '#B91C1C' : '#065F46', backgroundColor: message.type === 'error' ? '#FEF2F2' : '#ECFDF5' }}>
           {message.text}
+        </div>
+      )}
+      {found && (
+        <div data-testid="found-order" style={{ ...card, border: '2px solid #1d4ed8' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            <strong style={{ fontSize: 14 }}>Oda #{found.orderId}</strong>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e3a8a', border: '1px solid #1e3a8a', borderRadius: 6, padding: '2px 6px' }}>{KIND_LABEL[foundKind]}</span>
+          </div>
+          <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>{found.productName || 'Mzigo'} → {found.destinationCity || found.deliveryAddress}</div>
+          <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Muuzaji (analipa ada ya usafiri): {found.sellerName}{found.sellerPhone && found.sellerPhone !== '—' ? ` · ${found.sellerPhone}` : ''}</div>
+          <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Mpokeaji: {found.recipientName || found.buyerName}</div>
+          {found.isCod && <div style={{ fontSize: 12, color: '#1d4ed8', marginTop: 4, fontWeight: 700 }}>Mpokeaji analipa akipokea.</div>}
+          <button style={{ ...btn, marginTop: 10 }} disabled={busy === `order-${found.orderId}`} onClick={receiveFound}>Pokea oda hii</button>
         </div>
       )}
       {rows.map((row) => (
