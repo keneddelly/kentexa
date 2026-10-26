@@ -3,7 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import api from '../../api/api';
 import CreateMomentModal from './CreateMomentModal';
 
-jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(() => Promise.resolve({ data: [] })), post: jest.fn() } }));
+jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
+
+// CRA resets mocks before each test: set the answers here.
+beforeEach(() => { api.get.mockResolvedValue({ data: [] }); api.post.mockResolvedValue({ data: {} }); });
 // A stable t: the modal's item effect depends on it.
 const mockT = (k) => k;
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: mockT }) }));
@@ -28,7 +31,6 @@ test('a sale written as a Moment goes to the classified form, filled in', async 
 
 test('"Hapana, ni Moment tu" keeps it a Moment', async () => {
   const onNavigate = jest.fn();
-  api.post.mockResolvedValue({ data: {} });
   open(onNavigate);
   fireEvent.change(document.querySelector('textarea'), { target: { value: 'Sofa inauzwa' } });
   fireEvent.click(await screen.findByTestId('keep-moment'));
