@@ -5840,7 +5840,8 @@
     "status_active": "Actif",
     "status_suspended": "Suspendu",
     "status_rejected": "Refusé : vous pouvez refaire une demande",
-    "transport": "Transporteur (bus, camion, van)"
+    "transport": "Transporteur (bus, camion, van)",
+    "advertiser": "Annonceur (amenez des gens, gagnez une commission)"
   },
   "seller_signup": {
     "identity_waiting_note": "Vous pouvez faire la demande maintenant. La boutique sera approuvée et visible après la vérification de votre identité.",

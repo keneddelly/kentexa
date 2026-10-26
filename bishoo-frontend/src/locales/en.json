@@ -5861,7 +5861,8 @@
     "status_active": "Active",
     "status_suspended": "Suspended",
     "status_rejected": "Rejected: you can apply again",
-    "transport": "Transporter (bus, truck, van)"
+    "transport": "Transporter (bus, truck, van)",
+    "advertiser": "Advertiser (bring people, earn commission)"
   },
   "seller_signup": {
     "identity_waiting_note": "You can apply now. The store is approved and shown to customers after your ID is verified.",

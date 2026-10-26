@@ -20,7 +20,14 @@ export default function AdminAdvertisers({ activePage, onNavigate, onLogout }) {
   const [confirmPay, setConfirmPay] = useState(null);
   const [copied, setCopied] = useState(null);
 
-  const load = () => api.get('/advertisers').then((r) => { setData(r.data); setRates(r.data?.rates || {}); }).catch((e) => setMsg(e?.response?.data?.message || 'Imeshindikana kupakia'));
+  const [apps, setApps] = useState([]);
+  const [rejecting, setRejecting] = useState(null);
+  const [reason, setReason] = useState('');
+  const load = () => Promise.all([
+    api.get('/advertisers').then((r) => { setData(r.data); setRates(r.data?.rates || {}); }),
+    // Self-service applications (people who asked to become advertisers).
+    api.get('/advertisers/applications').then((r) => setApps(r.data?.applications || [])).catch(() => setApps([])),
+  ]).catch((e) => setMsg(e?.response?.data?.message || 'Imeshindikana kupakia'));
   useEffect(() => { load(); }, []);
   const run = async (fn, ok) => {
     setBusy(true); setMsg('');
@@ -49,6 +56,35 @@ export default function AdminAdvertisers({ activePage, onNavigate, onLogout }) {
         {data && !data.ready && <div style={card}>Matangazo yatawashwa baada ya migration 1793100000000 kufanyika.</div>}
         {data?.ready && (
           <>
+            {apps.length > 0 && (
+              <div style={{ ...card, border: '1px solid #bfdbfe' }} data-testid="adv-applications">
+                <div style={{ fontWeight: 800, marginBottom: 10 }}>Maombi mapya ({apps.length})</div>
+                {apps.map((ap, i) => (
+                  <div key={ap.id} data-testid={`adv-app-${ap.id}`} style={{ borderTop: i ? '1px solid #f1f5f9' : 0, padding: '10px 0', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    <div style={{ flex: '1 1 260px', fontSize: 13 }}>
+                      <strong style={{ fontSize: 14 }}>{ap.name}</strong> · {ap.phone}{ap.area ? ` · ${ap.area}` : ''}
+                      {ap.plan && <div style={{ color: '#475569', marginTop: 2 }}>{ap.plan}</div>}
+                      <div style={{ color: '#94a3b8', marginTop: 2 }}>{ap.createdAt ? new Date(ap.createdAt).toLocaleDateString('en-GB') : ''}</div>
+                    </div>
+                    {rejecting === ap.id ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input aria-label="Sababu ya kukataa" placeholder="Sababu (mwombaji ataiona)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ ...input, width: 240 }} />
+                        <button style={btn('#b91c1c', busy || reason.trim().length < 3)} disabled={busy || reason.trim().length < 3}
+                          onClick={async () => { if (await run(() => api.post(`/advertisers/applications/${ap.id}/reject`, { reason }), `Ombi la ${ap.name} limekataliwa.`)) { setRejecting(null); setReason(''); } }}>Kataa ombi</button>
+                        <button style={btn('#475569', busy)} disabled={busy} onClick={() => { setRejecting(null); setReason(''); }}>Ghairi</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={btn('#15803d', busy)} disabled={busy}
+                          onClick={() => run(() => api.post(`/advertisers/applications/${ap.id}/accept`), `${ap.name} amekubaliwa. Kiungo chake kipo kwenye jedwali hapa chini na kwenye ukurasa wake.`)}>Kubali</button>
+                        <button style={btn('#475569', busy)} disabled={busy} onClick={() => { setRejecting(ap.id); setReason(''); }}>Kataa</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div style={card}>
               <div style={{ fontWeight: 800, marginBottom: 10 }}>Kamisheni kwa kila hatua (TZS)</div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>

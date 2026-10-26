@@ -18,6 +18,20 @@ export class AdvertisersController {
     return this.service.mine(req.user.id, req.user.phone);
   }
 
+  // ── Self-service: ask to become an advertiser, see where it stands ──────
+  @UseGuards(JwtAuthGuard)
+  @Get('application/me')
+  @Header('Cache-Control', 'no-store')
+  myApplication(@Request() req) {
+    return this.service.myApplication(req.user.id, req.user.phone);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('apply')
+  apply(@Request() req, @Body() body: Record<string, unknown>) {
+    return this.service.apply(req.user.id, req.user.phone, body);
+  }
+
   // ── Public: who invited the visitor (registration page shows the name) ──
   @Get('invite/:code')
   @Header('Cache-Control', 'public, max-age=300')
@@ -32,6 +46,28 @@ export class AdvertisersController {
   @Header('Cache-Control', 'no-store')
   list() {
     return this.service.list();
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.ADMIN)
+  @Get('applications')
+  @Header('Cache-Control', 'no-store')
+  applications() {
+    return this.service.applications();
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.ADMIN)
+  @Post('applications/:id/accept')
+  accept(@Param('id', ParseIntPipe) id: number) {
+    return this.service.accept(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.ADMIN)
+  @Post('applications/:id/reject')
+  reject(@Param('id', ParseIntPipe) id: number, @Body() body: { reason?: string }) {
+    return this.service.reject(id, body?.reason);
   }
 
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)

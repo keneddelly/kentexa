@@ -17,7 +17,19 @@ export const WORK_ROLES = [
   // Msafirishaji (bus, truck, van; owner 2026-10-14). Its dashboard only
   // opens inside the transport role, so the role is switched first.
   { key: 'transport', roleType: 'transport_provider', recordKey: 'transport', page: 'BecomeTransportProvider', activePage: 'TransportProviderDashboard', switchRole: true },
+  // Mtangazaji (owner 2026-10-26): brings people through a link and earns commission.
+  // No account role: the record is the application (GET /advertisers/application/me),
+  // and KenteXa decides without waiting for the ID check. One page for all states.
+  { key: 'advertiser', recordKey: 'advertiser', recordWins: true, noIdentityWait: true, page: 'MyAdvertising' },
 ];
+
+/** The advertiser's status from GET /advertisers/application/me. */
+export function advertiserRecord(data) {
+  if (!data) return null;
+  if (data.isAdvertiser) return { status: 'active' };
+  const s = data.application?.status;
+  return s === 'pending' ? { status: 'pending' } : s === 'rejected' ? { status: 'rejected' } : null;
+}
 
 /** The service provider's status from their own ads (GET /services/my/ads). */
 export function serviceRecordFromAds(ads) {
@@ -45,14 +57,14 @@ const FROM_ROLE_ROW = {
  * waiting_id = the request waits because the person's ID is not verified yet
  * (nothing becomes public and no money moves until then).
  */
-export function workRoleStatus({ record, roleRow, identity, recordWins = false }) {
+export function workRoleStatus({ record, roleRow, identity, recordWins = false, noIdentityWait = false }) {
   // The role row is the final word once the role is active or stopped
   // (except where the record wins, see WORK_ROLES service).
   const fromRow = roleRow ? FROM_ROLE_ROW[roleRow.status] : null;
   const fromRecord = record ? FROM_RECORD[record.status] : null;
   let status = recordWins && fromRecord ? fromRecord
     : fromRow === 'active' || fromRow === 'suspended' ? fromRow : (fromRecord || fromRow || 'none');
-  if (status === 'waiting' && identityState(identity) !== 'verified') status = 'waiting_id';
+  if (status === 'waiting' && !noIdentityWait && identityState(identity) !== 'verified') status = 'waiting_id';
   return status;
 }
 

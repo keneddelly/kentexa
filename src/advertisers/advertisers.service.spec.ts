@@ -87,3 +87,71 @@ describe('AdvertisersService.inviter', () => {
     await expect(service.inviter("x'; drop")).resolves.toBeNull();
   });
 });
+
+describe('AdvertisersService applications', () => {
+  const make = (impl: (sql: string, p: any[]) => any) => {
+    const db: any = { query: jest.fn(async (sql: string, p: any[] = []) => {
+      if (sql.includes('to_regclass')) return [{ ok: true }];
+      return impl(sql.replace(/\s+/g, ' '), p);
+    }) };
+    return { svc: new AdvertisersService(db), db };
+  };
+
+  describe('applications (self-service)', () => {
+    it('a user applies once; the phone falls back to their account phone; advertisers and duplicates are refused', async () => {
+      let pending = false;
+      const { svc, db } = make((sql) => {
+        if (sql.includes('SELECT id FROM public.advertiser WHERE "userId"')) return [];
+        if (sql.includes('SELECT id FROM public.advertiser WHERE phone')) return [];
+        if (sql.includes('INSERT INTO public.advertiser_application')) {
+          if (pending) return [];
+          pending = true;
+          return [{ id: 3, name: 'Asha', phone: '255713000000', area: 'Mwanza', plan: null, status: 'pending' }];
+        }
+        return [];
+      });
+      await expect(svc.apply(50, '0713 000 000', { name: 'Asha', area: 'Mwanza' })).resolves.toMatchObject({ id: 3, status: 'pending' });
+      const insert = db.query.mock.calls.find((c: any[]) => String(c[0]).includes('INSERT INTO public.advertiser_application'));
+      expect(insert[1]).toEqual([50, 'Asha', '255713000000', 'Mwanza', null]);
+      await expect(svc.apply(50, '0713 000 000', { name: 'Asha' })).rejects.toThrow(ADVERTISER_MESSAGES.alreadyApplied);
+      await expect(svc.apply(50, null, { name: 'A' })).rejects.toThrow(ADVERTISER_MESSAGES.badName);
+    });
+
+    it('an existing advertiser cannot apply', async () => {
+      const { svc } = make((sql) => (sql.includes('SELECT id FROM public.advertiser WHERE "userId"') ? [{ id: 4 }] : []));
+      await expect(svc.apply(50, '0713000000', { name: 'Asha' })).rejects.toThrow(ADVERTISER_MESSAGES.alreadyAdvertiser);
+    });
+
+    it('accept creates the advertiser for THAT user and gives the link; a decided application cannot be accepted again', async () => {
+      process.env.FRONTEND_URL = 'https://kentexa.com';
+      let decided = false;
+      const { svc, db } = make((sql) => {
+        if (sql.includes("SET status = 'accepted'")) { if (decided) return []; decided = true; return [{ id: 3, userId: 50, name: 'Asha', phone: '255713000000' }]; }
+        if (sql.includes('SELECT id FROM public.advertiser WHERE phone')) return [];
+        if (sql.includes('INSERT INTO public.advertiser (')) return [{ id: 11, code: 'KABC123' }];
+        return [];
+      });
+      await expect(svc.accept(3)).resolves.toMatchObject({ id: 11, link: 'https://kentexa.com/?ref=KABC123', userLinked: true });
+      const insert = db.query.mock.calls.find((c: any[]) => String(c[0]).includes('INSERT INTO public.advertiser ('));
+      expect(insert[1][0]).toBe(50);
+      expect(db.query.mock.calls.some((c: any[]) => String(c[0]).includes('SET "advertiserId" = $2'))).toBe(true);
+      await expect(svc.accept(3)).rejects.toThrow(ADVERTISER_MESSAGES.appNotFound);
+    });
+
+    it('if creating the advertiser fails, the application goes back to pending', async () => {
+      const { svc, db } = make((sql) => {
+        if (sql.includes("SET status = 'accepted'")) return [{ id: 3, userId: 50, name: 'Asha', phone: '255713000000' }];
+        if (sql.includes('SELECT id FROM public.advertiser WHERE phone')) return [{ id: 2 }];
+        return [];
+      });
+      await expect(svc.accept(3)).rejects.toThrow(ADVERTISER_MESSAGES.taken);
+      expect(db.query.mock.calls.some((c: any[]) => String(c[0]).includes("SET status = 'pending'"))).toBe(true);
+    });
+
+    it('reject needs a reason', async () => {
+      const { svc } = make((sql) => (sql.includes("SET status = 'rejected'") ? [{ id: 3, status: 'rejected', reason: 'Hakuna eneo' }] : []));
+      await expect(svc.reject(3, '')).rejects.toThrow(ADVERTISER_MESSAGES.badReason);
+      await expect(svc.reject(3, 'Hakuna eneo')).resolves.toMatchObject({ status: 'rejected', reason: 'Hakuna eneo' });
+    });
+  });
+});
