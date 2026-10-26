@@ -127,3 +127,31 @@ test('Kutoka KenteXa: each parcel says where it came from (marketplace order, se
   expect(screen.getByTestId('kind-23')).toHaveTextContent('Mzigo wa mteja');
   expect(screen.getAllByText(/analipa ada ya usafiri/)).toHaveLength(3);
 });
+
+test('one box for all three: an order not in the list is found by its number and received there', async () => {
+  api.get.mockImplementation(async (url) => {
+    if (url === '/pickup-tasks/hub/expected') return { data: [] };
+    if (url === '/orders/KTX%204829%201037%2052/agent-lookup') return { data: { orderId: 90, source: 'seller_shipment', productName: 'Taa', destinationCity: 'Mbeya', sellerName: 'Duka la Neema', sellerPhone: '0754000111', recipientName: 'Juma' } };
+    return { data: null };
+  });
+  api.patch.mockResolvedValue({ data: {} });
+  render(<HubExpectedShipments officeCity="Dar es Salaam" />);
+  fireEvent.change(await screen.findByLabelText('Namba ya mzigo'), { target: { value: 'ktx 4829 1037 52' } });
+  fireEvent.click(screen.getByText('Pokea'));
+  expect(await screen.findByTestId('found-order')).toHaveTextContent('Oda ya muuzaji');
+  expect(api.patch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText('Pokea oda hii'));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/orders/90/super-agent-receive', { originCity: 'Dar es Salaam', destinationCity: 'Mbeya' }));
+});
+
+test('one box: a number that is not an order is received as the sender\'s parcel', async () => {
+  api.get.mockImplementation(async (url) => {
+    if (url === '/pickup-tasks/hub/expected') return { data: [] };
+    throw new Error('not an order');
+  });
+  api.patch.mockResolvedValue({ data: {} });
+  render(<HubExpectedShipments />);
+  fireEvent.change(await screen.findByLabelText('Namba ya mzigo'), { target: { value: 'KTX-SHP-5' } });
+  fireEvent.click(screen.getByText('Pokea'));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/super-agents/parcels/KTX-SHP-5/status', { status: 'received_at_hub' }));
+});
