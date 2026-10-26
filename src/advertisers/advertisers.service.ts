@@ -225,4 +225,25 @@ export class AdvertisersService {
       users: users.map((u) => ({ name: first(u.name), joinedAt: u.createdAt, earned: u.earned })),
     };
   }
+
+  // ── Who invited this visitor (public; a name only) ──────────────────────
+
+  /**
+   * The registration page names who invited the visitor (owner 2026-10-26): an
+   * advertiser's link (K......) or an office's (its referral code). A name only,
+   * never a phone or anything else; an unknown or inactive code answers nothing.
+   */
+  async inviter(code: string): Promise<{ kind: 'advertiser' | 'office'; name: string } | null> {
+    const c = String(code || '').trim();
+    if (!/^[A-Za-z0-9-]{3,24}$/.test(c)) return null;
+    if (await this.isReady()) {
+      const [adv] = await this.db.query(`SELECT name FROM public.advertiser WHERE code = $1 AND active = true`, [c.toUpperCase()]).catch(() => []);
+      if (adv?.name) return { kind: 'advertiser', name: String(adv.name).slice(0, 100) };
+    }
+    const [office] = await this.db.query(
+      `SELECT "businessName" FROM public.super_agent WHERE "referralCode" = $1 AND status::text = 'active'
+          AND COALESCE("isTrainingOffice", false) = false LIMIT 1`, [c]).catch(() => []);
+    return office?.businessName ? { kind: 'office', name: String(office.businessName).slice(0, 100) } : null;
+  }
+
 }

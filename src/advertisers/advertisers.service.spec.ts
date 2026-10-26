@@ -62,3 +62,28 @@ describe('AdvertisersService', () => {
     expect(await svc.list()).toEqual({ ready: false, advertisers: [], rates: null });
   });
 });
+
+describe('AdvertisersService.inviter', () => {
+  const make = (rows: Record<string, any[]>) => {
+    const db: any = { query: jest.fn(async (sql: string) => {
+      if (sql.includes('to_regclass')) return [{ ok: true }];
+      for (const [k, v] of Object.entries(rows)) if (sql.includes(k)) return v;
+      return [];
+    }) };
+    return { db, service: new AdvertisersService(db) };
+  };
+  it("names the advertiser behind a link, case-insensitive", async () => {
+    const { service, db } = make({ 'FROM public.advertiser WHERE code': [{ name: 'Juma Matangazo' }] });
+    await expect(service.inviter('k3f9a1')).resolves.toEqual({ kind: 'advertiser', name: 'Juma Matangazo' });
+    expect(db.query.mock.calls.find(([sql]: any[]) => sql.includes('FROM public.advertiser WHERE code'))[1]).toEqual(['K3F9A1']);
+  });
+  it('names an office behind its referral link', async () => {
+    const { service } = make({ 'FROM public.super_agent': [{ businessName: 'Samatta Transportation' }] });
+    await expect(service.inviter('KTX-SA-12')).resolves.toEqual({ kind: 'office', name: 'Samatta Transportation' });
+  });
+  it('unknown or malformed codes answer nothing', async () => {
+    const { service } = make({});
+    await expect(service.inviter('NOPE99')).resolves.toBeNull();
+    await expect(service.inviter("x'; drop")).resolves.toBeNull();
+  });
+});
