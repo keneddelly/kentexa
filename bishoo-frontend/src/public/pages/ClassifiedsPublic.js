@@ -1,12 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import WishlistHeart from '../components/WishlistHeart';
 import api from '../../api/api';
 import { useTranslation } from 'react-i18next';
+import { SkeletonGrid } from '../components/Loading';
+import { DK, GR, WH, LINE, Icon, I, ClassifiedCard } from '../components/ListingCard';
 
-const B  = '#2563EB';
-const DK = '#0F172A';
-const GR = '#64748B';
-const WH = '#FFFFFF';
+/** All listings, filterable by category and words (owner 2026-10-26 redesign: same look as Soko, no emoji). */
 
 const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [classifieds, setClassifieds] = useState([]);
@@ -20,12 +18,12 @@ const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   // its own key set, including an 'other' filter chip that never matched
   // anything (the real backend category was 'general'), silently filtering
   // to zero results whenever clicked.
-  const [categories, setCategories] = useState([{ key: 'all', icon: '🔥', label: 'All' }]);
+  const [categories, setCategories] = useState([{ key: 'all', label: 'Zote' }]);
   useEffect(() => {
     api.get('/categories').then(res => {
       setCategories([
-        { key: 'all', icon: '🔥', label: 'All' },
-        ...(res.data || []).map(c => ({ key: c.key, icon: c.icon, label: c.label })),
+        { key: 'all', label: 'Zote' },
+        ...(res.data || []).map(c => ({ key: c.key, label: c.label })),
       ]);
     }).catch(() => {});
   }, []);
@@ -61,156 +59,70 @@ const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     return matchCat && matchSearch && c.status === 'active';
   });
 
-  const statusColor = (status) => ({
-    active:  { backgroundColor: '#DCFCE7', color: '#16A34A' },
-    sold:    { backgroundColor: '#FEE2E2', color: '#DC2626' },
-    expired: { backgroundColor: '#FEF9C3', color: '#CA8A04' },
-  }[status] || { backgroundColor: '#F1F5F9', color: GR });
+  const clearAll = () => { setSearch(''); setSearchInput(''); setFilter('all'); };
+  const chip = (on) => ({ flexShrink:0, height:36, padding:'0 14px', borderRadius:18, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap',
+    fontSize:14, fontWeight: on ? 700 : 600, border: on ? 'none' : '1px solid #cfd9de', backgroundColor: on ? DK : WH, color: on ? WH : DK });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F1F5F9',
-      paddingBottom: 90, fontFamily:'inherit' }}>
-      <style>{`
-        .cl-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
-        @media (min-width: 480px)  { .cl-grid { grid-template-columns: repeat(3,1fr); } }
-        @media (min-width: 700px)  { .cl-grid { grid-template-columns: repeat(4,1fr); } }
-        @media (min-width: 1000px) { .cl-grid { grid-template-columns: repeat(5,1fr); } }
-        .cl-card { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.07); border:1px solid #f1f5f9; cursor:pointer; transition:transform 0.2s,box-shadow 0.2s; }
-        .cl-card:hover { transform:translateY(-4px); box-shadow:0 10px 24px rgba(37,99,235,0.15); }
-        .cl-img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; }
-        .cl-img-ph { width:100%; aspect-ratio:4/3; background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:32px; }
-        .cl-scroll { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
-        .cl-scroll::-webkit-scrollbar { display:none; }
-      `}</style>
-
-      {/* ── Sticky top bar ── */}
-      <div style={{ backgroundColor: WH, borderBottom: '1px solid #F1F5F9', padding: '14px 16px',
-        position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', gap: 10,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-        <button onClick={() => onNavigate('Home')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={DK} strokeWidth="2.5">
-            <polyline points="15,18 9,12 15,6" />
-          </svg>
-        </button>
-        <span style={{ fontSize: 15, fontWeight: 800, color: DK }}>
-          📋 {t('classifieds.title')}
-        </span>
-      </div>
-
-      {/* Explore header */}
-      <div style={{ background: `linear-gradient(135deg,#1E1B4B,${B})`, padding: '16px 16px 14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-          {isLoggedIn && (
-            <button onClick={() => onNavigate('SellerClassifieds')}
-              style={{ backgroundColor: WH, color: B, border: 'none', padding: '8px 16px', borderRadius: 20,
-                cursor: 'pointer', fontSize: 12, fontWeight: 800, boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-              + Post Ad
-            </button>
-          )}
-        </div>
-
-        {/* Search bar */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <input
-            type="text"
-            placeholder="Search classifieds..."
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            onKeyPress={e => e.key === 'Enter' && handleSearch()}
-            style={{ flex: 1, padding: '10px 14px', borderRadius: 20, border: 'none', fontSize: 13, outline: 'none', backgroundColor: 'rgba(255,255,255,0.15)', color: WH, minWidth: 0 }}
-          />
-          <button onClick={handleSearch}
-            style={{ backgroundColor: WH, color: B, border: 'none', padding: '10px 16px', borderRadius: 20, cursor: 'pointer', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>
-            Search
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:WH, color:DK, paddingBottom:90, fontFamily:'inherit' }}>
+      <header style={{ position:'sticky', top:0, zIndex:100, backgroundColor:'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)',
+        borderBottom:`1px solid ${LINE}`, padding:'6px 16px 10px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:4, height:44 }}>
+          <button type="button" aria-label={t('common.back')} onClick={() => onNavigate('back')}
+            style={{ width:40, height:40, marginLeft:-8, borderRadius:20, border:'none', background:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Icon d="M15 6l-6 6 6 6" size={22} color={DK} />
           </button>
-          {(search || filter !== 'all') && (
-            <button onClick={() => { setSearch(''); setSearchInput(''); setFilter('all'); }}
-              style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: WH, border: 'none', padding: '10px 12px', borderRadius: 20, cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-              ✕ Clear
+          <h1 style={{ margin:0, fontSize:20, fontWeight:800, flex:1 }}>{t('classifieds.title')}</h1>
+          {isLoggedIn && (
+            <button type="button" onClick={() => onNavigate('CreateClassified')}
+              style={{ height:36, padding:'0 14px', borderRadius:18, border:'none', backgroundColor:DK, color:WH, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              Weka tangazo
             </button>
           )}
         </div>
-
-        {/* Category chips */}
-        <div className="cl-scroll">
+        <form role="search" onSubmit={e => { e.preventDefault(); handleSearch(); }}
+          style={{ display:'flex', alignItems:'center', gap:10, height:44, borderRadius:22, backgroundColor:LINE, padding:'0 6px 0 16px', marginTop:6 }}>
+          <Icon d={I.search} size={18} />
+          <input type="search" aria-label="Tafuta matangazo" placeholder="Tafuta matangazo" value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            style={{ flex:1, minWidth:0, border:'none', background:'none', outline:'none', fontSize:15, color:DK, fontFamily:'inherit' }} />
+          {searchInput.trim() && (
+            <button type="submit" style={{ height:34, padding:'0 14px', borderRadius:17, border:'none', backgroundColor:'#1d4ed8', color:WH, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Tafuta</button>
+          )}
+        </form>
+        <nav aria-label="Aina" style={{ display:'flex', gap:8, overflowX:'auto', scrollbarWidth:'none', marginTop:10 }}>
           {categories.map(cat => (
-            <button key={cat.key} onClick={() => handleCategoryClick(cat.key)}
-              style={{ padding: '6px 12px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, backgroundColor: filter === cat.key ? WH : 'rgba(255,255,255,0.14)', color: filter === cat.key ? B : WH, flexShrink: 0, whiteSpace: 'nowrap' }}>
-              {cat.icon} {cat.label}
-            </button>
+            <button type="button" key={cat.key} onClick={() => handleCategoryClick(cat.key)} style={chip(filter === cat.key)}>{cat.label}</button>
           ))}
-        </div>
+        </nav>
+      </header>
+
+      <div style={{ padding:'12px 16px 4px', fontSize:14, color:GR, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+        <span>{filtered.length} {t('classifieds.found')}</span>
+        {search && <span>· "{search}"</span>}
+        {(search || filter !== 'all') && (
+          <button type="button" onClick={clearAll} style={{ padding:0, border:'none', background:'none', color:'#1d4ed8', fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>Ondoa vichujio</button>
+        )}
       </div>
 
-      {/* Active filters */}
-      {(search || filter !== 'all') && (
-        <div style={{ padding: '8px 16px', backgroundColor: '#EFF6FF', borderBottom: '1px solid #BFDBFE', fontSize: 12, color: '#1D4ED8', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          🔍 Showing:
-          {filter !== 'all' && <span style={{ backgroundColor: B, color: WH, padding: '2px 8px', borderRadius: 10 }}>{categories.find(c => c.key === filter)?.icon} {filter}</span>}
-          {search && <span style={{ backgroundColor: B, color: WH, padding: '2px 8px', borderRadius: 10 }}>"{search}"</span>}
-          <span style={{ color: GR }}>· {filtered.length} results</span>
-        </div>
-      )}
-
-      {/* Count */}
-      {!search && filter === 'all' && (
-        <div style={{ padding: '8px 16px', fontSize: 12, color: GR, fontWeight: 600 }}>
-          {filtered.length} {t('classifieds.found')}
-        </div>
-      )}
-
-      {/* Grid */}
-      <div style={{ padding: '8px 16px 20px', flex: 1 }}>
+      <div style={{ padding:'8px 16px 20px', flex:1 }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: GR }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
-            Loading...
-          </div>
+          <SkeletonGrid count={6} />
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: WH, borderRadius: 16, color: '#94A3B8' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-            <p style={{ fontWeight: 700, color: DK, marginBottom: 6 }}>No listings found</p>
-            <p style={{ fontSize: 13 }}>
-              {search ? `No results for "${search}"` : 'No listings in this category yet'}
-            </p>
+          <div style={{ textAlign:'center', padding:'48px 20px', display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
+            <span style={{ width:56, height:56, borderRadius:28, backgroundColor:'#f7f9f9', display:'flex', alignItems:'center', justifyContent:'center' }}><Icon d={I.search} size={26} /></span>
+            <p style={{ fontWeight:800, fontSize:17, margin:0 }}>Hakuna matangazo</p>
+            <p style={{ fontSize:14, color:GR, margin:0 }}>{search ? `Hakuna matokeo ya "${search}"` : 'Bado hakuna matangazo kwenye aina hii'}</p>
             {(search || filter !== 'all') && (
-              <button onClick={() => { setSearch(''); setSearchInput(''); setFilter('all'); }}
-                style={{ marginTop: 12, backgroundColor: B, color: WH, border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                Show All Listings
+              <button type="button" onClick={clearAll}
+                style={{ marginTop:8, height:44, padding:'0 22px', borderRadius:22, border:'none', backgroundColor:DK, color:WH, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                Ona matangazo yote
               </button>
             )}
           </div>
         ) : (
-          <div className="cl-grid">
-            {filtered.map(item => (
-              <div key={item.id} className="cl-card" onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)}>
-                <div style={{ position: 'relative' }}>
-                  {item.images?.[0]
-                    ? <img src={item.images[0]} alt={item.title} className="cl-img" onError={e => { e.target.style.display='none'; }} />
-                    : <div className="cl-img-ph">📋</div>
-                  }
-                  <WishlistHeart classifiedId={item.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate}
-                    size={16} style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(255,255,255,0.92)',
-                      borderRadius: '50%', width: 28, height: 28 }} />
-                  <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, ...statusColor(item.status) }}>
-                    {item.status?.toUpperCase()}
-                  </span>
-                </div>
-                <div style={{ padding: '10px 10px 12px' }}>
-                  <span style={{ fontSize: 10, backgroundColor: '#EFF6FF', color: B, padding: '2px 7px', borderRadius: 8, fontWeight: 700 }}>
-                    {categories.find(c => c.key === item.category)?.icon || '📋'} {item.category?.replace(/_/g,' ')}
-                  </span>
-                  <h3 style={{ fontSize: 13, fontWeight: 700, color: DK, margin: '6px 0 4px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
-                    {item.title}
-                  </h3>
-                  <div style={{ fontSize: 14, fontWeight:800, color: B, marginBottom: 2 }}>
-                    TZS {Number(item.price).toLocaleString()}
-                  </div>
-                  {item.isNegotiable && <span style={{ fontSize: 10, color: GR, fontWeight: 600 }}>Negotiable · </span>}
-                  <span style={{ fontSize: 10, color: '#94A3B8' }}>📍 {item.location || 'Tanzania'}</span>
-                </div>
-              </div>
-            ))}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:'16px 12px' }}>
+            {filtered.map(item => <ClassifiedCard key={item.id} item={item} onNavigate={onNavigate} isLoggedIn={isLoggedIn} />)}
           </div>
         )}
       </div>

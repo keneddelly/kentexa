@@ -60,11 +60,11 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       <div className="cart-root">
         {cart.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: 8 }}>
-            <div style={{ fontSize: 56, marginBottom: 14 }}>🛒</div>
+            <div style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#f7f9f9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#536471" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 7h12l1 13H5zM9 7a3 3 0 016 0" /></svg></div>
             <h2 style={{ color: '#1e293b', marginBottom: 8, fontSize: 18 }}>{t('cart.empty')}</h2>
             <p style={{ color: '#64748b', marginBottom: 24, fontSize: 14 }}>{t('cart.empty_desc')}</p>
-            <button onClick={() => onNavigate('Stores')}
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '13px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+            <button onClick={() => onNavigate('Search')}
+              style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '13px 28px', borderRadius: 24, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
               {t('cart.browse')}
             </button>
           </div>
@@ -91,7 +91,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                       <div className="cart-item-img">
                         {item.images?.[0]
                           ? <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <span style={{ fontSize: 24 }}>📦</span>
+                          : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#cfd9de" strokeWidth="2" aria-hidden="true"><path d="M4 6h16v12H4zM8 14l3-3 3 3 2-2 3 3" /></svg>
                         }
                       </div>
 
