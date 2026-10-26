@@ -46,6 +46,7 @@ test('Washirika: own transport and partners, and an invitation from the office p
   expect(screen.getByTestId('office-partner-9').textContent).toMatch(/Mshirika/);
   fireEvent.click(screen.getByTestId('invite-carrier'));
   expect(screen.getByTestId('invite-carrier-send').getAttribute('href')).toMatch(/Ofisi%20ya%20Kariakoo/);
+});
 
 test('Mwanzo shows today only when the server counted it', () => {
   const noop = () => {};
