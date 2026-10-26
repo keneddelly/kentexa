@@ -3,6 +3,7 @@
  * Place at: src/public/pages/TransportProviderDashboard.js
  * Route: 'TransportProviderDashboard'
  */
+import TransportShehenaList from '../components/TransportShehenaList';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
@@ -483,6 +484,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
             { key: 'home',         label: t('transport_provider_dashboard.tab_home') },
             { key: 'assignments',  label: `${t('transport_provider_dashboard.tab_assignments')}${assignments.length > 0 ? ` (${assignments.length})` : ''}` },
             { key: 'routes',       label: t('transport_provider_dashboard.tab_routes') },
+            { key: 'shehena',      label: 'Shehena' },
             { key: 'van',          label: `Runs${vanRuns.length ? ` (${vanRuns.length})` : ''}` },
           ].map(tabItem => (
             <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
@@ -494,6 +496,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
             </button>
           ))}
         </div>
+
+        {/* Shehena offices loaded onto this transport (owner 2026-10-26) */}
+        {tab === 'shehena' && <TransportShehenaList />}
 
         {/* Home tab — pending assignments */}
         {tab === 'home' && (
