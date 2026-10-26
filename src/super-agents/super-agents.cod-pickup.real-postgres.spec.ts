@@ -37,7 +37,8 @@ const config = getB5BTestConnectionConfig();
       "deliveredAt" timestamp, "paymentMethod" varchar, source varchar, "sellerAmount" numeric,
       "codRemainingBalance" numeric, "codBalanceCollected" boolean DEFAULT false,
       "escrowStatus" varchar, "totalAmount" numeric, "codUpfrontAmount" numeric,
-      "codBalanceCollectedByAgentId" integer, "codBalanceCollectedAt" timestamp, "paymentStatus" varchar)`);
+      "codBalanceCollectedByAgentId" integer, "codBalanceCollectedAt" timestamp, "paymentStatus" varchar,
+      "completedAt" timestamp)`);
     await db.query(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "trackingNumber" varchar,
       status varchar NOT NULL, "buyerRequestedDelivery" boolean, "buyerPhone" varchar,
       "destinationSuperAgentId" integer, "destinationCity" varchar, "orderId" integer,

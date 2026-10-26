@@ -7,6 +7,7 @@ import { createHash, randomBytes, randomInt, randomUUID, scryptSync, timingSafeE
 import { DataSource } from 'typeorm';
 import { InvoicesService } from '../invoices/invoices.service';
 import { settleManualAgentCod } from '../super-agents/agent-cod-settlement';
+import { settleOrderOnDelivery } from '../orders/order-delivery-sync';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
 import { ShipmentHubSource } from './shipment-hub-source';
@@ -750,6 +751,9 @@ export class PickupTasksService {
         "updatedAt"=now() WHERE id=$1`, [taskId]);
       await this.recordTracking(em, p.id, 'delivered', s.destinationCity,
         'Handed to the recipient by the Agent; recipient code confirmed', agent.fullName ?? null, null, null, 'local_agent');
+      // The seller's order follows the handover: a paid seller shipment is completed, any
+      // other order is delivered (its escrow flow completes it). Before, only a COD order moved.
+      await settleOrderOnDelivery(em, p.orderId);
       await projectShipment(em, s.id);
       return { id: taskId, parcelId: p.id, status: 'delivered', replay: false };
     });

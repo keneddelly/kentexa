@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { agentHoldsDelivery, completeSettledSellerShipments, recordSellerCodReceived } from './order-delivery-sync';
 import { Cron } from '@nestjs/schedule';
 import {
   Injectable,
@@ -1497,11 +1498,17 @@ export class OrdersService {
       );
     }
 
-    await this.repo.update(orderId, {
-      codBalanceCollected: true,
-      codBalanceCollectedAt: new Date(),
-      paymentStatus: PaymentStatus.PAID,
-    });
+    // An Agent who has taken the delivery collects the cash at the door with the buyer's code;
+    // the seller marking it too would leave the Agent unable to finish the job.
+    if (await agentHoldsDelivery(this.repo.manager, orderId)) {
+      throw new BadRequestException(
+        'Wakala wa KenteXa ndiye anayepeleka mzigo huu na atapokea pesa kwa mteja. Usithibitishe wewe.',
+      );
+    }
+
+    // Seller's own sale: cash in hand means the buyer has the goods, so the order is completed
+    // (it used to stay "preparing"). A marketplace COD order keeps its escrow flow.
+    const status = await this.repo.manager.transaction((em) => recordSellerCodReceived(em, orderId));
 
     this.activityEvents.record({
       eventType: 'COD_BALANCE_COLLECTED',
@@ -1518,6 +1525,7 @@ export class OrdersService {
       message: `Salio la TZS ${remaining.toLocaleString()} limerekodiwa kama limekusanywa.`,
       orderId,
       codBalanceCollected: true,
+      status: status ?? order.status,
     };
   }
 
@@ -2923,6 +2931,9 @@ export class OrdersService {
 
   @Cron('0 8 * * *')
   async autoConfirmDeliveredOrders() {
+    // Seller shipments handed over and paid but left open by an older path: complete them.
+    await completeSettledSellerShipments(this.repo.manager).catch((e) =>
+      console.error(`Seller-shipment completion sweep failed: ${(e as Error).message}`));
     const now = new Date();
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
     const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);

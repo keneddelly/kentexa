@@ -14,6 +14,7 @@ import { checkChargedAmount, isDarEsSalaam } from './office-price';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
 import { agentCodSplit, codCollectedOrderUpdate, settleManualAgentCod } from './agent-cod-settlement';
+import { settleOrderOnDelivery } from '../orders/order-delivery-sync';
 import { insertSellerCodPickupTask } from '../shipments/pickup-tasks.service';
 import { offerTaskToSellerPartners } from '../partner-invitations/seller-agent-partner-gate';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -2995,6 +2996,7 @@ export class SuperAgentsService {
       if (parcel.order?.id) await manager.getRepository(Order).update(parcel.order.id, {
         status: OrderStatus.DELIVERED, deliveredAt: now,
       });
+      if (parcel.order?.id) await settleOrderOnDelivery(manager, parcel.order.id, now);
       // Gate 3: the Shipment is never set by hand -- it is derived from the
       // custody event and Parcel status just written (shipment-projection.ts).
       if (parcel.shipment?.id) await projectShipment(manager, parcel.shipment.id);
@@ -3133,6 +3135,8 @@ export class SuperAgentsService {
         if (!row || row.codBalanceCollected) throw new ConflictException('COD balance already collected');
         await complete(manager);
         await manager.getRepository(Order).update(order.id, companion);
+        // The seller's own sale is paid and handed over: completed, not left delivered.
+        await settleOrderOnDelivery(manager, order.id, now);
       });
     } else {
       await this.orderRelease.releaseSellerProceeds({
@@ -5881,6 +5885,7 @@ export class SuperAgentsService {
         status: OrderStatus.DELIVERED, deliveredAt: new Date(),
       });
     }
+    if (parcel.order?.id) await settleOrderOnDelivery(manager, parcel.order.id);
     // Gate 3: derived from the custody event and Parcel status just written.
     if (parcel.shipment?.id) await projectShipment(manager, parcel.shipment.id);
     if (cash?.agentShare) {
@@ -6002,6 +6007,8 @@ export class SuperAgentsService {
         if (row?.codBalanceCollected) throw new ConflictException('COD balance already collected');
         await complete(manager);
         await manager.getRepository(Order).update(order.id, companion);
+        // The seller's own sale is paid and handed over: completed, not left delivered.
+        await settleOrderOnDelivery(manager, order.id, now);
       });
     } else {
       await this.orderRelease.releaseSellerProceeds({

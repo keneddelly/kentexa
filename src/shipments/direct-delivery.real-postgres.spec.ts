@@ -130,7 +130,7 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     await q(`CREATE TABLE public."order" (id integer PRIMARY KEY, source text NOT NULL, "paymentMethod" text NOT NULL,
       "totalAmount" numeric NOT NULL, "codRemainingBalance" numeric, "codBalanceCollected" boolean NOT NULL DEFAULT false,
       "codBalanceCollectedByLocalAgentId" integer, "codBalanceCollectedAt" timestamp, "paymentStatus" text, status text,
-      "deliveredAt" timestamp)`);
+      "deliveredAt" timestamp, "completedAt" timestamp)`);
     await q(`CREATE TABLE public.agent_cod_collection (id SERIAL PRIMARY KEY, "orderId" integer NOT NULL UNIQUE,
       "parcelId" integer NOT NULL, "custodyEventId" integer NOT NULL, "agentId" integer NOT NULL, "collectedAmount" numeric NOT NULL,
       "cashLiability" numeric NOT NULL, "handlingFee" numeric NOT NULL, "kentexaShare" numeric NOT NULL, "agentShare" numeric NOT NULL,
@@ -405,7 +405,8 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       expect(await parcel(id)).toMatchObject({ status: 'delivered', agentDeliveryCodeHash: null });
       expect(await task(id)).toMatchObject({ status: 'delivered', deliveryCodeHash: null, deliveryAttempts: 0 });
       const [order] = await q('SELECT * FROM public."order" WHERE id=$1', [id]);
-      expect(order).toMatchObject({ codBalanceCollected: true, codBalanceCollectedByLocalAgentId: 10, paymentStatus: 'paid', status: 'delivered' });
+      expect(order).toMatchObject({ codBalanceCollected: true, codBalanceCollectedByLocalAgentId: 10, paymentStatus: 'paid', status: 'completed' });
+      expect(order.completedAt).not.toBeNull(); // the seller's own sale, paid and handed over: done
       const rows = await q('SELECT * FROM public.agent_cod_collection WHERE "orderId"=$1', [id]);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({ parcelId: id, agentId: 10, orderSource: 'seller_shipment' });
