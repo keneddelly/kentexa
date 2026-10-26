@@ -7,6 +7,9 @@ import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
 import { API_BASE_URL } from '../../api/baseUrl';
+import { PageLoading, Spinner } from '../components/Loading';
+
+const CHECK = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>;
 
 const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) => {
   const { t, i18n } = useTranslation();
@@ -87,25 +90,25 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
     }
   };
 
-  // ✅ Aligned with real backend OrderStatus enum
+  // Aligned with real backend OrderStatus enum
   const steps = [
-    { status: 'pending_payment',  label: t('order_tracking.step_order_placed_label'),     icon: '🛒', desc: t('order_tracking.step_order_placed_desc') },
-    { status: 'paid',              label: t('order_tracking.step_payment_confirmed_label'), icon: '💳', desc: t('order_tracking.step_payment_confirmed_desc') },
-    { status: 'preparing',         label: t('order_tracking.step_preparing_label'),        icon: '⚙️', desc: t('order_tracking.step_preparing_desc') },
-    { status: 'in_transit',        label: t('order_tracking.step_in_transit_label'),       icon: '🚚', desc: t('order_tracking.step_in_transit_desc') },
-    { status: 'ready_for_pickup',  label: t('order_tracking.step_ready_pickup_label'), icon: '🏪', desc: t('order_tracking.step_ready_pickup_desc') },
-    { status: 'delivered',         label: t('order_tracking.step_delivered_label'),        icon: '📦', desc: t('order_tracking.step_delivered_desc') },
-    { status: 'completed',         label: t('order_tracking.step_completed_label'),        icon: '🎉', desc: t('order_tracking.step_completed_desc') },
+    { status: 'pending_payment',  label: t('order_tracking.step_order_placed_label'), desc: t('order_tracking.step_order_placed_desc') },
+    { status: 'paid',              label: t('order_tracking.step_payment_confirmed_label'), desc: t('order_tracking.step_payment_confirmed_desc') },
+    { status: 'preparing',         label: t('order_tracking.step_preparing_label'), desc: t('order_tracking.step_preparing_desc') },
+    { status: 'in_transit',        label: t('order_tracking.step_in_transit_label'), desc: t('order_tracking.step_in_transit_desc') },
+    { status: 'ready_for_pickup',  label: t('order_tracking.step_ready_pickup_label'), desc: t('order_tracking.step_ready_pickup_desc') },
+    { status: 'delivered',         label: t('order_tracking.step_delivered_label'), desc: t('order_tracking.step_delivered_desc') },
+    { status: 'completed',         label: t('order_tracking.step_completed_label'), desc: t('order_tracking.step_completed_desc') },
   ];
 
   const cancelledSteps = [
-    { status: 'pending_payment', label: t('order_tracking.step_order_placed_label'), icon: '🛒', desc: t('order_tracking.step_order_placed_desc') },
-    { status: 'cancelled',       label: t('order_tracking.step_cancelled_label'),    icon: '❌', desc: t('order_tracking.step_cancelled_desc') },
+    { status: 'pending_payment', label: t('order_tracking.step_order_placed_label'), desc: t('order_tracking.step_order_placed_desc') },
+    { status: 'cancelled',       label: t('order_tracking.step_cancelled_label'), desc: t('order_tracking.step_cancelled_desc') },
   ];
 
   const disputedSteps = [
     ...steps.slice(0, 5),
-    { status: 'disputed', label: t('order_tracking.step_disputed_label'), icon: '⚠️', desc: t('order_tracking.step_disputed_desc') },
+    { status: 'disputed', label: t('order_tracking.step_disputed_label'), desc: t('order_tracking.step_disputed_desc') },
   ];
 
   const getSteps = () => {
@@ -137,7 +140,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
     failed: { bg: '#fee2e2', color: '#dc2626', label: t('order_tracking.payment_failed') },
   }[status] || { bg: '#fef9c3', color: '#ca8a04', label: t('order_tracking.payment_pending') });
 
-  // ✅ Buyer can confirm/dispute once parcel is on the move, at pickup, or delivered
+  // Buyer can confirm/dispute once parcel is on the move, at pickup, or delivered
   const canConfirmOrDispute = order && [
     'delivered', 'ready_for_pickup', 'in_transit'
   ].includes(order.status);
@@ -152,10 +155,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
             <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>{t('order_tracking.page_title')}</span>
           </button>
         </div>
-        <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-          <p>{t('order_tracking.loading')}</p>
-        </div>
+        <PageLoading label={t('order_tracking.loading')} />
       </div>
     );
   }
@@ -170,9 +170,8 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
           </button>
         </div>
         <div style={{ textAlign: 'center', padding: 80 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-          <p style={{ color: '#64748b' }}>{error || t('order_tracking.not_found')}</p>
-          <button onClick={() => onNavigate('MyOrders')} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', marginTop: 16, fontWeight: 700 }}>
+                    <p style={{ color: '#64748b' }}>{error || t('order_tracking.not_found')}</p>
+          <button onClick={() => onNavigate('MyOrders')} style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 24, cursor: 'pointer', marginTop: 16, fontWeight: 700 }}>
             {t('order_tracking.back_to_orders')}
           </button>
         </div>
@@ -190,25 +189,25 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
 
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8,#2563eb)', padding: '32px 16px' }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #eff3f4', padding: '12px 16px 16px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+          <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: 'transparent', color: '#1d4ed8', border: 'none', padding: '6px 0', cursor: 'pointer', fontSize: 14, fontWeight: 600, marginBottom: 8, fontFamily: 'inherit' }}>
             {t('order_tracking.back_to_orders')}
           </button>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight:800, color: '#fff', margin: '0 0 4px', fontFamily:'inherit' }}>{t('order_tracking.order_number', { id: order?.id })}</h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
+              <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f1419', margin: '0 0 4px', fontFamily:'inherit' }}>{t('order_tracking.order_number', { id: order?.id })}</h1>
+              <p style={{ fontSize: 14, color: '#536471', margin: 0 }}>
                 {new Date(order?.createdAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ backgroundColor: payment.bg, color: payment.color, padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{payment.label}</span>
-              <span style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
-                {order?.status?.replace(/_/g, ' ').toUpperCase()}
+              <span style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+                {getSteps().find(st => st.status === order?.status)?.label || order?.status?.replace(/_/g, ' ')}
               </span>
               {order?.shippingMethod && (
-                <span style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                <span style={{ backgroundColor: '#f7f9f9', color: '#0f1419', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600 }}>
                   {order.shippingMethod === 'agent' ? t('order_tracking.shipping_agent') :
                     order.shippingMethod === 'boda' ? t('order_tracking.shipping_boda') :
                     order.shippingMethod === 'personal' ? t('order_tracking.shipping_personal') :
@@ -268,19 +267,19 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-            <span>❌ {error}</span>
+            <span>{error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
 
         {/* Tracking number banner — shown once parcel is in transit or beyond */}
         {order?.trackingNumber && (
-          <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 14, padding: '16px 18px', marginBottom: 16, textAlign: 'center' }}>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 4 }}>{t('order_tracking.tracking_number_label')}</div>
-            <div style={{ fontSize: 20, fontWeight:800, color: '#fff', fontFamily: 'monospace', letterSpacing: 1 }}>{order.trackingNumber}</div>
-            {order.courierName && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>🚌 {order.courierName}</div>}
+          <div style={{ background: '#fff', border: '1px solid #eff3f4', borderRadius: 16, padding: '16px 18px', marginBottom: 16, textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: '#536471', marginBottom: 4 }}>{t('order_tracking.tracking_number_label')}</div>
+            <div style={{ fontSize: 22, fontWeight:800, color: '#0f1419', letterSpacing: 0.5, fontVariantNumeric: 'tabular-nums' }}>{order.trackingNumber}</div>
+            {order.courierName && <div style={{ fontSize: 14, color: '#536471', marginTop: 4 }}>{order.courierName}</div>}
             <button onClick={() => onNavigate(`TrackParcel-${order.trackingNumber}`)}
-              style={{ marginTop: 10, backgroundColor: '#fff', color: '#1d4ed8', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
+              style={{ marginTop: 12, backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '0 18px', height: 44, borderRadius: 22, cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: 'inherit' }}>
               {t('order_tracking.view_live_tracking')}
             </button>
             {/* Buyer → Seller WhatsApp — same info a tap away, no need to call */}
@@ -296,7 +295,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
                 externalTrackingRef: order.externalTrackingRef,
               })}
               target="_blank" rel="noreferrer"
-              style={{ display: 'inline-block', marginTop: 8, marginLeft: 8, background: '#25D366', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', height: 44, marginTop: 12, marginLeft: 8, background: '#fff', color: '#0f1419', border: '1px solid #cfd9de', padding: '0 18px', borderRadius: 22, cursor: 'pointer', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
               {t('order_tracking.contact_seller')}
             </a>
           </div>
@@ -306,15 +305,15 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 24px' }}>{t('order_tracking.order_tracking_title')}</h2>
           <div style={{ position: 'relative' }}>
-            <div style={{ position: 'absolute', left: 20, top: 20, bottom: 20, width: 2, background: 'linear-gradient(to bottom,#2563eb,#e2e8f0)' }} />
+            <div style={{ position: 'absolute', left: 15, top: 16, bottom: 16, width: 2, background: '#eff3f4' }} />
             {currentSteps.map((step, index) => {
               const isCompleted = index <= currentIdx;
               const isCurrent   = index === currentIdx;
               const color       = statusColor(step.status);
               return (
                 <div key={step.status} style={{ display: 'flex', gap: 18, marginBottom: index < currentSteps.length - 1 ? 22 : 0, position: 'relative' }}>
-                  <div style={{ width: 42, height: 42, flexShrink: 0, borderRadius: '50%', background: isCompleted ? `linear-gradient(135deg,${color},${color}bb)` : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, boxShadow: isCurrent ? `0 0 0 4px ${color}30` : 'none', border: isCurrent ? `2px solid ${color}` : '2px solid transparent', zIndex: 1 }}>
-                    {isCompleted ? step.icon : <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 700 }}>{index + 1}</span>}
+                  <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: '50%', boxSizing: 'border-box', background: isCompleted && !isCurrent ? '#1d4ed8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: isCurrent ? `3px solid ${color}` : isCompleted ? 'none' : '2px solid #cfd9de', zIndex: 1 }}>
+                    {isCompleted && !isCurrent ? CHECK : null}
                   </div>
                   <div style={{ flex: 1, paddingTop: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: isCurrent ? 800 : 600, color: isCompleted ? '#1e293b' : '#94a3b8', marginBottom: 2 }}>
@@ -360,7 +359,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={handleConfirm} disabled={actionLoading}
                   style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '12px', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
-                  {actionLoading ? '⏳' : t('order_tracking.confirm_received_button')}
+                  {actionLoading ? <Spinner size={18} color="#fff" /> : t('order_tracking.confirm_received_button')}
                 </button>
                 <button onClick={() => setShowDispute(true)}
                   style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626', border: '2px solid #fecaca', padding: '12px', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
@@ -377,7 +376,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
                   <button onClick={() => setShowDispute(false)} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('order_tracking.cancel_button')}</button>
                   <button onClick={handleDispute} disabled={actionLoading || !disputeReason.trim()}
                     style={{ flex: 2, backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 800, fontSize: 13 }}>
-                    {actionLoading ? '⏳' : t('order_tracking.submit_dispute_button')}
+                    {actionLoading ? <Spinner size={18} color="#fff" /> : t('order_tracking.submit_dispute_button')}
                   </button>
                 </div>
               </div>
@@ -400,11 +399,10 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
 
         {/* Completed */}
         {order?.status === 'completed' && (
-          <div style={{ background: 'linear-gradient(135deg,#43e97b,#38f9d7)', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 16 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-            <h3 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: '0 0 8px' }}>{t('order_tracking.order_completed_title')}</h3>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', margin: '0 0 16px' }}>{t('order_tracking.order_completed_desc')}</p>
-            <button onClick={() => onNavigate('Stores')} style={{ backgroundColor: '#fff', color: '#16a34a', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
+          <div style={{ background: '#ecfdf3', border: '1px solid #bbf7d0', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 20, fontWeight:800, color: '#166534', margin: '0 0 8px' }}>{t('order_tracking.order_completed_title')}</h3>
+            <p style={{ fontSize: 14, color: '#166534', margin: '0 0 16px' }}>{t('order_tracking.order_completed_desc')}</p>
+            <button onClick={() => onNavigate('Search')} style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 24, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
               {t('order_tracking.shop_again_button')}
             </button>
           </div>
@@ -416,7 +414,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
             <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('order_tracking.product_title')}</h3>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{ width: 48, height: 48, borderRadius: 8, backgroundColor: '#f1f5f9', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {order?.product?.images?.[0] ? <img src={order.product.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 20 }}>📦</span>}
+                {order?.product?.images?.[0] ? <img src={order.product.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8b98a5" strokeWidth="2" aria-hidden="true"><path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" /></svg>}
               </div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{order?.product?.name}</div>
@@ -429,13 +427,12 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('order_tracking.delivery_title')}</h3>
             {[
-              { icon: '👤', label: t('order_tracking.deliver_to_label'), value: order?.recipientName || order?.buyer?.name || '—' },
-              { icon: '📍', label: t('order_tracking.address_label'),    value: order?.deliveryAddress || '—' },
-              { icon: '📞', label: t('order_tracking.phone_label'),      value: order?.phone || '—' },
-              { icon: '📅', label: t('order_tracking.date_label'),       value: new Date(order?.createdAt).toLocaleDateString(dateLocale) },
+              { label: t('order_tracking.deliver_to_label'), value: order?.recipientName || order?.buyer?.name || '—' },
+              { label: t('order_tracking.address_label'),    value: order?.deliveryAddress || '—' },
+              { label: t('order_tracking.phone_label'),      value: order?.phone || '—' },
+              { label: t('order_tracking.date_label'),       value: new Date(order?.createdAt).toLocaleDateString(dateLocale) },
             ].map(item => (
               <div key={item.label} style={{ display: 'flex', gap: 6, marginBottom: 6, fontSize: 12 }}>
-                <span>{item.icon}</span>
                 <span style={{ color: '#94a3b8' }}>{item.label}: </span>
                 <span style={{ color: '#1e293b', fontWeight: 600 }}>{item.value}</span>
               </div>
@@ -449,7 +446,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
         {/* Cash on Delivery breakdown */}
         {order?.paymentMethod === 'cod' && !isDirectPaymentOrder(order) && (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16, border: '2px solid #fde68a' }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, color: '#92400e', margin: '0 0 12px' }}>🚚 {t('order_tracking.cod_title')}</h3>
+            <h3 style={{ fontSize: 13, fontWeight: 800, color: '#92400e', margin: '0 0 12px' }}>{t('order_tracking.cod_title')}</h3>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
               <span style={{ color: '#64748b' }}>{t('order_tracking.cod_total_label')}</span>
               <span style={{ fontWeight: 700, color: '#1e293b' }}>TZS {Number(order?.totalAmount).toLocaleString()}</span>
@@ -465,7 +462,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
                 {order?.codBalanceCollected ? t('order_tracking.cod_settled_label') : t('order_tracking.cod_remaining_label')}
               </span>
               <span style={{ fontWeight:800, color: order?.codBalanceCollected ? '#16a34a' : '#92400e' }}>
-                {order?.codBalanceCollected ? `✅ ${t('order_tracking.cod_paid_word')}` : `TZS ${Number(order?.codRemainingBalance || 0).toLocaleString()}`}
+                {order?.codBalanceCollected ? t('order_tracking.cod_paid_word') : `TZS ${Number(order?.codRemainingBalance || 0).toLocaleString()}`}
               </span>
             </div>
           </div>

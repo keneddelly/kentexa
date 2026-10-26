@@ -13,24 +13,25 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import { PageLoading, Spinner } from '../components/Loading';
 import api from '../../api/api';
+import { INK, MUTED, LINE, BLUE, eventLabel, when, Icon, IC, card, pill, tone } from './TrackParcel';
 
-const getStatusLabels = (t) => ({
-  pending:         { label: t('buyer_parcel_action.status_pending'),        color: '#64748b', bg: '#f1f5f9' },
-  in_transit:      { label: t('buyer_parcel_action.status_in_transit'),    color: '#ca8a04', bg: '#fef9c3' },
-  arrived_at_hub:  { label: t('buyer_parcel_action.status_arrived_at_hub'),   color: '#7c3aed', bg: '#ede9fe' },
-  awaiting_buyer:  { label: t('buyer_parcel_action.status_awaiting_buyer'),  color: '#dc2626', bg: '#fee2e2' },
-  out_for_delivery:{ label: t('buyer_parcel_action.status_out_for_delivery'), color: '#f59e0b', bg: '#fef9c3' },
-  delivered:       { label: t('buyer_parcel_action.status_delivered'),   color: '#16a34a', bg: '#dcfce7' },
-  self_pickup:     { label: t('buyer_parcel_action.status_self_pickup'),      color: '#16a34a', bg: '#dcfce7' },
-});
+const STATUS_KEY = ['pending', 'in_transit', 'arrived_at_hub', 'awaiting_buyer', 'out_for_delivery', 'delivered', 'self_pickup'];
 
-const TIER_ICON = { basic: '🥉', silver: '🥈', gold: '🥇' };
+const Notice = ({ kind, children, onClose }) => {
+  const [bg, fg] = kind === 'error' ? ['#fef2f2', '#b91c1c'] : kind === 'ok' ? ['#ecfdf3', '#166534'] : ['#eff6ff', BLUE];
+  return (
+    <div role={kind === 'error' ? 'alert' : 'status'} style={{ backgroundColor: bg, color: fg, padding: '12px 14px', borderRadius: 12, fontSize: 14,
+      display: 'flex', gap: 10, alignItems: 'flex-start', lineHeight: 1.4 }}>
+      <span style={{ flex: 1 }}>{children}</span>
+      {onClose && <button type="button" aria-label="Funga" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: fg, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>}
+    </div>
+  );
+};
 
 const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
-  const { t, i18n } = useTranslation();
-  const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
-  const STATUS_LABELS = getStatusLabels(t);
+  const { t } = useTranslation();
   const [parcel, setParcel]         = useState(null);
   const [agents, setAgents]         = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -100,226 +101,166 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
     } finally { setActionLoading(false); }
   };
 
-  const st = parcel ? (STATUS_LABELS[parcel.status] || { label: parcel.status, color: '#64748b', bg: '#f1f5f9' }) : null;
-  const isAwaiting = parcel?.status === 'awaiting_buyer' && parcel?.buyerRequestedDelivery == null;
-  const isActionable = ['awaiting_buyer', 'arrived_at_hub'].includes(parcel?.status);
+  const status = parcel?.status;
+  const statusLabel = STATUS_KEY.includes(status) ? t(`buyer_parcel_action.status_${status}`) : (status || '');
+  const [, toneFg] = tone(status);
+  const isAwaiting = status === 'awaiting_buyer' && parcel?.buyerRequestedDelivery == null;
+  const isActionable = ['awaiting_buyer', 'arrived_at_hub'].includes(status);
+  const history = Array.isArray(parcel?.history) ? [...parcel.history]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)) : []; // newest first
+  const fee = (n) => Number(n).toLocaleString();
+  const row = (label, value) => (
+    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15, padding: '6px 0' }}>
+      <span style={{ color: MUTED }}>{label}</span><strong style={{ textAlign: 'right' }}>{value}</strong>
+    </div>
+  );
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('Home')} title={t('buyer_parcel_action.page_title')} top={0} />
-      <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>{t('buyer_parcel_action.loading')}</div>
+      <PageLoading label={t('buyer_parcel_action.loading')} />
     </div>
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff', color: INK }}>
       <BackBar onBack={() => view === 'agents' ? setView('parcel') : onNavigate('Home')}
-        title={view === 'agents' ? t('buyer_parcel_action.back') : t('buyer_parcel_action.page_title')} top={0} />
+        title={view === 'agents' ? t('buyer_parcel_action.request_delivery_button') : t('buyer_parcel_action.page_title')} top={0} />
 
-      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
+      <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 32 }}>
+        {error && <Notice kind="error" onClose={() => setError('')}>{error}</Notice>}
+        {success && <Notice kind="ok">{success}</Notice>}
 
-        {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13 }}>
-            ❌ {error}
-            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}>×</button>
-          </div>
-        )}
-        {success && (
-          <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 700 }}>
-            ✅ {success}
-          </div>
-        )}
-
-        {/* ── PARCEL VIEW ─────────────────────────────────────────────────── */}
         {view === 'parcel' && parcel && (
           <>
-            {/* Status hero */}
-            <div style={{ backgroundColor: st.bg, borderRadius: 20, padding: 24, textAlign: 'center', marginBottom: 16, border: `2px solid ${st.color}20` }}>
-              <div style={{ fontSize: 48, marginBottom: 8 }}>
-                {parcel.status === 'awaiting_buyer' ? '🔔' :
-                 parcel.status === 'delivered' || parcel.status === 'self_pickup' ? '🎉' : '📦'}
-              </div>
-              <div style={{ fontSize: 18, fontWeight:800, color: st.color, marginBottom: 4 }}>
-                {st.label}
-              </div>
-              <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#94a3b8' }}>{trackingNumber}</div>
-            </div>
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 13, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>{trackingNumber}</span>
+              <span data-testid="parcel-status" style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.3 }}>{statusLabel}</span>
+              {history[0]?.createdAt && <span style={{ fontSize: 15, color: MUTED }}>{eventLabel(history[0])} · {when(history[0].createdAt)}</span>}
+            </section>
 
-            {/* Alert if awaiting action */}
-            {isAwaiting && (
-              <div style={{ backgroundColor: '#fff7ed', border: '2px solid #fed7aa', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#c2410c', marginBottom: 6 }}>
-                  {t('buyer_parcel_action.alert_title', { city: parcel.destinationCity })}
-                </div>
-                <div style={{ fontSize: 12, color: '#92400e' }}>
-                  {t('buyer_parcel_action.alert_desc')}
-                </div>
-              </div>
-            )}
-
-            {/* Parcel details */}
-            <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('buyer_parcel_action.parcel_details_title')}</div>
-              {[
-                [t('buyer_parcel_action.label_product'), parcel.description || '—'],
-                [t('buyer_parcel_action.label_from'), parcel.originCity || '—'],
-                [t('buyer_parcel_action.label_to'), parcel.destinationCity || '—'],
-                ...(parcel.transitCity ? [[t('buyer_parcel_action.label_via'), parcel.transitCity]] : []),
-                [t('buyer_parcel_action.label_sender'), parcel.senderName || '—'],
-                ...(parcel.expectedArrival ? [[t('buyer_parcel_action.label_expected_arrival'), new Date(parcel.expectedArrival).toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' })]] : []),
-              ].map(([l, v]) => (
-                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f8fafc', fontSize: 13 }}>
-                  <span style={{ color: '#64748b' }}>{l}</span>
-                  <span style={{ fontWeight: 700, color: '#1e293b' }}>{v}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Tracking history */}
-            {parcel.history?.length > 0 && (
-              <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('buyer_parcel_action.history_title')}</div>
-                {[...parcel.history].reverse().map((event, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: i === 0 ? '#16a34a' : '#e2e8f0', marginTop: 5, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                        {event.note || event.status?.replace(/_/g, ' ')}
-                      </div>
-                      {event.updatedBy && event.handlerType !== 'system' && (
-                        <div style={{ fontSize: 11, color: '#7c3aed', marginTop: 2 }}>
-                          {event.handlerType === 'super_agent' ? '🏢' : '🤝'} {event.updatedBy}
-                          {event.handlerPhone && (
-                            <a href={`tel:${event.handlerPhone}`} style={{ marginLeft: 8, color: '#1d4ed8', textDecoration: 'none' }}>
-                              📞 {event.handlerPhone}
-                            </a>
-                          )}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                        {event.city && `📍 ${event.city} · `}
-                        {event.createdAt && new Date(event.createdAt).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Action buttons — only when awaiting */}
             {isActionable && parcel.buyerRequestedDelivery == null && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <button
-                  onClick={() => { setView('agents'); fetchAgents(); }}
-                  style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 16, borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight:800, boxShadow: '0 4px 12px rgba(29,78,216,0.3)' }}>
-                  {t('buyer_parcel_action.request_delivery_button')}
-                </button>
-                <button
-                  onClick={handleSelfPickup} disabled={actionLoading}
-                  style={{ width: '100%', background: '#fff', color: '#475569', border: '2px solid #e2e8f0', padding: 14, borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-                  {actionLoading ? '⏳' : t('buyer_parcel_action.self_pickup_button')}
-                </button>
-                <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
-                  {t('buyer_parcel_action.independent_agents_note')}
-                </div>
-              </div>
+              <section style={{ padding: 16, borderRadius: 16, backgroundColor: '#eff6ff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <span style={{ fontSize: 17, fontWeight: 800 }}>{isAwaiting ? t('buyer_parcel_action.alert_title', { city: parcel.destinationCity }) : t('buyer_parcel_action.alert_desc')}</span>
+                {[
+                  { key: 'pickup', icon: IC.office, label: t('buyer_parcel_action.self_pickup_button'), sub: parcel.destinationAgent || parcel.destinationCity, onClick: handleSelfPickup },
+                  { key: 'deliver', icon: IC.home, label: t('buyer_parcel_action.request_delivery_button'), sub: t('buyer_parcel_action.independent_agents_note'), onClick: () => { setView('agents'); fetchAgents(); } },
+                ].map((o) => (
+                  <button key={o.key} type="button" onClick={o.onClick} disabled={actionLoading} data-testid={`choice-${o.key}`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, backgroundColor: '#fff', border: 'none',
+                      textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: INK }}>
+                    <span style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {actionLoading && o.key === 'pickup' ? <Spinner size={18} color={BLUE} /> : <Icon d={o.icon} color={BLUE} />}
+                    </span>
+                    <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <strong style={{ fontSize: 15 }}>{o.label}</strong>
+                      {o.sub && <span style={{ fontSize: 13, color: MUTED }}>{o.sub}</span>}
+                    </span>
+                  </button>
+                ))}
+              </section>
             )}
 
-            {isActionable && parcel.buyerRequestedDelivery === false && (
-              <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#1d4ed8' }}>
-                {t('buyer_parcel_action.pickup_planned_notice')}
-              </div>
-            )}
+            {isActionable && parcel.buyerRequestedDelivery === false && <Notice>{t('buyer_parcel_action.pickup_planned_notice')}</Notice>}
 
-            {/* Delivery already requested */}
-            {parcel.buyerRequestedDelivery && parcel.status !== 'delivered' && parcel.status !== 'self_pickup' && (
-              <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#15803d' }}>
+            {parcel.buyerRequestedDelivery && status !== 'delivered' && status !== 'self_pickup' && (
+              <Notice kind="ok">
                 {t('buyer_parcel_action.delivery_requested_notice', { name: parcel.localAgentName || t('buyer_parcel_action.default_agent_name') })}
-                {parcel.agreedDeliveryFee && t('buyer_parcel_action.agreed_fee_notice', { fee: Number(parcel.agreedDeliveryFee).toLocaleString() })}
+                {parcel.agreedDeliveryFee && t('buyer_parcel_action.agreed_fee_notice', { fee: fee(parcel.agreedDeliveryFee) })}
                 {t('buyer_parcel_action.agent_will_contact')}
-              </div>
+              </Notice>
+            )}
+
+            <section style={{ ...card, display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 13, color: MUTED, marginBottom: 4 }}>{t('buyer_parcel_action.parcel_details_title')}</span>
+              {parcel.description && row(t('buyer_parcel_action.label_product'), parcel.description)}
+              {parcel.originCity && row(t('buyer_parcel_action.label_from'), parcel.originCity)}
+              {parcel.destinationCity && row(t('buyer_parcel_action.label_to'), parcel.destinationCity)}
+              {parcel.transitCity && row(t('buyer_parcel_action.label_via'), parcel.transitCity)}
+              {parcel.senderName && row(t('buyer_parcel_action.label_sender'), parcel.senderName)}
+              {parcel.expectedArrival && row(t('buyer_parcel_action.label_expected_arrival'), when(parcel.expectedArrival))}
+            </section>
+
+            {history.length > 0 && (
+              <section>
+                <h2 style={{ margin: '4px 0 10px', fontSize: 17, fontWeight: 800 }}>{t('buyer_parcel_action.history_title')}</h2>
+                <ul data-testid="parcel-history" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  {history.map((e, i) => (
+                    <li key={i} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: i < history.length - 1 ? `1px solid ${LINE}` : 'none' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 5, marginTop: 6, flexShrink: 0, backgroundColor: i === 0 ? toneFg : '#cfd9de' }} />
+                      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 15, fontWeight: i === 0 ? 700 : 600 }}>{e.note || eventLabel(e)}</span>
+                        {e.updatedBy && e.handlerType !== 'system' && (
+                          <span style={{ fontSize: 13, color: MUTED }}>
+                            {e.updatedBy}
+                            {e.handlerPhone && <> · <a href={`tel:${e.handlerPhone}`} style={{ color: BLUE, textDecoration: 'none' }}>{e.handlerPhone}</a></>}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 13, color: MUTED }}>{[e.city, e.createdAt && when(e.createdAt)].filter(Boolean).join(' · ')}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
           </>
         )}
 
-        {/* ── AGENTS VIEW ──────────────────────────────────────────────────── */}
         {view === 'agents' && (
           <>
-            <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1d4ed8' }}>
-              {t('buyer_parcel_action.agents_intro', { city: parcel?.destinationCity })}
-            </div>
+            <Notice>{t('buyer_parcel_action.agents_intro', { city: parcel?.destinationCity })}</Notice>
 
-            {/* Custom delivery address */}
-            <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>{t('buyer_parcel_action.delivery_address_title')}</div>
-              <input type="text"
-                placeholder={parcel?.deliveryAddress || t('buyer_parcel_action.delivery_address_placeholder')}
-                value={customAddress} onChange={e => setCustomAddress(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
-            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: MUTED }}>{t('buyer_parcel_action.delivery_address_title')}</span>
+              <input type="text" placeholder={parcel?.deliveryAddress || t('buyer_parcel_action.delivery_address_placeholder')}
+                value={customAddress} onChange={(e) => setCustomAddress(e.target.value)}
+                style={{ height: 48, border: '1px solid #cfd9de', borderRadius: 14, padding: '0 14px', fontSize: 15, fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            </label>
 
             {agentsLoading ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('buyer_parcel_action.finding_agents')}</div>
+              <PageLoading label={t('buyer_parcel_action.finding_agents')} />
             ) : agents.length === 0 ? (
-              <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>😔</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>
-                  {t('buyer_parcel_action.no_agents_title', { city: parcel?.destinationCity })}
-                </div>
-                <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-                  {t('buyer_parcel_action.no_agents_desc')}
-                </div>
-                <button onClick={handleSelfPickup} disabled={actionLoading}
-                  style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                  {t('buyer_parcel_action.self_pickup_button')}
+              <section style={{ ...card, textAlign: 'center', padding: 24, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                <strong style={{ fontSize: 16 }}>{t('buyer_parcel_action.no_agents_title', { city: parcel?.destinationCity })}</strong>
+                <span style={{ fontSize: 14, color: MUTED }}>{t('buyer_parcel_action.no_agents_desc')}</span>
+                <button type="button" onClick={handleSelfPickup} disabled={actionLoading} style={{ ...pill(INK), marginTop: 8 }}>
+                  {actionLoading ? <Spinner size={18} color="#fff" /> : t('buyer_parcel_action.self_pickup_button')}
                 </button>
-              </div>
+              </section>
             ) : (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-                  {agents.map(agent => (
-                    <div key={agent.id}
-                      onClick={() => setSelectedAgent(selectedAgent?.id === agent.id ? null : agent)}
-                      style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        border: selectedAgent?.id === agent.id ? '2px solid #1d4ed8' : '2px solid transparent' }}>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                            <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{agent.fullName}</span>
-                            {agent.tier && <span style={{ fontSize: 12 }}>{TIER_ICON[agent.tier]}</span>}
-                          </div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>
-                            📍 {agent.city || '—'} · ⭐ {Number(agent.rating).toFixed(1)} · {agent.totalDeliveriesCompleted} {t('buyer_parcel_action.deliveries_completed_suffix')}
-                          </div>
-                          {agent.agentCode && (
-                            <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#94a3b8', marginTop: 2 }}>{agent.agentCode}</div>
-                          )}
-                        </div>
-                        {/* Delivery fee — the main number buyer sees */}
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: 20, fontWeight:800, color: '#1d4ed8' }}>
-                            TZS {Number(agent.deliveryFee).toLocaleString()}
-                          </div>
-                          <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('buyer_parcel_action.delivery_fee_label')}</div>
-                        </div>
-                      </div>
-
-                      {selectedAgent?.id === agent.id && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
-                          <div style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#15803d', marginBottom: 10 }}>
-                            {t('buyer_parcel_action.agent_selected_notice', { name: agent.fullName, fee: Number(agent.deliveryFee).toLocaleString() })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div role="radiogroup" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {agents.map((agent) => {
+                    const on = selectedAgent?.id === agent.id;
+                    const done = Number(agent.totalDeliveriesCompleted) || 0;
+                    return (
+                      <button key={agent.id} type="button" role="radio" aria-checked={on} data-testid={`agent-${agent.id}`}
+                        onClick={() => setSelectedAgent(on ? null : agent)}
+                        style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left', cursor: 'pointer', backgroundColor: '#fff',
+                          fontFamily: 'inherit', color: INK, border: on ? `2px solid ${BLUE}` : `1px solid ${LINE}` }}>
+                        <span style={{ display: 'flex', gap: 12, alignItems: 'flex-start', width: '100%' }}>
+                          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <strong style={{ fontSize: 15 }}>{agent.fullName}</strong>
+                            <span style={{ fontSize: 13, color: MUTED }}>
+                              {[agent.city, done > 0 && `${done} ${t('buyer_parcel_action.deliveries_completed_suffix')}`,
+                                done > 0 && Number(agent.rating) > 0 && `${Number(agent.rating).toFixed(1)} / 5`].filter(Boolean).join(' · ')}
+                            </span>
+                          </span>
+                          <span style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <strong style={{ fontSize: 17, color: BLUE }}>TZS {fee(agent.deliveryFee)}</strong>
+                            <span style={{ display: 'block', fontSize: 12, color: MUTED }}>{t('buyer_parcel_action.delivery_fee_label')}</span>
+                          </span>
+                        </span>
+                        {on && <span style={{ fontSize: 13, color: '#166534' }}>{t('buyer_parcel_action.agent_selected_notice', { name: agent.fullName, fee: fee(agent.deliveryFee) })}</span>}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {selectedAgent && (
-                  <button onClick={handleRequestDelivery} disabled={actionLoading}
-                    style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 16, borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight:800, boxShadow: '0 4px 12px rgba(22,163,74,0.3)' }}>
-                    {actionLoading ? t('buyer_parcel_action.sending_request') : t('buyer_parcel_action.request_delivery_price_button', { fee: Number(selectedAgent.deliveryFee).toLocaleString() })}
+                  <button type="button" onClick={handleRequestDelivery} disabled={actionLoading} style={{ ...pill(BLUE), width: '100%' }}>
+                    {actionLoading ? <><Spinner size={18} color="#fff" />{t('buyer_parcel_action.sending_request')}</>
+                      : t('buyer_parcel_action.request_delivery_price_button', { fee: fee(selectedAgent.deliveryFee) })}
                   </button>
                 )}
               </>
