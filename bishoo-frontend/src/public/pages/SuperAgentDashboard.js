@@ -51,7 +51,7 @@ import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/OfficePricePreview';
 import RouteRangePanel from '../components/RouteRangePanel';
-import OfficeRatesList from '../components/OfficeRatesList';
+import OfficePrices from '../components/OfficePrices';
 
 const pendingWalkInRequests = new Map();
 
@@ -195,7 +195,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [profile, setProfile]           = useState(null);
   const [dashData, setDashData]         = useState(null);
   const [revenue, setRevenue]           = useState(null);
-  const [rates, setRates]               = useState([]);
   const [localAgents, setLocalAgents]   = useState([]);
   const [loading, setLoading]           = useState(true);
   const [profileStatus, setProfileStatus] = useState(null);
@@ -538,16 +537,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setProfileStatus(p.status);
 
       if (p.status === 'active') {
-        const [dashRes, revenueRes, ratesRes, agentsRes] = await Promise.all([
+        const [dashRes, revenueRes, agentsRes] = await Promise.all([
           api.get('/super-agents/dashboard'),
           api.get('/super-agents/revenue').catch(() => ({ data: null })),
-          // The BEI tab: this office's own rates (ratePerKg, minimumCharge, estimatedDays).
-          api.get('/super-agents/me/price-rule').catch(() => ({ data: null })),
           api.get(`/agents/nearby?region=${encodeURIComponent(p.city)}`).catch(() => ({ data: [] })),
         ]);
         setDashData(dashRes.data);
         setRevenue(revenueRes.data);
-        setRates(ratesRes.data?.rates || []);
         setLocalAgents(agentsRes.data || []);
         api.get('/collections/hub/handover-requests')
           .then(r => setHandoverRequests(r.data || []))
@@ -1013,7 +1009,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             { key: 'bei', title: 'Bei zangu', hint: 'Bei za safari, kuchukua na kupeleka', onClick: () => setActiveTab('bei') },
             ...(isDar ? [{ key: 'van', title: 'Van', hint: 'Dawati la van, kwa ofisi za Dar', onClick: () => { setActiveTab('van'); fetchVanDesk(); } }] : []),
             { key: 'washirika', title: 'Washirika', hint: 'Usafiri na ofisi unazofanya nazo kazi; alika mpya', onClick: () => setActiveTab('washirika') },
-            { key: 'ofisi', title: 'Ofisi yangu', hint: 'Simu, anwani, saa za kazi na mipangilio', onClick: () => onNavigate('SuperAgentSettings') },
+            { key: 'ofisi', title: 'Ofisi yangu', hint: 'Jina, simu na mahali pa ofisi', onClick: () => onNavigate('SuperAgentSettings') },
           ]} />
         )}
 
@@ -2162,9 +2158,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           <>
             <div style={{ backgroundColor: '#fff7ed', borderRadius: 10,
               padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
-              💡 Orodha hii inakusaidia kujibu haraka mtu anayeuliza bei ya kutuma mzigo
+              💡 Bei zako zote ziko hapa: weka, badilisha, kisha bonyeza Hifadhi
             </div>
-            <OfficeRatesList rates={rates} onEdit={() => onNavigate('SuperAgentSettings')} />
+            <OfficePrices />
           </>
         )}
 
