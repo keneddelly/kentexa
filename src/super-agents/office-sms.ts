@@ -33,3 +33,23 @@ export function withOfficePhone(text: string, office?: OfficeContact | null): st
   if (mark >= 0) return `${text.slice(0, mark).replace(/\s*$/, '')}\n${line}\n\n${text.slice(mark)}`;
   return `${text.replace(/\s*$/, '')}\n${line}`;
 }
+
+/** Same phone in any format (0712…, 255712…, +255 712…): compares the last 9 digits. */
+export function samePhone(a: unknown, b: unknown): boolean {
+  const x = digits(a).slice(-9);
+  return x.length === 9 && x === digits(b).slice(-9);
+}
+
+/**
+ * "Mteja mwenyewe atauchukua": the shehena has no receiving office and its typed
+ * receiver is the customer of every parcel in it (owner 2026-10-26). Then the
+ * customer gets ONE SMS when it leaves (transport + ticket), not the "kitapokelewa
+ * na <you>" note nor the hand-off text written for a partner office.
+ */
+export function customerCollectsSelf(
+  lastMileAgent: unknown,
+  contactPhone: unknown,
+  parcels: Array<{ buyerPhone?: string | null }>,
+): boolean {
+  return !lastMileAgent && parcels.length > 0 && parcels.every((p) => samePhone(contactPhone, p?.buyerPhone));
+}
