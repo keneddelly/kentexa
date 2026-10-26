@@ -395,6 +395,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setBulkHubs([]); setBulkLastMileAgentId(null);
     setBulkDestText('');
     setBulkManualContact({ name: '', phone: '', city: '', address: '' });
+    setBulkManualOpen(false);
     setBulkTransport({ transportCompany: '', transportProviderId: null, transportRef: '', totalShippingCost: '' });
     setBulkActiveShipment(null);
     setInviteParcel(null);
@@ -404,6 +405,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // parcel chosen, its town and its receiving office (or the recipient) filled in; once
   // created it goes straight to sending (transport picker, ticket, fare).
   const [singleShehena, setSingleShehena] = useState(null);
+  // The "receiver over there" fields stay empty and closed until the staff opens them:
+  // filling them from the buyer made staff send to the buyer by mistake (owner 2026-10-26).
+  const [bulkManualOpen, setBulkManualOpen] = useState(false);
   // The parcel of a shehena of one: its waybill carries the partner invitation (PartnerInvitePanel).
   const [inviteParcel, setInviteParcel] = useState(null);
   const startSingleShehena = (parcel) => {
@@ -414,7 +418,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setBulkDestText(city); setBulkDestCity(city);
     fetchBulkCandidates(city, [parcel.trackingNumber]); fetchBulkHubs(city);
     if (parcel.destinationSuperAgent?.id) setBulkLastMileAgentId(parcel.destinationSuperAgent.id);
-    else setBulkManualContact({ name: parcel.recipientName || '', phone: parcel.buyerPhone || '', city, address: parcel.deliveryAddress || '' });
+  };
+  // Explicit choice only: the parcel's own recipient collects it over there.
+  const useParcelRecipient = (parcel) => {
+    setBulkLastMileAgentId(null); setBulkManualOpen(true);
+    setBulkManualContact({ name: parcel.recipientName || '', phone: parcel.buyerPhone || parcel.recipientPhone || '', city: bulkDestCity, address: parcel.deliveryAddress || '' });
   };
 
   const handleCreateBulkShipment = async () => {
@@ -1610,7 +1618,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           Ofisi zilizo kwenye KenteXa {bulkDestCity}
                         </div>
                         {bulkHubs.map(h => (
-                          <label key={h.id} onClick={() => setBulkLastMileAgentId(h.id)}
+                          <label key={h.id} onClick={() => { setBulkLastMileAgentId(bulkLastMileAgentId === h.id ? null : h.id); setBulkManualOpen(false); setBulkManualContact({ name: '', phone: '', city: '', address: '' }); }}
                             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
                               borderRadius: 10, marginBottom: 6, cursor: 'pointer',
                               border: `2px solid ${bulkLastMileAgentId === h.id ? '#d97706' : '#e2e8f0'}`,
@@ -1624,12 +1632,30 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         ))}
                       </>
                     )}
-                    {!bulkLastMileAgentId && (
+                    {!bulkLastMileAgentId && !bulkManualOpen && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                        <button type="button" data-testid="manual-receiver-open"
+                          onClick={() => { setBulkManualContact({ name: '', phone: '', city: '', address: '' }); setBulkManualOpen(true); }}
+                          style={{ padding: '10px 12px', borderRadius: 10, border: '1px dashed #94a3b8', background: '#fff', color: '#334155', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
+                          + Ofisi haipo kwenye KenteXa? Andika atakayepokea huko
+                        </button>
+                        {inviteParcel && (inviteParcel.recipientName || inviteParcel.buyerPhone) && (
+                          <button type="button" data-testid="manual-receiver-recipient"
+                            onClick={() => useParcelRecipient(inviteParcel)}
+                            style={{ padding: '10px 12px', borderRadius: 10, border: '1px dashed #94a3b8', background: '#fff', color: '#334155', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
+                            + Mpokeaji mwenyewe atapokea{inviteParcel.recipientName ? ` (${inviteParcel.recipientName})` : ''}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {!bulkLastMileAgentId && bulkManualOpen && (
                       <>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginTop: 8, marginBottom: 8 }}>
-                          {inviteParcel ? 'AU ATAKAYEPOKEA HUKO (mpokeaji au mshirika asiye kwenye KenteXa)' : 'AU ATAKAYEPOKEA HUKO (mshirika asiye kwenye KenteXa)'}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>ATAKAYEPOKEA HUKO (asiye kwenye KenteXa)</span>
+                          <button type="button" onClick={() => { setBulkManualOpen(false); setBulkManualContact({ name: '', phone: '', city: '', address: '' }); }}
+                            style={{ border: 'none', background: 'none', color: '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Ondoa</button>
                         </div>
-                        <input type="text" placeholder="Jina la mshirika/biashara"
+                        <input type="text" placeholder="Jina la atakayepokea"
                           value={bulkManualContact.name}
                           onChange={e => setBulkManualContact(p => ({ ...p, name: e.target.value }))}
                           style={{ ...inp, marginBottom: 8 }} />
