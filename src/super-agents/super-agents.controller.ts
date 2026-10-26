@@ -839,25 +839,6 @@ export class SuperAgentsController {
     return this.agentsService.findByCity(decodeURIComponent(city));
   }
 
-  @Post('parcels/:trackingNumber/transfer-hub')
-  @UseGuards(JwtAuthGuard, RoleContextGuard)
-  transferToHub(
-    @Request() req,
-    @Param('trackingNumber') trackingNumber: string,
-    @Body()
-    dto: {
-      destinationSuperAgentId?: number;
-      manualContactName?: string;
-      manualContactPhone?: string;
-      manualContactCity?: string;
-      transportCompany?: string;
-      note?: string;
-    },
-    @CurrentRoleContext() roleContext: RoleContext,
-  ) {
-    return this.service.transferToHub(req.user.id, trackingNumber, dto, roleContext);
-  }
-
   // ── Admin: Hub Management ─────────────────────────────────────────────────
   @Get('admin/super-agents')
   @UseGuards(JwtAuthGuard, RolesGuard)
