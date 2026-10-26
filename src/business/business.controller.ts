@@ -233,6 +233,11 @@ export class BusinessController {
   // the caller isn't currently, genuinely operating as Seller themselves
   // (e.g. a delegated team member acting under their own active role) --
   // exactly the cases where no safe disambiguator exists yet.
+  // The business inbox also opens for a service provider's own messages.
+  private async resolveInboxActorId(user: User, permission?: SellerPermission): Promise<number> {
+    return this.sellerScope.resolveForInbox(user, permission);
+  }
+
   private async resolveSellerWorkspaceHint(user: User): Promise<WorkspaceHint> {
     try {
       const scope = await this.sellerScope.resolveScope(user.id, user);
@@ -358,7 +363,7 @@ export class BusinessController {
   // my-conversations call, not merged in here).
   @Get('inbox/unread-count')
   async getInboxUnreadCount(@Request() req) {
-    const sellerId = await this.resolveSellerActorId(
+    const sellerId = await this.resolveInboxActorId(
       req.user,
       'canSendMessages',
     );
@@ -386,7 +391,7 @@ export class BusinessController {
     // must never be able to ask for someone else's by passing their id.
     @Query('mine') mine?: string,
   ) {
-    const sellerId = await this.resolveSellerActorId(
+    const sellerId = await this.resolveInboxActorId(
       req.user,
       'canSendMessages',
     );
@@ -414,7 +419,7 @@ export class BusinessController {
     @Request() req,
     @Body() body: { customerId: number },
   ) {
-    const sellerId = await this.resolveSellerActorId(
+    const sellerId = await this.resolveInboxActorId(
       req.user,
       'canSendMessages',
     );
@@ -434,7 +439,7 @@ export class BusinessController {
     @Param('id', ParseIntPipe) id: number,
     @Query('before') before?: string,
   ) {
-    const sellerId = await this.resolveSellerActorId(
+    const sellerId = await this.resolveInboxActorId(
       req.user,
       'canSendMessages',
     );
@@ -458,7 +463,7 @@ export class BusinessController {
       isNote?: boolean;
     },
   ) {
-    const sellerId = await this.resolveSellerActorId(
+    const sellerId = await this.resolveInboxActorId(
       req.user,
       'canSendMessages',
     );
@@ -482,7 +487,7 @@ export class BusinessController {
       itemType?: 'product' | 'classified';
     },
   ) {
-    const sellerId = await this.resolveSellerActorId(
+    const sellerId = await this.resolveInboxActorId(
       req.user,
       'canSendMessages',
     );
@@ -500,7 +505,7 @@ export class BusinessController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: string },
   ) {
-    const sellerId = await this.resolveSellerActorId(
+    const sellerId = await this.resolveInboxActorId(
       req.user,
       'canSendMessages',
     );
@@ -509,13 +514,13 @@ export class BusinessController {
 
   @Patch('inbox/:id/pin')
   async togglePin(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    const sellerId = await this.resolveSellerActorId(req.user, 'canSendMessages');
+    const sellerId = await this.resolveInboxActorId(req.user, 'canSendMessages');
     return this.conversationService.togglePin(sellerId, id);
   }
 
   @Patch('inbox/:id/mute')
   async toggleMute(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    const sellerId = await this.resolveSellerActorId(req.user, 'canSendMessages');
+    const sellerId = await this.resolveInboxActorId(req.user, 'canSendMessages');
     return this.conversationService.toggleMute(sellerId, id);
   }
 
@@ -538,7 +543,11 @@ export class BusinessController {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // MY CONVERSATIONS (as the buyer — same inbox, other side of the table)
-  // Stage 2 item 12: buyer private conversations belong to Buyer/transaction
+  // Owner 2026-10-26: these are the PERSON's own chats with shops, open in every
+  // active role (a seller messaging another shop must still see the chat).
+  // Ownership stays enforced per conversation (customerId === req.user.id) in
+  // ConversationService. History: Stage 2 item 12 had required the Buyer role:
+  // buyer private conversations belong to Buyer/transaction
   // context. Previously reachable via nothing but req.user.id with zero
   // active-role gate at all -- a user currently operating as Seller/Agent/
   // Transport/SuperAgent could still freely read/send on their own buyer
@@ -547,8 +556,7 @@ export class BusinessController {
   // legitimate admin need to act as a private buyer.
   // ═══════════════════════════════════════════════════════════════════════════
 
-  @UseGuards(RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.BUYER)
+  @UseGuards(RoleContextGuard)
   @Get('my-conversations')
   getMyConversations(
     @Request() req,
@@ -562,8 +570,11 @@ export class BusinessController {
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : undefined,
     };
+    // The chats this PERSON started with shops are theirs in every role (owner
+    // 2026-10-26: a seller's messages to other shops must not vanish until they
+    // switch to buyer mode). The scoped read is always the account's own buyer side.
     if (this.flags.isEnabled('SCOPED_CONVERSATION_READ') && roleContext) {
-      return this.conversationService.getScopedBuyerConversations(req.user.id, roleContext, params);
+      return this.conversationService.getScopedBuyerConversations(req.user.id, { ...roleContext, roleType: AccountRoleType.BUYER } as RoleContext, params);
     }
     return this.conversationService.getMyConversations(req.user.id, params);
   }
@@ -643,8 +654,7 @@ export class BusinessController {
   // `sellerId` (legacy, still accepted with no targetType, or with
   // targetType:'seller') is untouched -- existing "Message Seller" links
   // keep working exactly as before.
-  @UseGuards(RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.BUYER)
+  @UseGuards(RoleContextGuard)
   @Post('my-conversations/start')
   startConversationAsBuyer(
     @Request() req,
@@ -686,8 +696,7 @@ export class BusinessController {
     );
   }
 
-  @UseGuards(RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.BUYER)
+  @UseGuards(RoleContextGuard)
   @Get('my-conversations/:id/messages')
   getMyConversationMessages(
     @Request() req,
@@ -701,8 +710,7 @@ export class BusinessController {
     );
   }
 
-  @UseGuards(RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.BUYER)
+  @UseGuards(RoleContextGuard)
   @Post('my-conversations/:id/messages')
   sendMyConversationMessage(
     @Request() req,
@@ -724,15 +732,13 @@ export class BusinessController {
     );
   }
 
-  @UseGuards(RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.BUYER)
+  @UseGuards(RoleContextGuard)
   @Patch('my-conversations/:id/pin')
   togglePinAsBuyer(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.conversationService.togglePinAsBuyer(req.user.id, id);
   }
 
-  @UseGuards(RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.BUYER)
+  @UseGuards(RoleContextGuard)
   @Patch('my-conversations/:id/mute')
   toggleMuteAsBuyer(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.conversationService.toggleMuteAsBuyer(req.user.id, id);

@@ -1283,6 +1283,25 @@ export class ConversationService {
     return { messages: page, hasMore };
   }
 
+  /**
+   * Read receipts (owner 2026-10-26): the reader opened the thread, so every message
+   * the OTHER side sent is now read. Best-effort: never blocks or fails the read.
+   */
+  private async markIncomingRead(conversationId: number, readerSide: 'seller' | 'customer'): Promise<void> {
+    try {
+      const fromOtherSide = readerSide === 'seller' ? ['customer'] : ['seller', 'employee'];
+      const res: any = await this.msgRepo
+        .createQueryBuilder()
+        .update()
+        .set({ isRead: true, readAt: () => 'NOW()' } as any)
+        .where('"conversationId" = :conversationId', { conversationId })
+        .andWhere('"isRead" = false')
+        .andWhere('"senderType" IN (:...fromOtherSide)', { fromOtherSide })
+        .execute();
+      if (res?.affected) this.gateway.emitMessagesRead(conversationId, readerSide);
+    } catch { /* never block reading */ }
+  }
+
   async getMessages(
     sellerId: number,
     conversationId: number,
@@ -1324,6 +1343,7 @@ export class ConversationService {
     // notification bridge below on every scroll-up.
     if (!before) {
       await this.convoRepo.update(conversationId, { unreadCount: 0 });
+      await this.markIncomingRead(conversationId, 'seller');
       if (convo.customerId) {
         this.notifService
           .markReadByAction(sellerId, 'SellerInbox', String(convo.customerId))
@@ -1372,6 +1392,7 @@ export class ConversationService {
 
     if (!before) {
       await this.convoRepo.update(conversationId, { unreadCount: 0 });
+      await this.markIncomingRead(conversationId, 'seller');
       if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
         const hint: WorkspaceHint = roleContext.profileType && roleContext.profileId != null
           ? { workspaceType: roleContext.profileType, workspaceId: roleContext.profileId }
@@ -1407,6 +1428,7 @@ export class ConversationService {
 
     if (!before) {
       await this.convoRepo.update(conversationId, { buyerUnreadCount: 0 });
+      await this.markIncomingRead(conversationId, 'customer');
       // Bridge to the bell/profile-badge notification count — see
       // InAppNotificationService.markReadByAction's own comment for why.
       this.notifService
@@ -1525,7 +1547,7 @@ export class ConversationService {
           userId: convo.customer.userId,
           type: 'message',
           title: `💬 ${senderProfile?.displayName || sender.storeName || sender.name || 'Muuzaji'}`,
-          body: dto.content?.slice(0, 80) || '📷 Picha',
+          body: dto.content?.slice(0, 80) || 'Picha',
           icon: '💬',
           actionPage: 'MessageSeller',
           actionParam: String(sellerId),
@@ -1637,7 +1659,7 @@ export class ConversationService {
           userId: convo.customer.userId,
           type: 'message',
           title: `💬 ${sender.storeName || sender.name || 'Muuzaji'}`,
-          body: dto.content?.slice(0, 80) || '📷 Picha',
+          body: dto.content?.slice(0, 80) || 'Picha',
           icon: '💬',
           // Conversation-id-precise route -- this thread is not the
           // person's Seller conversation, so the legacy MessageSeller-
@@ -1730,7 +1752,7 @@ export class ConversationService {
         userId: convo.sellerId,
         type: 'message',
         title: `💬 ${sender.name || sender.storeName || 'Mnunuzi'}`,
-        body: dto.content?.slice(0, 80) || '📷 Picha',
+        body: dto.content?.slice(0, 80) || 'Picha',
         icon: '💬',
         actionPage: 'SellerInbox',
         actionParam: String(convo.customer.id),
@@ -1877,7 +1899,7 @@ export class ConversationService {
     await this.convoRepo.update(conversationId, {
       linkedOrderId: order.id,
       lastMessageAt: new Date(),
-      lastMessagePreview: `📦 Agizo limeundwa — TZS ${order.totalAmount.toLocaleString()}`,
+      lastMessagePreview: `Agizo limeundwa · TZS ${order.totalAmount.toLocaleString()}`,
       messageCount: () => '"messageCount" + 1',
     });
 
@@ -1893,7 +1915,7 @@ export class ConversationService {
     invoice: { invoiceNumber: string; amount: number; paid: boolean; orderId?: number },
   ): Promise<void> {
     const content = invoice.paid
-      ? `Malipo yamepokelewa ✅ — Ankara #${invoice.invoiceNumber}`
+      ? `Malipo yamepokelewa · Ankara #${invoice.invoiceNumber}`
       : `Ankara mpya #${invoice.invoiceNumber} — TZS ${invoice.amount.toLocaleString()}`;
 
     const msg = await this.msgRepo.save(
@@ -1920,8 +1942,8 @@ export class ConversationService {
     await this.convoRepo.update(conversationId, {
       lastMessageAt: new Date(),
       lastMessagePreview: invoice.paid
-        ? `✅ Malipo yamepokelewa — Ankara #${invoice.invoiceNumber}`
-        : `🧾 Ankara #${invoice.invoiceNumber}`,
+        ? `Malipo yamepokelewa · Ankara #${invoice.invoiceNumber}`
+        : `Ankara #${invoice.invoiceNumber}`,
       messageCount: () => '"messageCount" + 1',
     });
 

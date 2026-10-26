@@ -29,6 +29,12 @@ const OWNS_THEIR_OWN_BUSINESS: AccountRoleType[] = [
   AccountRoleType.MANAGER,
 ];
 
+// Inbox only (owner 2026-10-26): a service provider receives customer messages
+// (ServiceDetail's message button opens a conversation with them as the "seller"
+// side), so their own inbox must open in the service-provider role. This does NOT
+// widen any other seller-scoped feature (customers, products, POS...).
+const OWNS_THEIR_OWN_INBOX: AccountRoleType[] = [...OWNS_THEIR_OWN_BUSINESS, AccountRoleType.SERVICE_PROVIDER];
+
 // Business-First Stage 2A. Deliberately a SEPARATE result shape from
 // resolve()'s plain number -- never overload resolve()'s return type, so
 // none of its ~25 existing callers can ever receive an ambiguous "was that
@@ -134,12 +140,12 @@ export class SellerScopeService {
   // back just because activeRoles never forgot it. Client requests carry
   // no sellerId/profileId of their own here; identity comes only from the
   // server-resolved session (req.user.authPayload -> RoleContextService).
-  async resolve(user: User, permission?: SellerPermission): Promise<number> {
+  async resolve(user: User, permission?: SellerPermission, owners: AccountRoleType[] = OWNS_THEIR_OWN_BUSINESS): Promise<number> {
     const payload = (user as any).authPayload as RoleJwtPayload | undefined;
     let ownsOwnBusiness = false;
     if (payload?.sub && payload.sid && payload.rid && payload.cv !== undefined) {
       const roleContext = await this.roleContextService.resolveContext(payload);
-      ownsOwnBusiness = OWNS_THEIR_OWN_BUSINESS.includes(roleContext.roleType);
+      ownsOwnBusiness = owners.includes(roleContext.roleType);
     }
     if (ownsOwnBusiness) return user.id;
 
@@ -156,6 +162,11 @@ export class SellerScopeService {
       : 'You are not authorized to manage this business.';
     if (!membership) throw new NoTeamMembershipException(message);
     throw new ForbiddenException({ code: 'SELLER_SCOPE_PERMISSION_DENIED', message });
+  }
+
+  /** The business inbox: the same as resolve(), plus a service provider's own inbox. */
+  resolveForInbox(user: User, permission?: SellerPermission): Promise<number> {
+    return this.resolve(user, permission, OWNS_THEIR_OWN_INBOX);
   }
 
   /**
