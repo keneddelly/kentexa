@@ -2,6 +2,8 @@
 
 Read this before developing or modifying Kentexa. It overrides the default instinct to treat this as a product marketplace.
 
+Before designing or building any logistics feature, read docs/KENTEXA_ROADMAP.md.
+
 ## Definition
 
 Kentexa is **not** primarily a product marketplace. Kentexa is a digital business identity and commerce network powered by AI.
