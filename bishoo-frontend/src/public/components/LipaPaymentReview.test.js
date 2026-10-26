@@ -17,7 +17,10 @@ test('seller: sees the screenshot and confirms the payment', async () => {
   api.patch.mockResolvedValue({ data: { ...waiting, decision: 'confirmed', canConfirm: false, canReject: false } });
   render(<LipaPaymentReview orderId={181} />);
   expect(await screen.findByText('Inasubiri muuzaji athibitishe malipo')).toBeTruthy();
-  expect(screen.getByText('Angalia picha ya malipo').getAttribute('href')).toBe('https://res.example/proof.jpg');
+  // The screenshot is shown large, and the amount to look for is big.
+  expect(screen.getByTestId('lipa-proof').getAttribute('src')).toBe('https://res.example/proof.jpg');
+  expect(screen.getByRole('link', { name: 'Fungua picha ya malipo' }).getAttribute('href')).toBe('https://res.example/proof.jpg');
+  expect(screen.getByTestId('lipa-amount')).toHaveTextContent('TZS 302,000');
   fireEvent.click(screen.getByText('Nimepokea pesa'));
   await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/orders/181/lipa/confirm'));
   expect(await screen.findByText('Malipo yamethibitishwa')).toBeTruthy();

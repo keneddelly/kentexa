@@ -76,15 +76,30 @@ const LipaPaymentReview = ({ orderId, onChanged }) => {
   return (
     <div data-testid="lipa-review" style={{ border: `1px solid ${color}33`, backgroundColor: bg, borderRadius: 12, padding: 12, margin: '8px 0' }}>
       <div style={{ fontSize: 14, fontWeight: 800, color }}>{label}</div>
+      {/* The money to look for, big (owner 2026-10-27): the seller checks this amount on their Lipa Namba. */}
+      {data.amount > 0 && (
+        <div data-testid="lipa-amount" style={{ marginTop: 6 }}>
+          <div style={{ fontSize: 13, color: '#475569' }}>Kiasi cha kuangalia kwenye Lipa Namba</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', letterSpacing: -0.3, fontVariantNumeric: 'tabular-nums' }}>
+            TZS {Number(data.amount).toLocaleString()}
+          </div>
+        </div>
+      )}
       {key === 'rejected' && data.rejectReasonText && (
         <div style={{ fontSize: 13, color: '#334155', marginTop: 2 }}>Sababu: {data.rejectReasonText}</div>
       )}
       {data.reference && <div style={{ fontSize: 13, color: '#334155', marginTop: 2 }}>Kumbukumbu ya malipo: {data.reference}</div>}
+      {/* The buyer's screenshot, shown large; tap to open it full size. */}
       {data.proofUrl && (
         <a href={data.proofUrl} onClick={openProof} target="_blank" rel="noopener noreferrer"
-          style={{ display: 'inline-block', marginTop: 6, fontSize: 14, fontWeight: 700, color: '#1d4ed8' }}>
-          Angalia picha ya malipo
+          aria-label="Fungua picha ya malipo" style={{ display: 'block', marginTop: 10, textDecoration: 'none' }}>
+          <img data-testid="lipa-proof" src={data.proofUrl} alt="Picha ya malipo ya mnunuzi"
+            style={{ display: 'block', width: '100%', maxHeight: 420, objectFit: 'contain', borderRadius: 10, backgroundColor: '#fff', border: '1px solid #e2e8f0' }} />
+          <span style={{ display: 'block', marginTop: 6, fontSize: 14, fontWeight: 700, color: '#1d4ed8' }}>Fungua picha kubwa</span>
         </a>
+      )}
+      {!data.proofUrl && key === 'waiting' && (
+        <div style={{ fontSize: 13, color: '#334155', marginTop: 8 }}>Mnunuzi hajatuma picha hapa. Angalia Lipa Namba yako au WhatsApp, kisha thibitisha.</div>
       )}
 
       {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c', marginTop: 8 }}>{error}</div>}
