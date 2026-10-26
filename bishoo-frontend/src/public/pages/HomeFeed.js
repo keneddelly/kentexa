@@ -11,6 +11,7 @@
  *  All saves/shares/views go to POST /engagements (entity-based, works on virtual IDs)
  *  Comments go to POST /comments (entity-based)
  */
+import ExpandableText from '../components/ExpandableText';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -517,6 +518,13 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const actorUnresolved = isActorUnresolved(biz);
   const repScore= biz.reputationScore || 0;
   const image   = (!imgErr && (post.imageUrl || post.data?.images?.[0])) || null;
+  // One text per post: a Moment repeats its caption as title and body; a listing has a
+  // name (headline) and a description. "Moment" is only the empty-caption placeholder.
+  const rawTitle = (post.title || '').trim();
+  const rawBody  = (post.body || '').trim();
+  const sameText = !!rawBody && (rawTitle === rawBody || rawTitle === 'Moment');
+  const headline = sameText || rawTitle === 'Moment' ? '' : rawTitle;
+  const postText = sameText ? rawBody : (rawBody || (!headline ? rawTitle : ''));
   // Badge: real, unambiguous post types (Moment, Looking For, Discount...)
   // always win over the entityType inference above, which is really about
   // what's tagged/for-sale, not what kind of post this is.
@@ -678,13 +686,9 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
         </div>
       )}
 
-      {/* Text-only */}
-      {!image && post.body && (
-        <div onClick={goToDetail}
-          style={{ padding:'16px 14px', backgroundColor:'#F8FAFC',
-            fontSize:15, color:DK, lineHeight:1.6, cursor:'pointer', minHeight:60 }}>
-          {post.body}
-        </div>
+      {/* Text-only: the whole text, clamped with "Soma zaidi" */}
+      {!image && postText && (
+        <ExpandableText text={postText} lines={8} style={{ padding:'4px 14px 10px' }} />
       )}
 
       {/* ── Price + primary action ── */}
@@ -823,17 +827,14 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
           </div>
         )}
 
-        {/* Caption — product/post title, not the store name again */}
-        {post.title && (
-          <div style={{ fontSize:13, fontWeight:700, color:DK, lineHeight:1.5, marginBottom:4 }}>
-            {post.title}
+        {/* Caption: a listing's name in bold, then its text once, with "Soma zaidi".
+            A Moment's title is its caption, so it is shown once, never twice. */}
+        {headline && (
+          <div style={{ fontSize:15, fontWeight:700, color:'#0f1419', lineHeight:'20px', marginBottom:2 }}>
+            {headline}
           </div>
         )}
-        {post.body && post.title && (
-          <div style={{ fontSize:12, color:GR, lineHeight:1.4, marginBottom:4 }}>
-            {post.body.slice(0,120)}{post.body.length > 120 ? '...' : ''}
-          </div>
-        )}
+        {image && postText && <ExpandableText text={postText} lines={3} style={{ marginBottom:4 }} />}
 
         {/* Comment count link */}
         {counts.comments > 0 && (
