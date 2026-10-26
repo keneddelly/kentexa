@@ -240,7 +240,8 @@ const tabsInner = (profileType, isOwn, t) => {
   // now gets. "Profiles" (Also on Kentexa) is always-visible below the
   // header, not a tab, so it isn't listed here.
   const base = [];
-  if (isOwn) base.push({ key:'posts', label:t('commerce_profile.tab_listings') });
+  // A person's listings are public (owner 2026-10-26): visitors see them too, right after Moments.
+  base.push({ key:'posts', label:t('commerce_profile.tab_listings') });
   base.push({ key:'feed', label:t('commerce_profile.tab_posts') });
   base.push({ key:'about', label:t('commerce_profile.tab_about') });
   if (isOwn) base.push({ key:'services', label:t('commerce_profile.tab_services') });
@@ -953,8 +954,17 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                           </div>
                           {text && <ExpandableText text={text} lines={4} />}
                           {f.imageUrl && (
-                            <img src={f.imageUrl} alt="" style={{ width:'100%', maxHeight:420, objectFit:'cover',
-                              borderRadius:16, border:`1px solid ${LINE}` }} />
+                            <img src={f.imageUrl} alt="" data-testid="moment-image"
+                              onClick={(e) => {
+                                // A Moment made from a listing: its picture opens that listing.
+                                if (!f.linkedEntityType || !f.linkedEntityId) return;
+                                e.stopPropagation();
+                                onNavigate(f.linkedEntityType === 'product' ? `ProductDetail-${f.linkedEntityId}`
+                                  : f.linkedEntityType === 'service' ? `ServiceDetail-${f.linkedEntityId}`
+                                  : `ClassifiedDetail-${f.linkedEntityId}`);
+                              }}
+                              style={{ width:'100%', maxHeight:420, objectFit:'cover',
+                                borderRadius:16, border:`1px solid ${LINE}` }} />
                           )}
                           <div style={{ display:'flex', gap:24, color:MUTED, fontSize:13 }}>
                             <span>Maoni {fmt(f.commentCount || 0)}</span>
