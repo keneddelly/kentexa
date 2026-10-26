@@ -30,7 +30,9 @@ const config = getB5BTestConnectionConfig();
       username: config!.user, password: config!.password, database: config!.database,
       entities: [], synchronize: false });
     await db.initialize();
-    await db.query('CREATE TABLE public."order" (id integer PRIMARY KEY, status varchar NOT NULL, "deliveredAt" timestamp)');
+    await db.query(`CREATE TABLE public."order" (id integer PRIMARY KEY, status varchar NOT NULL, "deliveredAt" timestamp,
+      source varchar, "paymentStatus" varchar, "paymentMethod" varchar, "codBalanceCollected" boolean DEFAULT false,
+      "completedAt" timestamp)`);
     await db.query(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "trackingNumber" varchar,
       status varchar NOT NULL, "buyerRequestedDelivery" boolean, "buyerPhone" varchar,
       "destinationSuperAgentId" integer, "destinationCity" varchar, "orderId" integer,
