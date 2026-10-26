@@ -1,13 +1,11 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import SuperAgentSettings from './SuperAgentSettings';
+import OfficePrices from './OfficePrices';
 import api from '../../api/api';
 
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn(), put: jest.fn(), patch: jest.fn() }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key) => key }) }));
-jest.mock('../components/IntelligentLocationInput', () => () => null);
-jest.mock('../components/OfficePoint', () => () => null);
-jest.mock('../components/BackBar', () => () => null);
+jest.mock('./OfficePickupCard', () => () => null);
 
 const mwanza = { destinationCity: 'Mwanza', ratePerKg: 3000, minimumCharge: 4000, estimatedDays: 2 };
 const rule = (over = {}) => ({ chargeMode: 'value', valuePercent: 10, valueMinimum: 5000, source: 'default', isDarEsSalaam: true, rates: [mwanza], ...over });
@@ -28,7 +26,7 @@ const serve = ({ priceRule = rule(), rates = [{ id: 1, ...mwanza }] } = {}) => {
 };
 
 const openPage = async () => {
-  render(<SuperAgentSettings onNavigate={jest.fn()} isLoggedIn />);
+  render(<OfficePrices />);
   return screen.findByTestId('bei-card');
 };
 
