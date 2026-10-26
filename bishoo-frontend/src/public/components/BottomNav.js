@@ -23,30 +23,37 @@ import { isAppleMobile } from '../utils/isAppleMobile';
  */
 export const BOTTOM_NAV_CLEARANCE = 'calc(124px + env(safe-area-inset-bottom, 0px))';
 
-const B = '#2563EB';
+// Twitter-style tab icons (owner 2026-10-26: "the bottom nav icons look like emoji"):
+// one line-icon set, ink when active (and a little bolder), grey otherwise. No emoji.
+const B = '#1d4ed8';
+const INK = '#0f1419';
+const MUTED = '#536471';
 
-const HomeIcon = (active) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill={active ? B : 'none'}
-    stroke={active ? B : '#64748b'} strokeWidth="2">
-    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-    <polyline points="9,22 9,12 15,12 15,22"/>
+const ICON_PATHS = {
+  home:      'M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z',
+  search:    'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5',
+  inbox:     'M4 5h16v11H8l-4 4z',
+  dashboard: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  agent:     'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M10 7h3l1 3',
+  hub:       'M4 21V5l8-2 8 2v16M9 21v-5h6v5M8 9h2M14 9h2M8 13h2M14 13h2',
+  transport: 'M3 16V7h11v9M14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z',
+  services:  'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.5-2.5z',
+  admin:     'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z',
+  dot:       'M12 13a1 1 0 100-2 1 1 0 000 2z',
+};
+const lineIcon = (name) => (active) => (
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+    stroke={active ? INK : MUTED} strokeWidth={active ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+    <path d={ICON_PATHS[name]} />
   </svg>
 );
-const SearchIcon = (active) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-    stroke={active ? B : '#64748b'} strokeWidth="2">
-    <circle cx="11" cy="11" r="8"/>
-    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-  </svg>
-);
-const emojiIcon = (emoji) => (active) => (
-  <span style={{ fontSize: 21, opacity: active ? 1 : 0.55 }}>{emoji}</span>
-);
 
+// The profile pill shows the active profile's kind as a small line icon.
 const PROFILE_TYPE_ICON = {
-  personal: '👤', business: '🏪', hub: '🏢',
-  transport_provider: '🚌', agent: '🏍️', service_provider: '🔧',
-  brand: '🏷️',
+  personal: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
+  business: ICON_PATHS.hub, hub: ICON_PATHS.hub,
+  transport_provider: ICON_PATHS.transport, agent: ICON_PATHS.agent,
+  service_provider: ICON_PATHS.services, brand: 'M20 12l-8 8-9-9V3h8zM7.5 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
 };
 
 const CAPABILITY_LABEL_BY_ROLE = {
@@ -65,22 +72,19 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
   activeProfile, activeContext, activeBusinessName, onOpenSwitcher, myProfiles, inboxUnread }) => {
   const { t } = useTranslation();
   const semanticIcon = {
-    home: HomeIcon, search: SearchIcon, inbox: emojiIcon('💬'), dashboard: emojiIcon('📊'),
-    agent: emojiIcon('🏍️'), hub: emojiIcon('🏢'), transport: emojiIcon('🚌'),
-    services: emojiIcon('🔧'), admin: emojiIcon('🛡️'),
+    home: lineIcon('home'), search: lineIcon('search'), inbox: lineIcon('inbox'), dashboard: lineIcon('dashboard'),
+    agent: lineIcon('agent'), hub: lineIcon('hub'), transport: lineIcon('transport'),
+    services: lineIcon('services'), admin: lineIcon('admin'),
   };
   const rawTabs = itemsForRole(activeContext?.roleType).map(entry => {
     if (entry.destination === '__POST__') return {
       key: '__POST__', icon: () => (
         <div style={{
-          width: 48, height: 48, borderRadius: 14,
-          background: `linear-gradient(135deg, ${B}, #7C3AED)`,
+          width: 44, height: 44, borderRadius: 22, backgroundColor: B,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
-          marginTop: -8,
         }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke="#fff" strokeWidth="2.5">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+            stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
@@ -91,21 +95,19 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
     if (entry.destination === 'MyProfile') return {
       key: 'MyProfile', icon: (active) => (currentUser?.avatarUrl || currentUser?.logo)
         ? <img src={currentUser.avatarUrl || currentUser.logo} alt=""
-            style={{ width:26, height:26, borderRadius:'50%', objectFit:'cover',
-              border: active ? `2px solid ${B}` : '2px solid #e2e8f0' }} />
+            style={{ width:28, height:28, borderRadius:'50%', objectFit:'cover', boxSizing:'border-box',
+              border: active ? `2px solid ${INK}` : '2px solid transparent' }} />
         : (
-          <div style={{ width:26, height:26, borderRadius:'50%',
-            backgroundColor: active ? B : '#e2e8f0',
+          <div style={{ width:28, height:28, borderRadius:'50%', boxSizing:'border-box',
+            backgroundColor: active ? INK : '#cfd9de',
             display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize: 12, fontWeight:800,
-            color: active ? '#fff' : '#64748b',
-            border: active ? `2px solid ${B}` : '2px solid #e2e8f0' }}>
+            fontSize: 13, fontWeight:800, color: '#fff' }}>
             {(currentUser?.name || currentUser?.storeName || 'U').charAt(0).toUpperCase()}
           </div>
         ),
       label: t(entry.labelKey),
     };
-    return { key: entry.destination, icon: semanticIcon[entry.iconId] || emojiIcon('•'), label: t(entry.labelKey) };
+    return { key: entry.destination, icon: semanticIcon[entry.iconId] || lineIcon('dot'), label: t(entry.labelKey) };
   });
 
   const seenKeys = new Set();
@@ -133,7 +135,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
             position: 'fixed', bottom: isAppleMobile() ? 'calc(66px + env(safe-area-inset-bottom, 0px))' : 66,
             left: '50%', transform: 'translateX(-50%)',
             zIndex: 999, display: 'flex', alignItems: 'center', gap: 6,
-            backgroundColor: '#0F172A', color: '#fff', border: 'none',
+            backgroundColor: INK, color: '#fff', border: 'none',
             borderRadius: 100, padding: '6px 14px 6px 8px', cursor: 'pointer',
             boxShadow: '0 4px 14px rgba(0,0,0,0.25)', maxWidth: '80vw',
           }}>
@@ -142,7 +144,11 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
             alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
             {activeProfile.photoUrl
               ? <img src={activeProfile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : (PROFILE_TYPE_ICON[activeProfile.type] || '👤')}
+              : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d={PROFILE_TYPE_ICON[activeProfile.type] || PROFILE_TYPE_ICON.personal} />
+                </svg>
+              )}
           </span>
           <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden',
             textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -155,7 +161,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
               ? `${activeBusinessName} · ${t(CAPABILITY_LABEL_BY_ROLE[activeContext?.roleType] || 'profile_switcher.type_business')}`
               : personalOperationalText(activeProfile, t)}
           </span>
-          <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true" style={{ opacity: 0.8 }}><path d="M6 9l6 6 6-6" /></svg>
         </button>
       )}
       <div style={{
@@ -165,8 +171,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
         right:           0,
         zIndex:          1000,
         backgroundColor: '#fff',
-        borderTop:       '1px solid #f1f5f9',
-        boxShadow:       '0 -4px 20px rgba(0,0,0,0.06)',
+        borderTop:       '1px solid #eff3f4',
         display:         'flex',
         alignItems:      'center',
         height:          60,
@@ -180,6 +185,8 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
             <button
               key={tab.key}
               data-tour={tab.key === 'MyProfile' ? 'bottomnav-profile' : undefined}
+              aria-label={isPost ? 'Tengeneza' : tab.label || undefined}
+              aria-current={isActive ? 'page' : undefined}
               onClick={() => {
                 if (isPost) {
                   if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -202,7 +209,8 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
                 alignItems:      'center',
                 justifyContent:  'center',
                 gap:             2,
-                padding:         isPost ? '0 0 8px' : '8px 0',
+                padding:         '6px 0',
+                minHeight:       52,
                 position:        'relative',
               }}
             >
@@ -214,20 +222,19 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
                   why those two numbers were never the same thing). */}
               {tab.key === 'SellerInbox' && inboxUnread > 0 && (
                 <span style={{
-                  position: 'absolute', top: 2, right: '28%',
-                  minWidth: 15, height: 15, padding: '0 3px', borderRadius: 100,
-                  backgroundColor: '#DC2626', color: '#fff',
-                  fontSize: 9, fontWeight: 800, lineHeight: '15px', textAlign: 'center',
+                  position: 'absolute', top: 2, right: '26%',
+                  minWidth: 18, height: 18, padding: '0 4px', borderRadius: 100, boxSizing: 'border-box',
+                  backgroundColor: B, color: '#fff', border: '2px solid #fff',
+                  fontSize: 10, fontWeight: 700, lineHeight: '14px', textAlign: 'center',
                 }}>
                   {inboxUnread > 99 ? '99+' : inboxUnread}
                 </span>
               )}
               {tab.label ? (
                 <span style={{
-                  fontSize:   9,
-                  fontWeight: isActive ? 800 : 600,
-                  color:      isActive ? B : '#94a3b8',
-                  letterSpacing: 0.3,
+                  fontSize:   11,
+                  fontWeight: isActive ? 700 : 500,
+                  color:      isActive ? INK : MUTED,
                 }}>
                   {tab.label}
                 </span>
