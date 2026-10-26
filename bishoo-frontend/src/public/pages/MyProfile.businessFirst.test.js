@@ -40,3 +40,25 @@ test('Personal identity and Businesses are primary, grouped once across capabili
   fireEvent.click(screen.getByText('my_profile.my_classifieds'));
   expect(onNavigate).toHaveBeenCalledWith('MyClassifieds');
 });
+
+test('an advertiser sees "Matangazo yangu" on the profile menu and it opens their page', async () => {
+  api.get.mockImplementation(path => {
+    if (path === '/advertisers/me') return Promise.resolve({ data: { name: 'Kened', link: 'x' } });
+    if (path === '/auth/profile') return Promise.resolve({ data: { name: 'Kened', phone: '0700' } });
+    return Promise.reject(new Error('not needed'));
+  });
+  const onNavigate = jest.fn();
+  render(<MyProfile isLoggedIn currentUser={{ name: 'Kened', phone: '0700' }} userRole="buyer"
+    availableRoles={[{ roleType: 'buyer', status: 'active' }]} roleOptions={[]}
+    onNavigate={onNavigate} onLogout={jest.fn()} />);
+  fireEvent.click(await screen.findByText('Matangazo yangu'));
+  expect(onNavigate).toHaveBeenCalledWith('MyAdvertising');
+});
+
+test('someone who is not an advertiser does not see it', async () => {
+  render(<MyProfile isLoggedIn currentUser={{ name: 'Kened', phone: '0700' }} userRole="buyer"
+    availableRoles={[{ roleType: 'buyer', status: 'active' }]} roleOptions={[]}
+    onNavigate={jest.fn()} onLogout={jest.fn()} />);
+  await waitFor(() => expect(api.get).toHaveBeenCalledWith('/advertisers/me'));
+  expect(screen.queryByText('Matangazo yangu')).not.toBeInTheDocument();
+});
