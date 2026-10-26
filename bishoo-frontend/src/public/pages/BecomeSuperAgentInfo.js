@@ -110,7 +110,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
         <div style={{ fontSize: 52, marginBottom: 10 }}>🏢</div>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>
+        <h1 style={{ fontSize: 22, fontWeight:800, color: '#fff', margin: '0 0 6px', fontFamily:'inherit' }}>
           {t('become_super_agent_info.hero_title')}
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0 }}>
@@ -201,7 +201,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
         {step === 'done' ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 8px' }}>{t('become_super_agent_info.done_title')}</h2>
+            <h2 style={{ fontSize: 20, fontWeight:800, color: '#1e293b', margin: '0 0 8px' }}>{t('become_super_agent_info.done_title')}</h2>
             <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px' }}>
               {t('become_super_agent_info.done_desc')}
             </p>

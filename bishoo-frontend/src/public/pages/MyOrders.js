@@ -808,7 +808,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             <div style={{ backgroundColor: '#1e1b4b', borderRadius: 12, padding: 14, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
-                                <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', fontFamily: 'monospace', letterSpacing: 1, wordBreak: 'break-all' }}>{inv.invoiceNumber}</div>
+                                <div style={{ fontSize: 16, fontWeight:800, color: '#fff', fontFamily: 'monospace', letterSpacing: 1, wordBreak: 'break-all' }}>{inv.invoiceNumber}</div>
                                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>TZS {invTotal.toLocaleString()}</div>
                               </div>
                               <button
@@ -922,7 +922,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>
                               🚚 {t('my_orders.shipment_created_label')}
                             </div>
-                            <div style={{ fontSize: 16, fontWeight: 900, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 4 }}>
+                            <div style={{ fontSize: 16, fontWeight:800, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 4 }}>
                               {inv.shipment.trackingNumber}
                             </div>
                             {inv.shipment.orderStatus && (
@@ -964,7 +964,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
             {payMode !== 'agent' ? (
               <>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>💳</div>
-                <h2 style={{ fontSize: 19, fontWeight: 900, color: '#1e293b', marginBottom: 4, fontFamily: 'Manrope,sans-serif' }}>{t('my_orders.complete_payment_title')}</h2>
+                <h2 style={{ fontSize: 19, fontWeight:800, color: '#1e293b', marginBottom: 4, fontFamily:'inherit' }}>{t('my_orders.complete_payment_title')}</h2>
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginBottom: modalIsCod ? 8 : 16, fontSize: 13, color: '#64748b' }}>
                   {t('my_orders.order_number', { id: payModalOrder.id })} · <strong style={{ color: '#2563eb', fontSize: 15 }}>TZS {modalDueNow.toLocaleString()}</strong>
                 </div>
@@ -1026,13 +1026,13 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
             ) : (
               <>
                 <div style={{ fontSize: 36, marginBottom: 8 }}>🤝</div>
-                <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 4, fontFamily: 'Manrope,sans-serif' }}>{t('my_orders.pay_via_agent_modal_title')}</h2>
+                <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', marginBottom: 4, fontFamily:'inherit' }}>{t('my_orders.pay_via_agent_modal_title')}</h2>
                 <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>{t('my_orders.visit_agent_notice')}</p>
 
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '2px dashed #2563eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, textAlign: 'left' }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
-                    <div style={{ fontSize: 15, fontWeight: 900, color: '#2563eb', fontFamily: 'monospace' }}>{payModalOrder.invoiceNumber || payModalOrder.id}</div>
+                    <div style={{ fontSize: 15, fontWeight:800, color: '#2563eb', fontFamily: 'monospace' }}>{payModalOrder.invoiceNumber || payModalOrder.id}</div>
                     <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>TZS {modalDueNow.toLocaleString()}</div>
                   </div>
                   <button onClick={() => handleCopyInvoice(payModalOrder.invoiceNumber || String(payModalOrder.id))}

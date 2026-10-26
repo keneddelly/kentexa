@@ -12,7 +12,7 @@ const COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f9
 const StatCard = ({ icon, label, value, sub, color = '#6366f1' }) => (
   <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', borderTop: `3px solid ${color}` }}>
     <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
-    <div style={{ fontSize: 26, fontWeight: 900, color: '#0f172a' }}>{value}</div>
+    <div style={{ fontSize: 26, fontWeight:800, color: '#0f172a' }}>{value}</div>
     <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{label}</div>
     {sub && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{sub}</div>}
   </div>

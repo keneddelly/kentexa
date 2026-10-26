@@ -113,7 +113,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
     <div style={card}>
       <div style={{ ...box, textAlign: 'center', padding: 32 }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-        <div style={{ fontSize: 20, fontWeight: 900, color: '#16a34a', marginBottom: 8 }}>
+        <div style={{ fontSize: 20, fontWeight:800, color: '#16a34a', marginBottom: 8 }}>
           {t('confirm_delivery.already_confirmed_title')}
         </div>
         <div style={{ fontSize: 14, color: '#64748b', marginBottom: 16 }}>
@@ -130,7 +130,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
     <div style={card}>
       <div style={{ ...box, textAlign: 'center', padding: 32 }}>
         <div style={{ fontSize: 64, marginBottom: 12 }}>🎉</div>
-        <div style={{ fontSize: 22, fontWeight: 900, color: '#16a34a', marginBottom: 8 }}>
+        <div style={{ fontSize: 22, fontWeight:800, color: '#16a34a', marginBottom: 8 }}>
           {t('confirm_delivery.thank_you_title')}
         </div>
         <div style={{ fontSize: 15, color: '#475569', marginBottom: 8 }}>
@@ -146,7 +146,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
 
       {/* Marketing footer */}
       <div style={{ ...box, backgroundColor: '#0f172a', padding: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 900, color: '#fff', marginBottom: 6 }}>
+        <div style={{ fontSize: 13, fontWeight:800, color: '#fff', marginBottom: 6 }}>
           {t('confirm_delivery.shop_confidence_title')}
         </div>
         <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 16, lineHeight: 1.6 }}>
@@ -165,7 +165,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
     <div style={card}>
       <div style={{ ...box, textAlign: 'center', padding: 32 }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-        <div style={{ fontSize: 20, fontWeight: 900, color: '#dc2626', marginBottom: 8 }}>
+        <div style={{ fontSize: 20, fontWeight:800, color: '#dc2626', marginBottom: 8 }}>
           {t('confirm_delivery.problem_reported_title')}
         </div>
         <div style={{ fontSize: 14, color: '#64748b' }}>
@@ -193,7 +193,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8',
               marginBottom: 4, letterSpacing: 0.5 }}>{t('confirm_delivery.your_item_label')}</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', marginBottom: 4 }}>
+            <div style={{ fontSize: 17, fontWeight:800, color: '#1e293b', marginBottom: 4 }}>
               {order?.productName || order?.description || t('confirm_delivery.default_item_name')}
             </div>
             <div style={{ fontSize: 13, color: '#64748b' }}>
@@ -211,7 +211,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
 
       {/* Main question */}
       <div style={{ ...box, textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+        <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
           {t('confirm_delivery.main_question')}
         </div>
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>

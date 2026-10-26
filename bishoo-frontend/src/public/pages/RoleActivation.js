@@ -143,7 +143,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc',
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif', display:'flex', flexDirection:'column' }}>
+      fontFamily:'inherit', display:'flex', flexDirection:'column' }}>
       <BackBar onBack={() => onNavigate('CommerceProfile')} title={t('role_activation.page_title')} top={0} />
 
       <div style={{ flex:1, maxWidth:760, margin:'0 auto', width:'100%',
@@ -156,7 +156,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
             marginBottom:6, fontWeight:700 }}>
             {t('role_activation.eyebrow')}
           </div>
-          <div style={{ fontSize:20, fontWeight:900, marginBottom:8 }}>
+          <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>
             {t('role_activation.hero_title')}
           </div>
           <div style={{ fontSize:13, color:'rgba(255,255,255,0.75)', lineHeight:1.6 }}>
@@ -197,7 +197,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
                   <span style={{ fontSize:32, flexShrink:0 }}>{r.icon}</span>
                   <div style={{ flex:1 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2 }}>
-                      <span style={{ fontSize:15, fontWeight:900, color:'#1e293b' }}>
+                      <span style={{ fontSize:15, fontWeight:800, color:'#1e293b' }}>
                         {r.title}
                       </span>
                       {isActive && (
@@ -233,7 +233,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
               padding:'24px 20px', marginBottom:16,
               border:`1.5px solid ${role.accent}30` }}>
               <div style={{ fontSize:40, marginBottom:12 }}>{role.icon}</div>
-              <div style={{ fontSize:22, fontWeight:900, color:'#1e293b', marginBottom:4 }}>
+              <div style={{ fontSize:22, fontWeight:800, color:'#1e293b', marginBottom:4 }}>
                 {role.title}
               </div>
               <div style={{ fontSize:14, color:'#475569', lineHeight:1.6 }}>
@@ -282,7 +282,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
                 background:`linear-gradient(135deg,${role.accent},${role.accent}cc)`,
                 color:'#fff', border:'none', borderRadius:14,
                 padding:'16px 0', cursor:'pointer',
-                fontSize:16, fontWeight:900,
+                fontSize:16, fontWeight:800,
                 boxShadow:`0 4px 16px ${role.accent}40` }}>
               {t('role_activation.activate_button', { icon: role.icon, title: role.title })}
             </button>

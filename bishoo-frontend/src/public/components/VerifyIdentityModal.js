@@ -85,7 +85,7 @@ const VerifyIdentityModal = ({ onClose, onVerified }) => {
     <div style={overlayStyle} onClick={onClose}>
       <div style={sheetStyle} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 900, color: '#0f172a', margin: 0 }}>
+          <h2 style={{ fontSize: 17, fontWeight:800, color: '#0f172a', margin: 0 }}>
             {t('verify_identity.title')}
           </h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: '#94a3b8', cursor: 'pointer', lineHeight: 1 }}>×</button>

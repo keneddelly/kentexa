@@ -100,7 +100,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between',
           alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0 }}>
+            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0 }}>
               📋 Matangazo
             </h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
@@ -131,7 +131,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12,
               padding: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 24, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>
                 {s.label}
               </div>
@@ -278,7 +278,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
 
               <div style={{ display: 'flex', justifyContent: 'space-between',
                 alignItems: 'flex-start', marginBottom: 16 }}>
-                <div style={{ fontSize: 17, fontWeight: 900, color: '#0f172a',
+                <div style={{ fontSize: 17, fontWeight:800, color: '#0f172a',
                   maxWidth: 340, lineHeight: 1.3 }}>
                   {selected.title}
                 </div>

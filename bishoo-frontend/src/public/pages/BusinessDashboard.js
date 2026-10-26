@@ -189,7 +189,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
                 : <span style={{ fontSize: 26 }}>🏢</span>}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 900, color: DK }}>
+              <div style={{ fontSize: 16, fontWeight:800, color: DK }}>
                 {business.tradingName || business.legalName}
               </div>
               <div style={{ fontSize: 12, color: GR, marginTop: 2 }}>
@@ -219,7 +219,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
                 [t('business_dashboard.today_pending_invoices'), today.commerce?.pendingInvoicesCount ?? 0],
               ].map(([label, value]) => (
                 <div key={label} style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: B }}>{value}</div>
+                  <div style={{ fontSize: 18, fontWeight:800, color: B }}>{value}</div>
                   <div style={{ fontSize: 10, color: GR, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
@@ -235,7 +235,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
                 [t('business_dashboard.today_reviews'), today.customerActivity?.reviewsToday ?? 0],
               ].map(([label, value]) => (
                 <div key={label} style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: DK }}>{value}</div>
+                  <div style={{ fontSize: 18, fontWeight:800, color: DK }}>{value}</div>
                   <div style={{ fontSize: 10, color: GR, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
@@ -327,7 +327,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
           <div style={{ width: '100%', maxWidth: 480, backgroundColor: '#fff', borderRadius: '16px 16px 0 0',
             padding: 24, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 900, color: DK, margin: 0 }}>
+              <h2 style={{ fontSize: 17, fontWeight:800, color: DK, margin: 0 }}>
                 {t('business_dashboard.edit_title')}
               </h2>
               <button onClick={() => setShowEdit(false)}

@@ -38,8 +38,8 @@ const cardStyle = {
   boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #eef2f7',
 };
 const sectionHeading = {
-  fontSize: 20, fontWeight: 900, color: '#0f172a', margin: '0 0 6px',
-  fontFamily: 'Manrope,sans-serif', textAlign: 'center',
+  fontSize: 20, fontWeight:800, color: '#0f172a', margin: '0 0 6px',
+  fontFamily:'inherit', textAlign: 'center',
 };
 const sectionBody = {
   fontSize: 14, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6,
@@ -58,7 +58,7 @@ const StepList = ({ steps, color = '#1d4ed8' }) => (
       <div key={i} style={{ display: 'flex', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
           <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: color, color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, flexShrink: 0 }}>
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight:800, flexShrink: 0 }}>
             {i + 1}
           </div>
           {i < steps.length - 1 && <div style={{ width: 2, flex: 1, backgroundColor: '#e2e8f0', margin: '4px 0', minHeight: 12 }} />}
@@ -318,7 +318,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {trustPoints.map((point, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 15, flexShrink: 0, color: '#16a34a', fontWeight: 900, marginTop: 1 }}>✓</span>
+                <span style={{ fontSize: 15, flexShrink: 0, color: '#16a34a', fontWeight:800, marginTop: 1 }}>✓</span>
                 <span style={{ fontSize: 13, color: '#334155', lineHeight: 1.6 }}>{point}</span>
               </div>
             ))}

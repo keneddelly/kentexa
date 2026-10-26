@@ -117,7 +117,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, paddingBottom: 100 }}>
       <BackBar onBack={() => onNavigate('back')} title="⚙️ Mipangilio ya Duka" />
-      <h2 style={{ fontSize: 20, fontWeight: 900, color: '#0f172a', marginBottom: 4, fontFamily: 'Manrope,sans-serif' }}>🏪 Store Settings</h2>
+      <h2 style={{ fontSize: 20, fontWeight:800, color: '#0f172a', marginBottom: 4, fontFamily:'inherit' }}>🏪 Store Settings</h2>
       <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Customize how your store appears to buyers</p>
 
       {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>✅ {message}</div>}
@@ -264,7 +264,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
             <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
               <img src={img} alt={`gallery-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
               <button onClick={() => removeGalleryImage(i)}
-                style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', backgroundColor: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 900, lineHeight: 1 }}>×</button>
+                style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', backgroundColor: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight:800, lineHeight: 1 }}>×</button>
             </div>
           ))}
         </div>

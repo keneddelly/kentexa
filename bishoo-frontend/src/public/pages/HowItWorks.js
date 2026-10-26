@@ -44,12 +44,12 @@ const HowItWorks = ({ onNavigate }) => {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('how_it_works.page_title', 'How It Works')} top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '48px 16px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: '0 0 12px', fontFamily: 'Manrope,sans-serif' }}>{t('how_it_works.hero_title')}</h1>
+        <h1 style={{ fontSize: 28, fontWeight:800, color: '#fff', margin: '0 0 12px', fontFamily:'inherit' }}>{t('how_it_works.hero_title')}</h1>
         <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', maxWidth: 500, margin: '0 auto' }}>
           {t('how_it_works.hero_desc')}
         </p>
@@ -70,7 +70,7 @@ const HowItWorks = ({ onNavigate }) => {
 
         {/* Steps */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 20px', fontFamily: 'Manrope,sans-serif' }}>
+          <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 20px', fontFamily:'inherit' }}>
             {current.icon} {t('how_it_works.for_role_title', { role: current.label })}
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -95,7 +95,7 @@ const HowItWorks = ({ onNavigate }) => {
 
         {/* Payment Methods */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif' }}>{t('how_it_works.payment_methods_title')}</h2>
+          <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 16px', fontFamily:'inherit' }}>{t('how_it_works.payment_methods_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10 }}>
             {[
               { icon: '📱', name: 'M-Pesa', desc: t('how_it_works.payment_mpesa_desc') },
@@ -115,7 +115,7 @@ const HowItWorks = ({ onNavigate }) => {
 
         {/* Commission fees */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>{t('how_it_works.commission_title')}</h2>
+          <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 6px', fontFamily:'inherit' }}>{t('how_it_works.commission_title')}</h2>
           <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px' }}>{t('how_it_works.commission_desc')}</p>
           <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', backgroundColor: '#0f172a', padding: '10px 14px' }}>
@@ -126,7 +126,7 @@ const HowItWorks = ({ onNavigate }) => {
             {fees.map((f, i) => (
               <div key={f.category} style={{ display: 'flex', alignItems: 'center', padding: '11px 14px', backgroundColor: i % 2 === 0 ? '#f8fafc' : '#fff', borderTop: '1px solid #e2e8f0' }}>
                 <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{f.category}</div>
-                <div style={{ width: 60, fontSize: 14, fontWeight: 900, color: '#1d4ed8', textAlign: 'center' }}>{f.fee}</div>
+                <div style={{ width: 60, fontSize: 14, fontWeight:800, color: '#1d4ed8', textAlign: 'center' }}>{f.fee}</div>
                 <div style={{ flex: 1, fontSize: 11, color: '#64748b', textAlign: 'right' }}>{f.note}</div>
               </div>
             ))}
@@ -135,7 +135,7 @@ const HowItWorks = ({ onNavigate }) => {
 
         {/* Buyer Protection */}
         <div style={{ background: 'linear-gradient(135deg,#dcfce7,#d1fae5)', borderRadius: 16, padding: '24px 20px', marginBottom: 16, border: '1px solid #86efac' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#15803d', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>{t('how_it_works.protection_title')}</h2>
+          <h2 style={{ fontSize: 18, fontWeight:800, color: '#15803d', margin: '0 0 14px', fontFamily:'inherit' }}>{t('how_it_works.protection_title')}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
               t('how_it_works.protection_point1'),
@@ -145,7 +145,7 @@ const HowItWorks = ({ onNavigate }) => {
               t('how_it_works.protection_point5'),
             ].map((point, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 16, flexShrink: 0, color: '#16a34a', fontWeight: 900, marginTop: 1 }}>✓</span>
+                <span style={{ fontSize: 16, flexShrink: 0, color: '#16a34a', fontWeight:800, marginTop: 1 }}>✓</span>
                 <span style={{ fontSize: 14, color: '#166534', lineHeight: 1.6 }}>{point}</span>
               </div>
             ))}
@@ -154,11 +154,11 @@ const HowItWorks = ({ onNavigate }) => {
 
         {/* CTA */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '24px 20px', marginBottom: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 8px', fontFamily: 'Manrope,sans-serif' }}>{t('how_it_works.cta_title')}</h2>
+          <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 8px', fontFamily:'inherit' }}>{t('how_it_works.cta_title')}</h2>
           <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px' }}>{t('how_it_works.cta_desc')}</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => onNavigate('Register')}
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '13px 24px', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800, fontFamily: 'Manrope,sans-serif' }}>
+              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '13px 24px', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800, fontFamily:'inherit' }}>
               {t('how_it_works.cta_create_account')}
             </button>
             <button onClick={() => onNavigate('Stores')}

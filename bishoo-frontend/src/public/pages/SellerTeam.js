@@ -134,7 +134,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
         {/* Hero card */}
         <div style={{ background:'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
           borderRadius:20, padding:'24px 28px', marginBottom:20, color:'#fff' }}>
-          <div style={{ fontSize:18, fontWeight:900, marginBottom:6 }}>
+          <div style={{ fontSize:18, fontWeight:800, marginBottom:6 }}>
             {t('seller_team.hero_title')}
           </div>
           <div style={{ fontSize:13, color:'rgba(255,255,255,0.75)', marginBottom:20, lineHeight:1.6 }}>
@@ -152,7 +152,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
         {showInvite && (
           <div style={{ backgroundColor:'#fff', borderRadius:16, padding:24,
             marginBottom:20, boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize:16, fontWeight:900, color:'#1e293b', marginBottom:16 }}>
+            <div style={{ fontSize:16, fontWeight:800, color:'#1e293b', marginBottom:16 }}>
               {t('seller_team.invite_form_title')}
             </div>
 

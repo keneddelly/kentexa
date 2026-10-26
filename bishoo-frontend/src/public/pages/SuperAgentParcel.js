@@ -164,7 +164,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <div style={{ fontSize: 40, marginBottom: 8 }}>📱</div>
-              <h3 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>
+              <h3 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 6px' }}>
                 {t('super_agent_parcel.pay_tracking_fee_title')}
               </h3>
               <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
@@ -207,7 +207,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
             <button onClick={handlePayFee} disabled={payingFee}
               style={{ width: '100%', background: payingFee ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#15803d)',
                 color: '#fff', border: 'none', padding: 14, borderRadius: 12,
-                cursor: payingFee ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 900 }}>
+                cursor: payingFee ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight:800 }}>
               {payingFee ? t('super_agent_parcel.processing_mpesa') : t('super_agent_parcel.pay_now_button')}
             </button>
           </div>
@@ -216,7 +216,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
             {/* Step 2: Fee paid — show tracking number */}
             <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', borderRadius: 20, padding: 28, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
               <div style={{ fontSize: 52, marginBottom: 12 }}>✅</div>
-              <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 6px' }}>{t('super_agent_parcel.parcel_registered_title')}</h2>
+              <h2 style={{ fontSize: 20, fontWeight:800, margin: '0 0 6px' }}>{t('super_agent_parcel.parcel_registered_title')}</h2>
               <p style={{ fontSize: 13, opacity: 0.9, margin: 0 }}>{t('super_agent_parcel.parcel_registered_desc')}</p>
             </div>
 
@@ -225,7 +225,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>
             {t('super_agent_parcel.tracking_number_label')}
           </div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 2 }}>
+          <div style={{ fontSize: 26, fontWeight:800, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 2 }}>
             {result.trackingNumber}
           </div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
@@ -284,7 +284,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600 }}>
             ❌ {error}
-            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16, fontWeight: 900 }}>×</button>
+            <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16, fontWeight:800 }}>×</button>
           </div>
         )}
 
@@ -438,7 +438,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           <button onClick={handleSubmit} disabled={loading}
             style={{ width: '100%', background: loading ? '#94a3b8' : 'linear-gradient(135deg,#1d4ed8,#2563eb)',
               color: '#fff', border: 'none', padding: 16, borderRadius: 12,
-              cursor: loading ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 900,
+              cursor: loading ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight:800,
               marginTop: 8, boxShadow: '0 4px 12px rgba(29,78,216,0.3)' }}>
             {loading ? t('super_agent_parcel.registering') : t('super_agent_parcel.register_parcel_button')}
           </button>

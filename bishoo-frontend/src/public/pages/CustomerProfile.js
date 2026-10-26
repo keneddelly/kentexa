@@ -189,7 +189,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC',
-      fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      fontFamily:'inherit' }}>
       <div style={{ backgroundColor: WH, borderBottom: '1px solid #F1F5F9', padding: '14px 16px',
         position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', gap: 10 }}>
         <button onClick={() => onNavigate('MyProfile')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
@@ -208,7 +208,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', paddingBottom: 90,
-      fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+      fontFamily: 'inherit' }}>
 
       {/* ── Sticky top bar ── */}
       <div style={{ backgroundColor: WH, borderBottom: '1px solid #F1F5F9', padding: '14px 16px',
@@ -217,7 +217,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         <button onClick={() => onNavigate('MyProfile')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
           <BackIcon />
         </button>
-        <span style={{ fontSize: 15, fontWeight: 800, color: DK, fontFamily: 'Manrope,sans-serif' }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: DK, fontFamily:'inherit' }}>
           {t('profile.title')}
         </span>
       </div>
@@ -227,7 +227,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         <label style={{ position: 'relative', display: 'inline-block', width: 80, height: 80, margin: '0 auto 12px', cursor: 'pointer' }}>
           <div style={{ width: 80, height: 80, borderRadius: 22, overflow: 'hidden',
             background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 30, fontWeight: 900, color: WH,
+            fontSize: 30, fontWeight:800, color: WH,
             boxShadow: '0 8px 24px rgba(0,0,0,0.25)', border: '3px solid rgba(255,255,255,0.35)' }}>
             {avatarUploading ? (
               <span style={{ fontSize: 16 }}>⏳</span>
@@ -242,7 +242,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
             fontSize: 12, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>📷</div>
           <input id="profile-photo" type="file" accept="image/*" onChange={handleAvatarUpload} style={{ position:'absolute', width:1, height:1, opacity:0 }} disabled={avatarUploading} />
         </label>
-        <h1 style={{ fontSize: 20, fontWeight: 900, color: WH, margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>
+        <h1 style={{ fontSize: 20, fontWeight:800, color: WH, margin: '0 0 4px', fontFamily:'inherit' }}>
           {profile?.name || profile?.email?.split('@')[0] || profile?.phone}
         </h1>
         <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', margin: '0 0 12px' }}>
@@ -284,7 +284,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '12px 6px', textAlign: 'center' }}>
               <div style={{ fontSize: 18 }}>{s.icon}</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 16, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 9.5, color: GR, fontWeight: 700 }}>{s.label}</div>
             </div>
           ))}
@@ -304,7 +304,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                     fontSize: 22, color: WH, flexShrink: 0 }}>🏪</div>
                 )}
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.storeName}</div>
+                  <div style={{ fontSize: 15, fontWeight:800, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.storeName}</div>
                   {profile.storeTagline && (
                     <div style={{ fontSize: 14, color: GR, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.storeTagline}</div>
                   )}
@@ -521,7 +521,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {/* ── Reviews I've Given ────────────────────────────────────── */}
         {orders.filter(o => o.buyerRating).length > 0 && (
           <Card>
-            <div style={{ fontSize: 15, fontWeight: 900, color: DK, marginBottom: 14 }}>
+            <div style={{ fontSize: 15, fontWeight:800, color: DK, marginBottom: 14 }}>
               ⭐ Tathmini Zangu
             </div>
             {orders.filter(o => o.buyerRating).map(o => (

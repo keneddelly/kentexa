@@ -107,7 +107,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
             style={{ backgroundColor: '#1e1b4b', borderRadius: 14, padding: '16px 20px', marginBottom: 24, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#a5b4fc', marginBottom: 4 }}>🚐 Dar es Salaam Batch Delivery — Leo</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: '#fff' }}>
+              <div style={{ fontSize: 22, fontWeight:800, color: '#fff' }}>
                 {batchStatus.totalParcels} vifurushi
                 <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 400, marginLeft: 8 }}>
                   · {batchStatus.zones?.length || 0} maeneo · Mbagala → Mbezi → Bunju
@@ -162,7 +162,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
               ].map(item => (
                 <div key={item.label} style={{ backgroundColor: '#f8fafc', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '18px', marginBottom: '4px' }}>{item.icon}</div>
-                  <div style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>{item.value}</div>
+                  <div style={{ fontSize: '20px', fontWeight:'800', color: '#0f172a' }}>{item.value}</div>
                   <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{item.label}</div>
                 </div>
               ))}

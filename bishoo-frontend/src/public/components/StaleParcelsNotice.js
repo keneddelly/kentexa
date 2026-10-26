@@ -46,7 +46,7 @@ export default function StaleParcelsNotice({ onAddToShehena }) {
         style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 12,
           border: 'none', backgroundColor: '#dc2626', color: '#fff', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ minWidth: 30, height: 30, borderRadius: 15, backgroundColor: '#fff', color: '#dc2626',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15 }}>{data.count}</span>
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight:800, fontSize: 15 }}>{data.count}</span>
         <span style={{ flex: 1, fontSize: 13, fontWeight: 800 }}>
           {data.count === 1 ? 'Kifurushi kimepokelewa' : 'Vifurushi vimepokelewa'} bila taarifa za kusafirisha (zaidi ya saa {data.staleHours})
         </span>
@@ -58,7 +58,7 @@ export default function StaleParcelsNotice({ onAddToShehena }) {
           {error && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 8 }}>{error}</div>}
           {data.parcels.map((p) => (
             <div key={p.parcelId} style={{ borderBottom: '1px solid #f1f5f9', padding: '10px 4px' }}>
-              <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 900, color: '#0f172a' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: 14, fontWeight:800, color: '#0f172a' }}>
                 {p.waybillNumber ? formatWaybill(p.waybillNumber) : p.trackingNumber}
               </div>
               <div style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>

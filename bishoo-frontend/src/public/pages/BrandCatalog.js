@@ -112,14 +112,14 @@ const BrandCatalog = ({ onNavigate, activeProfileId }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('brand_catalog.new_item_title')}</div>
+              <div style={{ fontSize: 15, fontWeight:800 }}>{t('brand_catalog.new_item_title')}</div>
               <button onClick={() => { setShowForm(false); setForm(EMPTY_FORM); }} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
             <input placeholder={t('brand_catalog.name_placeholder')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} />
             <input placeholder={t('brand_catalog.category_placeholder')} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={inputStyle} />
             <input placeholder={t('brand_catalog.subcategory_placeholder')} value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))} style={inputStyle} />
             <button onClick={createItem} disabled={saving}
-              style={{ width: '100%', padding: 14, background: saving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              style={{ width: '100%', padding: 14, background: saving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {saving ? t('brand_catalog.saving') : t('brand_catalog.create_button')}
             </button>
           </div>

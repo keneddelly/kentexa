@@ -49,14 +49,14 @@ const BecomeBusinessServiceProvider = ({ businessId, onNavigate, isLoggedIn }) =
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily:'inherit' }}>
       <BackBar onBack={() => onNavigate(`BusinessHome-${businessId}`)} title={t('apply_service_provider.page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
         {!done ? (
           <div style={{ backgroundColor: WH, borderRadius: 16, padding: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>🧰</div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: DK, marginBottom: 8 }}>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: DK, marginBottom: 8 }}>
               {t('apply_service_provider.hero_title', { business: businessName || t('apply_service_provider.page_title') })}
             </h2>
             <p style={{ fontSize: 13, color: GR, marginBottom: 20 }}>
@@ -81,7 +81,7 @@ const BecomeBusinessServiceProvider = ({ businessId, onNavigate, isLoggedIn }) =
           <div style={{ backgroundColor: WH, borderRadius: 16, padding: 24,
             boxShadow: '0 2px 10px rgba(0,0,0,0.06)', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: DK, marginBottom: 8 }}>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: DK, marginBottom: 8 }}>
               {t('apply_service_provider.success_title')}
             </h2>
             <p style={{ fontSize: 13, color: GR, marginBottom: 20 }}>

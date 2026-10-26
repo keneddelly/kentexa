@@ -91,7 +91,7 @@ export default function ShipmentPickupPanel({ shipment }) {
           </div>
           <div style={small}>Akifika na kukabidhi mzigo, mpe namba hii. Usimpe kabla hajafika.</div>
           {code ? (
-            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 6, color: '#0f172a', margin: '8px 0' }} aria-label="Handover code">
+            <div style={{ fontSize: 26, fontWeight:800, letterSpacing: 6, color: '#0f172a', margin: '8px 0' }} aria-label="Handover code">
               {code.value}
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0, color: '#64748b' }}>Inatumika kwa dakika {Math.round(code.seconds / 60)} </div>
             </div>

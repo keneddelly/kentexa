@@ -19,7 +19,7 @@ import { pickAccountPlace } from '../../utils/accountPlace';
 const VEHICLES = ['boda', 'car', 'van', 'truck', 'foot'];
 const card = { background: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' };
 const input = { width: '100%', padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 16, boxSizing: 'border-box', fontFamily: 'inherit' };
-const heading = { fontSize: 14, fontWeight: 900, margin: '16px 0 8px', color: '#1e293b' };
+const heading = { fontSize: 14, fontWeight:800, margin: '16px 0 8px', color: '#1e293b' };
 const primary = (on) => ({ width: '100%', padding: 14, border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 800,
   background: on ? 'linear-gradient(135deg,#f7971e,#ffd200)' : '#e2e8f0', color: on ? '#1e293b' : '#94a3b8', cursor: on ? 'pointer' : 'not-allowed' });
 

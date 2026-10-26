@@ -187,7 +187,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
             <button onClick={handleSave} disabled={saving}
               style={{ width: '100%', backgroundColor: saving ? '#94a3b8' : '#1d4ed8',
                 color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                cursor: saving ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 900 }}>
+                cursor: saving ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight:800 }}>
               {saving ? t('transport_provider_settings.saving') : t('transport_provider_settings.save_button')}
             </button>
           </div>

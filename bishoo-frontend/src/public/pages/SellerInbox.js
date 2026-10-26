@@ -53,14 +53,14 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale, menuOpen, o
       <div style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
         background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 18, fontWeight: 900, color: '#fff', position: 'relative',
+        fontSize: 18, fontWeight:800, color: '#fff', position: 'relative',
         overflow: 'hidden' }}>
         {photo ? <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial}
         {unread > 0 && (
           <div style={{ position: 'absolute', top: -2, right: -2, width: 16, height: 16,
             backgroundColor: '#dc2626', borderRadius: '50%', fontSize: 9,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight: 900 }}>
+            color: '#fff', fontWeight:800 }}>
             {unread}
           </div>
         )}
@@ -176,7 +176,7 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
           )}
           <div style={{ padding: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 800 }}>{msg.metadata.productName}</div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#16a34a', marginTop: 4 }}>
+            <div style={{ fontSize: 14, fontWeight:800, color: '#16a34a', marginTop: 4 }}>
               TZS {Number(msg.metadata.productPrice || 0).toLocaleString()}
             </div>
           </div>
@@ -199,7 +199,7 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
           borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center',
           cursor: msg.metadata.orderId ? 'pointer' : 'default' }}>
           <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>📦 {t('seller_inbox.order_card_label')}</div>
-          <div style={{ fontSize: 13, fontWeight: 900, color: '#1e293b', marginTop: 4 }}>
+          <div style={{ fontSize: 13, fontWeight:800, color: '#1e293b', marginTop: 4 }}>
             #{msg.metadata.orderId}
           </div>
           <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b' }}>
@@ -238,7 +238,7 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
             <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b', marginTop: 4 }}>
               #{msg.metadata.invoiceNumber}
             </div>
-            <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginTop: 2 }}>
+            <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginTop: 2 }}>
               TZS {Number(msg.metadata.invoiceAmount || 0).toLocaleString()}
             </div>
             <div style={{

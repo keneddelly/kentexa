@@ -67,7 +67,7 @@ const Celebration = ({ message, onDone, duration = 2500 }) => {
           animation: `celebration-pop 0.4s ease-out, celebration-fade-out 0.4s ease-in ${(duration - 400) / 1000}s forwards`,
           maxWidth: 280,
         }}>
-          <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>{message}</div>
+          <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>{message}</div>
         </div>
       )}
     </div>

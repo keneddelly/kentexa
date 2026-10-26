@@ -81,7 +81,7 @@ const RatingSummary = ({ summary }) => {
     <div style={{ display: 'flex', gap: 20, padding: '16px 14px', backgroundColor: WH,
       borderBottom: '1px solid #F1F5F9', alignItems: 'center' }}>
       <div style={{ textAlign: 'center', flexShrink: 0 }}>
-        <div style={{ fontSize: 32, fontWeight: 900, color: DK, lineHeight: 1 }}>
+        <div style={{ fontSize: 32, fontWeight:800, color: DK, lineHeight: 1 }}>
           {summary.average.toFixed(1)}
         </div>
         <Stars value={Math.round(summary.average)} size={14} />
@@ -189,7 +189,7 @@ const CommentRow = ({
             display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {commenterPhoto
             ? <img src={commenterPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : <span style={{ color: WH, fontSize: 13, fontWeight: 900 }}>
+            : <span style={{ color: WH, fontSize: 13, fontWeight:800 }}>
                 {(commenterName || 'U').charAt(0).toUpperCase()}
               </span>}
         </button>

@@ -126,7 +126,7 @@ const VanToday = ({ onNavigate }) => {
 
               {/* Status badge */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b' }}>{t('van_today.van_status_title')}</div>
+                <div style={{ fontSize: 16, fontWeight:800, color: '#1e293b' }}>{t('van_today.van_status_title')}</div>
                 <span style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, backgroundColor: batchStatus.bg, color: batchStatus.color }}>
                   {batchStatus.label}
                 </span>
@@ -248,7 +248,7 @@ const VanToday = ({ onNavigate }) => {
                         <div style={{ fontSize: 11, color: '#94a3b8' }}>{t('van_today.eta_after_minutes', { count: zone.etaMinutes })}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 14, fontWeight: 900, color: '#7c3aed' }}>{zone.parcels.length}</div>
+                        <div style={{ fontSize: 14, fontWeight:800, color: '#7c3aed' }}>{zone.parcels.length}</div>
                         <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('van_today.delivered_ratio', { delivered, total: zone.parcels.length })}</div>
                       </div>
                     </div>

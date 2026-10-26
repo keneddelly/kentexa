@@ -289,13 +289,13 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
       </div>
       <div style={{ padding: '8px 10px' }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#0f172a', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-        <div style={{ fontSize: 12, fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(p.displayPrice || p.basePrice || 0).toLocaleString()}</div>
+        <div style={{ fontSize: 12, fontWeight:800, color: '#1d4ed8' }}>TZS {Number(p.displayPrice || p.basePrice || 0).toLocaleString()}</div>
       </div>
     </div>
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <style>{`
         .pd-root { max-width: 480px; margin: 0 auto; width: 100%; padding-bottom: 160px; }
         .pd-grid { display: block; }
@@ -483,7 +483,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                 {reviews.length > 0 && <span style={{ fontSize: 12, color: '#94a3b8' }}>· {reviews.length} {t('product_detail.reviews')}</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
-                <span style={{ fontSize: 26, fontWeight: 900, color: '#1d4ed8' }}>TZS {displayPrice.toLocaleString()}</span>
+                <span style={{ fontSize: 26, fontWeight:800, color: '#1d4ed8' }}>TZS {displayPrice.toLocaleString()}</span>
                 {discount > 0 && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>TZS {originalPrice.toLocaleString()}</span>}
               </div>
 
@@ -507,7 +507,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                           {offer.commerceProfile?.displayName || t('product_detail.another_seller')}
                         </span>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', flexShrink: 0 }}>TZS {Number(offer.displayPrice || offer.basePrice || 0).toLocaleString()}</span>
+                      <span style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', flexShrink: 0 }}>TZS {Number(offer.displayPrice || offer.basePrice || 0).toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -539,7 +539,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
             <div style={{ backgroundColor: '#fff', padding: '12px 16px', marginBottom: 8, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
                 <div onClick={() => product.seller?.id && onNavigate(`CommerceProfile-${product.seller.id}`, sellerNavParams)}
-                  style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}>
+                  style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight:800, fontSize: 16, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}>
                   {sellerPhoto ? <img src={sellerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : sellerName[0]}
                 </div>
                 <div style={{ minWidth: 0 }}>
@@ -607,7 +607,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {autoFeatures.map((f, i) => (
                       <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', backgroundColor: '#eff6ff', borderRadius: 10, padding: '10px 12px', border: '1px solid #bfdbfe' }}>
-                        <span style={{ fontSize: 16, flexShrink: 0, color: '#1d4ed8', fontWeight: 900 }}>✓</span>
+                        <span style={{ fontSize: 16, flexShrink: 0, color: '#1d4ed8', fontWeight:800 }}>✓</span>
                         <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{f}</span>
                       </div>
                     ))}
@@ -638,7 +638,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                           if (trimmed.startsWith('-')) {
                             return (
                               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 }}>
-                                <span style={{ color: '#1d4ed8', fontWeight: 900, flexShrink: 0, marginTop: 1 }}>•</span>
+                                <span style={{ color: '#1d4ed8', fontWeight:800, flexShrink: 0, marginTop: 1 }}>•</span>
                                 <span>{trimmed.substring(1).trim()}</span>
                               </div>
                             );
@@ -669,7 +669,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                     {reviews.length > 0 && (
                       <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
                         <div style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: 36, fontWeight: 900, color: '#0f172a' }}>{avgRating}</div>
+                          <div style={{ fontSize: 36, fontWeight:800, color: '#0f172a' }}>{avgRating}</div>
                           <Stars rating={Number(avgRating)} size={16} />
                           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{reviews.length} {t('product_detail.reviews')}</div>
                         </div>

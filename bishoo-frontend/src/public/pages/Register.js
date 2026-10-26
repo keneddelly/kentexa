@@ -136,13 +136,13 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800;900&display=swap');
-        .ri { width:100%; padding:13px 14px; border-radius:10px; border:2px solid #e2e8f0; font-size:15px; outline:none; box-sizing:border-box; font-family:'Manrope',sans-serif; transition:border 0.2s; background:#fff; }
+        .ri { width:100%; padding:13px 14px; border-radius:10px; border:2px solid #e2e8f0; font-size:15px; outline:none; box-sizing:border-box; font-family:inherit; transition:border 0.2s; background:#fff; }
         .ri:focus { border-color:#2563eb; }
-        .rb { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; font-family:'Manrope',sans-serif; box-shadow:0 6px 18px rgba(37,99,235,0.4); }
+        .rb { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; box-shadow:0 6px 18px rgba(37,99,235,0.4); }
         .rb:disabled { opacity:0.6; cursor:not-allowed; }
-        .otp { width:100%; padding:18px 14px; border-radius:12px; border:2px solid #e2e8f0; font-size:28px; font-weight:900; letter-spacing:8px; text-align:center; outline:none; box-sizing:border-box; font-family:'Manrope',sans-serif; }
+        .otp { width:100%; padding:18px 14px; border-radius:12px; border:2px solid #e2e8f0; font-size:28px; font-weight:800; letter-spacing:8px; text-align:center; outline:none; box-sizing:border-box; font-family:inherit; }
         .otp:focus { border-color:#2563eb; }
-        .tab { flex:1; padding:10px; border:none; cursor:pointer; font-size:14px; font-weight:700; border-radius:8px; font-family:'Manrope',sans-serif; transition:all 0.2s; }
+        .tab { flex:1; padding:10px; border:none; cursor:pointer; font-size:14px; font-weight:700; border-radius:8px; font-family:inherit; transition:all 0.2s; }
       `}</style>
 
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px' }}>
@@ -151,12 +151,12 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
           {/* Logo */}
           <div style={{ textAlign:'center', marginBottom:24 }}>
             <div onClick={() => onNavigate('Home')} style={{ cursor:'pointer', display:'flex', alignItems:'baseline', justifyContent:'center', gap:0, marginBottom:6 }}>
-              <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', background:'linear-gradient(135deg,#1e40af,#2563eb)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>K</span>
-              <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', color:'#0f172a' }}>ente</span>
-              <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', background:'linear-gradient(135deg,#1e40af,#2563eb)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>X</span>
-              <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', color:'#0f172a' }}>a</span>
+              <span style={{ fontSize:28, fontWeight:800, fontFamily:'inherit', background:'linear-gradient(135deg,#1e40af,#2563eb)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>K</span>
+              <span style={{ fontSize:28, fontWeight:800, fontFamily:'inherit', color:'#0f172a' }}>ente</span>
+              <span style={{ fontSize:28, fontWeight:800, fontFamily:'inherit', background:'linear-gradient(135deg,#1e40af,#2563eb)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>X</span>
+              <span style={{ fontSize:28, fontWeight:800, fontFamily:'inherit', color:'#0f172a' }}>a</span>
             </div>
-            <h2 style={{ fontSize:20, fontWeight:900, color:'#0f172a', margin:'0 0 4px', fontFamily:'Manrope,sans-serif' }}>
+            <h2 style={{ fontSize:20, fontWeight:800, color:'#0f172a', margin:'0 0 4px', fontFamily:'inherit' }}>
               {step === 1 ? t('register.create_account_title')
                 : step === 2 ? t('register.verify_title', { method: method === 'phone' ? t('register.method_phone') : t('register.method_email') })
                 : t('register.add_photo_title')}
@@ -292,7 +292,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
                   <div style={{ fontSize:11, color:'#0369a1', fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>
                     {t('register.welcome_kentexa_id_label')}
                   </div>
-                  <div style={{ fontSize:18, fontWeight:900, color:'#0369a1', letterSpacing:1 }}>{kentexaId}</div>
+                  <div style={{ fontSize:18, fontWeight:800, color:'#0369a1', letterSpacing:1 }}>{kentexaId}</div>
                 </div>
               )}
 

@@ -24,7 +24,7 @@ const FlashCountdown = ({ endsAt }) => {
   const s = Math.floor((t % 60000) / 1000);
   const pad = n => String(n).padStart(2,'0');
   return (
-    <span style={{ fontSize:14, fontWeight:900, color:'#DC2626',
+    <span style={{ fontSize:14, fontWeight:800, color:'#DC2626',
       fontFamily:'monospace' }}>
       {pad(h)}:{pad(m)}:{pad(s)}
     </span>
@@ -306,7 +306,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
           </div>
           <h1 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', lineHeight: 1.4 }}>{classified.title}</h1>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
-            <span style={{ fontSize: 26, fontWeight: 900, color: classified.isFlashSale ? '#DC2626' : '#7c3aed' }}>
+            <span style={{ fontSize: 26, fontWeight:800, color: classified.isFlashSale ? '#DC2626' : '#7c3aed' }}>
               {classified.isFlashSale && classified.flashSalePrice
                 ? <>TZS {Number(classified.flashSalePrice).toLocaleString()}
                     <span style={{ fontSize:13, textDecoration:'line-through', color:'#94A3B8',
@@ -339,7 +339,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
         <div style={{ backgroundColor: '#fff', padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <div onClick={() => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`, sellerNavParams)}
-              style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}>
+              style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight:800, fontSize: 16, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}>
               {sellerPhoto ? <img src={sellerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : sellerName[0]}
             </div>
             <div>
@@ -488,7 +488,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
       {/* Recommendations */}
       {related.length > 0 && (
         <div style={{ padding: '0 16px 32px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 14 }}>
+          <div style={{ fontSize: 16, fontWeight:800, color: '#1e293b', marginBottom: 14 }}>
             🛍️ Bidhaa Kama Hii
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12 }}>
@@ -509,7 +509,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.title}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: '#1d4ed8', marginTop: 2 }}>
+                  <div style={{ fontSize: 14, fontWeight:800, color: '#1d4ed8', marginTop: 2 }}>
                     TZS {Number(r.price||0).toLocaleString()}
                   </div>
                 </div>

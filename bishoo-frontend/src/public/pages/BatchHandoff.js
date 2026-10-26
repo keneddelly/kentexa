@@ -83,7 +83,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
         <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', marginTop: 20 }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>{isAlready ? '✅' : '🎉'}</div>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 6 }}>
+            <h2 style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 6 }}>
               {isAlready ? t('batch_handoff.already_scheduled_title') : t('batch_handoff.success_title')}
             </h2>
             {isAlready && (

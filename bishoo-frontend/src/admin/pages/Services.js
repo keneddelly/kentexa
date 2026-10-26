@@ -76,7 +76,7 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '900', color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>🔧 Huduma</h1>
+            <h1 style={{ fontSize: '24px', fontWeight:'800', color: '#0f172a', margin: 0, fontFamily:'inherit' }}>🔧 Huduma</h1>
             <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>{services.length} huduma zote</p>
           </div>
           <button onClick={fetchServices} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '700' }}>
@@ -145,7 +145,7 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
                       </p>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <span style={{ fontSize: 16, fontWeight: 900, color: '#1d4ed8' }}>{priceLabel(s)}</span>
+                        <span style={{ fontSize: 16, fontWeight:800, color: '#1d4ed8' }}>{priceLabel(s)}</span>
                         <span style={{ fontSize: 12, color: '#64748b' }}>⭐ {Number(s.rating || 0).toFixed(1)} ({s.totalRatings || 0})</span>
                       </div>
 

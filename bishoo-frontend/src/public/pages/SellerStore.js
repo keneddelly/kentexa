@@ -99,7 +99,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
             {/* Store Info */}
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                <h1 style={{ fontSize: '28px', fontWeight: '900', color: '#fff', margin: 0 }}>
+                <h1 style={{ fontSize: '28px', fontWeight:'800', color: '#fff', margin: 0 }}>
                   {seller.businessName}
                 </h1>
                 <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', fontSize: '12px', fontWeight: '700', padding: '4px 10px', borderRadius: '10px' }}>
@@ -129,7 +129,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
               ].map(stat => (
                 <div key={stat.label} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px 20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
                   <div style={{ fontSize: '22px', marginBottom: '4px' }}>{stat.icon}</div>
-                  <div style={{ fontSize: '22px', fontWeight: '900', color: '#fff' }}>{stat.value}</div>
+                  <div style={{ fontSize: '22px', fontWeight:'800', color: '#fff' }}>{stat.value}</div>
                   <div style={{ fontSize: '12px', color: '#64748b' }}>{stat.label}</div>
                 </div>
               ))}

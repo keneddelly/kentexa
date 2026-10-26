@@ -113,7 +113,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#F8FAFC',
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
+      fontFamily:'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('pickup_points.page_title')} top={0} />
 
       {/* Tabs */}

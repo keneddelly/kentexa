@@ -311,7 +311,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', paddingBottom: 90,
-      backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      backgroundColor: '#f8fafc', fontFamily:'inherit' }}>
       <BackBar onBack={() => onNavigate('Services')} title={t('post_service.page_title')} top={0} />
       <div style={{ flex: 1, padding: '16px 16px 48px', maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {postingAsBusinessProvider && (

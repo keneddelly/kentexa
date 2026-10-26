@@ -114,7 +114,7 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
           backgroundColor: '#e2e8f0', margin: '0 auto 20px',
         }} />
 
-        <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 4 }}>
+        <div style={{ fontSize: 16, fontWeight:800, color: '#1e293b', marginBottom: 4 }}>
           {showListChoice ? t('post_modal.header_add_listing') : 'What do you want to create?'}
         </div>
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>

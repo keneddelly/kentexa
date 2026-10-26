@@ -160,11 +160,11 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <BackBar onBack={() => (screen === 'papers' ? setScreen('main') : onNavigate('back'))} title={t('become_seller.page_title')} top={0} />
 
       <div style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', padding: '22px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 6 }}>{t('become_seller.hero_title')}</div>
+        <div style={{ fontSize: 20, fontWeight:800, color: '#fff', marginBottom: 6 }}>{t('become_seller.hero_title')}</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>{t('become_seller.hero_desc')}</div>
       </div>
 
@@ -177,7 +177,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
         : needsId ? (
           // The one ID screen: only when no ID was sent, or it was rejected.
           <div data-testid="seller-identity-step" style={{ ...card, textAlign: 'center' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+            <div style={{ fontSize: 16, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
               {identityStatus?.status === 'rejected' ? t('become_seller.identity_rejected_title') : t('become_seller.identity_required_title')}
             </div>
             <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>
@@ -267,7 +267,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
           // Business papers: the one extra screen for a registered business.
           <div data-testid="seller-papers" style={card}>
             {errorBox}
-            <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 14 }}>{t('become_seller.business_documents_label')}</div>
+            <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 14 }}>{t('become_seller.business_documents_label')}</div>
             <label style={label}>{t('become_seller.field_registration_number_label')}</label>
             <input type="text" placeholder={t('become_seller.field_registration_number_placeholder')} value={registrationNumber}
               onChange={(e) => setRegistrationNumber(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />

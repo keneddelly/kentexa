@@ -140,7 +140,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false,
       <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
         <div style={{ fontSize:20 }}>👤</div>
         <div>
-          <div style={{ fontSize:14, fontWeight:900, color:'#1e293b' }}>
+          <div style={{ fontSize:14, fontWeight:800, color:'#1e293b' }}>
             {t('profile_completion.full_title', { percent: pct })}
           </div>
           <div style={{ fontSize:12, color:'#64748b' }}>

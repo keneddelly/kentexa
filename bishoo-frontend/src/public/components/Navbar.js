@@ -159,7 +159,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             <button onClick={() => onNavigate('Cart')} style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#94a3b8', fontSize: 20, lineHeight: 1 }}>
               🛒
               {cartCount > 0 && (
-                <span style={{ position: 'absolute', top: 0, right: 0, backgroundColor: '#ef4444', color: '#fff', borderRadius: '50%', width: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 900 }}>
+                <span style={{ position: 'absolute', top: 0, right: 0, backgroundColor: '#ef4444', color: '#fff', borderRadius: '50%', width: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight:800 }}>
                   {cartCount}
                 </span>
               )}

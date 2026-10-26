@@ -142,7 +142,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
             { label: 'Yaliyokwisha',      value: announcements.filter(a => !a.isActive).length,            color: '#94a3b8', bg: '#f1f5f9' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: 16 }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 24, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: s.color, fontWeight: 600, marginTop: 2 }}>{s.label}</div>
             </div>
           ))}

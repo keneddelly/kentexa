@@ -51,7 +51,7 @@ const Onboarding = ({ onNavigate, currentUser, onUserUpdated }) => {
   };
 
   return (
-    <main style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif', color: '#0f172a' }}>
+    <main style={{ minHeight: '100vh', background: '#f8fafc', fontFamily:'inherit', color: '#0f172a' }}>
       <div style={{ height: 4, background: '#dbeafe' }}>
         <div style={{ height: '100%', width: `${step * 50}%`, background: '#2563eb' }} />
       </div>
@@ -80,7 +80,7 @@ const Onboarding = ({ onNavigate, currentUser, onUserUpdated }) => {
             {loading && <p role="status">{t('onboarding.loading_sellers')}</p>}
             {!loading && profiles.map(profile => (
               <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid #dbeafe', borderRadius: 14, padding: 14, marginBottom: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', overflow: 'hidden', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 900, color: '#2563eb' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', overflow: 'hidden', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight:800, color: '#2563eb' }}>
                   {profile.photoUrl ? <img src={profile.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile.displayName?.charAt(0)}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>

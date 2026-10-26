@@ -127,11 +127,11 @@ const HubReceive = ({ onNavigate }) => {
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#fbbf24' }}>{awaitingCount}</div>
+                <div style={{ fontSize: 18, fontWeight:800, color: '#fbbf24' }}>{awaitingCount}</div>
                 <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{t('hub_receive.awaiting_label')}</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 900, color: '#4ade80' }}>{atHubCount}</div>
+                <div style={{ fontSize: 18, fontWeight:800, color: '#4ade80' }}>{atHubCount}</div>
                 <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{t('hub_receive.at_hub_label')}</div>
               </div>
             </div>

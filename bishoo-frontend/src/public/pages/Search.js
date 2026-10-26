@@ -83,7 +83,7 @@ const ClassifiedCard = ({ item, onNavigate, isLoggedIn }) => {
           overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
           {item.title}
         </div>
-        <div style={{ fontSize:14, fontWeight:900,
+        <div style={{ fontSize:14, fontWeight:800,
           color: item.isFlashSale ? '#DC2626' : B }}>
           TZS {fmt(item.flashSalePrice || item.price)}
         </div>
@@ -109,7 +109,7 @@ const ServiceCard = ({ item, onNavigate }) => {
         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
         {item.title}
       </div>
-      <div style={{ fontSize:13, fontWeight:900, color:B }}>
+      <div style={{ fontSize:13, fontWeight:800, color:B }}>
         {item.priceType==='negotiate' ? t('search.negotiate_price')
          : item.priceType==='free_quote' ? t('search.request_quote')
          : `TZS ${fmt(item.price)}`}
@@ -323,7 +323,7 @@ const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
         <div style={{ width:36, height:36, borderRadius:10, border:'3px solid #fff',
           overflow:'hidden', backgroundColor:B, display:'flex',
           alignItems:'center', justifyContent:'center',
-          fontSize:16, color:WH, fontWeight:900, marginBottom:6 }}>
+          fontSize:16, color:WH, fontWeight:800, marginBottom:6 }}>
           {seller.logo
             ? <img src={seller.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
                 onError={e => e.target.style.display='none'} />
@@ -355,7 +355,7 @@ const Section = ({ title, sub, action, onAction, children, hscroll }) => (
     <div style={{ display:'flex', justifyContent:'space-between',
       alignItems:'center', padding:'14px 16px 10px' }}>
       <div>
-        <div style={{ fontSize:14, fontWeight:900, color:DK }}>{title}</div>
+        <div style={{ fontSize:14, fontWeight:800, color:DK }}>{title}</div>
         {sub && <div style={{ fontSize:11, color:GR, marginTop:1 }}>{sub}</div>}
       </div>
       {action && (
@@ -830,7 +830,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#FAFAFA',
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
+      fontFamily:'inherit' }}>
 
       {/* ── Search bar (sticky) ── */}
       <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
@@ -1047,7 +1047,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                 {item.name}
                               </div>
-                              <div style={{ fontSize:14, fontWeight:900, color:B }}>
+                              <div style={{ fontSize:14, fontWeight:800, color:B }}>
                                 {/* Product has no plain `price` field — it's
                                     displayPrice/basePrice, unlike classifieds/
                                     services which do use `price` directly.
@@ -1102,7 +1102,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                 display:'flex', alignItems:'center', justifyContent:'space-between',
                 color:WH }}>
               <div>
-                <div style={{ fontSize:14, fontWeight:900 }}>🚚 {t('search.send_shipment_title')}</div>
+                <div style={{ fontSize:14, fontWeight:800 }}>🚚 {t('search.send_shipment_title')}</div>
                 <div style={{ fontSize:11, color:'rgba(255,255,255,0.85)' }}>
                   {t('search.send_shipment_sub')}
                 </div>
@@ -1117,7 +1117,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                 display:'flex', alignItems:'center', justifyContent:'space-between',
                 color:WH }}>
               <div>
-                <div style={{ fontSize:14, fontWeight:900 }}>{t('search.flash_sales_title')}</div>
+                <div style={{ fontSize:14, fontWeight:800 }}>{t('search.flash_sales_title')}</div>
                 <div style={{ fontSize:11, color:'rgba(255,255,255,0.8)' }}>
                   {t('search.flash_sales_sub')}
                 </div>

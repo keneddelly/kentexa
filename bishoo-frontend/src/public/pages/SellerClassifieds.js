@@ -382,7 +382,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                   business dashboard this button used to be the only door to. */}
               <button onClick={() => onNavigate('SellerInvoices')} style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>{t('seller_classifieds.invoices_button')}</button>
             </div>
-            <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('seller_classifieds.page_title')}</h1>
+            <h1 style={{ fontSize: '20px', fontWeight:'800', color: '#fff', margin: '0 0 4px', fontFamily:'inherit' }}>{t('seller_classifieds.page_title')}</h1>
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', margin: 0 }}>{t('seller_classifieds.listings_count', { count: classifieds.length })}</p>
           </div>
           <button onClick={() => {
@@ -425,7 +425,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
           ].map(s => (
             <div key={s.label} style={{ background: s.gradient, borderRadius: 12, padding: '14px 8px', color: '#fff', textAlign: 'center' }}>
               <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
-              <div style={{ fontSize: 20, fontWeight: 900 }}>{s.value}</div>
+              <div style={{ fontSize: 20, fontWeight:800 }}>{s.value}</div>
               <div style={{ fontSize: 11, opacity: 0.9 }}>{s.label}</div>
             </div>
           ))}
@@ -477,7 +477,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <span style={{ fontSize: 17, fontWeight: 900, color: '#e91e63' }}>TZS {Number(item.price).toLocaleString()}</span>
+                    <span style={{ fontSize: 17, fontWeight:800, color: '#e91e63' }}>TZS {Number(item.price).toLocaleString()}</span>
                     {item.isNegotiable && <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{t('seller_classifieds.negotiable_badge')}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -502,7 +502,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 560, maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -8px 32px rgba(0,0,0,0.2)' }}>
           <div style={{ padding: '20px 16px 0', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 18px' }}>
+            <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 18px' }}>
               {editItem ? t('seller_classifieds.modal_edit_title') : t('seller_classifieds.modal_new_title')}
             </h2>
 
@@ -697,7 +697,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                     </label>
                     <input type="number"
                       style={{ width:'100%', padding:'10px 12px', borderRadius:10,
-                        border:'1.5px solid #FCA5A5', fontSize:15, fontWeight:900,
+                        border:'1.5px solid #FCA5A5', fontSize:15, fontWeight:800,
                         color:'#DC2626', outline:'none', boxSizing:'border-box' }}
                       placeholder={t('seller_classifieds.flash_sale_price_placeholder')}
                       value={form.flashSalePrice}
@@ -755,7 +755,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                               style={{ flex: 1, backgroundColor: '#fff', border: `1px solid ${r.color}`,
                                 borderRadius: 8, padding: '6px 0', cursor: 'pointer', textAlign: 'center' }}>
                               <div style={{ fontSize: 10, color: r.color, fontWeight: 700 }}>{r.label}</div>
-                              <div style={{ fontSize: 12, fontWeight: 900, color: r.color }}>TZS {Number(r.value).toLocaleString()}</div>
+                              <div style={{ fontSize: 12, fontWeight:800, color: r.color }}>TZS {Number(r.value).toLocaleString()}</div>
                             </button>
                           ))}
                         </div>

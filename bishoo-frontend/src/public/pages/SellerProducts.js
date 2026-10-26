@@ -701,7 +701,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
             <button onClick={() => onNavigate('SellerDashboard')} style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, marginBottom: 10 }}>{t('seller_products.back')}</button>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('seller_products.title')}</h1>
+            <h1 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: '0 0 4px', fontFamily:'inherit' }}>{t('seller_products.title')}</h1>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('seller_products.products_in_store', { count: products.length })}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -728,7 +728,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '16px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 24 }}>{s.icon}</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
@@ -839,7 +839,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 560, maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -8px 32px rgba(0,0,0,0.2)' }}>
           <div style={{ padding: '20px 16px 0', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 18px', fontFamily: 'Manrope,sans-serif' }}>
+            <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 18px', fontFamily:'inherit' }}>
               {editProduct ? `✏️ ${t('seller_products.edit_modal_title')}` : `+ ${t('seller_products.add_modal_title')}`}
             </h2>
 
@@ -1114,7 +1114,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               {(form.features || []).map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: 12, flex: 1, color: '#1e293b' }}>✓ {f}</span>
-                  <button onClick={() => removeFeature(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, fontWeight: 900 }}>×</button>
+                  <button onClick={() => removeFeature(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, fontWeight:800 }}>×</button>
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 8 }}>
@@ -1288,7 +1288,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               <div style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>{t('seller_products.buyer_sees')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: '#ffd200' }}>
+                  <span style={{ fontSize: 18, fontWeight:800, color: '#ffd200' }}>
                     TZS {Number(form.basePrice || 0).toLocaleString()}
                   </span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>+ usafiri (KenteXa)</span>
@@ -1333,7 +1333,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           <div onClick={e => e.stopPropagation()}
             style={{ backgroundColor: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('seller_products.add_variant_title', { name: variantModalProduct.name })}</div>
+              <div style={{ fontSize: 15, fontWeight:800 }}>{t('seller_products.add_variant_title', { name: variantModalProduct.name })}</div>
               <button onClick={closeVariantModal} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
 
@@ -1372,7 +1372,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <input type="file" accept="image/*" multiple onChange={handleVariantImageUpload} style={{ marginBottom: 16, fontSize: 12 }} disabled={variantUploading} />
 
             <button onClick={handleCreateVariant} disabled={variantSaving || variantUploading}
-              style={{ width: '100%', padding: 14, background: variantSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              style={{ width: '100%', padding: 14, background: variantSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {variantSaving ? t('seller_products.please_wait') : `+ ${t('seller_products.create_variant_button')}`}
             </button>
           </div>
@@ -1386,7 +1386,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           <div onClick={e => e.stopPropagation()}
             style={{ backgroundColor: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('seller_products.manage_serials_title', { name: serialsModalProduct.name })}</div>
+              <div style={{ fontSize: 15, fontWeight:800 }}>{t('seller_products.manage_serials_title', { name: serialsModalProduct.name })}</div>
               <button onClick={closeSerialsModal} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
 
@@ -1459,7 +1459,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             />
 
             <button onClick={handleRegisterSerials} disabled={serialsSaving || !serialsInput.trim()}
-              style={{ width: '100%', padding: 14, background: serialsSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              style={{ width: '100%', padding: 14, background: serialsSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {serialsSaving ? t('seller_products.please_wait') : `+ ${t('seller_products.register_serials_button')}`}
             </button>
           </div>

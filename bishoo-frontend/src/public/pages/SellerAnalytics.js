@@ -56,7 +56,7 @@ const StatCard = ({ icon, label, value, sub, color = '#1d4ed8', bg = '#eff6ff' }
   <div style={{ backgroundColor: bg, borderRadius: 14, padding: 16,
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
     <div style={{ fontSize: 24, marginBottom: 6 }}>{icon}</div>
-    <div style={{ fontSize: 22, fontWeight: 900, color }}>{value}</div>
+    <div style={{ fontSize: 22, fontWeight:800, color }}>{value}</div>
     <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginTop: 2 }}>{label}</div>
     {sub && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
   </div>
@@ -113,7 +113,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activePro
           padding: 24, marginBottom: 20, color: '#fff' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)',
             letterSpacing: 1, marginBottom: 6 }}>{t('seller_analytics.total_revenue_label')}</div>
-          <div style={{ fontSize: 34, fontWeight: 900, marginBottom: 4 }}>
+          <div style={{ fontSize: 34, fontWeight:800, marginBottom: 4 }}>
             TZS {fmt(stats.totalRevenue)}
           </div>
           <div style={{ display: 'flex', gap: 24, marginTop: 12 }}>
@@ -125,7 +125,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activePro
               { label: t('seller_analytics.hero_customers'),    value: totalCustomers },
             ].map(s => (
               <div key={s.label}>
-                <div style={{ fontSize: 16, fontWeight: 900, color: s.color || '#fff' }}>{s.value}</div>
+                <div style={{ fontSize: 16, fontWeight:800, color: s.color || '#fff' }}>{s.value}</div>
                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{s.label}</div>
               </div>
             ))}
@@ -187,7 +187,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activePro
                   color: weekChange >= 0 ? '#16a34a' : '#dc2626' },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: s.color || '#1e293b' }}>{s.value}</div>
+                  <div style={{ fontSize: 15, fontWeight:800, color: s.color || '#1e293b' }}>{s.value}</div>
                   <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{s.label}</div>
                 </div>
               ))}
@@ -216,14 +216,14 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activePro
                       <div style={{ width: 28, height: 28, borderRadius: '50%',
                         background: 'linear-gradient(135deg,#7c3aed,#1d4ed8)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontSize: 12, fontWeight: 900 }}>{i + 1}</div>
+                        color: '#fff', fontSize: 12, fontWeight:800 }}>{i + 1}</div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{p.name}</div>
                         <div style={{ fontSize: 11, color: '#64748b' }}>{t('seller_analytics.orders_suffix', { count: p.orders })}</div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: '#7c3aed' }}>
+                      <div style={{ fontSize: 14, fontWeight:800, color: '#7c3aed' }}>
                         TZS {fmtM(p.revenue)}
                       </div>
                       <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('seller_analytics.of_total_pct', { pct })}</div>
@@ -259,7 +259,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activePro
             <div style={{ backgroundColor: '#f5f3ff', borderRadius: 12, padding: 14, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                 <span style={{ fontSize: 12, color: '#64748b' }}>{t('seller_analytics.repeat_customers_label')}</span>
-                <span style={{ fontSize: 13, fontWeight: 900, color: '#7c3aed' }}>
+                <span style={{ fontSize: 13, fontWeight:800, color: '#7c3aed' }}>
                   {repeatCount} / {totalCustomers}
                 </span>
               </div>
@@ -288,7 +288,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activePro
                                i === 2 ? 'linear-gradient(135deg,#cd7c32,#92400e)' :
                                'linear-gradient(135deg,#7c3aed,#1d4ed8)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontSize: 14, fontWeight: 900, flexShrink: 0 }}>
+                  color: '#fff', fontSize: 14, fontWeight:800, flexShrink: 0 }}>
                   {i + 1}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -301,7 +301,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activePro
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: '#16a34a' }}>
+                  <div style={{ fontSize: 14, fontWeight:800, color: '#16a34a' }}>
                     TZS {fmtM(c.spent)}
                   </div>
                   {c.orders > 1 && (

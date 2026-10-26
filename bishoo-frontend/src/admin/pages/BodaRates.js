@@ -178,7 +178,7 @@ const BodaRates = ({ onNavigate }) => {
           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>📍 Maeneo</div>
           {ZONES.map(z => (
             <div key={z.rank} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f8fafc' }}>
-              <span style={{ fontSize: 12, fontWeight: 900, color: '#7c3aed', width: 20 }}>{z.rank}</span>
+              <span style={{ fontSize: 12, fontWeight:800, color: '#7c3aed', width: 20 }}>{z.rank}</span>
               <span style={{ fontSize: 12, color: '#1e293b' }}>{z.label}</span>
             </div>
           ))}
@@ -208,7 +208,7 @@ const BodaRates = ({ onNavigate }) => {
 
           {testResult && !testResult.error && (
             <div style={{ marginTop: 12, backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#15803d' }}>
+              <div style={{ fontSize: 24, fontWeight:800, color: '#15803d' }}>
                 TZS {Number(testResult.fee || 0).toLocaleString()}
               </div>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{testResult.desc}</div>

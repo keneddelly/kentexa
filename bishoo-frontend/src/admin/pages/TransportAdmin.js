@@ -89,7 +89,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between',
           alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b' }}>
+            <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>
               🚌 Wasafirishaji
             </div>
             <div style={{ fontSize: 12, color: '#64748b' }}>
@@ -183,7 +183,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                     ✕
                   </button>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 900, marginTop: 8 }}>{selected.name}</div>
+                <div style={{ fontSize: 16, fontWeight:800, marginTop: 8 }}>{selected.name}</div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
                   {selected.type?.toUpperCase()}
                 </div>

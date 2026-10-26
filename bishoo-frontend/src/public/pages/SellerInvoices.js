@@ -211,7 +211,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('seller_invoices.page_title')} top={0}
         right={
           <button onClick={openManualModal}
@@ -242,7 +242,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>
               {t('seller_invoices.tracking_issued_title')}
             </div>
-            <div style={{ fontFamily: 'monospace', fontSize: 22, fontWeight: 900, color: '#1d4ed8', marginBottom: 10, letterSpacing: 1 }}>
+            <div style={{ fontFamily: 'monospace', fontSize: 22, fontWeight:800, color: '#1d4ed8', marginBottom: 10, letterSpacing: 1 }}>
               {lastTracking.trackingNumber}
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
@@ -271,11 +271,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
         {manualResult && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.1)', marginBottom: 16, border: '2px solid #7c3aed', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 6 }}>{t('seller_invoices.invoice_created_title')}</h2>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', marginBottom: 6 }}>{t('seller_invoices.invoice_created_title')}</h2>
             <p style={{ color: '#64748b', marginBottom: 16, fontSize: 13 }}>{t('seller_invoices.invoice_created_desc')}</p>
             <div style={{ background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>{t('seller_invoices.invoice_number_label')}</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'monospace', letterSpacing: 1 }}>{manualResult.invoiceNumber}</div>
+              <div style={{ fontSize: 22, fontWeight:800, color: '#fff', fontFamily: 'monospace', letterSpacing: 1 }}>{manualResult.invoiceNumber}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16, textAlign: 'left' }}>
               {[
@@ -347,7 +347,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                       {req.status.toUpperCase()}
                     </span>
                     {req.amount && (
-                      <span style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(req.amount).toLocaleString()}</span>
+                      <span style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8' }}>TZS {Number(req.amount).toLocaleString()}</span>
                     )}
                   </div>
                 </div>
@@ -465,7 +465,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 16px', width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>{t('seller_invoices.choose_shipping_title')}</h2>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 6px' }}>{t('seller_invoices.choose_shipping_title')}</h2>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 8px' }}>
               {t('seller_invoices.payment_received_from', {
                 amount: Number(shippingInvoice.amount).toLocaleString(),
@@ -598,7 +598,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: '24px 16px', width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 4px' }}>{t('seller_invoices.manual_invoice_title')}</h2>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 4px' }}>{t('seller_invoices.manual_invoice_title')}</h2>
             <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
               {t('seller_invoices.manual_invoice_desc')}
             </p>

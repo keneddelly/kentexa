@@ -209,7 +209,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F8FAFC', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F8FAFC', fontFamily:'inherit' }}>
       <BackBar title={t('pos.title')} onBack={() => step === 'cart' ? onNavigate('back') : setStep('cart')} top={0}
         right={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -252,7 +252,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
                         {p.sku ? `SKU ${p.sku} · ` : ''}{t('pos.in_stock', { count: p.stock })}
                       </div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: B }}>TZS {fmt(p.displayPrice)}</div>
+                    <div style={{ fontSize: 13, fontWeight:800, color: B }}>TZS {fmt(p.displayPrice)}</div>
                   </div>
                 ))}
               </div>
@@ -279,7 +279,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
                     <span style={{ fontSize: 13, fontWeight: 800, minWidth: 18, textAlign: 'center' }}>{item.quantity}</span>
                     <button onClick={() => updateQty(item.productId, 1)} style={{ width: 26, height: 26, borderRadius: 8, border: '1px solid #E2E8F0', background: WH, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>+</button>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: DK, width: 80, textAlign: 'right' }}>TZS {fmt(item.unitPrice * item.quantity)}</div>
+                  <div style={{ fontSize: 13, fontWeight:800, color: DK, width: 80, textAlign: 'right' }}>TZS {fmt(item.unitPrice * item.quantity)}</div>
                   <button onClick={() => removeItem(item.productId)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 16, padding: 0 }}>×</button>
                 </div>
               ))}
@@ -293,11 +293,11 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
           padding: '14px 16px', boxShadow: '0 -4px 16px rgba(0,0,0,0.06)' }}>
           <div style={{ maxWidth: 560, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 13, color: GR, fontWeight: 700 }}>{t('pos.subtotal')}</span>
-            <span style={{ fontSize: 18, fontWeight: 900, color: DK }}>TZS {fmt(subtotal - lineDiscounts)}</span>
+            <span style={{ fontSize: 18, fontWeight:800, color: DK }}>TZS {fmt(subtotal - lineDiscounts)}</span>
           </div>
           <button onClick={() => setStep('payment')} style={{ width: '100%', maxWidth: 560, margin: '0 auto', display: 'block',
             padding: '14px 0', background: `linear-gradient(135deg,${B},#7C3AED)`, color: WH, border: 'none',
-            borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight: 900 }}>
+            borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight:800 }}>
             {t('pos.charge_button')}
           </button>
         </div>
@@ -320,7 +320,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', marginTop: 8, borderTop: '1px solid #F1F5F9' }}>
               <span style={{ fontSize: 14, fontWeight: 800, color: DK }}>{t('pos.total')}</span>
-              <span style={{ fontSize: 20, fontWeight: 900, color: B }}>TZS {fmt(total)}</span>
+              <span style={{ fontSize: 20, fontWeight:800, color: B }}>TZS {fmt(total)}</span>
             </div>
           </div>
 
@@ -378,7 +378,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
           <button onClick={handleConfirm} disabled={submitting || (!isCod && paid < total)}
             style={{ width: '100%', padding: '15px 0', background: (submitting || (!isCod && paid < total)) ? '#94A3B8' : GREEN,
               color: WH, border: 'none', borderRadius: 14, cursor: (submitting || (!isCod && paid < total)) ? 'default' : 'pointer',
-              fontSize: 15, fontWeight: 900 }}>
+              fontSize: 15, fontWeight:800 }}>
             {submitting ? t('pos.processing') : t('pos.confirm_sale')}
           </button>
         </div>
@@ -389,7 +389,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
           <div style={{ backgroundColor: WH, borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ textAlign: 'center', marginBottom: 14 }}>
               <div style={{ fontSize: 32 }}>✅</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: DK, marginTop: 6 }}>
+              <div style={{ fontSize: 16, fontWeight:800, color: DK, marginTop: 6 }}>
                 {currentUser?.storeName || currentUser?.name}
               </div>
               <div style={{ fontSize: 11, fontFamily: 'monospace', color: GR, marginTop: 2 }}>{receipt.receiptNumber}</div>
@@ -408,7 +408,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
                 <span>{t('pos.discount')}</span><span>− TZS {fmt(receipt.discountAmount)}</span>
               </div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 900, marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight:800, marginBottom: 10 }}>
               <span>{t('pos.total')}</span><span>TZS {fmt(receipt.total)}</span>
             </div>
             <div style={{ fontSize: 12, color: GR, display: 'flex', justifyContent: 'space-between' }}>
@@ -433,18 +433,18 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
           {receipt.isCod && Number(receipt.balanceDue) > 0 && (
             <button onClick={handleCollectBalance} disabled={collectingBalance} style={{ width: '100%', marginTop: 16, padding: '14px 0',
               background: collectingBalance ? '#94A3B8' : '#EA580C', color: WH, border: 'none',
-              borderRadius: 14, cursor: collectingBalance ? 'default' : 'pointer', fontSize: 14, fontWeight: 900 }}>
+              borderRadius: 14, cursor: collectingBalance ? 'default' : 'pointer', fontSize: 14, fontWeight:800 }}>
               {collectingBalance ? t('pos.processing') : `💰 ${t('pos.collect_balance_button', { amount: fmt(receipt.balanceDue) })}`}
             </button>
           )}
           <button onClick={handleShipIt} style={{ width: '100%', marginTop: 16, padding: '14px 0',
             background: WH, color: B, border: `2px solid ${B}`,
-            borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+            borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
             {`🚚 ${t('pos.ship_it')}`}
           </button>
           <button onClick={resetSale} style={{ width: '100%', marginTop: 10, padding: '14px 0',
             background: `linear-gradient(135deg,${B},#7C3AED)`, color: WH, border: 'none',
-            borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+            borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
             {t('pos.new_sale')}
           </button>
         </div>
@@ -457,7 +457,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
           <div onClick={e => e.stopPropagation()}
             style={{ backgroundColor: WH, borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>📜 {t('pos.history_title')}</div>
+              <div style={{ fontSize: 15, fontWeight:800, color: DK }}>📜 {t('pos.history_title')}</div>
               <button onClick={() => { setShowHistory(false); setHistoryDetailId(null); }}
                 style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: GR }}>×</button>
             </div>
@@ -486,7 +486,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId }) => {
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 900, color: DK }}>TZS {fmt(sale.total)}</div>
+                          <div style={{ fontSize: 13, fontWeight:800, color: DK }}>TZS {fmt(sale.total)}</div>
                           {owesBalance && (
                             <div style={{ fontSize: 10, fontWeight: 800, color: '#EA580C' }}>🚚 {t('pos.balance_due')}: TZS {fmt(sale.balanceDue)}</div>
                           )}

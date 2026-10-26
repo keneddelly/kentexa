@@ -197,7 +197,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
           </button>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('order_tracking.order_number', { id: order?.id })}</h1>
+              <h1 style={{ fontSize: 24, fontWeight:800, color: '#fff', margin: '0 0 4px', fontFamily:'inherit' }}>{t('order_tracking.order_number', { id: order?.id })}</h1>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
                 {new Date(order?.createdAt).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
@@ -277,7 +277,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
         {order?.trackingNumber && (
           <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 14, padding: '16px 18px', marginBottom: 16, textAlign: 'center' }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 4 }}>{t('order_tracking.tracking_number_label')}</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontFamily: 'monospace', letterSpacing: 1 }}>{order.trackingNumber}</div>
+            <div style={{ fontSize: 20, fontWeight:800, color: '#fff', fontFamily: 'monospace', letterSpacing: 1 }}>{order.trackingNumber}</div>
             {order.courierName && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>🚌 {order.courierName}</div>}
             <button onClick={() => onNavigate(`TrackParcel-${order.trackingNumber}`)}
               style={{ marginTop: 10, backgroundColor: '#fff', color: '#1d4ed8', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
@@ -402,7 +402,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
         {order?.status === 'completed' && (
           <div style={{ background: 'linear-gradient(135deg,#43e97b,#38f9d7)', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-            <h3 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 8px' }}>{t('order_tracking.order_completed_title')}</h3>
+            <h3 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: '0 0 8px' }}>{t('order_tracking.order_completed_title')}</h3>
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', margin: '0 0 16px' }}>{t('order_tracking.order_completed_desc')}</p>
             <button onClick={() => onNavigate('Stores')} style={{ backgroundColor: '#fff', color: '#16a34a', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
               {t('order_tracking.shop_again_button')}
@@ -421,7 +421,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{order?.product?.name}</div>
                 <div style={{ fontSize: 12, color: '#64748b' }}>{t('order_tracking.qty_label', { count: order?.quantity })}</div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: '#2563eb' }}>TZS {Number(order?.totalAmount).toLocaleString()}</div>
+                <div style={{ fontSize: 14, fontWeight:800, color: '#2563eb' }}>TZS {Number(order?.totalAmount).toLocaleString()}</div>
               </div>
             </div>
           </div>
@@ -464,7 +464,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
               <span style={{ fontWeight: 800, color: '#92400e' }}>
                 {order?.codBalanceCollected ? t('order_tracking.cod_settled_label') : t('order_tracking.cod_remaining_label')}
               </span>
-              <span style={{ fontWeight: 900, color: order?.codBalanceCollected ? '#16a34a' : '#92400e' }}>
+              <span style={{ fontWeight:800, color: order?.codBalanceCollected ? '#16a34a' : '#92400e' }}>
                 {order?.codBalanceCollected ? `✅ ${t('order_tracking.cod_paid_word')}` : `TZS ${Number(order?.codRemainingBalance || 0).toLocaleString()}`}
               </span>
             </div>

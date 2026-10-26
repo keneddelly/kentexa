@@ -214,7 +214,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
         </button>
         <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>{t('track_parcel.header_title')}</h1>
+        <h1 style={{ fontSize: 24, fontWeight:800, color: '#fff', margin: '0 0 6px', fontFamily:'inherit' }}>{t('track_parcel.header_title')}</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>{t('track_parcel.header_subtitle')}</p>
       </div>
 
@@ -324,7 +324,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('track_parcel.tracking_number_label')}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 900, color: '#1d4ed8' }}>{result.waybillNumber ? formatWaybill(result.waybillNumber) : result.trackingNumber}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 16, fontWeight:800, color: '#1d4ed8' }}>{result.waybillNumber ? formatWaybill(result.waybillNumber) : result.trackingNumber}</div>
                   {result.waybillNumber && result.trackingNumber && (
                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{result.trackingNumber}</div>
                   )}
@@ -575,7 +575,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
                   ].filter(([,v]) => v).map(([l,v]) => (
                     <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid #fde68a', fontSize:13 }}>
                       <span style={{ color:'#92400e' }}>{l}</span>
-                      <span style={{ fontWeight:900, color: l===t('track_parcel.tracking_ref_label') ? '#1d4ed8' : '#1e293b', fontFamily: l===t('track_parcel.tracking_ref_label') ? 'monospace' : 'inherit', fontSize: l===t('track_parcel.tracking_ref_label') ? 15 : 13 }}>{v}</span>
+                      <span style={{ fontWeight:800, color: l===t('track_parcel.tracking_ref_label') ? '#1d4ed8' : '#1e293b', fontFamily: l===t('track_parcel.tracking_ref_label') ? 'monospace' : 'inherit', fontSize: l===t('track_parcel.tracking_ref_label') ? 15 : 13 }}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -585,7 +585,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
             {/* ── KenteXa Marketing Footer ─────────────────────────────── */}
             <div style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 20, marginTop: 8, marginBottom: 12 }}>
               <div style={{ fontSize: 16, marginBottom: 6 }}>🛡️</div>
-              <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', marginBottom: 6 }}>{t('track_parcel.protected_title')}</div>
+              <div style={{ fontSize: 15, fontWeight:800, color: '#fff', marginBottom: 6 }}>{t('track_parcel.protected_title')}</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, marginBottom: 14 }}>
                 {t('track_parcel.protected_desc')}
               </div>
@@ -617,7 +617,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#047857', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   {t('track_parcel.your_delivery_agent_title')}
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a', marginBottom: 4 }}>{result.localAgent.name}</div>
+                <div style={{ fontSize: 16, fontWeight:800, color: '#0f172a', marginBottom: 4 }}>{result.localAgent.name}</div>
                 {result.localAgent.address && (
                   <div style={{ fontSize: 13, color: '#475569', marginBottom: 10 }}>📍 {result.localAgent.address}</div>
                 )}
@@ -656,7 +656,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
 
             {/* Progress steps */}
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif' }}>{t('track_parcel.progress_title')}</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', fontFamily:'inherit' }}>{t('track_parcel.progress_title')}</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {STATUS_STEPS.map((step, index) => {
                   const isDone    = currentStep >= 0 && index <= currentStep;
@@ -704,7 +704,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
             {/* Tracking history */}
             {result.history?.length > 0 && (
               <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>{t('track_parcel.history_title')}</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px', fontFamily:'inherit' }}>{t('track_parcel.history_title')}</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[...result.history].reverse().map((event, i) => (
                     <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 12px', backgroundColor: i === 0 ? '#eff6ff' : '#f8fafc', borderRadius: 10, border: i === 0 ? '1px solid #bfdbfe' : 'none' }}>
@@ -757,7 +757,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
             {result.status === 'delivered' && (
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 16, padding: 20, border: '2px solid #86efac', textAlign: 'center', marginBottom: 12 }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d', marginBottom: 4 }}>{t('track_parcel.delivered_title')}</div>
+                <div style={{ fontSize: 16, fontWeight:800, color: '#15803d', marginBottom: 4 }}>{t('track_parcel.delivered_title')}</div>
                 {result.deliveredTime && (
                   <div style={{ fontSize: 13, color: '#16a34a' }}>
                     {t('track_parcel.delivered_time_label', { time: new Date(result.deliveredTime).toLocaleString('sw-TZ') })}

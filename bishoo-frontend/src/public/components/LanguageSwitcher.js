@@ -55,7 +55,7 @@ const LanguageSwitcher = ({ variant = 'dropdown', onChange }) => {
             <span style={{ fontSize: 22 }}>{l.flag}</span>
             <span style={{ flex: 1, fontSize: 14, fontWeight: 700,
               color: l.code === current.code ? B : '#1E293B' }}>{l.label}</span>
-            {l.code === current.code && <span style={{ color: B, fontWeight: 900 }}>✓</span>}
+            {l.code === current.code && <span style={{ color: B, fontWeight:800 }}>✓</span>}
           </button>
         ))}
       </div>

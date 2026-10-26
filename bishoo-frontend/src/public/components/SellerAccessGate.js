@@ -32,7 +32,7 @@ const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24,
           boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🪪</div>
-          <div style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', marginBottom: 10 }}>
+          <div style={{ fontSize: 17, fontWeight:800, color: '#1e293b', marginBottom: 10 }}>
             {waiting ? t('identity_state.waiting_title') : rejected ? t('become_seller.identity_rejected_title') : t('seller_access_gate.title')}
           </div>
           <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6,

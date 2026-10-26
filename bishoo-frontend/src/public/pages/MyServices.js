@@ -92,7 +92,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      backgroundColor: '#f8fafc', fontFamily:'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('my_services.page_title')} top={0} />
 
       <div style={{ flex: 1, maxWidth: 900, margin: '0 auto',
@@ -114,7 +114,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '14px 16px' }}>
               <div style={{ fontSize: 24, marginBottom: 4 }}>{s.icon}</div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
@@ -314,7 +314,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
                     👤 {job.buyer?.name} · {new Date(job.completedAt).toLocaleDateString(dateLocale)}
                   </div>
                   {job.agreedPrice > 0 && (
-                    <div style={{ fontSize: 15, fontWeight: 900, color: '#16a34a' }}>
+                    <div style={{ fontSize: 15, fontWeight:800, color: '#16a34a' }}>
                       TZS {fmt(job.agreedPrice)}
                     </div>
                   )}

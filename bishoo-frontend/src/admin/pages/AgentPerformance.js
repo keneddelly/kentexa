@@ -24,7 +24,7 @@ const StarRating = ({ rating }) => {
 
 const Stat = ({ label, value, color = '#1e293b', sub }) => (
   <div style={{ textAlign: 'center' }}>
-    <div style={{ fontSize: 20, fontWeight: 900, color }}>{value}</div>
+    <div style={{ fontSize: 20, fontWeight:800, color }}>{value}</div>
     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
     {sub && <div style={{ fontSize: 10, color }}>{sub}</div>}
   </div>
@@ -77,7 +77,7 @@ const AgentPerformance = ({ onNavigate }) => {
       <Sidebar onNavigate={onNavigate} activeItem="AgentPerformance" />
       <div style={{ flex: 1, padding: 24 }}>
 
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: '0 0 4px' }}>📊 Utendaji wa Ofisi</h1>
+        <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: '0 0 4px' }}>📊 Utendaji wa Ofisi</h1>
         <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px' }}>
           Rating, vifurushi, mapato, na malalamiko — ofisi zote kwa jicho moja
         </p>
@@ -94,7 +94,7 @@ const AgentPerformance = ({ onNavigate }) => {
               { label: 'Malalamiko',       value: agents.reduce((s,a) => s + a.totalComplaints, 0), color: '#dc2626', bg: '#fee2e2' },
             ].map(c => (
               <div key={c.label} style={{ backgroundColor: c.bg, borderRadius: 12, padding: '14px 16px' }}>
-                <div style={{ fontSize: 22, fontWeight: 900, color: c.color }}>{c.value}</div>
+                <div style={{ fontSize: 22, fontWeight:800, color: c.color }}>{c.value}</div>
                 <div style={{ fontSize: 11, color: c.color, fontWeight: 600 }}>{c.label}</div>
               </div>
             ))}
@@ -163,7 +163,7 @@ const AgentPerformance = ({ onNavigate }) => {
                   <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>⏳</div>
                 ) : detail ? (
                   <>
-                    <h3 style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', margin: '0 0 4px' }}>{detail.businessName}</h3>
+                    <h3 style={{ fontSize: 16, fontWeight:800, color: '#1e293b', margin: '0 0 4px' }}>{detail.businessName}</h3>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>📍 {detail.city} · {detail.agentCode || 'Hakuna msimbo'}</div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
@@ -178,7 +178,7 @@ const AgentPerformance = ({ onNavigate }) => {
                         { l: 'Muda wa Saa', v: detail.onTimeRate != null ? `${detail.onTimeRate}%` : '—', c: '#7c3aed' },
                       ].map(item => (
                         <div key={item.l} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 16, fontWeight: 900, color: item.c }}>{item.v}</div>
+                          <div style={{ fontSize: 16, fontWeight:800, color: item.c }}>{item.v}</div>
                           <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{item.l}</div>
                         </div>
                       ))}
@@ -186,7 +186,7 @@ const AgentPerformance = ({ onNavigate }) => {
 
                     <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 12 }}>
                       <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>💰 MAPATO</div>
-                      <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d' }}>TZS {Number(detail.totalEarnings).toLocaleString()}</div>
+                      <div style={{ fontSize: 16, fontWeight:800, color: '#15803d' }}>TZS {Number(detail.totalEarnings).toLocaleString()}</div>
                       {Number(detail.pendingEarnings) > 0 && (
                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
                           Inayosubiri: TZS {Number(detail.pendingEarnings).toLocaleString()}
@@ -196,7 +196,7 @@ const AgentPerformance = ({ onNavigate }) => {
 
                     <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: 12 }}>
                       <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>💹 COMMISSION RATE</div>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: '#1d4ed8' }}>{detail.commissionRate}%</div>
+                      <div style={{ fontSize: 20, fontWeight:800, color: '#1d4ed8' }}>{detail.commissionRate}%</div>
                       <div style={{ fontSize: 11, color: '#64748b' }}>ya ada ya usafirishaji</div>
                     </div>
                   </>

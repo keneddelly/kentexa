@@ -263,8 +263,8 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 20, fontWeight: 900, color: '#7c3aed' }}>#{zone.routeOrder}</span>
-                      <span style={{ fontSize: 16, fontWeight: 900, color: '#1e293b' }}>📍 {zone.name}</span>
+                      <span style={{ fontSize: 20, fontWeight:800, color: '#7c3aed' }}>#{zone.routeOrder}</span>
+                      <span style={{ fontSize: 16, fontWeight:800, color: '#1e293b' }}>📍 {zone.name}</span>
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: zone.isActive ? '#dcfce7' : '#fee2e2', color: zone.isActive ? '#16a34a' : '#dc2626' }}>
                         {zone.isActive ? 'Hai' : 'Imezimwa'}
                       </span>
@@ -310,7 +310,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 18px' }} />
-            <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 18px' }}>
+            <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 18px' }}>
               {editZone ? `✏️ Hariri — ${editZone.name}` : '➕ Eneo Jipya'}
             </h2>
 

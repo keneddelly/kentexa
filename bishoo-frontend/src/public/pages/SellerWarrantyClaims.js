@@ -155,7 +155,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
           <div onClick={e => e.stopPropagation()}
             style={{ backgroundColor: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('seller_warranty_claims.review_title')}</div>
+              <div style={{ fontSize: 15, fontWeight:800 }}>{t('seller_warranty_claims.review_title')}</div>
               <button onClick={() => setReviewFor(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
 
@@ -179,7 +179,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
             />
 
             <button onClick={submitReview} disabled={reviewSaving}
-              style={{ width: '100%', padding: 14, background: reviewSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              style={{ width: '100%', padding: 14, background: reviewSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {reviewSaving ? t('seller_warranty_claims.saving') : t('seller_warranty_claims.save_review_button')}
             </button>
           </div>

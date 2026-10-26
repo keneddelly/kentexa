@@ -139,7 +139,7 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
           ].slice(0,6).map(c => (
             <div key={c.key} onClick={() => setFilter(c.key)}
               style={{ backgroundColor: filter === c.key ? c.color : c.bg, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s' }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: filter === c.key ? '#fff' : c.color }}>{c.value}</div>
+              <div style={{ fontSize: 18, fontWeight:800, color: filter === c.key ? '#fff' : c.color }}>{c.value}</div>
               <div style={{ fontSize: 10, color: filter === c.key ? 'rgba(255,255,255,0.8)' : c.color, fontWeight: 600, marginTop: 2 }}>{c.label}</div>
             </div>
           ))}
