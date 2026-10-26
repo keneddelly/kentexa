@@ -54,8 +54,8 @@ const QRDisplay = ({ value, size = 120 }) => (
 
 // ── Section card ─────────────────────────────────────────────────────────────
 const SCard = ({ children, style={} }) => (
-  <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
-    boxShadow:'0 2px 8px rgba(0,0,0,0.05)', marginBottom:12, ...style }}>
+  <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
+    border:'1px solid #eff3f4', marginBottom:12, ...style }}>
     {children}
   </div>
 );
@@ -63,12 +63,12 @@ const SCard = ({ children, style={} }) => (
 // ── Row item ─────────────────────────────────────────────────────────────────
 const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => (
   <div onClick={onAction}
-    style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 0',
-      borderBottom:'1px solid #F8FAFC', cursor:onAction?'pointer':'default' }}>
+    style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', minHeight:44,
+      borderBottom:'1px solid #eff3f4', cursor:onAction?'pointer':'default' }}>
     <span style={{ fontSize:20, flexShrink:0, width:28, textAlign:'center' }}>{icon}</span>
     <div style={{ flex:1, minWidth:0 }}>
-      <div style={{ fontSize:13, fontWeight:700, color:DK }}>{label}</div>
-      {sub && <div style={{ fontSize:11, color:GR, marginTop:1 }}>{sub}</div>}
+      <div style={{ fontSize:15, fontWeight:400, color:'#0f1419', lineHeight:'20px' }}>{label}</div>
+      {sub && <div style={{ fontSize:13, color:'#536471', marginTop:1 }}>{sub}</div>}
     </div>
     {value !== undefined && (
       <div style={{ fontSize:13, fontWeight:700, color, textAlign:'right',
@@ -266,12 +266,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   if (!isLoggedIn) return null;
 
   return (
-    <div style={{ minHeight:'100vh', backgroundColor:'#F8FAFC',
+    <div style={{ minHeight:'100vh', backgroundColor:'#f7f9f9', color:'#0f1419',
       fontFamily:'inherit', paddingBottom:80 }}>
 
       {/* ── Top bar ── */}
-      <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9',
-        padding:'14px 16px', display:'flex', alignItems:'center',
+      <div style={{ backgroundColor:'rgba(255,255,255,0.92)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)',
+        borderBottom:'1px solid #eff3f4',
+        padding:'8px 16px', minHeight:52, boxSizing:'border-box', display:'flex', alignItems:'center',
         justifyContent:'space-between', position:'sticky', top:0, zIndex:100 }}>
         {section ? (
           <>
@@ -288,73 +289,60 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           </>
         ) : (
           <>
-            <div>
-              <div style={{ fontSize:16, fontWeight:800, color:DK }}>👤 {t('my_profile.header_title')}</div>
-              <div style={{ fontSize:11, color:GR }}>{t('my_profile.header_subtitle')}</div>
-            </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setShowQR(true)}
-                style={{ backgroundColor:'#F1F5F9', border:'none', borderRadius:8,
-                  padding:'7px 12px', cursor:'pointer', fontSize:12, fontWeight:700, color:DK }}>
-                {t('my_profile.qr_button')}
-              </button>
-              <button onClick={() => onNavigate('CommerceProfile')}
-                style={{ backgroundColor:B, color:WH, border:'none', borderRadius:8,
-                  padding:'7px 12px', cursor:'pointer', fontSize:12, fontWeight:700 }}>
-                {t('my_profile.public_profile_button')}
-              </button>
-            </div>
+            <div style={{ fontSize:20, fontWeight:800, color:'#0f1419' }}>{t('my_profile.header_title')}</div>
+            <button onClick={() => setShowQR(true)} aria-label={t('my_profile.qr_button')}
+              style={{ width:40, height:40, borderRadius:20, border:'1px solid #cfd9de', background:'#fff', cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0f1419" strokeWidth="2" aria-hidden="true">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>
+              </svg>
+            </button>
           </>
         )}
       </div>
 
       {/* ── Identity mini-card (list-home only) ── */}
       {profile && !section && (
-        <div style={{ background:`linear-gradient(135deg,#1E1B4B,${B})`,
-          padding:'20px 16px', color:WH }}>
+        <div style={{ backgroundColor:WH, padding:'16px 16px 14px', borderBottom:'1px solid #eff3f4', color:'#0f1419' }}>
           <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-            {/* Avatar */}
-            <div style={{ width:64, height:64, borderRadius:16,
-              border:'3px solid rgba(255,255,255,0.3)', overflow:'hidden',
-              backgroundColor:'rgba(255,255,255,0.2)', flexShrink:0,
-              display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <div style={{ width:64, height:64, borderRadius:18, overflow:'hidden', backgroundColor:'#0f1419', color:WH,
+              flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
               {profile.avatarUrl
-                ? <img src={profile.avatarUrl} alt=""
-                    style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                : <span style={{ fontSize:28, fontWeight:800 }}>
-                    {(profile.name||'K').charAt(0).toUpperCase()}
-                  </span>}
+                ? <img src={profile.avatarUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                : <span style={{ fontSize:26, fontWeight:800 }}>{(profile.name||'K').charAt(0).toUpperCase()}</span>}
             </div>
-            {/* Info */}
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:18, fontWeight:800, lineHeight:1.2 }}>
+              <div style={{ fontSize:20, fontWeight:800, lineHeight:'24px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {profile.name || profile.storeName || t('my_profile.default_name')}
               </div>
-              <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:2 }}>
-                📱 {profile.phone}
-                {profile.isVerified && t('my_profile.verified_suffix')}
+              <div style={{ fontSize:15, color:'#536471', marginTop:2 }}>
+                {profile.phone}{profile.isVerified && t('my_profile.verified_suffix')}
               </div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)', marginTop:2 }}>
-                📍 {profile.city || profile.businessLocation || t('my_profile.location_fallback')}
-              </div>
-            </div>
-            {/* Reputation */}
-            <div style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:12,
-              padding:'10px 14px', textAlign:'center', flexShrink:0 }}>
-              <div style={{ fontSize:20 }}>{tier.icon}</div>
-              <div style={{ fontSize:18, fontWeight:800 }}>{score}</div>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)', marginTop:1 }}>
-                {tier.name}
+              <div style={{ fontSize:15, color:'#536471' }}>
+                {profile.city || profile.businessLocation || t('my_profile.location_fallback')}
               </div>
             </div>
           </div>
-          {personalProfile && <div style={{display:'flex',gap:20,marginTop:14,paddingTop:12,borderTop:'1px solid rgba(255,255,255,.18)'}}>
-            <button onClick={()=>setNetworkOpen(networkOpen==='followers'?null:'followers')} style={{border:'none',background:'none',color:'#fff',padding:0,cursor:'pointer',fontWeight:800}}>{personalProfile.followersCount ?? followers.length} Followers</button>
-            <button onClick={()=>setNetworkOpen(networkOpen==='following'?null:'following')} style={{border:'none',background:'none',color:'#fff',padding:0,cursor:'pointer',fontWeight:800}}>{personalProfile.followingCount ?? followingPeople.length} Following</button>
+          <div style={{ display:'flex', gap:8, marginTop:14, flexWrap:'wrap' }}>
+            <button onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile?.id || personalProfile?.id })}
+              style={{ height:36, padding:'0 16px', borderRadius:18, border:'1px solid #cfd9de', background:'#fff', color:'#0f1419', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              {t('profile_editor.title')}
+            </button>
+            <button onClick={() => onNavigate('CommerceProfile')}
+              style={{ height:36, padding:'0 16px', borderRadius:18, border:'none', background:'#0f1419', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              {t('my_profile.public_profile_button')}
+            </button>
+            <span style={{ height:36, padding:'0 12px', borderRadius:18, background:'#f7f9f9', color:'#0f1419', fontSize:13, display:'inline-flex', alignItems:'center', gap:6 }}>
+              <b>{score}</b> <span style={{ color:'#536471' }}>Alama · {tier.name}</span>
+            </span>
+          </div>
+          {personalProfile && <div style={{display:'flex',gap:16,marginTop:12,fontSize:15}}>
+            <button onClick={()=>setNetworkOpen(networkOpen==='followers'?null:'followers')} style={{border:'none',background:'none',color:'#0f1419',padding:0,cursor:'pointer',fontSize:15,fontFamily:'inherit'}}><b>{personalProfile.followersCount ?? followers.length}</b> <span style={{color:'#536471'}}>Followers</span></button>
+            <button onClick={()=>setNetworkOpen(networkOpen==='following'?null:'following')} style={{border:'none',background:'none',color:'#0f1419',padding:0,cursor:'pointer',fontSize:15,fontFamily:'inherit'}}><b>{personalProfile.followingCount ?? followingPeople.length}</b> <span style={{color:'#536471'}}>Following</span></button>
           </div>}
-          {networkOpen && <div style={{marginTop:10,background:'rgba(255,255,255,.12)',borderRadius:12,padding:8}}>
-            {(networkOpen==='followers'?followers:followingPeople).length===0 ? <div style={{fontSize:12,color:'rgba(255,255,255,.7)',padding:8}}>No connections yet.</div> :
-              (networkOpen==='followers'?followers:followingPeople).map(person=><button key={person.profileId || person.ownerId} onClick={()=>person.profileId && onNavigate(`CommerceProfile-${person.profileId}`,{commerceProfileId:person.profileId})} style={{display:'flex',alignItems:'center',gap:9,width:'100%',border:'none',background:'none',color:'#fff',padding:7,cursor:person.profileId?'pointer':'default',textAlign:'left'}}>
+          {networkOpen && <div style={{marginTop:10,background:'#f7f9f9',borderRadius:12,padding:8}}>
+            {(networkOpen==='followers'?followers:followingPeople).length===0 ? <div style={{fontSize:13,color:'#536471',padding:8}}>No connections yet.</div> :
+              (networkOpen==='followers'?followers:followingPeople).map(person=><button key={person.profileId || person.ownerId} onClick={()=>person.profileId && onNavigate(`CommerceProfile-${person.profileId}`,{commerceProfileId:person.profileId})} style={{display:'flex',alignItems:'center',gap:9,width:'100%',border:'none',background:'none',color:'#0f1419',padding:7,cursor:person.profileId?'pointer':'default',textAlign:'left'}}>
                 {person.photoUrl ? <img src={person.photoUrl} alt="" style={{width:32,height:32,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.2)',display:'grid',placeItems:'center'}}>👤</span>}
                 <span style={{fontSize:12,fontWeight:800}}>{person.displayName}</span>
                 {person.isFollowedBy && networkOpen==='followers' && <span style={{fontSize:10,opacity:.75}}>Follows you</span>}
@@ -492,11 +480,11 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               gridTemplateColumns:`repeat(${Math.min(actions.length,3)},1fr)`, gap:10 }}>
               {actions.map((a,i) => (
                 <button key={i} onClick={a.onAction}
-                  style={{ backgroundColor:a.bg, border:'none', borderRadius:14,
-                    padding:'12px 10px', cursor:'pointer', textAlign:'left' }}>
-                  <div style={{ fontSize:18, marginBottom:4 }}>{a.icon}</div>
-                  <div style={{ fontSize:14, fontWeight:800, color:a.color }}>{a.value}</div>
-                  <div style={{ fontSize:10, color:GR, marginTop:1 }}>{a.label}</div>
+                  style={{ backgroundColor:WH, border:'1px solid #eff3f4', borderRadius:16,
+                    padding:'12px', cursor:'pointer', textAlign:'left', fontFamily:'inherit', minWidth:0 }}>
+                  <div style={{ fontSize:18, marginBottom:6 }}>{a.icon}</div>
+                  <div style={{ fontSize:17, fontWeight:800, color:'#0f1419', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.value}</div>
+                  <div style={{ fontSize:13, color:'#536471', marginTop:2 }}>{a.label}</div>
                 </button>
               ))}
             </div>
@@ -510,17 +498,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
           <WorkWithKentexa onNavigate={onNavigate} onSwitchAccountRole={onSwitchAccountRole} availableRoles={availableRoles} identityStatus={identityStatus} />
           <div style={{ backgroundColor:WH, borderRadius:16,
-            boxShadow:'0 2px 8px rgba(0,0,0,0.05)', overflow:'hidden' }}>
-            <Row icon="✏️" label={t('profile_editor.title')}
-              onAction={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile?.id || personalProfile?.id })} />
+            border:'1px solid #eff3f4', overflow:'hidden', padding:'0 16px' }}>
             {NAV.map((n,i) => (
               <button key={n.key} onClick={() => setSection(n.key)}
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:14,
-                  padding:'14px 16px', border:'none', background:'none', cursor:'pointer',
-                  borderBottom: i < NAV.length-1 ? '1px solid #F8FAFC' : 'none',
-                  textAlign:'left' }}>
+                  padding:'14px 0', minHeight:52, border:'none', background:'none', cursor:'pointer',
+                  borderBottom: i < NAV.length-1 ? '1px solid #eff3f4' : 'none',
+                  textAlign:'left', fontFamily:'inherit' }}>
                 <span style={{ fontSize:20, width:26, textAlign:'center', flexShrink:0 }}>{n.icon}</span>
-                <span style={{ flex:1, fontSize:14, fontWeight:700, color:DK }}>{n.label}</span>
+                <span style={{ flex:1, fontSize:15, fontWeight:400, color:'#0f1419' }}>{n.label}</span>
                 {n.badge > 0 && (
                   <span style={{ backgroundColor:'#EF4444', color:WH, fontSize:10,
                     fontWeight:800, borderRadius:100, padding:'2px 8px', flexShrink:0 }}>
