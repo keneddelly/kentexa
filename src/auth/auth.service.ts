@@ -1,9 +1,11 @@
+import { AdvertisersService } from '../advertisers/advertisers.service';
 import {
   Injectable,
   BadRequestException,
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -43,6 +45,7 @@ export class AuthService {
     private verification: VerificationService,
     private roleContextService: RoleContextService,
     private inAppNotifications: InAppNotificationService,
+    @Optional() private advertisers?: AdvertisersService,
   ) {}
 
   // Stamps whatever Terms of Service version is currently active at the
@@ -212,6 +215,9 @@ export class AuthService {
     await this.userRepo.save(user);
     if (referrer) {
       await this.verification.recordReferralRegistration(referrer, user as unknown as User).catch(() => {});
+    } else if (dto.referralCode && this.advertisers) {
+      // Not an office code: an advertiser's link (owner 2026-10-26). Never blocks registration.
+      await this.advertisers.recordSignup(dto.referralCode, (user as any).id).catch(() => false);
     }
     const sent = await this.smsService.sendOtp(phone, otp);
 
@@ -263,6 +269,9 @@ export class AuthService {
     await this.userRepo.save(user);
     if (referrer) {
       await this.verification.recordReferralRegistration(referrer, user as unknown as User).catch(() => {});
+    } else if (dto.referralCode && this.advertisers) {
+      // Not an office code: an advertiser's link (owner 2026-10-26). Never blocks registration.
+      await this.advertisers.recordSignup(dto.referralCode, (user as any).id).catch(() => false);
     }
 
     // ✅ Actually send the email now

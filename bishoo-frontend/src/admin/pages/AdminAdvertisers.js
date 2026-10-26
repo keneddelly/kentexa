@@ -1,0 +1,95 @@
+import React, { useEffect, useState } from 'react';
+import Sidebar from '../components/Sidebar';
+import api from '../../api/api';
+import { EVENT_LABEL } from '../../public/pages/MyAdvertising';
+
+/**
+ * Admin: advertisers KenteXa hires to bring users (owner 2026-10-26). Add an advertiser
+ * (name, phone) to get their link; set the commission rate per event; see users brought
+ * and commission owed; mark it paid after paying them by mobile money; stop a link.
+ */
+const tzs = (n) => `TZS ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
+
+export default function AdminAdvertisers({ activePage, onNavigate, onLogout }) {
+  const [data, setData] = useState(null);
+  const [rates, setRates] = useState({});
+  const [form, setForm] = useState({ name: '', phone: '' });
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.get('/advertisers').then((r) => { setData(r.data); setRates(r.data?.rates || {}); }).catch((e) => setMsg(e?.response?.data?.message || 'Imeshindikana kupakia'));
+  useEffect(() => { load(); }, []);
+  const run = async (fn, ok) => {
+    setBusy(true); setMsg('');
+    try { await fn(); setMsg(ok); await load(); } catch (e) { setMsg(e?.response?.data?.message || 'Imeshindikana'); } finally { setBusy(false); }
+  };
+
+  const card = { background: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,.05)', marginBottom: 16 };
+  const input = { height: 40, border: '1px solid #cbd5e1', borderRadius: 8, padding: '0 10px', fontSize: 14 };
+  const btn = { height: 40, padding: '0 14px', border: 0, borderRadius: 8, background: '#1d4ed8', color: '#fff', fontWeight: 700, cursor: 'pointer' };
+  const th = { textAlign: 'left', padding: '8px 10px', fontSize: 12, color: '#64748b', borderBottom: '1px solid #e2e8f0' };
+  const td = { padding: '8px 10px', fontSize: 13, borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' };
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: 'Manrope,Inter,sans-serif' }}>
+      <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
+      <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
+        <h1 style={{ fontSize: 22, margin: '0 0 4px' }}>Watangazaji</h1>
+        <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: 13 }}>Kila mtangazaji ana kiungo chake. Anapata kamisheni mtu aliyemleta akifanya hatua hizi, kila moja mara moja.</p>
+        {msg && <div role="status" style={{ ...card, padding: 10, fontSize: 13 }}>{msg}</div>}
+        {data && !data.ready && <div style={card}>Matangazo yatawashwa baada ya migration 1793100000000 kufanyika.</div>}
+        {data?.ready && (
+          <>
+            <div style={card}>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>Kamisheni kwa kila hatua (TZS)</div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                {Object.entries(EVENT_LABEL).map(([k, l]) => (
+                  <label key={k} style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#475569' }}>{l}
+                    <input aria-label={l} inputMode="numeric" value={rates[k] ?? 0} onChange={(e) => setRates((r) => ({ ...r, [k]: e.target.value.replace(/[^0-9]/g, '') }))} style={{ ...input, width: 130 }} />
+                  </label>
+                ))}
+                <button style={btn} disabled={busy} onClick={() => run(() => api.put('/advertisers/rates', Object.fromEntries(Object.entries(rates).map(([k, v]) => [k, Number(v) || 0]))), 'Viwango vimehifadhiwa.')}>Hifadhi</button>
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>Kiwango kipya kinahusu kamisheni zinazopatikana kuanzia sasa.</div>
+            </div>
+
+            <div style={card}>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>Ongeza mtangazaji</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input aria-label="Jina" placeholder="Jina" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={input} />
+                <input aria-label="Simu" placeholder="0712 345 678" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={input} />
+                <button style={btn} disabled={busy} onClick={() => run(async () => { await api.post('/advertisers', form); setForm({ name: '', phone: '' }); }, 'Mtangazaji ameongezwa.')}>Ongeza</button>
+              </div>
+            </div>
+
+            <div style={card}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr><th style={th}>Mtangazaji</th><th style={th}>Kiungo</th><th style={th}>Waliojiunga</th><th style={th}>Anadai</th><th style={th}>Amelipwa</th><th style={th}></th></tr></thead>
+                <tbody>
+                  {data.advertisers.map((a) => (
+                    <tr key={a.id} data-testid={`adv-row-${a.id}`}>
+                      <td style={td}><strong>{a.name}</strong><div style={{ color: '#64748b' }}>{a.phone}</div>{!a.active && <div style={{ color: '#b45309' }}>Kimesimamishwa</div>}</td>
+                      <td style={{ ...td, wordBreak: 'break-all' }}>{a.link}</td>
+                      <td style={td}>{a.users}</td>
+                      <td style={td}><strong>{tzs(a.unpaid)}</strong></td>
+                      <td style={td}>{tzs(a.paid)}</td>
+                      <td style={td}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button style={{ ...btn, background: '#15803d' }} disabled={busy || !a.unpaid}
+                            onClick={() => { if (window.confirm(`Umemlipa ${a.name} ${tzs(a.unpaid)}?`)) run(() => api.post(`/advertisers/${a.id}/paid`), 'Imewekwa kama imelipwa.'); }}>Nimelipa</button>
+                          <button style={{ ...btn, background: '#475569' }} disabled={busy}
+                            onClick={() => run(() => api.patch(`/advertisers/${a.id}/active`, { active: !a.active }), a.active ? 'Kiungo kimesimamishwa.' : 'Kiungo kimewashwa.')}>{a.active ? 'Simamisha' : 'Washa'}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {!data.advertisers.length && <tr><td style={td} colSpan={6}>Bado hakuna mtangazaji.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
