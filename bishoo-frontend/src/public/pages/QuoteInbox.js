@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import api from '../../api/api';
 import BackBar from '../components/BackBar';
-import { what, tzs, localPhone, page, body, card, input, outline, MUTED } from './quoteShared';
+import { TRIP_LABEL, what, tzs, localPhone, page, body, card, input, outline, MUTED } from './quoteShared';
 
 /**
  * "Maombi ya bei" for an office (large goods / containers it takes, in its town) or a
@@ -21,6 +21,13 @@ export default function QuoteInbox({ onNavigate }) {
       .catch((e) => { setData({ requests: [] }); setError(e?.response?.data?.message || 'Haikupatikana.'); });
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const step = async (r, next) => {
+    setBusy(`t${r.id}`); setError('');
+    try { await api.post(`/quote-requests/${r.id}/trip`, { step: next }); load(); }
+    catch (e) { setError(e?.response?.data?.message || 'Imeshindwa.'); }
+    finally { setBusy(null); }
+  };
 
   const offer = async (r) => {
     const price = String(prices[r.id] ?? '').replace(/[^0-9]/g, '');
@@ -66,6 +73,20 @@ export default function QuoteInbox({ onNavigate }) {
                     <a href={`tel:${localPhone(r.phone)}`} style={{ ...outline, display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>Piga {localPhone(r.phone)}</a>
                     <a href={`https://wa.me/${String(r.phone).replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer"
                       style={{ ...outline, display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>WhatsApp</a>
+                  </div>
+                )}
+                {r.trip && (
+                  <div data-testid="trip-steps" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #bbf7d0', color: '#0f1419' }}>
+                    <div style={{ fontSize: 13, color: MUTED }}>Namba ya mzigo · {TRIP_LABEL[r.trip.status] || r.trip.status}</div>
+                    <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: 0.5, marginBottom: 8 }}>{r.trip.waybill}</div>
+                    {r.trip.status === 'pending' && (
+                      <button type="button" disabled={busy === `t${r.id}`} onClick={() => step(r, 'in_transit')}
+                        style={{ ...outline, background: '#0f1419', color: '#ffffff', borderColor: '#0f1419' }}>Mzigo uko njiani</button>
+                    )}
+                    {r.trip.status === 'in_transit' && (
+                      <button type="button" disabled={busy === `t${r.id}`} onClick={() => step(r, 'delivered')}
+                        style={{ ...outline, background: '#166534', color: '#ffffff', borderColor: '#166534' }}>Mzigo umefika</button>
+                    )}
                   </div>
                 )}
               </div>

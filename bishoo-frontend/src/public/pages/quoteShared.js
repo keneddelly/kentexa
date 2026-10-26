@@ -8,6 +8,7 @@ export const VEHICLE_LABEL = {
   bus: 'Basi',
 };
 export const GOODS_LABEL = { large: 'Mzigo mkubwa', container: 'Kontena' };
+export const TRIP_LABEL = { pending: 'Inasubiri kuondoka', in_transit: 'Iko njiani', delivered: 'Imefika' };
 export const STATUS_LABEL = { open: 'Inasubiri bei', accepted: 'Umechagua', cancelled: 'Imeghairiwa' };
 
 export const what = (r) => (r.kind === 'vehicle'

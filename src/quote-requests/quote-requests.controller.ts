@@ -44,6 +44,11 @@ export class QuoteRequestsController {
     return this.service.offer(req.user.id, roleContext, id, body);
   }
 
+  @Post(':id/trip')
+  tripStep(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() body: any, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.service.tripStep(req.user.id, roleContext, id, body?.step);
+  }
+
   // ── Office: the goods it takes ("Bei zangu") ────────────────────────────
   @Get('goods-types')
   @Header('Cache-Control', 'no-store')

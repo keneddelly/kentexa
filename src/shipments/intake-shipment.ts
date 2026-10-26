@@ -26,7 +26,8 @@ import { EntityManager } from 'typeorm';
 import { projectShipment } from './shipment-projection';
 import { ShipmentHubSource } from './shipment-hub-source';
 
-export type IntakeChannel = 'walk_in' | 'seller_shipment' | 'order';
+// 'self_service': the customer booked the trip themselves (an accepted "Omba bei" price).
+export type IntakeChannel = 'walk_in' | 'seller_shipment' | 'order' | 'self_service';
 
 export interface IntakeShipmentInput {
   parcelId: number;
