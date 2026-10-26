@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { OfficePriceService } from './office-price.service';
 import { ShipmentActivationService } from '../shipments/shipment-activation.service';
+import { withOfficePhone } from './office-sms';
 import { ShehenaTransportService } from './shehena-transport.service';
 import { checkChargedAmount, isDarEsSalaam } from './office-price';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
@@ -1098,11 +1099,11 @@ export class SuperAgentsService {
     try {
       senderSmsSent = await this.smsService.sendSms(
         dto.senderPhone,
-        `${smsSafeName(superAgent.businessName)}\n\n` +
+        withOfficePhone(`${smsSafeName(superAgent.businessName)}\n\n` +
           `Habari ${dto.senderName}, malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${receipt.customerNumber}. ` +
           `Thamani ya mzigo: TZS ${declaredValue.toLocaleString()}.\n\n` +
           `Risiti: ${invoice.receiptNumber}\n\n` +
-          `Verified by Kentexa`,
+          `Verified by Kentexa`, superAgent),
       );
     } catch (e: any) {
       console.warn('Sender payment SMS failed:', e?.message);
@@ -2206,7 +2207,7 @@ export class SuperAgentsService {
       try {
         receiverSmsSent = await this.smsService.sendSms(
           parcel.buyerPhone,
-          `${smsSafeName(agent?.businessName)}\n\n` +
+          withOfficePhone(`${smsSafeName(agent?.businessName)}\n\n` +
             `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa kutoka ${parcel.originCity} kwenda ${parcel.destinationCity}.\n\n` +
             `Kifurushi: ${customerParcelNumber(parcel)}\n` +
             [
@@ -2224,7 +2225,7 @@ export class SuperAgentsService {
               .filter(Boolean)
               .join('\n') +
             `\n\nFuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
-            `Verified by Kentexa`,
+            `Verified by Kentexa`, agent),
         );
       } catch (e: any) {
         console.warn('Receiver shipment SMS failed:', e?.message);
@@ -2351,10 +2352,10 @@ export class SuperAgentsService {
     try {
       senderSmsSent = await this.smsService.sendSms(
         parcel.senderPhone,
-        `${smsSafeName(parcel.superAgent?.businessName)}\n\n` +
+        withOfficePhone(`${smsSafeName(parcel.superAgent?.businessName)}\n\n` +
           `Habari ${parcel.senderName || ''}, malipo yako ya TZS ${Number(parcel.actualShippingFee).toLocaleString()} yamepokewa kwa kifurushi ${customerParcelNumber(parcel)}.\n\n` +
           (invoice?.receiptNumber ? `Risiti: ${invoice.receiptNumber}\n\n` : '\n') +
-          `Verified by Kentexa`,
+          `Verified by Kentexa`, parcel.superAgent),
       );
     } catch (e: any) {
       console.warn('Resend sender SMS failed:', e?.message);
@@ -2407,13 +2408,13 @@ export class SuperAgentsService {
     try {
       receiverSmsSent = await this.smsService.sendSms(
         parcel.buyerPhone,
-        `${smsSafeName(parcel.superAgent?.businessName)}\n\n` +
+        withOfficePhone(`${smsSafeName(parcel.superAgent?.businessName)}\n\n` +
           `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa.\n\n` +
           `Kifurushi: ${customerParcelNumber(parcel)}\n` +
           [transportLine, `Njia: ${parcel.originCity} - ${parcel.destinationCity}`, referenceLine]
             .filter(Boolean)
             .join('\n') +
-          `\n\nVerified by Kentexa`,
+          `\n\nVerified by Kentexa`, parcel.superAgent),
       );
     } catch (e: any) {
       console.warn('Resend receiver SMS failed:', e?.message);
@@ -3349,12 +3350,12 @@ export class SuperAgentsService {
       try {
         const sent = await this.smsService.sendSms(
           (parcel as any).buyerPhone,
-          `${smsSafeName(agent.businessName)}\n\n` +
+          withOfficePhone(`${smsSafeName(agent.businessName)}\n\n` +
             `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${customerParcelNumber(parcel)}) kitapokelewa na ${smsSafeName(receiverName)}${receiverCity ? ` (${receiverCity})` : ''}.\n\n` +
             `Simu: ${receiverPhone}\n` +
             (receiverAddress ? `Mahali: ${receiverAddress}\n` : '') +
             `\nFuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
-            `Verified by Kentexa`,
+            `Verified by Kentexa`, agent),
         );
         if (sent) buyerSmsSentCount++;
       } catch (e: any) {
@@ -4296,7 +4297,7 @@ export class SuperAgentsService {
       };
       if (smsMap[dto.status]) {
         await this.smsService
-          .sendSms(buyerPhone, smsMap[dto.status]!)
+          .sendSms(buyerPhone, withOfficePhone(smsMap[dto.status]!, dto.status === ParcelStatus.RECEIVED_AT_HUB ? originHub : arrivalHub))
           .catch((e) => console.warn('SMS failed:', e.message));
       }
     }
@@ -4316,9 +4317,9 @@ export class SuperAgentsService {
         this.smsService
           .sendSms(
             sellerPhone,
-            `${originBrand}\n\n` +
+            withOfficePhone(`${originBrand}\n\n` +
               `Mzigo ${customerParcelNumber(parcel)}${declaredValueLine} umepokelewa na Super Agent na unaendelea kusafirishwa.\n\n` +
-              `Verified by Kentexa`,
+              `Verified by Kentexa`, originHub),
           )
           .catch((e) => console.warn('Seller received SMS failed:', e?.message));
       }
@@ -5525,13 +5526,13 @@ export class SuperAgentsService {
       await this.smsService
         .sendSms(
           (parcel as any).buyerPhone,
-          `${arrivalBrand}\n\n` +
+          withOfficePhone(`${arrivalBrand}\n\n` +
             `Habari ${recipientName}! Bidhaa yako (${customerParcelNumber(parcel)}) ` +
             `imefika ${arrivalCity}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery.\n\n` +
             [arrivalAddressLine, arrivalPhoneLine].filter(Boolean).join('\n') +
             (arrivalAddressLine || arrivalPhoneLine ? '\n\n' : '') +
             `Fuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
-            `Verified by Kentexa`,
+            `Verified by Kentexa`, arrivalHub),
         )
         .catch(() => {});
     }
@@ -5799,7 +5800,7 @@ export class SuperAgentsService {
       return parcel.buyerPhone;
     });
     const sent = await this.smsService.sendSms(phone!,
-      `KenteXa: Code ya kuchukua kifurushi ${customerParcelNumber(snapshot)} ni ${code}. Inaisha ndani ya dakika 10. Mpe mhudumu wa hub tu unapochukua kifurushi.`, true);
+      withOfficePhone(`KenteXa: Code ya kuchukua kifurushi ${customerParcelNumber(snapshot)} ni ${code}. Inaisha ndani ya dakika 10. Mpe mhudumu wa hub tu unapochukua kifurushi.`, hub), true);
     if (!sent) {
       await this.parcelRepo.createQueryBuilder().update(Parcel)
         .set({ pickupCodeHash: null, pickupCodeExpiresAt: null, pickupCodeIssuedAt: null })
@@ -6161,13 +6162,13 @@ export class SuperAgentsService {
       try {
         agentNotifySent = await this.smsService.sendSms(
           receiverPhone,
-          `KenteXa\n\n` +
+          withOfficePhone(`KenteXa\n\n` +
             `Habari ${smsSafeName(receiverName)}, ${smsSafeName(sa.businessName)} amekukabidhi kifurushi kinachokuja kwako.\n\n` +
             `Kifurushi: ${customerParcelNumber(parcel)}\n` +
             `Mtumaji: ${smsSafeName(sa.businessName)} (${sa.phone || sa.user?.phone || ''})\n` +
             (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
             `Mpokeaji: ${parcel.recipientName || '-'}\n\n` +
-            `Verified by Kentexa`,
+            `Verified by Kentexa`, sa),
         );
       } catch (e: any) {
         console.warn('Hamisha agent-notify SMS failed:', e?.message);
@@ -6195,12 +6196,12 @@ export class SuperAgentsService {
       try {
         buyerSmsSent = await this.smsService.sendSms(
           (parcel as any).buyerPhone,
-          `${smsSafeName(sa.businessName)}\n\n` +
+          withOfficePhone(`${smsSafeName(sa.businessName)}\n\n` +
             `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${customerParcelNumber(parcel)}) kitapokelewa na ${smsSafeName(receiverName)} ${receiverCity ? `(${receiverCity})` : ''}.\n\n` +
             `Simu: ${receiverPhone}\n` +
             (receiverAddress ? `Mahali: ${receiverAddress}\n` : '') +
             `\nFuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
-            `Verified by Kentexa`,
+            `Verified by Kentexa`, sa),
         );
       } catch (e: any) {
         console.warn('Hamisha buyer SMS failed:', e?.message);
