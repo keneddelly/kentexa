@@ -7,6 +7,7 @@
  * row up top. Replaces the old plain marketplace grid.
  */
 import React, { useState, useEffect } from 'react';
+import { LineIcon } from '../components/LineIcon';
 import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
 import api              from '../../api/api';
@@ -18,15 +19,15 @@ const WH = '#FFFFFF';
 const fmt = n => Number(n||0).toLocaleString();
 
 const getCategories = (t) => [
-  { key: 'all',         label: t('stores.cat_all'),         icon: '🏪' },
-  { key: 'electronics', label: t('stores.cat_electronics'), icon: '📱' },
-  { key: 'fashion',     label: t('stores.cat_fashion'),     icon: '👗' },
-  { key: 'food',        label: t('stores.cat_food'),        icon: '🍽️' },
-  { key: 'hardware',    label: t('stores.cat_hardware'),    icon: '🔧' },
-  { key: 'beauty',      label: t('stores.cat_beauty'),      icon: '💄' },
-  { key: 'furniture',   label: t('stores.cat_furniture'),   icon: '🛋️' },
-  { key: 'wholesale',   label: t('stores.cat_wholesale'),   icon: '📦' },
-  { key: 'services',    label: t('stores.cat_services'),    icon: '⚙️' },
+  { key: 'all',         label: t('stores.cat_all'),         icon: 'store' },
+  { key: 'electronics', label: t('stores.cat_electronics'), icon: 'phone' },
+  { key: 'fashion',     label: t('stores.cat_fashion'),     icon: 'shirt' },
+  { key: 'food',        label: t('stores.cat_food'),        icon: 'cart' },
+  { key: 'hardware',    label: t('stores.cat_hardware'),    icon: 'wrench' },
+  { key: 'beauty',      label: t('stores.cat_beauty'),      icon: 'heart' },
+  { key: 'furniture',   label: t('stores.cat_furniture'),   icon: 'home' },
+  { key: 'wholesale',   label: t('stores.cat_wholesale'),   icon: 'box' },
+  { key: 'services',    label: t('stores.cat_services'),    icon: 'gear' },
 ];
 
 const REGIONS = [
@@ -79,7 +80,7 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
         {seller.isOfficialStore && (
           <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9,
             backgroundColor: '#FBBF24', color: '#1E293B', padding: '2px 8px',
-            borderRadius: 100, fontWeight: 800 }}>✓ OFFICIAL</span>
+            borderRadius: 100, fontWeight: 800 }}>OFFICIAL</span>
         )}
         <div style={{ position: 'absolute', bottom: -20, left: 12,
           width: large ? 52 : 44, height: large ? 52 : 44, borderRadius: 14,
@@ -108,7 +109,7 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
             {name}
           </div>
           {seller.isVerified && (
-            <span style={{ fontSize: 11, color: B, fontWeight:800, flexShrink: 0 }}>✓</span>
+            <span style={{ fontSize: 11, color: B, fontWeight:800, flexShrink: 0 }}></span>
           )}
         </div>
 
@@ -123,26 +124,26 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
           {seller.businessCategory && (
             <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
               borderRadius: 100, backgroundColor: '#EFF6FF', color: B }}>
-              {CATEGORIES.find(c => c.key === seller.businessCategory)?.icon || '🏪'}{' '}
+              <LineIcon name={CATEGORIES.find(c => c.key === seller.businessCategory)?.icon || 'store'} size={14} style={{ verticalAlign: 'middle' }} />{' '}
               {seller.businessCategory}
             </span>
           )}
           {(seller.city || seller.district || seller.region) && (
             <span style={{ fontSize: 9, color: GR, padding: '2px 8px',
               borderRadius: 100, backgroundColor: '#F8FAFC' }}>
-              📍 {seller.district || seller.city || seller.region}
+              {seller.district || seller.city || seller.region}
             </span>
           )}
           {seller.verificationTier === 'verified_business' && (
             <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
               borderRadius: 100, backgroundColor: '#FEF3C7', color: '#B45309' }}>
-              🏆 {t('stores.tier_verified_business')}
+              {t('stores.tier_verified_business')}
             </span>
           )}
           {seller.verificationTier === 'verified_seller' && (
             <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
               borderRadius: 100, backgroundColor: '#DCFCE7', color: '#16A34A' }}>
-              ✅ {t('stores.tier_verified_seller')}
+              {t('stores.tier_verified_seller')}
             </span>
           )}
         </div>
@@ -152,14 +153,14 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {rating > 0 && (
               <span style={{ fontSize: 11, color: '#D97706', fontWeight: 700 }}>
-                ⭐ {rating.toFixed(1)}
+                {rating.toFixed(1)} / 5
               </span>
             )}
             {repScore > 0 && <ReputationBadge score={repScore} size="xs" />}
           </div>
           {seller.completedOrders > 0 && (
             <div style={{ fontSize: 10, color: '#16A34A', fontWeight: 700 }}>
-              ✅ {fmt(seller.completedOrders)} {t('stores.sold_suffix')}
+              {fmt(seller.completedOrders)} {t('stores.sold_suffix')}
             </div>
           )}
         </div>
@@ -259,7 +260,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <span style={{ position: 'absolute', left: 14, top: '50%',
-            transform: 'translateY(-50%)', fontSize: 16 }}>🔍</span>
+            transform: 'translateY(-50%)', display: 'flex' }}><LineIcon name="search" size={18} color="#94a3b8" /></span>
           <input type="text"
             placeholder={t('stores.search_placeholder')}
             value={search}
@@ -281,7 +282,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
                 color: category === c.key ? WH : GR,
                 boxShadow: category === c.key ? 'none' : '0 1px 4px rgba(0,0,0,0.06)',
                 transition: 'all 0.15s' }}>
-              {c.icon} {c.label}
+              {c.label}
             </button>
           ))}
         </div>
@@ -293,7 +294,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
               border: '1px solid #E2E8F0', fontSize: 12, outline: 'none',
               backgroundColor: WH, color: region === 'all' ? '#94A3B8' : DK }}>
             {REGIONS.map(r => (
-              <option key={r} value={r}>{r === 'All Regions' ? `📍 ${t('stores.all_regions')}` : r}</option>
+              <option key={r} value={r}>{r === 'All Regions' ? `${t('stores.all_regions')}` : r}</option>
             ))}
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)}
@@ -315,7 +316,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
           </div>
         ) : sellers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="store" size={44} color="#94a3b8" /></div>
             <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 8 }}>
               {t('stores.no_stores_title')}
             </div>
@@ -349,7 +350,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
 
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="search" size={36} color="#94a3b8" /></div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: DK, marginBottom: 8 }}>
                   {t('stores.no_matches_title')}
                 </div>

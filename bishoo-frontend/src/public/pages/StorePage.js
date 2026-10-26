@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { LineIcon } from '../components/LineIcon';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -56,14 +57,14 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
     }
   };
 
-  // Derived stats (placeholders where backend data not yet tracked)
+  // Stats from the seller record only: nothing invented when it is not tracked
   const stats = {
     totalProducts:  products.length,
     followers:      seller?.followersCount ?? 0,
     ordersCompleted: seller?.completedOrders ?? 0,
     rating:         seller?.rating ?? 0,
     reviewsCount:   seller?.reviewsCount ?? 0,
-    responseRate:   seller?.responseRate ?? 95,
+    responseRate:   seller?.responseRate ?? null, // only a real, tracked rate is shown
     memberSince:    seller?.createdAt ? new Date(seller.createdAt).getFullYear() : '—',
   };
 
@@ -87,7 +88,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar currentPage="Store" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>⏳ {t('store_page.loading')}</div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>{t('store_page.loading')}</div>
     </div>
   );
 
@@ -130,7 +131,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
           }}>
             {seller?.logo
               ? <img src={seller.logo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4, boxSizing: 'border-box', backgroundColor: '#fff' }} />
-              : (seller?.name?.[0] || '🏪')
+              : (seller?.name?.[0] || 'K')
             }
           </div>
 
@@ -139,7 +140,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
               <h1 style={{ fontSize: 19, fontWeight:800, color: '#0f172a', margin: 0, fontFamily:'inherit' }}>
                 {seller?.storeName || seller?.name || t('store_page.default_store_name')}
               </h1>
-              {isVerified && <span title={t('store_page.verified_seller_title')} style={{ fontSize: 16 }}>✅</span>}
+              {isVerified && <span title={t('store_page.verified_seller_title')} style={{ display: 'inline-flex' }}><LineIcon name="check" size={16} color="#1d9bf0" strokeWidth={3} /></span>}
               {seller?.reputationScore > 0 && (
                 <ReputationBadge score={seller.reputationScore} size="sm" />
               )}
@@ -192,11 +193,10 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== TRUST BADGES ===================== */}
       <div style={{ padding: '14px 16px 0' }}>
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
-          {isVerified && <Badge icon="✅" label={t('store_page.badge_verified')} color="#16a34a" />}
-          {isOfficial && <Badge icon="🏆" label={t('store_page.badge_official')} color="#f59e0b" />}
-          {stats.ordersCompleted > 100 && <Badge icon="⭐" label={t('store_page.badge_top_seller')} color="#7c3aed" />}
-          {seller?.fastShipping && <Badge icon="🚀" label={t('store_page.badge_fast_shipping')} color="#0284c7" />}
-          <Badge icon="🛡️" label={t('store_page.badge_protected')} color="#1d4ed8" />
+          {isVerified && <Badge icon="check" label={t('store_page.badge_verified')} color="#16a34a" />}
+          {isOfficial && <Badge icon="trophy" label={t('store_page.badge_official')} color="#f59e0b" />}
+          {stats.ordersCompleted > 100 && <Badge icon="star" label={t('store_page.badge_top_seller')} color="#7c3aed" />}
+          {seller?.fastShipping && <Badge icon="truck" label={t('store_page.badge_fast_shipping')} color="#0284c7" />}
         </div>
       </div>
 
@@ -207,7 +207,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
           <Stat value={stats.followers} label={t('store_page.stat_followers')} />
           <Stat value={stats.ordersCompleted} label={t('store_page.stat_orders')} />
           <Stat value={stats.reviewsCount} label={t('store_page.stat_reviews')} />
-          <Stat value={stats.rating ? `${stats.rating}★` : '—'} label={t('store_page.stat_rating')} />
+          <Stat value={stats.rating ? `${stats.rating}/5` : '—'} label={t('store_page.stat_rating')} />
         </div>
       </div>
 
@@ -219,12 +219,11 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
             <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: '0 0 12px' }}>{seller.storeDescription}</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#475569' }}>
-            {seller?.businessLocation && <InfoRow icon="📍" text={seller.businessLocation} />}
-            {seller?.businessHours    && <InfoRow icon="🕐" text={t('store_page.open_prefix', { hours: seller.businessHours })} />}
-            <InfoRow icon="🚚" text={t('store_page.ships_nationwide')} />
-            {seller?.pickupAvailable && <InfoRow icon="🏬" text={t('store_page.pickup_available')} />}
-            <InfoRow icon="📅" text={t('store_page.member_since', { year: stats.memberSince })} />
-            <InfoRow icon="💬" text={t('store_page.response_rate', { rate: stats.responseRate })} />
+            {seller?.businessLocation && <InfoRow icon="pin" text={seller.businessLocation} />}
+            {seller?.businessHours    && <InfoRow icon="clock" text={t('store_page.open_prefix', { hours: seller.businessHours })} />}
+            {seller?.pickupAvailable && <InfoRow icon="store" text={t('store_page.pickup_available')} />}
+            <InfoRow icon="calendar" text={t('store_page.member_since', { year: stats.memberSince })} />
+            {stats.responseRate != null && <InfoRow icon="chat" text={t('store_page.response_rate', { rate: stats.responseRate })} />}
           </div>
         </div>
       </div>
@@ -258,7 +257,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {seller?.activePromotion && (
         <div style={{ padding: '0 16px 14px' }}>
           <div style={{ background: 'linear-gradient(135deg,#dc2626,#ea580c)', borderRadius: 14, padding: 16, color: '#fff' }}>
-            <div style={{ fontSize: 13, fontWeight:800, marginBottom: 4 }}>🔥 {seller.activePromotion.title}</div>
+            <div style={{ fontSize: 13, fontWeight:800, marginBottom: 4 }}>{seller.activePromotion.title}</div>
             <div style={{ fontSize: 12, opacity: 0.9 }}>{seller.activePromotion.description}</div>
           </div>
         </div>
@@ -339,14 +338,14 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
                 ) : (
                   <div style={{ width: 56, height: 56, borderRadius: 10,
                     backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>📦</div>
+                    justifyContent: 'center', fontSize: 24, flexShrink: 0 }}><LineIcon name="box" size={22} color="#94a3b8" /></div>
                 )}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{c.title}</div>
                   <div style={{ fontSize: 13, fontWeight:800, color: '#16a34a', marginTop: 2 }}>
                     TZS {Number(c.price).toLocaleString()}
                   </div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>📍 {c.location || '—'}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>{c.location || '—'}</div>
                 </div>
                 <span style={{ fontSize: 20, color: '#94a3b8' }}>›</span>
               </div>
@@ -369,7 +368,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
             {seller.reviews.slice(0, 5).map((r, i) => (
               <div key={i} style={{ backgroundColor: '#fff', borderRadius: 12, padding: 14, boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: '#f59e0b', fontSize: 13 }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
+                  <span style={{ color: '#f59e0b', fontSize: 13 }}>{`${r.rating} / 5`}</span>
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>{new Date(r.date).toLocaleDateString()}</span>
                 </div>
                 <p style={{ fontSize: 13, color: '#475569', margin: '0 0 6px' }}>{r.comment}</p>
@@ -389,7 +388,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
 
 const Badge = ({ icon, label, color }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 20, backgroundColor: `${color}15`, color, fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', flexShrink: 0 }}>
-    <span>{icon}</span>{label}
+    <LineIcon name={icon} size={14} />{label}
   </div>
 );
 
@@ -402,7 +401,7 @@ const Stat = ({ value, label }) => (
 
 const InfoRow = ({ icon, text }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-    <span>{icon}</span><span>{text}</span>
+    <LineIcon name={icon} size={16} color="#64748b" /><span>{text}</span>
   </div>
 );
 
@@ -425,13 +424,13 @@ const ProductCard = ({ product, onNavigate, featured }) => {
       )}
       {product.codEnabled && (
         <div style={{ position: 'absolute', top: 6, right: 6, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 10, zIndex: 1 }}>
-          💵 {t('store_page.cod_badge')}
+          {t('store_page.cod_badge')}
         </div>
       )}
       <div style={{ width: '100%', aspectRatio: featured ? '4/3' : '1/1', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
         {product.images?.[0]
           ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }} />
-          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>
+          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name="box" size={28} color="#94a3b8" /></div>
         }
       </div>
       <div style={{ padding: 8 }}>

@@ -11,7 +11,7 @@ import { PageLoading, Spinner } from '../components/Loading';
 
 const CHECK = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>;
 
-const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) => {
+const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, currentUser }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-GB';
   const [order, setOrder]     = useState(null);
@@ -171,7 +171,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
         </div>
         <div style={{ textAlign: 'center', padding: 80 }}>
                     <p style={{ color: '#64748b' }}>{error || t('order_tracking.not_found')}</p>
-          <button onClick={() => onNavigate('MyOrders')} style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 24, cursor: 'pointer', marginTop: 16, fontWeight: 700 }}>
+          <button onClick={() => onNavigate(userRole === 'seller' ? 'SellerOrders' : 'MyOrders')} style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 24, cursor: 'pointer', marginTop: 16, fontWeight: 700 }}>
             {t('order_tracking.back_to_orders')}
           </button>
         </div>
@@ -179,6 +179,10 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
     );
   }
 
+  // The order's buyer goes back to what they bought; anyone else here (the seller or their
+  // team) goes back to the orders they received (owner 2026-10-27: it always went to MyOrders).
+  const sellerView = order && currentUser?.id != null ? order.buyer?.id !== currentUser.id : userRole === 'seller';
+  const ordersPage = sellerView ? 'SellerOrders' : 'MyOrders';
   const currentSteps = getSteps();
   const currentIdx   = getCurrentIndex(currentSteps);
   const payment      = paymentBadge(order?.paymentStatus);
@@ -191,7 +195,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid #eff3f4', padding: '12px 16px 16px' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: 'transparent', color: '#1d4ed8', border: 'none', padding: '6px 0', cursor: 'pointer', fontSize: 14, fontWeight: 600, marginBottom: 8, fontFamily: 'inherit' }}>
+          <button data-testid="orders-back" onClick={() => onNavigate(ordersPage)} style={{ backgroundColor: 'transparent', color: '#1d4ed8', border: 'none', padding: '6px 0', cursor: 'pointer', fontSize: 14, fontWeight: 600, marginBottom: 8, fontFamily: 'inherit' }}>
             {t('order_tracking.back_to_orders')}
           </button>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
@@ -503,8 +507,8 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.all_orders_button')}</button>
-          <button onClick={() => onNavigate('Stores')} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.shop_more_button')}</button>
+          <button onClick={() => onNavigate(ordersPage)} style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.all_orders_button')}</button>
+          {!sellerView && <button onClick={() => onNavigate('Stores')} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.shop_more_button')}</button>}
           <button onClick={fetchOrderData} style={{ backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.refresh_button')}</button>
         </div>
       </div>
