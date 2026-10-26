@@ -420,7 +420,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     if (parcel.destinationSuperAgent?.id) setBulkLastMileAgentId(parcel.destinationSuperAgent.id);
   };
   // Explicit choice only: the parcel's own recipient collects it over there.
-  const useParcelRecipient = (parcel) => {
+  const pickParcelRecipient = (parcel) => {
     setBulkLastMileAgentId(null); setBulkManualOpen(true);
     setBulkManualContact({ name: parcel.recipientName || '', phone: parcel.buyerPhone || parcel.recipientPhone || '', city: bulkDestCity, address: parcel.deliveryAddress || '' });
   };
@@ -1641,7 +1641,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         </button>
                         {inviteParcel && (inviteParcel.recipientName || inviteParcel.buyerPhone) && (
                           <button type="button" data-testid="manual-receiver-recipient"
-                            onClick={() => useParcelRecipient(inviteParcel)}
+                            onClick={() => pickParcelRecipient(inviteParcel)}
                             style={{ padding: '10px 12px', borderRadius: 10, border: '1px dashed #94a3b8', background: '#fff', color: '#334155', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
                             + Mpokeaji mwenyewe atapokea{inviteParcel.recipientName ? ` (${inviteParcel.recipientName})` : ''}
                           </button>
