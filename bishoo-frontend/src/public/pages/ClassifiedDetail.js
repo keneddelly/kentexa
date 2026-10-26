@@ -5,10 +5,23 @@ import api from '../../api/api';
 import WishlistHeart   from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
+import { PageLoading } from '../components/Loading';
 import { useTranslation } from 'react-i18next';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
-// Simple countdown for ClassifiedDetail
+/**
+ * ClassifiedDetail — one listing (owner 2026-10-26 redesign, same look as the
+ * product page): photos, price and facts, then the person or business behind it
+ * with their contact shown straight away, details, safety tips, comments.
+ * No emoji anywhere.
+ */
+const B = '#1d4ed8';
+const DK = '#0f1419';
+const GR = '#536471';
+const WH = '#ffffff';
+const LINE = '#eff3f4';
+
+// Simple countdown for a flash sale.
 const FlashCountdown = ({ endsAt }) => {
   const [t, setT] = React.useState(() => {
     const d = new Date(endsAt) - Date.now();
@@ -18,30 +31,48 @@ const FlashCountdown = ({ endsAt }) => {
     const id = setInterval(() => setT(prev => Math.max(0, prev - 1000)), 1000);
     return () => clearInterval(id);
   }, []);
-  if (t <= 0) return <span style={{ fontSize:11, color:'#DC2626', fontWeight:700 }}>Imekwisha</span>;
+  if (t <= 0) return <span style={{ fontSize:13, color:'#b91c1c', fontWeight:700 }}>Imekwisha</span>;
   const h = Math.floor(t / 3600000);
   const m = Math.floor((t % 3600000) / 60000);
   const s = Math.floor((t % 60000) / 1000);
   const pad = n => String(n).padStart(2,'0');
-  return (
-    <span style={{ fontSize:14, fontWeight:800, color:'#DC2626',
-      fontFamily:'monospace' }}>
-      {pad(h)}:{pad(m)}:{pad(s)}
-    </span>
-  );
+  return <span style={{ fontSize:15, fontWeight:800, color:'#b91c1c', fontVariantNumeric:'tabular-nums' }}>{pad(h)}:{pad(m)}:{pad(s)}</span>;
 };
 
-
-const CAT_ICONS = {
-  electronics: '📱', vehicles: '🚗', property: '🏢', fashion: '👗',
-  services: '🔧', home_garden: '🏠', health_beauty: '💄', food: '🍎',
-  agriculture: '🌾', security: '🔒', baby_kids: '🧸', sports: '⚽',
-  books: '📚', arts: '🎨', general: '📦', pets: '🐾', construction: '🧱',
-  industrial: '🏭', appliances: '🧊', musical_instruments: '🎸', flowers: '🌸',
-  jobs: '💼', energy: '☀️', tools_hardware: '🔧', weddings_events: '💍',
-  water_sanitation: '🚰', office_supplies: '🖇️', collectibles: '🏺',
-  tickets_vouchers: '🎟️', free_giveaway: '🎁',
+const IC = {
+  back: 'M15 6l-6 6 6 6',
+  share: 'M12 3v13M7 8l5-5 5 5M5 14v6h14v-6',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  pin: 'M12 21s-7-6.2-7-11.5A7 7 0 0119 9.5C19 14.8 12 21 12 21zM12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+  photo: 'M4 6h16v12H4zM8 14l3-3 3 3 2-2 3 3M9 10a1 1 0 100-2 1 1 0 000 2z',
+  right: 'M9 6l6 6-6 6',
+  shield: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z',
 };
+const Icon = ({ d, size = 18, color = GR }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d={d} /></svg>
+);
+const IconBtn = ({ label, onClick, children }) => (
+  <button type="button" aria-label={label} title={label} onClick={onClick}
+    style={{ width:44, height:44, borderRadius:22, border:'none', background:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+    {children}
+  </button>
+);
+const Avatar = ({ src, name, size = 40 }) => (
+  <span style={{ width:size, height:size, borderRadius:size/2, overflow:'hidden', flexShrink:0, backgroundColor:'#cfd9de', color:WH,
+    fontWeight:800, fontSize:size*0.4, display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+    {src ? <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : (name || '?').trim().charAt(0).toUpperCase()}
+  </span>
+);
+const Verified = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="Imethibitishwa" style={{ flexShrink:0 }}>
+    <circle cx="12" cy="12" r="10" fill={B} /><path d="M8 12.5l3 3 5-6" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+  </svg>
+);
+const CHIP = { green: ['#ecfdf3', '#166534'], red: ['#fef2f2', '#b91c1c'], blue: ['#eff6ff', '#1e40af'], grey: ['#f7f9f9', GR] };
+const Chip = ({ tone = 'grey', children }) => (
+  <span style={{ height:28, padding:'0 10px', borderRadius:14, backgroundColor:CHIP[tone][0], color:CHIP[tone][1], fontSize:13, fontWeight:600, display:'inline-flex', alignItems:'center', textTransform:'capitalize' }}>{children}</span>
+);
 
 const contactBtn = { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, padding: '0 12px',
   borderRadius: 22, border: '1px solid #cfd9de', backgroundColor: '#fff', color: '#0f1419', textDecoration: 'none',
@@ -57,7 +88,6 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   const [showMenu, setShowMenu]         = useState(false);
   const [related, setRelated]           = useState([]);
   const [, setError]                    = useState('');
-  const [wishlist, setWishlist]         = useState(false);
   const commentsRef = React.useRef(null);
   // Category attribute schema — same purpose as ProductDetail.js's: order
   // the specs list using the seller-defined displayOrder/label/unit
@@ -123,36 +153,36 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
     api.get(`/classifieds/${classifiedId}/contact`).then(r => setContactInfo(r.data)).catch(() => {});
   }, [isLoggedIn, classifiedId]);
 
+
+  const goBack = () => onNavigate('back');
+  const backBar = (
+    <div style={{ height:52, display:'flex', alignItems:'center', padding:'0 8px', backgroundColor:WH, borderBottom:`1px solid ${LINE}` }}>
+      <IconBtn label={t('common.back')} onClick={goBack}><Icon d={IC.back} size={22} color={DK} /></IconBtn>
+    </div>
+  );
+
   if (loading) return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px' }}>
-        <button onClick={() => onNavigate('ClassifiedsPublic')} style={{ background:'none', border:'none', cursor:'pointer',
-          display:'flex', alignItems:'center', gap:8, padding:0 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
-        </button>
-      </div>
-      <div style={{ textAlign: 'center', padding: '80px 16px', color: '#64748b' }}><div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>{t('classified_detail.loading')}</div>
+    <div style={{ minHeight:'100vh', backgroundColor:WH }}>
+      {backBar}
+      <PageLoading label={t('classified_detail.loading')} />
     </div>
   );
 
   if (!classified) return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px' }}>
-        <button onClick={() => onNavigate('ClassifiedsPublic')} style={{ background:'none', border:'none', cursor:'pointer',
-          display:'flex', alignItems:'center', gap:8, padding:0 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+    <div style={{ minHeight:'100vh', backgroundColor:WH }}>
+      {backBar}
+      <div style={{ textAlign:'center', padding:'72px 24px', display:'flex', flexDirection:'column', alignItems:'center', gap:12 }}>
+        <span style={{ width:56, height:56, borderRadius:28, backgroundColor:'#f7f9f9', display:'flex', alignItems:'center', justifyContent:'center' }}><Icon d={IC.photo} size={26} /></span>
+        <p style={{ margin:0, fontSize:16, fontWeight:700, color:DK }}>{t('classified_detail.not_found')}</p>
+        <button type="button" onClick={() => onNavigate('Search')}
+          style={{ height:44, padding:'0 22px', borderRadius:22, border:'none', backgroundColor:DK, color:WH, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+          {t('classified_detail.back_to_classifieds')}
         </button>
-      </div>
-      <div style={{ textAlign: 'center', padding: '80px 16px' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>😕</div>
-        <p style={{ color: '#64748b' }}>{t('classified_detail.not_found')}</p>
-        <button onClick={() => onNavigate('ClassifiedsPublic')} style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', marginTop: 16, fontWeight: 700 }}>{t('classified_detail.back_to_classifieds')}</button>
       </div>
     </div>
   );
 
   const hasSpecs = classified.specs && Object.keys(classified.specs).filter(k => classified.specs[k]).length > 0;
-  const catIcon  = CAT_ICONS[classified.category] || '📋';
   const orderedSpecEntries = (() => {
     if (!hasSpecs) return [];
     const attrs = categorySchema[classified.category]?.[classified.subcategory] || [];
@@ -170,70 +200,51 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
       })
       .sort((a, b) => a.order - b.order);
   })();
-  // Prefer the BUSINESS CommerceProfile's own identity — same fix as
-  // ProductDetail.js. Falls back to the seller's personal fields when
-  // they have no business profile yet.
-  const sellerName = classified.commerceProfile?.displayName || classified.seller?.storeName || classified.seller?.businessName || classified.seller?.name || 'Seller';
+  // The BUSINESS CommerceProfile's identity first; the seller's personal fields
+  // only when they have no business profile yet.
+  const sellerName = classified.commerceProfile?.displayName || classified.seller?.storeName || classified.seller?.businessName || classified.seller?.name || 'Muuzaji';
   const sellerPhoto = classified.commerceProfile?.photoUrl || classified.seller?.logo;
   const sellerFollowers = classified.commerceProfile?.followersCount ?? classified.seller?.followersCount;
   const sellerNavParams = classified.commerceProfile?.id ? { commerceProfileId: classified.commerceProfile.id } : undefined;
-  // Message-button-only variant — same reasoning as ProductDetail.js's
-  // messageSellerNavParams: tags the resulting conversation to this exact
-  // classified so it shows up in the inbox with it attached.
+  // Tags the conversation to this exact classified, so the inbox shows it.
   const messageSellerNavParams = { ...sellerNavParams, contextType: 'classified', contextId: classified.id };
   const isVerifiedSeller = ['seller','admin','manager'].includes(classified.seller?.role);
-
-
+  const openSeller = () => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`, sellerNavParams);
+  const isOwner = isLoggedIn && currentUser?.id === classified.seller?.id;
+  const flashOn = classified.isFlashSale && classified.flashSalePrice;
+  const flashEnds = classified.isFlashSale && classified.flashSaleEndsAt && new Date(classified.flashSaleEndsAt) > new Date();
+  const listed = new Date(classified.createdAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", color: '#0f1419' }}>
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:WH, color:DK, fontFamily:'inherit' }}>
       <style>{`
         .cd-root { max-width: 480px; margin: 0 auto; width: 100%; padding: 0 0 24px; }
         .cd-grid { display: block; }
-        .cd-left { width: 100%; }
-        .cd-right { width: 100%; }
         @media (min-width: 768px) {
-          .cd-root { max-width: 1100px; padding: 0 16px 32px; }
-          .cd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; margin-top: 16px; }
-          .cd-left > *, .cd-right > * { border-radius: 12px !important; }
+          .cd-root { max-width: 1100px; padding: 16px 16px 32px; }
+          .cd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+          .cd-media { border-radius: 16px; overflow: hidden; }
         }
-        @media (min-width: 1024px) {
-          .cd-grid { grid-template-columns: 1.1fr 0.9fr; gap: 36px; }
-        }
+        @media (min-width: 1024px) { .cd-grid { grid-template-columns: 1.1fr 0.9fr; gap: 36px; } }
       `}</style>
 
-      <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
-        display:'flex', alignItems:'center', justifyContent:'space-between',
-        position:'sticky', top:0, zIndex:100 }}>
-        <button onClick={() => onNavigate('ClassifiedsPublic')} style={{ background:'none', border:'none', cursor:'pointer',
-          display:'flex', alignItems:'center', gap:10, minWidth:0, flex:1 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" style={{ flexShrink:0 }}><polyline points="15,18 9,12 15,6"/></svg>
-          <span style={{ fontSize:15, fontWeight:800, color:'#0F172A', overflow:'hidden',
-            textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>{classified.title}</span>
-        </button>
-        <button onClick={handleShare} title={t('share.button')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 17, color: '#0F172A', padding: '4px 8px', flexShrink:0, marginLeft:8 }}>
-          🔗
-        </button>
-        {isLoggedIn && currentUser?.id === classified.seller?.id && (
-          <div style={{ position:'relative', flexShrink:0, marginLeft:8 }}>
-            <button onClick={() => setShowMenu(s => !s)}
-              style={{ background:'none', border:'none', cursor:'pointer', fontSize:18,
-                color:'#0F172A', padding:'4px 6px' }}>
-              ⋯
-            </button>
+      <div style={{ height:52, backgroundColor:'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderBottom:`1px solid ${LINE}`,
+        display:'flex', alignItems:'center', padding:'0 8px', position:'sticky', top:0, zIndex:100 }}>
+        <IconBtn label={t('common.back')} onClick={goBack}><Icon d={IC.back} size={22} color={DK} /></IconBtn>
+        <span style={{ flex:1, minWidth:0, fontSize:16, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', padding:'0 4px' }}>{classified.title}</span>
+        <IconBtn label={t('share.button')} onClick={handleShare}><Icon d={IC.share} size={20} color={DK} /></IconBtn>
+        {isOwner && (
+          <div style={{ position:'relative' }}>
+            <IconBtn label="Zaidi" onClick={() => setShowMenu(s => !s)}><Icon d={IC.more} size={20} color={DK} /></IconBtn>
             {showMenu && (
               <>
-                <div onClick={() => setShowMenu(false)}
-                  style={{ position:'fixed', inset:0, zIndex:150 }} />
-                <div style={{ position:'absolute', top:'100%', right:0, marginTop:4,
-                  backgroundColor:'#fff', borderRadius:10, boxShadow:'0 4px 20px rgba(0,0,0,0.15)',
-                  overflow:'hidden', zIndex:151, minWidth:140 }}>
-                  <button onClick={() => { setShowMenu(false); onNavigate(`EditClassified-${classified.id}`); }}
-                    style={{ width:'100%', textAlign:'left', background:'none', border:'none',
-                      cursor:'pointer', padding:'12px 16px', fontSize:13, fontWeight:700,
-                      color:'#0F172A' }}>
-                    ✏️ Edit
+                <div onClick={() => setShowMenu(false)} style={{ position:'fixed', inset:0, zIndex:150 }} />
+                <div style={{ position:'absolute', top:'100%', right:0, marginTop:4, backgroundColor:WH, borderRadius:12,
+                  boxShadow:'0 4px 20px rgba(0,0,0,0.15)', overflow:'hidden', zIndex:151, minWidth:180 }}>
+                  <button type="button" onClick={() => { setShowMenu(false); onNavigate(`EditClassified-${classified.id}`); }} style={menuItem}>Hariri tangazo</button>
+                  <button type="button" style={{ ...menuItem, borderTop:`1px solid ${LINE}` }}
+                    onClick={() => { setShowMenu(false); onOpenMoment?.('selling', { type: 'classified', id: classified.id, title: classified.title, image: classified.images?.[0] || null }); }}>
+                    Shiriki kama Moment
                   </button>
                 </div>
               </>
@@ -242,286 +253,207 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
         )}
       </div>
 
-      {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 16px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>✅ {message}</div>}
+      {message && <div role="status" style={{ backgroundColor:DK, color:WH, padding:'12px 16px', fontSize:14, fontWeight:600, textAlign:'center' }}>{message}</div>}
 
       <div className="cd-root">
         <div className="cd-grid">
 
-        <div className="cd-left">
-
-        <div style={{ position: 'relative', backgroundColor: '#fff' }}>
-          <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', position: 'relative', maxHeight: 500 }}>
-            {classified.images?.[selectedImage] ? (
-              <img src={classified.images[selectedImage]} alt={classified.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', fontSize: 80 }}>📋</div>
-            )}
-            <span style={{ position: 'absolute', top: 12, left: 12, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-              backgroundColor: classified.status === 'active' ? '#dcfce7' : classified.status === 'sold' ? '#fee2e2' : '#fef9c3',
-              color: classified.status === 'active' ? '#16a34a' : classified.status === 'sold' ? '#dc2626' : '#ca8a04',
-            }}>{classified.status?.toUpperCase()}</span>
-            <button onClick={() => setWishlist(w => !w)}
-              style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
-              {wishlist ? '❤️' : '🤍'}
-            </button>
+          {/* ── Photos ── */}
+          <div className="cd-media" style={{ position:'relative', backgroundColor:'#f7f9f9' }}>
+            <div style={{ width:'100%', aspectRatio:'4/3', overflow:'hidden', position:'relative', maxHeight:500 }}>
+              {classified.images?.[selectedImage] ? (
+                <img src={classified.images[selectedImage]} alt={classified.title} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+              ) : (
+                <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}><Icon d={IC.photo} size={56} color="#cfd9de" /></div>
+              )}
+              {classified.status && classified.status !== 'active' && (
+                <span style={{ position:'absolute', top:12, left:12, height:26, padding:'0 10px', borderRadius:13, fontSize:13, fontWeight:700,
+                  display:'flex', alignItems:'center', backgroundColor: classified.status === 'sold' ? '#b91c1c' : DK, color:WH }}>
+                  {classified.status === 'sold' ? t('classified_detail.item_sold') : classified.status}
+                </span>
+              )}
+              <div style={{ position:'absolute', top:12, right:12, width:40, height:40, borderRadius:20, backgroundColor:'rgba(255,255,255,0.92)',
+                display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <WishlistHeart classifiedId={classified.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} size={20} />
+              </div>
+              {classified.images?.length > 1 && (
+                <span style={{ position:'absolute', right:12, bottom:12, height:26, padding:'0 10px', borderRadius:13, backgroundColor:'rgba(15,20,25,0.7)',
+                  color:WH, fontSize:13, display:'flex', alignItems:'center' }}>{selectedImage + 1} / {classified.images.length}</span>
+              )}
+            </div>
             {classified.images?.length > 1 && (
-              <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
-                {classified.images.map((_, i) => (
-                  <div key={i} onClick={() => setSelectedImage(i)}
-                    style={{ width: i === selectedImage ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === selectedImage ? '#7c3aed' : 'rgba(255,255,255,0.7)', cursor: 'pointer', transition: 'all 0.2s' }} />
+              <div style={{ padding:'8px 12px', display:'flex', gap:8, overflowX:'auto', backgroundColor:WH }}>
+                {classified.images.map((img, i) => (
+                  <button type="button" key={i} aria-label={`Picha ${i + 1}`} onClick={() => setSelectedImage(i)}
+                    style={{ width:56, height:56, padding:0, borderRadius:10, overflow:'hidden', flexShrink:0, cursor:'pointer',
+                      border: i === selectedImage ? `2px solid ${B}` : `2px solid ${LINE}`, background:'none' }}>
+                    <img src={img} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  </button>
                 ))}
               </div>
             )}
           </div>
-          {classified.images?.length > 1 && (
-            <div style={{ padding: '8px 12px', display: 'flex', gap: 8, overflowX: 'auto', borderBottom: '1px solid #f1f5f9' }}>
-              {classified.images.map((img, i) => (
-                <img key={i} src={img} alt="" onClick={() => setSelectedImage(i)}
-                  style={{ width: 54, height: 54, borderRadius: 8, objectFit: 'cover', flexShrink: 0, border: i === selectedImage ? '2px solid #7c3aed' : '2px solid #e2e8f0', cursor: 'pointer' }} />
-              ))}
-            </div>
-          )}
-        </div>
 
-        </div>
-
-        <div className="cd-right">
-
-        <div style={{ backgroundColor: '#fff', padding: '14px 16px', marginBottom: 8 }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff' }}>
-              {catIcon} {classified.category?.replace(/_/g,' ')}
-            </span>
-            {classified.subcategory && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-                {classified.subcategory?.replace(/_/g,' ')}
-              </span>
-            )}
-            {classified.condition && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: '#eff6ff', color: '#1d4ed8' }}>
-                {classified.condition}
-              </span>
-            )}
-          </div>
-          <h1 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', lineHeight: 1.4 }}>{classified.title}</h1>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
-            <span style={{ fontSize: 26, fontWeight:800, color: classified.isFlashSale ? '#DC2626' : '#7c3aed' }}>
-              {classified.isFlashSale && classified.flashSalePrice
-                ? <>TZS {Number(classified.flashSalePrice).toLocaleString()}
-                    <span style={{ fontSize:13, textDecoration:'line-through', color:'#94A3B8',
-                      marginLeft:8, fontWeight:600 }}>
-                      TZS {Number(classified.originalPrice||classified.price).toLocaleString()}
-                    </span>
-                  </>
-                : <>TZS {Number(classified.price).toLocaleString()}</>
-              }
-            </span>
-            {classified.isFlashSale && classified.flashSaleEndsAt &&
-              new Date(classified.flashSaleEndsAt) > new Date() && (
-              <div style={{ backgroundColor:'#FFF5F5', border:'1px solid #FCA5A5',
-                borderRadius:10, padding:'10px 14px', marginTop:8,
-                display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:12, fontWeight:700, color:'#DC2626' }}>
-                  ⏰ Flash Sale inaisha:
+          <div>
+            {/* ── Price, title, facts ── */}
+            <section style={{ padding:16, borderBottom:`1px solid ${LINE}`, display:'flex', flexDirection:'column', gap:8 }}>
+              <div data-testid="cd-price" style={{ display:'flex', alignItems:'baseline', gap:10, flexWrap:'wrap' }}>
+                <span style={{ fontSize:28, fontWeight:800, letterSpacing:-0.3, color: flashOn ? '#b91c1c' : DK }}>
+                  TZS {Number(flashOn ? classified.flashSalePrice : classified.price).toLocaleString('en-US')}
                 </span>
-                <FlashCountdown endsAt={classified.flashSaleEndsAt} />
+                {flashOn && <span style={{ fontSize:15, color:GR, textDecoration:'line-through' }}>TZS {Number(classified.originalPrice || classified.price).toLocaleString('en-US')}</span>}
+                {classified.isNegotiable && <span style={{ fontSize:14, color:GR }}>{t('classified_detail.negotiable')}</span>}
               </div>
-            )}
-            <WishlistHeart classifiedId={classified.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} size={26} />
-            {classified.isNegotiable && <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>· {t('classified_detail.negotiable')}</span>}
-          </div>
-          {classified.location && (
-            <div style={{ fontSize: 13, color: '#64748b' }}>📍 {classified.location}</div>
-          )}
-        </div>
-
-        <div style={{ backgroundColor: '#fff', padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div onClick={() => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`, sellerNavParams)}
-              style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight:800, fontSize: 16, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}>
-              {sellerPhoto ? <img src={sellerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : sellerName[0]}
-            </div>
-            <div>
-              <div style={{ display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' }}>
-                <span onClick={() => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`, sellerNavParams)}
-                  style={{ fontSize:13,fontWeight:800,color:'#1d4ed8',cursor:'pointer' }}>
-                  {sellerName}
-                </span>
-                {classified.seller?.reputationScore > 0 && (
-                  <ReputationBadge score={classified.seller.reputationScore} size="xs" />
-                )}
-                {sellerFollowers != null && (
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>· {sellerFollowers.toLocaleString()} {t('commerce_profile.stat_followers')}</span>
-                )}
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>{t('classified_detail.listed')} {new Date(classified.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-            </div>
-          </div>
-        </div>
-
-        {isLoggedIn && currentUser?.id === classified.seller?.id && (
-          <div style={{ backgroundColor: '#fff', padding: '0 16px 12px' }}>
-            <button onClick={() => onOpenMoment?.('selling', {
-                type: 'classified', id: classified.id, title: classified.title,
-                image: classified.images?.[0] || null,
-              })}
-              style={{ background:'none', border:'none', cursor:'pointer', padding:0,
-                color:'#2563EB', fontSize:12, fontWeight:700 }}>
-              📸 Share as Moment
-            </button>
-          </div>
-        )}
-
-        {hasSpecs && (
-          <div style={{ backgroundColor: '#fff', padding: '14px 16px', marginBottom: 8 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: '0 0 12px' }}>📋 {t('classified_detail.details')}</h3>
-            <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-              {orderedSpecEntries.map(({ key, label, value }, i) => (
-                <div key={key} style={{ display: 'flex', backgroundColor: i % 2 === 0 ? '#f8fafc' : '#fff' }}>
-                  <div style={{ flex: '0 0 45%', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#475569', borderRight: '1px solid #e2e8f0' }}>{label}</div>
-                  <div style={{ flex: 1, padding: '10px 14px', fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{value}</div>
+              {flashEnds && (
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', border:'1px solid #fecaca', backgroundColor:'#fef2f2', borderRadius:12, padding:'10px 12px' }}>
+                  <span style={{ fontSize:14, fontWeight:600, color:'#b91c1c' }}>Punguzo linaisha baada ya</span>
+                  <FlashCountdown endsAt={classified.flashSaleEndsAt} />
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              )}
+              <h1 style={{ fontSize:18, fontWeight:600, margin:0, lineHeight:1.35 }}>{classified.title}</h1>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', fontSize:13, color:GR }}>
+                {classified.location && <><Icon d={IC.pin} size={14} /><span>{classified.location}</span><span>·</span></>}
+                <span>{t('classified_detail.listed')} {listed}</span>
+              </div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:4 }}>
+                {classified.condition && <Chip tone="blue">{classified.condition}</Chip>}
+                {classified.category && <Chip>{classified.category.replace(/_/g,' ')}</Chip>}
+                {classified.subcategory && <Chip>{classified.subcategory.replace(/_/g,' ')}</Chip>}
+              </div>
+            </section>
 
-        <div style={{ backgroundColor: '#fff', padding: '14px 16px', marginBottom: 8 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: '0 0 10px' }}>📄 {t('classified_detail.description')}</h3>
-          <p style={{ fontSize: 15, color: '#0f1419', lineHeight: '22px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-            {classified.description || t('classified_detail.no_description')}
-          </p>
-        </div>
-
-        <div style={{ backgroundColor: '#fef9c3', borderRadius: 14, padding: 16, margin: '0 0 8px', border: '1px solid #fde68a' }}>
-          <h4 style={{ color: '#92400e', fontSize: 13, fontWeight: 800, margin: '0 0 8px' }}>⚠️ {t('classified_detail.safety_tips')}</h4>
-          <ul style={{ margin: 0, paddingLeft: 16, color: '#92400e', fontSize: 12, lineHeight: 2 }}>
-            <li>{t('classified_detail.tip1')}</li>
-            <li>{t('classified_detail.tip2')}</li>
-            <li>{t('classified_detail.tip3')}</li>
-            <li>{t('classified_detail.tip4')}</li>
-          </ul>
-        </div>
-
-        {classified.status === 'active' && (
-          <div style={{ padding: '0 0 16px' }}>
-
-            {/* Contact is shown straight away (owner 2026-10-26: buyers did not know to tap
-                "Wasiliana na muuzaji"). Signed out: one button to sign in. */}
-            {!isLoggedIn ? (
-              <button onClick={() => onNavigate('PublicLogin')}
-                style={{ width: '100%', height: 48, backgroundColor: '#0f1419', color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }}>
-                {t('classified_detail.login_to_contact')}
+            {/* ── Who sells it, and how to reach them (shown straight away) ── */}
+            <section data-testid="cd-seller" style={{ margin:16, padding:14, border:`1px solid ${LINE}`, borderRadius:16, display:'flex', flexDirection:'column', gap:12 }}>
+              <button type="button" onClick={openSeller}
+                style={{ display:'flex', alignItems:'center', gap:12, padding:0, border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', color:DK }}>
+                <Avatar src={sellerPhoto} name={sellerName} size={48} />
+                <span style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:2 }}>
+                  <span style={{ fontSize:16, fontWeight:800, display:'flex', alignItems:'center', gap:4 }}>
+                    <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{contactInfo?.sellerName || sellerName}</span>
+                    {isVerifiedSeller && <Verified />}
+                  </span>
+                  <span style={{ fontSize:13, color:GR, display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+                    <span>{isVerifiedSeller ? t('classified_detail.verified_store') : 'Muuzaji binafsi'}</span>
+                    {sellerFollowers != null && <span>· {Number(sellerFollowers).toLocaleString('en-US')} {t('commerce_profile.stat_followers')}</span>}
+                    {classified.seller?.reputationScore > 0 && <ReputationBadge score={classified.seller.reputationScore} size="xs" />}
+                  </span>
+                </span>
+                <Icon d={IC.right} size={18} />
               </button>
-            ) : (
-              <div data-testid="seller-contact" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, border: '1px solid #eff3f4' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f1419', marginBottom: 12 }}>
-                  {contactInfo?.sellerName || sellerName}
-                  <span style={{ fontWeight: 400, color: '#536471' }}> · {isVerifiedSeller ? t('classified_detail.verified_store') : 'Muuzaji binafsi'}</span>
+
+              {classified.status === 'active' && (
+                !isLoggedIn ? (
+                  <button type="button" onClick={() => onNavigate('PublicLogin')}
+                    style={{ ...contactBtn, backgroundColor:DK, color:WH, border:'none' }}>
+                    {t('classified_detail.login_to_contact')}
+                  </button>
+                ) : (
+                  <div data-testid="seller-contact" style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:8 }}>
+                    {classified.seller?.id && !isOwner && (
+                      <button type="button" onClick={() => onNavigate(`MessageSeller-${classified.seller.id}`, messageSellerNavParams)}
+                        style={{ ...contactBtn, backgroundColor:DK, color:WH, border:'none', gridColumn: contactInfo?.sellerPhone ? 'auto' : '1 / -1' }}>
+                        {t('classified_detail.message_seller')}
+                      </button>
+                    )}
+                    {contactInfo?.sellerPhone && listingWhatsAppHref({ phone: contactInfo.sellerPhone }) && (
+                      <a href={listingWhatsAppHref({
+                        phone: contactInfo.sellerPhone, kind: 'classified', title: classified.title, price: classified.price,
+                        url: listingUrl('classified', classified.id), shopName: sellerName,
+                      })} target="_blank" rel="noreferrer"
+                        style={{ ...contactBtn, backgroundColor:'#25D366', color:WH, border:'none' }}>
+                        WhatsApp
+                      </a>
+                    )}
+                    {contactInfo?.sellerPhone && (
+                      <a href={`tel:${contactInfo.sellerPhone}`} style={{ ...contactBtn, gridColumn:'1 / -1' }}>
+                        Piga simu · {contactInfo.sellerPhone}
+                      </a>
+                    )}
+                    {contactInfo?.sellerEmail && (
+                      <a href={`mailto:${contactInfo.sellerEmail}?subject=${encodeURIComponent(classified.title)}`} style={{ ...contactBtn, gridColumn:'1 / -1' }}>
+                        Barua pepe
+                      </a>
+                    )}
+                  </div>
+                )
+              )}
+              {classified.status === 'sold' && (
+                <div style={{ fontSize:15, fontWeight:700, color:'#b91c1c' }}>{t('classified_detail.item_sold')}</div>
+              )}
+            </section>
+
+            {hasSpecs && (
+              <section style={{ padding:'0 16px 16px' }}>
+                <h2 style={sectionTitle}>{t('classified_detail.details')}</h2>
+                <div style={{ border:`1px solid ${LINE}`, borderRadius:12, overflow:'hidden' }}>
+                  {orderedSpecEntries.map(({ key, label, value }, i) => (
+                    <div key={key} style={{ display:'flex', borderTop: i ? `1px solid ${LINE}` : 'none' }}>
+                      <div style={{ flex:'0 0 45%', padding:'12px 14px', fontSize:14, color:GR }}>{label}</div>
+                      <div style={{ flex:1, padding:'12px 14px', fontSize:14, fontWeight:600 }}>{value}</div>
+                    </div>
+                  ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-                  {classified.seller?.id && (
-                    <button onClick={() => onNavigate(`MessageSeller-${classified.seller.id}`, messageSellerNavParams)}
-                      style={{ ...contactBtn, backgroundColor: '#0f1419', color: '#fff', border: 'none', gridColumn: contactInfo?.sellerPhone ? 'auto' : '1 / -1' }}>
-                      {t('classified_detail.message_seller')}
-                    </button>
-                  )}
-                  {contactInfo?.sellerPhone && listingWhatsAppHref({ phone: contactInfo.sellerPhone }) && (
-                    <a href={listingWhatsAppHref({
-                      phone: contactInfo.sellerPhone, kind: 'classified', title: classified.title, price: classified.price,
-                      url: listingUrl('classified', classified.id), shopName: sellerName,
-                    })} target="_blank" rel="noreferrer"
-                      style={{ ...contactBtn, backgroundColor: '#25D366', color: '#fff', border: 'none' }}>
-                      WhatsApp
-                    </a>
-                  )}
-                  {contactInfo?.sellerPhone && (
-                    <a href={`tel:${contactInfo.sellerPhone}`} style={{ ...contactBtn, gridColumn: '1 / -1' }}>
-                      Piga simu · {contactInfo.sellerPhone}
-                    </a>
-                  )}
-                  {contactInfo?.sellerEmail && (
-                    <a href={`mailto:${contactInfo.sellerEmail}?subject=${encodeURIComponent(classified.title)}`} style={{ ...contactBtn, gridColumn: '1 / -1' }}>
-                      Barua pepe
-                    </a>
-                  )}
-                </div>
-              </div>
+              </section>
             )}
+
+            <section style={{ padding:'0 16px 16px' }}>
+              <h2 style={sectionTitle}>{t('classified_detail.description')}</h2>
+              <p style={{ fontSize:15, lineHeight:'22px', margin:0, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>
+                {classified.description || t('classified_detail.no_description')}
+              </p>
+            </section>
+
+            <section style={{ margin:'0 16px 16px', padding:14, borderRadius:16, border:'1px solid #fde68a', backgroundColor:'#fffbeb' }}>
+              <h2 style={{ ...sectionTitle, display:'flex', alignItems:'center', gap:8, color:'#92400e', margin:'0 0 8px' }}>
+                <Icon d={IC.shield} size={18} color="#92400e" />{t('classified_detail.safety_tips')}
+              </h2>
+              <ul style={{ margin:0, paddingLeft:18, color:'#78350f', fontSize:14, lineHeight:1.7 }}>
+                <li>{t('classified_detail.tip1')}</li>
+                <li>{t('classified_detail.tip2')}</li>
+                <li>{t('classified_detail.tip3')}</li>
+                <li>{t('classified_detail.tip4')}</li>
+              </ul>
+            </section>
+
+            {/* Comments/questions from the wider engagement system. */}
+            <section ref={commentsRef} style={{ padding:'0 16px 16px' }}>
+              <h2 style={sectionTitle}>Maoni na maswali</h2>
+              <CommerceCommentSection
+                entityType="classified" entityId={classified.id}
+                entityTitle={classified.title} sellerId={classified.seller?.id}
+                isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate}
+                activeProfileId={activeProfileId} />
+            </section>
           </div>
-        )}
+        </div>
 
-        {classified.status === 'sold' && (
-          <div style={{ backgroundColor: '#fee2e2', borderRadius: 14, padding: 24, textAlign: 'center', border: '2px solid #fecaca', margin: '0 0 16px' }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>🏷️</div>
-            <p style={{ color: '#dc2626', fontWeight: 800, margin: 0, fontSize: 15 }}>{t('classified_detail.item_sold')}</p>
-          </div>
-        )}
-
-        <button onClick={() => onNavigate('ClassifiedsPublic')} style={{ width: '100%', backgroundColor: 'transparent', color: '#7c3aed', border: '2px solid #7c3aed', padding: 12, borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-          ← {t('classified_detail.back_to_classifieds')}
-        </button>
-
-        {/* Comments/questions from the wider engagement system — this
-            listing had nowhere at all to show them before, so a "New
-            comment" notification about it landed here with no way to
-            actually see or reply to it. */}
-        {classified && (
-          <div ref={commentsRef} style={{ marginTop: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
-              💬 Comments & Questions
+        {related.length > 0 && (
+          <section style={{ padding:16, borderTop:`1px solid ${LINE}` }}>
+            <h2 style={{ ...sectionTitle, fontSize:18 }}>Matangazo kama haya</h2>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:'14px 10px' }}>
+              {related.map(r => (
+                <button type="button" key={r.id} onClick={() => onNavigate(`ClassifiedDetail-${r.id}`)}
+                  style={{ display:'flex', flexDirection:'column', gap:6, padding:0, border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', color:DK, minWidth:0 }}>
+                  <span style={{ aspectRatio:'1 / 1', borderRadius:12, overflow:'hidden', backgroundColor:'#f7f9f9', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {r.images?.[0]
+                      ? <img src={r.images[0]} alt={r.title} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display = 'none'; }} />
+                      : <Icon d={IC.photo} size={24} color="#cfd9de" />}
+                  </span>
+                  <span style={{ fontSize:15, fontWeight:800 }}>TZS {Number(r.price||0).toLocaleString('en-US')}</span>
+                  <span style={{ fontSize:13, lineHeight:1.3, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{r.title}</span>
+                </button>
+              ))}
             </div>
-            <CommerceCommentSection
-              entityType="classified" entityId={classified.id}
-              entityTitle={classified.title} sellerId={classified.seller?.id}
-              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate}
-              activeProfileId={activeProfileId} />
-          </div>
+          </section>
         )}
-
-        </div>
-        </div>
       </div>
 
-
-      {/* Recommendations */}
-      {related.length > 0 && (
-        <div style={{ padding: '0 16px 32px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ fontSize: 16, fontWeight:800, color: '#1e293b', marginBottom: 14 }}>
-            🛍️ Bidhaa Kama Hii
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12 }}>
-            {related.map(r => (
-              <div key={r.id} onClick={() => onNavigate(`ClassifiedDetail-${r.id}`)}
-                style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
-                  cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ height: 120, backgroundColor: '#f8fafc',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  {r.images?.[0]
-                    ? <img src={r.images[0]} alt={r.title}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        onError={e => e.target.style.display = 'none'} />
-                    : <span style={{ fontSize: 36 }}>🏷️</span>}
-                </div>
-                <div style={{ padding: '10px 12px' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {r.title}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight:800, color: '#1d4ed8', marginTop: 2 }}>
-                    TZS {Number(r.price||0).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ height: 90 }} />
+      <div style={{ height:90 }} />
     </div>
   );
 };
+
+const menuItem = { width:'100%', textAlign:'left', background:'none', border:'none', cursor:'pointer', padding:'14px 16px', fontSize:15, fontWeight:600, color:DK, fontFamily:'inherit' };
+const sectionTitle = { fontSize:16, fontWeight:800, margin:'0 0 10px', color:DK };
 
 export default ClassifiedDetail;

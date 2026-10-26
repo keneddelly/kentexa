@@ -1,45 +1,37 @@
 /**
- * Search.js — Discover (Discover) + Search everything
- * Place at: src/public/pages/Search.js
+ * Search.js — Soko: discover (no query) + search everything.
  *
- * On load (no query):
- *   - Quick category grid
- *   - Featured classifieds (auto-loaded, no query needed)
- *   - Suggested sellers
- *   - Featured services
- *   - Flash sales banner
+ * Owner 2026-10-26: the marketplace must look professional (Twitter-style, no
+ * emoji, no emoji loading spinner) and every product leads back to the business
+ * behind it, so each card shows its seller.
  *
- * On search:
- *   - Products tab | Classifieds tab | Services tab | All
+ * On load (no query): category chips, businesses to follow, new listings, services.
+ * On search: All | Listings | Shops | Services | Moments | Transport | Offices | People | Authorized.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import WishlistHeart from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
+import { Spinner, SkeletonGrid } from '../components/Loading';
+import { B, DK, GR, WH, LINE, fmt, Icon, I, Star, Verified, Avatar, Photo, sellerOf, cardBtn, titleStyle, tile, ClassifiedCard, ProductCard } from '../components/ListingCard';
 import { trackSearch } from '../hooks/useAnalytics';
 import { isAppleMobile } from '../utils/isAppleMobile';
 import api           from '../../api/api';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
-const B  = '#2563EB';
-const DK = '#0F172A';
-const GR = '#64748B';
-const WH = '#FFFFFF';
-const fmt = n => Number(n||0).toLocaleString();
 
 const getCategories = t => [
-  { icon:'📱', label:t('search.cat_phones'),      q:'simu'       },
-  { icon:'👗', label:t('search.cat_clothes'),     q:'nguo'       },
-  { icon:'🏠', label:t('search.cat_house'),       q:'nyumba'     },
-  { icon:'🚗', label:t('search.cat_cars'),        q:'gari'       },
-  { icon:'🍔', label:t('search.cat_food'),        q:'chakula'    },
-  { icon:'🔨', label:t('search.cat_tools'),       q:'vifaa'      },
-  { icon:'🛋️', label:t('search.cat_furniture'),  q:'samani'     },
-  { icon:'💄', label:t('search.cat_beauty'),      q:'urembo'     },
-  { icon:'💊', label:t('search.cat_health'),      q:'dawa'       },
-  { icon:'📚', label:t('search.cat_education'),   q:'vitabu'     },
-  { icon:'🌾', label:t('search.cat_agriculture'), q:'kilimo'     },
-  { icon:'🔧', label:t('search.cat_services'),    q:'fundi'      },
+  { label:t('search.cat_phones'),      q:'simu'    },
+  { label:t('search.cat_clothes'),     q:'nguo'    },
+  { label:t('search.cat_house'),       q:'nyumba'  },
+  { label:t('search.cat_cars'),        q:'gari'    },
+  { label:t('search.cat_food'),        q:'chakula' },
+  { label:t('search.cat_tools'),       q:'vifaa'   },
+  { label:t('search.cat_furniture'),   q:'samani'  },
+  { label:t('search.cat_beauty'),      q:'urembo'  },
+  { label:t('search.cat_health'),      q:'dawa'    },
+  { label:t('search.cat_education'),   q:'vitabu'  },
+  { label:t('search.cat_agriculture'), q:'kilimo'  },
+  { label:t('search.cat_services'),    q:'fundi'   },
 ];
 
 const getTabs = t => [
@@ -54,250 +46,132 @@ const getTabs = t => [
   { key:'business',   label:t('search.tab_business')     },
 ];
 
-// ── Classified card ───────────────────────────────────────────────────────────
-const ClassifiedCard = ({ item, onNavigate, isLoggedIn }) => {
-  const { t } = useTranslation();
-  return (
-    <div onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)}
-      style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden',
-        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer', position:'relative' }}>
-      <div style={{ position:'absolute', top:6, right:6, zIndex:10 }}>
-        <WishlistHeart classifiedId={item.id} isLoggedIn={isLoggedIn}
-          onNavigate={onNavigate} size={20} />
-      </div>
-      {item.isFlashSale && (
-        <div style={{ position:'absolute', top:6, left:6, zIndex:10,
-          backgroundColor:'#DC2626', color:WH, fontSize:10, fontWeight:800,
-          padding:'2px 8px', borderRadius:100 }}>🔥 Flash</div>
-      )}
-      <div style={{ height:120, backgroundColor:'#F8FAFC',
-        display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
-        {item.images?.[0]
-          ? <img src={item.images[0]} alt={item.title}
-              style={{ width:'100%', height:'100%', objectFit:'cover' }}
-              onError={e => e.target.style.display='none'} />
-          : <span style={{ fontSize:32 }}>🏷️</span>}
-      </div>
-      <div style={{ padding:'8px 10px 12px' }}>
-        <div style={{ fontSize:12, fontWeight:700, color:DK, marginBottom:3,
-          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {item.title}
-        </div>
-        <div style={{ fontSize:14, fontWeight:800,
-          color: item.isFlashSale ? '#DC2626' : B }}>
-          TZS {fmt(item.flashSalePrice || item.price)}
-        </div>
-        <div style={{ fontSize:10, color:GR, marginTop:2 }}>
-          📍 {item.location || t('search.location_fallback')}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ── Service card ──────────────────────────────────────────────────────────────
 const ServiceCard = ({ item, onNavigate }) => {
   const { t } = useTranslation();
+  const s = sellerOf(item);
   return (
-    <div onClick={() => onNavigate(`ServiceDetail-${item.id}`)}
-      style={{ backgroundColor:WH, borderRadius:14, padding:14,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
-      <div style={{ fontSize:10, fontWeight:700, backgroundColor:'#F0FDF4',
-        color:'#16A34A', padding:'3px 8px', borderRadius:100,
-        display:'inline-block', marginBottom:8 }}>🔧 {item.category}</div>
-      <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4,
-        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-        {item.title}
-      </div>
-      <div style={{ fontSize:13, fontWeight:800, color:B }}>
+    <button type="button" onClick={() => onNavigate(`ServiceDetail-${item.id}`)} style={tile}>
+      {item.category && (
+        <span style={{ alignSelf:'flex-start', fontSize:12, fontWeight:700, color:'#166534', backgroundColor:'#ecfdf3',
+          padding:'3px 8px', borderRadius:100 }}>{item.category}</span>
+      )}
+      <span style={{ ...titleStyle, fontWeight:700, fontSize:15 }}>{item.title}</span>
+      <span style={{ fontSize:15, fontWeight:800 }}>
         {item.priceType==='negotiate' ? t('search.negotiate_price')
          : item.priceType==='free_quote' ? t('search.request_quote')
          : `TZS ${fmt(item.price)}`}
-      </div>
-      {(item.commerceProfile || item.provider) && (
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
-          <div style={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#F1F5F9',
-            display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, overflow:'hidden' }}>
-            {item.commerceProfile?.photoUrl
-              ? <img src={item.commerceProfile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : (item.commerceProfile?.displayName || item.provider?.name || 'P').charAt(0)}
-          </div>
-          <span style={{ fontSize:10, color:GR }}>{item.commerceProfile?.displayName || item.provider?.name}</span>
-          {(item.provider?.reputationScore||0) > 0 && (
-            <ReputationBadge score={item.provider.reputationScore} size="xs" />
-          )}
-        </div>
+      </span>
+      {s && (
+        <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:GR }}>
+          <Avatar src={s.photo} name={s.name} />
+          <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.name}</span>
+          {(item.provider?.reputationScore||0) > 0 && <ReputationBadge score={item.provider.reputationScore} size="xs" />}
+        </span>
       )}
-    </div>
+    </button>
   );
 };
 
 // ── Transport provider card ─────────────────────────────────────────────────
-const TRANSPORT_ICONS = {
-  bus:'🚌', courier:'📦', van:'🚐', truck:'🚚', boda:'🏍️', rail:'🚆', air:'✈️', boat:'🛥️',
-};
 const TransportCard = ({ item, isLoggedIn, onNavigate }) => {
   const { t } = useTranslation();
   const contactHref = item.whatsappPhone
     ? listingWhatsAppHref({ phone: item.whatsappPhone, kind: 'transport', url: listingUrl('store', item.userId), shopName: item.name })
     : item.contactPhone ? `tel:${item.contactPhone}` : null;
-  // Previously the only action on this whole card was the WhatsApp/call
-  // button — there was no way to actually see the provider's routes or
-  // details, only to message them cold. Now the card itself opens their
-  // real public profile; the contact button stays as a secondary,
-  // in-card action (stopPropagation so tapping it doesn't also navigate).
+  // The card opens the provider's public profile; contact stays a secondary action.
   return (
-    <div onClick={() => item.userId && onNavigate(`CommerceProfile-${item.userId}-transport`)}
-      style={{ backgroundColor:WH, borderRadius:14, padding:14,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor: item.userId ? 'pointer' : 'default' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-        <div style={{ width:34, height:34, borderRadius:10, backgroundColor:'#EFF6FF',
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:16,
-          overflow:'hidden', flexShrink:0 }}>
-          {item.logoUrl
-            ? <img src={item.logoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
-                onError={e => e.target.style.display='none'} />
-            : (TRANSPORT_ICONS[item.type] || '🚚')}
-        </div>
+    <div role="button" tabIndex={0} onClick={() => item.userId && onNavigate(`CommerceProfile-${item.userId}-transport`)}
+      onKeyDown={e => { if (e.key === 'Enter' && item.userId) onNavigate(`CommerceProfile-${item.userId}-transport`); }}
+      style={{ ...tile, cursor: item.userId ? 'pointer' : 'default' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        {item.logoUrl ? <Avatar src={item.logoUrl} name={item.name} size={40} round={false} />
+          : <span style={{ width:40, height:40, borderRadius:10, backgroundColor:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><Icon d={I.truck} size={20} color={B} /></span>}
         <div style={{ minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:800, color:DK,
-            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {item.name}
-          </div>
-          <div style={{ fontSize:10, color:GR, textTransform:'capitalize' }}>
-            {item.type}{item.rating > 0 ? ` · ⭐ ${item.rating.toFixed(1)}` : ''}
+          <div style={{ fontSize:15, fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
+          <div style={{ fontSize:12, color:GR, textTransform:'capitalize', display:'flex', gap:6 }}>
+            <span>{item.type}</span>{item.rating > 0 && <Star value={item.rating} />}
           </div>
         </div>
       </div>
       {contactHref ? (
         <a href={contactHref} target="_blank" rel="noopener noreferrer"
           onClick={e => { e.stopPropagation(); if (!isLoggedIn) { e.preventDefault(); onNavigate('PublicLogin'); } }}
-          style={{ display:'block', textAlign:'center', padding:'7px 0', borderRadius:8,
-            backgroundColor:B, color:WH, fontSize:11, fontWeight:800, textDecoration:'none' }}>
+          style={{ display:'flex', alignItems:'center', justifyContent:'center', height:40, borderRadius:20,
+            backgroundColor:DK, color:WH, fontSize:14, fontWeight:700, textDecoration:'none' }}>
           {t('search.transport_contact_button')}
         </a>
       ) : (
-        <div style={{ fontSize:10, color:GR, textAlign:'center' }}>
-          {t('search.transport_no_contact')}
-        </div>
+        <div style={{ fontSize:12, color:GR }}>{t('search.transport_no_contact')}</div>
       )}
     </div>
   );
 };
 
-// ── Super Agent hub card ─────────────────────────────────────────────────────
+// ── Office (hub) card ─────────────────────────────────────────────────────────
 const HubCard = ({ item, onNavigate }) => {
   const { t } = useTranslation();
   return (
-    <div onClick={() => item.userId && onNavigate(`CommerceProfile-${item.userId}-hub`)}
-      style={{ backgroundColor:WH, borderRadius:14, padding:14,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor: item.userId ? 'pointer' : 'default' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-        <div style={{ width:34, height:34, borderRadius:10, backgroundColor:'#EFF6FF',
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>
-          🏢
-        </div>
-        <div style={{ minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:800, color:DK,
-            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {item.businessName}
-          </div>
-          <div style={{ fontSize:10, color:GR }}>
-            {item.city}{item.rating > 0 ? ` · ⭐ ${item.rating.toFixed(1)}` : ''}
-          </div>
-        </div>
-      </div>
+    <button type="button" onClick={() => item.userId && onNavigate(`CommerceProfile-${item.userId}-hub`)} style={tile}>
+      <span style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <span style={{ width:40, height:40, borderRadius:10, backgroundColor:'#eff6ff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><Icon d={I.office} size={20} color={B} /></span>
+        <span style={{ minWidth:0, display:'flex', flexDirection:'column' }}>
+          <span style={{ fontSize:15, fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.businessName}</span>
+          <span style={{ fontSize:12, color:GR, display:'flex', gap:6 }}><span>{item.city}</span>{item.rating > 0 && <Star value={item.rating} />}</span>
+        </span>
+      </span>
       {item.address && (
-        <div style={{ fontSize:10, color:GR, overflow:'hidden', textOverflow:'ellipsis',
-          whiteSpace:'nowrap', marginBottom:8 }}>
-          📍 {item.address}
-        </div>
+        <span style={{ fontSize:12, color:GR, display:'flex', gap:4, alignItems:'center', minWidth:0 }}>
+          <Icon d={I.pin} size={13} /><span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.address}</span>
+        </span>
       )}
-      <div style={{ textAlign:'center', padding:'7px 0', borderRadius:8,
-        backgroundColor:'#EFF6FF', color:B, fontSize:11, fontWeight:800 }}>
-        {t('search.hub_view_button')}
-      </div>
-    </div>
+      <span style={{ fontSize:14, fontWeight:700, color:B }}>{t('search.hub_view_button')}</span>
+    </button>
   );
 };
 
 // ── Profile card (people/business search results) ──────────────────────────
-// Distinct from SellerCard below (which reads the legacy `/seller/public/all`
-// shape for the featured-sellers strip) — this reads an actual CommerceProfile
-// row from GET /profiles/search, so it works for ANY profile type a name
-// search can match, not just sellers.
-const PROFILE_TYPE_ICON = {
-  personal: '👤', business: '🏪', hub: '🏢',
-  transport_provider: '🚌', agent: '🏍️', service_provider: '🔧',
-};
 const ProfileResultCard = ({ item, onNavigate }) => {
   const { t } = useTranslation();
   return (
-    <div onClick={() => onNavigate(`CommerceProfile-${item.ownerId}`, { commerceProfileId: item.id })}
-      style={{ backgroundColor:WH, borderRadius:14, padding:14,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer',
-        display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
-      <div style={{ width:52, height:52, borderRadius:16, overflow:'hidden',
-        backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:22, marginBottom:8 }}>
-        {item.photoUrl
-          ? <img src={item.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-          : (PROFILE_TYPE_ICON[item.type] || '👤')}
-      </div>
-      <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:2,
-        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%' }}>
-        {item.displayName}{item.isVerified ? ' ✅' : ''}
-      </div>
-      <div style={{ fontSize:10, color:GR, textTransform:'capitalize', marginBottom:6 }}>
-        {(item.type||'').replace(/_/g,' ')}
-      </div>
-      <div style={{ fontSize:10, color:GR }}>
-        {fmt(item.followersCount||0)} {t('commerce_profile.stat_followers')}
-        {Number(item.rating||0) > 0 ? ` · ⭐ ${Number(item.rating).toFixed(1)}` : ''}
-      </div>
-    </div>
+    <button type="button" onClick={() => onNavigate(`CommerceProfile-${item.ownerId}`, { commerceProfileId: item.id })}
+      style={{ ...tile, alignItems:'center', textAlign:'center' }}>
+      <Avatar src={item.photoUrl} name={item.displayName} size={56} />
+      <span style={{ fontSize:15, fontWeight:800, display:'flex', alignItems:'center', gap:4, maxWidth:'100%' }}>
+        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.displayName}</span>
+        {item.isVerified && <Verified />}
+      </span>
+      <span style={{ fontSize:12, color:GR, textTransform:'capitalize' }}>{(item.type||'').replace(/_/g,' ')}</span>
+      <span style={{ fontSize:12, color:GR, display:'flex', gap:6 }}>
+        <span>{fmt(item.followersCount||0)} {t('commerce_profile.stat_followers')}</span>
+        {Number(item.rating||0) > 0 && <Star value={item.rating} />}
+      </span>
+    </button>
   );
 };
 
-// ── Business card (AI/NL brand query integration, spec §23) — a result
-// from GET /brands/authorized-businesses, e.g. "authorized LG dealers in
-// Mwanza". Same identity-first navigation as ProfileResultCard above
-// (every path leads back to the CommerceProfile), plus the coverage
-// area(s) this specific authorization actually covers. ─────────────────────
+// ── Business card (authorized brand dealers, spec §23) ──────────────────────
 const BusinessCard = ({ item, onNavigate }) => {
   const { t } = useTranslation();
   return (
-    <div onClick={() => onNavigate(`CommerceProfile-${item.ownerId}`, { commerceProfileId: item.commerceProfileId })}
-      style={{ backgroundColor:WH, borderRadius:14, padding:14,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer',
-        display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
-      <div style={{ width:52, height:52, borderRadius:16, overflow:'hidden',
-        backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:22, marginBottom:8 }}>
-        {item.photoUrl
-          ? <img src={item.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-          : '🏪'}
-      </div>
-      <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:2,
-        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%' }}>
-        {item.displayName}{item.isVerified ? ' ✅' : ''}
-      </div>
-      {item.location && (
-        <div style={{ fontSize:10, color:GR, marginBottom:6 }}>📍 {item.location}</div>
-      )}
-      <div style={{ display:'inline-block', fontSize:10, fontWeight:800, color:'#1d4ed8',
-        backgroundColor:'#eff6ff', border:'1px solid #93c5fd', borderRadius:20, padding:'3px 8px' }}>
+    <button type="button" onClick={() => onNavigate(`CommerceProfile-${item.ownerId}`, { commerceProfileId: item.commerceProfileId })}
+      style={{ ...tile, alignItems:'center', textAlign:'center' }}>
+      <Avatar src={item.photoUrl} name={item.displayName} size={56} />
+      <span style={{ fontSize:15, fontWeight:800, display:'flex', alignItems:'center', gap:4 }}>{item.displayName}{item.isVerified && <Verified />}</span>
+      {item.location && <span style={{ fontSize:12, color:GR }}>{item.location}</span>}
+      <span style={{ fontSize:12, fontWeight:700, color:B, backgroundColor:'#eff6ff', borderRadius:20, padding:'3px 10px' }}>
         {item.coverage?.length ? t('search.business_covers', { area: item.coverage.join(', ') }) : t('search.business_authorized_badge')}
-      </div>
-    </div>
+      </span>
+    </button>
   );
 };
 
-// ── Seller card ───────────────────────────────────────────────────────────────
+// ── Seller card (businesses to follow) ───────────────────────────────────────
 const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const [following, setFollowing] = useState(!!seller.isFollowing);
   const id = seller.userId || seller.id;
+  const name = seller.storeName || seller.name;
 
   useEffect(() => { setFollowing(!!seller.isFollowing); }, [seller.isFollowing]);
 
@@ -309,69 +183,58 @@ const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
       setFollowing(r.data.following ?? !following);
     } catch {}
   };
+  const open = () => onNavigate(`CommerceProfile-${id}`, seller.commerceProfileId ? { commerceProfileId: seller.commerceProfileId } : undefined);
 
   return (
-    <div onClick={() => onNavigate(`CommerceProfile-${id}`,
-      seller.commerceProfileId ? { commerceProfileId: seller.commerceProfileId } : undefined)}
-      style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden',
-        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer', flexShrink:0, width:160 }}>
-      <div style={{ height:60, overflow:'hidden',
-        background: seller.coverImage
-          ? `url(${seller.coverImage}) center/cover`
-          : 'linear-gradient(135deg,#EFF6FF,#DBEAFE)' }} />
-      <div style={{ padding:'0 12px 14px', marginTop:-20 }}>
-        <div style={{ width:36, height:36, borderRadius:10, border:'3px solid #fff',
-          overflow:'hidden', backgroundColor:B, display:'flex',
-          alignItems:'center', justifyContent:'center',
-          fontSize:16, color:WH, fontWeight:800, marginBottom:6 }}>
-          {seller.logo
-            ? <img src={seller.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
-                onError={e => e.target.style.display='none'} />
-            : (seller.storeName||seller.name||'?').charAt(0).toUpperCase()}
-        </div>
-        <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:2,
-          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {seller.storeName || seller.name}
-        </div>
-        <div style={{ fontSize:10, color:GR, marginBottom:8 }}>
-          📍 {seller.businessLocation || t('search.location_fallback')}
-        </div>
-        <button onClick={handleFollow}
-          style={{ width:'100%', padding:'6px 0', border:'none',
-            borderRadius:8, cursor:'pointer', fontSize:11, fontWeight:800,
-            backgroundColor: following ? '#F1F5F9' : B,
-            color: following ? GR : WH }}>
-          {following ? t('search.unfollow_button') : t('search.follow_button')}
-        </button>
-      </div>
+    <div role="button" tabIndex={0} onClick={open} onKeyDown={e => { if (e.key === 'Enter') open(); }}
+      style={{ flexShrink:0, width:140, border:`1px solid ${LINE}`, borderRadius:16, padding:12, cursor:'pointer',
+        display:'flex', flexDirection:'column', alignItems:'center', gap:6, backgroundColor:WH, boxSizing:'border-box' }}>
+      <Avatar src={seller.logo} name={name} size={52} />
+      <span style={{ fontSize:14, fontWeight:700, display:'flex', alignItems:'center', gap:4, maxWidth:'100%' }}>
+        <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{name}</span>
+        {seller.isVerified && <Verified />}
+      </span>
+      <span style={{ fontSize:12, color:GR, maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+        {seller.businessLocation || t('search.location_fallback')}
+      </span>
+      <button type="button" onClick={handleFollow}
+        style={{ marginTop:4, height:32, padding:'0 16px', borderRadius:16, cursor:'pointer', fontSize:13, fontWeight:700, fontFamily:'inherit',
+          border: following ? '1px solid #cfd9de' : 'none', backgroundColor: following ? WH : DK, color: following ? DK : WH }}>
+        {following ? t('search.unfollow_button') : t('search.follow_button')}
+      </button>
     </div>
   );
 };
 
 // ── Section ───────────────────────────────────────────────────────────────────
 const Section = ({ title, sub, action, onAction, children, hscroll }) => (
-  <div style={{ marginBottom:4, backgroundColor:WH,
-    borderTop:'1px solid #F1F5F9', paddingBottom:12 }}>
-    <div style={{ display:'flex', justifyContent:'space-between',
-      alignItems:'center', padding:'14px 16px 10px' }}>
+  <section style={{ backgroundColor:WH, borderTop:`1px solid ${LINE}`, padding:'16px 0' }}>
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'0 16px 12px', gap:12 }}>
       <div>
-        <div style={{ fontSize:14, fontWeight:800, color:DK }}>{title}</div>
-        {sub && <div style={{ fontSize:11, color:GR, marginTop:1 }}>{sub}</div>}
+        <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:DK }}>{title}</h2>
+        {sub && <div style={{ fontSize:13, color:GR, marginTop:2 }}>{sub}</div>}
       </div>
       {action && (
-        <button onClick={onAction}
-          style={{ background:'none', border:'none', cursor:'pointer',
-            color:B, fontSize:12, fontWeight:700 }}>{action} →</button>
+        <button type="button" onClick={onAction}
+          style={{ background:'none', border:'none', cursor:'pointer', color:B, fontSize:14, fontWeight:600, fontFamily:'inherit', flexShrink:0 }}>{action}</button>
       )}
     </div>
     {hscroll ? (
-      <div style={{ display:'flex', gap:12, overflowX:'auto',
-        padding:'0 16px 4px', scrollbarWidth:'none' }}>
-        {children}
-      </div>
+      <div style={{ display:'flex', gap:10, overflowX:'auto', padding:'0 16px 4px', scrollbarWidth:'none' }}>{children}</div>
     ) : (
-      <div style={{ padding:'0 14px' }}>{children}</div>
+      <div style={{ padding:'0 16px' }}>{children}</div>
     )}
+  </section>
+);
+
+const EmptyState = ({ icon = I.search, title, desc, children }) => (
+  <div style={{ textAlign:'center', padding:'56px 24px', display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
+    <span style={{ width:56, height:56, borderRadius:28, backgroundColor:'#f7f9f9', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:4 }}>
+      <Icon d={icon} size={26} color={GR} />
+    </span>
+    <div style={{ fontSize:17, fontWeight:800, color:DK }}>{title}</div>
+    {desc && <div style={{ fontSize:14, color:GR, maxWidth:320, lineHeight:1.45 }}>{desc}</div>}
+    {children}
   </div>
 );
 
@@ -828,100 +691,87 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     business:    businesses.map(b => ({...b, _type:'business'})),
   };
 
+  const grid = { display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:'16px 12px' };
+  const chip = (active) => ({ flexShrink:0, height:36, padding:'0 14px', borderRadius:18, cursor:'pointer', fontFamily:'inherit',
+    fontSize:14, fontWeight: active ? 700 : 600, whiteSpace:'nowrap',
+    border: active ? 'none' : '1px solid #cfd9de', backgroundColor: active ? DK : WH, color: active ? WH : DK });
+  const runCategory = (label) => { setQuery(label); handleSearch(label); };
+
   return (
-    <div style={{ minHeight:'100vh', backgroundColor:'#FAFAFA',
-      fontFamily:'inherit' }}>
+    <div style={{ minHeight:'100vh', backgroundColor:WH, color:DK, fontFamily:'inherit' }}>
 
-      {/* ── Search bar (sticky) ── */}
-      <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
-        borderBottom:'1px solid #F1F5F9',
-        boxShadow:'0 2px 8px rgba(0,0,0,0.04)', padding:'12px 14px' }}>
-        <div style={{ display:'flex', gap:8 }}>
-          <div style={{ flex:1, display:'flex', alignItems:'center', gap:8,
-            backgroundColor:'#F1F5F9', borderRadius:12, padding:'10px 14px' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke={GR} strokeWidth="2.5">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input ref={inputRef}
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch(query)}
-              placeholder={t('search.search_placeholder')}
-              style={{ flex:1, border:'none', background:'none', outline:'none',
-                fontSize:14, color:DK, fontFamily:'inherit' }} />
-            {query && (
-              <button onClick={() => { setQuery(''); setSearched(false); }}
-                style={{ background:'none', border:'none', cursor:'pointer',
-                  color:GR, fontSize:18, padding:0 }}>×</button>
-            )}
-          </div>
-          <button onClick={() => handleSearch(query)}
-            style={{ backgroundColor:B, color:WH, border:'none',
-              borderRadius:12, padding:'10px 16px', cursor:'pointer',
-              fontSize:13, fontWeight:700 }}>
-            {t('search.search_button')}
-          </button>
-        </div>
-      </div>
+      {/* ── Header: title, search, categories (sticky) ── */}
+      <header style={{ position:'sticky', top:0, zIndex:200, backgroundColor:'rgba(255,255,255,0.96)',
+        backdropFilter:'blur(8px)', borderBottom:`1px solid ${LINE}`, padding:'10px 16px' }}>
+        <h1 style={{ margin:'2px 0 10px', fontSize:20, fontWeight:800 }}>Soko</h1>
+        <form role="search" onSubmit={e => { e.preventDefault(); handleSearch(query); }}
+          style={{ display:'flex', alignItems:'center', gap:10, height:44, borderRadius:22, backgroundColor:LINE, padding:'0 6px 0 16px' }}>
+          <Icon d={I.search} size={18} />
+          <input ref={inputRef} type="search" aria-label={t('search.search_placeholder')}
+            value={query} onChange={e => setQuery(e.target.value)}
+            placeholder={t('search.search_placeholder')}
+            style={{ flex:1, minWidth:0, border:'none', background:'none', outline:'none', fontSize:15, color:DK, fontFamily:'inherit' }} />
+          {query && (
+            <button type="button" aria-label="Futa" onClick={() => { setQuery(''); setSearched(false); }}
+              style={{ width:32, height:32, borderRadius:16, border:'none', background:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Icon d="M6 6l12 12M18 6L6 18" size={16} />
+            </button>
+          )}
+          {query.trim() && (
+            <button type="submit" style={{ height:34, padding:'0 14px', borderRadius:17, border:'none', backgroundColor:B, color:WH,
+              fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>{t('search.search_button')}</button>
+          )}
+        </form>
+        {!searched && (
+          <nav aria-label={t('search.search_by_type')} style={{ display:'flex', gap:8, overflowX:'auto', scrollbarWidth:'none', marginTop:10 }}>
+            <button type="button" style={chip(false)} onClick={() => onNavigate('FlashSales')}>{t('search.flash_sales_title')}</button>
+            {CATEGORIES.map(c => (
+              <button type="button" key={c.q} style={chip(false)} onClick={() => runCategory(c.label)}>{c.label}</button>
+            ))}
+          </nav>
+        )}
+      </header>
 
-      <div style={{ flex:1, paddingBottom:80 }}>
+      <div style={{ paddingBottom:96 }}>
 
         {/* ── SEARCH RESULTS ── */}
         {searched && (
           <>
-            {/* Tabs */}
-            <div style={{ backgroundColor:WH, display:'flex',
-              borderBottom:'1px solid #F1F5F9', overflowX:'auto',
-              scrollbarWidth:'none', padding:'0 8px' }}>
-              {TABS.map(tabItem => (
-                <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
-                  style={{ padding:'10px 14px', border:'none', background:'none',
-                    cursor:'pointer', fontSize:12, fontWeight:700, whiteSpace:'nowrap',
-                    color: tab===tabItem.key ? B : GR,
-                    borderBottom:`2px solid ${tab===tabItem.key ? B : 'transparent'}` }}>
-                  {tabItem.label}
-                  {tabItem.key !== 'all' && tabItems[tabItem.key]?.length > 0 && (
-                    <span style={{ marginLeft:4, fontSize:10, color:GR }}>
-                      ({tabItems[tabItem.key].length})
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div role="tablist" style={{ display:'flex', borderBottom:`1px solid ${LINE}`, overflowX:'auto', scrollbarWidth:'none', padding:'0 8px' }}>
+              {TABS.map(tabItem => {
+                const on = tab === tabItem.key;
+                const n = tabItem.key !== 'all' ? tabItems[tabItem.key]?.length : 0;
+                return (
+                  <button type="button" role="tab" aria-selected={on} key={tabItem.key} onClick={() => setTab(tabItem.key)}
+                    style={{ position:'relative', height:48, padding:'0 12px', border:'none', background:'none', cursor:'pointer', fontFamily:'inherit',
+                      fontSize:15, fontWeight: on ? 700 : 500, whiteSpace:'nowrap', color: on ? DK : GR }}>
+                    {tabItem.label}{n > 0 ? ` ${n}` : ''}
+                    {on && <span style={{ position:'absolute', left:12, right:12, bottom:0, height:4, borderRadius:2, backgroundColor:B }} />}
+                  </button>
+                );
+              })}
             </div>
 
-            <div style={{ padding:'14px' }}>
-              {/* AI summary — the conversational layer on top of the result
-                  grid below: a short explanation of what was actually found,
-                  plus tappable follow-up suggestions. Appears once ready
-                  (or a brief "thinking" state) without blocking the results
-                  themselves, which render as soon as they're back. */}
+            <div style={{ padding:16 }}>
+              {/* AI summary: a short explanation of what was found, plus follow-ups.
+                  Never blocks the results, which render as soon as they're back. */}
               {(aiExplaining || aiSummary) && (
-                <div style={{ display:'flex', gap:10, backgroundColor:'#F5F3FF',
-                  border:'1px solid #DDD6FE', borderRadius:14, padding:'12px 14px',
-                  marginBottom:14 }}>
-                  <span style={{ fontSize:18, flexShrink:0, lineHeight:1 }}>✨</span>
+                <div style={{ display:'flex', gap:10, border:`1px solid ${LINE}`, borderRadius:16, padding:'12px 14px', marginBottom:16 }}>
+                  <Icon d={I.spark} size={18} color={B} />
                   <div style={{ flex:1, minWidth:0 }}>
                     {!aiSummary ? (
-                      <div style={{ fontSize:12, color:GR, fontStyle:'italic' }}>
-                        {t('search.ai_thinking')}
+                      <div style={{ fontSize:14, color:GR, display:'flex', alignItems:'center', gap:8 }}>
+                        <Spinner size={14} color={B} />{t('search.ai_thinking')}
                       </div>
                     ) : (
                       <>
-                        <div style={{ fontSize:13, color:DK, fontWeight:600, lineHeight:1.5 }}>
-                          {aiSummary}
-                        </div>
+                        <div style={{ fontSize:15, color:DK, lineHeight:1.5 }}>{aiSummary}</div>
                         {aiSuggestions.length > 0 && (
-                          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8 }}>
+                          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }}>
                             {aiSuggestions.map(s => (
-                              <button key={s}
-                                onClick={() => { setQuery(s); handleSearch(s); }}
-                                style={{ fontSize:11, fontWeight:700, color:'#7C3AED',
-                                  backgroundColor:WH, border:'1px solid #DDD6FE',
-                                  borderRadius:100, padding:'5px 10px', cursor:'pointer' }}>
-                                {s}
-                              </button>
+                              <button type="button" key={s} onClick={() => { setQuery(s); handleSearch(s); }}
+                                style={{ fontSize:13, fontWeight:600, color:B, backgroundColor:WH, border:'1px solid #bfdbfe',
+                                  borderRadius:100, padding:'6px 12px', cursor:'pointer', fontFamily:'inherit' }}>{s}</button>
                             ))}
                           </div>
                         )}
@@ -931,137 +781,57 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                 </div>
               )}
               {loading ? (
-                <div style={{ textAlign:'center', padding:'60px 0', color:GR }}>
-                  <div style={{ fontSize:32, marginBottom:8 }}>🔍</div>
-                  <div style={{ fontSize:13 }}>{t('search.searching', { query })}</div>
-                </div>
+                <>
+                  <div role="status" style={{ fontSize:14, color:GR, marginBottom:14, display:'flex', alignItems:'center', gap:8 }}>
+                    <Spinner size={16} color={B} />{t('search.searching', { query })}
+                  </div>
+                  <SkeletonGrid count={6} />
+                </>
               ) : transportNeedsCities ? (
-                <div style={{ textAlign:'center', padding:'60px 0' }}>
-                  <div style={{ fontSize:48, marginBottom:12 }}>🚚</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-                    {t('search.transport_needs_cities_title')}
-                  </div>
-                  <div style={{ fontSize:13, color:GR }}>
-                    {t('search.transport_needs_cities_desc')}
-                  </div>
-                </div>
+                <EmptyState icon={I.truck} title={t('search.transport_needs_cities_title')} desc={t('search.transport_needs_cities_desc')} />
               ) : hubNeedsCity ? (
-                <div style={{ textAlign:'center', padding:'60px 0' }}>
-                  <div style={{ fontSize:48, marginBottom:12 }}>🏢</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-                    {t('search.hub_needs_city_title')}
-                  </div>
-                  <div style={{ fontSize:13, color:GR }}>
-                    {t('search.hub_needs_city_desc')}
-                  </div>
-                </div>
+                <EmptyState icon={I.office} title={t('search.hub_needs_city_title')} desc={t('search.hub_needs_city_desc')} />
               ) : businessNeedsBrand ? (
-                <div style={{ textAlign:'center', padding:'60px 0' }}>
-                  <div style={{ fontSize:48, marginBottom:12 }}>🏷️</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-                    {t('search.business_needs_brand_title')}
-                  </div>
-                  <div style={{ fontSize:13, color:GR }}>
-                    {t('search.business_needs_brand_desc')}
-                  </div>
-                </div>
+                <EmptyState title={t('search.business_needs_brand_title')} desc={t('search.business_needs_brand_desc')} />
               ) : total === 0 ? (
-                <div style={{ textAlign:'center', padding:'60px 0' }}>
-                  <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-                    {t('search.no_results_title', { query })}
-                  </div>
-                  <div style={{ fontSize:13, color:GR, marginBottom:20 }}>
-                    {t('search.no_results_desc')}
-                  </div>
-                  <button onClick={() => { setSearched(false); setQuery(''); }}
-                    style={{ backgroundColor:B, color:WH, border:'none',
-                      borderRadius:12, padding:'11px 24px', cursor:'pointer',
-                      fontSize:13, fontWeight:700 }}>
+                <EmptyState title={t('search.no_results_title', { query })} desc={t('search.no_results_desc')}>
+                  <button type="button" onClick={() => { setSearched(false); setQuery(''); }}
+                    style={{ marginTop:12, height:44, padding:'0 22px', borderRadius:22, border:'none', backgroundColor:DK, color:WH,
+                      fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
                     {t('search.back_discover_button')}
                   </button>
-                </div>
+                </EmptyState>
               ) : (
                 <>
-                  <div style={{ fontSize:12, color:GR, marginBottom:12, fontWeight:600 }}>
-                    {t('search.results_count', { count: total, query })}
-                  </div>
-                  <div style={{ display:'grid',
-                    gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:12 }}>
-                    {(tab === 'all' ? tabItems.all : tabItems[tab]).map((item, i) => {
-                      if (item._type === 'service') {
-                        return <ServiceCard key={`s-${item.id}`} item={item} onNavigate={onNavigate} />;
-                      }
+                  <div style={{ fontSize:14, color:GR, marginBottom:14 }}>{t('search.results_count', { count: total, query })}</div>
+                  <div style={grid}>
+                    {(tab === 'all' ? tabItems.all : tabItems[tab]).map((item) => {
+                      if (item._type === 'service') return <ServiceCard key={`s-${item.id}`} item={item} onNavigate={onNavigate} />;
                       if (item._type === 'moment') {
                         return (
-                          <div key={`m-${item.id}`} onClick={() => onNavigate(item.intentRef?.destination || 'Home', { momentId: item.id })}
-                            style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden', boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
-                            {item.imageUrl && <img src={item.imageUrl} alt="" style={{ width:'100%', height:120, objectFit:'cover' }} />}
-                            <div style={{ padding:'10px' }}><div style={{ fontSize:10, fontWeight:800, color:B, marginBottom:4 }}>MOMENT</div><div style={{ fontSize:12, fontWeight:700, color:DK, lineHeight:1.4 }}>{item.title || item.body || 'Moment'}</div>{item.locationLabel && <div style={{ fontSize:10, color:GR, marginTop:5 }}>📍 {item.locationLabel}</div>}</div>
-                          </div>
+                          <button type="button" key={`m-${item.id}`} onClick={() => onNavigate(item.intentRef?.destination || 'Home', { momentId: item.id })} style={cardBtn}>
+                            <Photo src={item.imageUrl} />
+                            <span style={{ fontSize:12, fontWeight:700, color:B }}>Moment</span>
+                            <span style={titleStyle}>{item.title || item.body || 'Moment'}</span>
+                            {item.locationLabel && <span style={{ fontSize:12, color:GR }}>{item.locationLabel}</span>}
+                          </button>
                         );
                       }
                       if (item._type === 'transport_route') {
                         return (
-                          <div key={`tr-${item.id}`} onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin')}
-                            style={{ backgroundColor:WH, borderRadius:14, padding:14, boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
-                            <div style={{ fontSize:10, fontWeight:800, color:B, marginBottom:6 }}>🚚 ROUTE</div><div style={{ fontSize:13, fontWeight:800, color:DK }}>{item.originCity || item.coverageCity || item.loopStops?.[0] || 'Route'} → {item.destinationCity || item.loopStops?.[item.loopStops.length-1] || 'Delivery'}</div><div style={{ fontSize:10, color:GR, marginTop:6 }}>Send a parcel on this network →</div>
-                          </div>
+                          <button type="button" key={`tr-${item.id}`} onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin')} style={tile}>
+                            <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:700, color:B }}><Icon d={I.truck} size={14} color={B} />Njia</span>
+                            <span style={{ fontSize:15, fontWeight:800 }}>{item.originCity || item.coverageCity || item.loopStops?.[0] || 'Njia'} → {item.destinationCity || item.loopStops?.[item.loopStops.length-1] || 'Mwisho'}</span>
+                            <span style={{ fontSize:13, color:GR }}>Tuma mzigo kwa njia hii</span>
+                          </button>
                         );
                       }
-                      if (item._type === 'transport') {
-                        return (
-                          <TransportCard key={`t-${item.id}`} item={item}
-                            isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
-                        );
-                      }
-                      if (item._type === 'hub') {
-                        return <HubCard key={`h-${item.id}`} item={item} onNavigate={onNavigate} />;
-                      }
-                      if (item._type === 'profile') {
-                        return <ProfileResultCard key={`pr-${item.id}`} item={item} onNavigate={onNavigate} />;
-                      }
-                      if (item._type === 'business') {
-                        return <BusinessCard key={`b-${item.commerceProfileId}`} item={item} onNavigate={onNavigate} />;
-                      }
-                      if (item._type === 'product') {
-                        return (
-                          <div key={`p-${item.id}`}
-                            onClick={() => onNavigate(`ProductDetail-${item.id}`)}
-                            style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden',
-                              boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
-                            <div style={{ height:120, backgroundColor:'#F8FAFC', position:'relative',
-                              display:'flex', alignItems:'center', justifyContent:'center' }}>
-                              {item.images?.[0]
-                                ? <img src={item.images[0]} alt={item.name}
-                                    style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                                : <span style={{ fontSize:32 }}>🛍️</span>}
-                              {item.codEnabled && (
-                                <span style={{ position:'absolute', top:6, right:6, fontSize:9, fontWeight:800,
-                                  padding:'2px 6px', borderRadius:6, backgroundColor:'#eff6ff', color:'#1d4ed8',
-                                  border:'1px solid #bfdbfe' }}>💵 {t('search.cod_badge')}</span>
-                              )}
-                            </div>
-                            <div style={{ padding:'8px 10px 12px' }}>
-                              <div style={{ fontSize:12, fontWeight:700, color:DK, marginBottom:3,
-                                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                {item.name}
-                              </div>
-                              <div style={{ fontSize:14, fontWeight:800, color:B }}>
-                                {/* Product has no plain `price` field — it's
-                                    displayPrice/basePrice, unlike classifieds/
-                                    services which do use `price` directly.
-                                    Reading item.price here always rendered 0. */}
-                                TZS {fmt(item.displayPrice ?? item.basePrice)}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <ClassifiedCard key={`c-${item.id}`} item={item}
-                          onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
-                      );
+                      if (item._type === 'transport') return <TransportCard key={`t-${item.id}`} item={item} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />;
+                      if (item._type === 'hub') return <HubCard key={`h-${item.id}`} item={item} onNavigate={onNavigate} />;
+                      if (item._type === 'profile') return <ProfileResultCard key={`pr-${item.id}`} item={item} onNavigate={onNavigate} />;
+                      if (item._type === 'business') return <BusinessCard key={`b-${item.commerceProfileId}`} item={item} onNavigate={onNavigate} />;
+                      if (item._type === 'product') return <ProductCard key={`p-${item.id}`} item={item} onNavigate={onNavigate} />;
+                      return <ClassifiedCard key={`c-${item.id}`} item={item} onNavigate={onNavigate} isLoggedIn={isLoggedIn} />;
                     })}
                   </div>
                 </>
@@ -1073,136 +843,48 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         {/* ── DISCOVER (no search yet) ── */}
         {!searched && (
           <>
-            {/* Quick categories */}
-            <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9',
-              padding:'14px 16px 16px' }}>
-              <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:12 }}>
-                {t('search.search_by_type')}
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
-                {CATEGORIES.map(c => (
-                  <button key={c.q} onClick={() => { setQuery(c.label); handleSearch(c.label); }}
-                    style={{ display:'flex', flexDirection:'column', alignItems:'center',
-                      gap:4, padding:'12px 4px', backgroundColor:'#F8FAFC',
-                      border:'1px solid #F1F5F9', borderRadius:12, cursor:'pointer' }}>
-                    <span style={{ fontSize:22 }}>{c.icon}</span>
-                    <span style={{ fontSize:10, fontWeight:700, color:DK }}>{c.label}</span>
-                  </button>
+            {/* Businesses first: the identity behind the products (CLAUDE.md §15). */}
+            {sellers.length > 0 && (
+              <Section title={t('search.businesses_title')} sub={t('search.businesses_sub')}
+                action={t('search.see_all')} onAction={() => onNavigate('Stores')} hscroll>
+                {sellers.map(s => (
+                  <SellerCard key={s.id||s.userId} seller={s} onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
                 ))}
-              </div>
-            </div>
+              </Section>
+            )}
 
-            {/* Send Something — any authenticated user, not gated behind
-                seller/business/transport-provider role. Kentexa's own
-                transport network, not just a shortcut to someone else's
-                store. */}
-            <div onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin')}
-              style={{ margin:'8px 14px', background:'linear-gradient(135deg,#EA580C,#7C2D12)',
-                borderRadius:14, padding:'14px 18px', cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'space-between',
-                color:WH }}>
-              <div>
-                <div style={{ fontSize:14, fontWeight:800 }}>🚚 {t('search.send_shipment_title')}</div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.85)' }}>
-                  {t('search.send_shipment_sub')}
-                </div>
-              </div>
-              <span style={{ fontSize:20 }}>→</span>
-            </div>
-
-            {/* Flash Sales banner */}
-            <div onClick={() => onNavigate('FlashSales')}
-              style={{ margin:'8px 14px', background:'linear-gradient(135deg,#DC2626,#EA580C)',
-                borderRadius:14, padding:'14px 18px', cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'space-between',
-                color:WH }}>
-              <div>
-                <div style={{ fontSize:14, fontWeight:800 }}>{t('search.flash_sales_title')}</div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.8)' }}>
-                  {t('search.flash_sales_sub')}
-                </div>
-              </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke={WH} strokeWidth="2.5">
-                <polyline points="9,18 15,12 9,6"/>
-              </svg>
-            </div>
-
-            {/* Featured classifieds */}
             {loadingFeat ? (
-              <div style={{ backgroundColor:WH, borderTop:'1px solid #F1F5F9',
-                padding:'20px 16px', marginBottom:4 }}>
-                <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:12 }}>
-                  {t('search.new_products_title')}
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
-                  {[1,2,3,4].map(i => (
-                    <div key={i} style={{ height:200, backgroundColor:'#F8FAFC',
-                      borderRadius:14, animation:'pulse 1.5s infinite' }} />
-                  ))}
-                </div>
-              </div>
+              <Section title={t('search.new_products_title')}>
+                <SkeletonGrid count={4} />
+              </Section>
             ) : featured.length > 0 ? (
-              <Section title={t('search.new_products_title')}
-                sub={t('search.new_products_sub')}
-                action={t('search.see_all')} onAction={() => onNavigate('Classifieds')}>
-                <div style={{ display:'grid',
-                  gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:12 }}>
+              <Section title={t('search.new_products_title')} sub={t('search.new_products_sub')}
+                action={t('search.see_all')} onAction={() => onNavigate('ClassifiedsPublic')}>
+                <div style={grid}>
                   {featured.slice(0,6).map(c => (
-                    <ClassifiedCard key={c.id} item={c}
-                      onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
+                    <ClassifiedCard key={c.id} item={c} onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
                   ))}
                 </div>
               </Section>
             ) : null}
 
-            {/* Suggested sellers */}
-            {sellers.length > 0 && (
-              <Section title={t('search.businesses_title')}
-                sub={t('search.businesses_sub')}
-                action={t('search.see_all')} onAction={() => onNavigate('Stores')}
-                hscroll>
-                {sellers.map(s => (
-                  <SellerCard key={s.id||s.userId} seller={s}
-                    onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
-                ))}
-              </Section>
-            )}
-
-            {/* Featured services */}
             {featSvc.length > 0 && (
-              <Section title={t('search.services_title')}
-                sub={t('search.services_sub')}
+              <Section title={t('search.services_title')} sub={t('search.services_sub')}
                 action={t('search.see_all')} onAction={() => onNavigate('Services')}>
-                <div style={{ display:'grid',
-                  gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12 }}>
-                  {featSvc.slice(0,4).map(s => (
-                    <ServiceCard key={s.id} item={s} onNavigate={onNavigate} />
-                  ))}
+                <div style={{ ...grid, gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))' }}>
+                  {featSvc.slice(0,4).map(s => <ServiceCard key={s.id} item={s} onNavigate={onNavigate} />)}
                 </div>
               </Section>
             )}
 
-            {/* Empty state if all failed */}
             {!loadingFeat && featured.length === 0 && sellers.length === 0 && (
-              <div style={{ textAlign:'center', padding:'60px 24px' }}>
-                <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
-                <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-                  {t('search.discover_empty_title')}
-                </div>
-                <div style={{ fontSize:13, color:GR, marginBottom:20 }}>
-                  {t('search.discover_empty_desc')}
-                </div>
-              </div>
+              <EmptyState title={t('search.discover_empty_title')} desc={t('search.discover_empty_desc')} />
             )}
           </>
         )}
       </div>
 
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-        ::-webkit-scrollbar { display:none }
-      `}</style>
+      <style>{`::-webkit-scrollbar { display:none }`}</style>
     </div>
   );
 };

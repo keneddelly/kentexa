@@ -7,6 +7,36 @@ import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { DirectPaymentChoice, DirectPaymentSuccess, LipaPaymentStep } from '../components/DirectPayment';
 import { usePaymentMode } from '../../utils/paymentMode';
+import { Spinner } from '../components/Loading';
+
+// Owner 2026-10-26: no emoji in the order flow; line icons and one spinner.
+const B = '#1d4ed8';
+const IC = {
+  phone: 'M7 3h10v18H7zM11 18h2',
+  agent: 'M16 11a4 4 0 10-8 0M4 21a8 8 0 0116 0M12 7a3 3 0 100-6 3 3 0 000 6z',
+  box: 'M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10',
+  check: 'M5 12.5l4.5 4.5L19 7',
+};
+const Icon = ({ d, size = 18, color = '#536471' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d={d} /></svg>
+);
+const IconCircle = ({ d }) => (
+  <span style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <Icon d={d} size={22} color={B} />
+  </span>
+);
+const Radio = ({ on }) => (
+  <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 10, flexShrink: 0, boxSizing: 'border-box',
+    border: on ? `6px solid ${B}` : '2px solid #cfd9de', backgroundColor: '#fff' }} />
+);
+const SuccessMark = ({ size = 56 }) => (
+  <span style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#16a34a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+    <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+  </span>
+);
+const PILL = { border: 'none', minHeight: 48, borderRadius: 24, cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#fff', fontFamily: 'inherit' };
+const PILL_OUT = { ...PILL, backgroundColor: '#fff', color: '#0f1419', border: '1px solid #cfd9de' };
 
 const NO_LOCATION = { regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' };
 // tz_seed place references, the only ones the exact lookup below accepts.
@@ -437,7 +467,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
           setPaymentSuccess(true);
           setPaymentPending(false);
-          // 🎉 Check if this is the user's first order — only celebrate first time
+          // Check if this is the user's first order — only celebrate first time
           const isFirstOrder = !localStorage.getItem('kentexa_has_ordered');
           if (isFirstOrder) {
             localStorage.setItem('kentexa_has_ordered', 'true');
@@ -494,22 +524,22 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // ── Payment success ───────────────────────────────────────────────────────
   if (paymentSuccess) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f7f9f9' }}>
         {celebrate && <Celebration message={t('checkout.first_order_celebration')} onDone={() => setCelebrate(false)} />}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: '36px 24px', textAlign: 'center', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
+            <SuccessMark />
             <h2 style={{ fontSize: 22, fontWeight:800, color: '#1e293b', marginBottom: 8, fontFamily:'inherit' }}>
               {codInfo ? t('checkout.cod_confirmed_title') : t('checkout.payment_confirmed')}
             </h2>
             <p style={{ color: '#64748b', marginBottom: 20, fontSize: 14 }}>
               {codInfo && codInfo.upfront <= 0 ? t('checkout.cod_confirmed_sub') : t('checkout.order_being_prepared')}
             </p>
-            <div style={{ background: 'linear-gradient(135deg,#43e97b,#38f9d7)', borderRadius: 12, padding: 16, marginBottom: codInfo && codInfo.upfront > 0 ? 10 : 20 }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>
+            <div style={{ backgroundColor: '#ecfdf3', borderRadius: 16, padding: 16, marginBottom: codInfo && codInfo.upfront > 0 ? 10 : 20 }}>
+              <div style={{ fontSize: 13, color: '#166534', marginBottom: 4 }}>
                 {codInfo ? (codInfo.upfront > 0 ? t('checkout.cod_deposit_paid_label') : t('checkout.cod_pay_on_delivery')) : t('checkout.amount_paid')}
               </div>
-              <div style={{ fontSize: 24, fontWeight:800, color: '#fff' }}>
+              <div style={{ fontSize: 24, fontWeight:800, color: '#0f1419' }}>
                 TZS {Number(codInfo ? (codInfo.upfront > 0 ? codInfo.upfront : orderTotal) : orderTotal).toLocaleString()}
               </div>
             </div>
@@ -519,8 +549,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               </div>
             )}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => onNavigate('MyOrders')} style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>📋 {t('checkout.my_orders_button')}</button>
-              <button onClick={() => onNavigate('Home')} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>{t('checkout.home_button')}</button>
+              <button onClick={() => onNavigate('MyOrders')} style={{ ...PILL, flex: 1, backgroundColor: B }}>{t('checkout.my_orders_button')}</button>
+              <button onClick={() => onNavigate('Home')} style={{ ...PILL_OUT, flex: 1 }}>{t('checkout.home_button')}</button>
             </div>
           </div>
         </div>
@@ -531,7 +561,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // ── Agent payment step ────────────────────────────────────────────────────
   if (paymentStep && showAgentStep) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f7f9f9' }}>
         <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px' }}>
           <button onClick={() => setShowAgentStep(false)} style={{ background:'none', border:'none', cursor:'pointer',
             display:'flex', alignItems:'center', gap:10 }}>
@@ -539,12 +569,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>{t('checkout.pay_agent')}</span>
           </button>
         </div>
-        <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#2563eb)', padding: '16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 6 }}>🤝</div>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('checkout.visit_agent_notice')}</p>
+        <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #eff3f4', padding: '12px 16px' }}>
+          <p style={{ fontSize: 14, color: '#536471', margin: 0, lineHeight: 1.45 }}>{t('checkout.visit_agent_notice')}</p>
         </div>
         <div style={{ padding: 16, maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('checkout.invoice_title')}</h3>
             {placedOrders.map((order, i) => (
               <div key={i} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 8, border: '2px dashed #2563eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -555,16 +584,16 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                 </div>
                 <button onClick={() => handleCopyInvoice(order.invoiceNumber || String(order.id))}
                   style={{ backgroundColor: copied ? '#dcfce7' : '#2563eb', color: copied ? '#16a34a' : '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                  {copied ? '✅' : t('checkout.copy_button')}
+                  {copied ? t('checkout.copied', 'Imenakiliwa') : t('checkout.copy_button')}
                 </button>
               </div>
             ))}
           </div>
 
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px' }}>{t('checkout.nearby_agents_title')}</h3>
             {agentsLoading ? (
-              <div style={{ textAlign: 'center', padding: 20, color: '#64748b', fontSize: 13 }}>{t('checkout.finding_agents')}</div>
+              <div style={{ textAlign: 'center', padding: 20, color: '#64748b', fontSize: 13 }}><Spinner size={16} color={B} /> {t('checkout.finding_agents')}</div>
             ) : nearbyAgents.length === 0 ? (
               <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 14, fontSize: 12, color: '#92400e', textAlign: 'center' }}>
                 {t('checkout.no_agents_found')}
@@ -572,15 +601,15 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             ) : nearbyAgents.map(agent => (
               <div key={agent.id} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 2 }}>{agent.fullName}</div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>📍 {[agent.district, agent.region].filter(Boolean).join(', ') || '—'}</div>
-                <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>📞 {agent.phone}</div>
+                <div style={{ fontSize: 13, color: '#536471' }}>{[agent.district, agent.region].filter(Boolean).join(', ') || '—'}</div>
+                <a href={`tel:${agent.phone}`} style={{ fontSize: 14, color: B, fontWeight: 600, textDecoration: 'none' }}>{agent.phone}</a>
               </div>
             ))}
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => onNavigate('MyOrders')} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>🛒 {t('checkout.my_orders_button')}</button>
-            <button onClick={() => onNavigate('Home')} style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t('checkout.home_button')}</button>
+            <button onClick={() => onNavigate('MyOrders')} style={{ ...PILL_OUT, flex: 1 }}>{t('checkout.my_orders_button')}</button>
+            <button onClick={() => onNavigate('Home')} style={{ ...PILL, flex: 1, backgroundColor: B }}>{t('checkout.home_button')}</button>
           </div>
         </div>
       </div>
@@ -590,7 +619,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // ── Payment method selection ───────────────────────────────────────────────
   if (paymentStep) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f7f9f9' }}>
         <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px' }}>
           <button onClick={() => onNavigate('back')} style={{ background:'none', border:'none', cursor:'pointer',
             display:'flex', alignItems:'center', gap:10 }}>
@@ -601,8 +630,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         <div style={{ flex: 1, padding: '16px', maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
           {/* Success banner */}
-          <div style={{ backgroundColor: '#dcfce7', borderRadius: 16, padding: '18px 16px', textAlign: 'center', marginBottom: 16, border: '2px solid #86efac' }}>
-            <div style={{ fontSize: 40, marginBottom: 6 }}>🎉</div>
+          <div style={{ backgroundColor: '#ecfdf3', borderRadius: 16, padding: '18px 16px', textAlign: 'center', marginBottom: 16, border: '1px solid #bbf7d0' }}>
+            <SuccessMark size={44} />
             <h2 style={{ fontSize: 18, fontWeight:800, color: '#15803d', margin: '0 0 4px', fontFamily:'inherit' }}>{t('checkout.order_placed')}</h2>
             <p style={{ color: '#166534', fontSize: 13, margin: '0 0 8px' }}>
               {codInfo ? t('checkout.cod_upfront_notice') : t('checkout.order_placed_sub')}
@@ -619,15 +648,15 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
           {error && (
             <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-              <span>❌ {error}</span>
+              <span>{error}</span>
               <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
             </div>
           )}
 
           {/* Online payment */}
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 12, border: '2px solid #16a34a', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 12, border: '2px solid #16a34a',  }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: showOnlinePayment ? 14 : 0 }}>
-              <span style={{ fontSize: 28 }}>💳</span>
+              <IconCircle d={IC.phone} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#065f46' }}>{t('checkout.pay_online')}</div>
                 <div style={{ fontSize: 12, color: '#047857' }}>{t('checkout.pay_online_sub')}</div>
@@ -656,7 +685,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             )}
             {paymentPending && (
               <div style={{ textAlign: 'center', padding: '12px 0' }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>📱</div>
+                <div style={{ marginBottom: 10 }}><Spinner size={28} color={B} /></div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{t('checkout.check_phone')}</div>
                 <div style={{ fontSize: 12, color: '#64748b' }}>{t('checkout.enter_pin')}</div>
               </div>
@@ -666,9 +695,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           {/* Agent payment — not offered for COD orders (agent-assisted cash
               is redundant with the pay-on-delivery flow already chosen) */}
           {!codInfo && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 12, border: '2px solid #2563eb', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 12, border: '2px solid #2563eb',  }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 28 }}>🤝</span>
+              <IconCircle d={IC.agent} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8' }}>{t('checkout.pay_agent')}</div>
                 <div style={{ fontSize: 12, color: '#64748b' }}>{t('checkout.pay_agent_sub')}</div>
@@ -683,7 +712,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
           <button onClick={() => onNavigate('MyOrders')}
             style={{ width: '100%', backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-            📋 {t('checkout.view_orders')}
+            {t('checkout.view_orders')}
           </button>
         </div>
       </div>
@@ -692,7 +721,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   // ── Main checkout form ────────────────────────────────────────────────────
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f7f9f9' }}>
       <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
         position:'sticky', top:0, zIndex:100 }}>
         <button onClick={() => onNavigate('back')} style={{ background:'none', border:'none', cursor:'pointer',
@@ -706,13 +735,13 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-            <span>❌ {error}</span>
+            <span>{error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
 
         {/* Cart Items */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 12px' }}>{t('checkout.items_title', { count: cart.length })}</h3>
           {stockNotice && (
             <div role="alert" data-testid="stock-notice" style={{ backgroundColor: '#fef3c7', color: '#92400e', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 13, lineHeight: 1.45 }}>
@@ -728,7 +757,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <div key={item.id} data-testid="checkout-item" style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <div style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#e2e8f0', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {item.images?.[0] ? <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 18 }}>📦</span>}
+                  {item.images?.[0] ? <img src={item.images[0]} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Icon d={IC.box} size={20} />}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
@@ -760,16 +789,16 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         </div>
 
         {/* Who is this for? */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span> {t('checkout.who_for_title')}</h2>
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#0f1419', color: '#fff', fontSize: 12, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span> {t('checkout.who_for_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
-              { value: false, icon: '👤', label: t('checkout.for_myself') },
-              { value: true,  icon: '🎁', label: t('checkout.for_someone_else') },
+              { value: false, label: t('checkout.for_myself') },
+              { value: true,  label: t('checkout.for_someone_else') },
             ].map(opt => (
               <button key={String(opt.value)} onClick={() => setForSomeoneElse(opt.value)}
                 style={{ padding: 12, borderRadius: 10, cursor: 'pointer', border: forSomeoneElse === opt.value ? '2px solid #2563eb' : '2px solid #e2e8f0', backgroundColor: forSomeoneElse === opt.value ? '#eff6ff' : '#fff', fontWeight: 700, fontSize: 13, color: forSomeoneElse === opt.value ? '#1d4ed8' : '#64748b' }}>
-                {opt.icon} {opt.label}
+                {opt.label}
               </button>
             ))}
           </div>
@@ -779,17 +808,17 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               <input placeholder="e.g. Asha Mwakasege" value={form.recipientName}
                 onChange={e => setForm({ ...form, recipientName: e.target.value })}
                 style={inputStyle} />
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>💡 {t('checkout.gift_hint')}</div>
+              <div style={{ fontSize: 13, color: '#536471', marginTop: 4 }}>{t('checkout.gift_hint')}</div>
             </div>
           )}
         </div>
 
         {/* Delivery Details */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span> {isDigitalOnlyCart ? t('checkout.contact_info') : t('checkout.delivery_address')}</h2>
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#0f1419', color: '#fff', fontSize: 12, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span> {isDigitalOnlyCart ? t('checkout.contact_info') : t('checkout.delivery_address')}</h2>
           {isDigitalOnlyCart ? (
             <div style={{ backgroundColor: '#faf5ff', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>
-              {`💾 ${t('checkout.digital_instant_delivery')}`}
+              {t('checkout.digital_instant_delivery')}
             </div>
           ) : (
             <IntelligentLocationInput
@@ -813,12 +842,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
         {/* Delivery Method Selector — shown when address is filled */}
         {!isDigitalOnlyCart && !deliveryOptionsHidden && (detectingMethods || deliveryMethods.length > 0) && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#0f1419', color: '#fff', fontSize: 12, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>
 
             {detectingMethods ? (
               <div style={{ textAlign: 'center', padding: '14px 0', color: '#64748b', fontSize: 13 }}>
-                ⏳ {t('checkout.detecting_methods')}
+                <Spinner size={16} color={B} /> {t('checkout.detecting_methods')}
               </div>
             ) : (
               <>
@@ -843,15 +872,14 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                       backgroundColor: selectedMethod === method.key ? '#eff6ff' : '#fff',
                       textAlign: 'left',
                     }}>
-                    <span style={{ fontSize: 28, flexShrink: 0 }}>{method.icon}</span>
-                    <div style={{ flex: 1 }}>
+                                        <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, color: selectedMethod === method.key ? '#1d4ed8' : '#1e293b' }}>
                         {method.label}
                       </div>
                       <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{method.desc}</div>
                       {method.key === 'kentexa_delivery' && (
                         <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700, marginTop: 3 }}>
-                          🕖 Kata: {method.cutoffTime} · Inafika: {method.estimatedArrival}
+                          Kata: {method.cutoffTime} · Inafika: {method.estimatedArrival}
                         </div>
                       )}
                       {method.key === 'agent' && method.estimatedDays && (
@@ -885,7 +913,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                         }
                       </div>
                       {selectedMethod === method.key && (
-                        <span style={{ fontSize: 18, color: '#1d4ed8' }}>✅</span>
+                        <Icon d={IC.check} size={20} color={B} />
                       )}
                     </div>
                   </button>
@@ -911,33 +939,33 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         {/* Payment Method — chosen before order creation since the backend
             decides the upfront/remaining split (COD) at creation time */}
         {!directMode && !isDigitalOnlyCart && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>💰 {t('checkout.payment_method_title')}</h2>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('checkout.payment_method_title')}</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div onClick={() => setPaymentChoice('online')}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
                   backgroundColor: paymentChoice === 'online' ? '#f0fdf4' : '#f8fafc',
                   border: `2px solid ${paymentChoice === 'online' ? '#16a34a' : '#e2e8f0'}` }}>
-                <span style={{ fontSize: 22 }}>💳</span>
+                <Radio on={paymentChoice === 'online'} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'online' ? '#15803d' : '#1e293b' }}>{t('checkout.pm_online')}</div>
                   <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t('checkout.pm_online_sub')}</div>
                 </div>
-                {paymentChoice === 'online' && <span style={{ fontSize: 18, color: '#16a34a' }}>✅</span>}
+                
               </div>
               {allItemsAllowCod ? (
                 <div onClick={() => setPaymentChoice('cod')}
                   style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
                     backgroundColor: paymentChoice === 'cod' ? '#eff6ff' : '#f8fafc',
                     border: `2px solid ${paymentChoice === 'cod' ? '#1d4ed8' : '#e2e8f0'}` }}>
-                  <span style={{ fontSize: 22 }}>🚚</span>
+                  <Radio on={paymentChoice === 'cod'} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'cod' ? '#1d4ed8' : '#1e293b' }}>{t('checkout.pm_cod')}</div>
                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
                       {isIntercityForCod ? t('checkout.pm_cod_sub_intercity') : t('checkout.pm_cod_sub_samecity')}
                     </div>
                   </div>
-                  {paymentChoice === 'cod' && <span style={{ fontSize: 18, color: '#1d4ed8' }}>✅</span>}
+                  
                 </div>
               ) : (
                 <div style={{ fontSize: 11, color: '#94a3b8', padding: '4px 4px' }}>
@@ -947,10 +975,10 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
               {paymentChoice === 'cod' && allItemsAllowCod && (
                 codQuoteLoading ? (
-                  <div style={{ fontSize: 12, color: '#94a3b8', padding: '4px 4px' }}>⏳ {t('checkout.cod_calculating')}</div>
+                  <div style={{ fontSize: 13, color: '#536471', padding: '4px 4px', display: 'flex', alignItems: 'center', gap: 8 }}><Spinner size={14} color={B} />{t('checkout.cod_calculating')}</div>
                 ) : codQuote && codQuote.eligible === false ? (
                   <div style={{ backgroundColor: '#fee2e2', borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#dc2626', fontWeight: 600 }}>
-                    ⚠️ {codQuote.message}
+                    {codQuote.message}
                   </div>
                 ) : codQuote ? (
                   <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '12px 14px', border: '1px solid #bfdbfe' }}>
@@ -979,7 +1007,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         )}
 
         {/* Summary + Place Order */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
             <span style={{ color: '#64748b' }}>{t('cart.subtotal')}</span>
             <span style={{ fontWeight: 600 }}>TZS {deliveryMethods.length > 0 ? cart.reduce((s,i)=>s+Number(i.basePrice||i.price||0)*i.quantity,0).toLocaleString() : cartTotal.toLocaleString()}</span>
@@ -988,7 +1016,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <span style={{ color: '#64748b' }}>{t('checkout.delivery')}</span>
             {getSelectedMethodData() && getSelectedMethodData().key !== 'agent' ? (
               <span style={{ fontWeight: 700, color: '#1d4ed8' }}>
-                {getSelectedMethodData().icon} TZS {Number(getSelectedMethodData().fee || 0).toLocaleString()}
+                TZS {Number(getSelectedMethodData().fee || 0).toLocaleString()}
                 <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>({getSelectedMethodData().label})</span>
               </span>
             ) : (
@@ -1016,7 +1044,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 3 }}>
                   <span style={{ color: '#64748b' }}>{t('checkout.expected_arrival_label')}</span>
                   <span style={{ fontWeight: 700, color: '#1d4ed8' }}>
-                    📅 {new Date(getSelectedMethodData().expectedArrival).toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {new Date(getSelectedMethodData().expectedArrival).toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </span>
                 </div>
               )}
@@ -1033,7 +1061,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           )}
           {paymentChoice === 'cod' && codQuoteLoading && (
             <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, textAlign: 'center', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>
-              ⏳ {t('checkout.cod_calculating')}
+              <Spinner size={14} color={B} /> {t('checkout.cod_calculating')}
             </div>
           )}
           {/* COD, intercity (upfront > 0): the amount charged right now is
@@ -1075,7 +1103,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             return (
               <>
                 <button data-testid="place-order" onClick={handleCheckout} disabled={blocked}
-                  style={{ width: '100%', minHeight: 52, backgroundColor: blocked ? '#93c5fd' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 800, marginBottom: 10, fontFamily:'inherit' }}>
+                  style={{ width: '100%', minHeight: 52, backgroundColor: blocked ? '#93c5fd' : B, color: '#fff', border: 'none', borderRadius: 26, cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 800, marginBottom: 10, fontFamily:'inherit' }}>
                   {directChoice === 'lipa_namba'
                     ? t('direct_payment.pay_and_confirm')
                     : loading ? t('checkout.placing') : t('checkout.place_order')}
@@ -1087,8 +1115,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <>
               <button onClick={handleCheckout}
                 disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}
-                style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily:'inherit', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
-                {loading ? `⏳ ${t('checkout.placing')}` : `✅ ${t('checkout.place_order')}`}
+                style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : B, color: '#fff', border: 'none', minHeight: 52, borderRadius: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily:'inherit' }}>
+                {loading ? <><Spinner size={18} color="#fff" /> {t('checkout.placing')}</> : t('checkout.place_order')}
               </button>
               <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>{t('cart.secure_note')}</div>
             </>
