@@ -1702,6 +1702,26 @@ export class SuperAgentsService {
   // approved-but-inactive Super Agent still gets their real status back
   // (just without the operational payload) so the UI can say "switch to
   // Super Agent mode to see your dashboard" instead of a bare 403.
+  /** Parcels received into and sent out of this office today (Africa/Dar_es_Salaam). */
+  private async officeToday(officeId: number): Promise<{ received: number; sent: number } | null> {
+    try {
+      const [row] = await this.dataSource.query(
+        `WITH day AS (
+           SELECT (date_trunc('day', now() AT TIME ZONE 'Africa/Dar_es_Salaam') AT TIME ZONE 'Africa/Dar_es_Salaam') AT TIME ZONE 'UTC' AS start
+         )
+         SELECT COUNT(DISTINCT e."parcelId") FILTER (WHERE e."toCustodianType" = 'super_agent' AND e."toCustodianId" = $1) AS received,
+                COUNT(DISTINCT e."parcelId") FILTER (WHERE e."fromCustodianType" = 'super_agent' AND e."fromCustodianId" = $1) AS sent
+           FROM public.parcel_custody_event e, day
+          WHERE e."recordedAt" >= day.start
+            AND ((e."toCustodianType" = 'super_agent' AND e."toCustodianId" = $1)
+              OR (e."fromCustodianType" = 'super_agent' AND e."fromCustodianId" = $1))`,
+        [officeId]);
+      return { received: Number(row?.received) || 0, sent: Number(row?.sent) || 0 };
+    } catch {
+      return null;
+    }
+  }
+
   async getDashboard(user: User, roleContext?: RoleContext) {
     const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) return { status: 'not_applied' };
@@ -1783,6 +1803,9 @@ export class SuperAgentsService {
       totalParcels: parcels.length,
       totalEarnings: liveTotalEarnings,
       pendingEarnings: Number(agent.pendingEarnings),
+      // Today at this office, Tanzania time (mockup "Leo: 14 zimepokelewa · 11 zimetumwa"):
+      // from the custody record - into this office, and out of it. Null if it cannot be read.
+      today: await this.officeToday(agent.id),
     };
 
     return {
