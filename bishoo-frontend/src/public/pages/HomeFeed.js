@@ -18,10 +18,9 @@ import { useTranslation } from 'react-i18next';
 import ProductTrail from '../components/ProductTrail';
 import { slotAfterPost, buildTrailPool, createTrailRotation } from '../utils/productTrail';
 import { useCart } from '../../context/CartContext';
-import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import AiSearchBar from '../components/AiSearchBar';
-import HomeQuickActions from '../components/HomeQuickActions';
+import WhoToFollow from '../components/WhoToFollow';
 import api             from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
@@ -41,15 +40,28 @@ const getAgo = t => d => {
   return t('home_feed.days_ago', { count: Math.floor(s/86400) });
 };
 
+// Twitter-style feed tokens (owner 2026-10-26: "professional homefeed, no emoji").
+const INK_TX = '#0f1419';
+const MUTED_TX = '#536471';
+const LINE_TX = '#eff3f4';
+const LINE_BTN = '#cfd9de';
+const pillTx = (dark) => ({ height:36, padding:'0 14px', borderRadius:18, border: dark ? 'none' : `1px solid ${LINE_BTN}`,
+  background: dark ? INK_TX : '#ffffff', color: dark ? '#ffffff' : INK_TX, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' });
+const actionTx = { display:'flex', alignItems:'center', gap:6, minHeight:36, background:'none', border:'none', padding:'0 4px',
+  cursor:'pointer', color:MUTED_TX, fontSize:13, fontFamily:'inherit' };
+const VerifiedTick = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="Imethibitishwa" style={{ flexShrink:0 }}>
+    <path fill="#1d4ed8" d="M12 1l2.6 2.1 3.3-.4 1.1 3.2 3 1.6-.9 3.2.9 3.2-3 1.6-1.1 3.2-3.3-.4L12 23l-2.6-2.1-3.3.4-1.1-3.2-3-1.6.9-3.2-.9-3.2 3-1.6 1.1-3.2 3.3.4z"/>
+    <path d="M7.5 12.2l3 3 6-6" fill="none" stroke="#ffffff" strokeWidth="2.2"/>
+  </svg>
+);
+
 const getFilters = t => [
   { key:'for_you',    label:t('home_feed.filter_for_you')       },
   { key:'following',  label:t('home_feed.filter_following') },
   { key:'nearby',     label:t('home_feed.filter_nearby')      },
-  { key:'trending',   label:t('home_feed.filter_trending')     },
   { key:'products',   label:t('home_feed.filter_products')    },
   { key:'services',   label:t('home_feed.filter_services')      },
-  { key:'transport',  label:t('home_feed.filter_transport')     },
-  { key:'businesses', label:t('home_feed.filter_businesses')    },
 ];
 
 const getTypeMeta = t => ({
@@ -114,7 +126,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
             style={{ display:'flex', alignItems:'center', gap:14, padding:'16px',
               backgroundColor:'#EFF6FF', borderRadius:14, border:'none', cursor:'pointer',
               textAlign:'left', width:'100%' }}>
-            <span style={{ fontSize:28 }}>📨</span>
+            
             <div>
               <div style={{ fontSize:14, fontWeight:800, color:DK }}>{t('home_feed.kentexa_inbox_label')}</div>
               <div style={{ fontSize:11, color:GR }}>{t('home_feed.send_in_app_desc')}</div>
@@ -126,7 +138,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
               onClick={onClose}
               style={{ display:'flex', alignItems:'center', gap:14, padding:'16px',
                 backgroundColor:'#F0FDF4', borderRadius:14, textDecoration:'none' }}>
-              <span style={{ fontSize:28 }}>📲</span>
+              
               <div>
                 <div style={{ fontSize:14, fontWeight:800, color:'#16A34A' }}>{t('home_feed.whatsapp_label')}</div>
                 <div style={{ fontSize:11, color:GR }}>{t('home_feed.chat_directly_desc')}</div>
@@ -312,7 +324,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
               justifyContent:'center', fontSize:16 }}>
               {c.offerCard.image
                 ? <img src={c.offerCard.image} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                : '🛍️'}
+                : ''}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:11, fontWeight:800, color:DK,
@@ -450,14 +462,14 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
                         justifyContent:'center', fontSize:14 }}>
                         {item.image
                           ? <img src={item.image} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                          : (item.type==='product'?'🛍️':item.type==='service'?'🔧':'🏷️')}
+                          : ''}
                       </div>
                       <div style={{ fontSize:12, fontWeight:700, color:DK, flex:1,
                         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                         {item.title}
                       </div>
                       {replyItem?.type===item.type && replyItem?.id===item.id && (
-                        <span style={{ color:'#7C3AED', fontWeight:800 }}>✓</span>
+                        <VerifiedTick />
                       )}
                     </button>
                   ))}
@@ -516,7 +528,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   // I2B: a Moment whose actor the server could not resolve (never stamped) must not
   // navigate to a guessed profile -- a bare owner id lands on the owner's Personal profile.
   const actorUnresolved = isActorUnresolved(biz);
-  const repScore= biz.reputationScore || 0;
   const image   = (!imgErr && (post.imageUrl || post.data?.images?.[0])) || null;
   // One text per post: a Moment repeats its caption as title and body; a listing has a
   // name (headline) and a description. "Moment" is only the empty-caption placeholder.
@@ -632,261 +643,121 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
     else if (bizId && !actorUnresolved) onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   };
 
+  const kindLabel = typeInfo.label;
+  const productName = headline || (isProduct || isService ? rawTitle : '');
+  const icon = (d, filled) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || MUTED_TX} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
+  );
+  const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
+
   return (
-    <article ref={cardRef} style={{ backgroundColor:WH, marginBottom:2,
-      borderTop:'1px solid #F1F5F9', borderBottom:'1px solid #F1F5F9' }}>
+    <article ref={cardRef} data-testid="feed-post"
+      style={{ display:'flex', gap:12, padding:'12px 16px', backgroundColor:WH, borderBottom:`1px solid ${LINE_TX}` }}>
+      <button type="button" onClick={openProfile} aria-label={bizName}
+        style={{ width:40, height:40, borderRadius:10, flexShrink:0, border:'none', padding:0, cursor:'pointer',
+          overflow:'hidden', backgroundColor:INK_TX, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        {biz.logo
+          ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display = 'none'; }} />
+          : <span style={{ fontSize:16, fontWeight:800, color:WH }}>{bizName.charAt(0).toUpperCase()}</span>}
+      </button>
 
-      {/* ── Header ── */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px' }}>
-        <button onClick={() => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
-          style={{ width:40, height:40, borderRadius:'50%', flexShrink:0,
-            border:'none', padding:0, cursor:'pointer', overflow:'hidden',
-            backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
-            justifyContent:'center' }}>
-          {biz.logo
-            ? <img src={biz.logo} alt={bizName}
-                style={{ width:'100%', height:'100%', objectFit:'cover' }}
-                onError={e => e.target.style.display='none'} />
-            : <span style={{ fontSize:17, fontWeight:800, color:B }}>
-                {bizName.charAt(0).toUpperCase()}
-              </span>}
-        </button>
-
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-            <button onClick={() => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
-              style={{ background:'none', border:'none', padding:0, cursor:'pointer',
-                fontSize:13, fontWeight:800, color:DK }}>
-              {bizName}
-            </button>
-            {biz.isVerified && (
-              <span style={{ fontSize:10, color:B, fontWeight:800 }}>✓</span>
-            )}
-            {repScore > 0 && <ReputationBadge score={repScore} size="xs" />}
-          </div>
-          <div style={{ fontSize:10, color:GR, marginTop:1 }}>
-            {biz.businessLocation && `📍 ${biz.businessLocation} · `}{ago(post.createdAt)}
-          </div>
-        </div>
-
-        <span style={{ fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:100,
-          backgroundColor:typeInfo.bg, color:typeInfo.color, flexShrink:0 }}>
-          {typeInfo.label}
-        </span>
-      </div>
-
-      {/* ── Image ── */}
-      {image && (
-        <div onClick={goToDetail}
-          style={{ width:'100%', backgroundColor:'#F8FAFC', overflow:'hidden',
-            cursor:'pointer', maxHeight:420 }}>
-          <img src={image} alt={post.title}
-            style={{ width:'100%', objectFit:'cover' }}
-            onError={() => setImgErr(true)} />
-        </div>
-      )}
-
-      {/* Text-only: the whole text, clamped with "Soma zaidi" */}
-      {!image && postText && (
-        <ExpandableText text={postText} lines={8} style={{ padding:'4px 14px 10px' }} />
-      )}
-
-      {/* ── Price + primary action ── */}
-      {price > 0 && (
-        <div style={{ display:'flex', gap:8, padding:'10px 14px 0',
-          alignItems:'center' }}>
-          <div style={{ fontSize:18, fontWeight:800,
-            color: post.isFlashSale ? '#DC2626' : DK }}>
-            TZS {fmt(price)}
-          </div>
-          {post.isNegotiable && !isProduct && (
-            <span style={{ fontSize:10, color:GR, fontWeight:600 }}>{t('home_feed.negotiable_price')}</span>
-          )}
-
-          {/* ── Action buttons based on type ── */}
-          <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-            {isProduct && (
-              <button onClick={() => {
-                onNavigate(`ProductDetail-${entityId}`);
-                Engagement.track(post.id, entityType, entityId, 'purchase', isLoggedIn, onNavigate);
-              }}
-                style={{ backgroundColor:B, color:WH, border:'none', borderRadius:10,
-                  padding:'8px 14px', cursor:'pointer', fontSize:12, fontWeight:800 }}>
-                {t('home_feed.buy_button')}
-              </button>
-            )}
-            {isService && (
-              <button onClick={() => onNavigate(`ServiceDetail-${entityId}`)}
-                style={{ backgroundColor:'#F0FDF4', color:'#16A34A', border:'none',
-                  borderRadius:10, padding:'8px 14px', cursor:'pointer',
-                  fontSize:12, fontWeight:800 }}>
-                {t('home_feed.request_service_button')}
-              </button>
-            )}
-            {isClassified && (
-              <button onClick={() => setShowContact(true)}
-                style={{ backgroundColor:'#F8FAFC', color:DK, border:'1px solid #E2E8F0',
-                  borderRadius:10, padding:'8px 14px', cursor:'pointer',
-                  fontSize:12, fontWeight:700 }}>
-                {t('home_feed.contact_button')}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Engagement bar ── */}
-      <div style={{ padding:'8px 14px 10px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:2, marginBottom:8 }}>
-
-          {/* ❤️ Save (Save) */}
-          <button onClick={handleSave}
-            style={{ display:'flex', alignItems:'center', gap:4, background:'none',
-              border:'none', cursor:'pointer', padding:'6px 8px', borderRadius:8,
-              backgroundColor: saved ? '#FEF2F2' : 'transparent' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24"
-              fill={saved ? '#EF4444' : 'none'}
-              stroke={saved ? '#EF4444' : GR} strokeWidth="2">
-              <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-            </svg>
-            {counts.saves > 0 && (
-              <span style={{ fontSize:11, color: saved ? '#EF4444' : GR, fontWeight:700 }}>
-                {counts.saves}
-              </span>
-            )}
-          </button>
-
-          {/* 💬 Ask (Comment/Ask) */}
-          <button onClick={openComments}
-            style={{ display:'flex', alignItems:'center', gap:4, background:'none',
-              border:'none', cursor:'pointer', padding:'6px 8px', borderRadius:8,
-              backgroundColor: showComments ? '#EFF6FF' : 'transparent' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke={showComments ? B : GR} strokeWidth="2">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-            </svg>
-            {counts.comments > 0 && (
-              <span style={{ fontSize:11, color: showComments ? B : GR, fontWeight:700 }}>
-                {counts.comments}
-              </span>
-            )}
-          </button>
-
-          {/* ↗ Share (Share) */}
-          <button onClick={handleShare}
-            style={{ display:'flex', alignItems:'center', gap:4, background:'none',
-              border:'none', cursor:'pointer', padding:'6px 8px', borderRadius:8 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke={GR} strokeWidth="2">
-              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
-              <polyline points="16,6 12,2 8,6"/>
-              <line x1="12" y1="2" x2="12" y2="15"/>
-            </svg>
-            {counts.shares > 0 && (
-              <span style={{ fontSize:11, color:GR, fontWeight:700 }}>{counts.shares}</span>
-            )}
-          </button>
-          {shareMsg && (
-            <span style={{ fontSize:11, color:'#16A34A', fontWeight:700 }}>{shareMsg}</span>
-          )}
-
-          {/* Spacer */}
-          <div style={{ flex:1 }} />
-
-          {/* 📦 Ship (classifieds only) */}
-          {isClassified && entityId && (
-            <button onClick={() => {
-              onNavigate('SendShipment', { classifiedId: entityId });
-              Engagement.track(post.id, entityType, entityId, 'shipment', isLoggedIn, onNavigate);
-            }}
-              style={{ display:'flex', alignItems:'center', gap:4, background:'none',
-                border:'none', cursor:'pointer', padding:'6px 8px', borderRadius:8,
-                backgroundColor:'#F0FDF4' }}>
-              <span style={{ fontSize:14 }}>📦</span>
-              <span style={{ fontSize:11, color:'#16A34A', fontWeight:700 }}>{t('home_feed.ship_label')}</span>
-            </button>
-          )}
-
-          {/* 👤 Follow */}
-          {bizId && (
-            <button onClick={handleFollow}
-              style={{ backgroundColor: followed ? '#F1F5F9' : B,
-                color: followed ? DK : WH, border:'none', borderRadius:8,
-                padding:'6px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
-              {followed ? t('home_feed.following_badge') : t('home_feed.follow_button')}
+      <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:6 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:15, minWidth:0 }}>
+          <button type="button" onClick={openProfile}
+            style={{ background:'none', border:'none', padding:0, cursor:'pointer', fontSize:15, fontWeight:700, color:INK_TX,
+              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:'inherit' }}>{bizName}</button>
+          {biz.isVerified && <VerifiedTick />}
+          <span style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>· {kindLabel} · {ago(post.createdAt)}</span>
+          {bizId && !followed && !actorUnresolved && currentUser?.id !== bizId && (
+            <button type="button" onClick={handleFollow}
+              style={{ marginLeft:'auto', flexShrink:0, height:28, padding:'0 12px', borderRadius:14, border:`1px solid ${LINE_BTN}`,
+                background:WH, color:INK_TX, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              {t('home_feed.follow_button')}
             </button>
           )}
         </div>
+        {biz.businessLocation && <div style={{ fontSize:13, color:MUTED_TX, marginTop:-4 }}>{biz.businessLocation}</div>}
 
-        {/* Social-proof summary — "22 liked · 4 comments" */}
-        {(counts.saves > 0 || counts.comments > 0) && (
-          <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:6 }}>
-            {counts.saves > 0 && t('home_feed.liked_count', { count: counts.saves })}
-            {counts.saves > 0 && counts.comments > 0 && '  ·  '}
-            {counts.comments > 0 && t('home_feed.comment_count', { count: counts.comments })}
-          </div>
-        )}
+        {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
+        {postText && <ExpandableText text={postText} lines={image ? 3 : 6} />}
 
-        {/* Caption: a listing's name in bold, then its text once, with "Soma zaidi".
-            A Moment's title is its caption, so it is shown once, never twice. */}
-        {headline && (
-          <div style={{ fontSize:15, fontWeight:700, color:'#0f1419', lineHeight:'20px', marginBottom:2 }}>
-            {headline}
-          </div>
-        )}
-        {image && postText && <ExpandableText text={postText} lines={3} style={{ marginBottom:4 }} />}
-
-        {/* Comment count link */}
-        {counts.comments > 0 && (
-          <button onClick={openComments}
-            style={{ background:'none', border:'none', cursor:'pointer',
-              color:GR, fontSize:12, padding:'2px 0' }}>
-            {t('home_feed.view_all_comments')}
+        {image && (
+          <button type="button" onClick={goToDetail} aria-label={post.title || bizName}
+            style={{ padding:0, border:`1px solid ${LINE_TX}`, borderRadius:16, overflow:'hidden', cursor:'pointer', background:'#f7f9f9' }}>
+            <img src={image} alt="" style={{ width:'100%', maxHeight:420, objectFit:'cover', display:'block' }} onError={() => setImgErr(true)} />
           </button>
         )}
 
-        {/* View detail link */}
-        {entityId && (
-          <div>
-            <button onClick={goToDetail}
-              style={{ background:'none', border:'none', cursor:'pointer',
-                color:B, fontSize:12, fontWeight:700, padding:0 }}>
-              {isProduct ? t('home_feed.view_product')
-               : isService ? t('home_feed.view_service')
-               : t('home_feed.view_listing')}
-            </button>
+        {(price > 0 || (entityId && (isProduct || isService))) && (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'10px 12px',
+            border:`1px solid ${LINE_TX}`, borderRadius:12 }}>
+            <div style={{ minWidth:0 }}>
+              {(productName || rawTitle) && (
+                <div style={{ fontSize:15, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{productName || rawTitle}</div>
+              )}
+              {price > 0 && (
+                <div style={{ fontSize:15, color: post.isFlashSale ? '#b91c1c' : INK_TX }}>
+                  TZS {fmt(price)}{post.isNegotiable && !isProduct ? <span style={{ color:MUTED_TX }}> · {t('home_feed.negotiable_price')}</span> : null}
+                </div>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+              {isClassified && entityId && (
+                <button type="button" onClick={() => {
+                  onNavigate('SendShipment', { classifiedId: entityId });
+                  Engagement.track(post.id, entityType, entityId, 'shipment', isLoggedIn, onNavigate);
+                }} style={pillTx(false)}>{t('home_feed.ship_label')}</button>
+              )}
+              <button type="button" style={pillTx(true)} onClick={() => {
+                if (isClassified) { setShowContact(true); return; }
+                if (isProduct) Engagement.track(post.id, entityType, entityId, 'purchase', isLoggedIn, onNavigate);
+                goToDetail();
+              }}>
+                {isProduct ? t('home_feed.buy_button') : isService ? t('home_feed.request_service_button') : t('home_feed.contact_button')}
+              </button>
+            </div>
           </div>
+        )}
+
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingRight:24, color:MUTED_TX, fontSize:13 }}>
+          <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={actionTx}>
+            {icon('M4 5h16v11H8l-4 4z')}{counts.comments > 0 && counts.comments}
+          </button>
+          <button type="button" onClick={handleSave} aria-label="Penda" aria-pressed={saved} style={{ ...actionTx, color: saved ? '#e11d48' : MUTED_TX }}>
+            {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', saved ? '#e11d48' : null)}
+            {counts.saves > 0 && counts.saves}
+          </button>
+          <button type="button" onClick={handleShare} aria-label="Shiriki" style={actionTx}>
+            {icon('M4 12v8h16v-8M16 6l-4-4-4 4M12 2v13')}{counts.shares > 0 && counts.shares}
+          </button>
+          {entityId && (
+            <button type="button" onClick={goToDetail} aria-label="Fungua" style={actionTx}>
+              {icon('M14 4h6v6M20 4l-9 9M19 14v6H4V5h6')}
+            </button>
+          )}
+        </div>
+        {shareMsg && <div style={{ fontSize:13, color:'#166534' }}>{shareMsg}</div>}
+
+        {showComments && (
+          post.linkedEntityType && post.linkedEntityId ? (
+            <CommerceCommentSection
+              entityType={post.linkedEntityType}
+              entityId={post.linkedEntityId}
+              entityTitle={post.title}
+              sellerId={bizId}
+              isLoggedIn={isLoggedIn}
+              currentUser={currentUser}
+              onNavigate={onNavigate}
+              activeProfileId={activeProfileId}
+            />
+          ) : (
+            <CommentSection post={post} isLoggedIn={isLoggedIn}
+              onNavigate={onNavigate} currentUser={currentUser}
+              activeProfileId={activeProfileId} />
+          )
         )}
       </div>
 
-      {/* ── Comments ── */}
-      {showComments && (
-        post.linkedEntityType && post.linkedEntityId ? (
-          // Tagged to a real product/classified/service — show THAT entity's
-          // own unified comment thread, so a review posted here is the exact
-          // same review shown on the entity's own detail page, not a
-          // separate copy tied to this specific post.
-          <CommerceCommentSection
-            entityType={post.linkedEntityType}
-            entityId={post.linkedEntityId}
-            entityTitle={post.title}
-            sellerId={bizId}
-            isLoggedIn={isLoggedIn}
-            currentUser={currentUser}
-            onNavigate={onNavigate}
-            activeProfileId={activeProfileId}
-          />
-        ) : (
-          // No linked entity (e.g. a Looking For request) — keep the
-          // existing post-specific thread, including the "I Have This"
-          // reply flow, which only makes sense without a tagged item.
-          <CommentSection post={post} isLoggedIn={isLoggedIn}
-            onNavigate={onNavigate} currentUser={currentUser}
-            activeProfileId={activeProfileId} />
-        )
-      )}
-
-      {/* ── Contact modal ── */}
       {showContact && (
         <ContactModal post={post} onClose={() => setShowContact(false)}
           onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
@@ -902,7 +773,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 // available space next to it). Reuses the same CommerceProfile-{id}-transport
 // destination as every other route link fixed this session.
 const TRANSPORT_ICONS = {
-  bus: '🚌', courier: '📦', van: '🚐', truck: '🚚', boda: '🏍️', rail: '🚆', air: '✈️', boat: '🛥️',
+  bus: 'Basi', courier: 'Courier', van: 'Van', truck: 'Lori', boda: 'Boda', rail: 'Treni', air: 'Ndege', boat: 'Boti',
 };
 const TransportPostCard = ({ post, onNavigate }) => {
   const { t } = useTranslation();
@@ -926,7 +797,7 @@ const TransportPostCard = ({ post, onNavigate }) => {
       <div style={{ width:64, height:64, borderRadius:14, backgroundColor:'#EFF6FF',
         display:'flex', alignItems:'center', justifyContent:'center', fontSize:30,
         flexShrink:0 }}>
-        {TRANSPORT_ICONS[tr.vehicleType] || '🚚'}
+        {TRANSPORT_ICONS[tr.vehicleType] || 'Usafiri'}
       </div>
 
       <div style={{ flex:1, minWidth:0 }}>
@@ -943,7 +814,7 @@ const TransportPostCard = ({ post, onNavigate }) => {
             textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
             {biz.name || t('home_feed.business_fallback')}
           </span>
-          {biz.isVerified && <span style={{ fontSize:10, color:B, fontWeight:800 }}>✓</span>}
+          {biz.isVerified && <VerifiedTick />}
         </div>
 
         {/* Route */}
@@ -962,7 +833,7 @@ const TransportPostCard = ({ post, onNavigate }) => {
                 : t('home_feed.transport_full')}
             </span>
           )}
-          {location && <span>📍 {location}</span>}
+          {location && <span>{location}</span>}
         </div>
       </div>
     </article>
@@ -1025,9 +896,9 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
 // which already scopes to "this agent's own hub, not yet dispatched or
 // bundled" — exactly "work waiting for you," no new backend concept.
 const PARCEL_STATUS_BADGE = {
-  received_at_hub:    { emoji: '📥', key: 'status_received_at_hub' },
-  verified:           { emoji: '✅', key: 'status_verified' },
-  ready_for_dispatch: { emoji: '📦', key: 'status_ready_for_dispatch' },
+  received_at_hub:    { emoji: '', key: 'status_received_at_hub' },
+  verified:           { emoji: '', key: 'status_verified' },
+  ready_for_dispatch: { emoji: '', key: 'status_ready_for_dispatch' },
 };
 
 const SuperAgentWorkTray = ({ items, onNavigate }) => {
@@ -1038,7 +909,7 @@ const SuperAgentWorkTray = ({ items, onNavigate }) => {
     <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9', padding:'12px 0 10px' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px 10px' }}>
         <div style={{ fontSize:13, fontWeight:800, color:DK }}>
-          🏢 {t('home_feed.super_agent_work_title')} ({items.length})
+          {t('home_feed.super_agent_work_title')} ({items.length})
         </div>
         <button onClick={() => onNavigate('SuperAgentDashboard')}
           style={{ background:'none', border:'none', cursor:'pointer', padding:0,
@@ -1059,7 +930,7 @@ const SuperAgentWorkTray = ({ items, onNavigate }) => {
               </div>
               <div style={{ fontSize:10, color:GR, marginBottom:6,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                📍 {p.destinationCity}
+                {p.destinationCity}
               </div>
               <div style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>
                 {badge.emoji} {badge.key ? t(`home_feed.${badge.key}`) : p.status}
@@ -1140,7 +1011,7 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
                 alignItems:'center', justifyContent:'center', border:'1px solid #F1F5F9' }}>
                 {item.logo
                   ? <img src={item.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                  : <span style={{ fontSize:22 }}>🏪</span>}
+                  : null}
               </div>
               <div style={{ fontSize:11, fontWeight:700, color:DK,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -1157,7 +1028,7 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
                     a generic vehicle-type icon when a real photo exists. */}
                 {item.provider?.logoUrl
                   ? <img src={item.provider.logoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                  : <span style={{ fontSize:28 }}>🚚</span>}
+                  : null}
               </div>
               <div style={{ fontSize:11, fontWeight:700, color:DK, marginBottom:2,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -1179,7 +1050,7 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
               {item.location && (
                 <div style={{ fontSize:10, color:GR, marginBottom:2,
                   overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  📍 {item.location}
+                  {item.location}
                 </div>
               )}
               {/* Logistics company name, beneath everything else */}
@@ -1196,7 +1067,7 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
                 marginBottom:6 }}>
                 {item.imageUrl
                   ? <img src={item.imageUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                  : <span style={{ fontSize:28 }}>{type==='service' ? '🔧' : type==='classified' ? '🏷️' : '📦'}</span>}
+                  : null}
               </div>
               <div style={{ fontSize:11, fontWeight:700, color:DK, marginBottom:2,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -1220,10 +1091,10 @@ const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   if (!trending) return null;
   const items = [
-    { icon:'🔥', label:t('home_feed.most_purchased_today'), posts: trending.topPurchased   },
-    { icon:'📈', label:t('home_feed.growing_fast'),      posts: trending.fastestGrowing },
-    { icon:'🏪', label:t('home_feed.businesses_trending'),     posts: trending.topBusinesses  },
-    { icon:'🔧', label:t('home_feed.services_trending'),       posts: trending.topServices    },
+    { icon:'', label:t('home_feed.most_purchased_today'), posts: trending.topPurchased   },
+    { icon:'', label:t('home_feed.growing_fast'),      posts: trending.fastestGrowing },
+    { icon:'', label:t('home_feed.businesses_trending'),     posts: trending.topBusinesses  },
+    { icon:'', label:t('home_feed.services_trending'),       posts: trending.topServices    },
   ].filter(item => item.posts?.length > 0);
   if (!items.length) return null;
 
@@ -1387,7 +1258,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
         {isLookingFor && (
           <span style={{ fontSize:10, fontWeight:800, color:WH, backgroundColor:'#7C3AED',
             padding:'4px 10px', borderRadius:100, flexShrink:0, marginRight:6 }}>
-            🙋 {moment.category || t('home_feed.looking_for_fallback')}
+            {moment.category || t('home_feed.looking_for_fallback')}
           </span>
         )}
         <button onClick={onClose} style={{ background:'none', border:'none',
@@ -1487,14 +1358,14 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
                         justifyContent:'center', fontSize:14 }}>
                         {item.image
                           ? <img src={item.image} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                          : (item.type==='product'?'🛍️':item.type==='service'?'🔧':'🏷️')}
+                          : ''}
                       </div>
                       <div style={{ fontSize:12, fontWeight:700, color:DK, flex:1,
                         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                         {item.title}
                       </div>
                       {replyItem?.type===item.type && replyItem?.id===item.id && (
-                        <span style={{ color:'#7C3AED', fontWeight:800 }}>✓</span>
+                        <VerifiedTick />
                       )}
                     </button>
                   ))}
@@ -1532,8 +1403,8 @@ const MomentStory = ({ moment, onView }) => {
       <div style={{ position:'relative' }}>
         <div style={{ padding:2, borderRadius:'50%',
           background: isLookingFor
-            ? 'linear-gradient(135deg,#7C3AED,#A21CAF,#EC4899)'
-            : 'linear-gradient(135deg,#F59E0B,#EF4444,#8B5CF6,#2563EB)' }}>
+            ? '#0f766e'
+            : '#1d4ed8' }}>
           <div style={{ width:52, height:52, borderRadius:'50%',
             backgroundColor:WH, padding:2, boxSizing:'border-box',
             overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -1551,7 +1422,6 @@ const MomentStory = ({ moment, onView }) => {
           <div style={{ position:'absolute', bottom:-2, right:-2, width:20, height:20,
             borderRadius:'50%', backgroundColor:'#7C3AED', border:'2px solid #fff',
             display:'flex', alignItems:'center', justifyContent:'center', fontSize:10 }}>
-            🙋
           </div>
         )}
       </div>
@@ -1593,7 +1463,7 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
         <div style={{ padding:2, borderRadius:'50%',
           background: followed
             ? '#E2E8F0'
-            : 'linear-gradient(135deg,#F59E0B,#EF4444,#8B5CF6,#2563EB)' }}>
+            : '#1d4ed8' }}>
           <div style={{ width:52, height:52, borderRadius:'50%',
             backgroundColor:WH, padding:2, boxSizing:'border-box',
             overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -1814,19 +1684,17 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           padding:'0 8px', borderTop:'1px solid #F8FAFC' }}>
           {FILTERS.map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
-              style={{ padding:'8px 12px', border:'none', background:'none',
-                cursor:'pointer', fontSize:12, fontWeight:700, whiteSpace:'nowrap',
-                flexShrink:0, color: filter===f.key ? B : GR,
-                borderBottom:`2px solid ${filter===f.key ? B : 'transparent'}` }}>
+              style={{ position:'relative', height:48, padding:'0 14px', border:'none', background:'none',
+                cursor:'pointer', fontSize:15, fontWeight: filter===f.key ? 700 : 500, whiteSpace:'nowrap', fontFamily:'inherit',
+                flexShrink:0, color: filter===f.key ? INK_TX : MUTED_TX }}>
               {f.label}
+              <span aria-hidden="true" style={{ position:'absolute', left:14, right:14, bottom:0, height:4, borderRadius:2,
+                background: filter===f.key ? B : 'transparent' }} />
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}>
-        <HomeQuickActions onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
-      </div>
 
       {currentUser?.role === 'super_agent' && (
         <SuperAgentWorkTray items={pendingParcels} onNavigate={onNavigate} />
@@ -1851,7 +1719,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                   background:'none', border:'none', padding:0 }}>
                 <div style={{ padding: myMoment ? 2 : 0, borderRadius:'50%',
                   background: myMoment
-                    ? 'linear-gradient(135deg,#F59E0B,#EF4444,#8B5CF6,#2563EB)'
+                    ? '#1d4ed8'
                     : 'transparent' }}>
                   <div style={{ width:54, height:54, borderRadius:'50%',
                     border: myMoment ? 'none' : '2px solid #E2E8F0',
@@ -1862,7 +1730,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                       ? <img src={currentUser.avatarUrl || currentUser.logo} alt="me"
                           style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} />
                       : <span style={{ fontSize:20 }}>
-                          {isLoggedIn ? (currentUser?.name||'').charAt(0).toUpperCase()||'👤' : '👤'}
+                          {isLoggedIn ? (currentUser?.name||'').charAt(0).toUpperCase()||'K' : 'K'}
                         </span>}
                   </div>
                 </div>
@@ -1919,7 +1787,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       {/* ── Not logged in hero ── */}
       {!isLoggedIn && filter === 'for_you' && (
         <div style={{ margin:'8px 12px', borderRadius:20,
-          background:'linear-gradient(135deg,#1E1B4B,#1D4ED8,#7C3AED)',
+          background:'#0f1419',
           padding:'22px 20px', color:WH }}>
           <div style={{ fontSize:18, fontWeight:800, lineHeight:1.3, marginBottom:8 }}>
             {t('home_feed.hero_title_line1')}<br/>{t('home_feed.hero_title_line2')}
@@ -1961,9 +1829,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           </div>
         ))
       ) : posts.length === 0 ? (
+        <>
+        <WhoToFollow isLoggedIn={isLoggedIn} onNavigate={onNavigate} city={currentUser?.city || currentUser?.businessLocation} limit={5} />
         <div style={{ textAlign:'center', padding:'60px 24px' }}>
           <div style={{ fontSize:48, marginBottom:12 }}>
-            {filter==='following' ? '👥' : filter==='nearby' ? '📍' : '🛍️'}
+            {''}
           </div>
           <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
             {filter==='following'
@@ -1988,6 +1858,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
             </button>
           </div>
         </div>
+        </>
       ) : (
         <>
           {posts.map((post, i) => {
@@ -2033,6 +1904,9 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 )}
                 {railType && (
                   <DiscoveryRail type={railType} items={railItems} onNavigate={onNavigate} />
+                )}
+                {i === 0 && (filter === 'for_you' || filter === 'following') && (
+                  <WhoToFollow isLoggedIn={isLoggedIn} onNavigate={onNavigate} city={currentUser?.city || currentUser?.businessLocation} />
                 )}
               </React.Fragment>
             );
