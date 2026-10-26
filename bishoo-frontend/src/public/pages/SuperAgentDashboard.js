@@ -4,25 +4,25 @@
  * Super Agent = independent business operating a physical hub.
  * Their full role:
  *
- * 📥 POKEA (Receive):
+ * POKEA (Receive):
  *   A) Walk-in sender → create parcel on the spot (inline form)
  *   B) Online KenteXa order → seller brings order number → confirm receipt
  *   C) Incoming intercity parcel → confirm arrival at hub
  *
- * 📤 TUMA (Dispatch):
+ * TUMA (Dispatch):
  *   A) Send parcel via bus/courier to destination city
  *   B) Assign local agent for last-mile delivery
  *   C) Track what's in transit
  *
- * 💰 MAPATO (Earnings):
+ * MAPATO (Earnings):
  *   A) Cash collected today (manual/offline orders)
  *   B) KenteXa owes me (online order shipping fees pending payout)
  *
- * 📋 BEI (Rate Card):
+ * BEI (Rate Card):
  *   Quick reference — per kg prices to each city
  *   Answer walk-in questions instantly
  *
- * 🚐 VAN YA LEO (Dar es Salaam only):
+ * VAN YA LEO (Dar es Salaam only):
  *   Daily batch for same-city deliveries
  */
 import { BOTTOM_NAV_CLEARANCE } from '../components/BottomNav';
@@ -33,6 +33,7 @@ import ShehenaTransportPicker from '../components/ShehenaTransportPicker';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import { LineIcon } from '../components/LineIcon';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
@@ -70,11 +71,11 @@ const STATUS_LABEL = {
   verified:             { l: 'Imethibitishwa',    c: '#0891b2', bg: '#ecfeff' },
   ready_for_dispatch:   { l: 'Tayari Kutuma',     c: '#16a34a', bg: '#dcfce7' },
   dispatched:           { l: 'Imetumwa',          c: '#15803d', bg: '#f0fdf4' },
-  in_transit:           { l: '🚌 Njiani',         c: '#ca8a04', bg: '#fef9c3' },
+  in_transit:           { l: 'Njiani',         c: '#ca8a04', bg: '#fef9c3' },
   arrived_at_hub:       { l: 'Imefika ofisini', c: '#7c3aed', bg: '#ede9fe' },
-  awaiting_buyer:       { l: '⏳ Mteja Achague',  c: '#dc2626', bg: '#fee2e2' },
-  out_for_delivery:     { l: '🏍️ Inafikishwa',   c: '#f59e0b', bg: '#fef9c3' },
-  delivered:            { l: '✅ Imefikishwa',    c: '#16a34a', bg: '#dcfce7' },
+  awaiting_buyer:       { l: 'Mteja Achague',  c: '#dc2626', bg: '#fee2e2' },
+  out_for_delivery:     { l: 'Inafikishwa',   c: '#f59e0b', bg: '#fef9c3' },
+  delivered:            { l: 'Imefikishwa',    c: '#16a34a', bg: '#dcfce7' },
   collection_requested: { l: 'Ombi la Kuchukua',  c: '#f59e0b', bg: '#fef9c3' },
   collected_by_agent:   { l: 'Imechukuliwa',      c: '#7c3aed', bg: '#ede9fe' },
 };
@@ -117,7 +118,7 @@ const PCard = ({ p, actions = [] }) => (
 
     {(p.recipientName || p.senderName) && (
       <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>
-        {p.senderName && <span>👤 Mtumaji: {p.senderName} </span>}
+        {p.senderName && <span>Mtumaji: {p.senderName} </span>}
         {p.recipientName && <span>→ Mpokeaji: {p.recipientName}</span>}
       </div>
     )}
@@ -127,14 +128,14 @@ const PCard = ({ p, actions = [] }) => (
         someone (confirm handover, resolve a delivery issue, etc). */}
     {(p.senderPhone || p.buyerPhone) && (
       <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
-        {p.senderPhone && <span>📞 Mtumaji: {p.senderPhone} </span>}
-        {p.buyerPhone && <span>📞 Mpokeaji: {p.buyerPhone}</span>}
+        {p.senderPhone && <span>Mtumaji: {p.senderPhone} </span>}
+        {p.buyerPhone && <span>Mpokeaji: {p.buyerPhone}</span>}
       </div>
     )}
 
     {p.description && (
       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
-        📦 {p.description}
+        {p.description}
       </div>
     )}
 
@@ -145,7 +146,7 @@ const PCard = ({ p, actions = [] }) => (
     {p.order?.paymentMethod === 'cod' && !p.order?.codBalanceCollected ? (
       <div style={{ backgroundColor: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 6,
         padding: '3px 8px', fontSize: 10, color: '#1d4ed8', marginBottom: 8, display: 'inline-block' }}>
-        🚚 COD — Kusanya TZS {Number(p.order?.codRemainingBalance || 0).toLocaleString()} kwa mpokeaji
+        COD — Kusanya TZS {Number(p.order?.codRemainingBalance || 0).toLocaleString()} kwa mpokeaji
       </div>
     ) : p.source === 'online' ? (
       <div style={{ backgroundColor: '#f0fdf4', borderRadius: 6, padding: '3px 8px',
@@ -155,7 +156,7 @@ const PCard = ({ p, actions = [] }) => (
     ) : p.source === 'seller_shipment' || p.source === 'offline_intercity' ? (
       <div style={{ backgroundColor: '#eff6ff', borderRadius: 6, padding: '3px 8px',
         fontSize: 10, color: '#1d4ed8', marginBottom: 8, display: 'inline-block' }}>
-        💵 Mtumaji analipa cash
+        Mtumaji analipa cash
       </div>
     ) : null}
 
@@ -163,7 +164,7 @@ const PCard = ({ p, actions = [] }) => (
     {p.busTicketNumber && (
       <div style={{ fontSize: 11, color: '#92400e', backgroundColor: '#fef9c3',
         borderRadius: 6, padding: '3px 8px', marginBottom: 8 }}>
-        🚌 {p.busCompany} — Tiketi: <strong>{p.busTicketNumber}</strong>
+        {p.busCompany} — Tiketi: <strong>{p.busTicketNumber}</strong>
       </div>
     )}
 
@@ -205,6 +206,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [receiptModal, setReceiptModal] = useState(null); // { trackingNumber, loading, data, error }
   const [resendLoading, setResendLoading] = useState(''); // 'sender' | 'receiver' | ''
   const [resendMsg, setResendMsg] = useState('');
+  const [resendOk, setResendOk] = useState(false);
   const [error, setError]               = useState('');
   const [identityStatus, setIdentityStatus] = useState(null);
   useIdentityRefresh(setIdentityStatus, true);
@@ -256,7 +258,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         loadRunStopId: Number(run.loadRunStopId),
         idempotencyKey: `hub-release:${parcel.id}:run:${run.runId}:stop:${run.loadRunStopId}`,
       });
-      setSuccess('✅ Mzigo umeachiwa kwa transporter. Utatokea kwenye manifest baada ya transporter kuukubali.');
+      setSuccess('Mzigo umeachiwa kwa transporter. Utatokea kwenye manifest baada ya transporter kuukubali.');
       await fetchVanDesk();
     } catch (err) { setError(err?.response?.data?.message || 'Imeshindwa kuachia mzigo kwa Van'); }
     finally { setActionLoading(false); }
@@ -266,7 +268,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     try {
       setActionLoading(true); setError('');
       await api.patch(`/van-pilot/assignments/${assignmentId}/confirm-receipt`);
-      setSuccess('✅ Mzigo umepokelewa na custody imehamia kwenye hub yako.');
+      setSuccess('Mzigo umepokelewa na custody imehamia kwenye hub yako.');
       await fetchVanDesk();
       fetchAll();
     } catch (err) {
@@ -456,7 +458,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         setSingleShehena(null); setBulkStep('dispatch');
         return;
       }
-      setSuccess(`✅ Shehena imeundwa — vifurushi ${res.data.linkedCount} vimeongezwa, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
+      setSuccess(`Shehena imeundwa — vifurushi ${res.data.linkedCount} vimeongezwa, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
       resetBulkForm();
       setBulkStep('open'); fetchOpenShipments();
     } catch (err) {
@@ -471,7 +473,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       const res = await api.post(`/super-agents/bulk-shipments/${bulkActiveShipment.id}/add-parcels`, {
         trackingNumbers: [...bulkSelected],
       });
-      setSuccess(`✅ Vifurushi ${res.data.linkedCount} vimeongezwa kwenye shehena, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
+      setSuccess(`Vifurushi ${res.data.linkedCount} vimeongezwa kwenye shehena, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
       resetBulkForm();
       setBulkStep('open'); fetchOpenShipments();
     } catch (err) {
@@ -489,7 +491,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         transportRef: bulkTransport.transportRef || undefined,
         totalShippingCost: Number(bulkTransport.totalShippingCost) || undefined,
       });
-      setSuccess(`✅ Shehena imetumwa — vifurushi ${res.data.parcelsDispatched}, ujumbe kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}`);
+      setSuccess(`Shehena imetumwa — vifurushi ${res.data.parcelsDispatched}, ujumbe kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}`);
       resetBulkForm();
       setBulkStep('open'); setTumaMode('list'); setPokeaMode('list'); fetchAll();
     } catch (err) {
@@ -607,7 +609,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setConfirmSending(p => ({ ...p, [orderId]: true }));
     try {
       await api.post(`/orders/${orderId}/send-confirmation`);
-      setSuccess('✅ Link ya kuthibitisha imetumwa kwa mnunuzi!');
+      setSuccess('Link ya kuthibitisha imetumwa kwa mnunuzi!');
     } catch { setError('Imeshindwa kutuma link. Jaribu tena.'); }
     finally { setConfirmSending(p => ({ ...p, [orderId]: false })); }
   };
@@ -716,7 +718,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       await api.patch(`/super-agents/shipments/${arrivalTracking.trim()}/arrived`, {
         city: profile?.city, note: arrivalNote,
       });
-      setSuccess(`✅ ${arrivalTracking} imefika ofisini`);
+      setSuccess(`${arrivalTracking} imefika ofisini`);
       setArrivalTracking(''); setArrivalNote('');
       setPokeaMode('list'); fetchAll();
     } catch (err) {
@@ -744,7 +746,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // Handover to the recipient as its own row button (KNOWN_FAULTS #19). Opens
   // the status sheet, whose first block is the pickup-code handover.
-  const handoverAction = { label: '🤝 Kabidhi kwa mpokeaji', color: '#16a34a',
+  const handoverAction = { label: 'Kabidhi kwa mpokeaji', color: '#16a34a',
     fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } };
 
   // Re-open a saved walk-in receipt. Read-only: never creates or charges.
@@ -768,9 +770,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       const path = which === 'sender' ? 'resend-sender-sms' : 'resend-receiver-sms';
       const res = await api.post(`/super-agents/parcels/${trackingNumber}/${path}`);
       const sent = which === 'sender' ? res.data?.senderSmsSent : res.data?.receiverSmsSent;
-      setResendMsg(sent ? '✅ SMS imetumwa upya' : '⚠️ SMS haikuweza kutumwa');
+      setResendOk(!!sent); setResendMsg(sent ? 'SMS imetumwa upya' : 'SMS haikuweza kutumwa');
     } catch (err) {
-      setResendMsg('❌ ' + (err?.response?.data?.message || 'Imeshindwa kutuma SMS'));
+      setResendOk(false); setResendMsg(err?.response?.data?.message || 'Imeshindwa kutuma SMS');
     } finally {
       setResendLoading('');
     }
@@ -784,7 +786,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         ...dispatchForm,
         localAgentId: selectedAgent?.id || null,
       });
-      setSuccess(`✅ ${displayParcelNumber(dispatchParcel)} imetumwa!`);
+      setSuccess(`${displayParcelNumber(dispatchParcel)} imetumwa!`);
       setDispatchParcel(null); setSelectedAgent(null);
       fetchAll();
     } catch (err) {
@@ -801,7 +803,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       await api.patch(`/super-agents/parcels/${statusParcel.trackingNumber}/status`, {
         status: newStatus, city: profile?.city, note: statusNote,
       });
-      setSuccess('✅ Hali imesasishwa');
+      setSuccess('Hali imesasishwa');
       setStatusParcel(null); setStatusNote(''); setNewStatus(''); setCodBalanceAmount('');
       fetchAll();
     } catch (err) {
@@ -819,7 +821,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         ...(statusParcel.order?.paymentMethod === 'cod'
           ? { codBalanceCollected: Number(codBalanceAmount) } : {}),
       });
-      setSuccess('✅ Kifurushi kimekabidhiwa kwa mpokeaji');
+      setSuccess('Kifurushi kimekabidhiwa kwa mpokeaji');
       setStatusParcel(null); setStatusNote(''); setNewStatus(''); setPickupCode(''); setCodBalanceAmount('');
       fetchAll();
     } catch (err) {
@@ -858,7 +860,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', paddingBottom: BOTTOM_NAV_CLEARANCE }}>
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24,
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: 16 }}>
-          <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>🏢</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="office" size={36} color="#536471" /></div>
           <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight:800,
             color: '#1e293b', margin: '0 0 6px' }}>{t('super_agent_dashboard.apply_title')}</h2>
           <p style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginBottom: 20 }}>
@@ -878,7 +880,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.pending_title')} top={0} />
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="clock" size={44} color="#536471" /></div>
         <h3 style={{ color: '#1e293b' }}>{t('super_agent_dashboard.pending_title')}</h3>
         <p style={{ color: '#64748b', fontSize: 14 }}>{t('super_agent_dashboard.pending_desc')}</p>
       </div>
@@ -896,7 +898,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.header_title', 'Hub Dashboard')} top={0} />
       <div style={{ padding: '40px 20px', textAlign: 'center', maxWidth: 420, margin: '0 auto', flex: 1 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="office" size={44} color="#536471" /></div>
         <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 8px' }}>
           {t('super_agent_dashboard.registered_title', { name: profile?.businessName || t('super_agent_dashboard.your_hub_fallback') })}
         </h2>
@@ -937,7 +939,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         <div onClick={() => setShowVerifyIdentity(true)}
           style={{ backgroundColor: '#fef9c3', padding: '10px 16px', fontSize: 12,
             color: '#92400e', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
-          🪪 {t('super_agent_dashboard.identity_prompt')}
+          {t('super_agent_dashboard.identity_prompt')}
         </div>
       )}
 
@@ -966,7 +968,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626',
             padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13 }}>
-            ❌ {error}
+            {error}
             <button onClick={() => setError('')}
               style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
           </div>
@@ -1017,7 +1019,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
 
         {/* ════════════════════════════════════════════════════════════════
-            📥 POKEA TAB
+            POKEA TAB
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'pokea' && (
           <>
@@ -1030,7 +1032,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     style={{ width: '100%', marginBottom: 14, padding: '12px 14px', borderRadius: 12,
                       border: '2px solid #1d4ed8', backgroundColor: '#eff6ff', color: '#1d4ed8',
                       cursor: 'pointer', fontSize: 13, fontWeight: 800, textAlign: 'left' }}>
-                    🧾 Risiti ya mwisho: <span style={{ fontFamily: 'monospace' }}>{displayParcelNumber(walkResult)}</span> — Fungua
+                    Risiti ya mwisho: <span style={{ fontFamily: 'monospace' }}>{displayParcelNumber(walkResult)}</span> — Fungua
                   </button>
                 )}
 
@@ -1072,7 +1074,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   <>
                     {incoming.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
-                        { label: '✅ Pokea', color: '#7c3aed',
+                        { label: 'Pokea', color: '#7c3aed',
                           fn: (parcel) => { setStatusParcel(parcel); setNewStatus('received_at_hub'); setPickupCode(''); setCodBalanceAmount(''); } },
                         ...(canHandOverToRecipient(p) ? [handoverAction] : []),
                       ]} />
@@ -1090,7 +1092,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>
-                    👤 Mteja wa Walk-In
+                    Mteja wa Walk-In
                   </div>
                   {/* On the receipt screen the only way out is "Mzigo mpya". */}
                   {!walkResult && (
@@ -1187,14 +1189,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       {(walkRegion !== 'other' || walkPathOverride) && (
                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                           <button type="button" onClick={()=>{setWalkServicePath('local_agent');setWalkDestinationHubId('');}}
-                            style={{padding:10,borderRadius:9,border:walkServicePath==='local_agent'?'2px solid #16a34a':'1px solid #e2e8f0',background:walkServicePath==='local_agent'?'#f0fdf4':'#fff',fontWeight:800}}>🏍️ Agent delivery</button>
+                            style={{padding:10,borderRadius:9,border:walkServicePath==='local_agent'?'2px solid #16a34a':'1px solid #e2e8f0',background:walkServicePath==='local_agent'?'#f0fdf4':'#fff',fontWeight:800}}>Agent delivery</button>
                           <button type="button" onClick={()=>setWalkServicePath('van')}
-                            style={{padding:10,borderRadius:9,border:walkServicePath==='van'?'2px solid #1d4ed8':'1px solid #e2e8f0',background:walkServicePath==='van'?'#eff6ff':'#fff',fontWeight:800}}>🚐 Kentexa Van</button>
+                            style={{padding:10,borderRadius:9,border:walkServicePath==='van'?'2px solid #1d4ed8':'1px solid #e2e8f0',background:walkServicePath==='van'?'#eff6ff':'#fff',fontWeight:800}}>Kentexa Van</button>
                         </div>
                       )}
                       {(walkRegion !== 'same' || walkPathOverride) && (
                         <button type="button" onClick={()=>setWalkServicePath('intercity')}
-                          style={{width:'100%',marginTop:walkRegion === 'other' && !walkPathOverride ? 0 : 8,padding:9,borderRadius:9,border:walkServicePath==='intercity'?'2px solid #7c3aed':'1px solid #e2e8f0',background:walkServicePath==='intercity'?'#f5f3ff':'#fff',fontWeight:800}}>🚌 Intercity / Courier</button>
+                          style={{width:'100%',marginTop:walkRegion === 'other' && !walkPathOverride ? 0 : 8,padding:9,borderRadius:9,border:walkServicePath==='intercity'?'2px solid #7c3aed':'1px solid #e2e8f0',background:walkServicePath==='intercity'?'#f5f3ff':'#fff',fontWeight:800}}>Intercity / Courier</button>
                       )}
                       {walkRegion && !walkPathOverride && (
                         <button type="button" onClick={()=>setWalkPathOverride(true)}
@@ -1227,7 +1229,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           <div>
                             <div style={{ fontSize: 11, fontWeight: 700,
                               color: walkPriceEstimate.confidence === 'exact' ? '#15803d' : '#92400e' }}>
-                              {walkPriceEstimate.confidence === 'exact' ? '✅ Bei Halisi' : '📊 Makisio ya Bei'}
+                              {walkPriceEstimate.confidence === 'exact' ? 'Bei Halisi' : 'Makisio ya Bei'}
                             </div>
                             <div style={{ fontSize: 11, color: '#64748b' }}>
                               {walkPriceEstimate.displayNote}
@@ -1248,13 +1250,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     )}
                     {walkRouteLoading && (
                       <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>
-                        ⏳ Inatafuta njia...
+                        Inatafuta njia...
                       </div>
                     )}
                     {walkRoute && !walkRouteLoading && (
                       <div style={{ backgroundColor: '#f0fdf4', borderRadius: 8,
                         padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#15803d' }}>
-                        📍 {profile?.city} → {walkForm.destinationCity}
+                        {profile?.city} → {walkForm.destinationCity}
                         {walkRoute.transitCity && ` via ${walkRoute.transitCity}`}
                         {' '}· Siku {walkRoute.estimatedDays}
                         {walkRoute.baseShippingFee && (
@@ -1328,7 +1330,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       style={{ width: '100%', backgroundColor: actionLoading ? '#94a3b8' : '#16a34a',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight:800, marginTop: 8 }}>
-                      {actionLoading ? '⏳ Inasajili...' : '📥 Sajili Kifurushi'}
+                      {actionLoading ? 'Inasajili...' : 'Sajili Kifurushi'}
                     </button>
                   </>
                 ) : (
@@ -1339,7 +1341,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                      the backend and never blocks activating the customer's
                      tracking number. */
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="check" size={40} color="#536471" /></div>
                     <div style={{ fontSize: 13, fontWeight:800, color: '#15803d',
                       marginBottom: 8 }}>Kifurushi Kimesajiliwa!</div>
                     <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight:800,
@@ -1359,14 +1361,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     )}
                     {walkResult.senderSmsSent === false && (
                       <div style={{ fontSize: 12, color: '#b45309', marginBottom: 8 }}>
-                        ⚠️ SMS kwa mtumaji haikutumwa — tuma tena: 🕘 Historia → 🧾 Risiti → 📲 SMS tena
+                        SMS kwa mtumaji haikutumwa — tuma tena: Historia → Risiti → SMS tena
                       </div>
                     )}
                     {walkResult.billing && (
                       <div style={{ fontSize: 12, color: walkResult.billing.isFreeOrder ? '#16a34a' : '#64748b',
                         marginBottom: 20 }}>
                         {walkResult.billing.isFreeOrder
-                          ? '🎁 Agizo la bure — halikutozwa ada'
+                          ? 'Agizo la bure — halikutozwa ada'
                           : `Ada ya Kentexa TZS ${Number(walkResult.billing.platformFeeCharged).toLocaleString()} imeongezwa kwenye deni lako`}
                       </div>
                     )}
@@ -1390,7 +1392,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           style={{ flex: '1 1 150px', backgroundColor: '#fff', color: '#1d4ed8',
                             border: '2px solid #1d4ed8', padding: '12px 16px', borderRadius: 10,
                             cursor: 'pointer', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
-                          🖨️ Chapisha Risiti
+                          Chapisha Risiti
                         </button>
                       )}
                       <button onClick={resetWalk}
@@ -1402,11 +1404,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
                     {SHOW_CLAIM_CODE_NOTE && !walkResult.shipmentClaim?.receiptSecret && (
                       <div style={{ fontSize: 11, color: '#64748b', marginTop: 14 }}>
-                        ⚠️ {CLAIM_CODE_NOTE}
+                        {CLAIM_CODE_NOTE}
                       </div>
                     )}
                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 14 }}>
-                      Risiti hii inapatikana tena kwenye 🕘 Historia → 🧾 Risiti.
+                      Risiti hii inapatikana tena kwenye Historia → Risiti.
                     </div>
                   </div>
                 )}
@@ -1420,7 +1422,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>
-                    🚌 Kifurushi Kimefika Hub
+                    Kifurushi Kimefika Hub
                   </div>
                   <button onClick={() => setPokeaMode('list')}
                     style={{ background: 'none', border: 'none', cursor: 'pointer',
@@ -1450,7 +1452,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     style={{ flex: 2, backgroundColor: !arrivalTracking.trim() ? '#94a3b8' : '#7c3aed',
                       color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                       cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
-                    {actionLoading ? '⏳' : '✅ Sajili Kufika — SMS kwa Mpokeaji'}
+                    {actionLoading ? '…' : 'Sajili Kufika — SMS kwa Mpokeaji'}
                   </button>
                   <button onClick={() => setPokeaMode('list')}
                     style={{ flex: 1, background: '#fff', color: '#64748b',
@@ -1466,7 +1468,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            📤 TUMA TAB
+            TUMA TAB
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'tuma' && (
           <>
@@ -1476,7 +1478,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>📤 Tuma</div>
+                  <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>Tuma</div>
                   <button onClick={() => setDispatchParcel(null)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer',
                       fontSize: 20, color: '#64748b' }}>×</button>
@@ -1510,11 +1512,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               ? '2px solid #16a34a' : '1px solid #e2e8f0',
                             backgroundColor: selectedAgent?.id === a.id ? '#f0fdf4' : '#fff' }}>
                           <div style={{ fontSize: 13, fontWeight: 700 }}>
-                            {a.fullName} {selectedAgent?.id === a.id && '✅'}
+                            {a.fullName} {selectedAgent?.id === a.id && <LineIcon name="check" size={14} color="#16a34a" strokeWidth={3} style={{ verticalAlign: 'middle' }} />}
                           </div>
                           <div style={{ fontSize: 11, color: '#64748b' }}>
-                            ⭐ {Number(a.rating || 5).toFixed(1)} ·
-                            TZS {Number(a.deliveryFee || 1000).toLocaleString()}
+                            {/* Only what the agent's record says: no made-up rating or fee. */}
+                            {[Number(a.totalDeliveriesCompleted) > 0 && Number(a.rating) > 0 && `${Number(a.rating).toFixed(1)} / 5`,
+                              Number(a.deliveryFee) > 0 && `TZS ${Number(a.deliveryFee).toLocaleString()}`].filter(Boolean).join(' · ') || 'Bei haijawekwa'}
                           </div>
                         </div>
                       ))
@@ -1531,7 +1534,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff',
                     border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer',
                     fontSize: 14, fontWeight:800 }}>
-                  {actionLoading ? '⏳' : '📤 Tuma Sasa'}
+                  {actionLoading ? '…' : 'Tuma Sasa'}
                 </button>
               </div>
             ) : tumaMode === 'shehena' ? (
@@ -1557,7 +1560,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       ujumbe MMOJA ukiwa na vifurushi vyote, siyo mmoja kwa kila kifurushi.
                     </div>
                     {bulkOpenLoading ? (
-                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳</div>
+                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Inapakia…</div>
                     ) : bulkOpenShipments.length > 0 && (
                       <>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
@@ -1579,12 +1582,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               }}
                                 style={{ flex: 1, backgroundColor: '#fff', color: '#d97706', border: '1.5px solid #d97706',
                                   borderRadius: 8, padding: '8px 0', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                ➕ Ongeza Vifurushi
+                                Ongeza Vifurushi
                               </button>
                               <button onClick={() => { setBulkActiveShipment(s); setBulkStep('dispatch'); }}
                                 style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff', border: 'none',
                                   borderRadius: 8, padding: '8px 0', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                ✅ Maliza na Tuma
+                                Maliza na Tuma
                               </button>
                             </div>
                           </div>
@@ -1662,7 +1665,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                         <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: '#16a34a' }}>· mteja aliichagua</span>
                                       )}
                                     </div>
-                                    <div style={{ fontSize: 11, color: '#64748b' }}>📍 {h.address || h.city}</div>
+                                    <div style={{ fontSize: 11, color: '#64748b' }}>{h.address || h.city}</div>
                                   </div>
                                 </label>
                               ))}
@@ -1707,7 +1710,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     })()}
 
                     {bulkLoading ? (
-                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳</div>
+                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Inapakia…</div>
                     ) : bulkDestCity && bulkCandidates.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 12 }}>
                         Hakuna vifurushi vilivyopo hubuni kwa mji huu bado.
@@ -1765,7 +1768,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       {bulkActiveShipment.lastMileSuperAgent?.businessName ? ` (${bulkActiveShipment.lastMileSuperAgent.businessName})` : ''}
                     </div>
                     {bulkLoading ? (
-                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳</div>
+                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Inapakia…</div>
                     ) : bulkCandidates.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 12 }}>
                         Hakuna vifurushi vingine vilivyopo hubuni kwa mji huu bado.
@@ -1803,7 +1806,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       style={{ width: '100%', marginTop: 10, backgroundColor: !bulkSelected.size ? '#94a3b8' : '#d97706',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
-                      {actionLoading ? '⏳' : `➕ Ongeza (${bulkSelected.size}) — SMS kwa Wanunuzi`}
+                      {actionLoading ? '…' : `Ongeza (${bulkSelected.size}) — SMS kwa Wanunuzi`}
                     </button>
                     <button onClick={() => { resetBulkForm(); setBulkStep('open'); fetchOpenShipments(); }}
                       style={{ width: '100%', marginTop: 8, background: '#fff', color: '#64748b',
@@ -1865,9 +1868,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     <div style={officeSection}>MZIGO MMOJA ({toDispatch.length})</div>
                     {toDispatch.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={p.transportMethod === 'van' ? [
-                        { label: '🚐 Fungua Van Desk', color: '#1d4ed8', fn: () => { setActiveTab('van'); fetchVanDesk(); } },
+                        { label: 'Fungua Van Desk', color: '#1d4ed8', fn: () => { setActiveTab('van'); fetchVanDesk(); } },
                       ] : isDirectLocalParcel(p) ? [
-                        { label: '🏍️ Chagua Agent', color: '#16a34a', fn: (parcel) => {
+                        { label: 'Chagua Agent', color: '#16a34a', fn: (parcel) => {
                           setDispatchParcel(parcel); setSelectedAgent(null); setDispatchMode('agent');
                         }},
                       ] : [
@@ -1884,13 +1887,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   <>
                     <div style={{ fontSize: 12, fontWeight: 800, color: '#ca8a04',
                       marginBottom: 8, marginTop: 16 }}>
-                      🚌 NJIANI ({inTransit.length})
+                      NJIANI ({inTransit.length})
                     </div>
                     {inTransit.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: 'Sasisha', color: '#64748b',
                           fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
-                         { label: confirmSending[p.orderId] ? '⏳...' : '📲 Thibitisha', // eslint-disable-line no-undef
+                         { label: confirmSending[p.orderId] ? '…' : 'Thibitisha', // eslint-disable-line no-undef
                           color: '#16a34a',
                            fn: (parcel) => handleSendConfirmLink(parcel.orderId) }, // eslint-disable-line no-undef
                       ]} />
@@ -1927,27 +1930,27 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            🕘 HISTORIA TAB — every parcel this hub has ever touched, any
+            HISTORIA TAB — every parcel this hub has ever touched, any
             status, either role. Previously a delivered/closed-out parcel
             had no browsable list at all, only a bare count on Mapato.
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'historia' && (
           <>
-            <input type="text" placeholder="🔍 Tafuta kwa namba, jina au simu..."
+            <input type="text" placeholder="Tafuta kwa namba, jina au simu..."
               value={historiaSearch}
               onChange={e => setHistoriaSearch(e.target.value)}
               style={{ ...inp, marginBottom: 14 }} />
             {historiaList.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="box" size={36} color="#536471" /></div>
                 {historiaSearch ? 'Hakuna kilicholingana' : 'Hakuna vifurushi bado'}
               </div>
             ) : (
               historiaList.map(p => (
                 <PCard key={p.trackingNumber} p={p} actions={[
-                  ...(canReopenReceipt(p) ? [{ label: '🧾 Risiti', color: '#1d4ed8',
+                  ...(canReopenReceipt(p) ? [{ label: 'Risiti', color: '#1d4ed8',
                     fn: (parcel) => openReceipt(parcel.trackingNumber) }] : []),
-                  { label: '🕘 Historia Kamili', color: '#7c3aed',
+                  { label: 'Historia Kamili', color: '#7c3aed',
                     fn: (parcel) => openParcelHistory(parcel.trackingNumber) },
                 ]} />
               ))
@@ -1956,7 +1959,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            💰 MAPATO TAB
+            MAPATO TAB
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'mapato' && (
           <>
@@ -1964,7 +1967,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
                 <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
-                  💵 MAPATO YA LEO
+                  MAPATO YA LEO
                 </div>
                 <div style={{ fontSize: 22, fontWeight:800, color: '#16a34a' }}>
                   TZS {Number(revenue?.today ?? cashToday).toLocaleString()}
@@ -1976,7 +1979,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
                 <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
-                  💳 KENTEXA INAKUDAIWA
+                  KENTEXA INAKUDAIWA
                 </div>
                 <div style={{ fontSize: 22, fontWeight:800, color: '#1d4ed8' }}>
                   TZS {kenetxaOwes.toLocaleString()}
@@ -1990,19 +1993,19 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                📊 Muhtasari — Data Halisi
+                Muhtasari — Data Halisi
               </div>
               {[
-                ['Wiki hii', `TZS ${Number(revenue?.thisWeek || 0).toLocaleString()}`, '📅'],
-                ['Mwezi huu', `TZS ${Number(revenue?.thisMonth || 0).toLocaleString()}`, '🗓️'],
-                ['Mapato yote (jumla)', `TZS ${Number(revenue?.total ?? dashData?.stats?.totalEarnings ?? 0).toLocaleString()}`, '💰'],
-                ['Vifurushi vyote', dashData?.stats?.totalParcels || 0, '📦'],
-                ['Vimetumwa', revenue?.shippedCount ?? 0, '🚚'],
-                ['Vimefikishwa', revenue?.completedCount ?? dashData?.stats?.delivered ?? 0, '✅'],
+                ['Wiki hii', `TZS ${Number(revenue?.thisWeek || 0).toLocaleString()}`, 'calendar'],
+                ['Mwezi huu', `TZS ${Number(revenue?.thisMonth || 0).toLocaleString()}`, 'calendar'],
+                ['Mapato yote (jumla)', `TZS ${Number(revenue?.total ?? dashData?.stats?.totalEarnings ?? 0).toLocaleString()}`, 'money'],
+                ['Vifurushi vyote', dashData?.stats?.totalParcels || 0, 'box'],
+                ['Vimetumwa', revenue?.shippedCount ?? 0, 'truck'],
+                ['Vimefikishwa', revenue?.completedCount ?? dashData?.stats?.delivered ?? 0, 'check'],
               ].map(([l, v, icon]) => (
                 <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
                   padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
-                  <span style={{ color: '#64748b' }}>{icon} {l}</span>
+                  <span style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 8 }}><LineIcon name={icon} size={16} color="#64748b" />{l}</span>
                   <span style={{ fontWeight: 800, color: '#1e293b' }}>{v}</span>
                 </div>
               ))}
@@ -2013,7 +2016,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                  🎁 Referral — Wape Wenzako Waje
+                  Referral — Wape Wenzako Waje
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
                   <div style={{ flex: 1, backgroundColor: '#f8fafc', borderRadius: 8, padding: '10px 12px',
@@ -2031,12 +2034,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     disabled={!referralData.referralCode}
                     style={{ backgroundColor: refLinkCopied ? '#16a34a' : '#1d4ed8', color: '#fff', border: 'none',
                       padding: '10px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    {refLinkCopied ? '✅ Copied' : '🔗 Copy Link'}
+                    {refLinkCopied ? 'Copied' : 'Copy Link'}
                   </button>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0',
                   borderTop: '1px solid #f1f5f9', fontSize: 13 }}>
-                  <span style={{ color: '#64748b' }}>📦 Free Orders Available</span>
+                  <span style={{ color: '#64748b' }}>Free Orders Available</span>
                   <span style={{ fontWeight:800, color: '#16a34a' }}>
                     {Math.max(0, Number(referralData.freeOrdersGranted || 0) - Number(referralData.freeOrdersUsed || 0))}
                   </span>
@@ -2044,12 +2047,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 {referralData.referrals?.length > 0 && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
                     {referralData.referrals.map(r => {
-                      const badge = { registered: ['⏳', '#ca8a04'], qualified: ['✅', '#16a34a'], rejected_fraud: ['❌', '#dc2626'] }[r.status] || ['?', '#64748b'];
+                      const badge = { registered: ['Amejisajili', '#ca8a04'], qualified: ['Amekamilisha', '#16a34a'], rejected_fraud: ['Amekataliwa', '#dc2626'] }[r.status] || [r.status, '#64748b'];
                       return (
                         <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between',
                           padding: '5px 0', fontSize: 12 }}>
                           <span style={{ color: '#475569' }}>{r.referredUser?.name || '—'}</span>
-                          <span style={{ color: badge[1], fontWeight: 700 }}>{badge[0]} {r.status}</span>
+                          <span style={{ color: badge[1], fontWeight: 700 }}>{badge[0]}</span>
                         </div>
                       );
                     })}
@@ -2062,7 +2065,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                  🗓️ Mapato kwa Mwezi
+                  Mapato kwa Mwezi
                 </div>
                 {revenue.monthly.map(m => (
                   <div key={m.month} style={{ display: 'flex', justifyContent: 'space-between',
@@ -2112,15 +2115,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 {dashData.agent.billing.billingBlocked && (
                   <div style={{ marginTop: 10, backgroundColor: '#fef2f2', borderRadius: 8,
                     padding: '10px 12px', fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>
-                    ⚠️ Huduma imesimamishwa hadi deni lilipwe. Wasiliana na Kentexa kulipa deni lako.
+                    Huduma imesimamishwa hadi deni lilipwe. Wasiliana na Kentexa kulipa deni lako.
                   </div>
                 )}
                 {!dashData.agent.billing.billingBlocked && (
                   <div style={{ marginTop: 10, backgroundColor: '#f0fdf4', borderRadius: 8,
                     padding: '10px 12px', fontSize: 12, color: '#166534' }}>
                     {dashData.agent.billing.freeOrdersRemaining > 0
-                      ? `ℹ️ Umebaki na maagizo ${dashData.agent.billing.freeOrdersRemaining} ya bure. Baada ya kumaliza, kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`
-                      : `ℹ️ Umeshamaliza maagizo yako 50 ya bure. Sasa kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`}
+                      ? `ℹ Umebaki na maagizo ${dashData.agent.billing.freeOrdersRemaining} ya bure. Baada ya kumaliza, kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`
+                      : `ℹ Umeshamaliza maagizo yako 50 ya bure. Sasa kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`}
                   </div>
                 )}
               </div>
@@ -2130,7 +2133,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             {parcels.filter(p => p.source === 'online' && !p.agentPaidOut && p.status === 'delivered').length > 0 && (
               <>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>
-                  💳 ONLINE ORDERS — KenteXa Itakulipa
+                  ONLINE ORDERS — KenteXa Itakulipa
                 </div>
                 {parcels.filter(p => p.source === 'online' && !p.agentPaidOut).map(p => (
                   <div key={p.trackingNumber} style={{ backgroundColor: '#eff6ff',
@@ -2154,25 +2157,25 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            📋 BEI TAB — Rate Card
+            BEI TAB — Rate Card
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'bei' && (
           <>
             <div style={{ backgroundColor: '#fff7ed', borderRadius: 10,
               padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
-              💡 Bei zako zote ziko hapa: weka, badilisha, kisha bonyeza Hifadhi
+              Bei zako zote ziko hapa: weka, badilisha, kisha bonyeza Hifadhi
             </div>
             <OfficePrices />
           </>
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            🚐 VAN YA LEO TAB (Dar only)
+            VAN YA LEO TAB (Dar only)
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'van' && isDar && (
           <div>
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:18, fontWeight:800, color:'#1e293b' }}>🚐 Van Desk</div>
+              <div style={{ fontSize:18, fontWeight:800, color:'#1e293b' }}>Van Desk</div>
               <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>Pokea mizigo iliyoshushwa na Van, kisha endelea na pickup au delivery.</div>
             </div>
             {vanDeskLoading && <div style={{ padding:20, textAlign:'center', color:'#64748b' }}>Inapakia...</div>}
@@ -2199,7 +2202,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     <div style={{ fontSize:11, color:'#64748b', margin:'4px 0 10px' }}>Run #{p.runId} · Imeshushwa {Math.max(0, Math.round(Number(p.waitingMinutes || 0)))} dk zilizopita</div>
                     <button disabled={actionLoading} onClick={() => confirmVanReceipt(p.assignmentId)}
                       style={{ width:'100%', border:'none', borderRadius:10, padding:11, background:'#16a34a', color:'#fff', fontWeight:800, cursor:'pointer' }}>
-                      ✓ Nimepokea Mzigo
+                      Nimepokea Mzigo
                     </button>
                   </div>)}
                 <div style={{ fontSize:12, fontWeight:800, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO OFISINI · {vanReady.length}</div>
@@ -2221,7 +2224,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 4 }}>
-              <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>🧾 Risiti</div>
+              <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>Risiti</div>
               <button onClick={() => setReceiptModal(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 20, color: '#64748b' }}>×</button>
@@ -2233,7 +2236,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             </div>
 
             {receiptModal.loading && (
-              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳ Inapakia...</div>
+              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Inapakia...</div>
             )}
             {receiptModal.error && (
               <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 8,
@@ -2262,7 +2265,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
                     padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800,
                     marginBottom: 10 }}>
-                  🖨️ Chapisha tena
+                  Chapisha tena
                 </button>
               </>
             )}
@@ -2272,22 +2275,22 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none',
                     padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
                     fontSize: 11.5, fontWeight: 700 }}>
-                  {resendLoading === 'sender' ? '⏳...' : '📲 SMS tena — Mtumaji'}
+                  {resendLoading === 'sender' ? '…' : 'SMS tena — Mtumaji'}
                 </button>
                 <button onClick={() => handleResendSms('receiver', receiptModal.trackingNumber)} disabled={resendLoading !== ''}
                   style={{ flex: 1, backgroundColor: '#f0fdf4', color: '#16a34a', border: 'none',
                     padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
                     fontSize: 11.5, fontWeight: 700 }}>
-                  {resendLoading === 'receiver' ? '⏳...' : '📲 SMS tena — Mpokeaji'}
+                  {resendLoading === 'receiver' ? '…' : 'SMS tena — Mpokeaji'}
                 </button>
               </div>
             )}
             {resendMsg && (
-              <div style={{ fontSize: 12, marginBottom: 10, color: resendMsg.startsWith('✅') ? '#16a34a' : '#b91c1c' }}>
+              <div style={{ fontSize: 12, marginBottom: 10, color: resendOk ? '#16a34a' : '#b91c1c' }}>
                 {resendMsg}
               </div>
             )}
-            {SHOW_CLAIM_CODE_NOTE && <div style={{ fontSize: 11, color: '#64748b' }}>⚠️ {CLAIM_CODE_NOTE}</div>}
+            {SHOW_CLAIM_CODE_NOTE && <div style={{ fontSize: 11, color: '#64748b' }}>{CLAIM_CODE_NOTE}</div>}
           </div>
         </div>
       )}
@@ -2300,7 +2303,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 4 }}>
-              <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>🕘 Historia Kamili</div>
+              <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>Historia Kamili</div>
               <button onClick={() => setHistoryModal(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 20, color: '#64748b' }}>×</button>
@@ -2310,7 +2313,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             </div>
 
             {historyModal.loading && (
-              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳ Inapakia...</div>
+              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Inapakia...</div>
             )}
             {historyModal.error && (
               <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 8,
@@ -2344,17 +2347,17 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none',
                       padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
                       fontSize: 11.5, fontWeight: 700 }}>
-                    {resendLoading === 'sender' ? '⏳...' : '🔄 Tuma SMS ya Mtumaji'}
+                    {resendLoading === 'sender' ? '…' : 'Tuma SMS ya Mtumaji'}
                   </button>
                   <button onClick={() => handleResendSms('receiver')} disabled={resendLoading !== ''}
                     style={{ flex: 1, backgroundColor: '#f0fdf4', color: '#16a34a', border: 'none',
                       padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
                       fontSize: 11.5, fontWeight: 700 }}>
-                    {resendLoading === 'receiver' ? '⏳...' : '🔄 Tuma SMS ya Mpokeaji'}
+                    {resendLoading === 'receiver' ? '…' : 'Tuma SMS ya Mpokeaji'}
                   </button>
                 </div>
                 {resendMsg && (
-                  <div style={{ fontSize: 12, marginBottom: 14, color: resendMsg.startsWith('✅') ? '#16a34a' : '#b91c1c' }}>
+                  <div style={{ fontSize: 12, marginBottom: 14, color: resendOk ? '#16a34a' : '#b91c1c' }}>
                     {resendMsg}
                   </div>
                 )}
@@ -2401,7 +2404,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               statusParcel.myRole !== 'origin' && (
                 <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, backgroundColor: '#eff6ff' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>
-                    🚶 Mpokeaji anaweza kuchukua hapa kwa namba ya SMS
+                    Mpokeaji anaweza kuchukua hapa kwa namba ya SMS
                   </div>
                     <div>
                     <button onClick={handleSendPickupCode} disabled={actionLoading}
@@ -2422,7 +2425,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       (statusParcel.order?.paymentMethod === 'cod' && codBalanceAmount.trim() === '')}
                       style={{ width: '100%', padding: 12, border: 'none', borderRadius: 8,
                         backgroundColor: '#16a34a', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
-                      {actionLoading ? '⏳' : '✅ Nimekabidhi kwa mpokeaji'}
+                      {actionLoading ? '…' : 'Nimekabidhi kwa mpokeaji'}
                     </button>
                     </div>
                 </div>
@@ -2474,10 +2477,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     // ever been dispatched — hidden afterward.
                     ...(preDispatch ? [
                       ['received_at_hub',   'Imepokewa ofisini'],
-                      ['verified',         '✅ Imethibitishwa'],
-                      ['ready_for_dispatch','📦 Tayari Kutuma'],
+                      ['verified',         'Imethibitishwa'],
+                      ['ready_for_dispatch','Tayari Kutuma'],
                     ] : []),
-                    ['in_transit',       '🚚 Njiani'],
+                    ['in_transit',       'Njiani'],
                   ] : []),
                   // Destination-side statuses — only offered when this hub is
                   // the receiver (or both). Marking "arrived" is
@@ -2485,7 +2488,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   // possible before the parcel has actually been dispatched.
                   ...(statusParcel.myRole !== 'origin' && !preDispatch ? [
                     ['arrived_at_hub',   'Imefika ofisini'],
-                    ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
+                    ['awaiting_buyer',   'Inasubiri Mteja'],
                   ] : []),
                 ].map(([v, l]) => <option key={v} value={v}>{l}</option>);
               })()}
@@ -2498,7 +2501,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 style={{ flex: 2, backgroundColor: !newStatus ? '#94a3b8' : '#1d4ed8',
                   color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                   cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
-                {actionLoading ? '⏳' : '💾 Hifadhi'}
+                {actionLoading ? '…' : 'Hifadhi'}
               </button>
               <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); setPickupCode(''); setCodBalanceAmount(''); }}
                 style={{ flex: 1, background: '#fff', color: '#64748b',

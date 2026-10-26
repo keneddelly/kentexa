@@ -578,7 +578,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
         </>
       ) : (
         <>
-          <BackBar onBack={() => onNavigate('back')} title="Maagizo" top={0}
+          <BackBar onBack={() => onNavigate('SellerDashboard')} title="Maagizo" top={0}
             right={
               <button type="button" onClick={() => onNavigate('SellerShipment')} style={{ ...pillBtn(INK), height: 36, fontSize: 14, padding: '0 14px' }}>
                 <Svg d={P.plus} color="#fff" sw={2.4} size={16} />Uza
