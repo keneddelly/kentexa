@@ -254,7 +254,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const NAV = [
     { key:'identity',      icon:'👤', label:t('my_profile.nav_identity') },
     // An advertiser's page sits at the top level, not buried inside a section.
-    isAdvertiser && { key:'advertising', icon:'📣', label:'Matangazo yangu', go:'MyAdvertising' },
+    isAdvertiser && { key:'advertising', icon:'📣', label:'Kiungo changu na kamisheni', go:'MyAdvertising' },
     { key:'businesses',    icon:'🏢', label:t('my_profile.nav_businesses') },
     { key:'commerce',      icon:'📦', label:t('my_profile.nav_commerce') },
     { key:'logistics',     icon:'🚚', label:t('my_profile.nav_logistics') },
@@ -785,10 +785,6 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 value={fmt(followed.length)} onAction={() => onNavigate('Stores')} />
               <Row icon="📋" label={t('my_profile.order_status_label')}
                 onAction={() => onNavigate('MyOrders')} />
-              {isAdvertiser && (
-                <Row icon="📣" label="Matangazo yangu (kiungo na kamisheni)"
-                  onAction={() => onNavigate('MyAdvertising')} />
-              )}
             </SCard>
 
             {orders.length > 0 && (

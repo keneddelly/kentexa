@@ -25,7 +25,7 @@ export default function MyAdvertising({ onNavigate }) {
   const share = data ? `https://wa.me/?text=${encodeURIComponent(`Jiunge na KenteXa: ${data.link}`)}` : '#';
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", color: '#0f172a' }}>
-      <BackBar onBack={() => onNavigate('back')} title="Matangazo yangu" top={0} />
+      <BackBar onBack={() => onNavigate('back')} title="Kiungo changu na kamisheni" top={0} />
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '16px 16px calc(124px + env(safe-area-inset-bottom, 0px))' }}>
         {error && <div role="alert" style={{ ...card, color: '#b91c1c' }}>{error}</div>}
         {!data && !error && <div style={{ fontSize: 14, color: '#475569' }}>Inapakia…</div>}
