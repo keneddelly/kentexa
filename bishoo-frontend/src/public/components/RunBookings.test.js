@@ -114,3 +114,16 @@ describe('HubExpectedShipments — the office receives every parcel by its one w
     expect(await screen.findByRole('alert')).toHaveTextContent('open Agent pickup');
   });
 });
+
+test('Kutoka KenteXa: each parcel says where it came from (marketplace order, seller order, customer shipment)', async () => {
+  api.get.mockResolvedValue({ data: [
+    { parcelId: 21, trackingNumber: 'KTX-ORD-1', orderId: 1, kind: 'marketplace', sender: { name: 'BIS' }, nextAction: 'receive_order' },
+    { parcelId: 22, trackingNumber: 'KTX-ORD-2', orderId: 2, kind: 'seller', sender: { name: 'Duka' }, nextAction: 'receive_from_sender' },
+    { parcelId: 23, trackingNumber: 'KTX-SHP-3', kind: 'shipment', sender: { name: 'Asha' }, nextAction: 'receive_from_sender' },
+  ] });
+  render(<HubExpectedShipments />);
+  expect(await screen.findByTestId('kind-21')).toHaveTextContent('Oda ya sokoni');
+  expect(screen.getByTestId('kind-22')).toHaveTextContent('Oda ya muuzaji');
+  expect(screen.getByTestId('kind-23')).toHaveTextContent('Mzigo wa mteja');
+  expect(screen.getAllByText(/analipa ada ya usafiri/)).toHaveLength(3);
+});

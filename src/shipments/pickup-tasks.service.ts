@@ -944,6 +944,9 @@ export class PickupTasksService {
       // The one KenteXa number for this parcel, wherever it came from.
       waybill: r.waybillNumber ? formatWaybill(r.waybillNumber) : null,
       orderId: r.orderId == null ? null : Number(r.orderId),
+      // Where it came from (owner 2026-10-26): a KenteXa marketplace order, a seller's own
+      // order (seller form / POS), or a customer's shipment (the send form).
+      kind: r.orderId == null ? 'shipment' : r.orderSource === 'online' ? 'marketplace' : 'seller',
       itemDescription: r.itemDescription,
       weightKg: Number(r.weightKg) || 0,
       destinationCity: r.destinationCity,
