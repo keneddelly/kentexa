@@ -195,7 +195,7 @@ jobs:
           version.controller
           shipments/ transport/ super-agents/ super-agent-commission/
           parcel-collections/ agents/ location-intelligence/ partner-invitations/
-          orders/lipa-review.spec.ts orders/seller-checkout-notice.spec.ts orders/admin-cancel.spec.ts orders/ship-engine.spec.ts orders/engine-delivery-price.spec.ts advertisers/
+          orders/lipa-review.spec.ts orders/seller-checkout-notice.spec.ts orders/admin-cancel.spec.ts orders/ship-engine.spec.ts orders/engine-delivery-price.spec.ts advertisers/ quote-requests/
           database/migrations/
           > jest-logistics.log 2>&1 || true
       - name: Compare with the known-failure baseline

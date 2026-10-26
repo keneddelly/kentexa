@@ -286,6 +286,23 @@ export class LogisticsServiceOfferService {
    * Every active, non-training office in the sender's city with an active rate to the
    * destination, priced by its own rule for this parcel (value, kg). Intercity only.
    */
+  private goodsColumnReady = false;
+  private goodsCheckedAt = 0;
+  /** Offices whose goods list (super_agent."goodsTypes", migration 1793200000000) leaves out parcels. */
+  private async officesWithoutParcels(): Promise<Set<number>> {
+    if (!this.db) return new Set();
+    if (!this.goodsColumnReady && Date.now() - this.goodsCheckedAt > 60_000) {
+      this.goodsCheckedAt = Date.now();
+      const [row] = await this.db.query(`SELECT 1 AS ok FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'super_agent' AND column_name = 'goodsTypes'`).catch(() => []);
+      this.goodsColumnReady = Boolean(row?.ok);
+    }
+    if (!this.goodsColumnReady) return new Set();
+    const rows: any[] = await this.db.query(`SELECT id FROM public.super_agent
+      WHERE "goodsTypes" IS NOT NULL AND NOT ("goodsTypes" ? 'parcel')`).catch(() => []);
+    return new Set(rows.map((r) => Number(r.id)));
+  }
+
   async officeOffers(dto: DiscoverServiceOffersDto): Promise<LogisticsServiceOffer[]> {
     const value = Number(dto?.declaredValue);
     if (!this.db || !this.officePrices || !Number.isFinite(value) || value <= 0) return [];
@@ -312,8 +329,12 @@ export class LogisticsServiceOfferService {
       estimatedDays: r.estimatedDays == null ? null : Number(r.estimatedDays),
       rating: r.rating == null ? null : Number(r.rating), totalRatings: r.totalRatings == null ? null : Number(r.totalRatings),
     }));
+    // An office that ticked only large goods / containers ("Bei zangu") does not take
+    // small parcels: it is not offered here (owner 2026-10-26). Never set = parcels.
+    const noParcels = await this.officesWithoutParcels();
     const chosen = pickOfficeRates(rows, origin, destination)
-      .filter((r) => !sameCityOffices || sameCityOffices.has(r.officeId));
+      .filter((r) => !sameCityOffices || sameCityOffices.has(r.officeId))
+      .filter((r) => !noParcels.has(r.officeId));
     // Offices that collect from the sender themselves (free or their own fee).
     const pickupOffers = new Map<number, OfficePickupOffer>();
     if (dto.pickup === 'door' && chosen.length && await officePickupTableReady(this.db)) {

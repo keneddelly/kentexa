@@ -500,6 +500,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           <div>
             <h1 style={h1}>Unatuma nini?</h1>
             <p style={sub}>Tunauliza haya ili tukuonyeshe watoa huduma wanaoweza kuubeba.</p>
+            {/* Large goods, a container or a whole vehicle are priced by asking (owner 2026-10-26). */}
+            <button type="button" data-testid="go-quote" onClick={() => onNavigate('QuoteRequest', { kind: 'goods' })}
+              style={{ width: '100%', textAlign: 'left', background: '#f7f9f9', border: '1px solid #eff3f4', borderRadius: 12,
+                padding: '12px 14px', marginBottom: 16, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, color: '#0f1419' }}>
+              Mzigo mkubwa, kontena au gari zima? <b>Omba bei</b>
+            </button>
             <div style={field}>
               <label htmlFor="kitu" style={label}>Maelezo ya mzigo</label>
               <input id="kitu" value={itemDescription} onChange={(e) => setItemDescription(e.target.value)} placeholder="Mfano: nguo, boksi moja" style={input} />

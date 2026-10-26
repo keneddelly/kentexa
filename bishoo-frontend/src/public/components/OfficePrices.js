@@ -20,6 +20,52 @@ const inp = {
 const shown = (v) => (v === '' || v == null || Number(v) === 0 ? '' : String(Number(v)));
 const fromServer = (r) => ({ ...r, ratePerKg: shown(r.ratePerKg), minimumCharge: shown(r.minimumCharge) });
 
+
+// What goods this office takes (owner 2026-10-26). Customers with large goods or a
+// container ask for prices ("Omba bei") and only offices that ticked it answer.
+// Hidden until the server has it switched on, or for a non-office account.
+const GOODS = [
+  ['parcel', 'Vifurushi vidogo', 'Boksi, nguo, simu: bei kwa njia kama kawaida'],
+  ['large', 'Mzigo mkubwa', 'Magunia, fenicha, mashine: wateja wanaomba bei'],
+  ['container', 'Kontena', 'Kontena zima: wateja wanaomba bei'],
+];
+const GoodsTypesCard = () => {
+  const [types, setTypes] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    api.get('/quote-requests/goods-types').then(({ data }) => setTypes(data.goodsTypes || ['parcel'])).catch(() => setTypes(null));
+  }, []);
+  if (!types) return null;
+  const toggle = (k) => { setMsg(''); setTypes((t) => (t.includes(k) ? t.filter((x) => x !== k) : [...t, k])); };
+  const save = async () => {
+    setSaving(true); setMsg('');
+    try { const { data } = await api.put('/quote-requests/goods-types', { goodsTypes: types }); setTypes(data.goodsTypes); setMsg('Imehifadhiwa'); }
+    catch (e) { setMsg(e?.response?.data?.message || 'Imeshindwa kuhifadhi'); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div data-testid="goods-types-card" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, border: '1px solid #eff3f4', marginTop: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f1419', marginBottom: 4 }}>Mizigo unayopokea</div>
+      <div style={{ fontSize: 13, color: '#536471', marginBottom: 12 }}>Wateja wanaona ofisi yako kwa aina ulizochagua tu.</div>
+      {GOODS.map(([k, title, hint]) => (
+        <label key={k} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderTop: '1px solid #eff3f4', cursor: 'pointer' }}>
+          <input type="checkbox" checked={types.includes(k)} onChange={() => toggle(k)} style={{ width: 20, height: 20, marginTop: 2 }} />
+          <span>
+            <span style={{ display: 'block', fontSize: 15, color: '#0f1419' }}>{title}</span>
+            <span style={{ display: 'block', fontSize: 13, color: '#536471' }}>{hint}</span>
+          </span>
+        </label>
+      ))}
+      {msg && <div style={{ fontSize: 13, color: msg === 'Imehifadhiwa' ? '#166534' : '#b91c1c', margin: '8px 0' }}>{msg}</div>}
+      <button type="button" onClick={save} disabled={saving || !types.length}
+        style={{ width: '100%', height: 48, borderRadius: 24, border: 'none', background: '#0f1419', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginTop: 8, fontFamily: 'inherit', opacity: types.length ? 1 : 0.5 }}>
+        {saving ? 'Inahifadhi…' : 'Hifadhi'}
+      </button>
+    </div>
+  );
+};
+
 const OfficePrices = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -224,7 +270,8 @@ const OfficePrices = () => {
         )}
 
         {/* Pickup from the sender: free or the office's own price (shown in the send form). */}
-        <OfficePickupCard />
+        <GoodsTypesCard />
+      <OfficePickupCard />
     </>
   );
 };

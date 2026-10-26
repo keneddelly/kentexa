@@ -477,6 +477,18 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
           </div>
         </div>
 
+        {/* Omba bei: customers and offices asking to hire a whole vehicle (owner 2026-10-26) */}
+        <button type="button" onClick={() => onNavigate('QuoteInbox')}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+            background: '#fff', border: '1px solid #eff3f4', borderRadius: 16, padding: '14px 16px', marginBottom: 16,
+            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+          <span>
+            <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: '#0f1419' }}>Maombi ya gari zima</span>
+            <span style={{ display: 'block', fontSize: 13, color: '#536471' }}>Wateja na ofisi wanaoomba bei; toa bei yako</span>
+          </span>
+          <span aria-hidden="true" style={{ color: '#536471' }}>›</span>
+        </button>
+
         {/* Tabs */}
         <div style={{ display: 'flex', backgroundColor: '#fff', borderRadius: 12,
           padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
