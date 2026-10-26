@@ -1598,7 +1598,7 @@ export class OrdersService {
       weightKg?: number;
       parcelPhoto?: string;
       notes?: string;
-      actualShippingFee?: number; // for NORMAL orders: escrow fee reconciliation
+      actualShippingFee?: number; // for online orders: the fee the office actually charged
       shippingFeeCollected?: number; // for MANUAL orders: cash collected from seller right now
     },
     roleContext?: RoleContext,
@@ -1661,10 +1661,7 @@ export class OrdersService {
 
     let actualFee = 0;
     let feeDifference = 0;
-    let sellerAmountAdjustment = 0;
-    let shippingFeeFlagged = false;
     let shippingFeeNote: string | null = null;
-    let newSellerAmount = Number(order.sellerAmount || 0);
 
     if (isManualOrder) {
       // ── MANUAL ORDER: no escrow, no estimate to reconcile against.
@@ -1677,44 +1674,18 @@ export class OrdersService {
           ? `Mauzo ya nje: TZS ${actualFee.toLocaleString()} ilipokewa taslimu na ofisi wakati wa kupokea kifurushi.`
           : null;
     } else {
-      // ── NORMAL ORDER: existing escrow reconciliation logic, unchanged.
+      // ── ONLINE ORDER: record the fee the office actually charged. KenteXa never
+      // pays shipping and holds no money (owner 2026-10-26), so nothing is
+      // "absorbed by KenteXa" and nothing is deducted from the seller here: a
+      // difference is only noted for the seller and the office to settle.
       const estimatedFee = Number((order as any).deliveryFeeAmount || 0);
-      actualFee =
-        data.actualShippingFee != null && data.actualShippingFee !== 0
-          ? Number(data.actualShippingFee)
-          : estimatedFee;
+      actualFee = Number(data.actualShippingFee) > 0 ? Number(data.actualShippingFee) : estimatedFee;
       feeDifference = parseFloat((actualFee - estimatedFee).toFixed(2));
-
-      const threshold = Math.max(2000, estimatedFee * 0.2);
-
-      if (feeDifference > threshold) {
-        const excessOverThreshold = parseFloat(
-          (feeDifference - threshold).toFixed(2),
-        );
-        sellerAmountAdjustment = -excessOverThreshold;
-        shippingFeeFlagged = true;
+      if (feeDifference !== 0) {
         shippingFeeNote =
-          `Shipping fee was TZS ${actualFee.toLocaleString()} vs seller's estimate of TZS ${estimatedFee.toLocaleString()} ` +
-          `(+TZS ${feeDifference.toLocaleString()}). TZS ${threshold.toLocaleString()} absorbed by KenteXa; ` +
-          `remaining TZS ${excessOverThreshold.toLocaleString()} deducted from seller payout. Flagged for review.`;
-      } else if (feeDifference < -threshold) {
-        shippingFeeNote =
-          `Shipping fee was TZS ${actualFee.toLocaleString()} vs seller's estimate of TZS ${estimatedFee.toLocaleString()} ` +
-          `(${feeDifference.toLocaleString()}). Difference absorbed by KenteXa.`;
-      } else if (feeDifference !== 0) {
-        shippingFeeNote =
-          `Shipping fee adjusted from TZS ${estimatedFee.toLocaleString()} to TZS ${actualFee.toLocaleString()} ` +
-          `(${feeDifference > 0 ? '+' : ''}${feeDifference.toLocaleString()}) — within acceptable range, absorbed by KenteXa.`;
+          `Ada ya usafirishaji iliyotozwa na ofisi: TZS ${actualFee.toLocaleString()} ` +
+          `(makadirio yalikuwa TZS ${estimatedFee.toLocaleString()}).`;
       }
-
-      newSellerAmount =
-        sellerAmountAdjustment !== 0
-          ? parseFloat(
-              (
-                Number(order.sellerAmount || 0) + sellerAmountAdjustment
-              ).toFixed(2),
-            )
-          : Number(order.sellerAmount || 0);
     }
 
     const orderUpdate: any = {
@@ -1737,8 +1708,7 @@ export class OrdersService {
     } else {
       orderUpdate.actualShippingFee = actualFee;
       orderUpdate.deliveryFeeAmount = actualFee;
-      orderUpdate.sellerAmount = newSellerAmount;
-      orderUpdate.shippingFeeFlagged = shippingFeeFlagged;
+      orderUpdate.shippingFeeFlagged = false;
       orderUpdate.shippingFeeNote = shippingFeeNote;
     }
 
@@ -2000,10 +1970,11 @@ export class OrdersService {
         : Number((order as any).deliveryFeeAmount || 0),
       actualShippingFee: isManualOrder ? null : actualFee,
       feeDifference: isManualOrder ? null : feeDifference,
-      sellerAmountAdjustment: isManualOrder ? null : sellerAmountAdjustment,
-      shippingFeeFlagged: isManualOrder ? false : shippingFeeFlagged,
+      // KenteXa no longer adjusts the seller's amount for shipping (it never pays shipping).
+      sellerAmountAdjustment: isManualOrder ? null : 0,
+      shippingFeeFlagged: false,
       shippingFeeNote,
-      newSellerAmount: isManualOrder ? 0 : newSellerAmount,
+      newSellerAmount: isManualOrder ? 0 : Number(order.sellerAmount || 0),
     };
   }
 
