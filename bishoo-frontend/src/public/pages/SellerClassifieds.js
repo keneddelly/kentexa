@@ -33,7 +33,7 @@ const EMPTY_FORM = {
   contactPhone: '',
 };
 
-const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId, activeProfileId, createOnly = false }) => {
+const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId, activeProfileId, createOnly = false, prefill = null }) => {
   const { t } = useTranslation();
   const [CATEGORIES, setCategories]   = useState(FALLBACK_CATEGORIES);
   const [classifieds, setClassifieds] = useState([]);
@@ -82,6 +82,19 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       if (Object.keys(tree).length) setCategories(tree);
     }).catch(() => {});
   }, []);
+
+  // A Moment that read like a sale arrives here filled in (CreateMomentModal, owner 2026-10-26).
+  React.useEffect(() => {
+    if (!prefill) return;
+    setForm(prev => ({
+      ...prev,
+      title: prev.title || prefill.title || '',
+      description: prev.description || prefill.description || '',
+      price: prev.price || (prefill.price ? String(prefill.price) : ''),
+      images: prev.images.length ? prev.images : (Array.isArray(prefill.images) ? prefill.images : []),
+    }));
+    if (Array.isArray(prefill.images) && prefill.images.length) setImagePreviews(p => (p.length ? p : prefill.images));
+  }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pre-fill location from seller's stored businessLocation
   React.useEffect(() => {

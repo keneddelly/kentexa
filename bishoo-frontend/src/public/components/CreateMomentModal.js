@@ -10,6 +10,7 @@
  */
 import { actorLabelParts } from '../utils/publicActor';
 import React, { useState, useEffect, useRef } from 'react';
+import { saleIntent } from '../utils/saleIntent';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
@@ -39,7 +40,7 @@ const routeTitle = (r, t) => {
   return t('create_moment_modal.my_route_fallback');
 };
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile }) => {
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate }) => {
   const { t } = useTranslation();
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
   const [mode,      setMode]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'moment');
@@ -52,6 +53,12 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const [tagged,    setTagged]    = useState(null); // { type, id, title }
   const [posting,   setPosting]   = useState(false);
   const [error,     setError]     = useState('');
+  // A Moment that reads like a sale becomes a classified ad (owner 2026-10-26: new users
+  // post sale items as Moments, so buyers never find them in search). The user can
+  // still keep it a Moment with one tap; never blocked.
+  const [keepMoment, setKeepMoment] = useState(false);
+  const intent = mode === 'moment' ? saleIntent(caption, { tagged: !!tagged }) : { sale: false, price: null };
+  const asAd = intent.sale && !keepMoment && !!onNavigate;
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -156,6 +163,19 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         });
         imageUrl = up.data?.urls?.[0] || null;
         if (mode === 'moment' && file && !imageUrl) throw new Error(t('create_moment_modal.upload_failed'));
+      }
+
+      if (asAd) {
+        // Straight to the classified form, filled with what they wrote and the photo.
+        const text = caption.trim();
+        onNavigate('CreateClassified', { prefill: {
+          title: text.split(/\n|[.!?]\s/)[0].slice(0, 80),
+          description: text,
+          price: intent.price || '',
+          images: imageUrl ? [imageUrl] : [],
+        } });
+        onClose();
+        return;
       }
 
       if (mode === 'moment') {
@@ -359,6 +379,18 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
             </>
           )}
 
+          {mode === 'moment' && intent.sale && onNavigate && (
+            <div data-testid="moment-sale-hint" role="status"
+              style={{ marginTop:12, padding:12, borderRadius:12, background:'#eff6ff', color:'#0f1419', fontSize:15, lineHeight:'20px' }}>
+              {keepMoment
+                ? <>Itawekwa kama Moment. <button type="button" onClick={() => setKeepMoment(false)}
+                    style={{ background:'none', border:'none', padding:0, color:'#1d4ed8', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Ifanye tangazo</button></>
+                : <>Hii inaonekana ni bidhaa ya kuuza{intent.price ? ` (TZS ${Number(intent.price).toLocaleString('en-US')})` : ''}. Tutaiweka kama <b>tangazo</b> ili wanunuzi wakupate kwenye utafutaji.
+                    {' '}<button type="button" data-testid="keep-moment" onClick={() => setKeepMoment(true)}
+                    style={{ background:'none', border:'none', padding:0, color:'#1d4ed8', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Hapana, ni Moment tu</button></>}
+            </div>
+          )}
+
           {error && (
             <div style={{ fontSize:12, color:'#DC2626', marginTop:10, fontWeight:600 }}>
               {error}
@@ -369,13 +401,10 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         <div style={{ flexShrink:0, padding:'12px 16px max(12px, env(safe-area-inset-bottom))',
           borderTop:'1px solid #F1F5F9' }}>
           <button onClick={handlePost} disabled={posting || actorUnresolved}
-            style={{ width:'100%', background: posting
-              ? '#93C5FD' : mode==='moment'
-                ? `linear-gradient(135deg,${B},#7C3AED)`
-                : 'linear-gradient(135deg,#7C3AED,#EC4899)',
-              color:WH, border:'none', borderRadius:12, padding:'13px 0',
-              cursor: posting ? 'not-allowed' : 'pointer', fontSize:14, fontWeight:800 }}>
-            {posting ? t('create_moment_modal.posting') : mode==='moment' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
+            style={{ width:'100%', height:48, background: posting ? '#93C5FD' : '#0f1419',
+              color:WH, border:'none', borderRadius:24,
+              cursor: posting ? 'not-allowed' : 'pointer', fontSize:15, fontWeight:700, fontFamily:'inherit' }}>
+            {posting ? t('create_moment_modal.posting') : asAd ? 'Endelea kama tangazo' : mode==='moment' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
           </button>
         </div>
       </div>

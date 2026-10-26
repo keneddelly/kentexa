@@ -892,7 +892,7 @@ function App() {
       case 'ConnectSelling':    return requireLogin(<ConnectSelling {...publicProps} />);
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
-      case 'CreateClassified':  return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" createOnly />);
+      case 'CreateClassified':  return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" createOnly prefill={navParams?.prefill} />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
       case 'SellerProducts':    return requireLogin(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
@@ -1064,6 +1064,7 @@ function App() {
           initialMode={momentModalMode}
           activeProfileId={momentActorProfileId(activeProfile) ?? null}
           activeProfile={activeProfile}
+          onNavigate={handleNavigate}
           onClose={() => setShowMomentModal(false)}
           onPosted={() => {
             setMomentRefreshKey(k => k + 1);
