@@ -58,7 +58,7 @@ const AgentScorecard = ({ onNavigate }) => {
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
         <div style={{ textAlign:'center' }}>
           <div style={{ fontSize:64, marginBottom:16 }}>🏍️</div>
-          <div style={{ fontSize:18, fontWeight:900, color:'#1e293b', marginBottom:8 }}>
+          <div style={{ fontSize:18, fontWeight:800, color:'#1e293b', marginBottom:8 }}>
             {t('agent_scorecard.not_registered_title')}
           </div>
           <button onClick={() => onNavigate('BecomeAgent')}
@@ -117,7 +117,7 @@ const AgentScorecard = ({ onNavigate }) => {
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
                 <span style={{ fontSize:36 }}>{tier.icon}</span>
                 <div>
-                  <div style={{ fontSize:26, fontWeight:900 }}>{t('agent_scorecard.agent_prefix', { tier: tier.name })}</div>
+                  <div style={{ fontSize:26, fontWeight:800 }}>{t('agent_scorecard.agent_prefix', { tier: tier.name })}</div>
                   <div style={{ fontSize:12, color:'rgba(255,255,255,0.6)' }}>
                     {profile.agentCode} · {profile.agentType?.toUpperCase()}
                   </div>
@@ -125,7 +125,7 @@ const AgentScorecard = ({ onNavigate }) => {
               </div>
             </div>
             <div style={{ textAlign:'right' }}>
-              <div style={{ fontSize:32, fontWeight:900 }}>
+              <div style={{ fontSize:32, fontWeight:800 }}>
                 TZS {fmt(earnings.total)}
               </div>
               <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)' }}>
@@ -165,7 +165,7 @@ const AgentScorecard = ({ onNavigate }) => {
           {statCards.map(s => (
             <div key={s.label} style={{ backgroundColor:s.bg, borderRadius:14, padding:16 }}>
               <div style={{ fontSize:24, marginBottom:8 }}>{s.icon}</div>
-              <div style={{ fontSize:24, fontWeight:900, color:s.color }}>{s.value}</div>
+              <div style={{ fontSize:24, fontWeight:800, color:s.color }}>{s.value}</div>
               <div style={{ fontSize:12, color:'#64748b', marginTop:4, fontWeight:600 }}>{s.label}</div>
             </div>
           ))}
@@ -208,7 +208,7 @@ const AgentScorecard = ({ onNavigate }) => {
                   <div style={{ display:'flex', justifyContent:'space-between',
                     alignItems:'center', marginBottom:6 }}>
                     <span style={{ fontSize:13, color:'#475569' }}>{e.icon} {e.label}</span>
-                    <span style={{ fontSize:14, fontWeight:900, color:e.color }}>
+                    <span style={{ fontSize:14, fontWeight:800, color:e.color }}>
                       TZS {fmt(e.value)}
                     </span>
                   </div>
@@ -224,7 +224,7 @@ const AgentScorecard = ({ onNavigate }) => {
             <div style={{ marginTop:20, paddingTop:16, borderTop:'1px solid #f1f5f9',
               display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span style={{ fontSize:13, fontWeight:700, color:'#64748b' }}>{t('agent_scorecard.total_label')}</span>
-              <span style={{ fontSize:20, fontWeight:900, color:'#16a34a' }}>
+              <span style={{ fontSize:20, fontWeight:800, color:'#16a34a' }}>
                 TZS {fmt(earnings.total)}
               </span>
             </div>

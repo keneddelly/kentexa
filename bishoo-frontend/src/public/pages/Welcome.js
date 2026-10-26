@@ -55,7 +55,7 @@ const Welcome = ({ onNavigate }) => {
   };
 
   return (
-    <div style={{ backgroundColor: '#f0f4ff', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ backgroundColor: '#f0f4ff', fontFamily: 'inherit' }}>
 
       <div style={{ maxWidth: 630, margin: '0 auto', padding: '16px', paddingTop: 'max(16px, env(safe-area-inset-top, 0px))' }}>
         <HomeQuickActions onNavigate={onNavigate} />
@@ -109,7 +109,7 @@ const Welcome = ({ onNavigate }) => {
 
           {/* Pitch */}
           <div style={{ textAlign: 'center' }}>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#0f172a', margin: '0 0 8px', lineHeight: 1.3 }}>
+            <h1 style={{ fontSize: 20, fontWeight:800, color: '#0f172a', margin: '0 0 8px', lineHeight: 1.3 }}>
               {t(headlineKey)}
             </h1>
             <p style={{ fontSize: 14, color: '#64748b', margin: 0, lineHeight: 1.6 }}>

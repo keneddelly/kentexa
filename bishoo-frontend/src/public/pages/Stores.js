@@ -92,7 +92,7 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
             <div style={{ width: '100%', height: '100%',
               background: `linear-gradient(135deg,${B},#7C3AED)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: large ? 22 : 18, fontWeight: 900, color: WH }}>
+              fontSize: large ? 22 : 18, fontWeight:800, color: WH }}>
               {initial}
             </div>
           )}
@@ -103,12 +103,12 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
       <div style={{ padding: '28px 12px 14px', flex: 1, display: 'flex',
         flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: DK,
+          <div style={{ fontSize: 13, fontWeight:800, color: DK,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {name}
           </div>
           {seller.isVerified && (
-            <span style={{ fontSize: 11, color: B, fontWeight: 900, flexShrink: 0 }}>✓</span>
+            <span style={{ fontSize: 11, color: B, fontWeight:800, flexShrink: 0 }}>✓</span>
           )}
         </div>
 
@@ -224,7 +224,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FAFAFA',
-      fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      fontFamily:'inherit' }}>
 
       {/* ── Top bar ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 200, backgroundColor: WH,
@@ -237,7 +237,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
             <polyline points="15,18 9,12 15,6"/>
           </svg>
         </button>
-        <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>{t('stores.page_title')}</div>
+        <div style={{ fontSize: 15, fontWeight:800, color: DK }}>{t('stores.page_title')}</div>
       </div>
 
       {/* Header banner */}
@@ -245,7 +245,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
         padding: '22px 16px 20px', color: WH }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
           marginBottom: 4 }}>{t('stores.directory_eyebrow')}</div>
-        <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
+        <div style={{ fontSize: 22, fontWeight:800, marginBottom: 4 }}>
           {t('stores.page_title')}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
@@ -328,7 +328,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
             {/* Featured row — only on default/unfiltered view */}
             {isDefaultView && featured.length > 0 && (
               <div style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 14, fontWeight: 900, color: DK, marginBottom: 12 }}>
+                <div style={{ fontSize: 14, fontWeight:800, color: DK, marginBottom: 12 }}>
                   {t('stores.top_rated_title')}
                 </div>
                 <div style={{ display: 'flex', gap: 12, overflowX: 'auto',

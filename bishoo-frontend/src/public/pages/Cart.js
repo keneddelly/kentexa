@@ -22,7 +22,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         .cart-item-img { width: 64px; height: 64px; border-radius: 10px; background: #f1f5f9; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .cart-item-info { flex: 1; min-width: 0; }
         .cart-item-name { font-size: 13px; font-weight: 700; color: #1e293b; margin: 0 0 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .cart-item-price { font-size: 14px; font-weight: 900; color: #1d4ed8; margin: 4px 0; }
+        .cart-item-price { font-size: 14px; font-weight:800; color: #1d4ed8; margin: 4px 0; }
         .cart-item-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
         .cart-qty { display: flex; align-items: center; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
         .cart-qty-btn { width: 30px; height: 30px; background: #f8fafc; border: none; cursor: pointer; font-size: 16px; font-weight: 700; color: #1d4ed8; display: flex; align-items: center; justify-content: center; }
@@ -32,7 +32,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         /* Summary card */
         .cart-summary { background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
         .cart-summary-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px; }
-        .cart-checkout-btn { width: 100%; background: linear-gradient(135deg,#1d4ed8,#2563eb); color: #fff; border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-size: 15px; font-weight: 800; box-shadow: 0 4px 16px rgba(29,78,216,0.3); font-family: 'Manrope',sans-serif; }
+        .cart-checkout-btn { width: 100%; background: linear-gradient(135deg,#1d4ed8,#2563eb); color: #fff; border: none; padding: 14px; border-radius: 12px; cursor: pointer; font-size: 15px; font-weight: 800; box-shadow: 0 4px 16px rgba(29,78,216,0.3); font-family:inherit; }
 
         /* Desktop: side by side */
         @media (min-width: 768px) {
@@ -50,7 +50,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           ← Home
         </button>
         <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('cart.title')}</h1>
+          <h1 style={{ fontSize: 22, fontWeight:800, color: '#fff', margin: '0 0 4px', fontFamily:'inherit' }}>{t('cart.title')}</h1>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
             {t('cart.header_subtitle', { count: cart.length })}
           </p>
@@ -113,7 +113,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
                           {/* Item total + remove */}
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 13, fontWeight: 900, color: '#0f172a' }}>
+                            <div style={{ fontSize: 13, fontWeight:800, color: '#0f172a' }}>
                               TZS {itemTotal.toLocaleString()}
                             </div>
                             <button className="cart-remove" onClick={() => removeFromCart(item.id)}>{t('cart.remove')}</button>
@@ -163,7 +163,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
                 <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <span style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>{t('cart.total')}</span>
-                  <span style={{ fontSize: 20, fontWeight: 900, color: '#1d4ed8' }}>TZS {total.toLocaleString()}</span>
+                  <span style={{ fontSize: 20, fontWeight:800, color: '#1d4ed8' }}>TZS {total.toLocaleString()}</span>
                 </div>
 
                 <button className="cart-checkout-btn"

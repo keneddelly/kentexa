@@ -190,7 +190,7 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
           <div onClick={e => e.stopPropagation()}
             style={{ backgroundColor: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('my_warranties.file_claim_title')}</div>
+              <div style={{ fontSize: 15, fontWeight:800 }}>{t('my_warranties.file_claim_title')}</div>
               <button onClick={() => setClaimModalFor(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
 
@@ -210,7 +210,7 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
             <input type="file" accept="image/*" multiple onChange={handleClaimImageUpload} style={{ marginBottom: 16, fontSize: 12 }} disabled={claimUploading} />
 
             <button onClick={submitClaim} disabled={claimSaving || claimUploading}
-              style={{ width: '100%', padding: 14, background: claimSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              style={{ width: '100%', padding: 14, background: claimSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {claimSaving ? t('my_warranties.submitting') : t('my_warranties.submit_claim_button')}
             </button>
           </div>

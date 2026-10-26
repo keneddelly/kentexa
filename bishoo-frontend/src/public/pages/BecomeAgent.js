@@ -30,13 +30,13 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, 
   const waitingForId = existingProfile?.status === 'pending' && identityState(identityStatus) !== 'verified';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('become_agent.page_title')} top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', padding: '28px 16px', textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 8 }}>🤝</div>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#1e293b', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>{t('become_agent.hero_title')}</h1>
+        <h1 style={{ fontSize: 22, fontWeight:800, color: '#1e293b', margin: '0 0 6px', fontFamily:'inherit' }}>{t('become_agent.hero_title')}</h1>
         <p style={{ fontSize: 13, color: 'rgba(0,0,0,0.7)', margin: 0 }}>{t('become_agent.hero_subtitle')}</p>
       </div>
 
@@ -110,7 +110,7 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, 
             <div key={tierItem.tier} style={{ backgroundColor: tierItem.bg, borderRadius: 12, padding: '14px 8px', textAlign: 'center', border: `2px solid ${tierItem.color}40` }}>
               <div style={{ fontSize: 24, marginBottom: 4 }}>{tierItem.icon}</div>
               <div style={{ fontSize: 11, fontWeight: 800, color: tierItem.color }}>{tierItem.tier}</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b' }}>{tierItem.commission}</div>
+              <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>{tierItem.commission}</div>
               <div style={{ fontSize: 10, color: '#64748b' }}>{t('become_agent.tier_orders', { range: tierItem.transactions })}</div>
             </div>
           ))}

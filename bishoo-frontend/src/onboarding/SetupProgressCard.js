@@ -48,7 +48,7 @@ const SetupProgressCard = ({ journeyKey, context = {}, onNavigate }) => {
 
   return (
     <div style={{ backgroundColor: WH, borderRadius: 14, padding: 16, marginBottom: 14,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontFamily:'inherit' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('onboarding.setup_title')}</span>
         <button onClick={() => setCollapsed(true)} aria-label={t('tours.skip')}
@@ -62,7 +62,7 @@ const SetupProgressCard = ({ journeyKey, context = {}, onNavigate }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
         {steps.map(s => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
-            <span style={{ color: s.done ? '#16A34A' : '#CBD5E1', fontWeight: 900 }}>{s.done ? '✓' : '○'}</span>
+            <span style={{ color: s.done ? '#16A34A' : '#CBD5E1', fontWeight:800 }}>{s.done ? '✓' : '○'}</span>
             <span style={{ color: s.done ? DK : GR, fontWeight: s.done ? 700 : 500 }}>{t(s.labelKey)}</span>
           </div>
         ))}

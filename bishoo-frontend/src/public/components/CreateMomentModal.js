@@ -200,7 +200,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
           <button onClick={onClose} style={{ background:'none', border:'none',
             cursor:'pointer', fontSize:20, color:GR, padding:4 }}>×</button>
-          <div style={{ fontSize:15, fontWeight:900, color:DK }}>
+          <div style={{ fontSize:15, fontWeight:800, color:DK }}>
             {mode === 'moment' ? 'Create Moment' : t('create_moment_modal.title_looking_for')}
           </div>
           <div style={{ width:28 }} />
@@ -325,7 +325,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                             {item.title}
                           </div>
                           {tagged?.type===item.type && tagged?.id===item.id && (
-                            <span style={{ color:B, fontWeight:900 }}>✓</span>
+                            <span style={{ color:B, fontWeight:800 }}>✓</span>
                           )}
                         </button>
                       </React.Fragment>

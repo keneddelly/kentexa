@@ -53,12 +53,12 @@ const Countdown = ({ endsAt, size = 'md' }) => {
         { val: s, label: t('flash_sales.seconds_label') },
       ].map(({ val, label }, i) => (
         <React.Fragment key={label}>
-          {i > 0 && <span style={{ color: '#DC2626', fontWeight: 900,
+          {i > 0 && <span style={{ color: '#DC2626', fontWeight:800,
             fontSize: big ? 18 : 13 }}>:</span>}
           <div style={{ textAlign: 'center' }}>
             <div style={{ backgroundColor: '#DC2626', color: WH,
               borderRadius: big ? 8 : 6, padding: big ? '6px 10px' : '3px 7px',
-              fontSize: big ? 20 : 14, fontWeight: 900, lineHeight: 1,
+              fontSize: big ? 20 : 14, fontWeight:800, lineHeight: 1,
               minWidth: big ? 40 : 28 }}>
               {pad(val)}
             </div>
@@ -93,7 +93,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
       {discount > 0 && (
         <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10,
           backgroundColor: '#DC2626', color: WH,
-          fontSize: 13, fontWeight: 900, padding: '4px 10px', borderRadius: 100 }}>
+          fontSize: 13, fontWeight:800, padding: '4px 10px', borderRadius: 100 }}>
           -{discount}%
         </div>
       )}
@@ -126,7 +126,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
 
         {/* Prices */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 17, fontWeight: 900, color: '#DC2626' }}>
+          <span style={{ fontSize: 17, fontWeight:800, color: '#DC2626' }}>
             TZS {fmt(item.flashSalePrice || item.price)}
           </span>
           {item.originalPrice && (
@@ -216,7 +216,7 @@ const FlashSales = ({ onNavigate, isLoggedIn }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FFF5F5',
-      fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      fontFamily:'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('flash_sales.page_title')} top={0} />
 
       {/* Hero banner */}
@@ -224,7 +224,7 @@ const FlashSales = ({ onNavigate, isLoggedIn }) => {
         padding: '20px 16px', color: WH }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
           marginBottom: 4 }}>{t('flash_sales.eyebrow')}</div>
-        <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
+        <div style={{ fontSize: 22, fontWeight:800, marginBottom: 4 }}>
           {t('flash_sales.hero_title')}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>

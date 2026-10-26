@@ -55,7 +55,7 @@ const RevenueChart = ({ orders }) => {
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between',
         alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 900, color: DK }}>
+        <div style={{ fontSize: 14, fontWeight:800, color: DK }}>
           📊 {t('seller_dashboard.revenue_this_week')}
         </div>
         <div style={{ fontSize: 13, fontWeight: 800, color: GN }}>
@@ -168,7 +168,7 @@ const BisCommerceDashboard = ({ data, onNavigate, t }) => {
     <div style={{ backgroundColor: WH, borderRadius: 16, padding: 20,
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
       <div data-tour="sd-commerce-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ fontSize: 14, fontWeight: 900, color: DK }}>🧾 {t('seller_dashboard.commerce_dashboard_title')}</div>
+        <div style={{ fontSize: 14, fontWeight:800, color: DK }}>🧾 {t('seller_dashboard.commerce_dashboard_title')}</div>
         <button data-tour="sd-open-pos" onClick={() => onNavigate('POS')} style={{ background: `linear-gradient(135deg,${B},${PU})`,
           color: WH, border: 'none', padding: '6px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
           {`🖥️ ${t('seller_products.open_pos')}`}
@@ -180,7 +180,7 @@ const BisCommerceDashboard = ({ data, onNavigate, t }) => {
         {['local_pos', 'kentexa_online', 'manual'].map(ch => (
           <div key={ch} style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
             <div style={{ fontSize: 16 }}>{CHANNEL_LABELS[ch]}</div>
-            <div style={{ fontSize: 12, fontWeight: 900, color: DK, marginTop: 2 }}>TZS {fmt(data.today?.byChannel?.[ch] || 0)}</div>
+            <div style={{ fontSize: 12, fontWeight:800, color: DK, marginTop: 2 }}>TZS {fmt(data.today?.byChannel?.[ch] || 0)}</div>
             <div style={{ fontSize: 9, color: GR, fontWeight: 700, textTransform: 'uppercase' }}>{t(`seller_dashboard.channel_${ch}`)}</div>
           </div>
         ))}
@@ -188,7 +188,7 @@ const BisCommerceDashboard = ({ data, onNavigate, t }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '10px 0', borderTop: '1px solid #F1F5F9', marginBottom: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('seller_dashboard.today_total')}</span>
-        <span style={{ fontSize: 17, fontWeight: 900, color: GN }}>TZS {fmt(data.grossSales)}</span>
+        <span style={{ fontSize: 17, fontWeight:800, color: GN }}>TZS {fmt(data.grossSales)}</span>
       </div>
 
       {/* Gross profit — only when cost prices are actually set on at least
@@ -346,7 +346,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      backgroundColor: '#F8FAFC', fontFamily: "'Inter','Segoe UI',sans-serif",
+      backgroundColor: '#F8FAFC', fontFamily: 'inherit',
       paddingBottom: 90 }}>
       <BackBar onBack={() => onNavigate('MyProfile')} title={t('seller_dashboard.badge')} top={0} />
       <FeatureTour tourKey="seller_dashboard_orientation" autoStart />
@@ -359,7 +359,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             <div style={{ fontSize: 11, fontWeight: 700, color: GR, marginBottom: 2 }}>
               🏪 {t('seller_dashboard.badge')}
             </div>
-            <h1 style={{ fontSize: 19, fontWeight: 900, color: DK, margin: 0 }}>{displayName}</h1>
+            <h1 style={{ fontSize: 19, fontWeight:800, color: DK, margin: 0 }}>{displayName}</h1>
             {actorParts?.subtitle && <div style={{ fontSize: 12, fontWeight: 700, color: GR, marginTop: 2 }}>{actorParts.subtitle}</div>}
             {activeProfile?.actorKind === 'PERSONAL_OPERATIONAL' && activeProfile?.roleType === 'seller' && (
               <button onClick={() => onNavigate('ConnectSelling')}
@@ -438,7 +438,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                   style={{ backgroundColor: s.bg, border: 'none', borderRadius: 14,
                     padding: '12px 8px', cursor: 'pointer', textAlign: 'left' }}>
                   <div style={{ fontSize: 16, marginBottom: 4 }}>{s.icon}</div>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: s.color, wordBreak: 'break-word' }}>{s.value}</div>
+                  <div style={{ fontSize: 13, fontWeight:800, color: s.color, wordBreak: 'break-word' }}>{s.value}</div>
                   <div style={{ fontSize: 9, color: GR, marginTop: 1, fontWeight: 700 }}>{s.label}</div>
                 </button>
               ))}

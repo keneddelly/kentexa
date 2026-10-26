@@ -141,7 +141,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      backgroundColor: '#f8fafc', fontFamily:'inherit' }}>
       <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
         display:'flex', alignItems:'center', justifyContent:'space-between',
         position:'sticky', top:0, zIndex:100 }}>
@@ -204,7 +204,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                 )}
               </div>
 
-              <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a',
+              <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a',
                 margin: '0 0 12px', lineHeight: 1.2 }}>
                 {ad.title}
               </h1>
@@ -287,7 +287,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                       style={{ width: 52, height: 52, borderRadius: '50%',
                         background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 22, color: '#fff', fontWeight: 900, flexShrink: 0,
+                        fontSize: 22, color: '#fff', fontWeight:800, flexShrink: 0,
                         cursor: ad.provider?.id ? 'pointer' : 'default', overflow: 'hidden' }}>
                       {providerPhoto
                         ? <img src={providerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -351,7 +351,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
               boxShadow: '0 4px 20px rgba(37,99,235,0.1)',
               border: '1.5px solid #e2e8f0' }}>
 
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>
+              <div style={{ fontSize: 24, fontWeight:800, color: '#1d4ed8', marginBottom: 4 }}>
                 {ad.priceType === 'negotiate' || ad.priceType === 'free_quote'
                   ? PRICE_LABELS[ad.priceType]
                   : `TZS ${fmt(ad.price)}`}

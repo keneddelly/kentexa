@@ -85,7 +85,7 @@ const CollectionFees = ({ onNavigate }) => {
       <div className="admin-content" style={{ flex: 1, padding: 24, maxWidth: 900, marginLeft: 250, boxSizing: 'border-box' }}>
 
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0 }}>🚴 Ada za Kukusanya kwa Mji</h1>
+          <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>🚴 Ada za Kukusanya kwa Mji</h1>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
             Weka ada za kukusanya bidhaa kutoka kwa wauzaji kwa kila mji. Mji wa vijijini una ada ya juu zaidi.
           </p>

@@ -567,7 +567,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 4px', marginTop: 4, borderTop: '1px solid #e2e8f0', fontSize: 13 }}>
                     <span style={{ fontWeight: 700, color: '#475569' }}>Outstanding balance</span>
-                    <span style={{ fontWeight: 900, color: isBlocked ? '#dc2626' : '#0f172a' }}>
+                    <span style={{ fontWeight:800, color: isBlocked ? '#dc2626' : '#0f172a' }}>
                       TZS {balance.toLocaleString()} / {threshold.toLocaleString()}
                     </span>
                   </div>

@@ -12,11 +12,11 @@ const PrivacyPolicy = ({ onNavigate }) => {
   }));
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} top={0} />
 
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b)', padding: '40px 16px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('privacy_policy.page_title')}</h1>
+        <h1 style={{ fontSize: 26, fontWeight:800, color: '#fff', margin: '0 0 10px', fontFamily:'inherit' }}>{t('privacy_policy.page_title')}</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>{t('privacy_policy.page_subtitle')}</p>
       </div>
 

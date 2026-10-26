@@ -103,7 +103,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn }) => {
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', padding: '40px 32px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: '0 0 4px' }}>
+          <h1 style={{ fontSize: '26px', fontWeight:'800', color: '#fff', margin: '0 0 4px' }}>
             {t('seller_shipping.page_title')}
           </h1>
           <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>
@@ -122,7 +122,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn }) => {
           ].map(stat => (
             <div key={stat.label} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', border: `1px solid ${stat.color}30` }}>
               <div style={{ fontSize: '20px', marginBottom: '6px' }}>{stat.icon}</div>
-              <div style={{ fontSize: '18px', fontWeight: '900', color: stat.color }}>{stat.value}</div>
+              <div style={{ fontSize: '18px', fontWeight:'800', color: stat.color }}>{stat.value}</div>
               <div style={{ fontSize: '12px', color: '#64748b' }}>{stat.label}</div>
             </div>
           ))}

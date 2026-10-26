@@ -55,7 +55,7 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
   const totalCount = filteredProducts.length + filteredClassifieds.length;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: 'inherit' }}>
       <style>{`
         .lp-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
         @media (min-width: 480px) { .lp-grid { grid-template-columns: repeat(3,1fr); } }
@@ -71,7 +71,7 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
 
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '16px 16px 14px' }}>
-        <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 12px', fontFamily: 'Manrope,sans-serif' }}>
+        <h1 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: '0 0 12px', fontFamily:'inherit' }}>
           {t('listings_page.page_title')}
         </h1>
 
@@ -158,7 +158,7 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
                       </div>
                       <div style={{ padding: '8px 10px' }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>{p.name}</div>
-                        <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>TZS {Number(p.displayPrice || p.basePrice || 0).toLocaleString()}</div>
+                        <div style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', marginBottom: 4 }}>TZS {Number(p.displayPrice || p.basePrice || 0).toLocaleString()}</div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 700 }}>{t('listings_page.free_delivery')}</span>
                           <button onClick={e => { e.stopPropagation(); if (p.isAvailable) addToCart(p); }}
@@ -203,7 +203,7 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
                         <h3 style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: '0 0 3px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
                           {item.title}
                         </h3>
-                        <div style={{ fontSize: 13, fontWeight: 900, color: '#db2777', marginBottom: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight:800, color: '#db2777', marginBottom: 2 }}>
                           TZS {Number(item.price).toLocaleString()}
                         </div>
                         <div style={{ fontSize: 10, color: '#94a3b8' }}>📍 {item.location || t('listings_page.default_location')}</div>

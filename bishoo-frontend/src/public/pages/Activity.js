@@ -102,13 +102,13 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fafafa', paddingBottom: 80,
-      fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      fontFamily:'inherit' }}>
 
       {/* Header */}
       <div style={{ backgroundColor: '#fff', padding: '16px 16px 0',
         borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: 0 }}>
+          <h1 style={{ fontSize: 20, fontWeight:800, color: '#1e293b', margin: 0 }}>
             {t('activity.page_title')} {unreadCount > 0 && (
               <span style={{ fontSize: 14, backgroundColor: '#ef4444', color: '#fff',
                 borderRadius: 100, padding: '2px 8px', marginLeft: 8 }}>

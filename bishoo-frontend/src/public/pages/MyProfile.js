@@ -267,7 +267,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#F8FAFC',
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif', paddingBottom:80 }}>
+      fontFamily:'inherit', paddingBottom:80 }}>
 
       {/* ── Top bar ── */}
       <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9',
@@ -280,7 +280,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 border:'none', cursor:'pointer', padding:0 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                 stroke={DK} strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
-              <span style={{ fontSize:16, fontWeight:900, color:DK }}>
+              <span style={{ fontSize:16, fontWeight:800, color:DK }}>
                 {NAV.find(n => n.key === section)?.icon} {NAV.find(n => n.key === section)?.label}
               </span>
             </button>
@@ -289,7 +289,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         ) : (
           <>
             <div>
-              <div style={{ fontSize:16, fontWeight:900, color:DK }}>👤 {t('my_profile.header_title')}</div>
+              <div style={{ fontSize:16, fontWeight:800, color:DK }}>👤 {t('my_profile.header_title')}</div>
               <div style={{ fontSize:11, color:GR }}>{t('my_profile.header_subtitle')}</div>
             </div>
             <div style={{ display:'flex', gap:8 }}>
@@ -321,13 +321,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               {profile.avatarUrl
                 ? <img src={profile.avatarUrl} alt=""
                     style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                : <span style={{ fontSize:28, fontWeight:900 }}>
+                : <span style={{ fontSize:28, fontWeight:800 }}>
                     {(profile.name||'K').charAt(0).toUpperCase()}
                   </span>}
             </div>
             {/* Info */}
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:18, fontWeight:900, lineHeight:1.2 }}>
+              <div style={{ fontSize:18, fontWeight:800, lineHeight:1.2 }}>
                 {profile.name || profile.storeName || t('my_profile.default_name')}
               </div>
               <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:2 }}>
@@ -342,7 +342,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             <div style={{ backgroundColor:'rgba(255,255,255,0.15)', borderRadius:12,
               padding:'10px 14px', textAlign:'center', flexShrink:0 }}>
               <div style={{ fontSize:20 }}>{tier.icon}</div>
-              <div style={{ fontSize:18, fontWeight:900 }}>{score}</div>
+              <div style={{ fontSize:18, fontWeight:800 }}>{score}</div>
               <div style={{ fontSize:9, color:'rgba(255,255,255,0.7)', marginTop:1 }}>
                 {tier.name}
               </div>
@@ -368,7 +368,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           <SCard style={{ marginBottom:0 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:12 }}>
               <div>
-                <div style={{ fontSize:14, fontWeight:900, color:DK }}>{t('my_profile.nav_businesses')}</div>
+                <div style={{ fontSize:14, fontWeight:800, color:DK }}>{t('my_profile.nav_businesses')}</div>
                 <div style={{ fontSize:11, color:GR }}>{businesses.length ? t('my_profile.businesses_summary') : t('my_businesses.empty_title')}</div>
               </div>
               <button onClick={() => onNavigate('MyBusinesses')} style={{ border:'none', borderRadius:9, padding:'8px 11px', background:'#EFF6FF', color:B, fontWeight:800, cursor:'pointer' }}>
@@ -495,7 +495,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   style={{ backgroundColor:a.bg, border:'none', borderRadius:14,
                     padding:'12px 10px', cursor:'pointer', textAlign:'left' }}>
                   <div style={{ fontSize:18, marginBottom:4 }}>{a.icon}</div>
-                  <div style={{ fontSize:14, fontWeight:900, color:a.color }}>{a.value}</div>
+                  <div style={{ fontSize:14, fontWeight:800, color:a.color }}>{a.value}</div>
                   <div style={{ fontSize:10, color:GR, marginTop:1 }}>{a.label}</div>
                 </button>
               ))}
@@ -523,7 +523,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <span style={{ flex:1, fontSize:14, fontWeight:700, color:DK }}>{n.label}</span>
                 {n.badge > 0 && (
                   <span style={{ backgroundColor:'#EF4444', color:WH, fontSize:10,
-                    fontWeight:900, borderRadius:100, padding:'2px 8px', flexShrink:0 }}>
+                    fontWeight:800, borderRadius:100, padding:'2px 8px', flexShrink:0 }}>
                     {t('my_profile.badge_new', { count: n.badge })}
                   </span>
                 )}
@@ -742,7 +742,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   ].map(s => (
                     <div key={s.label} style={{ backgroundColor:'#F8FAFC', borderRadius:10,
                       padding:'12px 14px' }}>
-                      <div style={{ fontSize:18, fontWeight:900, color:s.color }}>{s.value}</div>
+                      <div style={{ fontSize:18, fontWeight:800, color:s.color }}>{s.value}</div>
                       <div style={{ fontSize:11, color:GR, marginTop:2 }}>{s.label}</div>
                     </div>
                   ))}
@@ -822,7 +822,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       </div>
                     </div>
                     <div style={{ textAlign:'right' }}>
-                      <div style={{ fontSize:13, fontWeight:900, color:B }}>
+                      <div style={{ fontSize:13, fontWeight:800, color:B }}>
                         TZS {fmt(o.totalAmount)}
                       </div>
                       <div style={{ fontSize:10, fontWeight:700, marginTop:2, textTransform:'capitalize',
@@ -950,7 +950,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       </div>
                       <div style={{ fontSize:10, color:GR }}>{fmtD(p.createdAt)}</div>
                     </div>
-                    <div style={{ fontSize:13, fontWeight:900,
+                    <div style={{ fontSize:13, fontWeight:800,
                       color: p.status==='success'?'#16A34A':'#D97706' }}>
                       TZS {fmt(p.amount)}
                     </div>
@@ -969,8 +969,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               borderRadius:20, padding:24, color:WH, textAlign:'center',
               marginBottom:12 }}>
               <div style={{ fontSize:48, marginBottom:8 }}>{tier.icon}</div>
-              <div style={{ fontSize:22, fontWeight:900 }}>{tier.name}</div>
-              <div style={{ fontSize:36, fontWeight:900, margin:'8px 0', lineHeight:1 }}>
+              <div style={{ fontSize:22, fontWeight:800 }}>{tier.name}</div>
+              <div style={{ fontSize:36, fontWeight:800, margin:'8px 0', lineHeight:1 }}>
                 {score}
               </div>
               <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)' }}>
@@ -1016,7 +1016,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                     padding:'8px 0', borderBottom:'1px solid #F8FAFC',
                     alignItems:'center' }}>
                     <span style={{ fontSize:12, color:GR, textTransform:'capitalize' }}>{k}</span>
-                    <span style={{ fontSize:13, fontWeight:900,
+                    <span style={{ fontSize:13, fontWeight:800,
                       color: Number(v)>0?'#16A34A':'#DC2626' }}>
                       {Number(v)>0?'+':''}{v}
                     </span>
@@ -1042,7 +1042,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       <div style={{ fontSize:10, color:GR }}>{fmtD(e.createdAt)}</div>
                     </div>
                     <div style={{ textAlign:'right' }}>
-                      <div style={{ fontSize:13, fontWeight:900,
+                      <div style={{ fontSize:13, fontWeight:800,
                         color:e.points>0?'#16A34A':'#DC2626' }}>
                         {e.points>0?'+':''}{e.points}
                       </div>
@@ -1224,7 +1224,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           padding:20 }}>
           <div style={{ backgroundColor:WH, borderRadius:20, padding:32,
             textAlign:'center', maxWidth:320, width:'100%' }}>
-            <div style={{ fontSize:16, fontWeight:900, color:DK, marginBottom:4 }}>
+            <div style={{ fontSize:16, fontWeight:800, color:DK, marginBottom:4 }}>
               {t('my_profile.my_kentexa_id_title')}
             </div>
             <div style={{ fontSize:12, color:GR, marginBottom:20 }}>

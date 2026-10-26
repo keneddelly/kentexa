@@ -57,7 +57,7 @@ const ProductTrail = ({ trail, onNavigate, onAddToCart, onSeen }) => {
             </div>
             <div style={{ padding: '8px 10px' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>{item.name}</div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>TZS {item.price.toLocaleString()}</div>
+              <div style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', marginBottom: 4 }}>TZS {item.price.toLocaleString()}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
                 <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.freeDelivery ? t('product_trail.free_delivery') : item.codEnabled || item.delivery ? t('product_trail.delivery') : ''}

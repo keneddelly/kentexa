@@ -78,7 +78,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>📊 Reports & Analytics</h1>
+            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0, fontFamily:'inherit' }}>📊 Reports & Analytics</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>Platform overview and performance</p>
           </div>
           <button onClick={fetchReports} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>🔄 Refresh</button>
@@ -98,7 +98,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
               ].map(s => (
                 <div key={s.label} style={{ background: s.gradient, borderRadius: 14, padding: 20, color: '#fff' }}>
                   <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>{s.value}</div>
+                  <div style={{ fontSize: 22, fontWeight:800, marginBottom: 4 }}>{s.value}</div>
                   <div style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>{s.label}</div>
                 </div>
               ))}
@@ -113,7 +113,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
                 { label: 'Disputed Orders', value: data.disputedOrders,       bg: '#fee2e2', color: '#dc2626' },
               ].map(s => (
                 <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: s.color }}>{s.value}</div>
+                  <div style={{ fontSize: 28, fontWeight:800, color: s.color }}>{s.value}</div>
                   <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 4 }}>{s.label}</div>
                 </div>
               ))}
@@ -122,7 +122,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
               {/* Orders by status */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif' }}>📦 Orders by Status</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: '0 0 16px', fontFamily:'inherit' }}>📦 Orders by Status</h3>
                 {Object.entries(data.byStatus).sort((a,b) => b[1]-a[1]).map(([status, count]) => (
                   <div key={status} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
                     <span style={{ fontSize: 13, color: '#64748b', textTransform: 'capitalize' }}>{status.replace(/_/g,' ')}</span>
@@ -138,7 +138,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Users by role */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif' }}>👥 Users by Role</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: '0 0 16px', fontFamily:'inherit' }}>👥 Users by Role</h3>
                 {Object.entries(data.byRole).sort((a,b) => b[1]-a[1]).map(([role, count]) => (
                   <div key={role} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
                     <span style={{ fontSize: 13, color: '#64748b', textTransform: 'capitalize' }}>{role.replace(/_/g,' ')}</span>
@@ -156,7 +156,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
             {/* Top products */}
             {data.topProducts.length > 0 && (
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif' }}>🏆 Top Selling Products</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: '0 0 16px', fontFamily:'inherit' }}>🏆 Top Selling Products</h3>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
@@ -168,10 +168,10 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
                   <tbody>
                     {data.topProducts.map(([name, stats], i) => (
                       <tr key={name} style={{ borderTop: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '12px', fontSize: 14, fontWeight: 900, color: i === 0 ? '#f59e0b' : '#64748b' }}>{i + 1}</td>
+                        <td style={{ padding: '12px', fontSize: 14, fontWeight:800, color: i === 0 ? '#f59e0b' : '#64748b' }}>{i + 1}</td>
                         <td style={{ padding: '12px', fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{name}</td>
                         <td style={{ padding: '12px', fontSize: 14, color: '#64748b' }}>{stats.count} units</td>
-                        <td style={{ padding: '12px', fontSize: 14, fontWeight: 900, color: '#16a34a' }}>TZS {stats.revenue.toLocaleString()}</td>
+                        <td style={{ padding: '12px', fontSize: 14, fontWeight:800, color: '#16a34a' }}>TZS {stats.revenue.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -14,7 +14,7 @@ import api from '../../api/api';
 const StatCard = ({ icon, label, value, color, bg }) => (
   <div style={{ backgroundColor: bg || '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
     <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
-    <div style={{ fontSize: 22, fontWeight: 900, color: color || '#0f172a' }}>{value}</div>
+    <div style={{ fontSize: 22, fontWeight:800, color: color || '#0f172a' }}>{value}</div>
     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginTop: 2 }}>{label}</div>
   </div>
 );

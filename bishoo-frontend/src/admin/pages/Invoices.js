@@ -123,7 +123,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0 }}>🧾 Ankara</h1>
+            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0 }}>🧾 Ankara</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
               {tab === 'order' ? `${invoices.length} ankara za agizo` : `${clsInvoices.length} ankara za matangazo`}
             </p>
@@ -174,7 +174,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               sub: 'Zilizolipwa', bg: '#dbeafe', color: '#2563eb' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: 16, textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 20, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
               {s.sub && <div style={{ fontSize: 11, color: s.color, marginTop: 2 }}>{s.sub}</div>}
             </div>
@@ -261,7 +261,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         <PhoneCell phone={buyer?.phone || inv.order?.phone || inv.order?.manualBuyerPhone} />
                       </td>
                       <td style={{ padding: '12px 16px', fontSize: 14,
-                        fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        fontWeight:800, color: '#0f172a', whiteSpace: 'nowrap' }}>
                         TZS {Number(inv.amount).toLocaleString()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
@@ -295,7 +295,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between',
                 alignItems: 'center', marginBottom: 20 }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#0f172a' }}>
+                  <div style={{ fontSize: 18, fontWeight:800, color: '#0f172a' }}>
                     {selected.invoiceNumber}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>
@@ -460,7 +460,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         <PhoneCell phone={inv.buyer?.phone} />
                       </td>
                       <td style={{ padding: '12px 16px', fontSize: 14,
-                        fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        fontWeight:800, color: '#0f172a', whiteSpace: 'nowrap' }}>
                         TZS {Number(inv.amount || 0).toLocaleString()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
@@ -494,7 +494,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between',
                 alignItems: 'center', marginBottom: 20 }}>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#0f172a' }}>
+                  <div style={{ fontSize: 18, fontWeight:800, color: '#0f172a' }}>
                     {clsSelected.invoiceNumber || 'Ankara ya Tangazo'}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>

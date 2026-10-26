@@ -88,7 +88,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
               {weight}kg
             </span>
           )}
-          <span style={{ fontSize: 11, fontWeight: 900, color: '#fff' }}>
+          <span style={{ fontSize: 11, fontWeight:800, color: '#fff' }}>
             TZS {fee.toLocaleString() || '—'}
           </span>
         </div>
@@ -96,7 +96,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
 
       <div style={{ padding: 14 }}>
         {/* Product */}
-        <div style={{ fontSize: 14, fontWeight: 900, color: '#1e293b', marginBottom: 12 }}>
+        <div style={{ fontSize: 14, fontWeight:800, color: '#1e293b', marginBottom: 12 }}>
           {order.product?.name || order.manualProductName || order.description || t('agent_dashboard.product_fallback')}
           {order.quantity > 1 && <span style={{ color: '#64748b', fontWeight: 600 }}> ×{order.quantity}</span>}
         </div>
@@ -166,7 +166,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
             style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
               background: actionLoading[order.id] ? '#94a3b8'
                 : 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-              color: '#fff', fontSize: 14, fontWeight: 900,
+              color: '#fff', fontSize: 14, fontWeight:800,
               cursor: actionLoading[order.id] ? 'not-allowed' : 'pointer' }}>
             {actionLoading[order.id] ? t('agent_dashboard.processing_button') : t('agent_dashboard.claim_job_button')}
           </button>
@@ -176,7 +176,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
             disabled={actionLoading[order.id]}
             style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
               background: 'linear-gradient(135deg,#f59e0b,#f97316)',
-              color: '#fff', fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>
+              color: '#fff', fontSize: 14, fontWeight:800, cursor: 'pointer' }}>
             {actionLoading[order.id] ? '⏳...' : t('agent_dashboard.picked_up_button')}
           </button>
         )}
@@ -185,7 +185,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
             disabled={actionLoading[order.id]}
             style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
               background: 'linear-gradient(135deg,#16a34a,#059669)',
-              color: '#fff', fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>
+              color: '#fff', fontSize: 14, fontWeight:800, cursor: 'pointer' }}>
             {actionLoading[order.id] ? '⏳...' : t('agent_dashboard.delivered_to_buyer_button')}
           </button>
         )}
@@ -597,7 +597,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       <div style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)', padding: '20px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 2px' }}>
+            <h1 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: '0 0 2px' }}>
               {profile?.fullName || t('agent_dashboard.name_fallback')}
             </h1>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
@@ -695,7 +695,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             {/* Payment success banner */}
             {paymentResult && (
               <div style={{ background: 'linear-gradient(135deg,#43e97b,#38f9d7)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-                <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 900, color: '#1e293b' }}>{t('agent_dashboard.payment_done_title')}</h3>
+                <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight:800, color: '#1e293b' }}>{t('agent_dashboard.payment_done_title')}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
                   {[
                     { l: t('agent_dashboard.invoice_label'), v: paymentResult.invoiceNumber },
@@ -725,7 +725,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               ].map(s => (
                 <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
                   <div style={{ fontSize: 16 }}>{s.icon}</div>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: s.color, wordBreak: 'break-all' }}>{s.value}</div>
+                  <div style={{ fontSize: 15, fontWeight:800, color: s.color, wordBreak: 'break-all' }}>{s.value}</div>
                   <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{s.label}</div>
                 </div>
               ))}
@@ -1159,7 +1159,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ))}
                     <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '10px 14px', margin: '12px 0' }}>
                       <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>{t('agent_dashboard.your_commission_label2')}</div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: '#16a34a' }}>
+                      <div style={{ fontSize: 18, fontWeight:800, color: '#16a34a' }}>
                         TZS {Math.round(invoiceLookup.amount * 0.025).toLocaleString()}
                       </div>
                     </div>
@@ -1246,7 +1246,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ].map(tierItem => (
                       <div key={tierItem.label} style={{ backgroundColor: tierItem.active ? '#fef9c3' : '#f8fafc', borderRadius: 10, padding: 10, textAlign: 'center', border: tierItem.active ? '2px solid #f59e0b' : '1px solid #e2e8f0' }}>
                         <div style={{ fontSize: 11, fontWeight: 800, color: '#1e293b' }}>{tierItem.label}</div>
-                        <div style={{ fontSize: 16, fontWeight: 900, color: '#f59e0b' }}>{tierItem.commission}</div>
+                        <div style={{ fontSize: 16, fontWeight:800, color: '#f59e0b' }}>{tierItem.commission}</div>
                         <div style={{ fontSize: 10, color: '#94a3b8' }}>{tierItem.range}</div>
                       </div>
                     ))}
@@ -1265,7 +1265,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         { l: t('agent_dashboard.commission_rate_label'), v: `${payStats.stats?.commissionRate || 2.5}%`, c: '#1d4ed8', bg: '#dbeafe' },
                       ].map(s => (
                         <div key={s.l} style={{ backgroundColor: s.bg, borderRadius: 10, padding: 12 }}>
-                          <div style={{ fontSize: 15, fontWeight: 900, color: s.c }}>{s.v}</div>
+                          <div style={{ fontSize: 15, fontWeight:800, color: s.c }}>{s.v}</div>
                           <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{s.l}</div>
                         </div>
                       ))}
@@ -1284,7 +1284,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       { l: t('agent_dashboard.active_city_stat'), v: profile?.city || profile?.district || '—', c: '#1d4ed8', bg: '#dbeafe' },
                     ].map(s => (
                       <div key={s.l} style={{ backgroundColor: s.bg, borderRadius: 10, padding: 12 }}>
-                        <div style={{ fontSize: 15, fontWeight: 900, color: s.c, wordBreak: 'break-all' }}>{s.v}</div>
+                        <div style={{ fontSize: 15, fontWeight:800, color: s.c, wordBreak: 'break-all' }}>{s.v}</div>
                         <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{s.l}</div>
                       </div>
                     ))}

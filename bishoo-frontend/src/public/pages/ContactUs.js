@@ -41,13 +41,13 @@ const ContactUs = ({ onNavigate, currentUser }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('contact_us.page_title')} top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 8 }}>💬</div>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>{t('contact_us.hero_title')}</h1>
+        <h1 style={{ fontSize: 22, fontWeight:800, color: '#fff', margin: '0 0 6px', fontFamily:'inherit' }}>{t('contact_us.hero_title')}</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('contact_us.hero_subtitle')}</p>
       </div>
 

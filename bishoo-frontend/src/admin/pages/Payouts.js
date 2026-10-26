@@ -186,7 +186,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
               ].map(card => (
                 <div key={card.label} style={{ backgroundColor: card.bg, borderRadius: 12, padding: 16 }}>
                   <div style={{ fontSize: 22, marginBottom: 6 }}>{card.icon}</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: card.color }}>{card.value}</div>
+                  <div style={{ fontSize: 20, fontWeight:800, color: card.color }}>{card.value}</div>
                   <div style={{ fontSize: 11, color: card.color, opacity: 0.8, fontWeight: 600, marginTop: 2 }}>{card.label}</div>
                 </div>
               ))}
@@ -318,7 +318,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{agentName}</div>
                         <div style={{ fontSize: 12, color: '#64748b' }}>{agentCity} · {items.length} {items.length === 1 ? 'kifurushi' : 'vifurushi'}</div>
                       </div>
-                      <div style={{ fontSize: 16, fontWeight: 900, color: '#dc2626' }}>TZS {subtotal.toLocaleString()}</div>
+                      <div style={{ fontSize: 16, fontWeight:800, color: '#dc2626' }}>TZS {subtotal.toLocaleString()}</div>
                     </div>
                     {items.map(item => {
                       const settleKey = `${item.type}:${item.id}`;
@@ -409,7 +409,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       )}
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 16 }}>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: '#dc2626' }}>
+                      <div style={{ fontSize: 20, fontWeight:800, color: '#dc2626' }}>
                         TZS {Number(agent.pendingEarnings).toLocaleString()}
                       </div>
                       <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 8 }}>inayosubiri</div>
@@ -438,7 +438,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ fontSize: 15, fontWeight: 800, color: '#15803d' }}>
                 {selected.seller?.storeName || selected.seller?.name}
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#15803d', marginTop: 6 }}>
+              <div style={{ fontSize: 24, fontWeight:800, color: '#15803d', marginTop: 6 }}>
                 TZS {Number(selected.sellerAmount || 0).toLocaleString()}
               </div>
             </div>
@@ -505,7 +505,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Agent details */}
             <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>INAYOSUBIRI</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: '#15803d' }}>
+              <div style={{ fontSize: 28, fontWeight:800, color: '#15803d' }}>
                 TZS {Number(releaseAgent.pendingEarnings).toLocaleString()}
               </div>
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>

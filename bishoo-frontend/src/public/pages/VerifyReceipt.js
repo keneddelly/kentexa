@@ -61,7 +61,7 @@ const VerifyReceipt = ({ onNavigate }) => {
           }}>
             🔍
           </div>
-          <h1 style={{ fontSize: '40px', fontWeight: '900', color: '#fff', margin: '0 0 12px' }}>
+          <h1 style={{ fontSize: '40px', fontWeight:'800', color: '#fff', margin: '0 0 12px' }}>
             {t('verify_receipt.hero_title')}
           </h1>
           <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.9)', marginBottom: '36px', maxWidth: '500px', margin: '0 auto 36px' }}>
@@ -131,7 +131,7 @@ const VerifyReceipt = ({ onNavigate }) => {
               boxShadow: '0 8px 24px rgba(67,233,123,0.3)',
             }}>
               <div style={{ fontSize: '56px', marginBottom: '12px' }}>✅</div>
-              <h2 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: '0 0 8px' }}>
+              <h2 style={{ fontSize: '26px', fontWeight:'800', color: '#fff', margin: '0 0 8px' }}>
                 {t('verify_receipt.verified_title')}
               </h2>
               <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.9)', margin: 0 }}>
@@ -144,13 +144,13 @@ const VerifyReceipt = ({ onNavigate }) => {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                     <span style={{ fontSize: '22px' }}>⚡</span>
-                    <span style={{ fontSize: '20px', fontWeight: '900', color: '#7c3aed', letterSpacing: '1px' }}>KENTEXA</span>
+                    <span style={{ fontSize: '20px', fontWeight:'800', color: '#7c3aed', letterSpacing: '1px' }}>KENTEXA</span>
                   </div>
                   <div style={{ fontSize: '13px', color: '#64748b' }}>{t('verify_receipt.company_tagline')}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>{t('verify_receipt.receipt_number_label')}</div>
-                  <div style={{ fontSize: '16px', fontWeight: '900', color: '#7c3aed', letterSpacing: '1px' }}>
+                  <div style={{ fontSize: '16px', fontWeight:'800', color: '#7c3aed', letterSpacing: '1px' }}>
                     {result.receiptNumber}
                   </div>
                 </div>
@@ -181,7 +181,7 @@ const VerifyReceipt = ({ onNavigate }) => {
               }}>
                 <div>
                   <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>{t('verify_receipt.amount_paid_label')}</div>
-                  <div style={{ fontSize: '32px', fontWeight: '900', color: '#fff' }}>
+                  <div style={{ fontSize: '32px', fontWeight:'800', color: '#fff' }}>
                     TZS {Number(result.amount).toLocaleString()}
                   </div>
                 </div>
@@ -245,7 +245,7 @@ const VerifyReceipt = ({ onNavigate }) => {
             textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
           }}>
             <div style={{ fontSize: '64px', marginBottom: '16px' }}>❌</div>
-            <h2 style={{ fontSize: '22px', fontWeight: '900', color: '#dc2626', marginBottom: '8px' }}>
+            <h2 style={{ fontSize: '22px', fontWeight:'800', color: '#dc2626', marginBottom: '8px' }}>
               {t('verify_receipt.not_valid_title')}
             </h2>
             <p style={{ color: '#64748b', fontSize: '15px', marginBottom: '24px' }}>
@@ -305,7 +305,7 @@ const VerifyReceipt = ({ onNavigate }) => {
                     width: '36px', height: '36px', flexShrink: 0,
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     borderRadius: '10px', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: '16px', fontWeight: '900', color: '#fff',
+                    justifyContent: 'center', fontSize: '16px', fontWeight:'800', color: '#fff',
                   }}>
                     {item.step}
                   </div>

@@ -52,7 +52,7 @@ const ReputationBadge = ({ score = 0, size = 'sm', style = {} }) => {
     <div style={{ backgroundColor:tier.bg, borderRadius:12,
       padding:'10px 14px', textAlign:'center', ...style }}>
       <div style={{ fontSize:24 }}>{tier.icon}</div>
-      <div style={{ fontSize:18, fontWeight:900, color:tier.color, lineHeight:1 }}>{s}</div>
+      <div style={{ fontSize:18, fontWeight:800, color:tier.color, lineHeight:1 }}>{s}</div>
       <div style={{ fontSize:10, color:tier.color, fontWeight:700, marginTop:2 }}>{tier.name}</div>
     </div>
   );

@@ -109,7 +109,7 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
       <div style={{ background: 'linear-gradient(135deg, #f7971e 0%, #ffd200 100%)', padding: '32px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#1e293b', margin: '0 0 4px' }}>
+            <h1 style={{ fontSize: '26px', fontWeight:'800', color: '#1e293b', margin: '0 0 4px' }}>
               {t('agent_order_dashboard.page_title')}
             </h1>
             <p style={{ fontSize: '14px', color: 'rgba(30,41,59,0.7)', margin: 0 }}>
@@ -158,7 +158,7 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
               border: activeTab === tab.key ? `2px solid ${tab.color}` : `1px solid #f1f5f9`,
             }} onClick={() => setActiveTab(tab.key)}>
               <div style={{ fontSize: '28px', marginBottom: '6px' }}>{tab.label.split(' ')[0]}</div>
-              <div style={{ fontSize: '28px', fontWeight: '900', color: tab.color }}>{tab.count}</div>
+              <div style={{ fontSize: '28px', fontWeight:'800', color: tab.color }}>{tab.count}</div>
               <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>{tab.label.split(' ').slice(1).join(' ')}</div>
             </div>
           ))}

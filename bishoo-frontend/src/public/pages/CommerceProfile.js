@@ -490,7 +490,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   if (loading) return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc',
       display:'flex', alignItems:'center', justifyContent:'center',
-      fontFamily:'Manrope,Inter,sans-serif' }}>
+      fontFamily:'inherit' }}>
       <div style={{ textAlign:'center', color:'#94a3b8' }}>
         <div style={{ fontSize:40, marginBottom:12 }}>👤</div>
         <div>{t('commerce_profile.loading_profile')}</div>
@@ -500,7 +500,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
 
   if (!activeProfile) return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', display:'flex',
-      flexDirection:'column', fontFamily:'Manrope,Inter,sans-serif' }}>
+      flexDirection:'column', fontFamily:'inherit' }}>
       <div style={{ backgroundColor:WH, borderBottom:'1px solid #f1f5f9', padding:'14px 16px' }}>
         <button onClick={() => onNavigate('back')} style={{ background:'none', border:'none', cursor:'pointer',
           display:'flex', alignItems:'center', gap:8, padding:0 }}>
@@ -1032,7 +1032,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         </div>
                       </div>
                       <div style={{ textAlign:'right' }}>
-                        <div style={{ fontSize:14, fontWeight:900, color:B }}>
+                        <div style={{ fontSize:14, fontWeight:800, color:B }}>
                           TZS {fmt(o.totalAmount)}
                         </div>
                         <div style={{ fontSize:11, fontWeight:700, marginTop:2,
@@ -1078,7 +1078,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4 }}>
                         {s.title}
                       </div>
-                      <div style={{ fontSize:14, fontWeight:900, color:B }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:B }}>
                         {s.priceType==='negotiate' ? t('search.negotiate_price')
                          : s.priceType==='free_quote' ? t('search.request_quote')
                          : `TZS ${fmt(s.price)}`}
@@ -1111,7 +1111,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       <div key={l} style={{ display:'flex', justifyContent:'space-between',
                         padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
                         <span style={{ fontSize:13, color:GR }}>{l}</span>
-                        <span style={{ fontSize:14, fontWeight:900, color:c }}>{v}</span>
+                        <span style={{ fontSize:14, fontWeight:800, color:c }}>{v}</span>
                       </div>
                     ))}
                   </div>
@@ -1125,7 +1125,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
                   <span style={{ fontSize:28 }}>🏍️</span>
                   <div>
-                    <div style={{ fontSize:15, fontWeight:900, color:DK }}>
+                    <div style={{ fontSize:15, fontWeight:800, color:DK }}>
                       {publicAgentData.fullName || t('commerce_profile.delivery_agent_fallback')}
                     </div>
                     <div style={{ fontSize:12, color:GR }}>
@@ -1155,7 +1155,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   <div key={l} style={{ display:'flex', justifyContent:'space-between',
                     padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
                     <span style={{ fontSize:13, color:GR }}>{l}</span>
-                    <span style={{ fontSize:14, fontWeight:900, color:c }}>{v}</span>
+                    <span style={{ fontSize:14, fontWeight:800, color:c }}>{v}</span>
                   </div>
                 ))}
               </div>
@@ -1181,7 +1181,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
                   <span style={{ fontSize:28 }}>🏢</span>
                   <div>
-                    <div style={{ fontSize:15, fontWeight:900, color:DK }}>
+                    <div style={{ fontSize:15, fontWeight:800, color:DK }}>
                       {publicHubData.businessName}
                     </div>
                     <div style={{ fontSize:12, color:GR }}>
@@ -1212,7 +1212,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   <div key={l} style={{ display:'flex', justifyContent:'space-between',
                     padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
                     <span style={{ fontSize:13, color:GR }}>{l}</span>
-                    <span style={{ fontSize:14, fontWeight:900, color:c }}>{v}</span>
+                    <span style={{ fontSize:14, fontWeight:800, color:c }}>{v}</span>
                   </div>
                 ))}
               </div>
@@ -1239,7 +1239,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
                     <span style={{ fontSize:28 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
                     <div>
-                      <div style={{ fontSize:15, fontWeight:900, color:DK }}>
+                      <div style={{ fontSize:15, fontWeight:800, color:DK }}>
                         {publicTransportData.name}
                       </div>
                       <div style={{ fontSize:12, color:GR, textTransform:'capitalize' }}>
@@ -1266,7 +1266,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {publicTransportData.upcomingRuns?.length > 0 && (
                   <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
                     boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:12 }}>
-                    <div style={{ fontSize:12, fontWeight:900, color:DK, marginBottom:10 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:10 }}>
                       🚐 Upcoming Runs
                     </div>
                     {publicTransportData.upcomingRuns.map(run => {
@@ -1283,7 +1283,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                             <span style={{ fontSize:18 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
                             <div style={{ flex:1, minWidth:0 }}>
-                              <div style={{ fontSize:14, fontWeight:900, color:DK }}>
+                              <div style={{ fontSize:14, fontWeight:800, color:DK }}>
                                 {first && last ? `${first} → ${last}` : `Run #${run.id}`}
                               </div>
                               <div style={{ fontSize:11, color:GR, marginTop:2 }}>
@@ -1385,8 +1385,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             <div style={{ background:`linear-gradient(135deg,${tier.color},#1d4ed8)`,
               borderRadius:20, padding:24, color:WH, textAlign:'center', marginBottom:16 }}>
               <div style={{ fontSize:48, marginBottom:8 }}>{tier.icon}</div>
-              <div style={{ fontSize:24, fontWeight:900 }}>{tier.name}</div>
-              <div style={{ fontSize:36, fontWeight:900, margin:'8px 0' }}>{score}</div>
+              <div style={{ fontSize:24, fontWeight:800 }}>{tier.name}</div>
+              <div style={{ fontSize:36, fontWeight:800, margin:'8px 0' }}>{score}</div>
               <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)' }}>{t('commerce_profile.trust_score_label')}</div>
             </div>
             {rep?.history?.length > 0 && (
@@ -1408,7 +1408,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       </div>
                     </div>
                     <div style={{ textAlign:'right' }}>
-                      <div style={{ fontSize:14, fontWeight:900,
+                      <div style={{ fontSize:14, fontWeight:800,
                         color:e.points>0?'#16a34a':'#dc2626' }}>
                         {e.points>0?'+':''}{e.points}
                       </div>
@@ -1445,7 +1445,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4 }}>
                         {s.title}
                       </div>
-                      <div style={{ fontSize:14, fontWeight:900, color:B }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:B }}>
                         {s.priceType==='negotiate' ? t('search.negotiate_price')
                          : s.priceType==='free_quote' ? t('search.request_quote')
                          : `TZS ${fmt(s.price)}`}
@@ -1613,7 +1613,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             <div style={{ background:`linear-gradient(135deg,${tier.color},#1d4ed8)`,
               borderRadius:20, padding:20, color:WH, textAlign:'center', marginBottom:16 }}>
               <div style={{ fontSize:36, marginBottom:6 }}>{tier.icon}</div>
-              <div style={{ fontSize:18, fontWeight:900 }}>{tier.name}</div>
+              <div style={{ fontSize:18, fontWeight:800 }}>{tier.name}</div>
               <div style={{ fontSize:13, color:'rgba(255,255,255,0.85)', marginTop:4 }}>
                 {activeProfile.reviewsCount || reviews.length} {t('commerce_profile.tab_reviews')} · ⭐ {Number(activeProfile.rating||0).toFixed(1)}
               </div>
@@ -1718,7 +1718,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
         <div key={c.id} style={{ display:'flex', gap:8, marginBottom:10 }}>
           <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
             backgroundColor:B, display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:11, color:WH, fontWeight:900, overflow:'hidden' }}>
+            fontSize:11, color:WH, fontWeight:800, overflow:'hidden' }}>
             {commenterPhoto
               ? <img src={commenterPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
               : (commenterName || 'U').charAt(0).toUpperCase()}

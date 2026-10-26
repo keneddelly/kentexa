@@ -71,7 +71,7 @@ const PayoutCard = ({ order, highlighted, cardRef, t, dateLocale }) => {
         <div style={{ height: 1, backgroundColor: '#e2e8f0', margin: '6px 0' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>{t('seller_payouts.your_earnings')}</span>
-          <span style={{ fontSize: 15, fontWeight: 900, color: '#16a34a' }}>
+          <span style={{ fontSize: 15, fontWeight:800, color: '#16a34a' }}>
             TZS {fmt(order.sellerAmount)}
           </span>
         </div>
@@ -147,13 +147,13 @@ const SellerPayouts = ({ onNavigate, highlightOrderId, activeProfileId }) => {
               borderRadius: 20, padding: 24, marginBottom: 20 }}>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)',
                 fontWeight: 700, marginBottom: 4 }}>{t('seller_payouts.total_released_label')}</div>
-              <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', marginBottom: 16 }}>
+              <div style={{ fontSize: 30, fontWeight:800, color: '#fff', marginBottom: 16 }}>
                 TZS {fmt(data.summary.totalEarned)}
               </div>
               <div style={{ display: 'flex', gap: 0 }}>
                 <div style={{ flex: 1, textAlign: 'center',
                   borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: 12 }}>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>
+                  <div style={{ fontSize: 18, fontWeight:800, color: '#fff' }}>
                     TZS {fmt(data.summary.totalPending)}
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
@@ -161,7 +161,7 @@ const SellerPayouts = ({ onNavigate, highlightOrderId, activeProfileId }) => {
                   </div>
                 </div>
                 <div style={{ flex: 1, textAlign: 'center', paddingLeft: 12 }}>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>
+                  <div style={{ fontSize: 18, fontWeight:800, color: '#fff' }}>
                     {data.summary.totalOrders}
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>

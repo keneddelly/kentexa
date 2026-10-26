@@ -37,7 +37,7 @@ const LINE = '#e2e8f0';
 const FIELD = '#cbd5e1';
 const PAPER = '#f8fafc';
 const WHITE = '#ffffff';
-const FONT = 'Manrope, -apple-system, sans-serif';
+const FONT = 'inherit';
 const STEPS = 4;
 const tzs = (n) => `TZS ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 const digits = (v) => String(v ?? '').replace(/[^0-9]/g, '');

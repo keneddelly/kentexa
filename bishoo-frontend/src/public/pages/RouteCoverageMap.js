@@ -93,7 +93,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc',
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif', display:'flex', flexDirection:'column' }}>
+      fontFamily:'inherit', display:'flex', flexDirection:'column' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('route_coverage_map.page_title')} top={0} />
 
       <div style={{ flex:1, maxWidth:900, margin:'0 auto', width:'100%',
@@ -201,7 +201,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ padding:'16px 16px 12px',
                   borderBottom:'1px solid #f1f5f9' }}>
-                  <div style={{ fontSize:16, fontWeight:900, color:'#1e293b' }}>
+                  <div style={{ fontSize:16, fontWeight:800, color:'#1e293b' }}>
                     📍 {selected}
                   </div>
                   <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>
@@ -278,7 +278,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
                 <div key={s.label} style={{ display:'flex', justifyContent:'space-between',
                   padding:'6px 0', borderBottom:'1px solid #f8fafc' }}>
                   <span style={{ fontSize:11, color:'#64748b' }}>{s.label}</span>
-                  <span style={{ fontSize:13, fontWeight:900, color:B }}>{s.value}</span>
+                  <span style={{ fontSize:13, fontWeight:800, color:B }}>{s.value}</span>
                 </div>
               ))}
               {/* Was pointed at BecomeTransportProvider (registration)

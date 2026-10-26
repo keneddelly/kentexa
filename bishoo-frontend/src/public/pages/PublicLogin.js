@@ -108,7 +108,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: 'inherit' }}>
 
       {/* Persistent language control — the one-time first-visit picker in
           App.js only ever shows once per browser and has no way to reopen
@@ -272,7 +272,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
               <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>{t('login.otp_code_label')}</label>
               <input type="tel" placeholder="000000" maxLength={6}
                 value={fpOtp} onChange={e => setFpOtp(e.target.value.replace(/\D/g,'').slice(0,6))}
-                style={{ ...inputStyle, fontSize: 24, fontWeight: 900, letterSpacing: 8, textAlign: 'center' }} />
+                style={{ ...inputStyle, fontSize: 24, fontWeight:800, letterSpacing: 8, textAlign: 'center' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>{t('login.new_password_label')}</label>

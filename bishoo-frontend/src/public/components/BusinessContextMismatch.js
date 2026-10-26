@@ -14,7 +14,7 @@ const BusinessContextMismatch = ({ contextBusinessId, onNavigate }) => {
   return (
     <div style={{ padding: '32px 16px', textAlign: 'center' }}>
       <div style={{ backgroundColor: WH, borderRadius: 16, padding: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
-        <h2 style={{ fontSize: 17, fontWeight: 900, color: DK, marginBottom: 8 }}>{t('business_entry.mismatch_title')}</h2>
+        <h2 style={{ fontSize: 17, fontWeight:800, color: DK, marginBottom: 8 }}>{t('business_entry.mismatch_title')}</h2>
         <p style={{ fontSize: 13, color: GR, marginBottom: 20 }}>{t('business_entry.mismatch_body')}</p>
         <button onClick={() => onNavigate(`BusinessHome-${contextBusinessId}`)}
           style={{ width: '100%', backgroundColor: B, color: WH, border: 'none', borderRadius: 12, padding: '12px 0', cursor: 'pointer', fontSize: 14, fontWeight: 700, marginBottom: 10 }}>

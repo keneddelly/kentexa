@@ -69,7 +69,7 @@ const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F1F5F9',
-      paddingBottom: 90, fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      paddingBottom: 90, fontFamily:'inherit' }}>
       <style>{`
         .cl-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
         @media (min-width: 480px)  { .cl-grid { grid-template-columns: repeat(3,1fr); } }
@@ -203,7 +203,7 @@ const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   <h3 style={{ fontSize: 13, fontWeight: 700, color: DK, margin: '6px 0 4px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
                     {item.title}
                   </h3>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: B, marginBottom: 2 }}>
+                  <div style={{ fontSize: 14, fontWeight:800, color: B, marginBottom: 2 }}>
                     TZS {Number(item.price).toLocaleString()}
                   </div>
                   {item.isNegotiable && <span style={{ fontSize: 10, color: GR, fontWeight: 600 }}>Negotiable · </span>}

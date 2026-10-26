@@ -75,7 +75,7 @@ const StatCard = ({ label, value, sub, color, bg, icon, trend }) => (
         </span>
       )}
     </div>
-    <div style={{ fontSize: 20, fontWeight: 900, color: color || '#1e293b', marginTop: 8 }}>
+    <div style={{ fontSize: 20, fontWeight:800, color: color || '#1e293b', marginTop: 8 }}>
       {value}
     </div>
     <div style={{ fontSize: 11, color: '#64748b', marginTop: 3, fontWeight: 600 }}>{label}</div>
@@ -154,7 +154,7 @@ const FinancialDashboard = ({ onNavigate }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between',
         alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b' }}>
+          <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>
             💰 Dashibodi ya Fedha
           </div>
           <div style={{ fontSize: 12, color: '#64748b' }}>
@@ -176,7 +176,7 @@ const FinancialDashboard = ({ onNavigate }) => {
         borderRadius: 20, padding: 24, marginBottom: 20, color: '#fff' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)',
           marginBottom: 6, letterSpacing: 1 }}>JUMLA YA MAUZO (GMV)</div>
-        <div style={{ fontSize: 36, fontWeight: 900, marginBottom: 4 }}>
+        <div style={{ fontSize: 36, fontWeight:800, marginBottom: 4 }}>
           TZS {fmt(gmv)}
         </div>
         <div style={{ display: 'flex', gap: 24, marginTop: 16 }}>
@@ -187,7 +187,7 @@ const FinancialDashboard = ({ onNavigate }) => {
             { label: 'Wastani',    value: `TZS ${fmtM(avgOrderValue)}` },
           ].map(s => (
             <div key={s.label}>
-              <div style={{ fontSize: 15, fontWeight: 900 }}>{s.value}</div>
+              <div style={{ fontSize: 15, fontWeight:800 }}>{s.value}</div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
                 {s.label}
               </div>
@@ -332,7 +332,7 @@ const FinancialDashboard = ({ onNavigate }) => {
               <div style={{ width: 32, height: 32, borderRadius: '50%',
                 background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: 13, fontWeight: 900, flexShrink: 0 }}>
+                color: '#fff', fontSize: 13, fontWeight:800, flexShrink: 0 }}>
                 {i + 1}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -344,7 +344,7 @@ const FinancialDashboard = ({ onNavigate }) => {
                   {s.ordersCount || 0} maagizo
                 </div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: '#16a34a' }}>
+              <div style={{ fontSize: 13, fontWeight:800, color: '#16a34a' }}>
                 TZS {fmtM(s.totalRevenue || s.revenue || 0)}
               </div>
             </div>

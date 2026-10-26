@@ -92,13 +92,13 @@ const SellerWallet = ({ onNavigate }) => {
               borderRadius: 20, padding: 24, marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)',
                 fontWeight: 700, marginBottom: 4 }}>{t('seller_wallet.available_balance')}</div>
-              <div style={{ fontSize: 30, fontWeight: 900, color: '#fff', marginBottom: 16 }}>
+              <div style={{ fontSize: 30, fontWeight:800, color: '#fff', marginBottom: 16 }}>
                 TZS {fmt(wallet.balance)}
               </div>
               <div style={{ display: 'flex', gap: 0 }}>
                 <div style={{ flex: 1, textAlign: 'center',
                   borderRight: '1px solid rgba(255,255,255,0.2)', paddingRight: 12 }}>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>
+                  <div style={{ fontSize: 16, fontWeight:800, color: '#fff' }}>
                     TZS {fmt(wallet.pendingBalance)}
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>
@@ -106,7 +106,7 @@ const SellerWallet = ({ onNavigate }) => {
                   </div>
                 </div>
                 <div style={{ flex: 1, textAlign: 'center', paddingLeft: 12 }}>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>
+                  <div style={{ fontSize: 16, fontWeight:800, color: '#fff' }}>
                     TZS {fmt(wallet.totalEarned)}
                   </div>
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>

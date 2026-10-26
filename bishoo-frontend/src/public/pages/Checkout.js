@@ -499,7 +499,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: '36px 24px', textAlign: 'center', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
-            <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1e293b', marginBottom: 8, fontFamily: 'Manrope,sans-serif' }}>
+            <h2 style={{ fontSize: 22, fontWeight:800, color: '#1e293b', marginBottom: 8, fontFamily:'inherit' }}>
               {codInfo ? t('checkout.cod_confirmed_title') : t('checkout.payment_confirmed')}
             </h2>
             <p style={{ color: '#64748b', marginBottom: 20, fontSize: 14 }}>
@@ -509,7 +509,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>
                 {codInfo ? (codInfo.upfront > 0 ? t('checkout.cod_deposit_paid_label') : t('checkout.cod_pay_on_delivery')) : t('checkout.amount_paid')}
               </div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>
+              <div style={{ fontSize: 24, fontWeight:800, color: '#fff' }}>
                 TZS {Number(codInfo ? (codInfo.upfront > 0 ? codInfo.upfront : orderTotal) : orderTotal).toLocaleString()}
               </div>
             </div>
@@ -550,7 +550,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               <div key={i} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 8, border: '2px dashed #2563eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{t('checkout.invoice_number_label')}</div>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#2563eb', fontFamily: 'monospace', wordBreak: 'break-all' }}>{order.invoiceNumber || order.id}</div>
+                  <div style={{ fontSize: 15, fontWeight:800, color: '#2563eb', fontFamily: 'monospace', wordBreak: 'break-all' }}>{order.invoiceNumber || order.id}</div>
                   {order.totalAmount && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>}
                 </div>
                 <button onClick={() => handleCopyInvoice(order.invoiceNumber || String(order.id))}
@@ -603,11 +603,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           {/* Success banner */}
           <div style={{ backgroundColor: '#dcfce7', borderRadius: 16, padding: '18px 16px', textAlign: 'center', marginBottom: 16, border: '2px solid #86efac' }}>
             <div style={{ fontSize: 40, marginBottom: 6 }}>🎉</div>
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: '#15803d', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('checkout.order_placed')}</h2>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: '#15803d', margin: '0 0 4px', fontFamily:'inherit' }}>{t('checkout.order_placed')}</h2>
             <p style={{ color: '#166534', fontSize: 13, margin: '0 0 8px' }}>
               {codInfo ? t('checkout.cod_upfront_notice') : t('checkout.order_placed_sub')}
             </p>
-            <div style={{ fontSize: 18, fontWeight: 900, color: '#15803d' }}>
+            <div style={{ fontSize: 18, fontWeight:800, color: '#15803d' }}>
               TZS {Number(codInfo ? codInfo.upfront : orderTotal).toLocaleString()}
             </div>
             {codInfo && (
@@ -761,7 +761,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
         {/* Who is this for? */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span> {t('checkout.who_for_title')}</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>1</span> {t('checkout.who_for_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
               { value: false, icon: '👤', label: t('checkout.for_myself') },
@@ -786,7 +786,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
         {/* Delivery Details */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span> {isDigitalOnlyCart ? t('checkout.contact_info') : t('checkout.delivery_address')}</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span> {isDigitalOnlyCart ? t('checkout.contact_info') : t('checkout.delivery_address')}</h2>
           {isDigitalOnlyCart ? (
             <div style={{ backgroundColor: '#faf5ff', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>
               {`💾 ${t('checkout.digital_instant_delivery')}`}
@@ -814,7 +814,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         {/* Delivery Method Selector — shown when address is filled */}
         {!isDigitalOnlyCart && !deliveryOptionsHidden && (detectingMethods || deliveryMethods.length > 0) && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>
 
             {detectingMethods ? (
               <div style={{ textAlign: 'center', padding: '14px 0', color: '#64748b', fontSize: 13 }}>
@@ -876,7 +876,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                       )}
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: method.fee === 0 && method.key !== 'boda' ? '#16a34a' : '#1d4ed8' }}>
+                      <div style={{ fontSize: 14, fontWeight:800, color: method.fee === 0 && method.key !== 'boda' ? '#16a34a' : '#1d4ed8' }}>
                         {method.key === 'boda' && method.fee === 0
                           ? <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>{t('checkout.seller_sets_price')}</span>
                           : method.fee === 0
@@ -958,7 +958,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                       <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
                           <span style={{ color: '#1d4ed8', fontWeight: 700 }}>{t('checkout.cod_pay_now_label')}</span>
-                          <span style={{ fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(codQuote.upfrontRequired).toLocaleString()}</span>
+                          <span style={{ fontWeight:800, color: '#1d4ed8' }}>TZS {Number(codQuote.upfrontRequired).toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                           <span style={{ color: '#64748b' }}>{t('checkout.cod_pay_later_label')}</span>
@@ -968,7 +968,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                     ) : (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                         <span style={{ color: '#1d4ed8', fontWeight: 700 }}>{t('checkout.cod_pay_later_label')}</span>
-                        <span style={{ fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(codQuote.remainingBalance).toLocaleString()}</span>
+                        <span style={{ fontWeight:800, color: '#1d4ed8' }}>TZS {Number(codQuote.remainingBalance).toLocaleString()}</span>
                       </div>
                     )}
                   </div>
@@ -1028,7 +1028,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           {(paymentChoice !== 'cod' || !codQuote || codQuote.eligible === false) && (
             <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('checkout.total')}</span>
-              <span data-testid="checkout-total" style={{ fontSize: 22, fontWeight: 900, color: '#2563eb' }}>TZS {getCartTotal().toLocaleString()}</span>
+              <span data-testid="checkout-total" style={{ fontSize: 22, fontWeight:800, color: '#2563eb' }}>TZS {getCartTotal().toLocaleString()}</span>
             </div>
           )}
           {paymentChoice === 'cod' && codQuoteLoading && (
@@ -1044,7 +1044,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, marginBottom: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontSize: 16, fontWeight: 800, color: '#1d4ed8' }}>{t('checkout.cod_pay_now_label')}</span>
-                <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(codQuote.upfrontRequired).toLocaleString()}</span>
+                <span style={{ fontSize: 22, fontWeight:800, color: '#1d4ed8' }}>TZS {Number(codQuote.upfrontRequired).toLocaleString()}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#94a3b8' }}>
                 <span>{t('checkout.total')}</span>
@@ -1062,7 +1062,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, marginBottom: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('checkout.cod_pay_now_label')}</span>
-                <span style={{ fontSize: 22, fontWeight: 900, color: '#16a34a' }}>TZS 0</span>
+                <span style={{ fontSize: 22, fontWeight:800, color: '#16a34a' }}>TZS 0</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span style={{ color: '#64748b' }}>{t('checkout.cod_pay_later_label')} (100%)</span>
@@ -1075,7 +1075,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             return (
               <>
                 <button data-testid="place-order" onClick={handleCheckout} disabled={blocked}
-                  style={{ width: '100%', minHeight: 52, backgroundColor: blocked ? '#93c5fd' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif' }}>
+                  style={{ width: '100%', minHeight: 52, backgroundColor: blocked ? '#93c5fd' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: blocked ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 800, marginBottom: 10, fontFamily:'inherit' }}>
                   {directChoice === 'lipa_namba'
                     ? t('direct_payment.pay_and_confirm')
                     : loading ? t('checkout.placing') : t('checkout.place_order')}
@@ -1087,7 +1087,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <>
               <button onClick={handleCheckout}
                 disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}
-                style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
+                style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily:'inherit', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
                 {loading ? `⏳ ${t('checkout.placing')}` : `✅ ${t('checkout.place_order')}`}
               </button>
               <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>{t('cart.secure_note')}</div>

@@ -62,7 +62,7 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
               <span>{l}</span><span style={{ fontWeight: 700 }}>{v}</span>
             </div>
           ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 900, padding: '6px 0 2px', borderTop: '1px dashed #cbd5e1', marginTop: 4, color: '#0f172a' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight:800, padding: '6px 0 2px', borderTop: '1px dashed #cbd5e1', marginTop: 4, color: '#0f172a' }}>
             <span>Jumla</span><span>{money(quote.total)}</span>
           </div>
           <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>

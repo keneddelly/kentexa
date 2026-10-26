@@ -372,7 +372,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+          <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
             {t('transport_provider_dashboard.no_account_title')}
           </div>
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
@@ -400,7 +400,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center', maxWidth: 340 }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+          <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
             {t('transport_provider_dashboard.registered_title')}
           </div>
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
@@ -428,7 +428,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
           padding: 20, marginBottom: 20, color: '#fff', display: 'flex',
           justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 900 }}>{profile.name}</div>
+            <div style={{ fontSize: 18, fontWeight:800 }}>{profile.name}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
               {profile.type?.toUpperCase()} · {profile.contactPhone}
             </div>
@@ -466,7 +466,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                   borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
                   color: '#fff', fontSize: 15 }}>⚙️</button>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 900 }}>{profile.completedAssignments || 0}</div>
+            <div style={{ fontSize: 28, fontWeight:800 }}>{profile.completedAssignments || 0}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t('transport_provider_dashboard.completed_label')}</div>
             {pendingAssignments.length > 0 && (
               <div style={{ backgroundColor: '#ef4444', borderRadius: 100,
@@ -640,7 +640,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               <button onClick={() => setShowVehicleForm(v=>!v)} style={{ flex:1, border:'none', borderRadius:10, padding:12, background:'#0f172a', color:'#fff', fontWeight:800 }}>+ Vehicle</button>
             </div>
             {showScheduleForm && <div style={{background:'#fff',borderRadius:12,padding:14,marginBottom:12}}>
-              <div style={{fontSize:14,fontWeight:900,marginBottom:8}}>Recurring safari</div>
+              <div style={{fontSize:14,fontWeight:800,marginBottom:8}}>Recurring safari</div>
               <select style={inp} value={scheduleForm.routeId} onChange={e=>setScheduleForm(p=>({...p,routeId:e.target.value}))}>
                 <option value="">Choose route</option>{routes.filter(r=>r.routeType==='local_loop'||r.routeType==='intercity').map(r=><option key={r.id} value={r.id}>#{r.id} {r.routeType==='intercity'? `${r.originCity} → ${r.destinationCity}`:(r.loopStops||[]).join(' → ')}</option>)}
               </select>
@@ -652,7 +652,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               <button disabled={!scheduleForm.routeId||!scheduleForm.departureTime||runBusy==='schedule'||(scheduleForm.scheduleType==='selected_days'&&!scheduleForm.daysOfWeek.length)} onClick={createRecurringSchedule} style={{width:'100%',marginTop:8,padding:10,border:'none',borderRadius:8,background:'#16a34a',color:'#fff',fontWeight:800}}>Save recurring schedule</button>
             </div>}
             {schedules.filter(s=>s.isActive).length>0 && <div style={{background:'#fff',borderRadius:12,padding:12,marginBottom:12}}>
-              <div style={{fontSize:12,fontWeight:900,marginBottom:6}}>RECURRING SCHEDULES</div>
+              <div style={{fontSize:12,fontWeight:800,marginBottom:6}}>RECURRING SCHEDULES</div>
               {schedules.filter(s=>s.isActive).map(s=><div key={s.id} style={{padding:'8px 0',borderTop:'1px solid #f1f5f9',fontSize:12}}><strong>{s.originCity || (s.loopStops||[])[0]} → {s.destinationCity || (s.loopStops||[]).slice(-1)[0]}</strong> · {s.scheduleType==='daily'?'Every day':'Selected days'} · {String(s.departureTime).slice(0,5)}{s.defaultVehicleIdentifier?` · ${s.defaultVehicleIdentifier}`:''}<button onClick={()=>deactivateSchedule(s.id)} style={{float:'right',border:'none',background:'none',color:'#b91c1c'}}>Stop</button></div>)}
             </div>}
             {showRunForm && <div style={{ background:'#fff', borderRadius:12, padding:14, marginBottom:12 }}>
@@ -663,7 +663,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               <button disabled={!runForm.routeId||!runForm.scheduledDeparture||runBusy==='create'} onClick={createVanRun} style={{ width:'100%', marginTop:8, padding:10, border:'none', borderRadius:8, background:'#16a34a', color:'#fff', fontWeight:800 }}>Create Run</button>
             </div>}
             {vehicles.length>0 && <div style={{background:'#fff',borderRadius:12,padding:12,marginBottom:12}}>
-              <div style={{fontSize:12,fontWeight:900,marginBottom:6}}>VEHICLES</div>
+              <div style={{fontSize:12,fontWeight:800,marginBottom:6}}>VEHICLES</div>
               {vehicles.map(v=><div key={v.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,padding:'6px 0',borderTop:'1px solid #f1f5f9'}}>
                 <span><strong>{v.identifier}</strong>{v.registrationPlate ? ` · ${v.registrationPlate}` : ''} · {v.operationalStatus}</span>
                 <span><button onClick={()=>updateVehicle(v)} style={{border:'none',background:'none',color:'#1d4ed8'}}>Edit</button>{v.isActive && <button onClick={()=>deactivateVehicle(v.id)} style={{border:'none',background:'none',color:'#b91c1c'}}>Deactivate</button>}</span>
@@ -679,9 +679,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               <button disabled={!vehicleForm.identifier||runBusy==='vehicle'} onClick={addVehicle} style={{ width:'100%', marginTop:8, padding:10, border:'none', borderRadius:8, background:'#16a34a', color:'#fff', fontWeight:800 }}>Save Vehicle</button>
             </div>}
             {vanTenders.length>0 && <div style={{marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:900,color:'#7c3aed',marginBottom:7}}>RELEASED TO YOU · {vanTenders.length}</div>
+              <div style={{fontSize:12,fontWeight:800,color:'#7c3aed',marginBottom:7}}>RELEASED TO YOU · {vanTenders.length}</div>
               {vanTenders.map(t=><div key={t.tenderId} style={{background:'#fff',borderRadius:12,padding:12,marginBottom:7}}>
-                <div style={{fontSize:13,fontWeight:900}}>{t.trackingNumber || `Parcel #${t.parcelId}`}</div>
+                <div style={{fontSize:13,fontWeight:800}}>{t.trackingNumber || `Parcel #${t.parcelId}`}</div>
                 <div style={{fontSize:11,color:'#64748b',margin:'3px 0 8px'}}>{t.loadLocation} → {t.unloadLocation} · Run #{t.runId}{t.weightKg ? ` · ${t.weightKg}kg` : ''}</div>
                 <button disabled={runBusy===`tender-${t.tenderId}`} onClick={()=>acceptTenderIntoRun(t)} style={{width:'100%',border:'none',borderRadius:8,padding:9,background:'#1d4ed8',color:'#fff',fontWeight:800}}>Accept into Manifest</button>
               </div>)}
@@ -698,7 +698,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                 <div key={run.id} style={{ backgroundColor:'#fff', borderRadius:14, padding:16, marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginBottom:8 }}>
                     <div>
-                      <div style={{ fontSize:15, fontWeight:900 }}>Transport Run #{run.id}</div>
+                      <div style={{ fontSize:15, fontWeight:800 }}>Transport Run #{run.id}</div>
                       <div style={{ fontSize:12, color:'#64748b' }}>{new Date(run.scheduledDeparture).toLocaleString()} · Route #{run.routeId}</div>
                     </div>
                     <span style={{ fontSize:11, fontWeight:800, textTransform:'uppercase' }}>{run.status}</span>

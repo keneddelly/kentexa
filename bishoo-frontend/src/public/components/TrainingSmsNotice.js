@@ -24,7 +24,7 @@ export default function TrainingSmsNotice() {
       style={{ position: 'fixed', left: 12, right: 12, bottom: 84, zIndex: 3000, maxWidth: 480, margin: '0 auto',
         background: '#F5F3FF', border: '2px solid #8B5CF6', borderRadius: 14, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
         maxHeight: '55vh', overflowY: 'auto' }}>
-      <div style={{ fontSize: 13, fontWeight: 900, color: '#5B21B6' }}>{t('training_sms.title')}</div>
+      <div style={{ fontSize: 13, fontWeight:800, color: '#5B21B6' }}>{t('training_sms.title')}</div>
       {items.map((m, i) => (
         <div key={i} style={{ marginTop: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: '#6D28D9' }}>{t('training_sms.would_send', { to: m.to })}</div>

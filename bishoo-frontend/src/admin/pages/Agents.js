@@ -200,7 +200,7 @@ const Agents = ({ onNavigate }) => {
 
         {/* Header */}
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0 }}>🤝 Mawakala wa KenteXa</h1>
+          <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>🤝 Mawakala wa KenteXa</h1>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
             Idhinisha, simamia, na weka mipangilio ya mawakala wa mitaa
           </p>
@@ -219,7 +219,7 @@ const Agents = ({ onNavigate }) => {
             { label: 'Waliositamishwa', value: counts.suspended || 0,  color: '#dc2626', bg: '#fee2e2' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '14px 16px' }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 24, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: s.color, fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
@@ -353,7 +353,7 @@ const Agents = ({ onNavigate }) => {
           {selected && (
             <div style={{ width: 280, flexShrink: 0 }}>
               <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', position: 'sticky', top: 24 }}>
-                <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 4 }}>{selected.fullName}</div>
+                <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 4 }}>{selected.fullName}</div>
                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
                   📍 {selected.city || selected.district || '—'} · {selected.phone}
                 </div>

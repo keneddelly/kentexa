@@ -117,7 +117,7 @@ const RouteManagement = ({ onNavigate }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0 }}>🗺️ Jedwali la Njia za Intercity</h1>
+            <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>🗺️ Jedwali la Njia za Intercity</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
               Simamia njia zote kati ya miji — ETA, ada, na usafirishaji
             </p>
@@ -152,7 +152,7 @@ const RouteManagement = ({ onNavigate }) => {
               { label: 'Jumla ya Mbegu', value: seedResult.total, color: '#1d4ed8' },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 22, fontWeight: 900, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
                 <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
               </div>
             ))}

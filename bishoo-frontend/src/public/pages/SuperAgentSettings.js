@@ -153,7 +153,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
               style={{ width: '100%', backgroundColor: saving ? '#94a3b8' : '#1d4ed8',
                 color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                 cursor: saving ? 'not-allowed' : 'pointer',
-                fontSize: 15, fontWeight: 900, marginTop: 8 }}>
+                fontSize: 15, fontWeight:800, marginTop: 8 }}>
               {saving ? t('super_agent_settings.saving') : t('super_agent_settings.save_button')}
             </button>
           </div>

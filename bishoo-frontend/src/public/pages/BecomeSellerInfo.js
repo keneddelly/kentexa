@@ -31,7 +31,7 @@ const BecomeSellerInfo = ({ onNavigate }) => {
         <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
           borderRadius: 20, padding: 28, marginBottom: 24, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 8 }}>
+          <div style={{ fontSize: 22, fontWeight:800, color: '#fff', marginBottom: 8 }}>
             {t('become_seller_info.hero_title')}
           </div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>
@@ -41,7 +41,7 @@ const BecomeSellerInfo = ({ onNavigate }) => {
 
         {/* Benefits */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a', marginBottom: 16 }}>
+          <div style={{ fontSize: 16, fontWeight:800, color: '#0f172a', marginBottom: 16 }}>
             {t('become_seller_info.benefits_title')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -73,7 +73,7 @@ const BecomeSellerInfo = ({ onNavigate }) => {
 
         {/* Steps */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 14, fontWeight: 900, color: '#0f172a', marginBottom: 14 }}>
+          <div style={{ fontSize: 14, fontWeight:800, color: '#0f172a', marginBottom: 14 }}>
             {t('become_seller_info.steps_title')}
           </div>
           {[
@@ -85,7 +85,7 @@ const BecomeSellerInfo = ({ onNavigate }) => {
               <div style={{ width: 28, height: 28, borderRadius: '50%',
                 backgroundColor: '#1d4ed8', color: '#fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 13, fontWeight: 900, flexShrink: 0 }}>
+                fontSize: 13, fontWeight:800, flexShrink: 0 }}>
                 {s.step}
               </div>
               <div style={{ fontSize: 13, color: '#475569', paddingTop: 5, lineHeight: 1.5 }}>
@@ -99,7 +99,7 @@ const BecomeSellerInfo = ({ onNavigate }) => {
         <button onClick={() => onNavigate('BecomeSeller')}
           style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
             color: '#fff', border: 'none', padding: '16px 20px', borderRadius: 14,
-            fontSize: 16, fontWeight: 900, cursor: 'pointer', marginBottom: 12 }}>
+            fontSize: 16, fontWeight:800, cursor: 'pointer', marginBottom: 12 }}>
           {t('become_seller_info.apply_button')}
         </button>
 

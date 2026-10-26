@@ -138,7 +138,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
           ].map(c => (
             <div key={c.label} style={{ backgroundColor: c.bg, borderRadius: 12, padding: '14px 16px' }}>
               <div style={{ fontSize: 20, marginBottom: 4 }}>{c.icon}</div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: c.color }}>{c.value}</div>
+              <div style={{ fontSize: 18, fontWeight:800, color: c.color }}>{c.value}</div>
               <div style={{ fontSize: 11, color: c.color, opacity: 0.8, fontWeight: 600 }}>{c.label}</div>
             </div>
           ))}

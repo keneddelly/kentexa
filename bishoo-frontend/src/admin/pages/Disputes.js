@@ -99,7 +99,7 @@ const Disputes = ({ onNavigate, activePage }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b' }}>⚖️ Mashauri ya Migogoro</div>
+            <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>⚖️ Mashauri ya Migogoro</div>
             <div style={{ fontSize: 12, color: '#64748b' }}>Simamia na usuluhishe migogoro kati ya wanunuzi na wauzaji</div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -155,7 +155,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                         {d.reason || d.buyerReason || 'Sababu haijatajwa'}
                       </div>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', textAlign: 'right' }}>
+                    <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', textAlign: 'right' }}>
                       TZS {fmt(d.order?.totalAmount)}
                     </div>
                   </div>
@@ -172,7 +172,7 @@ const Disputes = ({ onNavigate, activePage }) => {
               {/* Header */}
               <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '16px 20px', color: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 15, fontWeight: 900 }}>⚖️ Shauri #{selected.id}</div>
+                  <div style={{ fontSize: 15, fontWeight:800 }}>⚖️ Shauri #{selected.id}</div>
                   <button onClick={() => setSelected(null)}
                     style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff',
                       borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13 }}>✕</button>

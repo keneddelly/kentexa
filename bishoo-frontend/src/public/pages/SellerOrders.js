@@ -373,7 +373,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('seller_orders.title')}
         right={
           <button onClick={fetchOrders}
@@ -469,7 +469,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '14px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 22 }}>{s.icon}</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: s.color, marginTop: 4 }}>{s.value}</div>
+              <div style={{ fontSize: 16, fontWeight:800, color: s.color, marginTop: 4 }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
             </div>
           ))}
@@ -535,7 +535,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                           this order actually shows was sold. */}
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.productNameSnapshot || order.product?.name || order.manualProductName || '—'}</div>
                       <div style={{ fontSize: 11, color: '#64748b' }}>{t('seller_orders.qty_label', { qty: order.quantity })}</div>
-                      <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginTop: 2 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
+                      <div style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', marginTop: 2 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
                     </div>
                     <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10 }}>
                       <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.deliver_to_label')}</div>
@@ -579,7 +579,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                           <span style={{ color: '#16a34a', fontWeight: 800 }}>{t('seller_orders.fee_you_receive')}</span>
-                          <span style={{ color: '#16a34a', fontWeight: 900, fontSize: 13 }}>TZS {Number(order.sellerAmount || 0).toLocaleString()}</span>
+                          <span style={{ color: '#16a34a', fontWeight:800, fontSize: 13 }}>TZS {Number(order.sellerAmount || 0).toLocaleString()}</span>
                         </div>
                       </>
                     )}
@@ -620,7 +620,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         {order.codBalanceCollected ? (
                           <span style={{ color: '#16a34a', fontWeight: 700 }}>{t('seller_orders.cod_settled_label')}</span>
                         ) : (
-                          <span style={{ color: '#1d4ed8', fontWeight: 900 }}>
+                          <span style={{ color: '#1d4ed8', fontWeight:800 }}>
                             TZS {Number(order.codRemainingBalance || 0).toLocaleString()} {t('seller_orders.cod_owed_suffix')}
                           </span>
                         )}
@@ -661,13 +661,13 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {engineShippable(order) && (
                       <button data-testid={`ship-engine-${order.id}`} onClick={() => onNavigate('SellerShipment', orderToSend(order))}
-                        style={{ background: '#1d4ed8', color: '#ffffff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 900 }}>
+                        style={{ background: '#1d4ed8', color: '#ffffff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight:800 }}>
                         Tuma kwa KenteXa
                       </button>
                     )}
                     {isPaid && order.source !== 'seller_shipment' && (
                       <button onClick={() => openShipModal(order)}
-                        style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 900, boxShadow: '0 4px 12px rgba(247,151,30,0.4)' }}>
+                        style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight:800, boxShadow: '0 4px 12px rgba(247,151,30,0.4)' }}>
                         {t('seller_orders.start_shipping_button')}
                       </button>
                     )}
@@ -793,7 +793,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
             {/* ── STEP 1: Choose Method ── */}
             {modalStep === 'method' && (
               <>
-                <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 4px' }}>{t('seller_orders.ship_order_title')}</h2>
+                <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 4px' }}>{t('seller_orders.ship_order_title')}</h2>
                 <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>
                   {t('seller_orders.order_hash_deliver_to', { id: selectedOrder.id, address: selectedOrder.deliveryAddress || '—' })}
                 </p>
@@ -803,7 +803,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {/* Show buyer's chosen method prominently — seller doesn't re-choose */}
                 <div style={{ backgroundColor: '#dbeafe', border: '2px solid #93c5fd', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>{t('seller_orders.buyer_chosen_method_label')}</div>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
+                  <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>
                     {selectedOrder.shippingMethod === 'boda' ? t('seller_orders.method_name_boda') :
                      selectedOrder.shippingMethod === 'kentexa_delivery' ? t('seller_orders.method_name_van_dar') :
                      selectedOrder.shippingMethod === 'agent' ? t('seller_orders.method_name_agent_intercity') :
@@ -864,13 +864,13 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                   <button onClick={() => setModalStep('method')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20 }}>←</button>
-                  <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: 0 }}>{t('seller_orders.dropoff_title')}</h2>
+                  <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: 0 }}>{t('seller_orders.dropoff_title')}</h2>
                 </div>
 
                 {/* Order number to give agent */}
                 <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 12, padding: '14px 16px', marginBottom: 14, textAlign: 'center' }}>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.show_to_agent')}</div>
-                  <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', fontFamily: 'monospace' }}>#{selectedOrder.id}</div>
+                  <div style={{ fontSize: 24, fontWeight:800, color: '#fff', fontFamily: 'monospace' }}>#{selectedOrder.id}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{t('seller_orders.agent_scan_note')}</div>
                 </div>
 
@@ -922,7 +922,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   <button onClick={() => setModalStep(shippingMethodKey === 'agent' ? 'agent_info' : 'method')}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20 }}>←</button>
                   <div>
-                    <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: 0 }}>
+                    <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: 0 }}>
                       {selectedMethod.icon} {selectedMethod.label}
                     </h2>
                     <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>{t('seller_orders.order_hash', { id: selectedOrder.id })}</p>
@@ -940,7 +940,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {/* Permanent tracking number — always show, never editable */}
                 <div style={{ backgroundColor: '#0f172a', borderRadius: 12, padding: '12px 16px', marginBottom: 14 }}>
                   <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>{t('seller_orders.tracking_number_permanent_label')}</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#f7c948', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: 18, fontWeight:800, color: '#f7c948', fontFamily: 'monospace' }}>
                     {selectedOrder?.trackingNumber || `KTX-ORD-${selectedOrder?.id}`}
                   </div>
                   <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{t('seller_orders.tracking_number_note')}</div>
@@ -1055,7 +1055,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       {transportModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 6 }}>{t('seller_orders.transport_modal_title')}</div>
+            <div style={{ fontSize: 16, fontWeight:800, color: '#1e293b', marginBottom: 6 }}>{t('seller_orders.transport_modal_title')}</div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
               {t('seller_orders.transport_modal_desc')}
             </div>
@@ -1093,7 +1093,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
               <button onClick={handleSaveTransport}
                 disabled={savingTransport || (!transportForm.busTicketNumber && !transportForm.courierName)}
                 style={{ flex: 2, background: (!transportForm.busTicketNumber && !transportForm.courierTrackingRef) ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#15803d)',
-                  color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 900 }}>
+                  color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight:800 }}>
                 {savingTransport ? t('seller_orders.saving') : t('seller_orders.save_notify_button')}
               </button>
               <button onClick={() => setTransportModal(null)}

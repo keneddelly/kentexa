@@ -228,7 +228,7 @@ const DispatcherManifest = ({ onNavigate }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('dispatcher_manifest.batch_today_label')}</div>
-                  <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b' }}>
+                  <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>
                     {new Date(batch.runDate).toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' })}
                   </div>
                 </div>
@@ -250,7 +250,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                 ].map(s => (
                   <div key={s.label} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
                     <div style={{ fontSize: 20 }}>{s.icon}</div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: '#1e293b' }}>{s.value}</div>
+                    <div style={{ fontSize: 18, fontWeight:800, color: '#1e293b' }}>{s.value}</div>
                     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{s.label.toUpperCase()}</div>
                   </div>
                 ))}
@@ -331,7 +331,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                   <button
                     onClick={() => setExpandedZone(isExpanded ? null : zone.zoneId)}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: allDelivered ? 'linear-gradient(135deg,#16a34a,#22c55e)' : 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 14, flexShrink: 0 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: allDelivered ? 'linear-gradient(135deg,#16a34a,#22c55e)' : 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight:800, fontSize: 14, flexShrink: 0 }}>
                       {zIdx + 1}
                     </div>
                     <div style={{ flex: 1 }}>
@@ -437,7 +437,7 @@ const DispatcherManifest = ({ onNavigate }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 20px' }} />
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>{t('dispatcher_manifest.depart_modal_title')}</h2>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 6px' }}>{t('dispatcher_manifest.depart_modal_title')}</h2>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>{t('dispatcher_manifest.depart_modal_desc')}</p>
 
             {[
@@ -479,7 +479,7 @@ const DispatcherManifest = ({ onNavigate }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 14px' }}>{t('dispatcher_manifest.confirm_delivery_modal_title')}</h2>
+            <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 14px' }}>{t('dispatcher_manifest.confirm_delivery_modal_title')}</h2>
 
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{t('dispatcher_manifest.parcel_label')}</div>

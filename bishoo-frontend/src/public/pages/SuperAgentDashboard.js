@@ -859,14 +859,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24,
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: 16 }}>
           <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>🏢</div>
-          <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 900,
+          <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight:800,
             color: '#1e293b', margin: '0 0 6px' }}>{t('super_agent_dashboard.apply_title')}</h2>
           <p style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginBottom: 20 }}>
             {t('super_agent_dashboard.apply_desc')}
           </p>
           <button onClick={() => onNavigate('BecomeSuperAgentInfo')}
             style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
-              padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 15, fontWeight: 900 }}>
+              padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 15, fontWeight:800 }}>
             {t('become_super_agent_info.form_title')}
           </button>
         </div>
@@ -897,7 +897,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.header_title', 'Hub Dashboard')} top={0} />
       <div style={{ padding: '40px 20px', textAlign: 'center', maxWidth: 420, margin: '0 auto', flex: 1 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
-        <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 8px' }}>
+        <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', margin: '0 0 8px' }}>
           {t('super_agent_dashboard.registered_title', { name: profile?.businessName || t('super_agent_dashboard.your_hub_fallback') })}
         </h2>
         <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 24px', lineHeight: 1.6 }}>
@@ -1087,7 +1087,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
+                  <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>
                     👤 Mteja wa Walk-In
                   </div>
                   {/* On the receipt screen the only way out is "Mzigo mpya". */}
@@ -1233,7 +1233,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             </div>
                           </div>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: 18, fontWeight: 900,
+                            <div style={{ fontSize: 18, fontWeight:800,
                               color: walkPriceEstimate.confidence === 'exact' ? '#16a34a' : '#f59e0b' }}>
                               {walkPriceEstimate.displayPrice}
                             </div>
@@ -1325,7 +1325,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     <button data-tour="sa-walkin-submit" onClick={handleWalkSubmit} disabled={actionLoading}
                       style={{ width: '100%', backgroundColor: actionLoading ? '#94a3b8' : '#16a34a',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                        cursor: 'pointer', fontSize: 14, fontWeight: 900, marginTop: 8 }}>
+                        cursor: 'pointer', fontSize: 14, fontWeight:800, marginTop: 8 }}>
                       {actionLoading ? '⏳ Inasajili...' : '📥 Sajili Kifurushi'}
                     </button>
                   </>
@@ -1338,9 +1338,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                      tracking number. */
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: '#15803d',
+                    <div style={{ fontSize: 13, fontWeight:800, color: '#15803d',
                       marginBottom: 8 }}>Kifurushi Kimesajiliwa!</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 900,
+                    <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight:800,
                       color: '#1d4ed8', marginBottom: 6 }}>
                       {displayParcelNumber(walkResult)}
                     </div>
@@ -1373,7 +1373,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {walkResult.shipmentClaim?.receiptSecret && (
                       <div data-keep-open style={{ border: '2px dashed #7c3aed', borderRadius: 10, padding: '10px 12px', marginBottom: 14, background: '#faf5ff' }}>
                         <div style={{ fontSize: 12, fontWeight: 800, color: '#5b21b6' }}>Namba ya siri ya mteja (kudai mzigo mtandaoni)</div>
-                        <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 900, color: '#1e293b', margin: '6px 0', wordSpacing: 4 }}>
+                        <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight:800, color: '#1e293b', margin: '6px 0', wordSpacing: 4 }}>
                           {formatClaimSecret(walkResult.shipmentClaim.receiptSecret)}
                         </div>
                         <div style={{ fontSize: 11, color: '#6b21a8' }}>
@@ -1417,7 +1417,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
+                  <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>
                     🚌 Kifurushi Kimefika Hub
                   </div>
                   <button onClick={() => setPokeaMode('list')}
@@ -1447,7 +1447,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     disabled={actionLoading || !arrivalTracking.trim()}
                     style={{ flex: 2, backgroundColor: !arrivalTracking.trim() ? '#94a3b8' : '#7c3aed',
                       color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                      cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+                      cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
                     {actionLoading ? '⏳' : '✅ Sajili Kufika — SMS kwa Mpokeaji'}
                   </button>
                   <button onClick={() => setPokeaMode('list')}
@@ -1474,7 +1474,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>📤 Tuma</div>
+                  <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>📤 Tuma</div>
                   <button onClick={() => setDispatchParcel(null)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer',
                       fontSize: 20, color: '#64748b' }}>×</button>
@@ -1528,7 +1528,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <button onClick={handleDispatch} disabled={actionLoading}
                   style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff',
                     border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer',
-                    fontSize: 14, fontWeight: 900 }}>
+                    fontSize: 14, fontWeight:800 }}>
                   {actionLoading ? '⏳' : '📤 Tuma Sasa'}
                 </button>
               </div>
@@ -1539,7 +1539,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
+                  <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>
                     {inviteParcel ? `Tuma mzigo mmoja · ${displayParcelNumber(inviteParcel)}` : 'Shehena: vifurushi vingi pamoja'}
                   </div>
                   <button onClick={() => { setTumaMode('list'); resetBulkForm(); setBulkStep('open'); }}
@@ -1637,7 +1637,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         : bulkReceiverMode === 'manual' ? bulkManualContact.name.trim() : '';
                       return (
                         <div style={{ marginTop: 6 }}>
-                          <div style={{ fontSize: 13, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
                             Huko {bulkDestCity}, mzigo utapokelewa na nani?
                           </div>
                           {choice('office', 'Ofisi ya KenteXa', bulkHubsLoading ? 'Inatafuta ofisi…' : bulkHubs.length ? `Ofisi ${bulkHubs.length} ziko ${bulkDestCity}` : `Hakuna ofisi ya KenteXa ${bulkDestCity} bado`)}
@@ -1743,7 +1743,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       style={{ width: '100%', marginTop: 10,
                         backgroundColor: (!bulkSelected.size || !receiverReady) ? '#94a3b8' : '#d97706',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                        cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+                        cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
                       {actionLoading ? 'Inaendelea…' : inviteParcel ? 'Endelea: chagua usafiri' : `Unda shehena ya vifurushi ${bulkSelected.size}, SMS kwa wapokeaji`}
                     </button>
                     <button onClick={() => { resetBulkForm(); setBulkStep('open'); }}
@@ -1800,7 +1800,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       disabled={actionLoading || !bulkSelected.size}
                       style={{ width: '100%', marginTop: 10, backgroundColor: !bulkSelected.size ? '#94a3b8' : '#d97706',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                        cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+                        cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
                       {actionLoading ? '⏳' : `➕ Ongeza (${bulkSelected.size}) — SMS kwa Wanunuzi`}
                     </button>
                     <button onClick={() => { resetBulkForm(); setBulkStep('open'); fetchOpenShipments(); }}
@@ -1838,7 +1838,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     <button onClick={handleDispatchBulkShipment} disabled={actionLoading}
                       style={{ width: '100%', marginTop: 10, backgroundColor: '#16a34a',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                        cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+                        cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
                       {actionLoading ? 'Inatuma…' : inviteParcel ? 'Tuma mzigo' : 'Tuma shehena'}
                     </button>
                     <button onClick={() => { resetBulkForm(); setBulkStep('open'); fetchOpenShipments(); }}
@@ -1964,7 +1964,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
                   💵 MAPATO YA LEO
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: '#16a34a' }}>
+                <div style={{ fontSize: 22, fontWeight:800, color: '#16a34a' }}>
                   TZS {Number(revenue?.today ?? cashToday).toLocaleString()}
                 </div>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
@@ -1976,7 +1976,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
                   💳 KENTEXA INAKUDAIWA
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8' }}>
+                <div style={{ fontSize: 22, fontWeight:800, color: '#1d4ed8' }}>
                   TZS {kenetxaOwes.toLocaleString()}
                 </div>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
@@ -2035,7 +2035,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0',
                   borderTop: '1px solid #f1f5f9', fontSize: 13 }}>
                   <span style={{ color: '#64748b' }}>📦 Free Orders Available</span>
-                  <span style={{ fontWeight: 900, color: '#16a34a' }}>
+                  <span style={{ fontWeight:800, color: '#16a34a' }}>
                     {Math.max(0, Number(referralData.freeOrdersGranted || 0) - Number(referralData.freeOrdersUsed || 0))}
                   </span>
                 </div>
@@ -2101,7 +2101,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   padding: '10px 0 0', fontSize: 14 }}>
                   <span style={{ color: '#64748b', fontWeight: 700 }}>Deni lililobaki</span>
-                  <span style={{ fontWeight: 900,
+                  <span style={{ fontWeight:800,
                     color: dashData.agent.billing.billingBlocked ? '#dc2626' : '#1e293b' }}>
                     TZS {Number(dashData.agent.billing.outstandingBalance).toLocaleString()}
                     {' '}/ {Number(dashData.agent.billing.billingThreshold).toLocaleString()}
@@ -2141,7 +2141,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         {p.originCity} → {p.destinationCity} · <SBadge status={p.status} />
                       </div>
                     </div>
-                    <div style={{ fontWeight: 900, color: '#1d4ed8', fontSize: 14 }}>
+                    <div style={{ fontWeight:800, color: '#1d4ed8', fontSize: 14 }}>
                       TZS {Number(p.actualShippingFee || p.superAgentEarnings || 0).toLocaleString()}
                     </div>
                   </div>
@@ -2170,40 +2170,40 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         {activeTab === 'van' && isDar && (
           <div>
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:18, fontWeight:900, color:'#1e293b' }}>🚐 Van Desk</div>
+              <div style={{ fontSize:18, fontWeight:800, color:'#1e293b' }}>🚐 Van Desk</div>
               <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>Pokea mizigo iliyoshushwa na Van, kisha endelea na pickup au delivery.</div>
             </div>
             {vanDeskLoading && <div style={{ padding:20, textAlign:'center', color:'#64748b' }}>Inapakia...</div>}
             {!vanDeskLoading && (
               <>
-                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', marginBottom:8 }}>READY TO SEND · {vanToSend.length}</div>
+                <div style={{ fontSize:12, fontWeight:800, color:'#1d4ed8', marginBottom:8 }}>READY TO SEND · {vanToSend.length}</div>
                 {vanToSend.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12, marginBottom:18 }}>Hakuna mzigo uliopo custody yako unaosubiri Van.</div> :
                   vanToSend.map(p => {
                     const candidates=eligibleRuns[p.id] || [];
                     return <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8 }}>
-                      <div style={{fontWeight:900,fontSize:13}}>{p.trackingNumber || `Parcel #${p.id}`}</div>
+                      <div style={{fontWeight:800,fontSize:13}}>{p.trackingNumber || `Parcel #${p.id}`}</div>
                       <div style={{fontSize:11,color:'#64748b',margin:'3px 0 8px'}}>{p.originCity} → {p.destinationCity}{p.weightKg ? ` · ${p.weightKg}kg` : ''}</div>
                       {candidates.length===0 ? <button onClick={()=>loadEligibleRuns(p.id)} style={{width:'100%',border:'none',borderRadius:8,padding:9,fontWeight:800,cursor:'pointer'}}>Tafuta Van</button> :
                         <><select value={selectedRun[p.id] || ''} onChange={e=>setSelectedRun(x=>({...x,[p.id]:e.target.value}))} style={{width:'100%',padding:9,borderRadius:8,border:'1px solid #cbd5e1',marginBottom:7}}>
                           <option value="">Chagua Van</option>{candidates.map(x=><option key={x.runId} value={x.runId}>{x.loadLabel} → {x.unloadLabel} · {new Date(x.scheduledDeparture).toLocaleString()}</option>)}
                         </select>
-                        <button disabled={!selectedRun[p.id]||actionLoading} onClick={()=>releaseParcelToVan(p)} style={{width:'100%',border:'none',borderRadius:8,padding:9,background:'#1d4ed8',color:'#fff',fontWeight:900}}>Achia kwa Van</button></>}
+                        <button disabled={!selectedRun[p.id]||actionLoading} onClick={()=>releaseParcelToVan(p)} style={{width:'100%',border:'none',borderRadius:8,padding:9,background:'#1d4ed8',color:'#fff',fontWeight:800}}>Achia kwa Van</button></>}
                     </div>;
                   })}
-                <div style={{ fontSize:12, fontWeight:900, color:'#7c3aed', margin:'18px 0 8px' }}>INCOMING VAN · {vanIncoming.length}</div>
+                <div style={{ fontSize:12, fontWeight:800, color:'#7c3aed', margin:'18px 0 8px' }}>INCOMING VAN · {vanIncoming.length}</div>
                 {vanIncoming.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12, marginBottom:18 }}>Hakuna mzigo wa Van unaosubiri kupokelewa.</div> :
                   vanIncoming.map(p => <div key={p.assignmentId} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8 }}>
-                    <div style={{ fontWeight:900, fontSize:13, color:'#1e293b' }}>{p.trackingNumber || `Parcel #${p.parcelId}`}</div>
+                    <div style={{ fontWeight:800, fontSize:13, color:'#1e293b' }}>{p.trackingNumber || `Parcel #${p.parcelId}`}</div>
                     <div style={{ fontSize:11, color:'#64748b', margin:'4px 0 10px' }}>Run #{p.runId} · Imeshushwa {Math.max(0, Math.round(Number(p.waitingMinutes || 0)))} dk zilizopita</div>
                     <button disabled={actionLoading} onClick={() => confirmVanReceipt(p.assignmentId)}
-                      style={{ width:'100%', border:'none', borderRadius:10, padding:11, background:'#16a34a', color:'#fff', fontWeight:900, cursor:'pointer' }}>
+                      style={{ width:'100%', border:'none', borderRadius:10, padding:11, background:'#16a34a', color:'#fff', fontWeight:800, cursor:'pointer' }}>
                       ✓ Nimepokea Mzigo
                     </button>
                   </div>)}
-                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO OFISINI · {vanReady.length}</div>
+                <div style={{ fontSize:12, fontWeight:800, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO OFISINI · {vanReady.length}</div>
                 {vanReady.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12 }}>Hakuna mzigo wa Van unaosubiri pickup/delivery.</div> :
                   vanReady.map(p => <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8, display:'flex', justifyContent:'space-between', gap:10 }}>
-                    <div><div style={{ fontWeight:900, fontSize:13 }}>{displayParcelNumber(p)}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
+                    <div><div style={{ fontWeight:800, fontSize:13 }}>{displayParcelNumber(p)}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
                     <SBadge status={p.status} />
                   </div>)}
               </>
@@ -2219,7 +2219,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 4 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>🧾 Risiti</div>
+              <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>🧾 Risiti</div>
               <button onClick={() => setReceiptModal(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 20, color: '#64748b' }}>×</button>
@@ -2298,7 +2298,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 4 }}>
-              <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>🕘 Historia Kamili</div>
+              <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>🕘 Historia Kamili</div>
               <button onClick={() => setHistoryModal(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 20, color: '#64748b' }}>×</button>
@@ -2387,7 +2387,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0',
             padding: 24, width: '100%', maxWidth: 480 }}>
-            <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 4 }}>
+            <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 4 }}>
               Sasisha Hali
             </div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8',
@@ -2440,7 +2440,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   {agentHandoffChallenge?.trackingNumber === statusParcel.trackingNumber && (
                     <div style={{ marginTop: 10, fontSize: 13 }}>
                       Mwonyeshe wakala namba hii akiwa hapa. Inaisha baada ya dakika 10.
-                      <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 6 }}>
+                      <div style={{ fontSize: 26, fontWeight:800, letterSpacing: 6 }}>
                         {agentHandoffChallenge.code}
                       </div>
                     </div>
@@ -2495,7 +2495,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               <button onClick={handleStatus} disabled={actionLoading || !newStatus}
                 style={{ flex: 2, backgroundColor: !newStatus ? '#94a3b8' : '#1d4ed8',
                   color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                  cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+                  cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
                 {actionLoading ? '⏳' : '💾 Hifadhi'}
               </button>
               <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); setPickupCode(''); setCodBalanceAmount(''); }}

@@ -37,7 +37,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
         <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
           {t('profile_completion_banner.title', { percent })}
         </div>
-        <div style={{ fontSize: 12, fontWeight: 900, color: percent >= 75 ? '#16a34a' : percent >= 40 ? '#f59e0b' : '#ef4444' }}>
+        <div style={{ fontSize: 12, fontWeight:800, color: percent >= 75 ? '#16a34a' : percent >= 40 ? '#f59e0b' : '#ef4444' }}>
           {percent}%
         </div>
       </div>

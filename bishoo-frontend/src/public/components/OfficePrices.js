@@ -128,7 +128,7 @@ const OfficePrices = () => {
         {(
           <div data-testid="bei-card" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginTop: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 12 }}>
+            <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 12 }}>
               📋 {t('super_agent_settings.rates_title')}
             </div>
             {rule && <ChargeRuleSection rule={rule} form={ruleForm} onChange={setRuleForm} />}
@@ -217,7 +217,7 @@ const OfficePrices = () => {
               style={{ width: '100%', backgroundColor: rateSaving ? '#94a3b8' : '#16a34a',
                 color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                 cursor: rateSaving ? 'not-allowed' : 'pointer',
-                fontSize: 15, fontWeight: 900 }}>
+                fontSize: 15, fontWeight:800 }}>
               {rateSaving ? t('super_agent_settings.saving') : t('super_agent_settings.rate_save_button')}
             </button>
           </div>

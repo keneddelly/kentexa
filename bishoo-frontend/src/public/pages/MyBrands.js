@@ -178,7 +178,7 @@ const MyBrands = ({ onNavigate, activeProfileId }) => {
         <div onClick={resetForm} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 3000 }}>
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('my_brands.request_title')}</div>
+              <div style={{ fontSize: 15, fontWeight:800 }}>{t('my_brands.request_title')}</div>
               <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
             </div>
 
@@ -234,7 +234,7 @@ const MyBrands = ({ onNavigate, activeProfileId }) => {
             <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>{t('my_brands.evidence_hint')}</div>
 
             <button onClick={handleSubmit} disabled={submitting || !selectedBrand}
-              style={{ width: '100%', padding: 14, background: !selectedBrand ? '#94a3b8' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              style={{ width: '100%', padding: 14, background: !selectedBrand ? '#94a3b8' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {submitting ? t('my_brands.submitting') : t('my_brands.submit_button')}
             </button>
           </div>

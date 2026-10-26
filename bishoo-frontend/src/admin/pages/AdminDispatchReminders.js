@@ -31,7 +31,7 @@ export default function AdminDispatchReminders({ activePage, onNavigate, onLogou
   const td = { padding: '8px 10px', fontSize: 13, color: '#0f172a', borderBottom: '1px solid #f1f5f9' };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: 'Manrope,Inter,sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily:'inherit' }}>
       <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>

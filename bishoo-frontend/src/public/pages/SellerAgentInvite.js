@@ -72,7 +72,7 @@ const SellerAgentInvite = ({ token, isLoggedIn, onNavigate }) => {
     <>
       <div style={card}>
         <div style={{ fontSize: 12, fontWeight: 800, color: BLUE, textTransform: 'uppercase', marginBottom: 6 }}>Mwaliko wa wakala</div>
-        <h1 style={{ fontSize: 20, fontWeight: 900, color: DARK, margin: '0 0 6px', lineHeight: 1.3 }}>
+        <h1 style={{ fontSize: 20, fontWeight:800, color: DARK, margin: '0 0 6px', lineHeight: 1.3 }}>
           {shop} anakualika uwe wakala wake KenteXa
         </h1>
         <p style={{ fontSize: 14, color: GREY, margin: 0, lineHeight: 1.5 }}>

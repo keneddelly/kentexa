@@ -38,7 +38,7 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
       <div style={{ width: 48, height: 48, borderRadius: '50%',
         background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 20, fontWeight: 900, color: '#fff', flexShrink: 0 }}>
+        fontSize: 20, fontWeight:800, color: '#fff', flexShrink: 0 }}>
         {initial}
       </div>
 
@@ -180,7 +180,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
             ].map(s => (
               <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12,
                 padding: '12px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 900, color: s.color }}>
+                <div style={{ fontSize: 15, fontWeight:800, color: s.color }}>
                   {s.value}
                 </div>
                 <div style={{ fontSize: 10, color: '#64748b', marginTop: 3, fontWeight: 600 }}>
@@ -221,7 +221,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
             borderRadius: 14, padding: 16, marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, color: '#16a34a' }}>
+              <div style={{ fontSize: 13, fontWeight:800, color: '#16a34a' }}>
                 {t('seller_customers.whatsapp_campaign')}
               </div>
               <span style={{ fontSize: 11, backgroundColor: '#dcfce7', color: '#16a34a',
@@ -390,7 +390,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
 
               <div style={{ display: 'flex', justifyContent: 'space-between',
                 alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontSize: 18, fontWeight: 900 }}>{selected.name}</div>
+                <div style={{ fontSize: 18, fontWeight:800 }}>{selected.name}</div>
                 <button onClick={() => setSelected(null)}
                   style={{ background: 'none', border: 'none', fontSize: 22,
                     cursor: 'pointer', color: '#94a3b8' }}>✕</button>

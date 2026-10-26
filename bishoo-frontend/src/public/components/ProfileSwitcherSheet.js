@@ -86,11 +86,11 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           maxHeight:appleMobile ? 'min(75dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px))' : '75vh',
           paddingBottom:appleMobile ? 'env(safe-area-inset-bottom, 0px)' : undefined,
           display:'flex', flexDirection:'column', overflow:appleMobile ? 'hidden' : undefined,
-          fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
+          fontFamily:'inherit' }}>
 
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
-          <div style={{ fontSize:15, fontWeight:900, color:DK }}>
+          <div style={{ fontSize:15, fontWeight:800, color:DK }}>
             {t('profile_switcher.title')}
           </div>
           <button onClick={onClose}

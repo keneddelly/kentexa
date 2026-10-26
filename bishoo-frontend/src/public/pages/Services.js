@@ -145,7 +145,7 @@ const ServiceCard = ({ ad, onClick }) => {
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight: 900, color: '#1d4ed8' }}>
+        <div style={{ fontSize: 15, fontWeight:800, color: '#1d4ed8' }}>
           {ad.priceType === 'negotiate' || ad.priceType === 'free_quote'
             ? <span style={{ fontSize: 13, color: '#64748b' }}>{PRICE_LABELS[ad.priceType]}</span>
             : <>TZS {fmt(ad.price)}<span style={{ fontSize: 11, color: '#94a3b8' }}>{PRICE_LABELS[ad.priceType]}</span></>
@@ -188,7 +188,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', paddingBottom: 90,
-      backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+      backgroundColor: '#f8fafc', fontFamily:'inherit' }}>
 
       {/* ── Top bar ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 200, backgroundColor: '#fff',
@@ -201,14 +201,14 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <polyline points="15,18 9,12 15,6"/>
           </svg>
         </button>
-        <div style={{ fontSize: 15, fontWeight: 900, color: '#0F172A' }}>{t('services_page.page_title')}</div>
+        <div style={{ fontSize: 15, fontWeight:800, color: '#0F172A' }}>{t('services_page.page_title')}</div>
       </div>
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b 0%,#1d4ed8 60%,#0891b2 100%)',
         padding: 'clamp(32px,5vw,56px) 16px' }}>
         <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 'clamp(24px,5vw,42px)', fontWeight: 900, color: '#fff',
+          <h1 style={{ fontSize: 'clamp(24px,5vw,42px)', fontWeight:800, color: '#fff',
             margin: '0 0 12px', letterSpacing: -0.5 }}>
             {t('services_page.hero_title_line1')}<br/>{t('services_page.hero_title_line2')}
           </h1>
@@ -329,7 +329,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         ) : ads.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>🔍</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+            <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
               {t('services_page.no_services_title')}
             </div>
             <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}>

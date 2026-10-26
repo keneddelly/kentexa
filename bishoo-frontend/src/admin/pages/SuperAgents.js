@@ -164,7 +164,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>🏢 Offices</h1>
+            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0, fontFamily:'inherit' }}>🏢 Offices</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>{agents.length} total super agents</p>
           </div>
           <button onClick={fetchAgents} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>🔄 Refresh</button>
@@ -182,7 +182,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
             { label: 'Suspended', value: counts.suspended, bg: '#fee2e2', color: '#dc2626' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '16px', textAlign: 'center' }}>
-              <div style={{ fontSize: 28, fontWeight: 900, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 28, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
@@ -432,7 +432,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 4px', marginTop: 4, borderTop: '1px solid #e2e8f0', fontSize: 13 }}>
                     <span style={{ fontWeight: 700, color: '#475569' }}>Outstanding balance</span>
-                    <span style={{ fontWeight: 900, color: isBlocked ? '#dc2626' : '#0f172a' }}>
+                    <span style={{ fontWeight:800, color: isBlocked ? '#dc2626' : '#0f172a' }}>
                       TZS {balance.toLocaleString()} / {threshold.toLocaleString()}
                     </span>
                   </div>

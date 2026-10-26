@@ -59,7 +59,7 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800;900&display=swap');
-        .rb { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer; font-family:'Manrope',sans-serif; box-shadow:0 6px 18px rgba(37,99,235,0.4); }
+        .rb { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer; font-family:inherit; box-shadow:0 6px 18px rgba(37,99,235,0.4); }
         .rb:disabled { opacity:0.6; cursor:not-allowed; }
       `}</style>
 
@@ -67,7 +67,7 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
         <div style={{ backgroundColor:'#fff', borderRadius:20, padding:'32px 24px', width:'100%', maxWidth:400, boxShadow:'0 8px 40px rgba(37,99,235,0.12)' }}>
 
           <div style={{ textAlign:'center', marginBottom:24 }}>
-            <h2 style={{ fontSize:20, fontWeight:900, color:'#0f172a', margin:'0 0 4px', fontFamily:'Manrope,sans-serif' }}>
+            <h2 style={{ fontSize:20, fontWeight:800, color:'#0f172a', margin:'0 0 4px', fontFamily:'inherit' }}>
               {t('register.add_photo_title')}
             </h2>
             <p style={{ fontSize:16, color:'#64748b', margin:0 }}>
@@ -88,7 +88,7 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
                 <div style={{ fontSize:11, color:'#0369a1', fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>
                   {t('register.welcome_kentexa_id_label')}
                 </div>
-                <div style={{ fontSize:18, fontWeight:900, color:'#0369a1', letterSpacing:1 }}>{currentUser.kentexaId}</div>
+                <div style={{ fontSize:18, fontWeight:800, color:'#0369a1', letterSpacing:1 }}>{currentUser.kentexaId}</div>
               </div>
             )}
             <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', border:'2px dashed #93c5fd', borderRadius:16, padding:'28px 16px', backgroundColor:'#f8fafc' }}>

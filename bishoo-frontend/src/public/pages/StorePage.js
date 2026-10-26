@@ -111,7 +111,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
         overflow: 'hidden',
       }}>
         {isOfficial && (
-          <div style={{ position: 'absolute', top: 12, right: 12, backgroundColor: '#f59e0b', color: '#fff', padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: 900, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+          <div style={{ position: 'absolute', top: 12, right: 12, backgroundColor: '#f59e0b', color: '#fff', padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight:800, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
             {t('store_page.official_badge')}
           </div>
         )}
@@ -125,7 +125,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
             width: 80, height: 80, borderRadius: 16, backgroundColor: '#fff',
             border: '4px solid #fff', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 32, fontWeight: 900, color: '#1d4ed8', flexShrink: 0,
+            fontSize: 32, fontWeight:800, color: '#1d4ed8', flexShrink: 0,
             overflow: 'hidden', position: 'relative',
           }}>
             {seller?.logo
@@ -136,7 +136,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
 
           <div style={{ flex: 1, paddingTop: 40, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: 19, fontWeight: 900, color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>
+              <h1 style={{ fontSize: 19, fontWeight:800, color: '#0f172a', margin: 0, fontFamily:'inherit' }}>
                 {seller?.storeName || seller?.name || t('store_page.default_store_name')}
               </h1>
               {isVerified && <span title={t('store_page.verified_seller_title')} style={{ fontSize: 16 }}>✅</span>}
@@ -214,7 +214,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== STORE INFO ===================== */}
       <div style={{ padding: '0 16px 14px' }}>
         <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.store_info_title')}</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily:'inherit' }}>{t('store_page.store_info_title')}</h3>
           {seller?.storeDescription && (
             <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: '0 0 12px' }}>{seller.storeDescription}</p>
           )}
@@ -232,7 +232,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== DELIVERY ===================== */}
       <div style={{ padding: '0 16px 14px' }}>
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 14, padding: 16, border: '1px solid #bfdbfe' }}>
-          <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.delivery_title')}</h3>
+          <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', margin: '0 0 10px', fontFamily:'inherit' }}>{t('store_page.delivery_title')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: '#1e40af' }}>
             <div>{t('store_page.ships_nationwide_check')}</div>
             <div>{t('store_page.buyer_protection_check')}</div>
@@ -245,7 +245,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== FEATURED PRODUCTS ===================== */}
       {featuredProducts.length > 0 && (
         <div style={{ padding: '0 16px 14px' }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.featured_title')}</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily:'inherit' }}>{t('store_page.featured_title')}</h3>
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
             {featuredProducts.map(p => (
               <ProductCard key={p.id} product={p} onNavigate={onNavigate} featured />
@@ -258,7 +258,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {seller?.activePromotion && (
         <div style={{ padding: '0 16px 14px' }}>
           <div style={{ background: 'linear-gradient(135deg,#dc2626,#ea580c)', borderRadius: 14, padding: 16, color: '#fff' }}>
-            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 4 }}>🔥 {seller.activePromotion.title}</div>
+            <div style={{ fontSize: 13, fontWeight:800, marginBottom: 4 }}>🔥 {seller.activePromotion.title}</div>
             <div style={{ fontSize: 12, opacity: 0.9 }}>{seller.activePromotion.description}</div>
           </div>
         </div>
@@ -266,7 +266,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
 
       {/* ===================== PRODUCT FILTERS ===================== */}
       <div style={{ padding: '0 16px 10px' }}>
-        <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>
+        <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily:'inherit' }}>
           {t('store_page.all_products_title', { count: visibleProducts.length })}
         </h3>
 
@@ -310,7 +310,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== GALLERY ===================== */}
       {seller?.galleryImages?.length > 0 && (
         <div style={{ padding: '0 16px 14px' }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.gallery_title')}</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily:'inherit' }}>{t('store_page.gallery_title')}</h3>
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6 }}>
             {seller.galleryImages.map((img, i) => (
               <img key={i} src={img} alt={`gallery-${i}`} style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }} />
@@ -324,7 +324,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {storeClassifieds && storeClassifieds.length > 0 && (
         <div style={{ margin: '0 16px 16px', backgroundColor: '#fff',
           borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 14 }}>
+          <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 14 }}>
             {t('store_page.classifieds_title')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -343,7 +343,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
                 )}
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{c.title}</div>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: '#16a34a', marginTop: 2 }}>
+                  <div style={{ fontSize: 13, fontWeight:800, color: '#16a34a', marginTop: 2 }}>
                     TZS {Number(c.price).toLocaleString()}
                   </div>
                   <div style={{ fontSize: 11, color: '#64748b' }}>📍 {c.location || '—'}</div>
@@ -357,7 +357,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
 
 {/* ===================== REVIEWS ===================== */}
       <div style={{ padding: '0 16px 24px' }}>
-        <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>
+        <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily:'inherit' }}>
           {t('store_page.reviews_title')}{stats.reviewsCount > 0 && t('store_page.reviews_count', { count: stats.reviewsCount })}
         </h3>
         {(!seller?.reviews || seller.reviews.length === 0) ? (
@@ -395,7 +395,7 @@ const Badge = ({ icon, label, color }) => (
 
 const Stat = ({ value, label }) => (
   <div>
-    <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a' }}>{value}</div>
+    <div style={{ fontSize: 16, fontWeight:800, color: '#0f172a' }}>{value}</div>
     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{label}</div>
   </div>
 );
@@ -436,7 +436,7 @@ const ProductCard = ({ product, onNavigate, featured }) => {
       </div>
       <div style={{ padding: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.name}</div>
-        <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginTop: 2 }}>TZS {price.toLocaleString()}</div>
+        <div style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', marginTop: 2 }}>TZS {price.toLocaleString()}</div>
         {Number(product.deliveryFee) === 0 && <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, marginTop: 2 }}>{t('store_page.free_delivery_label')}</div>}
       </div>
     </div>

@@ -139,7 +139,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
                 {parcel.status === 'awaiting_buyer' ? '🔔' :
                  parcel.status === 'delivered' || parcel.status === 'self_pickup' ? '🎉' : '📦'}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: st.color, marginBottom: 4 }}>
+              <div style={{ fontSize: 18, fontWeight:800, color: st.color, marginBottom: 4 }}>
                 {st.label}
               </div>
               <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#94a3b8' }}>{trackingNumber}</div>
@@ -211,7 +211,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button
                   onClick={() => { setView('agents'); fetchAgents(); }}
-                  style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 16, borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight: 900, boxShadow: '0 4px 12px rgba(29,78,216,0.3)' }}>
+                  style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 16, borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight:800, boxShadow: '0 4px 12px rgba(29,78,216,0.3)' }}>
                   {t('buyer_parcel_action.request_delivery_button')}
                 </button>
                 <button
@@ -298,7 +298,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
                         </div>
                         {/* Delivery fee — the main number buyer sees */}
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: 20, fontWeight: 900, color: '#1d4ed8' }}>
+                          <div style={{ fontSize: 20, fontWeight:800, color: '#1d4ed8' }}>
                             TZS {Number(agent.deliveryFee).toLocaleString()}
                           </div>
                           <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('buyer_parcel_action.delivery_fee_label')}</div>
@@ -318,7 +318,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
 
                 {selectedAgent && (
                   <button onClick={handleRequestDelivery} disabled={actionLoading}
-                    style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 16, borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight: 900, boxShadow: '0 4px 12px rgba(22,163,74,0.3)' }}>
+                    style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 16, borderRadius: 14, cursor: 'pointer', fontSize: 15, fontWeight:800, boxShadow: '0 4px 12px rgba(22,163,74,0.3)' }}>
                     {actionLoading ? t('buyer_parcel_action.sending_request') : t('buyer_parcel_action.request_delivery_price_button', { fee: Number(selectedAgent.deliveryFee).toLocaleString() })}
                   </button>
                 )}

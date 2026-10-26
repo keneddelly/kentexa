@@ -77,13 +77,13 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '36px 24px', textAlign: 'center', width: '100%', maxWidth: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
             <div style={{ fontSize: '56px', marginBottom: '12px' }}>🎉</div>
-            <h2 style={{ fontSize: '22px', fontWeight: '900', color: '#1e293b', marginBottom: '8px' }}>{t('pay_invoice.payment_success')}</h2>
+            <h2 style={{ fontSize: '22px', fontWeight:'800', color: '#1e293b', marginBottom: '8px' }}>{t('pay_invoice.payment_success')}</h2>
             <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '14px' }}>{t('pay_invoice.confirmed')}</p>
             <div style={{ background: 'linear-gradient(135deg, #43e97b, #38f9d7)', borderRadius: '12px', padding: '18px', marginBottom: '20px' }}>
               <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>{t('pay_invoice.invoice_no')}</div>
-              <div style={{ fontSize: '16px', fontWeight: '900', color: '#fff', fontFamily: 'monospace', marginBottom: '8px' }}>{paymentSuccess.invoiceNumber}</div>
+              <div style={{ fontSize: '16px', fontWeight:'800', color: '#fff', fontFamily: 'monospace', marginBottom: '8px' }}>{paymentSuccess.invoiceNumber}</div>
               <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>{t('checkout.amount_paid')}</div>
-              <div style={{ fontSize: '24px', fontWeight: '900', color: '#fff' }}>TZS {Number(paymentSuccess.amount).toLocaleString()}</div>
+              <div style={{ fontSize: '24px', fontWeight:'800', color: '#fff' }}>TZS {Number(paymentSuccess.amount).toLocaleString()}</div>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => onNavigate('Home')} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>🏠 {t('pay_invoice.home')}</button>
@@ -104,7 +104,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
         </button>
         <div style={{ fontSize: '40px', marginBottom: '8px' }}>💳</div>
-        <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#fff', margin: '0 0 6px' }}>{t('pay_invoice.title')}</h1>
+        <h1 style={{ fontSize: '22px', fontWeight:'800', color: '#fff', margin: '0 0 6px' }}>{t('pay_invoice.title')}</h1>
         <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('pay_invoice.subtitle')}</p>
       </div>
 
@@ -149,7 +149,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px' }}>
                     {invoice.isCod ? t('pay_invoice.cod_due_now') : t('pay_invoice.amount_due')}
                   </div>
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: '#fff' }}>TZS {Number(invoice.amount).toLocaleString()}</div>
+                  <div style={{ fontSize: '24px', fontWeight:'800', color: '#fff' }}>TZS {Number(invoice.amount).toLocaleString()}</div>
                 </div>
                 <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '5px 12px', color: '#fff', fontSize: '11px', fontWeight: '700' }}>
                   {invoice.status?.toUpperCase()}
@@ -194,7 +194,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
                   </div>
                 </div>
                 <button onClick={handlePay} disabled={paying || !payerPhone.trim()}
-                  style={{ width: '100%', background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg, #667eea, #764ba2)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: '14px', borderRadius: '12px', cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontSize: '15px', fontWeight: '900' }}>
+                  style={{ width: '100%', background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg, #667eea, #764ba2)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: '14px', borderRadius: '12px', cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontSize: '15px', fontWeight:'800' }}>
                   {paying ? `⏳ ${t('pay_invoice.initiating')}` : `💳 ${t('pay_invoice.pay_button')} ${Number(invoice.amount).toLocaleString()}`}
                 </button>
               </div>
@@ -223,7 +223,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
         {paymentPending && invoice && (
           <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px 20px', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '48px', marginBottom: '14px' }}>📱</div>
-            <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1e293b', marginBottom: '8px' }}>{t('pay_invoice.check_phone')}</h2>
+            <h2 style={{ fontSize: '18px', fontWeight:'800', color: '#1e293b', marginBottom: '8px' }}>{t('pay_invoice.check_phone')}</h2>
             <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>{t('pay_invoice.enter_pin')}</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
               {[0, 1, 2].map(i => <div key={i} style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#7c3aed', opacity: 0.4 + i * 0.3 }} />)}

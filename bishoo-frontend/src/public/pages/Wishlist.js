@@ -142,7 +142,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
           <div style={{ textAlign:'center', padding:80, backgroundColor:WH,
             borderRadius:20, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize:64, marginBottom:16 }}>🤍</div>
-            <div style={{ fontSize:18, fontWeight:900, color:DK, marginBottom:8 }}>
+            <div style={{ fontSize:18, fontWeight:800, color:DK, marginBottom:8 }}>
               {items.length === 0 ? t('wishlist.nothing_saved') : t('wishlist.no_saved_type', { type: TYPE_META[filter]?.label.toLowerCase() || '' })}
             </div>
             <div style={{ fontSize:13, color:GR, marginBottom:24 }}>
@@ -196,7 +196,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
                       {item.title}
                     </div>
                     {item.price != null && (
-                      <div style={{ fontSize:14, fontWeight:900, color:B, marginBottom:4 }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:B, marginBottom:4 }}>
                         TZS {fmt(item.price)}
                       </div>
                     )}

@@ -97,7 +97,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
           <div style={{ width:26, height:26, borderRadius:'50%',
             backgroundColor: active ? B : '#e2e8f0',
             display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize: 12, fontWeight: 900,
+            fontSize: 12, fontWeight:800,
             color: active ? '#fff' : '#64748b',
             border: active ? `2px solid ${B}` : '2px solid #e2e8f0' }}>
             {(currentUser?.name || currentUser?.storeName || 'U').charAt(0).toUpperCase()}

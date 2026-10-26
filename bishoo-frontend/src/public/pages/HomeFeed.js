@@ -105,7 +105,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
         padding:'24px 20px 44px', animation:'slideUp 0.2s ease' }}>
         <div style={{ width:36, height:4, borderRadius:100, backgroundColor:'#E2E8F0',
           margin:'0 auto 20px' }} />
-        <div style={{ fontSize:16, fontWeight:900, color:DK, marginBottom:4 }}>
+        <div style={{ fontSize:16, fontWeight:800, color:DK, marginBottom:4 }}>
           {t('home_feed.contact_title', { name: biz.storeName || biz.name })}
         </div>
         <div style={{ fontSize:12, color:GR, marginBottom:20 }}>{t('home_feed.about_label', { title })}</div>
@@ -274,7 +274,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       borderBottom: isReply ? 'none' : '1px solid #F8FAFC' }}>
       <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
         backgroundColor:B, display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:11, color:WH, fontWeight:900, overflow:'hidden' }}>
+        justifyContent:'center', fontSize:11, color:WH, fontWeight:800, overflow:'hidden' }}>
         {commenterPhoto
           ? <img src={commenterPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : commenterName.charAt(0).toUpperCase()}
@@ -320,7 +320,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
                 {c.offerCard.title}
               </div>
               {c.offerCard.price != null && (
-                <div style={{ fontSize:12, fontWeight:900, color:'#7C3AED' }}>
+                <div style={{ fontSize:12, fontWeight:800, color:'#7C3AED' }}>
                   TZS {fmt(c.offerCard.price)}
                 </div>
               )}
@@ -372,7 +372,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
         borderTop:'1px solid #F1F5F9', backgroundColor:WH }}>
         <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
           backgroundColor:B, display:'flex', alignItems:'center',
-          justifyContent:'center', fontSize:11, color:WH, fontWeight:900 }}>
+          justifyContent:'center', fontSize:11, color:WH, fontWeight:800 }}>
           {(currentUser?.name || 'U').charAt(0).toUpperCase()}
         </div>
         <div style={{ flex:1, backgroundColor:'#F1F5F9', borderRadius:20,
@@ -422,7 +422,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
               flexDirection:'column' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
               padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
-              <div style={{ fontSize:15, fontWeight:900, color:DK }}>{t('home_feed.what_do_you_have_title')}</div>
+              <div style={{ fontSize:15, fontWeight:800, color:DK }}>{t('home_feed.what_do_you_have_title')}</div>
               <button onClick={() => setShowReply(false)} style={{ background:'none',
                 border:'none', cursor:'pointer', fontSize:20, color:GR }}>×</button>
             </div>
@@ -457,7 +457,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
                         {item.title}
                       </div>
                       {replyItem?.type===item.type && replyItem?.id===item.id && (
-                        <span style={{ color:'#7C3AED', fontWeight:900 }}>✓</span>
+                        <span style={{ color:'#7C3AED', fontWeight:800 }}>✓</span>
                       )}
                     </button>
                   ))}
@@ -647,7 +647,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
             ? <img src={biz.logo} alt={bizName}
                 style={{ width:'100%', height:'100%', objectFit:'cover' }}
                 onError={e => e.target.style.display='none'} />
-            : <span style={{ fontSize:17, fontWeight:900, color:B }}>
+            : <span style={{ fontSize:17, fontWeight:800, color:B }}>
                 {bizName.charAt(0).toUpperCase()}
               </span>}
         </button>
@@ -695,7 +695,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
       {price > 0 && (
         <div style={{ display:'flex', gap:8, padding:'10px 14px 0',
           alignItems:'center' }}>
-          <div style={{ fontSize:18, fontWeight:900,
+          <div style={{ fontSize:18, fontWeight:800,
             color: post.isFlashSale ? '#DC2626' : DK }}>
             TZS {fmt(price)}
           </div>
@@ -937,7 +937,7 @@ const TransportPostCard = ({ post, onNavigate }) => {
             {biz.logo
               ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
                   onError={e => e.target.style.display='none'} />
-              : <span style={{ fontSize:10, fontWeight:900, color:B }}>{(biz.name||'?').charAt(0).toUpperCase()}</span>}
+              : <span style={{ fontSize:10, fontWeight:800, color:B }}>{(biz.name||'?').charAt(0).toUpperCase()}</span>}
           </div>
           <span style={{ fontSize:12, fontWeight:800, color:DK, overflow:'hidden',
             textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -1377,7 +1377,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
           justifyContent:'center' }}>
           {biz.logo
             ? <img src={biz.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-            : <span style={{ color:WH, fontSize:14, fontWeight:900 }}>{bizName.charAt(0).toUpperCase()}</span>}
+            : <span style={{ color:WH, fontSize:14, fontWeight:800 }}>{bizName.charAt(0).toUpperCase()}</span>}
         </div>
         <button onClick={() => { onClose(); biz.id && biz.actorResolved !== false && onNavigate(`CommerceProfile-${biz.id}`, biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : undefined); }}
           style={{ background:'none', border:'none', cursor:'pointer', textAlign:'left', flex:1 }}>
@@ -1459,7 +1459,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
               flexDirection:'column' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
               padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
-              <div style={{ fontSize:15, fontWeight:900, color:DK }}>{t('home_feed.what_do_you_have_title')}</div>
+              <div style={{ fontSize:15, fontWeight:800, color:DK }}>{t('home_feed.what_do_you_have_title')}</div>
               <button onClick={() => setShowReply(false)} style={{ background:'none',
                 border:'none', cursor:'pointer', fontSize:20, color:GR }}>×</button>
             </div>
@@ -1494,7 +1494,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
                         {item.title}
                       </div>
                       {replyItem?.type===item.type && replyItem?.id===item.id && (
-                        <span style={{ color:'#7C3AED', fontWeight:900 }}>✓</span>
+                        <span style={{ color:'#7C3AED', fontWeight:800 }}>✓</span>
                       )}
                     </button>
                   ))}
@@ -1542,7 +1542,7 @@ const MomentStory = ({ moment, onView }) => {
                   style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} />
               : <div style={{ width:'100%', height:'100%', borderRadius:'50%',
                   backgroundColor:B, display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:18, color:WH, fontWeight:900 }}>
+                  justifyContent:'center', fontSize:18, color:WH, fontWeight:800 }}>
                   {name.charAt(0).toUpperCase()}
                 </div>}
           </div>
@@ -1602,7 +1602,7 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
                   style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} />
               : <div style={{ width:'100%', height:'100%', borderRadius:'50%',
                   backgroundColor:B, display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:18, color:WH, fontWeight:900 }}>
+                  justifyContent:'center', fontSize:18, color:WH, fontWeight:800 }}>
                   {name.charAt(0).toUpperCase()}
                 </div>}
           </div>
@@ -1725,7 +1725,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
 
   return (
     <div style={{ backgroundColor:'#FAFAFA', minHeight:'100vh',
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
+      fontFamily:'inherit' }}>
       <style>{`
         @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
         ::-webkit-scrollbar { display:none }
@@ -1759,9 +1759,9 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               </svg>
             </div>
             <div style={{ display:'flex', alignItems:'baseline', gap:0, lineHeight:1 }}>
-              <span style={{ fontSize:18, fontWeight:900, color:DK,
+              <span style={{ fontSize:18, fontWeight:800, color:DK,
                 letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Kente</span>
-              <span style={{ fontSize:18, fontWeight:900, color:'#1d4ed8',
+              <span style={{ fontSize:18, fontWeight:800, color:'#1d4ed8',
                 letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Xa</span>
             </div>
           </button>
@@ -1786,7 +1786,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 <div style={{ position:'absolute', top:4, right:4, width:15, height:15,
                   borderRadius:'50%', backgroundColor:'#EF4444', display:'flex',
                   alignItems:'center', justifyContent:'center',
-                  fontSize:8, color:WH, fontWeight:900 }}>
+                  fontSize:8, color:WH, fontWeight:800 }}>
                   {unread > 9 ? '9+' : unread}
                 </div>
               )}
@@ -1875,7 +1875,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                   style={{ position:'absolute', bottom:14, right:4, width:18, height:18,
                     borderRadius:'50%', backgroundColor:B, border:'2px solid #fff',
                     display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:10, color:WH, fontWeight:900, cursor:'pointer', padding:0 }}>
+                    fontSize:10, color:WH, fontWeight:800, cursor:'pointer', padding:0 }}>
                   +
                 </button>
               )}
@@ -1921,7 +1921,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         <div style={{ margin:'8px 12px', borderRadius:20,
           background:'linear-gradient(135deg,#1E1B4B,#1D4ED8,#7C3AED)',
           padding:'22px 20px', color:WH }}>
-          <div style={{ fontSize:18, fontWeight:900, lineHeight:1.3, marginBottom:8 }}>
+          <div style={{ fontSize:18, fontWeight:800, lineHeight:1.3, marginBottom:8 }}>
             {t('home_feed.hero_title_line1')}<br/>{t('home_feed.hero_title_line2')}
           </div>
           <div style={{ fontSize:12, color:'rgba(255,255,255,0.75)',
@@ -1932,7 +1932,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
             <button onClick={() => onNavigate('Register')}
               style={{ flex:1, backgroundColor:WH, color:B, border:'none',
                 borderRadius:10, padding:'11px 0', cursor:'pointer',
-                fontSize:13, fontWeight:900 }}>{t('home_feed.join_free_button')}</button>
+                fontSize:13, fontWeight:800 }}>{t('home_feed.join_free_button')}</button>
             <button onClick={() => onNavigate('PublicLogin')}
               style={{ flex:1, backgroundColor:'rgba(255,255,255,0.15)',
                 color:WH, border:'1.5px solid rgba(255,255,255,0.3)',

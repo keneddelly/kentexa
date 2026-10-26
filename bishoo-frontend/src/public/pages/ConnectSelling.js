@@ -29,7 +29,7 @@ const ConnectSelling = ({ onNavigate, isLoggedIn, activeProfile }) => {
   const name = activeProfile?.displayName || '';
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily:'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('connect_selling.title')} top={0} />
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto' }}>
         {data?.legacySeller && (
@@ -44,7 +44,7 @@ const ConnectSelling = ({ onNavigate, isLoggedIn, activeProfile }) => {
         )}
         {data && data.options.map((o) => (
           <div key={o.businessId} style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>{o.businessName}</div>
+            <div style={{ fontSize: 15, fontWeight:800, color: DK }}>{o.businessName}</div>
             <div style={{ fontSize: 12, color: GR, margin: '2px 0 10px' }}>{t(`connect_selling.state_${o.sellingState}`)}</div>
             {o.blocker && !String(o.blocker).startsWith('SELLING_') && (
               <div style={{ fontSize: 12, color: '#b45309', marginBottom: 8 }}>

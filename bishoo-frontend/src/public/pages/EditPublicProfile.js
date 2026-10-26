@@ -57,7 +57,7 @@ const EditPublicProfile = ({ commerceProfileId, activeProfileId, currentUser, on
     finally { setSaving(false); }
   };
   return (
-    <main style={{ maxWidth: 640, padding: 20, margin: 'auto', paddingBottom: 100, fontFamily: 'Inter,sans-serif' }}>
+    <main style={{ maxWidth: 640, padding: 20, margin: 'auto', paddingBottom: 100, fontFamily:'inherit' }}>
       <BackBar title={t('profile_editor.title')} onBack={() => onNavigate('back')} />
       {error && <p role="alert" style={{ color: '#b91c1c', fontSize: 16 }}>{String(error)}</p>}
       {loading ? <p>{t('profile.loading')}</p> : profile && (

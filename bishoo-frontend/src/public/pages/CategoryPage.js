@@ -111,7 +111,7 @@ const CategoryPage = ({ onNavigate, category }) => {
   const totalCount = filteredProducts.length + filteredClassifieds.length;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: 'inherit' }}>
       <style>{`
         .cp-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
         @media (min-width: 480px) { .cp-grid { grid-template-columns: repeat(3,1fr); } }
@@ -129,7 +129,7 @@ const CategoryPage = ({ onNavigate, category }) => {
             {cat.icon}
           </div>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: 0, fontFamily: 'Manrope,sans-serif' }}>{cat.label}</h1>
+            <h1 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: 0, fontFamily:'inherit' }}>{cat.label}</h1>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
               {loading ? t('category_page.loading') : t('category_page.listings_count', { count: totalCount })}
             </p>
@@ -240,7 +240,7 @@ const CategoryPage = ({ onNavigate, category }) => {
                       </div>
                       <div style={{ padding: '8px 10px' }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>{p.name}</div>
-                        <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>TZS {Number(p.displayPrice || p.basePrice || 0).toLocaleString()}</div>
+                        <div style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', marginBottom: 4 }}>TZS {Number(p.displayPrice || p.basePrice || 0).toLocaleString()}</div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 700 }}>{t('category_page.free_delivery')}</span>
                           <button onClick={e => { e.stopPropagation(); if (p.isAvailable) addToCart(p); }}
@@ -286,7 +286,7 @@ const CategoryPage = ({ onNavigate, category }) => {
                         <h3 style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: '0 0 4px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
                           {item.title}
                         </h3>
-                        <div style={{ fontSize: 13, fontWeight: 900, color: '#db2777', marginBottom: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight:800, color: '#db2777', marginBottom: 2 }}>
                           TZS {Number(item.price).toLocaleString()}
                         </div>
                         <div style={{ fontSize: 10, color: '#94a3b8' }}>📍 {item.location || t('category_page.default_location')}</div>

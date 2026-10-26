@@ -95,7 +95,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
         <div style={{ display:'flex', justifyContent:'space-between',
           alignItems:'center', marginBottom:20 }}>
           <div>
-            <div style={{ fontSize:20, fontWeight:900, color:'#1e293b' }}>
+            <div style={{ fontSize:20, fontWeight:800, color:'#1e293b' }}>
               🏢 Usimamizi wa Vituo
             </div>
             <div style={{ fontSize:12, color:'#64748b' }}>
@@ -142,7 +142,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                   <div style={{ fontSize:13, fontWeight:800, color:'#1e293b', marginBottom:4 }}>
                     📍 {h.city}
                   </div>
-                  <div style={{ fontSize:22, fontWeight:900, color:'#1d4ed8',
+                  <div style={{ fontSize:22, fontWeight:800, color:'#1d4ed8',
                     marginBottom:8 }}>{h.count}</div>
                   <div style={{ fontSize:11, color:'#64748b' }}>Ofisi</div>
                   {h.agents.slice(0,2).map(a => (
@@ -242,7 +242,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                 <div style={{ background:'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
                   padding:'16px 20px', color:'#fff' }}>
                   <div style={{ display:'flex', justifyContent:'space-between' }}>
-                    <div style={{ fontSize:15, fontWeight:900 }}>🏢 Pewa Kituo</div>
+                    <div style={{ fontSize:15, fontWeight:800 }}>🏢 Pewa Kituo</div>
                     <button onClick={() => setSelected(null)}
                       style={{ background:'rgba(255,255,255,0.2)', border:'none',
                         color:'#fff', borderRadius:6, padding:'4px 10px',
