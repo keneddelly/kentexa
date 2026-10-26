@@ -702,12 +702,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
               )}
             </div>
             <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-              {isClassified && entityId && (
-                <button type="button" onClick={() => {
-                  onNavigate('SendShipment', { classifiedId: entityId });
-                  Engagement.track(post.id, entityType, entityId, 'shipment', isLoggedIn, onNavigate);
-                }} style={pillTx(false)}>{t('home_feed.ship_label')}</button>
-              )}
               <button type="button" style={pillTx(true)} onClick={() => {
                 if (isClassified) { setShowContact(true); return; }
                 if (isProduct) Engagement.track(post.id, entityType, entityId, 'purchase', isLoggedIn, onNavigate);
