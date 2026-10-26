@@ -148,7 +148,7 @@ const PCard = ({ p, actions = [] }) => (
     ) : p.source === 'online' ? (
       <div style={{ backgroundColor: '#f0fdf4', borderRadius: 6, padding: '3px 8px',
         fontSize: 10, color: '#16a34a', marginBottom: 8, display: 'inline-block' }}>
-        💳 KenteXa italipa ada ya usafirishaji
+        Muuzaji analipa ada ya usafirishaji
       </div>
     ) : p.source === 'seller_shipment' || p.source === 'offline_intercity' ? (
       <div style={{ backgroundColor: '#eff6ff', borderRadius: 6, padding: '3px 8px',
@@ -1133,6 +1133,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 </button>
 
                 <div style={officeSection}>KUTOKA KENTEXA</div>
+                <div style={{ fontSize: 13, color: '#475569', margin: '-4px 0 10px' }}>Oda za sokoni, mizigo ya wateja na oda za wauzaji. Anayetuma ndiye analipa ada ya usafiri.</div>
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
                 <HubExpectedShipments onReceived={() => { fetchAll(); setReceivedCount((n) => n + 1); }} />
                 {/* Send-form parcels received here: record what the sender paid (2026-10-24). */}
@@ -1151,7 +1152,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ))}
                   </section>
                 )}
-                <OfficeRow testId="pokea-order" title="Oda ya KenteXa" hint="Muuzaji au mteja analeta oda. Andika namba yake." onClick={() => setPokeaMode('online_order')} />
+                <OfficeRow testId="pokea-order" title="Pokea oda kwa namba" hint="Oda ya sokoni au ya muuzaji ambayo haiko kwenye orodha" onClick={() => setPokeaMode('online_order')} />
 
                 <div style={officeSection}>KUTOKA OFISI NYINGINE</div>
                 {/* Incoming intercity parcels */}
@@ -1507,15 +1508,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
-                    📱 Pokea Agizo la KenteXa
+                    Pokea oda
                   </div>
                   <button onClick={() => setPokeaMode('list')}
                     style={{ background: 'none', border: 'none', cursor: 'pointer',
                       fontSize: 20, color: '#64748b' }}>×</button>
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-                  Muuzaji ameleta parcel. Weka namba ya agizo lake ili kuthibitisha.
-                  KenteXa italipa ada ya usafirishaji baada ya uwasilishaji.
+                  Muuzaji ameleta mzigo. Weka namba ya oda yake ili kuthibitisha.
+                  Muuzaji analipa ada ya usafirishaji hapa ofisini; KenteXa hailipi.
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                   <input type="text" placeholder="Namba ya Agizo (e.g. 147)"
@@ -1546,7 +1547,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         </div>
                       ) : isOnlinePaid ? (
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#15803d', marginBottom: 10 }}>
-                          ✅ Agizo la KenteXa — Imelipiwa
+                          Oda ya sokoni — mteja amemlipa muuzaji
                         </div>
                       ) : isOffline ? (
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#c2410c', marginBottom: 10 }}>
@@ -1613,7 +1614,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         <div style={{ fontSize: 11, marginTop: 4,
                           color: isOnlinePaid ? '#16a34a' : isOffline ? '#92400e' : '#64748b' }}>
                           {isOnlinePaid
-                            ? '💳 KenteXa italipa baada ya uwasilishaji — pokea bila cash'
+                            ? 'Mteja amemlipa muuzaji. Kusanya ada ya usafiri kutoka kwa muuzaji.'
                             : isOffline
                             ? '💵 Kusanya cash kutoka kwa seller KABLA ya kupokea kifurushi'
                             : ''}

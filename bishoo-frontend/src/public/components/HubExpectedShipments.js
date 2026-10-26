@@ -14,6 +14,10 @@ import api from '../../api/api';
 const card = { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' };
 const btn = { border: 'none', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 800, cursor: 'pointer', backgroundColor: '#2563eb', color: '#fff' };
 const plain = (v) => String(v || '').toUpperCase().replace(/[\s-]/g, '');
+// Where the parcel came from (owner 2026-10-26: "Kutoka KenteXa" = marketplace orders,
+// customers' shipments and sellers' own orders). KenteXa never pays the fee: the
+// sender (customer, seller or business) pays the office.
+export const KIND_LABEL = { marketplace: 'Oda ya sokoni', seller: 'Oda ya muuzaji', shipment: 'Mzigo wa mteja' };
 
 export default function HubExpectedShipments({ onReceived }) {
   const [rows, setRows] = useState([]);
@@ -77,7 +81,12 @@ export default function HubExpectedShipments({ onReceived }) {
         <div key={row.parcelId} style={card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
             <strong style={{ fontSize: 14 }}>{label(row)}</strong>
-            <span style={{ fontSize: 11, color: '#64748b' }}>{row.weightKg > 0 ? `${row.weightKg} kg` : ''}</span>
+            <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {row.weightKg > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>{row.weightKg} kg</span>}
+              {KIND_LABEL[row.kind] && (
+                <span data-testid={`kind-${row.parcelId}`} style={{ fontSize: 11, fontWeight: 700, color: '#1e3a8a', border: '1px solid #1e3a8a', borderRadius: 6, padding: '2px 6px' }}>{KIND_LABEL[row.kind]}</span>
+              )}
+            </span>
           </div>
           {(row.orderId || (row.waybill && row.trackingNumber)) && (
             <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
@@ -88,7 +97,7 @@ export default function HubExpectedShipments({ onReceived }) {
             {row.itemDescription || 'Mzigo'} → {row.destinationCity}
           </div>
           <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
-            {row.orderId ? 'Muuzaji' : 'Mtumaji'}: {row.sender?.name || '—'}{row.sender?.phone ? <> · <a href={`tel:${row.sender.phone}`}>{row.sender.phone}</a></> : null}
+            {row.orderId ? 'Muuzaji' : 'Mtumaji'} (analipa ada ya usafiri): {row.sender?.name || '—'}{row.sender?.phone ? <> · <a href={`tel:${row.sender.phone}`}>{row.sender.phone}</a></> : null}
           </div>
           {row.bookedTrip && (
             <div style={{ fontSize: 12, color: '#1d4ed8', marginTop: 4, fontWeight: 700 }}>
