@@ -23,30 +23,43 @@ import { isAppleMobile } from '../utils/isAppleMobile';
  */
 export const BOTTOM_NAV_CLEARANCE = 'calc(124px + env(safe-area-inset-bottom, 0px))';
 
-// Twitter-style tab icons (owner 2026-10-26: "the bottom nav icons look like emoji"):
-// one line-icon set, ink when active (and a little bolder), grey otherwise. No emoji.
-const B = '#1d4ed8';
+// Instagram-style tab icons (owner 2026-10-26: "more bold and professional, like
+// Instagram"): one bold set, always ink; the tab you are on is drawn SOLID (filled),
+// the others as a 2px outline. Shapes are closed so the solid version reads well. No emoji.
 const INK = '#0f1419';
-const MUTED = '#536471';
 
-const ICON_PATHS = {
-  home:      'M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z',
-  search:    'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5',
-  inbox:     'M4 5h16v11H8l-4 4z',
-  dashboard: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
-  agent:     'M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-5h-4M10 7h3l1 3',
-  hub:       'M4 21V5l8-2 8 2v16M9 21v-5h6v5M8 9h2M14 9h2M8 13h2M14 13h2',
-  transport: 'M3 16V7h11v9M14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z',
-  services:  'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.5-2.5z',
-  admin:     'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z',
-  dot:       'M12 13a1 1 0 100-2 1 1 0 000 2z',
+// d: the shape (outline when idle, filled when active). cut: detail drawn in white on
+// top of the filled shape (a door, windows) so the solid icon keeps its meaning.
+const ICONS = {
+  home:      { d: 'M3.5 10.2L12 3.3l8.5 6.9V20a1 1 0 01-1 1h-5v-6.5h-5V21h-5a1 1 0 01-1-1z' },
+  search:    { d: 'M10.8 18.1a7.3 7.3 0 100-14.6 7.3 7.3 0 000 14.6zM16.2 16.2L21 21', stroke: true },
+  inbox:     { d: 'M12 3.5c4.97 0 9 3.6 9 8.05 0 4.45-4.03 8.05-9 8.05-1.1 0-2.15-.17-3.12-.5L3.5 20.5l1.45-4.1A7.6 7.6 0 013 11.55C3 7.1 7.03 3.5 12 3.5z' },
+  dashboard: { d: 'M4 4h6.5v6.5H4zM13.5 4H20v6.5h-6.5zM4 13.5h6.5V20H4zM13.5 13.5H20V20h-6.5z' },
+  agent:     { d: 'M12 21.5s-7-6.3-7-11.8a7 7 0 0114 0c0 5.5-7 11.8-7 11.8z', cut: 'M12 12.4a2.6 2.6 0 100-5.2 2.6 2.6 0 000 5.2z' },
+  hub:       { d: 'M4 21V6.2L12 3l8 3.2V21h-6v-5h-4v5z', cut: 'M8 9h2M14 9h2M8 12.5h2M14 12.5h2' },
+  transport: { d: 'M2.5 6.5h11.5v9.5H2.5zM14 9.5h4l3.5 3.5V16H14z', cut: null, wheels: true },
+  services:  { d: 'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.5-2.5z' },
+  admin:     { d: 'M12 3l7.5 3v5.2c0 4.6-3.1 8.4-7.5 9.8-4.4-1.4-7.5-5.2-7.5-9.8V6z', cut: 'M8.8 12l2.2 2.2 4.2-4.4' },
+  dot:       { d: 'M12 14a2 2 0 100-4 2 2 0 000 4z' },
 };
-const lineIcon = (name) => (active) => (
-  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"
-    stroke={active ? INK : MUTED} strokeWidth={active ? 2.4 : 1.8} strokeLinecap="round" strokeLinejoin="round">
-    <path d={ICON_PATHS[name]} />
-  </svg>
-);
+const boldIcon = (name) => (active) => {
+  const ic = ICONS[name] || ICONS.dot;
+  const solid = active && !ic.stroke;
+  return (
+    <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d={ic.d} fill={solid ? INK : 'none'} stroke={INK} strokeWidth={ic.stroke && active ? 3 : 2} />
+      {ic.wheels && (
+        <>
+          <circle cx="6.5" cy="18" r="2" fill={active ? INK : '#fff'} stroke={INK} strokeWidth="2" />
+          <circle cx="17.5" cy="18" r="2" fill={active ? INK : '#fff'} stroke={INK} strokeWidth="2" />
+        </>
+      )}
+      {ic.cut && <path d={ic.cut} stroke={solid ? '#fff' : INK} strokeWidth="2" fill="none" />}
+    </svg>
+  );
+};
+
+const ICON_PATHS = Object.fromEntries(Object.entries(ICONS).map(([k, v]) => [k, v.d]));
 
 // The profile pill shows the active profile's kind as a small line icon.
 const PROFILE_TYPE_ICON = {
@@ -72,23 +85,18 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
   activeProfile, activeContext, activeBusinessName, onOpenSwitcher, myProfiles, inboxUnread }) => {
   const { t } = useTranslation();
   const semanticIcon = {
-    home: lineIcon('home'), search: lineIcon('search'), inbox: lineIcon('inbox'), dashboard: lineIcon('dashboard'),
-    agent: lineIcon('agent'), hub: lineIcon('hub'), transport: lineIcon('transport'),
-    services: lineIcon('services'), admin: lineIcon('admin'),
+    home: boldIcon('home'), search: boldIcon('search'), inbox: boldIcon('inbox'), dashboard: boldIcon('dashboard'),
+    agent: boldIcon('agent'), hub: boldIcon('hub'), transport: boldIcon('transport'),
+    services: boldIcon('services'), admin: boldIcon('admin'),
   };
   const rawTabs = itemsForRole(activeContext?.roleType).map(entry => {
     if (entry.destination === '__POST__') return {
       key: '__POST__', icon: () => (
-        <div style={{
-          width: 44, height: 44, borderRadius: 22, backgroundColor: B,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"
-            stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-        </div>
+        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+          stroke={INK} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="5.5" />
+          <path d="M12 8v8M8 12h8" />
+        </svg>
       ),
       label: '',
     };
@@ -107,7 +115,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
         ),
       label: t(entry.labelKey),
     };
-    return { key: entry.destination, icon: semanticIcon[entry.iconId] || lineIcon('dot'), label: t(entry.labelKey) };
+    return { key: entry.destination, icon: semanticIcon[entry.iconId] || boldIcon('dot'), label: t(entry.labelKey) };
   });
 
   const seenKeys = new Set();
@@ -224,18 +232,15 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
                 <span style={{
                   position: 'absolute', top: 2, right: '26%',
                   minWidth: 18, height: 18, padding: '0 4px', borderRadius: 100, boxSizing: 'border-box',
-                  backgroundColor: B, color: '#fff', border: '2px solid #fff',
+                  backgroundColor: '#ff3040', color: '#fff', border: '2px solid #fff',
                   fontSize: 10, fontWeight: 700, lineHeight: '14px', textAlign: 'center',
                 }}>
                   {inboxUnread > 99 ? '99+' : inboxUnread}
                 </span>
               )}
+              {/* Small words under the bold icons (owner 2026-10-26: "keep small words"). */}
               {tab.label ? (
-                <span style={{
-                  fontSize:   11,
-                  fontWeight: isActive ? 700 : 500,
-                  color:      isActive ? INK : MUTED,
-                }}>
+                <span style={{ fontSize: 11, lineHeight: '13px', fontWeight: isActive ? 700 : 500, color: INK, opacity: isActive ? 1 : 0.75 }}>
                   {tab.label}
                 </span>
               ) : null}
