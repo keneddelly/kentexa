@@ -16,9 +16,9 @@ describe('engineDeliveryFees', () => {
     expect(await engineDeliveryFees(engine([{ serviceType: 'office', price: 3500 }]), base)).toEqual({ sameCity: 3500, intercity: null });
   });
 
-  it('another city: the cheapest priced office or transporter; unpriced ones are not a price', async () => {
+  it('another city: the cheapest priced office (never a transporter directly); unpriced ones are not a price', async () => {
     const e = engine([{ serviceType: 'office', price: 12000 }, { serviceType: 'composed_intercity', price: 9000 }, { serviceType: 'office', price: null }]);
-    expect(await engineDeliveryFees(e, { ...base, toCity: 'Mbeya', sameCity: false })).toEqual({ sameCity: null, intercity: 9000 });
+    expect(await engineDeliveryFees(e, { ...base, toCity: 'Mbeya', sameCity: false })).toEqual({ sameCity: null, intercity: 12000 });
     expect(e.discover).toHaveBeenCalledWith(expect.objectContaining({ pickup: 'point', delivery: 'collect' }));
     expect(await engineDeliveryFees(engine([{ serviceType: 'office', price: null }]), { ...base, toCity: 'Kigoma', sameCity: false }))
       .toEqual({ sameCity: null, intercity: null });

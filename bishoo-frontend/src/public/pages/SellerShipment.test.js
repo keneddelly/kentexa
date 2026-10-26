@@ -149,13 +149,13 @@ test('where to open, and same city', () => {
   expect(sameCity('Mbeya', 'Dar es Salaam')).toBe(false);
 });
 
-test('the offers: the agent, offices, and transporters only when nothing more must be asked', () => {
+test('the offers: the agent and offices; a transporter is reached through an office', () => {
   const t = (id, origins, dests) => ({ serviceType: 'composed_intercity', price: 9000,
     fulfillment: { transportOption: { providerId: id, routeId: 1, runId: 2, originPoints: origins, destinationPoints: dests } } });
   const list = [{ serviceType: 'direct_delivery', price: 4000 }, OFFICE_DAR, t(1, [{ hubId: 1 }], [{ hubId: 2 }]), t(2, [{ hubId: 1 }, { hubId: 3 }], [{ hubId: 2 }])];
   expect(sellerOffers(list, { inCity: true, cod: true }).map((o) => o.key)).toEqual(['direct']);
   expect(sellerOffers(list, { inCity: true, cod: false }).map((o) => o.key)).toEqual(['direct', 'office-5']);
-  expect(sellerOffers(list, { inCity: false, cod: false }).map((o) => o.key)).toEqual(['direct', 'office-5', 't-1-1']);
+  expect(sellerOffers(list, { inCity: false, cod: false }).map((o) => o.key)).toEqual(['direct', 'office-5']); // never a transporter directly
   expect(sellerOffers(list, { inCity: false, cod: true })).toEqual([]);
 });
 

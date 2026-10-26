@@ -3686,7 +3686,7 @@ export class OrdersService {
             icon: '🏢',
             fee: fees.intercity,
             totalPrice: basePrice + fees.intercity,
-            desc: 'Ofisi ya KenteXa inaupeleka mji wako; unachukua ofisini',
+            desc: 'Ofisi ya usafirishaji inaupeleka mji wako; unachukua ofisini',
           },
         ],
       };
@@ -3695,7 +3695,7 @@ export class OrdersService {
     const methods: any[] = fees.sameCity == null ? [] : [
       {
         key: 'boda',
-        label: 'Wakala wa KenteXa',
+        label: 'Wakala wa karibu',
         icon: '🛵',
         fee: fees.sameCity,
         totalPrice: basePrice + fees.sameCity,
@@ -3706,11 +3706,11 @@ export class OrdersService {
     if (batchZone) {
       methods.push({
         key: 'kentexa_delivery',
-        label: 'KenteXa Delivery',
+        label: 'Van ya mtaa',
         icon: '🚐',
         fee: BATCH_FEE,
         totalPrice: basePrice + BATCH_FEE,
-        desc: `Van ya KenteXa inakuja ${batchZone} kila siku — TZS ${BATCH_FEE.toLocaleString()} tu`,
+        desc: `Van inakuja ${batchZone} kila siku — TZS ${BATCH_FEE.toLocaleString()} tu`,
         batchZone,
         cutoffTime: '7:00 AM',
         estimatedArrival: '10:00 AM',

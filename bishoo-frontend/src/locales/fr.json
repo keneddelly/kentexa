@@ -5875,7 +5875,7 @@
   "pickup_queue": {
     "title": "Ramassages de colis",
     "parcel": "Colis",
-    "default_hub": "Bureau KenteXa",
+    "default_hub": "Bureau de transport",
     "step_collect_from_sender": "Récupérer chez l’expéditeur",
     "step_deliver_to_recipient": "Livrer au destinataire",
     "step_take_to_hub": "Apporter au bureau",
