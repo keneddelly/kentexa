@@ -5826,7 +5826,7 @@
   "pickup_queue": {
     "title": "Kazi za kuchukua mizigo",
     "parcel": "Mzigo",
-    "default_hub": "Ofisi ya KenteXa",
+    "default_hub": "Ofisi ya usafirishaji",
     "step_collect_from_sender": "Chukua mzigo kwa mtumaji",
     "step_deliver_to_recipient": "Mpelekee mpokeaji",
     "step_take_to_hub": "Peleka mzigo ofisini",

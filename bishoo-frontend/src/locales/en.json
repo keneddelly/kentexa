@@ -5896,7 +5896,7 @@
   "pickup_queue": {
     "title": "Shipment pickups",
     "parcel": "Parcel",
-    "default_hub": "KenteXa office",
+    "default_hub": "Transport office",
     "step_collect_from_sender": "Collect from the sender",
     "step_deliver_to_recipient": "Deliver to the recipient",
     "step_take_to_hub": "Take to the office",

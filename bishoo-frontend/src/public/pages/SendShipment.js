@@ -163,7 +163,9 @@ export function officeOffers(offers) {
       servicePrice: o.price,
       etaLabel: o.etaLabel,
       fulfillmentStatus: o.fulfillmentStatus,
-    }));
+    }))
+    // Cheapest first; an office with no price yet last.
+    .sort((a, b) => (a.servicePrice == null ? Infinity : a.servicePrice) - (b.servicePrice == null ? Infinity : b.servicePrice));
 }
 
 /** Offices and transporters together, cheapest first; an offer with no price last. */
@@ -310,11 +312,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         }
         setSearchReason(direct || offices.length ? 'available' : 'no_agent');
       } else {
-        const complete = allOffers(list, { pickupOption, deliveryOption });
+        // The customer faces offices and agents, never a transporter directly (owner
+        // 2026-10-26): a transporter reaches customers through its own office. Booking
+        // the transport is the office staff's work, and its fare stays with them.
+        const complete = officeOffers(list);
         setOffers(complete);
-        const wanted = navParams?.transportProviderId
-          ? complete.find((o) => !o.office && Number(o.providerId) === Number(navParams.transportProviderId)) : null;
-        const first = wanted || complete[0] || null;
+        const first = complete[0] || null;
         if (first) {
           setSelected(first);
           setOriginHubId(pickupOption === 'station' && first.originPoints?.length === 1 ? String(first.originPoints[0].hubId) : '');

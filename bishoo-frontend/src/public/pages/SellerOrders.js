@@ -253,7 +253,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       // existing order tracking number; backend creates/updates the canonical
       // Parcel + custody event, after which Stage 3S movement takes over.
       setShowModal(false);
-      setMessage('KenteXa Delivery selected. Take the parcel to a KenteXa Super Agent hub with its tracking number for intake.');
+      setMessage('Van ya mtaa imechaguliwa. Peleka mzigo ofisini na namba yake ya kufuatilia.');
       return;
     }
     if (shippingMethodKey === 'agent') {
@@ -674,7 +674,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                     {order.shippingMethod === 'kentexa_delivery' && ['paid','preparing'].includes(order.status) && (
                       <div style={{ marginBottom: 6 }}>
                         <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 11, color: '#1d4ed8', fontWeight: 700 }}>
-                          KenteXa Delivery: take this parcel to a Super Agent hub. The hub will scan {order.trackingNumber || `KTX-ORD-${order.id}`} and receive it into the KenteXa transport network.
+                          Van ya mtaa: peleka mzigo ofisini. Ofisi itasoma namba {order.trackingNumber || `KTX-ORD-${order.id}`} na kuupokea.
                         </div>
                       </div>
                     )}

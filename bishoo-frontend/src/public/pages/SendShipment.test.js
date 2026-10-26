@@ -126,55 +126,30 @@ test('same city, no agent online: an office that delivers inside the city is off
   await waitFor(() => expect(committed).toMatchObject({ serviceType: 'office', officeId: 9 }));
 });
 
-test('other city: only complete, bookable offers, each provider once, cheapest first; office choice; fare is the total', async () => {
+test('other city: the customer sees offices only, never a transporter directly; cheapest first', async () => {
   places({ Kariakoo: KARIAKOO, Mbeya: MBEYA });
-  const offer = (providerId, routeId, price, runId, extra = {}) => ({
-    serviceType: 'composed_intercity', price, etaLabel: 'About 12 hours linehaul',
+  const transporter = { serviceType: 'composed_intercity', price: 9000, etaLabel: 'About 12 hours linehaul',
     fulfillmentStatus: { pickup: 'included', delivery: 'included' },
-    fulfillment: { transportOption: { providerId, routeId, runId, providerName: `Ofisi ${providerId}`,
-      destinationPoints: [{ hubId: 7, name: 'Ofisi Mbeya' }], ...extra } },
-  });
+    fulfillment: { transportOption: { providerId: 1, routeId: 11, runId: 101, providerName: 'Basi A', destinationPoints: [{ hubId: 7 }] } } };
   api.post.mockImplementation((url, body) => {
     if (url === '/transport/service-offers/discover') {
       expect(body).toMatchObject({ toCity: 'Mbeya', pickup: 'point', delivery: 'collect' });
-      return Promise.resolve({ data: [
-        offer(1, 11, 20000, 101), offer(1, 12, 15000, 102),                   // same provider twice: cheaper one kept
-        offer(2, 21, 18000, null),                                           // no trip: cannot be booked
-        offer(3, 31, 12000, 301, { originPoints: [{ hubId: 5, name: 'Ofisi Kariakoo' }] }),
-      ] });
+      return Promise.resolve({ data: [transporter, officeOffer(11, 'MTANDAO', 20000, 20000), officeOffer(10, 'Ar SAMATTA', 15000, 15000)] });
     }
-    if (url === '/transport/service-offers/commit') return Promise.resolve({ data: { id: 900 } });
-    if (url === '/transport/quotes') return Promise.resolve({ data: { id: 700 } });
-    if (url === '/transport/quotes/700/accept') return Promise.resolve({ data: { id: 700, totalAmount: 12000 } });
-    if (url === '/shipments') return Promise.resolve({ data: { id: 56 } });
     return Promise.reject(new Error(`unexpected ${url}`));
   });
-  api.patch.mockResolvedValue({ data: { shipment: { trackingNumber: 'KTX-SHP-56' }, parcel: { waybillNumber: 'KTX7288804600' },
-    nextAction: { type: 'customer_dropoff' } } });
 
   render(<SendShipment isLoggedIn currentUser={user} onNavigate={jest.fn()} />);
   await fillSteps1and2(MBEYA, MBEYA.displayLabel, 'Mbeya');
-
   expect(await screen.findByText('Hatua 3 kati ya 5')).toBeTruthy();
   fireEvent.click(screen.getByTestId('start-office'));
-  expect(screen.getByTestId('end-office').getAttribute('aria-checked')).toBe('true'); // other city: collect at the office by default
   fireEvent.click(screen.getByTestId('next-3'));
 
   const cards = await screen.findAllByTestId('offer');
-  expect(cards.map((c) => within(c).getAllByText(/^Ofisi \d$/)[0].textContent)).toEqual(['Ofisi 3', 'Ofisi 1']);
-  expect(screen.getByText('Ofa 2 zinazoweza kufanya yote')).toBeTruthy();
-  expect(screen.queryByText(/Request quote|pending/i)).toBeNull();
-  // The cheapest is chosen; it has one office each side, picked by itself.
-  expect(screen.getByLabelText('Ofisi utakayopeleka mzigo').value).toBe('5');
-  expect(screen.getByLabelText('Ofisi ya kuchukulia Mbeya Mjini').value).toBe('7');
-  fireEvent.click(screen.getByTestId('next-4'));
-
-  expect(await screen.findByTestId('bill-total')).toBeTruthy();
-  expect(screen.getByTestId('bill-total').textContent).toBe('TZS 12,000');
-  fireEvent.click(screen.getByTestId('confirm'));
-  await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/shipments/56/confirm-and-activate', expect.objectContaining({ originHubId: 5, destinationHubId: 7 })));
-  expect(await screen.findByTestId('next-step')).toBeTruthy();
-  expect(screen.getByTestId('next-step').textContent).toMatch(/Peleka mzigo ofisini/);
+  expect(cards).toHaveLength(2);
+  expect(cards[0].textContent).toMatch(/Ar SAMATTA/);
+  expect(cards[1].textContent).toMatch(/MTANDAO/);
+  expect(screen.queryByText(/Basi A/)).toBeNull();
 });
 
 test('a door leg with no agent there is not "complete": that offer is hidden', () => {

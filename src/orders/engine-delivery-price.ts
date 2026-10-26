@@ -6,7 +6,8 @@
  *   - same city: an agent collects at the seller's and delivers at the buyer's door
  *     (direct delivery), or an office that chose same-city delivery - the cheaper;
  *   - another city: the seller drops at an office and the buyer collects at the
- *     destination office - the cheapest priced office or transporter.
+ *     destination office - the cheapest priced office (offices are independent
+ *     businesses; the office books the transport and keeps its fare).
  * A trip the engine cannot price is null, and the checkout does not offer it.
  * Never throws: an engine failure means "no price now", never a guessed number.
  */
@@ -59,7 +60,8 @@ export async function engineDeliveryFees(engine: Discover, input: EngineFeeInput
       const fee = directFee ?? (Number(card) > 0 ? Math.round(Number(card)) : null) ?? cheapest(offices);
       return { sameCity: fee, intercity: null };
     }
-    return { sameCity: null, intercity: cheapest(list.filter((o) => (o?.serviceType === 'office' || o?.serviceType === 'composed_intercity') && Number(o?.price) > 0)) };
+    // The buyer faces an office, never a transporter directly (owner 2026-10-26).
+    return { sameCity: null, intercity: cheapest(list.filter((o) => o?.serviceType === 'office' && Number(o?.price) > 0)) };
   } catch {
     return none;
   }

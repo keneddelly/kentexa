@@ -27,7 +27,7 @@ import api from '../../api/api';
 import PlaceSearchField, { placeLabel, fromCandidate } from '../components/PlaceSearchField';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { serviceOfferCommitBody, shipmentBody, quoteBody, confirmBody } from '../../api/shipmentRequests';
-import { officeOffers, allOffers } from './SendShipment';
+import { officeOffers } from './SendShipment';
 import InviteCarrier from '../components/InviteCarrier';
 
 const BLUE = '#1d4ed8';
@@ -77,17 +77,17 @@ export function matchSavedPlace(candidates, { wardName, districtName, regionName
 
 /**
  * The offers the seller can pick from one discovery answer. Same city: the nearby agent
- * plus offices that chose same-city delivery. Another city: offices and transporters
- * (a transporter only when its drop-off and collection points are each a single one,
- * so nothing more has to be asked). Pay-on-delivery rides only on the agent.
+ * plus offices that chose same-city delivery. Another city: the offices (each with its
+ * own price). Pay-on-delivery rides only on the agent.
  */
 export function sellerOffers(list, { inCity, cod }) {
   const all = Array.isArray(list) ? list : [];
   const direct = all.find((o) => o?.serviceType === 'direct_delivery');
   const agent = direct ? [{ direct: true, key: 'direct', providerName: 'Wakala wa karibu', servicePrice: direct.price ?? null }] : [];
   if (cod) return inCity ? agent : [];
-  const others = inCity ? officeOffers(all) : allOffers(all, { pickupOption: 'station', deliveryOption: 'station' })
-    .filter((o) => o.office || (o.originPoints?.length === 1 && o.destinationPoints?.length === 1));
+  // A seller is a customer too: offices and agents only, never a transporter directly
+  // (owner 2026-10-26); the office books the transport and keeps its fare.
+  const others = officeOffers(all);
   return [...agent, ...others.map((o) => ({ ...o, key: o.office ? `office-${o.officeId}` : `t-${o.providerId}-${o.routeId}` }))];
 }
 
