@@ -2,7 +2,7 @@ import { Body, Controller, Get, Header, Param, ParseIntPipe, Post, Put, Request,
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
-import { RoleContext } from '../role-context/role-context.types';
+import type { RoleContext } from '../role-context/role-context.types';
 import { QuoteRequestsService } from './quote-requests.service';
 
 @Controller('quote-requests')

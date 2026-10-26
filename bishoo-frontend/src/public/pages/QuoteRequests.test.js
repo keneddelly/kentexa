@@ -15,7 +15,7 @@ test('Omba bei: hire a whole vehicle, then go to my requests', async () => {
   api.post.mockResolvedValue({ data: { id: 7, status: 'open' } });
   const onNavigate = jest.fn();
   render(<QuoteRequest onNavigate={onNavigate} currentUser={{ phone: '255712345678' }} />);
-  await screen.findByRole('option', { name: 'Mwanza' });
+  await screen.findAllByRole('option', { name: 'Mwanza' });
   expect(screen.getByTestId('quote-send')).toBeDisabled();
   fireEvent.click(screen.getByText('Fuso / Lori'));
   fireEvent.change(screen.getByLabelText('Unatoka wapi?'), { target: { value: 'Dar es Salaam' } });
