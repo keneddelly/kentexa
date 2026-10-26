@@ -5371,6 +5371,7 @@
     "rate_validation_error": "Add at least one destination with a price per kg greater than zero"
   },
   "super_agent_dashboard": {
+    "header_title": "Office",
     "load_failed": "Failed to load dashboard",
     "identity_prompt": "Complete your identity verification to keep your hub trusted on Kentexa — tap to verify",
     "apply_title": "Become a Super Agent",

@@ -2224,7 +2224,7 @@ export class SuperAgentsService {
       ? `Mahali: ${parcel.destinationSuperAgent.address}`
       : null;
     const destHubPhoneLine = parcel.destinationSuperAgent?.phone
-      ? `Simu ya Hub: ${parcel.destinationSuperAgent.phone}`
+      ? `Simu ya ofisi: ${parcel.destinationSuperAgent.phone}`
       : null;
     if (parcel.buyerPhone) {
       try {
@@ -3359,7 +3359,7 @@ export class SuperAgentsService {
     const receiverName =
       lastMileAgent?.businessName ||
       (shipment as any).lastMileContactName ||
-      'Super Agent';
+      'ofisi';
     const receiverPhone =
       lastMileAgent?.phone || (shipment as any).lastMileContactPhone || '';
     const receiverCity =
@@ -3435,7 +3435,7 @@ export class SuperAgentsService {
       };
     }
     throw new BadRequestException(
-      'Chagua Super Agent aliyesajiliwa au jaza jina na simu ya mshirika',
+      'Chagua ofisi ya huko au jaza jina na simu ya atakayepokea',
     );
   }
 
@@ -4048,7 +4048,7 @@ export class SuperAgentsService {
       dto.city = handlerAgent!.city;
       await this.recordDestinationHubReceipt(
         parcel, handlerAgent!, user, roleContext!, ParcelStatus.ARRIVED_AT_HUB,
-        dto.note || `Imepokelewa hubuni ${handlerAgent!.city}`,
+        dto.note || `Imepokelewa ofisini ${handlerAgent!.city}`,
       );
       // The transaction may have bound an unassigned destination; use the
       // verified receiver's own contact details in the post-commit SMS.
@@ -4277,7 +4277,7 @@ export class SuperAgentsService {
         ? `Mahali: ${arrivalHub.address}`
         : null;
       const arrivalPhoneLine = arrivalHub?.phone
-        ? `Simu ya Hub: ${arrivalHub.phone}`
+        ? `Simu ya ofisi: ${arrivalHub.phone}`
         : null;
       const originHub = parcel.superAgent || null;
       const originBrand = smsSafeName(originHub?.businessName) || 'KenteXa Network';
@@ -4294,7 +4294,7 @@ export class SuperAgentsService {
         // reaches this status later, via this generic endpoint).
         [ParcelStatus.RECEIVED_AT_HUB]:
           `${originBrand}\n\n` +
-          `Habari ${recipientName}! Mzigo wako (${customerNumber})${declaredValueLine} umepokelewa na Super Agent. ` +
+          `Habari ${recipientName}! Mzigo wako (${customerNumber})${declaredValueLine} umepokelewa ofisini. ` +
           `Unaendelea na hatua za usafirishaji.\n\n` +
           `Fuatilia: ${FRONTEND_URL}/?track=${trackRef}\n\n` +
           `Verified by Kentexa`,
@@ -4341,7 +4341,7 @@ export class SuperAgentsService {
           .sendSms(
             sellerPhone,
             withOfficePhone(`${originBrand}\n\n` +
-              `Mzigo ${customerParcelNumber(parcel)}${declaredValueLine} umepokelewa na Super Agent na unaendelea kusafirishwa.\n\n` +
+              `Mzigo ${customerParcelNumber(parcel)}${declaredValueLine} umepokelewa ofisini na unaendelea kusafirishwa.\n\n` +
               `Verified by Kentexa`, originHub),
           )
           .catch((e) => console.warn('Seller received SMS failed:', e?.message));
@@ -5541,7 +5541,7 @@ export class SuperAgentsService {
       ? `Mahali: ${arrivalHub.address}`
       : null;
     const arrivalPhoneLine = arrivalHub?.phone
-      ? `Simu ya Hub: ${arrivalHub.phone}`
+      ? `Simu ya ofisi: ${arrivalHub.phone}`
       : null;
 
     // SMS 2: Buyer action required (essential)
@@ -6144,7 +6144,7 @@ export class SuperAgentsService {
       }
     } else if (!dto.manualContactName || !dto.manualContactPhone) {
       throw new BadRequestException(
-        'Chagua Super Agent aliyesajiliwa au jaza jina na simu ya mawasiliano',
+        'Chagua ofisi ya huko au jaza jina na simu ya atakayepokea',
       );
     }
 

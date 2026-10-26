@@ -66,12 +66,12 @@ const HUB_OPS_ENABLED = true;
 
 const STATUS_LABEL = {
   pending:              { l: 'Inasubiri',        c: '#64748b', bg: '#f1f5f9' },
-  received_at_hub:      { l: 'Iko Hubuni',        c: '#1d4ed8', bg: '#eff6ff' },
+  received_at_hub:      { l: 'Iko ofisini',        c: '#1d4ed8', bg: '#eff6ff' },
   verified:             { l: 'Imethibitishwa',    c: '#0891b2', bg: '#ecfeff' },
   ready_for_dispatch:   { l: 'Tayari Kutuma',     c: '#16a34a', bg: '#dcfce7' },
   dispatched:           { l: 'Imetumwa',          c: '#15803d', bg: '#f0fdf4' },
   in_transit:           { l: '🚌 Njiani',         c: '#ca8a04', bg: '#fef9c3' },
-  arrived_at_hub:       { l: '📍 Imefika Hubuni', c: '#7c3aed', bg: '#ede9fe' },
+  arrived_at_hub:       { l: 'Imefika ofisini', c: '#7c3aed', bg: '#ede9fe' },
   awaiting_buyer:       { l: '⏳ Mteja Achague',  c: '#dc2626', bg: '#fee2e2' },
   out_for_delivery:     { l: '🏍️ Inafikishwa',   c: '#f59e0b', bg: '#fef9c3' },
   delivered:            { l: '✅ Imefikishwa',    c: '#16a34a', bg: '#dcfce7' },
@@ -420,7 +420,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const handleCreateBulkShipment = async () => {
     if (!bulkSelected.size) return;
     if (!bulkLastMileAgentId && !bulkManualContact.name) {
-      setError('Chagua Super Agent aliyesajiliwa au jaza mawasiliano ya mshirika'); return;
+      setError('Chagua ofisi ya huko au jaza mawasiliano ya atakayepokea'); return;
     }
     try {
       setActionLoading(true); setError('');
@@ -503,25 +503,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [agentHandoffChallenge, setAgentHandoffChallenge] = useState(null);
   const [codBalanceAmount, setCodBalanceAmount] = useState('');
 
-  const [transferModal, setTransferModal] = useState(null);
-  const [transferForm, setTransferForm]   = useState({
-    destinationCity: '', destinationSuperAgentId: null,
-    manualContactName: '', manualContactPhone: '', manualContactAddress: '',
-    transportCompany: '', note: '',
-  });
-  const [transferHubs, setTransferHubs] = useState([]);
-  const [transferHubsLoading, setTransferHubsLoading] = useState(false);
-  const [transferDestText, setTransferDestText] = useState('');
-
-  const fetchTransferHubs = async (city) => {
-    if (!city) { setTransferHubs([]); return; }
-    try {
-      setTransferHubsLoading(true);
-      const res = await api.get(`/super-agents/hubs/${encodeURIComponent(city)}`);
-      setTransferHubs(res.data || []);
-    } catch { setTransferHubs([]); }
-    finally { setTransferHubsLoading(false); }
-  };
 
   const isDar = profile?.city?.toLowerCase().includes('dar');
 
@@ -722,7 +703,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       await api.patch(`/super-agents/shipments/${arrivalTracking.trim()}/arrived`, {
         city: profile?.city, note: arrivalNote,
       });
-      setSuccess(`✅ ${arrivalTracking} imesajiliwa kufika hubuni`);
+      setSuccess(`✅ ${arrivalTracking} imefika ofisini`);
       setArrivalTracking(''); setArrivalNote('');
       setPokeaMode('list'); fetchAll();
     } catch (err) {
@@ -928,30 +909,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // ── Main dashboard ────────────────────────────────────────────────────────
 
-  const handleTransferHub = async (trackingNumber, form) => {
-    if (!form.destinationSuperAgentId && !form.manualContactName) {
-      alert('Chagua Super Agent aliyesajiliwa au jaza jina la mshirika'); return;
-    }
-    try {
-      const res = await api.post('/super-agents/parcels/' + trackingNumber + '/transfer-hub', {
-        destinationSuperAgentId: form.destinationSuperAgentId || undefined,
-        manualContactName:    form.destinationSuperAgentId ? undefined : form.manualContactName,
-        manualContactPhone:   form.destinationSuperAgentId ? undefined : form.manualContactPhone,
-        manualContactCity:    form.destinationSuperAgentId ? undefined : form.destinationCity,
-        manualContactAddress: form.destinationSuperAgentId ? undefined : form.manualContactAddress,
-        transportCompany: form.transportCompany || undefined,
-        note: form.note || undefined,
-      });
-      alert(`✅ Kimehamishiwa kwa ${res.data.receiverName}. Ujumbe umetumwa kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}, kwa mnunuzi: ${res.data.buyerSmsSent ? 'ndiyo' : 'hapana'}.`);
-      setTransferModal(null);
-      setTransferForm({ destinationCity: '', destinationSuperAgentId: null, manualContactName: '', manualContactPhone: '', manualContactAddress: '', transportCompany: '', note: '' });
-      setTransferDestText('');
-      setTransferHubs([]);
-      fetchAll();
-    } catch (e) {
-      alert('Imeshindwa: ' + (e.response?.data?.message || 'Jaribu tena'));
-    }
-  };
 
 
   return (
@@ -1235,10 +1192,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {walkServicePath !== 'local_agent' && walkHubs.length > 0 && (
                       <div style={{ marginBottom: 12 }}>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
-                          Hub ya mpokeaji {walkHubs.length > 1 ? '*' : ''}
+                          Ofisi ya kupokea {walkHubs.length > 1 ? '*' : ''}
                         </label>
                         <select value={walkDestinationHubId} onChange={e => setWalkDestinationHubId(e.target.value)} style={inp}>
-                          <option value="">{walkHubs.length > 1 ? 'Chagua hub' : 'Hub pekee itachaguliwa'}</option>
+                          <option value="">{walkHubs.length > 1 ? 'Chagua ofisi' : 'Ofisi pekee itachaguliwa'}</option>
                           {walkHubs.map(hub => <option key={hub.id} value={hub.id}>{hub.businessName} · {hub.city}</option>)}
                         </select>
                       </div>
@@ -1570,7 +1527,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
-                    📦 Shehena (Hamisha Vifurushi Vingi)
+                    {inviteParcel ? `Tuma mzigo mmoja · ${displayParcelNumber(inviteParcel)}` : 'Shehena: vifurushi vingi pamoja'}
                   </div>
                   <button onClick={() => { setTumaMode('list'); resetBulkForm(); setBulkStep('open'); }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer',
@@ -1646,11 +1603,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
 
                     {bulkHubsLoading ? (
-                      <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>⏳ Inatafuta Super Agent...</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>Inatafuta ofisi...</div>
                     ) : bulkHubs.length > 0 && (
                       <>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
-                          Super Agent aliyesajiliwa {bulkDestCity}
+                          Ofisi zilizo kwenye KenteXa {bulkDestCity}
                         </div>
                         {bulkHubs.map(h => (
                           <label key={h.id} onClick={() => setBulkLastMileAgentId(h.id)}
@@ -1670,7 +1627,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {!bulkLastMileAgentId && (
                       <>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginTop: 8, marginBottom: 8 }}>
-                          AU JAZA MAWASILIANO YA MSHIRIKA (siyo Super Agent aliyesajiliwa)
+                          {inviteParcel ? 'AU ATAKAYEPOKEA HUKO (mpokeaji au mshirika asiye kwenye KenteXa)' : 'AU ATAKAYEPOKEA HUKO (mshirika asiye kwenye KenteXa)'}
                         </div>
                         <input type="text" placeholder="Jina la mshirika/biashara"
                           value={bulkManualContact.name}
@@ -1727,7 +1684,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         backgroundColor: (!bulkSelected.size || (!bulkLastMileAgentId && !bulkManualContact.name)) ? '#94a3b8' : '#d97706',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
-                      {actionLoading ? '⏳' : `📦 Unda Shehena (${bulkSelected.size}) — SMS kwa Wanunuzi`}
+                      {actionLoading ? 'Inaendelea…' : inviteParcel ? 'Endelea: chagua usafiri' : `Unda shehena ya vifurushi ${bulkSelected.size}, SMS kwa wapokeaji`}
                     </button>
                     <button onClick={() => { resetBulkForm(); setBulkStep('open'); }}
                       style={{ width: '100%', marginTop: 8, background: '#fff', color: '#64748b',
@@ -1799,10 +1756,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 {bulkStep === 'dispatch' && bulkActiveShipment && (
                   <>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-                      Shehena → {bulkActiveShipment.destinationCity}
+                      {inviteParcel ? `Mzigo mmoja (${displayParcelNumber(inviteParcel)})` : 'Shehena'} → {bulkActiveShipment.destinationCity}
                       {bulkActiveShipment.lastMileSuperAgent?.businessName ? ` (${bulkActiveShipment.lastMileSuperAgent.businessName})` : ''}.
-                      Taarifa za usafiri ni hiari — ujumbe MMOJA utatumwa kwa mshirika ukiwa na
-                      vifurushi vyote vya shehena hii.
+                      {inviteParcel
+                        ? ' Chagua usafiri. Atakayepokea huko anapata ujumbe.'
+                        : ' Taarifa za usafiri ni hiari. Ujumbe mmoja unatumwa kwa atakayepokea ukiwa na vifurushi vyote vya shehena hii.'}
                     </div>
                     <ShehenaTransportPicker value={bulkTransport} inputStyle={inp}
                       onChange={(t) => setBulkTransport(p => ({ ...p, ...t }))} />
@@ -1821,7 +1779,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       style={{ width: '100%', marginTop: 10, backgroundColor: '#16a34a',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
-                      {actionLoading ? '⏳' : '✅ Tuma Shehena — Ujumbe kwa Mshirika'}
+                      {actionLoading ? 'Inatuma…' : inviteParcel ? 'Tuma mzigo' : 'Tuma shehena'}
                     </button>
                     <button onClick={() => { resetBulkForm(); setBulkStep('open'); fetchOpenShipments(); }}
                       style={{ width: '100%', marginTop: 8, background: '#fff', color: '#64748b',
@@ -1851,7 +1809,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           setDispatchParcel(parcel); setSelectedAgent(null); setDispatchMode('agent');
                         }},
                       ] : [
-                        { label: '🏢 Hamisha Hub', color: '#7c3aed', fn: (parcel) => setTransferModal(parcel) },
                         // One way to send (owner 2026-10-26): a single parcel is a shehena of one -
                         // the same screen, own/partner transport, and the transporter sees it.
                         { label: 'Tuma', color: '#16a34a', fn: (parcel) => startSingleShehena(parcel) },
@@ -2066,7 +2023,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14,
                 border: dashData.agent.billing.billingBlocked ? '2px solid #dc2626' : 'none' }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                  🎁 Faida ya Super Agent Mwanzilishi
+                  Faida ya ofisi mwanzilishi
                 </div>
                 {[
                   ['Agizo la bure lililotolewa', dashData.agent.billing.freeOrdersGranted],
@@ -2183,7 +2140,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       ✓ Nimepokea Mzigo
                     </button>
                   </div>)}
-                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO HUBUNI · {vanReady.length}</div>
+                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO OFISINI · {vanReady.length}</div>
                 {vanReady.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12 }}>Hakuna mzigo wa Van unaosubiri pickup/delivery.</div> :
                   vanReady.map(p => <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8, display:'flex', justifyContent:'space-between', gap:10 }}>
                     <div><div style={{ fontWeight:900, fontSize:13 }}>{displayParcelNumber(p)}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
@@ -2308,9 +2265,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ['Bidhaa', historyModal.data.description],
                     ['Njia', [historyModal.data.originCity, historyModal.data.transitCity, historyModal.data.destinationCity]
                       .filter(Boolean).join(' → ')],
-                    ['Hub ya Asili', historyModal.data.originAgent],
-                    ['Hub ya Kupokea', historyModal.data.destinationAgent],
-                    ['Simu ya Hub ya Kupokea', historyModal.data.destinationAgentPhone],
+                    ['Ofisi ya kuanzia', historyModal.data.originAgent],
+                    ['Ofisi ya kupokea', historyModal.data.destinationAgent],
+                    ['Simu ya ofisi ya kupokea', historyModal.data.destinationAgentPhone],
                   ].filter(([, v]) => v).map(([l, v]) => (
                     <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
                       fontSize: 12, padding: '4px 0' }}>
@@ -2454,7 +2411,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     // Intake steps only make sense before the parcel has
                     // ever been dispatched — hidden afterward.
                     ...(preDispatch ? [
-                      ['received_at_hub',   '📥 Imepokewa Hubuni'],
+                      ['received_at_hub',   'Imepokewa ofisini'],
                       ['verified',         '✅ Imethibitishwa'],
                       ['ready_for_dispatch','📦 Tayari Kutuma'],
                     ] : []),
@@ -2465,7 +2422,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   // the receiving hub's job, never the sender's — and never
                   // possible before the parcel has actually been dispatched.
                   ...(statusParcel.myRole !== 'origin' && !preDispatch ? [
-                    ['arrived_at_hub',   '🏢 Imefika Hubuni'],
+                    ['arrived_at_hub',   'Imefika ofisini'],
                     ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
                   ] : []),
                 ].map(([v, l]) => <option key={v} value={v}>{l}</option>);
@@ -2492,92 +2449,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         </div>
       )}
 
-      {transferModal && (
-        <div style={{ position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',zIndex:3000,display:'flex',alignItems:'flex-end' }}>
-          <div style={{ width:'100%',backgroundColor:'#fff',borderRadius:'20px 20px 0 0',padding:'24px 20px 40px', maxHeight:'85vh', overflowY:'auto' }}>
-            <div style={{ fontSize:16,fontWeight:900,color:'#1e293b',marginBottom:4 }}>🏢 Hamisha kwa Super Agent Mwingine</div>
-            <div style={{ fontSize:12,color:'#64748b',marginBottom:16 }}>{transferModal.trackingNumber}</div>
-            <div style={{ fontSize:11,color:'#94a3b8',marginBottom:14, lineHeight:1.5 }}>
-              Mshirika wako atapata ujumbe kuhusu kifurushi kinachokuja, na mnunuzi atapata jina/simu/mahali pake pa kuchukulia.
-            </div>
-
-            <div style={{ marginBottom: 10 }}>
-              <IntelligentLocationInput
-                label="" value={transferDestText} onTextChange={setTransferDestText}
-                onResolved={loc => {
-                  if (!loc) return;
-                  const cityStr = loc.regionName || loc.districtName || '';
-                  setTransferForm(f => ({ ...f, destinationCity: cityStr, destinationSuperAgentId: null }));
-                  fetchTransferHubs(cityStr);
-                }} placeholder="Tafuta eneo la Super Agent…" required
-              />
-            </div>
-
-            {transferHubsLoading ? (
-              <div style={{ fontSize:12,color:'#94a3b8',padding:'8px 0' }}>⏳ Inatafuta...</div>
-            ) : transferHubs.length > 0 && (
-              <>
-                <div style={{ fontSize:11,fontWeight:700,color:'#7c3aed',marginBottom:8 }}>
-                  Super Agent aliyesajiliwa
-                </div>
-                {transferHubs.map(h => (
-                  <label key={h.id} onClick={() => setTransferForm(f => ({ ...f, destinationSuperAgentId: h.id }))}
-                    style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10,
-                      marginBottom:6, cursor:'pointer',
-                      border:`2px solid ${transferForm.destinationSuperAgentId === h.id ? '#7c3aed' : '#e2e8f0'}`,
-                      backgroundColor: transferForm.destinationSuperAgentId === h.id ? '#f5f3ff' : '#f8fafc' }}>
-                    <input type="radio" checked={transferForm.destinationSuperAgentId === h.id} readOnly />
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13,fontWeight:800,color:'#1e293b' }}>{h.businessName}</div>
-                      <div style={{ fontSize:11,color:'#64748b' }}>📍 {h.address || h.city}</div>
-                    </div>
-                  </label>
-                ))}
-              </>
-            )}
-
-            {!transferForm.destinationSuperAgentId && (
-              <>
-                <div style={{ fontSize:11,fontWeight:700,color:'#94a3b8',marginTop:10,marginBottom:8 }}>
-                  AU JAZA MAWASILIANO YA MSHIRIKA (siyo Super Agent aliyesajiliwa)
-                </div>
-                <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
-                  placeholder="Jina la mshirika/biashara"
-                  value={transferForm.manualContactName}
-                  onChange={e => setTransferForm(f => ({ ...f, manualContactName: e.target.value }))} />
-                <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
-                  placeholder="Namba ya simu"
-                  value={transferForm.manualContactPhone}
-                  onChange={e => setTransferForm(f => ({ ...f, manualContactPhone: e.target.value }))} />
-                <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
-                  placeholder="Mahali/Ofisi (e.g. China Plaza, Ofisi 23, Kariakoo)"
-                  value={transferForm.manualContactAddress}
-                  onChange={e => setTransferForm(f => ({ ...f, manualContactAddress: e.target.value }))} />
-              </>
-            )}
-
-            <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginTop:4,marginBottom:10,boxSizing:'border-box',outline:'none' }}
-              placeholder="Kampuni ya usafiri (hiari — e.g. Shabiby Bus)"
-              value={transferForm.transportCompany}
-              onChange={e => setTransferForm(f => ({ ...f, transportCompany: e.target.value }))} />
-            <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:16,boxSizing:'border-box',outline:'none' }}
-              placeholder="Maelezo (hiari)"
-              value={transferForm.note}
-              onChange={e => setTransferForm(f => ({ ...f, note: e.target.value }))} />
-            <div style={{ display:'flex',gap:10 }}>
-              <button onClick={() => setTransferModal(null)}
-                style={{ flex:1,backgroundColor:'#f1f5f9',color:'#64748b',border:'none',borderRadius:10,padding:'12px 0',cursor:'pointer',fontSize:14,fontWeight:700 }}>
-                Funga
-              </button>
-              <button onClick={() => handleTransferHub(transferModal.trackingNumber, transferForm)}
-                disabled={!transferForm.destinationSuperAgentId && !transferForm.manualContactName}
-                style={{ flex:2,background: (!transferForm.destinationSuperAgentId && !transferForm.manualContactName) ? '#c4b5fd' : 'linear-gradient(135deg,#7c3aed,#1d4ed8)',color:'#fff',border:'none',borderRadius:10,padding:'12px 0',cursor:'pointer',fontSize:14,fontWeight:800 }}>
-                ✅ Hamisha Sasa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showVerifyIdentity && (
         <VerifyIdentityModal
