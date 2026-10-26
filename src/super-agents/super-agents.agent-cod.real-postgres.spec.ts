@@ -37,7 +37,8 @@ const config = getB5BTestConnectionConfig();
       "deliveredAt" timestamp, "paymentMethod" varchar, source varchar, "sellerAmount" numeric,
       "codRemainingBalance" numeric, "codBalanceCollected" boolean DEFAULT false,
       "escrowStatus" varchar, "totalAmount" numeric, "codUpfrontAmount" numeric,
-      "codBalanceCollectedByAgentId" integer, "codBalanceCollectedAt" timestamp, "paymentStatus" varchar)`);
+      "codBalanceCollectedByAgentId" integer, "codBalanceCollectedAt" timestamp, "paymentStatus" varchar,
+      "completedAt" timestamp)`);
     await db.query(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "trackingNumber" varchar,
       status varchar NOT NULL, "orderId" integer, "buyerRequestedDelivery" boolean,
       "localAgentId" varchar, "buyerPhone" varchar, "destinationCity" varchar,
@@ -215,7 +216,7 @@ const config = getB5BTestConnectionConfig();
     await service().confirmCodAgentDelivery(user, 'KTX-AGENT-COD-32', sentCode, 5000, context);
     const done = await state(32);
     expect(done.counts).toEqual({ cash: 1, custody: 1, tracking: 1, receipt: 1, releases: 0 });
-    expect(done.order).toMatchObject({ codBalanceCollected: true, codBalanceCollectedByLocalAgentId: 4 });
+    expect(done.order).toMatchObject({ codBalanceCollected: true, codBalanceCollectedByLocalAgentId: 4, status: 'completed' });
     const [cash] = await db.query('SELECT * FROM public.agent_cod_collection WHERE "orderId"=13');
     expect(Number(cash.cashLiability)).toBe(Number(cash.kentexaShare));
     expect(Number(cash.cashLiability)).toBeLessThan(Number(cash.collectedAmount));

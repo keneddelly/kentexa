@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { agentHoldsDelivery, recordSellerCodReceived } from '../orders/order-delivery-sync';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, Between, MoreThanOrEqual, IsNull } from 'typeorm';
 import { Sale, SaleChannel, SaleStatus } from './entities/sale.entity';
@@ -214,9 +215,26 @@ export class SalesService {
       throw new BadRequestException('No balance is due on this sale');
     }
 
+    // A shipped COD sale: the order on its parcel moves with it. An Agent or office carrying
+    // it collects the cash at the door instead, so the till must not take it too.
+    const [linked] = await this.dataSource.query(
+      `SELECT o.id, o."codBalanceCollected", o."paymentMethod"::text AS "paymentMethod",
+              (p."superAgentId" IS NOT NULL OR p."destinationSuperAgentId" IS NOT NULL) AS "officeHandles"
+         FROM public.parcel p JOIN public."order" o ON o.id = p."orderId"
+        WHERE p."saleId" = $1 AND o.source::text = 'seller_shipment' AND o.status::text <> 'cancelled'
+        ORDER BY p.id DESC LIMIT 1`, [sale.id]);
+    const linkedOpen = linked && linked.paymentMethod === 'cod' && !linked.codBalanceCollected;
+    if (linkedOpen && (linked.officeHandles || await agentHoldsDelivery(this.dataSource.manager, Number(linked.id)))) {
+      throw new BadRequestException('Mzigo huu unapelekwa na KenteXa: wakala au ofisi atapokea pesa kwa mteja.');
+    }
+
     sale.amountPaid = sale.total;
     sale.balanceDue = 0;
-    const updated = await this.saleRepo.save(sale);
+    const updated = await this.dataSource.transaction(async (em) => {
+      const saved = await em.getRepository(Sale).save(sale);
+      if (linkedOpen) await recordSellerCodReceived(em, Number(linked.id));
+      return saved;
+    });
 
     if (updated.customerPhone) {
       const message = `KenteXa: Asante! Salio la TZS ${Number(sale.total).toLocaleString()} kwa risiti ${updated.receiptNumber} limekamilika.`;

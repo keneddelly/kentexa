@@ -7,6 +7,8 @@ import { SaleChannel, SalePaymentMethod } from './entities/sale.entity';
 // plans/mutable-meandering-dongarra.md's COD engine design.
 describe('SalesService — Cash on Delivery', () => {
   let service: SalesService;
+  let dataSource: any;
+  let managerQuery: jest.Mock;
   let saleRepo: any;
   let productRepo: any;
   let userRepo: any;
@@ -26,6 +28,9 @@ describe('SalesService — Cash on Delivery', () => {
         return {};
       },
     };
+    managerQuery = jest.fn(async () => []);
+    (mockManager as any).query = managerQuery;
+    dataSource = { transaction: jest.fn((cb) => cb(mockManager)), query: jest.fn(async () => []), manager: mockManager };
     saleRepo = {
       create: jest.fn((x) => x),
       save: jest.fn(async (x) => ({ ...x, id: 1, items: x.items })),
@@ -43,7 +48,7 @@ describe('SalesService — Cash on Delivery', () => {
       productRepo,
       {} as any, // orderRepo
       userRepo,
-      { transaction: jest.fn((cb) => cb(mockManager)) } as any, // dataSource
+      dataSource as any,
       { adjustStock: jest.fn(async () => {}) } as any, // inventory
       invoicesService,
       smsService,
@@ -135,6 +140,26 @@ describe('SalesService — Cash on Delivery', () => {
       expect(result.amountPaid).toBe(50_000);
       expect(result.balanceDue).toBe(0);
       expect(smsService.sendSms).toHaveBeenCalled();
+    });
+
+    it('a shipped COD sale: the order on its parcel is settled in the same step', async () => {
+      saleRepo.findOne.mockResolvedValue({ id: 5, sellerId: 1, isCod: true, total: 50_000, amountPaid: 20_000, balanceDue: 30_000 });
+      dataSource.query.mockResolvedValueOnce([{ id: 77, codBalanceCollected: false, paymentMethod: 'cod', officeHandles: false }]);
+      managerQuery.mockImplementation(async (sql: string) => (/SELECT source/.test(sql) ? [{ source: 'seller_shipment' }]
+        : /FOR UPDATE/.test(sql) ? [{ id: 77, source: 'seller_shipment', status: 'preparing', paymentStatus: 'paid', paymentMethod: 'cod', codBalanceCollected: true }]
+        : []));
+      await service.recordCodBalancePayment(1, 5);
+      const sqls = managerQuery.mock.calls.map((c) => String(c[0]));
+      expect(sqls.some((q) => /"codBalanceCollected" = true/.test(q))).toBe(true);
+      expect(sqls.some((q) => /status = 'completed'/.test(q))).toBe(true);
+    });
+
+    it('a shipped COD sale an Agent is carrying: the till refuses, the Agent collects', async () => {
+      saleRepo.findOne.mockResolvedValue({ id: 5, sellerId: 1, isCod: true, total: 50_000, amountPaid: 20_000, balanceDue: 30_000 });
+      dataSource.query.mockResolvedValueOnce([{ id: 77, codBalanceCollected: false, paymentMethod: 'cod', officeHandles: false }]);
+      managerQuery.mockResolvedValueOnce([{ 1: 1 }]); // agentHoldsDelivery
+      await expect(service.recordCodBalancePayment(1, 5)).rejects.toThrow(BadRequestException);
+      expect(saleRepo.save).not.toHaveBeenCalled();
     });
 
     it('rejects collecting a balance on a non-COD sale', async () => {

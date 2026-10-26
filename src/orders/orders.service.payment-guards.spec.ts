@@ -97,25 +97,59 @@ describe('OrdersService — S0 payment-evidence guards', () => {
       expect(repo.update).not.toHaveBeenCalled();
     });
 
+    // The writes go through the shared delivery sync (order-delivery-sync.ts), in one transaction.
+    const dbRepo = (rows: (sql: string) => any[] = () => []) => {
+      const query = jest.fn(async (sql: string) => rows(sql));
+      const manager: any = { query };
+      manager.transaction = jest.fn((cb: any) => cb(manager));
+      return { findOne: jest.fn(), update: jest.fn(), manager, query };
+    };
+    const wrote = (q: jest.Mock, re: RegExp) => q.mock.calls.some((c) => re.test(String(c[0])));
+
     it('allows it once the deposit is genuinely verified AND the order is in a real fulfilment stage', async () => {
-      const repo = { findOne: jest.fn(), update: jest.fn() };
+      const repo = dbRepo((sql) => (/SELECT source/.test(sql) ? [{ source: 'online' }] : []));
       repo.findOne.mockResolvedValue(codOrder({ status: OrderStatus.PREPARING }));
       const paymentEvidence = { check: jest.fn().mockResolvedValue({ applicable: true, sufficient: true }) };
       const svc = build<OrdersService>({ repo, parcelRepo: { findOne: jest.fn().mockResolvedValue(null) }, paymentEvidence, activityEvents: anyStub });
 
       await svc.sellerCollectCodBalance(75, seller as any);
-      expect(repo.update).toHaveBeenCalledWith(75, expect.objectContaining({ codBalanceCollected: true }));
+      expect(wrote(repo.query, /"codBalanceCollected" = true/)).toBe(true);
+      // A marketplace order keeps its escrow flow: not completed here.
+      expect(wrote(repo.query, /status = 'completed'/)).toBe(false);
     });
 
     it('a seller_shipment order keeps its existing self-reported trust model — no evidence check at all', async () => {
-      const repo = { findOne: jest.fn(), update: jest.fn() };
+      const repo = dbRepo((sql) => (/SELECT source/.test(sql) ? [{ source: 'seller_shipment' }]
+        : /FOR UPDATE/.test(sql) ? [{ id: 75, source: 'seller_shipment', status: 'pending_payment', paymentStatus: 'paid', paymentMethod: 'cod', codBalanceCollected: true }]
+        : []));
       repo.findOne.mockResolvedValue(codOrder({ source: OrderSource.SELLER_SHIPMENT, status: OrderStatus.PENDING_PAYMENT }));
       const paymentEvidence = { check: jest.fn() };
       const svc = build<OrdersService>({ repo, parcelRepo: { findOne: jest.fn().mockResolvedValue(null) }, paymentEvidence, activityEvents: anyStub });
 
       await svc.sellerCollectCodBalance(75, seller as any);
       expect(paymentEvidence.check).not.toHaveBeenCalled();
-      expect(repo.update).toHaveBeenCalled();
+      expect(wrote(repo.query, /"codBalanceCollected" = true/)).toBe(true);
+    });
+
+    it('same city: the seller confirms the cash and the order is completed, not left preparing', async () => {
+      const repo = dbRepo((sql) => (/SELECT source/.test(sql) ? [{ source: 'seller_shipment' }]
+        : /FOR UPDATE/.test(sql) ? [{ id: 75, source: 'seller_shipment', status: 'preparing', paymentStatus: 'paid', paymentMethod: 'cod', codBalanceCollected: true }]
+        : []));
+      repo.findOne.mockResolvedValue(codOrder({ source: OrderSource.SELLER_SHIPMENT, status: OrderStatus.PREPARING }));
+      const svc = build<OrdersService>({ repo, parcelRepo: { findOne: jest.fn().mockResolvedValue(null) }, activityEvents: anyStub });
+
+      const res: any = await svc.sellerCollectCodBalance(75, seller as any);
+      expect(wrote(repo.query, /status = 'completed'/)).toBe(true);
+      expect(res.status).toBe('completed');
+    });
+
+    it('an Agent carrying the parcel collects the cash: the seller cannot mark it', async () => {
+      const repo = dbRepo((sql) => (/parcel_pickup_task t JOIN/.test(sql) ? [{ '?column?': 1 }] : []));
+      repo.findOne.mockResolvedValue(codOrder({ source: OrderSource.SELLER_SHIPMENT, status: OrderStatus.PREPARING }));
+      const svc = build<OrdersService>({ repo, parcelRepo: { findOne: jest.fn().mockResolvedValue(null) }, activityEvents: anyStub });
+
+      await expect(svc.sellerCollectCodBalance(75, seller as any)).rejects.toThrow(BadRequestException);
+      expect(wrote(repo.query, /"codBalanceCollected" = true/)).toBe(false);
     });
   });
 });
