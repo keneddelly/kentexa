@@ -1493,7 +1493,7 @@ export class OrdersService {
     });
     if (parcel?.superAgent || parcel?.destinationSuperAgent) {
       throw new BadRequestException(
-        'Usafirishaji huu unashughulikiwa na Super Agent — mwombe athibitishe amepokea malipo, si wewe.',
+        'Usafirishaji huu unashughulikiwa na ofisi — iombe ithibitishe imepokea malipo, si wewe.',
       );
     }
 
@@ -1674,7 +1674,7 @@ export class OrdersService {
       actualFee = Number(data.shippingFeeCollected || 0);
       shippingFeeNote =
         actualFee > 0
-          ? `Mauzo ya nje: TZS ${actualFee.toLocaleString()} ilipokewa taslimu na Super Agent wakati wa kupokea kifurushi.`
+          ? `Mauzo ya nje: TZS ${actualFee.toLocaleString()} ilipokewa taslimu na ofisi wakati wa kupokea kifurushi.`
           : null;
     } else {
       // ── NORMAL ORDER: existing escrow reconciliation logic, unchanged.

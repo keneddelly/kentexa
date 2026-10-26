@@ -5358,6 +5358,7 @@
     "rate_validation_error": "Ajoutez au moins une destination avec un prix par kg supérieur à zéro"
   },
   "super_agent_dashboard": {
+    "header_title": "Bureau",
     "load_failed": "Échec du chargement du tableau de bord",
     "identity_prompt": "Complétez votre vérification d'identité pour garder votre hub fiable sur Kentexa — appuyez pour vérifier",
     "apply_title": "Devenir Super Agent",

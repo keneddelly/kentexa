@@ -5256,14 +5256,15 @@
     "rate_validation_error": "Ongeza angalau njia moja yenye bei kwa kg zaidi ya sifuri"
   },
   "super_agent_dashboard": {
+    "header_title": "Ofisi",
     "load_failed": "Imeshindwa kupakia dashibodi",
-    "identity_prompt": "Kamilisha uthibitisho wa utambulisho wako ili kuweka hub yako ya kuaminika Kentexa — gusa kuthibitisha",
-    "apply_title": "Kuwa Super Agent",
-    "apply_desc": "Fungua hub yako — pata vifurushi kupitia KenteXa network",
+    "identity_prompt": "Kamilisha uthibitisho wa utambulisho wako ili ofisi yako iaminike — gusa kuthibitisha",
+    "apply_title": "Fungua ofisi kwenye KenteXa",
+    "apply_desc": "Ofisi yako ya usafirishaji, wateja wanakupata kupitia KenteXa",
     "field_business_name_label": "Jina la Biashara *",
     "field_phone_label": "Simu *",
     "field_city_label": "Mji *",
-    "field_address_label": "Anwani ya Hub — jengo/ofisi, mtaa, kata *",
+    "field_address_label": "Anwani ya ofisi: jengo, mtaa, kata *",
     "field_address_placeholder": "mfano China Plaza, Ofisi 23, Kariakoo, Ilala, Dar es Salaam",
     "field_region_label": "Mkoa",
     "field_description_label": "Maelezo ya Huduma",
@@ -5273,9 +5274,9 @@
     "pending_title": "Ombi Lako Lipo Chini ya Mapitio",
     "pending_desc": "Tutawasiliana nawe ndani ya masaa 24.",
     "registered_title": "{{name}} Imesajiliwa ✅",
-    "registered_desc": "Usimamizi kamili wa hub — kupokea, kutuma, bei — unakuja hivi karibuni. Kwa sasa, bado unaweza kuunda shehena moja kwa moja.",
+    "registered_desc": "Usimamizi kamili wa ofisi (kupokea, kutuma, bei) unakuja hivi karibuni. Kwa sasa, bado unaweza kuunda shehena moja kwa moja.",
     "create_shipment_button": "📦 Unda Shehena",
-    "your_hub_fallback": "Hub Yako",
+    "your_hub_fallback": "Ofisi Yako",
     "loading": "⏳ Inapakia..."
   },
   "login": {

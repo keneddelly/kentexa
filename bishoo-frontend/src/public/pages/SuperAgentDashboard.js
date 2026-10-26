@@ -66,12 +66,12 @@ const HUB_OPS_ENABLED = true;
 
 const STATUS_LABEL = {
   pending:              { l: 'Inasubiri',        c: '#64748b', bg: '#f1f5f9' },
-  received_at_hub:      { l: 'Iko Hubuni',        c: '#1d4ed8', bg: '#eff6ff' },
+  received_at_hub:      { l: 'Iko ofisini',        c: '#1d4ed8', bg: '#eff6ff' },
   verified:             { l: 'Imethibitishwa',    c: '#0891b2', bg: '#ecfeff' },
   ready_for_dispatch:   { l: 'Tayari Kutuma',     c: '#16a34a', bg: '#dcfce7' },
   dispatched:           { l: 'Imetumwa',          c: '#15803d', bg: '#f0fdf4' },
   in_transit:           { l: '🚌 Njiani',         c: '#ca8a04', bg: '#fef9c3' },
-  arrived_at_hub:       { l: '📍 Imefika Hubuni', c: '#7c3aed', bg: '#ede9fe' },
+  arrived_at_hub:       { l: 'Imefika ofisini', c: '#7c3aed', bg: '#ede9fe' },
   awaiting_buyer:       { l: '⏳ Mteja Achague',  c: '#dc2626', bg: '#fee2e2' },
   out_for_delivery:     { l: '🏍️ Inafikishwa',   c: '#f59e0b', bg: '#fef9c3' },
   delivered:            { l: '✅ Imefikishwa',    c: '#16a34a', bg: '#dcfce7' },
@@ -420,7 +420,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const handleCreateBulkShipment = async () => {
     if (!bulkSelected.size) return;
     if (!bulkLastMileAgentId && !bulkManualContact.name) {
-      setError('Chagua Super Agent aliyesajiliwa au jaza mawasiliano ya mshirika'); return;
+      setError('Chagua ofisi ya huko au jaza mawasiliano ya atakayepokea'); return;
     }
     try {
       setActionLoading(true); setError('');
@@ -703,7 +703,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       await api.patch(`/super-agents/shipments/${arrivalTracking.trim()}/arrived`, {
         city: profile?.city, note: arrivalNote,
       });
-      setSuccess(`✅ ${arrivalTracking} imesajiliwa kufika hubuni`);
+      setSuccess(`✅ ${arrivalTracking} imefika ofisini`);
       setArrivalTracking(''); setArrivalNote('');
       setPokeaMode('list'); fetchAll();
     } catch (err) {
@@ -1192,10 +1192,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {walkServicePath !== 'local_agent' && walkHubs.length > 0 && (
                       <div style={{ marginBottom: 12 }}>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
-                          Hub ya mpokeaji {walkHubs.length > 1 ? '*' : ''}
+                          Ofisi ya kupokea {walkHubs.length > 1 ? '*' : ''}
                         </label>
                         <select value={walkDestinationHubId} onChange={e => setWalkDestinationHubId(e.target.value)} style={inp}>
-                          <option value="">{walkHubs.length > 1 ? 'Chagua hub' : 'Hub pekee itachaguliwa'}</option>
+                          <option value="">{walkHubs.length > 1 ? 'Chagua ofisi' : 'Ofisi pekee itachaguliwa'}</option>
                           {walkHubs.map(hub => <option key={hub.id} value={hub.id}>{hub.businessName} · {hub.city}</option>)}
                         </select>
                       </div>
@@ -1603,11 +1603,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
 
                     {bulkHubsLoading ? (
-                      <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>⏳ Inatafuta Super Agent...</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>Inatafuta ofisi...</div>
                     ) : bulkHubs.length > 0 && (
                       <>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
-                          Super Agent aliyesajiliwa {bulkDestCity}
+                          Ofisi zilizo kwenye KenteXa {bulkDestCity}
                         </div>
                         {bulkHubs.map(h => (
                           <label key={h.id} onClick={() => setBulkLastMileAgentId(h.id)}
@@ -1627,7 +1627,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {!bulkLastMileAgentId && (
                       <>
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginTop: 8, marginBottom: 8 }}>
-                          {inviteParcel ? 'AU ATAKAYEPOKEA HUKO (mpokeaji au mshirika asiye kwenye KenteXa)' : 'AU JAZA MAWASILIANO YA MSHIRIKA (siyo Super Agent aliyesajiliwa)'}
+                          {inviteParcel ? 'AU ATAKAYEPOKEA HUKO (mpokeaji au mshirika asiye kwenye KenteXa)' : 'AU ATAKAYEPOKEA HUKO (mshirika asiye kwenye KenteXa)'}
                         </div>
                         <input type="text" placeholder="Jina la mshirika/biashara"
                           value={bulkManualContact.name}
@@ -2023,7 +2023,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14,
                 border: dashData.agent.billing.billingBlocked ? '2px solid #dc2626' : 'none' }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                  🎁 Faida ya Super Agent Mwanzilishi
+                  Faida ya ofisi mwanzilishi
                 </div>
                 {[
                   ['Agizo la bure lililotolewa', dashData.agent.billing.freeOrdersGranted],
@@ -2140,7 +2140,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       ✓ Nimepokea Mzigo
                     </button>
                   </div>)}
-                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO HUBUNI · {vanReady.length}</div>
+                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO OFISINI · {vanReady.length}</div>
                 {vanReady.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12 }}>Hakuna mzigo wa Van unaosubiri pickup/delivery.</div> :
                   vanReady.map(p => <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8, display:'flex', justifyContent:'space-between', gap:10 }}>
                     <div><div style={{ fontWeight:900, fontSize:13 }}>{displayParcelNumber(p)}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
@@ -2265,9 +2265,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ['Bidhaa', historyModal.data.description],
                     ['Njia', [historyModal.data.originCity, historyModal.data.transitCity, historyModal.data.destinationCity]
                       .filter(Boolean).join(' → ')],
-                    ['Hub ya Asili', historyModal.data.originAgent],
-                    ['Hub ya Kupokea', historyModal.data.destinationAgent],
-                    ['Simu ya Hub ya Kupokea', historyModal.data.destinationAgentPhone],
+                    ['Ofisi ya kuanzia', historyModal.data.originAgent],
+                    ['Ofisi ya kupokea', historyModal.data.destinationAgent],
+                    ['Simu ya ofisi ya kupokea', historyModal.data.destinationAgentPhone],
                   ].filter(([, v]) => v).map(([l, v]) => (
                     <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
                       fontSize: 12, padding: '4px 0' }}>
@@ -2411,7 +2411,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     // Intake steps only make sense before the parcel has
                     // ever been dispatched — hidden afterward.
                     ...(preDispatch ? [
-                      ['received_at_hub',   '📥 Imepokewa Hubuni'],
+                      ['received_at_hub',   'Imepokewa ofisini'],
                       ['verified',         '✅ Imethibitishwa'],
                       ['ready_for_dispatch','📦 Tayari Kutuma'],
                     ] : []),
@@ -2422,7 +2422,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   // the receiving hub's job, never the sender's — and never
                   // possible before the parcel has actually been dispatched.
                   ...(statusParcel.myRole !== 'origin' && !preDispatch ? [
-                    ['arrived_at_hub',   '🏢 Imefika Hubuni'],
+                    ['arrived_at_hub',   'Imefika ofisini'],
                     ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
                   ] : []),
                 ].map(([v, l]) => <option key={v} value={v}>{l}</option>);
