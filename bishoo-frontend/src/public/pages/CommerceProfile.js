@@ -54,6 +54,14 @@ const iconPill = { width:40, height:40, borderRadius:20, border:'1px solid #cfd9
   alignItems:'center', justifyContent:'center', boxSizing:'border-box', textDecoration:'none' };
 const countBtn = { background:'none', border:'none', padding:0, cursor:'pointer', fontSize:15, fontFamily:'inherit' };
 
+const agoShort = (d) => {
+  if (!d) return '';
+  const m = Math.max(0, Math.round((Date.now() - new Date(d).getTime()) / 60000));
+  if (m < 60) return `dk ${m || 1}`;
+  if (m < 1440) return `saa ${Math.round(m / 60)}`;
+  if (m < 10080) return `siku ${Math.round(m / 1440)}`;
+  return new Date(d).toLocaleDateString('sw-TZ', { day:'numeric', month:'short' });
+};
 const fmt  = n => Number(n||0).toLocaleString();
 const fmtM = n => { const v=Number(n||0); return v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1000?`${(v/1e3).toFixed(0)}K`:String(v); };
 
@@ -167,7 +175,15 @@ const RoleActions = ({ role, onNavigate }) => {
 // visible to everyone (not owner-gated) — only the compose button inside
 // it stays owner-gated, and business-only (see the tab body), since
 // "new_product/discount/restock" only make sense for a business.
+// Moments come first on every identity (owner 2026-10-26: "moment should start").
 const tabs = (profileType, isOwn, t) => {
+  const list = tabsInner(profileType, isOwn, t);
+  const feed = list.find(x => x.key === 'feed');
+  const rest = list.filter(x => x.key !== 'feed');
+  if (!rest.some(x => x.key === 'about')) rest.push({ key:'about', label:t('commerce_profile.tab_about') });
+  return feed ? [{ ...feed, label:'Moments' }, ...rest] : rest;
+};
+const tabsInner = (profileType, isOwn, t) => {
   if (profileType === 'business') {
     const base = [
       { key:'posts',         label:t('commerce_profile.tab_products') },
@@ -283,6 +299,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [providerServices, setProviderServices] = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
+  const [manageOpen, setManageOpen] = useState(false);
   const [connections, setConnections] = useState(null);
   const [followBusy, setFollowBusy] = useState(false);
   const [followError, setFollowError] = useState('');
@@ -652,6 +669,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', gap:8, padding:'12px 16px 0', minHeight:40, flexWrap:'wrap' }}>
           {isOwnProfile ? (
             <>
+              <button onClick={() => setManageOpen(v => !v)} aria-expanded={manageOpen}
+                style={manageOpen ? { ...pillOutline, backgroundColor:INK, color:WH, borderColor:INK } : pillOutline}>
+                Simamia
+              </button>
               <button onClick={() => onNavigate('RoleActivation')} style={pillOutline}>
                 {t('commerce_profile.add_role_button')}
               </button>
@@ -775,79 +796,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           }} />
       )}
 
-      {/* Also on Kentexa — every OTHER independent profile this account
-          runs, shown as its own clickable card (own photo/name/type/
-          followers). Visible to everyone, not just the owner — this is
-          how a visitor who landed on the wrong identity finds the right
-          one, without either profile's own header/stats ever blending
-          into the other's. */}
-      {siblingProfiles.length > 0 && (
-        <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
-          <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
-            letterSpacing:0.5, marginBottom:10 }}>
-            {t('commerce_profile.also_on_kentexa')}
-          </div>
-          <div style={{ display:'flex', gap:10, overflowX:'auto', scrollbarWidth:'none', paddingBottom:2 }}>
-            {siblingProfiles.map(sp => (
-              <button key={sp.id}
-                onClick={() => onNavigate(`CommerceProfile-${sp.ownerId}`, { commerceProfileId: sp.id })}
-                style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6,
-                  background:'none', border:'none', cursor:'pointer', flexShrink:0, width:76 }}>
-                <div style={{ width:56, height:56, borderRadius:16, overflow:'hidden',
-                  backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
-                  justifyContent:'center', fontSize:24, border:'1px solid #F1F5F9' }}>
-                  {sp.photoUrl
-                    ? <img src={sp.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                    : (sp.displayName||'?').charAt(0).toUpperCase()}
-                </div>
-                <div style={{ fontSize:11, fontWeight:700, color:DK, textAlign:'center',
-                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', width:'100%' }}>
-                  {sp.displayName}
-                </div>
-                <div style={{ fontSize:10, color:GR }}>
-                  {fmtM(sp.followersCount||0)} {t('commerce_profile.stat_followers')}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* People Behind This / Managed By — trust signal on any non-personal
-          profile: who's actually running this. Derived from the SAME
-          sibling-profiles fetch as "Also on Kentexa" above (no extra
-          request) rather than a dedicated lookup. Never shown on a
-          personal profile — there's no one "behind" a person. */}
-      {activeProfile.type !== 'personal' && (() => {
-        const owner = siblingProfiles.find(sp => sp.type === 'personal');
-        if (!owner) return null;
-        return (
-          <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
-            <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
-              letterSpacing:0.5, marginBottom:10 }}>
-              {t('commerce_profile.people_behind_this')}
-            </div>
-            <button onClick={() => onNavigate(`CommerceProfile-${owner.ownerId}`, { commerceProfileId: owner.id })}
-              style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
-                background:'none', border:'none', cursor:'pointer', textAlign:'left', padding:0 }}>
-              <div style={{ width:44, height:44, borderRadius:14, overflow:'hidden',
-                backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
-                justifyContent:'center', fontSize:18, fontWeight:800, color:GR, flexShrink:0 }}>
-                {owner.photoUrl
-                  ? <img src={owner.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                  : (owner.displayName||'?').charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div style={{ fontSize:13, fontWeight:800, color:DK }}>{owner.displayName}</div>
-                <div style={{ fontSize:11, color:GR }}>{t('commerce_profile.founder_owner_label')}</div>
-              </div>
-            </button>
-          </div>
-        );
-      })()}
-
-      {/* Profile completion (own profile only) */}
-      {isOwnProfile && (
+      {/* Profile completion + dashboard shortcuts (own profile only), behind "Simamia" */}
+      {isOwnProfile && manageOpen && (
         <div style={{ padding:'0 16px', marginBottom:4 }}>
           <ProfileCompletion
             currentUser={currentUser}
@@ -860,7 +810,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       )}
 
       {/* Quick actions for THIS profile (own profile only) */}
-      {isOwnProfile && (
+      {isOwnProfile && manageOpen && (
         <div style={{ backgroundColor:WH, padding:'14px 0',
           marginBottom:4,
           boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
@@ -968,52 +918,52 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             {isOwnProfile && (
               <div style={{ marginBottom:16 }}>
                 <button onClick={() => onOpenMoment?.()}
-                  style={{ width:'100%', backgroundColor:WH,
-                    border:'1.5px dashed #93c5fd', borderRadius:14,
-                    padding:16, cursor:'pointer', fontSize:14,
-                    fontWeight:700, color:B,
-                    boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+                  style={{ width:'100%', height:48, backgroundColor:B, border:'none', borderRadius:24,
+                    cursor:'pointer', fontSize:15, fontWeight:700, color:WH, fontFamily:'inherit' }}>
                   {t('commerce_profile.share_moment_button')}
                 </button>
               </div>
             )}
-            {/* Instagram-style grid — 3 square thumbnails per row, not one
-                full-width card per row. Tapping a tile opens the full post
-                (image, caption, comments, CTA — everything FeedPost already
-                rendered inline) in the overlay below instead of losing that
-                content to a thumbnail. */}
+            {/* Moments as a Twitter-style list: who, when, the whole text with
+                "Soma zaidi", the picture, counts. Tap opens the full post. */}
             {feed.length === 0
               ? <Empty icon="📢" text={t('commerce_profile.no_announcements')} />
               : (
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:2 }}>
-                  {feed.map(f => (
-                    <div key={f.id} onClick={() => setOpenPostId(f.id)}
-                      ref={highlightPostId === f.id ? highlightPostRef : null}
-                      style={{ position:'relative', aspectRatio:'1', cursor:'pointer',
-                        overflow:'hidden', backgroundColor:'#EFF6FF',
-                        outline: highlightPostId === f.id ? '3px solid #2563EB' : 'none',
-                        outlineOffset: -3 }}>
-                      {f.imageUrl
-                        ? <img src={f.imageUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                        : (
-                          <div style={{ width:'100%', height:'100%', padding:8, boxSizing:'border-box',
-                            display:'flex', alignItems:'center', justifyContent:'center' }}>
-                            <span style={{ fontSize:11, fontWeight:700, color:B, textAlign:'center',
-                              overflow:'hidden', display:'-webkit-box', WebkitLineClamp:4,
-                              WebkitBoxOrient:'vertical' }}>
-                              {f.title}
-                            </span>
-                          </div>
-                        )}
-                      {(f.commentCount||0) > 0 && (
-                        <div style={{ position:'absolute', bottom:4, right:4,
-                          backgroundColor:'rgba(0,0,0,0.55)', color:'#fff', fontSize:10,
-                          fontWeight:700, padding:'2px 6px', borderRadius:100 }}>
-                          💬 {f.commentCount}
+                <div style={{ margin:'0 -16px', backgroundColor:WH, borderTop:`1px solid ${LINE}` }}>
+                  {feed.map(f => {
+                    const title = (f.title || '').trim();
+                    const body = (f.body || '').trim();
+                    const text = body && (title === body || title === 'Moment') ? body
+                      : [title !== 'Moment' ? title : '', body].filter(Boolean).join('\n');
+                    return (
+                      <article key={f.id} ref={highlightPostId === f.id ? highlightPostRef : null}
+                        onClick={() => setOpenPostId(f.id)}
+                        style={{ display:'flex', gap:12, padding:'12px 16px', borderBottom:`1px solid ${LINE}`, cursor:'pointer',
+                          backgroundColor: highlightPostId === f.id ? '#eff6ff' : WH }}>
+                        <div style={{ width:40, height:40, borderRadius:10, overflow:'hidden', backgroundColor:INK, color:WH,
+                          display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, flexShrink:0 }}>
+                          {displayPhoto ? <img src={displayPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                            : (displayName||'K').charAt(0).toUpperCase()}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:6 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:15, minWidth:0 }}>
+                            <b style={{ color:INK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{displayName}</b>
+                            {isVerifiedIdentity && <VerifiedBadge />}
+                            <span style={{ color:MUTED, whiteSpace:'nowrap' }}>· {agoShort(f.createdAt)}</span>
+                          </div>
+                          {text && <ExpandableText text={text} lines={4} />}
+                          {f.imageUrl && (
+                            <img src={f.imageUrl} alt="" style={{ width:'100%', maxHeight:420, objectFit:'cover',
+                              borderRadius:16, border:`1px solid ${LINE}` }} />
+                          )}
+                          <div style={{ display:'flex', gap:24, color:MUTED, fontSize:13 }}>
+                            <span>Maoni {fmt(f.commentCount || 0)}</span>
+                            <span>Imependwa {fmt(f.saveCount || 0)}</span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
           </div>
@@ -1528,6 +1478,81 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             so a personal or agent profile's About never shows the
             account's business location/contact/verification instead of
             its own. */}
+        {tab==='about' && (
+          <div style={{ margin:'-16px -16px 12px' }}>
+            {/* Also on Kentexa — every OTHER independent profile this account
+                runs, shown as its own clickable card (own photo/name/type/
+                followers). Visible to everyone, not just the owner — this is
+                how a visitor who landed on the wrong identity finds the right
+                one, without either profile's own header/stats ever blending
+                into the other's. */}
+            {siblingProfiles.length > 0 && (
+              <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
+                <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
+                  letterSpacing:0.5, marginBottom:10 }}>
+                  {t('commerce_profile.also_on_kentexa')}
+                </div>
+                <div style={{ display:'flex', gap:10, overflowX:'auto', scrollbarWidth:'none', paddingBottom:2 }}>
+                  {siblingProfiles.map(sp => (
+                    <button key={sp.id}
+                      onClick={() => onNavigate(`CommerceProfile-${sp.ownerId}`, { commerceProfileId: sp.id })}
+                      style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                        background:'none', border:'none', cursor:'pointer', flexShrink:0, width:76 }}>
+                      <div style={{ width:56, height:56, borderRadius:16, overflow:'hidden',
+                        backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
+                        justifyContent:'center', fontSize:24, border:'1px solid #F1F5F9' }}>
+                        {sp.photoUrl
+                          ? <img src={sp.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          : (sp.displayName||'?').charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ fontSize:11, fontWeight:700, color:DK, textAlign:'center',
+                        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', width:'100%' }}>
+                        {sp.displayName}
+                      </div>
+                      <div style={{ fontSize:10, color:GR }}>
+                        {fmtM(sp.followersCount||0)} {t('commerce_profile.stat_followers')}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* People Behind This / Managed By — trust signal on any non-personal
+                profile: who's actually running this. Derived from the SAME
+                sibling-profiles fetch as "Also on Kentexa" above (no extra
+                request) rather than a dedicated lookup. Never shown on a
+                personal profile — there's no one "behind" a person. */}
+            {activeProfile.type !== 'personal' && (() => {
+              const owner = siblingProfiles.find(sp => sp.type === 'personal');
+              if (!owner) return null;
+              return (
+                <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
+                    letterSpacing:0.5, marginBottom:10 }}>
+                    {t('commerce_profile.people_behind_this')}
+                  </div>
+                  <button onClick={() => onNavigate(`CommerceProfile-${owner.ownerId}`, { commerceProfileId: owner.id })}
+                    style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
+                      background:'none', border:'none', cursor:'pointer', textAlign:'left', padding:0 }}>
+                    <div style={{ width:44, height:44, borderRadius:14, overflow:'hidden',
+                      backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
+                      justifyContent:'center', fontSize:18, fontWeight:800, color:GR, flexShrink:0 }}>
+                      {owner.photoUrl
+                        ? <img src={owner.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        : (owner.displayName||'?').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:800, color:DK }}>{owner.displayName}</div>
+                      <div style={{ fontSize:11, color:GR }}>{t('commerce_profile.founder_owner_label')}</div>
+                    </div>
+                  </button>
+                </div>
+              );
+            })()}
+
+          </div>
+        )}
         {tab==='about' && (() => {
           const facts = [
             isTransportProfile && publicTransportData?.type &&
