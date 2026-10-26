@@ -292,7 +292,8 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   const sellerName   = product.commerceProfile?.displayName || product.seller?.storeName || product.seller?.businessName || product.seller?.name || 'Muuzaji';
   const sellerFollowers = product.commerceProfile?.followersCount ?? product.seller?.followersCount;
   const sellerPhoto = product.commerceProfile?.photoUrl || product.seller?.logo;
-  const sellerVerified = !!(product.commerceProfile?.isVerified || product.seller?.isVerified);
+  // One rule (server: identityVerified): the profile is verified, or it is an official KenteXa store.
+  const sellerVerified = !!(product.commerceProfile?.isVerified || product.seller?.isOfficialStore);
   const sellerPlace = product.commerceProfile?.location || product.seller?.businessLocation;
   const sellerNavParams = product.commerceProfile?.id ? { commerceProfileId: product.commerceProfile.id } : undefined;
   // Tags the conversation to this exact product (ConversationService context).

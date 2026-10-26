@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { FeedService } from './feed.service';
-import { momentActorFields } from '../commerce-profiles/moment-actor';
+import { momentActorFields, identityVerified } from '../commerce-profiles/moment-actor';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 const profile = (id: number, type: CommerceProfileType, displayName: string) =>
@@ -28,7 +28,7 @@ describe('I2B — canonical Moment actor read model', () => {
   it('E. unstamped / missing profile is explicitly unresolved — never Personal or another Business', () => {
     for (const none of [null, undefined]) {
       const a = momentActorFields(none as any);
-      expect(a).toEqual({ commerceProfileId: null, actorResolved: false, actorType: null });
+      expect(a).toEqual({ commerceProfileId: null, actorResolved: false, actorType: null, isVerified: false });
       expect(a.name).toBeUndefined();
     }
   });
@@ -121,5 +121,20 @@ describe('profile Moment timeline', () => {
     expect(svc.feedRepo.find).toHaveBeenCalledWith(expect.objectContaining({
       where: { businessId: 200, isActive: true, commerceProfileId: 70 },
     }));
+  });
+});
+
+describe('identityVerified: one rule for the verified tick (owner 2026-10-26)', () => {
+  it('the profile itself, or a business profile of an official store; never the OTP account flag', () => {
+    expect(identityVerified({ type: CommerceProfileType.BUSINESS, isVerified: true }, false)).toBe(true);
+    expect(identityVerified({ type: CommerceProfileType.BUSINESS, isVerified: false }, true)).toBe(true);   // official KenteXa store
+    expect(identityVerified({ type: CommerceProfileType.PERSONAL, isVerified: false }, true)).toBe(false);  // a person is not the store
+    expect(identityVerified({ type: CommerceProfileType.BUSINESS, isVerified: false }, false)).toBe(false);
+    expect(identityVerified(null, true)).toBe(true);
+    expect(identityVerified(null, false)).toBe(false);
+  });
+  it('the feed actor carries the same tick, official store included', () => {
+    expect(momentActorFields({ id: 2, type: CommerceProfileType.BUSINESS, displayName: 'KenteXa', photoUrl: null, followersCount: 1, isVerified: false } as any, null, true).isVerified).toBe(true);
+    expect(momentActorFields(null as any, null, true)).toMatchObject({ actorResolved: false, isVerified: true });
   });
 });

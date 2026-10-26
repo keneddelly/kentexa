@@ -22,6 +22,7 @@ import { assertBusinessSellingIdentity } from '../business/business-selling-iden
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { ProfileService } from '../profile/profile.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { identityVerified } from '../commerce-profiles/moment-actor';
 import {
   CommerceProfileType,
   CommerceProfileStatus,
@@ -195,7 +196,9 @@ export class SellerService {
         coverImage: u.coverImage || null,
         rating: u.rating || null,
         isOfficialStore: u.isOfficialStore || false,
-        isVerified: u.isVerified || false,
+        // The verified tick follows the business identity (one rule, moment-actor.ts),
+        // never User.isVerified, which only means the phone passed OTP.
+        isVerified: identityVerified(commerceProfileByOwnerId.get(u.id) || null, u.isOfficialStore),
         followersCount: u.followersCount || 0,
         city: p?.businessCity || u.businessLocation || null,
         district: p?.businessDistrict || null,

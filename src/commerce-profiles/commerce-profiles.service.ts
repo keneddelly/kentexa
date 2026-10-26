@@ -1,6 +1,7 @@
 import { Injectable, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import { identityVerified } from './moment-actor';
 import {
   CommerceProfile,
   CommerceProfileType,
@@ -337,6 +338,32 @@ export class CommerceProfilesService {
   // own commerceProfileId without an N+1 query per row. Returns a Map
   // keyed by ownerId for easy lookup; owners with no profile of this type
   // are simply absent from the map.
+  /**
+   * Each listing with the identity behind it (owner 2026-10-26): the profile it was
+   * posted as, else the owner's business profile; with the one verified rule
+   * (identityVerified). Lets Soko cards show the right name and tick.
+   */
+  async attachListingIdentities<T extends { commerceProfileId?: number | null; seller?: any }>(
+    items: T[],
+  ): Promise<Array<T & { commerceProfile: { id: number; displayName: string; photoUrl: string | null; isVerified: boolean } | null }>> {
+    const ids = [...new Set(items.map((i) => i.commerceProfileId).filter((x): x is number => !!x))];
+    const owners = [...new Set(items.filter((i) => !i.commerceProfileId && i.seller?.id).map((i) => Number(i.seller.id)))];
+    const [byIdList, byOwner] = await Promise.all([
+      ids.length ? this.repo.find({ where: { id: In(ids) } }) : Promise.resolve([] as CommerceProfile[]),
+      this.findMapForOwnersByType(owners, CommerceProfileType.BUSINESS),
+    ]);
+    const byId = new Map(byIdList.map((p) => [p.id, p]));
+    return items.map((item) => {
+      const p = (item.commerceProfileId ? byId.get(item.commerceProfileId) : null) || (item.seller?.id ? byOwner.get(Number(item.seller.id)) : null) || null;
+      return {
+        ...item,
+        commerceProfile: p
+          ? { id: p.id, displayName: p.displayName, photoUrl: p.photoUrl || null, isVerified: identityVerified(p, item.seller?.isOfficialStore) }
+          : null,
+      };
+    });
+  }
+
   async findMapForOwnersByType(
     ownerIds: number[],
     type: CommerceProfileType,

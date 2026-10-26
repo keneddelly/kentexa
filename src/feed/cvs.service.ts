@@ -40,7 +40,7 @@ import {
 } from './entities/post-comment.entity';
 import { User } from '../users/entities/user.entity';
 import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
-import { momentActorFields } from '../commerce-profiles/moment-actor';
+import { momentActorFields, identityVerified } from '../commerce-profiles/moment-actor';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
@@ -1078,6 +1078,14 @@ export class CvsService {
     const businessProfileByOwnerId = await this.commerceProfiles
       .findMapForOwnersByType([...new Set(allBusinessIds)], CommerceProfileType.BUSINESS)
       .catch(() => new Map());
+    // Official KenteXa stores among them (one query), for the verified tick.
+    const officialOwners = new Set<number>(
+      allBusinessIds.length
+        ? ((await this.feedRepo.manager
+            .query(`SELECT id FROM public."user" WHERE id = ANY($1) AND "isOfficialStore" = true`, [[...new Set(allBusinessIds)]])
+            .catch(() => [])) as any[]).map((r) => Number(r.id))
+        : [],
+    );
     for (const item of [
       ...topPurchased,
       ...fastestGrowing,
@@ -1087,8 +1095,9 @@ export class CvsService {
       ...topClassifieds,
     ] as any[]) {
       if (item.business?.id) {
-        item.business.commerceProfileId =
-          businessProfileByOwnerId.get(item.business.id)?.id || null;
+        const bp = businessProfileByOwnerId.get(item.business.id);
+        item.business.commerceProfileId = bp?.id || null;
+        item.business.isVerified = identityVerified(bp || null, officialOwners.has(Number(item.business.id)));
       }
     }
 
@@ -1377,7 +1386,7 @@ export class CvsService {
               storeWhatsApp: c.seller?.storeWhatsApp,
               phone: c.seller?.phone,
               reputationScore: (c.seller as any)?.reputationScore || 0,
-              isVerified: profile?.isVerified ?? c.seller?.isVerified,
+              isVerified: identityVerified(profile, (c.seller as any)?.isOfficialStore),
               isFollowing: true,
             },
             data: c,
@@ -1422,7 +1431,7 @@ export class CvsService {
           storeWhatsApp: seller?.storeWhatsApp,
           phone: seller?.phone,
           reputationScore: seller?.reputationScore || 0,
-          isVerified: profile?.isVerified ?? seller?.isVerified,
+          isVerified: identityVerified(profile, seller?.isOfficialStore),
           isFollowing: seller?.id ? followedSellerIds.has(seller.id) : false,
         };
       };
@@ -1726,7 +1735,7 @@ export class CvsService {
           ? {
               ...rawBiz,
               isFollowing: followedSellerIds.has(rawBiz.id),
-              ...momentActorFields(profile, rawBiz.logo),
+              ...momentActorFields(profile, rawBiz.logo, rawBiz.isOfficialStore),
             }
           : rawBiz;
         return {
