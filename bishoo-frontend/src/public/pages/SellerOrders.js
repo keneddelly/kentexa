@@ -164,6 +164,17 @@ export const nextStep = (o) => {
   return { label: 'Inaandaliwa', tone: 'muted', action: null };
 };
 
+/** How this order is paid, shown on every row (owner 2026-10-27): COD and Lipa Namba must be obvious. */
+export const payLabel = (o) => {
+  if (o?.paymentMethod === 'lipa_namba') {
+    return o.paymentStatus === 'paid' ? { text: 'Lipa Namba · imelipwa', tone: 'green' } : { text: 'Lipa Namba · thibitisha', tone: 'amber' };
+  }
+  if (o?.paymentMethod === 'cod') {
+    return o.codBalanceCollected || (o.paymentStatus === 'paid' && !(Number(o.codRemainingBalance) > 0))
+      ? { text: 'Lipa ukipokea · amelipa', tone: 'green' } : { text: 'Lipa ukipokea', tone: 'amber' };
+  }
+  return null;
+};
 const money = (n) => `TZS ${Number(n || 0).toLocaleString()}`;
 const itemName = (o) => o.productNameSnapshot || o.product?.name || o.manualProductName || 'Bidhaa';
 const buyerName = (o) => o.recipientName || o.buyer?.name || o.manualBuyerName || 'Mteja';
@@ -631,8 +642,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                           <span style={{ fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {[buyerName(o), placeOf(o), shortWhen(o.createdAt)].filter(Boolean).join(' · ')}
                           </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: '1px solid #cfd9de', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{isManualOrder(o) ? 'Mauzo yangu' : 'Sokoni'}</span>
+                            {payLabel(o) && (
+                              <span data-testid="row-pay" style={{ fontSize: 12, fontWeight: 700, color: TONE[payLabel(o).tone], background: payLabel(o).tone === 'green' ? '#ecfdf3' : '#fffbeb', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{payLabel(o).text}</span>
+                            )}
                             <span data-testid="row-next" style={{ fontSize: 13, fontWeight: 700, color: TONE[step.tone] }}>{step.label}</span>
                           </span>
                         </span>

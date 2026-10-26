@@ -5,6 +5,7 @@
  * Same page for all users — tabs change based on active roles.
  * Own profile shows dashboard actions. Others' profiles show public info.
  */
+import { LineIcon } from '../components/LineIcon';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import ExpandableText from '../components/ExpandableText';
@@ -69,16 +70,16 @@ const fmtM = n => { const v=Number(n||0); return v>=1e6?`${(v/1e6).toFixed(1)}M`
 // truck operator's profile showing a bus icon (the old hardcoded default)
 // told visitors nothing true about what that provider actually runs.
 const PROVIDER_TYPE_ICON = {
-  bus: '🚌', van: '🚐', courier: '📦', truck: '🚛',
-  boda: '🏍️', rail: '🚆', air: '✈️', boat: '⛵',
+  bus: 'bus', van: 'truck', courier: 'box', truck: 'truck',
+  boda: 'moto', rail: 'bus', air: 'globe', boat: 'globe',
 };
 
 const getTiers = t => [
-  {min:900,name:t('my_profile.tier_elite'),  icon:'🏆',color:'#dc2626',bg:'#fee2e2'},
-  {min:600,name:t('my_profile.tier_partner'),icon:'💎',color:'#7c3aed',bg:'#ede9fe'},
-  {min:300,name:t('my_profile.tier_loyal'),  icon:'🌟',color:'#1d4ed8',bg:'#dbeafe'},
-  {min:100,name:t('my_profile.tier_trusted'),icon:'⭐',color:'#16a34a',bg:'#dcfce7'},
-  {min:0,  name:t('my_profile.tier_new'),    icon:'🌱',color:'#64748b',bg:'#f1f5f9'},
+  {min:900,name:t('my_profile.tier_elite'),  icon:'trophy',color:'#dc2626',bg:'#fee2e2'},
+  {min:600,name:t('my_profile.tier_partner'),icon:'gem',color:'#7c3aed',bg:'#ede9fe'},
+  {min:300,name:t('my_profile.tier_loyal'),  icon:'star',color:'#1d4ed8',bg:'#dbeafe'},
+  {min:100,name:t('my_profile.tier_trusted'),icon:'star',color:'#16a34a',bg:'#dcfce7'},
+  {min:0,  name:t('my_profile.tier_new'),    icon:'sprout',color:'#64748b',bg:'#f1f5f9'},
 ];
 
 // ─── Action button ────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ const Action = ({ icon, label, onClick, color=B, bg='#eff6ff' }) => (
     style={{ display:'flex', flexDirection:'column', alignItems:'center',
       gap:4, backgroundColor:bg, border:'none', borderRadius:14,
       padding:'14px 12px', cursor:'pointer', flex:1, minWidth:0 }}>
-    <span style={{ fontSize:22 }}>{icon}</span>
+    <LineIcon name={icon} size={22} />
     <span style={{ fontSize:11, fontWeight:700, color, textAlign:'center', lineHeight:1.3 }}>
       {label}
     </span>
@@ -99,42 +100,42 @@ const RoleActions = ({ role, onNavigate }) => {
   const { t } = useTranslation();
   const actions = {
     seller: [
-      {icon:'📦',label:t('commerce_profile.action_orders'),    page:'SellerOrders',     bg:'#eff6ff', color:B},
-      {icon:'🏷️',label:t('commerce_profile.action_products'),    page:'SellerClassifieds', bg:'#f0fdf4', color:'#16a34a'},
-      {icon:'📊',label:t('commerce_profile.action_analytics'),  page:'SellerAnalytics',  bg:'#f5f3ff', color:'#7c3aed'},
-      {icon:'📢',label:t('commerce_profile.action_listing'),    page:'CommerceProfile',  bg:'#fff7ed', color:'#ea580c'},
-      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
-      {icon:'💳',label:t('commerce_profile.action_payments'),     page:'SellerPayouts',    bg:'#fef9c3', color:'#ca8a04'},
+      {icon:'box',label:t('commerce_profile.action_orders'),    page:'SellerOrders',     bg:'#eff6ff', color:B},
+      {icon:'tag',label:t('commerce_profile.action_products'),    page:'SellerClassifieds', bg:'#f0fdf4', color:'#16a34a'},
+      {icon:'chart',label:t('commerce_profile.action_analytics'),  page:'SellerAnalytics',  bg:'#f5f3ff', color:'#7c3aed'},
+      {icon:'megaphone',label:t('commerce_profile.action_listing'),    page:'CommerceProfile',  bg:'#fff7ed', color:'#ea580c'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'card',label:t('commerce_profile.action_payments'),     page:'SellerPayouts',    bg:'#fef9c3', color:'#ca8a04'},
     ],
     agent: [
-      {icon:'🏍️',label:t('commerce_profile.action_my_jobs'), page:'AgentDashboard',   bg:'#fdf2f8', color:'#a21caf'},
-      {icon:'💰',label:t('commerce_profile.action_earnings'),     page:'AgentEarnings',    bg:'#f0fdf4', color:'#16a34a'},
-      {icon:'📊',label:t('commerce_profile.action_scorecard'),  page:'AgentScorecard',   bg:'#eff6ff', color:B},
-      {icon:'📦',label:t('commerce_profile.action_parcels'),  page:'AgentDashboard',   bg:'#fff7ed', color:'#ea580c'},
-      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'moto',label:t('commerce_profile.action_my_jobs'), page:'AgentDashboard',   bg:'#fdf2f8', color:'#a21caf'},
+      {icon:'money',label:t('commerce_profile.action_earnings'),     page:'AgentEarnings',    bg:'#f0fdf4', color:'#16a34a'},
+      {icon:'chart',label:t('commerce_profile.action_scorecard'),  page:'AgentScorecard',   bg:'#eff6ff', color:B},
+      {icon:'box',label:t('commerce_profile.action_parcels'),  page:'AgentDashboard',   bg:'#fff7ed', color:'#ea580c'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
     ],
     super_agent: [
-      {icon:'🏢',label:t('commerce_profile.action_my_hub'),  page:'SuperAgentDashboard',bg:'#f5f3ff',color:'#7c3aed'},
-      {icon:'📦',label:t('commerce_profile.action_parcels'),  page:'SuperAgentDashboard',bg:'#eff6ff',color:B},
-      {icon:'🚌',label:t('commerce_profile.action_transport'),    page:'SuperAgentDashboard',bg:'#fff7ed',color:'#ea580c'},
-      {icon:'📊',label:t('commerce_profile.action_analytics'),  page:'SuperAgentDashboard',bg:'#f0fdf4',color:'#16a34a'},
-      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'office',label:t('commerce_profile.action_my_hub'),  page:'SuperAgentDashboard',bg:'#f5f3ff',color:'#7c3aed'},
+      {icon:'box',label:t('commerce_profile.action_parcels'),  page:'SuperAgentDashboard',bg:'#eff6ff',color:B},
+      {icon:'bus',label:t('commerce_profile.action_transport'),    page:'SuperAgentDashboard',bg:'#fff7ed',color:'#ea580c'},
+      {icon:'chart',label:t('commerce_profile.action_analytics'),  page:'SuperAgentDashboard',bg:'#f0fdf4',color:'#16a34a'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
     ],
     transport_provider: [
-      {icon:'🚌',label:t('commerce_profile.action_my_routes'),page:'TransportProviderDashboard',bg:'#fff7ed',color:'#ea580c'},
-      {icon:'📅',label:t('commerce_profile.action_availability'),page:'TransportProviderDashboard',bg:'#f0fdf4',color:'#16a34a'},
-      {icon:'📦',label:t('commerce_profile.action_orders'),    page:'TransportProviderDashboard',bg:'#eff6ff',color:B},
-      {icon:'🗺️',label:t('commerce_profile.action_my_routes'), page:'RouteCoverageMap',          bg:'#f5f3ff',color:'#7c3aed'},
-      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'bus',label:t('commerce_profile.action_my_routes'),page:'TransportProviderDashboard',bg:'#fff7ed',color:'#ea580c'},
+      {icon:'calendar',label:t('commerce_profile.action_availability'),page:'TransportProviderDashboard',bg:'#f0fdf4',color:'#16a34a'},
+      {icon:'box',label:t('commerce_profile.action_orders'),    page:'TransportProviderDashboard',bg:'#eff6ff',color:B},
+      {icon:'map',label:t('commerce_profile.action_my_routes'), page:'RouteCoverageMap',          bg:'#f5f3ff',color:'#7c3aed'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
     ],
   };
 
   // Buyer actions (everyone)
   const buyerActions = [
-    {icon:'📦',label:t('commerce_profile.action_my_orders'),page:'MyOrders',       bg:'#eff6ff', color:B},
-    {icon:'❤️',label:t('commerce_profile.action_saved'),page:'Wishlist',     bg:'#fff1f2', color:'#e11d48'},
-    {icon:'🔍',label:t('commerce_profile.action_discover'),        page:'Search',        bg:'#f0fdf4', color:'#16a34a'},
-    {icon:'🏷️',label:t('commerce_profile.action_list_item'),       page:'SellerClassifieds',bg:'#fef9c3',color:'#ca8a04'},
+    {icon:'box',label:t('commerce_profile.action_my_orders'),page:'MyOrders',       bg:'#eff6ff', color:B},
+    {icon:'heart',label:t('commerce_profile.action_saved'),page:'Wishlist',     bg:'#fff1f2', color:'#e11d48'},
+    {icon:'search',label:t('commerce_profile.action_discover'),        page:'Search',        bg:'#f0fdf4', color:'#16a34a'},
+    {icon:'tag',label:t('commerce_profile.action_list_item'),       page:'SellerClassifieds',bg:'#fef9c3',color:'#ca8a04'},
   ];
 
   const roleActions = actions[role] || [];
@@ -492,7 +493,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       display:'flex', alignItems:'center', justifyContent:'center',
       fontFamily:'inherit' }}>
       <div style={{ textAlign:'center', color:'#94a3b8' }}>
-        <div style={{ fontSize:40, marginBottom:12 }}>👤</div>
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}><LineIcon name="person" size={36} color="#94a3b8" /></div>
         <div>{t('commerce_profile.loading_profile')}</div>
       </div>
     </div>
@@ -509,7 +510,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       </div>
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
         <div style={{ textAlign:'center', color:'#94a3b8' }}>
-          <div style={{ fontSize:64 }}>😕</div>
+          <div style={{ display:'flex', justifyContent:'center' }}><LineIcon name="search" size={48} color="#94a3b8" /></div>
           <div style={{ marginTop:12 }}>{t('commerce_profile.profile_not_found')}</div>
         </div>
       </div>
@@ -854,7 +855,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         {tab==='posts' && (
           <div>
             {(classifieds.length === 0 && products.length === 0) ? (
-              <Empty icon="🏷️"
+              <Empty icon="tag"
                 text={activeProfile.type === 'business'
                   ? t('commerce_profile.no_products_yet')
                   : t('commerce_profile.no_listings_yet')}
@@ -867,9 +868,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
                 {[
-                  ...products.map(p => ({ kind:'product', id:p.id, image:p.images?.[0], icon:'🛍️',
+                  ...products.map(p => ({ kind:'product', id:p.id, image:p.images?.[0], icon:'cart',
                     createdAt:p.createdAt, available:p.isAvailable && Number(p.stock) > 0 })),
-                  ...classifieds.map(c => ({ kind:'classified', id:c.id, image:c.images?.[0], icon:'🏷️',
+                  ...classifieds.map(c => ({ kind:'classified', id:c.id, image:c.images?.[0], icon:'tag',
                     createdAt:c.createdAt })),
                 ]
                   .sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0))
@@ -885,10 +886,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                             onError={e => e.target.style.display='none'} />
                         : <div style={{ width:'100%', height:'100%', display:'flex',
                             alignItems:'center', justifyContent:'center', fontSize:28 }}>
-                            {item.icon}
+                            <LineIcon name={item.icon} size={26} color="#94a3b8" />
                           </div>}
-                      <span style={{ position:'absolute', top:4, right:4, fontSize:11 }}>
-                        {item.icon}
+                      <span style={{ position:'absolute', top:4, right:4, display:'flex', padding:3, borderRadius:8, background:'rgba(255,255,255,0.9)' }}>
+                        <LineIcon name={item.icon} size={12} color="#0f1419" />
                       </span>
                       {item.kind==='product' && item.available===false && (
                         <div style={{ position:'absolute', inset:0, backgroundColor:'rgba(15,23,42,0.55)',
@@ -928,7 +929,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             {/* Moments as a Twitter-style list: who, when, the whole text with
                 "Soma zaidi", the picture, counts. Tap opens the full post. */}
             {feed.length === 0
-              ? <Empty icon="📢" text={t('commerce_profile.no_announcements')} />
+              ? <Empty icon="megaphone" text={t('commerce_profile.no_announcements')} />
               : (
                 <div style={{ margin:'0 -16px', backgroundColor:WH, borderTop:`1px solid ${LINE}` }}>
                   {feed.map(f => {
@@ -1014,7 +1015,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         {tab==='orders' && (
           <div>
             {orders.length === 0
-              ? <Empty icon="📦" text={t('commerce_profile.no_orders')}
+              ? <Empty icon="box" text={t('commerce_profile.no_orders')}
                   action={t('commerce_profile.go_to_market_button')} onAction={()=>onNavigate('Classifieds')} />
               : orders.map(o => (
                   <div key={o.id}
@@ -1061,7 +1062,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               </button>
             )}
             {services.length === 0
-              ? <Empty icon="🔧" text={t('commerce_profile.no_services')} />
+              ? <Empty icon="wrench" text={t('commerce_profile.no_services')} />
               : <div style={{ display:'grid',
                   gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12 }}>
                   {services.map(s => (
@@ -1073,7 +1074,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         backgroundColor:'#f0fdf4', color:'#16a34a',
                         padding:'3px 10px', borderRadius:100,
                         display:'inline-block', marginBottom:8 }}>
-                        🔧 {s.category}
+                        {s.category}
                       </span>
                       <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4 }}>
                         {s.title}
@@ -1118,18 +1119,18 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 )}
               </>
             ) : !publicAgentData ? (
-              <Empty icon="🏍️" text={t('commerce_profile.agent_profile_unavailable')} />
+              <Empty icon="moto" text={t('commerce_profile.agent_profile_unavailable')} />
             ) : (
               <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-                  <span style={{ fontSize:28 }}>🏍️</span>
+                  <LineIcon name="moto" size={28} />
                   <div>
                     <div style={{ fontSize:15, fontWeight:800, color:DK }}>
                       {publicAgentData.fullName || t('commerce_profile.delivery_agent_fallback')}
                     </div>
                     <div style={{ fontSize:12, color:GR }}>
-                      📍 {publicAgentData.district || publicAgentData.city || t('commerce_profile.location_fallback')}
+                      {publicAgentData.district || publicAgentData.city || t('commerce_profile.location_fallback')}
                     </div>
                   </div>
                 </div>
@@ -1150,7 +1151,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 )}
                 {[
                   [t('commerce_profile.deliveries_completed_label'), fmt(publicAgentData.totalDeliveriesCompleted||0), '#16A34A'],
-                  [t('commerce_profile.rating_label'), `⭐ ${Number(publicAgentData.rating||0).toFixed(1)} (${publicAgentData.totalRatings||0})`, '#D97706'],
+                  [t('commerce_profile.rating_label'), (publicAgentData.totalRatings > 0 ? `${Number(publicAgentData.rating||0).toFixed(1)} / 5 (${publicAgentData.totalRatings})` : '—'), '#D97706'],
                 ].map(([l,v,c]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between',
                     padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
@@ -1174,18 +1175,18 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {t('commerce_profile.go_to_hub_dashboard')}
               </button>
             ) : !publicHubData ? (
-              <Empty icon="🏢" text={t('commerce_profile.hub_profile_unavailable')} />
+              <Empty icon="office" text={t('commerce_profile.hub_profile_unavailable')} />
             ) : (
               <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-                  <span style={{ fontSize:28 }}>🏢</span>
+                  <LineIcon name="office" size={28} />
                   <div>
                     <div style={{ fontSize:15, fontWeight:800, color:DK }}>
                       {publicHubData.businessName}
                     </div>
                     <div style={{ fontSize:12, color:GR }}>
-                      📍 {publicHubData.city} {publicHubData.cityCode ? `(${publicHubData.cityCode})` : ''}
+                      {publicHubData.city} {publicHubData.cityCode ? `(${publicHubData.cityCode})` : ''}
                     </div>
                   </div>
                 </div>
@@ -1207,7 +1208,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {[
                   [t('commerce_profile.parcels_handled_label'), fmt(publicHubData.totalParcelsHandled||0), '#7C3AED'],
                   [t('commerce_profile.parcels_delivered_label'), fmt(publicHubData.totalParcelsDelivered||0), '#16A34A'],
-                  [t('commerce_profile.rating_label'), `⭐ ${Number(publicHubData.rating||0).toFixed(1)} (${publicHubData.totalRatings||0})`, '#D97706'],
+                  [t('commerce_profile.rating_label'), `${Number(publicHubData.rating||0).toFixed(1)} (${publicHubData.totalRatings||0})`, '#D97706'],
                 ].map(([l,v,c]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between',
                     padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
@@ -1231,27 +1232,27 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {t('commerce_profile.go_to_transport_dashboard')}
               </button>
             ) : !publicTransportData ? (
-              <Empty icon="🚌" text={t('commerce_profile.transport_profile_unavailable')} />
+              <Empty icon="bus" text={t('commerce_profile.transport_profile_unavailable')} />
             ) : (
               <div>
                 <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:12 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-                    <span style={{ fontSize:28 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
+                    <LineIcon name={PROVIDER_TYPE_ICON[publicTransportData.type] || 'truck'} size={28} />
                     <div>
                       <div style={{ fontSize:15, fontWeight:800, color:DK }}>
                         {publicTransportData.name}
                       </div>
                       <div style={{ fontSize:12, color:GR, textTransform:'capitalize' }}>
                         {publicTransportData.type}
-                        {publicTransportData.rating > 0 && ` · ⭐ ${Number(publicTransportData.rating).toFixed(1)}`}
+                        {publicTransportData.rating > 0 && ` · ${Number(publicTransportData.rating).toFixed(1)}`}
                       </div>
                     </div>
                   </div>
                   {!publicTransportData.isVerified && (
                     <div style={{ fontSize:11, fontWeight:700, color:'#D97706',
                       backgroundColor:'#FEF3C7', padding:'6px 10px', borderRadius:8, marginBottom:10 }}>
-                      ⏳ {t('commerce_profile.transport_pending_verification')}
+                      {t('commerce_profile.transport_pending_verification')}
                     </div>
                   )}
                   {publicTransportData.description && (
@@ -1267,7 +1268,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
                     boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:12 }}>
                     <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:10 }}>
-                      🚐 Upcoming Runs
+                      Upcoming Runs
                     </div>
                     {publicTransportData.upcomingRuns.map(run => {
                       const stops = run.stops || [];
@@ -1281,7 +1282,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                           })}
                           style={{ padding:'12px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                            <span style={{ fontSize:18 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
+                            <LineIcon name={PROVIDER_TYPE_ICON[publicTransportData.type] || 'truck'} size={18} />
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ fontSize:14, fontWeight:800, color:DK }}>
                                 {first && last ? `${first} → ${last}` : `Run #${run.id}`}
@@ -1318,7 +1319,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         })}
                         style={{ display:'flex', alignItems:'center', gap:10,
                           padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
-                        <span style={{ fontSize:16 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
+                        <LineIcon name={PROVIDER_TYPE_ICON[publicTransportData.type] || 'truck'} size={16} />
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:13, fontWeight:700, color:DK }}>
                             {trip.fromCity} → {trip.toCity}
@@ -1349,7 +1350,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         })}
                         style={{ display:'flex', alignItems:'center', gap:10,
                           padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
-                        <span style={{ fontSize:16 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
+                        <LineIcon name={PROVIDER_TYPE_ICON[publicTransportData.type] || 'truck'} size={16} />
                         <div style={{ flex:1, fontSize:13, fontWeight:700, color:DK }}>
                           {r.routeType === 'intercity' && r.originCity && r.destinationCity
                             ? `${r.originCity} → ${r.destinationCity}`
@@ -1384,7 +1385,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <div>
             <div style={{ background:`linear-gradient(135deg,${tier.color},#1d4ed8)`,
               borderRadius:20, padding:24, color:WH, textAlign:'center', marginBottom:16 }}>
-              <div style={{ fontSize:48, marginBottom:8 }}>{tier.icon}</div>
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:8 }}><LineIcon name={tier.icon} size={44} color="#fff" /></div>
               <div style={{ fontSize:24, fontWeight:800 }}>{tier.name}</div>
               <div style={{ fontSize:36, fontWeight:800, margin:'8px 0' }}>{score}</div>
               <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)' }}>{t('commerce_profile.trust_score_label')}</div>
@@ -1428,7 +1429,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         {tab==='services_pub' && (
           <div>
             {providerServices.length === 0
-              ? <Empty icon="🔧" text={t('commerce_profile.no_services')} />
+              ? <Empty icon="wrench" text={t('commerce_profile.no_services')} />
               : <div style={{ display:'grid',
                   gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12 }}>
                   {providerServices.map(s => (
@@ -1440,7 +1441,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         backgroundColor:'#f0fdf4', color:'#16a34a',
                         padding:'3px 10px', borderRadius:100,
                         display:'inline-block', marginBottom:8 }}>
-                        🔧 {s.category}
+                        {s.category}
                       </span>
                       <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4 }}>
                         {s.title}
@@ -1464,7 +1465,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           const shots = providerServices.flatMap(s =>
             (s.images || []).map(img => ({ img, serviceId: s.id })));
           return shots.length === 0 ? (
-            <Empty icon="🖼️" text={t('commerce_profile.no_portfolio_yet')} />
+            <Empty icon="camera" text={t('commerce_profile.no_portfolio_yet')} />
           ) : (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
               {shots.map((shot, i) => (
@@ -1598,7 +1599,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 </div>
               ))}
               {!bio && facts.length === 0 && (
-                <Empty icon="ℹ️" text={t('commerce_profile.no_about_yet')} />
+                <Empty icon="ℹ" text={t('commerce_profile.no_about_yet')} />
               )}
             </div>
           );
@@ -1612,14 +1613,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <div>
             <div style={{ background:`linear-gradient(135deg,${tier.color},#1d4ed8)`,
               borderRadius:20, padding:20, color:WH, textAlign:'center', marginBottom:16 }}>
-              <div style={{ fontSize:36, marginBottom:6 }}>{tier.icon}</div>
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:6 }}><LineIcon name={tier.icon} size={34} color="#fff" /></div>
               <div style={{ fontSize:18, fontWeight:800 }}>{tier.name}</div>
               <div style={{ fontSize:13, color:'rgba(255,255,255,0.85)', marginTop:4 }}>
-                {activeProfile.reviewsCount || reviews.length} {t('commerce_profile.tab_reviews')} · ⭐ {Number(activeProfile.rating||0).toFixed(1)}
+                {activeProfile.reviewsCount || reviews.length} {t('commerce_profile.tab_reviews')} · {Number(activeProfile.rating||0).toFixed(1)}
               </div>
             </div>
             {reviews.length === 0
-              ? <Empty icon="⭐" text={t('commerce_profile.no_reviews_yet')} />
+              ? <Empty icon="star" text={t('commerce_profile.no_reviews_yet')} />
               : reviews.map(rv => (
                   <div key={rv.id} style={{ backgroundColor:WH, borderRadius:14, padding:16,
                     marginBottom:10, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -1640,7 +1641,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         </div>
                       </div>
                       <div style={{ fontSize:12, fontWeight:800, color:'#d97706', flexShrink:0 }}>
-                        {'⭐'.repeat(Math.max(0, Math.round(rv.rating||0)))}
+                        {rv.rating ? `${Math.round(rv.rating)} / 5` : ''}
                       </div>
                     </div>
                     {rv.comment && (
@@ -1659,7 +1660,7 @@ const Empty = ({ icon, text, action, onAction }) => (
   <div style={{ textAlign:'center', padding:'48px 20px',
     backgroundColor:WH, borderRadius:16,
     boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-    <div style={{ fontSize:40, marginBottom:8 }}>{icon}</div>
+    <div style={{ display:'flex', justifyContent:'center', marginBottom:8 }}><LineIcon name={icon} size={36} color="#94a3b8" /></div>
     <div style={{ fontSize:14, color:GR, marginBottom: action ? 16 : 0 }}>{text}</div>
     {action && (
       <button onClick={onAction}
@@ -1855,23 +1856,23 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId, ini
         <button onClick={handleLike}
           style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
             color: liked ? '#DC2626' : GR, fontSize:13, fontWeight:800 }}>
-          {liked ? '♥' : '♡'} Like
+          <LineIcon name="heart" size={16} color={liked ? '#dc2626' : 'currentColor'} /> Like
         </button>
         <button onClick={() => setShowComments(s => !s)}
           style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
             color: showComments ? B : GR, fontSize:13, fontWeight:800 }}>
-          💬 Comment
+          Comment
         </button>
         <button onClick={handleShare} disabled={sharing}
           style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
             color:GR, fontSize:13, fontWeight:800, opacity:sharing ? 0.6 : 1 }}>
-          ↗ Share
+          Share
         </button>
         {isOwner && (
           <button onClick={handleDelete} disabled={deleting}
             style={{ background:'none', border:'none', cursor:'pointer', padding:'8px 8px',
               color:'#DC2626', fontSize:13, fontWeight:800, opacity:deleting ? 0.6 : 1 }}>
-            🗑 Delete
+            Delete
           </button>
         )}
       </div>

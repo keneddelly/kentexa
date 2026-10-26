@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsService } from './agents.service';
 import { AgentsController } from './agents.controller';
+import { AgentsPublicController } from './agents-public.controller';
 import { AgentCodRemittanceService } from './agent-cod-remittance.service';
 import { AgentOnlineExpiryService } from './agent-online-expiry.service';
 import { AgentPickupReofferService } from './agent-pickup-reoffer.service';
@@ -27,7 +28,7 @@ import { LocationIntelligenceModule } from '../location-intelligence/location-in
     // D5: the in-app job alert when an agent goes online.
     CommunicationModule,
   ],
-  controllers: [AgentsController],
+  controllers: [AgentsPublicController, AgentsController],
   providers: [AgentsService, AgentCodRemittanceService, AgentOnlineExpiryService, AgentPickupReofferService],
   exports: [AgentsService],
 })
