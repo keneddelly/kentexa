@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import SellerOrders, { tabOf, nextStep } from './SellerOrders';
+import SellerOrders, { tabOf, nextStep, payLabel } from './SellerOrders';
 import api from '../../api/api';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k) => k, i18n: { language: 'sw' } }) }));
@@ -59,4 +59,15 @@ test('my own pay-on-delivery sale: the seller marks the cash received from the o
   render(<SellerOrders onNavigate={jest.fn()} highlightOrderId={2} />);
   fireEvent.click(await screen.findByTestId('cod-collect'));
   expect(api.patch).toHaveBeenCalledWith('/orders/2/collect-cod-balance');
+});
+
+test('every row says how it is paid: pay on delivery and Lipa Namba are obvious', async () => {
+  expect(payLabel({ paymentMethod: 'cod', codRemainingBalance: 45000 })).toEqual({ text: 'Lipa ukipokea', tone: 'amber' });
+  expect(payLabel({ paymentMethod: 'cod', codBalanceCollected: true })).toMatchObject({ text: 'Lipa ukipokea · amelipa' });
+  expect(payLabel({ paymentMethod: 'lipa_namba', paymentStatus: 'pending' })).toMatchObject({ text: 'Lipa Namba · thibitisha' });
+  expect(payLabel({ paymentMethod: 'online' })).toBeNull();
+  api.get.mockResolvedValue({ data: ORDERS });
+  render(<SellerOrders onNavigate={jest.fn()} />);
+  fireEvent.click(await screen.findByTestId('tab-way'));
+  expect(within(screen.getByTestId('order-2')).getByTestId('row-pay')).toHaveTextContent('Lipa ukipokea');
 });
