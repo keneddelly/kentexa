@@ -294,4 +294,14 @@ export class ConversationGateway implements OnGatewayConnection, OnModuleInit {
       this.server.to(buyerRoom).emit('inboxUpdated', { conversationId: params.conversationId });
     }
   }
+
+  /**
+   * Read receipts (owner 2026-10-26: WhatsApp-style ticks). Tells whoever has this
+   * thread open that the other side read it; the payload carries no message text.
+   */
+  emitMessagesRead(conversationId: number, readerSide: 'seller' | 'customer'): void {
+    try {
+      this.server?.to(`conversation:${conversationId}`).emit('messagesRead', { conversationId, readerSide });
+    } catch { /* realtime is best-effort; the ticks also come with the next fetch */ }
+  }
 }

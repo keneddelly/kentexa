@@ -1,130 +1,163 @@
 /**
- * SellerInbox.js — Unified Commerce Inbox
- * Place at: src/public/pages/SellerInbox.js
+ * SellerInbox.js — Ujumbe: one inbox, WhatsApp style (owner 2026-10-26).
  *
- * Seller sees all customer conversations.
- * Can: reply, share products, create orders, send invoices.
- * Converting conversations into transactions.
+ * The list holds the business conversations of the active role (seller, service
+ * provider, office/transport/agent) AND the chats this person started with shops
+ * ("Nimewaandikia"), in every role. A chat shows date separators, read ticks,
+ * product/order/invoice cards; a seller's tools (product, invoice, parcel, internal
+ * note, status) live behind one + button. No emoji anywhere.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
+import { Spinner } from '../components/Loading';
 import api from '../../api/api';
 import { useSocket } from '../../context/SocketProvider';
 
-const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
+const INK = '#0f1419';
+const MUTED = '#536471';
+const LINE = '#eff3f4';
+const BLUE = '#1d4ed8';
+const TICK = '#1d9bf0';
+const CHAT_BG = '#f3efe9';
+const MINE_BG = '#dbeafe';
 
-const ConversationItem = ({ convo, isActive, onClick, t, dateLocale, menuOpen, onOpenMenu, onCloseMenu, onPin, onMute, onArchive }) => {
-  const STATUS_COLORS = {
-    open:     { bg: '#dbeafe', color: '#1d4ed8', label: t('seller_inbox.status_open') },
-    pending:  { bg: '#fef9c3', color: '#ca8a04', label: t('seller_inbox.status_pending') },
-    resolved: { bg: '#dcfce7', color: '#16a34a', label: t('seller_inbox.status_resolved') },
-    closed:   { bg: '#f1f5f9', color: '#64748b', label: t('seller_inbox.status_closed') },
-  };
-  const sc = STATUS_COLORS[convo.status] || STATUS_COLORS.open;
-  const isBuyerSide = convo._mode === 'buyer';
-  // Buyer side of the table shows the SELLER (who I'm talking to); seller
-  // side shows the CUSTOMER — same component, other party's name either way.
-  // convo.commerceProfile (resolved from the conversation's own stored
-  // commerceProfileId) wins over the seller's raw account fields when
-  // present — a conversation about a personal-profile classified shouldn't
-  // show the seller's business brand, or vice versa. Customers don't run
-  // commerce profiles, so the seller-side name is unaffected.
-  const name = isBuyerSide
+const DAY_SW = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
+
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const daysAgo = (date) => Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+const pad = (n) => String(n).padStart(2, '0');
+const hhmm = (date) => { const d = new Date(date); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+/** List time, WhatsApp style: today 14:05 · Jana · weekday · 24/10/26. */
+export const listTime = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  const n = daysAgo(d);
+  if (n <= 0) return hhmm(d);
+  if (n === 1) return 'Jana';
+  if (n < 7) return DAY_SW[d.getDay()];
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)}`;
+};
+/** Separator inside a chat: Leo · Jana · weekday · 24 Okt 2026. */
+const MONTH_SW = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ago', 'Sep', 'Okt', 'Nov', 'Des'];
+export const dayLabel = (value) => {
+  const d = new Date(value);
+  const n = daysAgo(d);
+  if (n <= 0) return 'Leo';
+  if (n === 1) return 'Jana';
+  if (n < 7) return DAY_SW[d.getDay()];
+  return `${d.getDate()} ${MONTH_SW[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+// "Mine" = my own outgoing messages: flips with the side of the chat I am on.
+const isMineMsg = (msg, mode) => (mode === 'buyer'
+  ? msg.senderType === 'customer'
+  : (msg.senderType === 'seller' || msg.senderType === 'employee'));
+
+const Icon = ({ d, size = 20, color = MUTED, sw = 2, fill = 'none' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={sw}
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d={d} /></svg>
+);
+const IC = {
+  back: 'M15 6l-6 6 6 6',
+  search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5',
+  plus: 'M12 5v14M5 12h14',
+  camera: 'M4 7h3l2-3h6l2 3h3v12H4zM12 17a4 4 0 100-8 4 4 0 000 8z',
+  phone: 'M5 3h4l2 5-2.5 1.5a11 11 0 006 6L16 13l5 2v4a2 2 0 01-2 2A16 16 0 013 5a2 2 0 012-2z',
+  bag: 'M6 7h12l1 13H5zM9 7a3 3 0 016 0',
+  invoice: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',
+  truck: 'M3 16V7h11v9M14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z',
+  note: 'M5 4h14v12l-4 4H5zM15 16v4M9 9h6M9 13h3',
+  check: 'M5 12.5l4.5 4.5L19 7',
+  pin: 'M9 4h6l-1 6 3 3H7l3-3zM12 13v7',
+  mute: 'M11 5L6 9H3v6h3l5 4zM16 9l5 6M21 9l-5 6',
+  box: 'M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10',
+  chat: 'M12 3.5c4.97 0 9 3.6 9 8.05 0 4.45-4.03 8.05-9 8.05-1.1 0-2.15-.17-3.12-.5L3.5 20.5l1.45-4.1A7.6 7.6 0 013 11.55C3 7.1 7.03 3.5 12 3.5z',
+};
+const Ticks = ({ read }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={read ? TICK : MUTED} strokeWidth="2.2" strokeLinecap="round"
+    role="img" aria-label={read ? 'Imesomwa' : 'Imetumwa'} style={{ flexShrink: 0 }}>
+    <path d={read ? 'M2 12.5l4 4L14 8M10 16.5l1 1L22 8' : 'M5 12.5l4.5 4.5L19 7'} />
+  </svg>
+);
+const TINTS = ['#0f766e', '#9a3412', '#7c3aed', '#334155', '#1d4ed8', '#b45309', '#0e7490', '#be123c'];
+const Avatar = ({ photo, name, size = 52 }) => {
+  const tint = TINTS[(name || '?').charCodeAt(0) % TINTS.length];
+  return (
+    <span style={{ width: size, height: size, borderRadius: size / 2, flexShrink: 0, overflow: 'hidden', backgroundColor: tint, color: '#fff',
+      fontSize: size * 0.38, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {photo ? <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (name || '?').trim().charAt(0).toUpperCase()}
+    </span>
+  );
+};
+
+/** Who is on the other side of this chat, from my side of it. */
+const otherParty = (convo, t) => {
+  const iAmBuyer = convo._mode === 'buyer';
+  const name = iAmBuyer
     ? (convo.commerceProfile?.displayName || convo.seller?.storeName || convo.seller?.name || t('seller_inbox.seller_fallback'))
     : (convo.customer?.name || t('seller_inbox.customer_fallback'));
-  const photo = isBuyerSide ? convo.commerceProfile?.photoUrl : null;
-  const initial = name[0].toUpperCase();
-  const unread = isBuyerSide ? convo.buyerUnreadCount : convo.unreadCount;
-  const pinned = isBuyerSide ? convo.buyerPinned : convo.sellerPinned;
-  const muted = isBuyerSide ? convo.buyerMuted : convo.sellerMuted;
-  const time = convo.lastMessageAt
-    ? new Date(convo.lastMessageAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })
-    : '';
+  return { name, photo: iAmBuyer ? convo.commerceProfile?.photoUrl : null };
+};
 
+const ConversationRow = ({ convo, onClick, t, menuOpen, onOpenMenu, onCloseMenu, onPin, onMute, onArchive }) => {
+  const { name, photo } = otherParty(convo, t);
+  const iAmBuyer = convo._mode === 'buyer';
+  const unread = (iAmBuyer ? convo.buyerUnreadCount : convo.unreadCount) || 0;
+  const pinned = iAmBuyer ? convo.buyerPinned : convo.sellerPinned;
+  const muted = iAmBuyer ? convo.buyerMuted : convo.sellerMuted;
   return (
-    <div onClick={onClick}
-      style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex',
-        gap: 12, alignItems: 'flex-start', position: 'relative',
-        backgroundColor: pinned ? '#fafaf5' : isActive ? '#eff6ff' : '#fff',
-        borderBottom: '1px solid #f1f5f9',
-        borderLeft: isActive ? '3px solid #1d4ed8' : '3px solid transparent' }}>
-      <div style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
-        background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 18, fontWeight:800, color: '#fff', position: 'relative',
-        overflow: 'hidden' }}>
-        {photo ? <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial}
-        {unread > 0 && (
-          <div style={{ position: 'absolute', top: -2, right: -2, width: 16, height: 16,
-            backgroundColor: '#dc2626', borderRadius: '50%', fontSize: 9,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontWeight:800 }}>
-            {unread}
-          </div>
-        )}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-            {pinned && <span style={{ fontSize: 11 }}>📌</span>}
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-            {muted && <span style={{ fontSize: 11, color: '#94a3b8' }}>🔕</span>}
-          </div>
-          <div style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>{time}</div>
-        </div>
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {convo.lastMessagePreview || '...'}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 100,
-            backgroundColor: sc.bg, color: sc.color, fontWeight: 700,
-            display: 'inline-block' }}>
-            {sc.label}
+    <div data-testid={`convo-${convo._mode}-${convo.id}`} style={{ position: 'relative' }}>
+      <button type="button" onClick={onClick}
+        onContextMenu={(e) => { e.preventDefault(); onOpenMenu(); }}
+        style={{ width: '100%', display: 'flex', gap: 12, alignItems: 'center', padding: '10px 16px', border: 'none',
+          background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: INK }}>
+        <Avatar photo={photo} name={name} />
+        <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3, borderBottom: `1px solid ${LINE}`, paddingBottom: 10 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 16, fontWeight: unread ? 700 : 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+            <span style={{ fontSize: 12, color: unread ? BLUE : MUTED, fontWeight: unread ? 700 : 400, flexShrink: 0 }}>{listTime(convo.lastMessageAt)}</span>
           </span>
-          {/* Which product/classified/service this conversation is about —
-              always the most recent one messaged about (see Conversation
-              entity's linkedContextType comment), not tied to whatever
-              lastMessagePreview currently shows once the chat moves past
-              the opening message. */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 14, color: MUTED, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {convo.lastMessagePreview || '...'}
+            </span>
+            {muted && <Icon d={IC.mute} size={15} />}
+            {pinned && <Icon d={IC.pin} size={15} />}
+            {unread > 0 && (
+              <span data-testid="unread-badge" style={{ minWidth: 20, height: 20, padding: '0 6px', boxSizing: 'border-box', borderRadius: 10, backgroundColor: BLUE,
+                color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unread}</span>
+            )}
+          </span>
           {convo.linkedContextTitle && (
-            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 100,
-              backgroundColor: '#f5f3ff', color: '#7c3aed', fontWeight: 700,
-              display: 'flex', alignItems: 'center', gap: 4, minWidth: 0,
-              maxWidth: 140, overflow: 'hidden' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: MUTED, minWidth: 0 }}>
               {convo.linkedContextImage
-                ? <img src={convo.linkedContextImage} alt="" style={{ width: 12, height: 12, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                : '🏷️'}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {convo.linkedContextTitle}
-              </span>
+                ? <img src={convo.linkedContextImage} alt="" style={{ width: 16, height: 16, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                : <Icon d={IC.bag} size={14} />}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{convo.linkedContextTitle}</span>
             </span>
           )}
-        </div>
-      </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); menuOpen ? onCloseMenu() : onOpenMenu(); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8',
-          fontSize: 18, padding: '2px 6px', flexShrink: 0, alignSelf: 'flex-start' }}>
-        ⋮
+        </span>
+      </button>
+      <button type="button" aria-label="Chaguo" onClick={(e) => { e.stopPropagation(); menuOpen ? onCloseMenu() : onOpenMenu(); }}
+        style={{ position: 'absolute', right: 6, top: 8, width: 32, height: 32, borderRadius: 16, border: 'none', background: 'none', cursor: 'pointer', opacity: 0.6 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={MUTED} aria-hidden="true"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
       </button>
       {menuOpen && (
-        <div onClick={(e) => e.stopPropagation()}
-          style={{ position: 'absolute', top: 38, right: 12, backgroundColor: '#fff',
-            borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', zIndex: 10,
-            minWidth: 150, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+        <div role="menu" onClick={(e) => e.stopPropagation()}
+          style={{ position: 'absolute', top: 40, right: 12, backgroundColor: '#fff', borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            zIndex: 10, minWidth: 180, overflow: 'hidden' }}>
           {[
             { label: pinned ? t('seller_inbox.unpin_action') : t('seller_inbox.pin_action'), onClick: onPin },
             { label: muted ? t('seller_inbox.unmute_action') : t('seller_inbox.mute_action'), onClick: onMute },
             { label: t('seller_inbox.archive_action'), onClick: onArchive },
           ].map(item => (
-            <div key={item.label} onClick={item.onClick}
-              style={{ padding: '10px 14px', fontSize: 12.5, fontWeight: 600, color: '#1e293b',
-                cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
+            <button type="button" role="menuitem" key={item.label} onClick={item.onClick}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '12px 16px', fontSize: 15, color: INK, border: 'none',
+                background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
               {item.label}
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -132,221 +165,138 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale, menuOpen, o
   );
 };
 
-const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
-  // "Mine" = my own outgoing messages, aligned right — flips depending on
-  // which side of the conversation the current viewer is on.
-  const isMine = mode === 'buyer'
-    ? msg.senderType === 'customer'
-    : (msg.senderType === 'seller' || msg.senderType === 'employee');
-  const isSystem = msg.senderType === 'system';
-  const isNote   = msg.isNote;
+const cardBox = { backgroundColor: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' };
 
-  if (isSystem) return (
-    <div style={{ textAlign: 'center', margin: '8px 0' }}>
-      <span style={{ fontSize: 11, backgroundColor: '#f1f5f9', color: '#64748b',
-        padding: '4px 12px', borderRadius: 100 }}>
-        {msg.content}
-      </span>
+const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
+  const isMine = isMineMsg(msg, mode);
+  const isSystem = msg.senderType === 'system';
+  const isNote = msg.isNote;
+
+  if (isSystem && msg.type !== 'invoice' && msg.type !== 'order') return (
+    <div style={{ textAlign: 'center', margin: '6px 0' }}>
+      <span style={{ fontSize: 12, backgroundColor: '#fff', color: MUTED, padding: '4px 10px', borderRadius: 8, display: 'inline-block' }}>{msg.content}</span>
     </div>
   );
 
-  // Product card — routes to the right detail page for whatever this
-  // actually is (Product or Classified share the same card shape; see
-  // conversation.service.ts's shareProduct() comment). itemType is missing
-  // on cards sent before classifieds became shareable here — those were
-  // always real Products, so default to that rather than guessing wrong.
+  // Product/listing card: opens the right detail page (itemType missing = an older Product card).
   if (msg.type === 'product' && msg.metadata) {
     const goToItem = () => {
       if (!msg.metadata.productId) return;
-      onNavigate?.(
-        msg.metadata.itemType === 'classified'
-          ? `ClassifiedDetail-${msg.metadata.productId}`
-          : `ProductDetail-${msg.metadata.productId}`,
-      );
+      onNavigate?.(msg.metadata.itemType === 'classified' ? `ClassifiedDetail-${msg.metadata.productId}` : `ProductDetail-${msg.metadata.productId}`);
     };
     return (
-      <div style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start',
-        margin: '6px 0' }}>
-        <div onClick={goToItem} style={{ maxWidth: '75%', backgroundColor: '#fff',
-          border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden',
-          cursor: msg.metadata.productId ? 'pointer' : 'default' }}>
-          {msg.metadata.productImage && (
-            <img src={msg.metadata.productImage} alt=""
-              style={{ width: '100%', height: 120, objectFit: 'cover' }} />
-          )}
-          <div style={{ padding: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 800 }}>{msg.metadata.productName}</div>
-            <div style={{ fontSize: 14, fontWeight:800, color: '#16a34a', marginTop: 4 }}>
-              TZS {Number(msg.metadata.productPrice || 0).toLocaleString()}
-            </div>
-          </div>
-        </div>
+      <div style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start', margin: '4px 0' }}>
+        <button type="button" onClick={goToItem} style={{ ...cardBox, width: 240, padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: INK }}>
+          {msg.metadata.productImage && <img src={msg.metadata.productImage} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />}
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 10px' }}>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{msg.metadata.productName}</span>
+            <span style={{ fontSize: 15, fontWeight: 800 }}>TZS {Number(msg.metadata.productPrice || 0).toLocaleString('en-US')}</span>
+            <span style={{ fontSize: 13, color: BLUE, fontWeight: 600 }}>Tazama bidhaa</span>
+          </span>
+        </button>
       </div>
     );
   }
 
-  // Order card — the seller and buyer each have their own order-management
-  // page, both already support scrolling straight to one order by id
-  // (App.js's MyOrders-{id}/SellerOrders-{id} deep links).
+  // Order card: each side has its own order page with a deep link by id.
   if (msg.type === 'order' && msg.metadata) {
-    const goToOrder = () => {
-      if (!msg.metadata.orderId) return;
-      onNavigate?.(mode === 'buyer' ? `MyOrders-${msg.metadata.orderId}` : `SellerOrders-${msg.metadata.orderId}`);
-    };
+    const goToOrder = () => msg.metadata.orderId && onNavigate?.(mode === 'buyer' ? `MyOrders-${msg.metadata.orderId}` : `SellerOrders-${msg.metadata.orderId}`);
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
-        <div onClick={goToOrder} style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac',
-          borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center',
-          cursor: msg.metadata.orderId ? 'pointer' : 'default' }}>
-          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>📦 {t('seller_inbox.order_card_label')}</div>
-          <div style={{ fontSize: 13, fontWeight:800, color: '#1e293b', marginTop: 4 }}>
-            #{msg.metadata.orderId}
-          </div>
-          <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b' }}>
-            {msg.metadata.trackingNumber}
-          </div>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '6px 0' }}>
+        <button type="button" onClick={goToOrder} style={{ ...cardBox, width: 260, padding: 12, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: INK,
+          display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#166534' }}><Icon d={IC.box} size={16} color="#166534" />{t('seller_inbox.order_card_label')}</span>
+          <span style={{ fontSize: 16, fontWeight: 800 }}>#{msg.metadata.orderId}</span>
+          {msg.metadata.trackingNumber && <span style={{ fontSize: 13, color: MUTED, fontVariantNumeric: 'tabular-nums' }}>{msg.metadata.trackingNumber}</span>}
+        </button>
       </div>
     );
   }
 
-  // Invoice card — created (awaiting payment) or paid, same card either way
+  // Invoice card: awaiting payment or paid, same card either way.
   if (msg.type === 'invoice' && msg.metadata) {
     const paid = !!msg.metadata.invoicePaid;
-    // orderId is only set for the real Order-linked invoice path
-    // (online-order checkout) — the chat quick-invoice path has no Order
-    // yet and no buyer account link, so it falls back to each role's own
-    // general invoice list instead of a precise deep link.
     const goToInvoice = () => {
-      if (msg.metadata.orderId) {
-        onNavigate?.(mode === 'buyer' ? `MyOrders-${msg.metadata.orderId}` : `SellerOrders-${msg.metadata.orderId}`);
-      } else {
-        onNavigate?.(mode === 'buyer' ? 'MyOrders' : 'SellerInvoices');
-      }
+      if (msg.metadata.orderId) onNavigate?.(mode === 'buyer' ? `MyOrders-${msg.metadata.orderId}` : `SellerOrders-${msg.metadata.orderId}`);
+      else onNavigate?.(mode === 'buyer' ? 'MyOrders' : 'SellerInvoices');
     };
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
-        <div style={{
-          backgroundColor: paid ? '#f0fdf4' : '#fffbeb',
-          border: `1px solid ${paid ? '#86efac' : '#fde68a'}`,
-          borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center',
-        }}>
-          <div onClick={goToInvoice} style={{ cursor: 'pointer' }}>
-            <div style={{ fontSize: 11, color: paid ? '#16a34a' : '#b45309', fontWeight: 700 }}>
-              🧾 {t('seller_inbox.invoice_card_label')}
-            </div>
-            <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b', marginTop: 4 }}>
-              #{msg.metadata.invoiceNumber}
-            </div>
-            <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginTop: 2 }}>
-              TZS {Number(msg.metadata.invoiceAmount || 0).toLocaleString()}
-            </div>
-            <div style={{
-              display: 'inline-block', marginTop: 6, padding: '2px 10px', borderRadius: 100,
-              fontSize: 10, fontWeight: 800,
-              backgroundColor: paid ? '#16a34a' : '#f59e0b', color: '#fff',
-            }}>
-              {paid ? t('seller_inbox.invoice_paid_label') : t('seller_inbox.invoice_pending_label')}
-            </div>
-          </div>
-          {!paid && mode === 'buyer' && (
-            <div style={{ marginTop: 8 }}>
-              <button onClick={() => onNavigate?.(msg.metadata.orderId ? `MyOrders-${msg.metadata.orderId}` : 'MyOrders')}
-                style={{ padding: '6px 16px', borderRadius: 8, border: 'none',
-                  backgroundColor: '#1d4ed8', color: '#fff', fontSize: 11, fontWeight: 700,
-                  cursor: 'pointer' }}>
-                {t('seller_inbox.invoice_pay_now')}
-              </button>
-            </div>
-          )}
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '6px 0' }}>
+        <div data-testid="invoice-card" style={{ ...cardBox, width: 260, padding: 12, display: 'flex', flexDirection: 'column', gap: 4, borderColor: paid ? '#bbf7d0' : '#fde68a' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: paid ? '#166534' : '#92400e' }}>
+            <Icon d={IC.invoice} size={16} color={paid ? '#166534' : '#92400e'} />{t('seller_inbox.invoice_card_label')} {msg.metadata.invoiceNumber}
+          </span>
+          <span style={{ fontSize: 20, fontWeight: 800 }}>TZS {Number(msg.metadata.invoiceAmount || 0).toLocaleString('en-US')}</span>
+          <span style={{ fontSize: 13, color: paid ? '#166534' : MUTED }}>{paid ? t('seller_inbox.invoice_paid_label') : t('seller_inbox.invoice_pending_label')}</span>
+          <button type="button" onClick={!paid && mode === 'buyer' ? () => onNavigate?.(msg.metadata.orderId ? `MyOrders-${msg.metadata.orderId}` : 'MyOrders') : goToInvoice}
+            style={{ marginTop: 6, height: 40, borderRadius: 20, border: 'none', backgroundColor: INK, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {!paid && mode === 'buyer' ? t('seller_inbox.invoice_pay_now') : 'Fungua ankara'}
+          </button>
         </div>
       </div>
     );
   }
 
   const isSending = msg._status === 'sending';
-  const isFailed  = msg._status === 'failed';
+  const isFailed = msg._status === 'failed';
+  const bg = isNote ? '#fef3c7' : isMine ? MINE_BG : '#fff';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column',
-      alignItems: isMine ? 'flex-end' : 'flex-start', margin: '4px 0' }}>
-      <div style={{
-        maxWidth: '78%',
-        backgroundColor: isNote ? '#fef3c7' : isMine ? '#1d4ed8' : '#f1f5f9',
-        color: isNote ? '#92400e' : isMine ? '#fff' : '#1e293b',
-        padding: msg.imageUrl && !msg.content ? 4 : '9px 14px', borderRadius: 16,
-        borderBottomRightRadius: isMine ? 4 : 16,
-        borderBottomLeftRadius:  isMine ? 16 : 4,
-        fontSize: 13, lineHeight: 1.5,
-        opacity: isSending ? 0.6 : isFailed ? 0.85 : 1,
-      }}>
-        {isNote && <div style={{ fontSize: 10, fontWeight: 800, marginBottom: 4 }}>📝 {t('seller_inbox.internal_note_label')}</div>}
-        {msg.imageUrl && (
-          <img src={msg.imageUrl} alt="" style={{ maxWidth: '100%', borderRadius: 12, display: 'block',
-            marginBottom: msg.content ? 6 : 0 }} />
-        )}
-        {msg.content}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', margin: '2px 0' }}>
+      <div data-testid="bubble" style={{ maxWidth: '78%', backgroundColor: bg, color: INK,
+        padding: msg.imageUrl && !msg.content ? 4 : '7px 10px 5px', borderRadius: 12,
+        borderBottomRightRadius: isMine ? 4 : 12, borderBottomLeftRadius: isMine ? 12 : 4,
+        fontSize: 15, lineHeight: 1.4, boxShadow: '0 1px 0.5px rgba(11,20,26,0.13)', opacity: isSending ? 0.7 : 1, overflowWrap: 'anywhere' }}>
+        {isNote && <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 2 }}>{t('seller_inbox.internal_note_label')}</div>}
+        {msg.imageUrl && <img src={msg.imageUrl} alt="" style={{ maxWidth: '100%', borderRadius: 10, display: 'block', marginBottom: msg.content ? 4 : 0 }} />}
+        {msg.content && <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>}
+        <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 3, fontSize: 11, color: MUTED, marginTop: 2,
+          ...(msg.imageUrl && !msg.content ? { padding: '0 4px 2px' } : {}) }}>
+          {msg.createdAt ? hhmm(msg.createdAt) : ''}
+          {isMine && !isNote && (isSending ? <Spinner size={12} color={MUTED} /> : !isFailed && <Ticks read={!!(msg.isRead || msg.readAt)} />)}
+        </span>
       </div>
-      {(isSending || isFailed) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, fontSize: 10 }}>
-          {isSending && <span style={{ color: '#94a3b8' }}>{t('seller_inbox.status_sending')}</span>}
-          {isFailed && (
-            <>
-              <span style={{ color: '#dc2626' }}>{t('seller_inbox.status_failed')}</span>
-              <button onClick={() => onRetry?.(msg)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#1d4ed8', fontWeight: 700, fontSize: 10, textDecoration: 'underline' }}>
-                {t('seller_inbox.retry_button')}
-              </button>
-            </>
-          )}
+      {isFailed && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, fontSize: 12 }}>
+          <span style={{ color: '#b91c1c' }}>{t('seller_inbox.status_failed')}</span>
+          <button type="button" onClick={() => onRetry?.(msg)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: BLUE, fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
+            {t('seller_inbox.retry_button')}
+          </button>
         </div>
       )}
     </div>
   );
 };
 
-// The active RoleContext decides which communication surface this renders —
-// never a client-side "which endpoints happened to succeed" heuristic (the
-// old dual-mode Promise.allSettled([inbox, my-conversations]) merge below
-// this component used to do exactly that, which is also why every
-// non-seller/non-buyer role silently fell through to an empty merged list
-// instead of an honest "not available" state). Seller/admin/manager share
-// the seller-side business inbox (/business/inbox*, the same three roles
-// business.controller.ts's sellerScope.resolve() already treats as "owns
-// their own business" — see its OWNS_THEIR_OWN_BUSINESS list); buyer gets
-// the buyer-side private conversations (/business/my-conversations*, guarded
-// server-side by @RequireActiveRole(BUYER)). No other role has a backend
-// communication surface yet, so it fails closed here rather than either
-// endpoint set 403ing per-request or, worse, silently reusing this seller
-// UI shell for a role it was never scoped for.
+// The active RoleContext decides which BUSINESS inbox shows: seller/admin/manager
+// and service providers get the business inbox (/business/inbox), offices,
+// transporters and agents the operational inbox. Every role also gets the chats this
+// person started with shops (/business/my-conversations) - owner 2026-10-26.
 const resolveInboxMode = (userRole) => {
-  if (userRole === 'seller' || userRole === 'admin' || userRole === 'manager') return 'seller';
-  if (userRole === 'buyer') return 'buyer';
-  // Communication follow-up Phase B: Super Agent/Transport Provider/Agent
-  // now have a real, minimal inbox surface (GET/POST /business/operational-
-  // inbox), reusing this same list/detail/reply UI. Every OTHER seller-only
-  // feature (share-product, order quick-actions, pin/mute, status changes)
-  // stays gated behind `inboxMode === 'seller'` elsewhere in this file, so
-  // 'operational' automatically gets none of them -- exactly the "list,
-  // open, reply" minimum this surface is scoped to, not full Seller parity.
+  if (userRole === 'seller' || userRole === 'admin' || userRole === 'manager' || userRole === 'service_provider') return 'seller';
   if (userRole === 'agent' || userRole === 'super_agent' || userRole === 'transport_provider') return 'operational';
-  return 'unsupported';
+  return 'buyer';
 };
 
-// The three backend route families this component can talk to. `_mode` on
-// each conversation/message row picks one; 'operational' is intentionally
-// its own family (not reusing 'seller') since its backend authorization is
-// RoleContext-driven with no legacy sellerId fallback, and only supports
-// list/read/send -- no pin/mute/status/share-product endpoints exist for it.
+// The three backend route families; `_mode` on each conversation picks one.
 const API_BASE_FOR_MODE = {
   seller: '/business/inbox',
   buyer: '/business/my-conversations',
   operational: '/business/operational-inbox',
 };
 
+const CHIPS = [
+  { key: 'all', label: 'Zote' },
+  { key: 'unread', label: 'Hazijasomwa' },
+  { key: 'customers', label: 'Wateja', business: true },
+  { key: 'started', label: 'Nimewaandikia', business: true },
+  { key: 'assigned', label: 'Nilizopewa', seller: true },
+  { key: 'archived', label: 'Zilizohifadhiwa', seller: true },
+];
+
 const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetType, messageTargetId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   // Deep links carry their own implied mode regardless of the bare-inbox
   // default for the active role — "message this specific seller" is always
   // a buyer action, "open this specific CRM customer thread" is always a
@@ -358,7 +308,6 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
   // deep link as sellerId (MessageSeller-{userId}), just targeting a
   // specific operational identity instead of always the Seller one.
   const inboxMode = (sellerId || messageTargetType) ? 'buyer' : initialCustomerId ? 'seller' : resolveInboxMode(userRole);
-  const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
   const [messages,      setMessages]        = useState([]);
@@ -375,14 +324,15 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
   // free text only. Same fields SellerInvoices.js/ClassifiedDetail.js now use.
   const [orderLocation, setOrderLocation]   = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [creatingOrder, setCreatingOrder]   = useState(false);
-  const [filter,        setFilter]          = useState('open');
+  // List chips (owner 2026-10-26, WhatsApp style): all | unread | customers | started | archived | assigned
+  const [chip,          setChip]            = useState('all');
+  const [showTools,     setShowTools]       = useState(false);
   const [error,         setError]           = useState('');
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore,     setLoadingMore]     = useState(false);
   const [search,        setSearch]          = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [mineOnly,      setMineOnly]        = useState(false);
-  const [menuForId,     setMenuForId]       = useState(null); // which conversation's ⋮ menu is open
+  const [menuForId,     setMenuForId]       = useState(null); // which conversation's menu is open ('<mode>-<id>')
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -405,16 +355,6 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
       setLoading(true);
       setError('');
 
-      // No backend communication surface for this role yet (agent,
-      // super_agent, transport_provider, service_provider, customer_care,
-      // arbitrator) — fail closed with zero network calls rather than
-      // firing the seller/buyer requests and letting them 403, or worse,
-      // rendering this seller UI shell against whichever call happens not
-      // to fail.
-      if (inboxMode === 'unsupported') {
-        setConversations([]);
-        return;
-      }
 
       // ── Deep-linked: open/start a single conversation as the buyer ──────
       if (buyerDeepLink) {
@@ -437,7 +377,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
 
       // ── Existing seller-side deep link (from SellerCustomers) ───────────
       if (initialCustomerId) {
-        const res = await api.get(`/business/inbox?status=${filter}&limit=30`);
+        const res = await api.get('/business/inbox?limit=30');
         const list = (res.data.conversations || []).map(c => ({ ...c, _mode: 'seller' }));
         setConversations(list);
         const match = list.find(c => c.customerId === Number(initialCustomerId));
@@ -470,20 +410,23 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
       // request now fires, for only the mode this role is actually
       // authorized for.
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
-      if (inboxMode === 'seller') {
-        const mineParam = mineOnly ? '&mine=true' : '';
-        const res = await api.get(`/business/inbox?status=${filter}&limit=30${searchParam}${mineParam}`);
-        setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'seller' })));
-      } else if (inboxMode === 'operational') {
-        const res = await api.get(`/business/operational-inbox?status=${filter}&limit=30${searchParam}`);
-        setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'operational' })));
-      } else {
-        const res = await api.get(`/business/my-conversations?limit=30${searchParam}`);
-        setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'buyer' })));
-      }
+      // Owner 2026-10-26: the chats you STARTED with shops (my-conversations) are
+      // yours in every role, shown beside your business inbox ("Nimewaandikia").
+      const mine = api.get(`/business/my-conversations?limit=30${searchParam}`)
+        .then(r => (r.data.conversations || []).map(c => ({ ...c, _mode: 'buyer' })));
+      const business = inboxMode === 'seller'
+        ? api.get(`/business/inbox?limit=30${searchParam}`).then(r => (r.data.conversations || []).map(c => ({ ...c, _mode: 'seller' })))
+        : inboxMode === 'operational'
+          ? api.get(`/business/operational-inbox?limit=30${searchParam}`).then(r => (r.data.conversations || []).map(c => ({ ...c, _mode: 'operational' })))
+          : Promise.resolve([]);
+      const [biz, own] = await Promise.allSettled([business, mine]);
+      setConversations([
+        ...(biz.status === 'fulfilled' ? biz.value : []),
+        ...(own.status === 'fulfilled' ? own.value : []),
+      ]);
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inboxMode, filter, initialCustomerId, sellerId, messageTargetType, messageTargetId, messageCommerceProfileId, messageContextType, messageContextId, debouncedSearch, mineOnly]);
+  }, [inboxMode, initialCustomerId, sellerId, messageTargetType, messageTargetId, messageCommerceProfileId, messageContextType, messageContextId, debouncedSearch]);
 
   const fetchMessages = async (convo) => {
     try {
@@ -521,7 +464,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
   };
 
   useEffect(() => { fetchInbox(); }, [fetchInbox]);
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => {
     // Seller-only CRM tool (the share-product/quick-invoice picker) — no
     // point fetching a business's catalog for a buyer or an unsupported
@@ -604,7 +547,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
         return {
           ...c,
           lastMessageAt: message.createdAt,
-          lastMessagePreview: message.content || (message.imageUrl ? '📷 Picha' : c.lastMessagePreview),
+          lastMessagePreview: message.content || (message.imageUrl ? 'Picha' : c.lastMessagePreview),
           ...(shouldBumpUnread
             ? (c._mode === 'buyer'
                 ? { buyerUnreadCount: (c.buyerUnreadCount || 0) + 1 }
@@ -614,8 +557,18 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
       }));
     };
 
+    // Read receipts: the other side opened the thread, so my messages are read.
+    const onMessagesRead = ({ conversationId, readerSide }) => {
+      const open = activeRef.current;
+      if (!open || open.id !== conversationId) return;
+      const iAmSeller = open._mode !== 'buyer';
+      if ((readerSide === 'seller') === iAmSeller) return; // my own read, not theirs
+      setMessages(prev => prev.map(m => (isMineMsg(m, open._mode) ? { ...m, isRead: true } : m)));
+    };
+
     socket.on('newMessage', onNewMessage);
-    return () => socket.off('newMessage', onNewMessage);
+    socket.on('messagesRead', onMessagesRead);
+    return () => { socket.off('newMessage', onNewMessage); socket.off('messagesRead', onMessagesRead); };
   }, [socket]);
 
   // Joins/leaves the conversation:{id} room as the open thread changes —
@@ -845,119 +798,124 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
     } catch {}
   };
 
+  // ── List: newest first, pinned on top; chips filter client-side ───────────
+  const unreadOf = (c) => ((c._mode === 'buyer' ? c.buyerUnreadCount : c.unreadCount) || 0);
+  const pinnedOf = (c) => !!(c._mode === 'buyer' ? c.buyerPinned : c.sellerPinned);
+  const hasBusiness = inboxMode !== 'buyer';
+  const visible = conversations
+    .filter((c) => {
+      const archived = c._mode !== 'buyer' && c.status === 'closed';
+      if (chip === 'archived') return archived;
+      if (archived) return false;
+      if (chip === 'unread') return unreadOf(c) > 0;
+      if (chip === 'customers') return c._mode !== 'buyer';
+      if (chip === 'started') return c._mode === 'buyer';
+      if (chip === 'assigned') return c._mode === 'seller' && (c.assignedToId === currentUser?.id || c.assignedTo?.id === currentUser?.id);
+      return true;
+    })
+    .sort((a, b) => (pinnedOf(b) - pinnedOf(a)) || (new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)));
+  const unreadTotal = conversations.reduce((n, c) => n + (unreadOf(c) > 0 ? 1 : 0), 0);
+  const chips = CHIPS.filter((c) => (!c.business || hasBusiness) && (!c.seller || inboxMode === 'seller'));
+
+  // ── Chat: messages grouped under day separators ───────────────────────────
+  const groups = [];
+  messages.forEach((m) => {
+    const label = m.createdAt ? dayLabel(m.createdAt) : '';
+    if (!groups.length || groups[groups.length - 1].label !== label) groups.push({ label, items: [] });
+    groups[groups.length - 1].items.push(m);
+  });
+  const isSellerSide = active && active._mode !== 'buyer';
+  const isBusinessSeller = active && active._mode === 'seller';
+  const party = active ? otherParty(active, t) : null;
+  const STATUS_LABEL = { open: t('seller_inbox.status_open'), pending: t('seller_inbox.status_pending'), resolved: t('seller_inbox.status_resolved'), closed: t('seller_inbox.status_closed') };
+  const closeChat = () => { if (buyerDeepLink) onNavigate('back'); else { setActive(null); setMessages([]); setShowTools(false); setShowProducts(false); setShowOrderForm(false); } };
+  const field = { width: '100%', height: 44, padding: '0 12px', borderRadius: 12, border: '1px solid #cfd9de', fontSize: 15, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', backgroundColor: '#fff' };
+  const sheet = { backgroundColor: '#fff', borderTop: `1px solid ${LINE}`, borderRadius: '16px 16px 0 0', padding: '12px 16px', boxShadow: '0 -4px 16px rgba(0,0,0,0.06)' };
+  const pillBtn = (bg, fg = '#fff') => ({ height: 44, padding: '0 18px', borderRadius: 22, border: 'none', backgroundColor: bg, color: fg, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 });
+
+  const TOOLS = [
+    { key: 'photo', label: 'Picha', icon: IC.camera, bg: '#eff6ff', fg: BLUE, run: () => { setShowTools(false); fileInputRef.current?.click(); } },
+    isBusinessSeller && { key: 'product', label: 'Tuma bidhaa', icon: IC.bag, bg: '#ecfdf3', fg: '#166534', run: () => { setShowTools(false); setShowOrderForm(false); setShowProducts(true); } },
+    isBusinessSeller && { key: 'invoice', label: 'Tuma ankara', icon: IC.invoice, bg: '#fffbeb', fg: '#92400e', run: () => {
+      setShowTools(false); setShowProducts(false);
+      setOrderForm(p => ({ ...p, recipientName: p.recipientName || active.customer?.name || '', phone: p.phone || active.customer?.phone || '' }));
+      setShowOrderForm(true);
+    } },
+    isBusinessSeller && { key: 'ship', label: 'Tuma mzigo', icon: IC.truck, bg: '#f5f3ff', fg: '#6d28d9', run: () => onNavigate('SellerShipment', {
+      name: active?.customer?.name || '', phone: active?.customer?.phone || '', address: active?.customer?.address || '',
+      regionId: active?.customer?.regionId || null, region: active?.customer?.region || '',
+      districtId: active?.customer?.districtId || null, district: active?.customer?.district || '',
+      wardId: active?.customer?.wardId || null, ward: active?.customer?.ward || '',
+    }) },
+    isSellerSide && { key: 'note', label: isNote ? 'Ujumbe wa kawaida' : 'Kumbukumbu ya ndani', icon: IC.note, bg: isNote ? '#fef3c7' : '#f7f9f9', fg: INK, run: () => { setShowTools(false); setIsNote(v => !v); } },
+  ].filter(Boolean);
+
   return (
-    <div style={{ display: 'flex', height: '100dvh', flexDirection: 'column',
-      backgroundColor: '#f8fafc' }}>
-      {/* top={0} — this page has no Navbar above it (its own 100dvh
-          container is the entire screen), so BackBar's default top={56}
-          would stick 56px down leaving a blank gap at the true top, per
-          BackBar's own doc comment about exactly this failure mode. */}
-      <BackBar title={t('seller_inbox.title')} onBack={() => onNavigate('back')} top={0} />
+    <div style={{ display: 'flex', height: '100dvh', flexDirection: 'column', backgroundColor: '#fff', color: INK, fontFamily: 'inherit' }}>
+      <input ref={fileInputRef} type="file" accept="image/*" hidden data-testid="image-input"
+        onChange={e => { const file = e.target.files?.[0]; if (file) handleAttachImage(file); e.target.value = ''; }} />
 
       {error && (
-        <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 16px',
-          fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>❌ {error}</span>
-          <button onClick={() => setError('')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer',
-              color: '#dc2626', fontWeight: 'bold' }}>×</button>
+        <div role="alert" style={{ backgroundColor: '#fef2f2', color: '#b91c1c', padding: '10px 16px', fontSize: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <span>{error}</span>
+          <button type="button" aria-label="Funga" onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontSize: 18 }}>×</button>
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', maxWidth: 480,
-        margin: '0 auto', width: '100%' }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', maxWidth: 640, margin: '0 auto', width: '100%' }}>
 
-        {/* Conversation list — hidden when active on mobile */}
-        {!active && inboxMode === 'unsupported' ? (
-          // Fail closed: this role has no backend communication surface yet
-          // (see resolveInboxMode's comment above). No seller/buyer request
-          // ever fires for it, and it must never fall back to rendering the
-          // seller inbox against data it isn't scoped for.
-          <div style={{ width: '100%', padding: 40, textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🚧</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-              {t('seller_inbox.role_unsupported_title')}
-            </div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>
-              {t('seller_inbox.role_unsupported_hint')}
-            </div>
-          </div>
-        ) : !active && (
-          <div style={{ width: '100%', overflowY: 'auto', backgroundColor: '#fff' }}>
-            {/* Search — debounced 300ms, see the effect above; searches by
-                person/business name (seller side: customer name/phone;
-                buyer side: the seller's own name/store name). */}
-            <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-              <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#94a3b8' }}>🔍</span>
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder={t('seller_inbox.search_placeholder')}
-                  style={{ width: '100%', padding: '9px 12px 9px 32px', borderRadius: 10,
-                    border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none',
-                    boxSizing: 'border-box', backgroundColor: '#f8fafc' }} />
-              </div>
-            </div>
-
-            {/* Filter tabs — status is a seller/CRM concept (Conversation.status),
-                meaningless on the buyer side (buyer-side conversations have
-                no status column at all — see Conversation entity). */}
-            {inboxMode === 'seller' && (
-            <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9' }}>
-              {['open','pending','resolved'].map(s => (
-                <button key={s} onClick={() => setFilter(s)}
-                  style={{ flex: 1, padding: '12px 8px', border: 'none', cursor: 'pointer',
-                    backgroundColor: filter === s ? '#eff6ff' : '#fff',
-                    color: filter === s ? '#1d4ed8' : '#64748b',
-                    fontSize: 12, fontWeight: 700,
-                    borderBottom: filter === s ? '2px solid #1d4ed8' : '2px solid transparent' }}>
-                  {s === 'open' ? t('seller_inbox.filter_open') : s === 'pending' ? t('seller_inbox.filter_pending') : t('seller_inbox.filter_resolved')}
+        {/* ── Conversation list ── */}
+        {!active && (
+          <div style={{ width: '100%', overflowY: 'auto' }}>
+            <header style={{ position: 'sticky', top: 0, zIndex: 5, backgroundColor: 'rgba(255,255,255,0.97)', padding: '6px 16px 0' }}>
+              <div style={{ height: 48, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button type="button" aria-label={t('common.back')} onClick={() => onNavigate('back')}
+                  style={{ width: 40, height: 40, marginLeft: -8, borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon d={IC.back} size={22} color={INK} sw={2.2} />
                 </button>
-              ))}
-            </div>
-            )}
-
-            {/* "Assigned to me" — a team member's own working view over the
-                shared business inbox (same conversations, filtered), not a
-                separate inbox. Meaningless on the buyer side. */}
-            {inboxMode === 'seller' && (
-            <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}>
-              <button onClick={() => setMineOnly(v => !v)}
-                style={{ padding: '5px 12px', borderRadius: 100, cursor: 'pointer',
-                  border: mineOnly ? '1.5px solid #1d4ed8' : '1.5px solid #e2e8f0',
-                  backgroundColor: mineOnly ? '#eff6ff' : '#fff',
-                  color: mineOnly ? '#1d4ed8' : '#64748b',
-                  fontSize: 11.5, fontWeight: 700 }}>
-                {t('seller_inbox.mine_only_toggle')}
-              </button>
-            </div>
-            )}
+                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>{t('seller_inbox.title')}</h1>
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, height: 40, borderRadius: 20, backgroundColor: LINE, padding: '0 14px' }}>
+                <Icon d={IC.search} size={18} />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('seller_inbox.search_placeholder')} aria-label={t('seller_inbox.search_placeholder')}
+                  style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', fontSize: 15, fontFamily: 'inherit' }} />
+              </label>
+              <nav aria-label="Chuja" style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none', padding: '10px 0' }}>
+                {chips.map((c) => {
+                  const on = chip === c.key;
+                  return (
+                    <button type="button" key={c.key} aria-pressed={on} onClick={() => setChip(c.key)}
+                      style={{ flexShrink: 0, height: 32, padding: '0 14px', borderRadius: 16, border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                        backgroundColor: on ? '#e8f0fe' : '#f7f9f9', color: on ? BLUE : INK, fontSize: 14, fontWeight: on ? 700 : 600 }}>
+                      {c.label}{c.key === 'unread' && unreadTotal > 0 ? ` ${unreadTotal}` : ''}
+                    </button>
+                  );
+                })}
+              </nav>
+            </header>
 
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>{t('seller_inbox.loading')}</div>
-            ) : conversations.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-                  {t('seller_inbox.no_conversations')}
-                </div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
+              <div role="status" style={{ padding: 40, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, color: MUTED, fontSize: 15 }}>
+                <Spinner size={20} color={BLUE} />{t('seller_inbox.loading')}
+              </div>
+            ) : visible.length === 0 ? (
+              <div style={{ padding: '48px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#f7f9f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon d={IC.chat} size={30} />
+                </span>
+                <div style={{ fontSize: 17, fontWeight: 800 }}>{t('seller_inbox.no_conversations')}</div>
+                <div style={{ fontSize: 14, color: MUTED, maxWidth: 300, lineHeight: 1.45 }}>
                   {inboxMode === 'seller' ? t('seller_inbox.go_to_customer_hint') : t('seller_inbox.no_conversations_hint')}
                 </div>
                 {inboxMode === 'seller' && (
-                  <button onClick={() => onNavigate('SellerCustomers')}
-                    style={{ marginTop: 16, backgroundColor: '#1d4ed8', color: '#fff',
-                      border: 'none', padding: '10px 20px', borderRadius: 10,
-                      cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                    {t('seller_inbox.view_customers')}
-                  </button>
+                  <button type="button" onClick={() => onNavigate('SellerCustomers')} style={{ ...pillBtn(INK), marginTop: 8 }}>{t('seller_inbox.view_customers')}</button>
                 )}
               </div>
-            ) : conversations.map(c => (
-              <ConversationItem key={c.id} convo={c} t={t} dateLocale={dateLocale}
-                isActive={active?.id === c.id}
+            ) : visible.map(c => (
+              <ConversationRow key={`${c._mode}-${c.id}`} convo={c} t={t}
                 onClick={() => openConversation(c)}
-                menuOpen={menuForId === c.id}
-                onOpenMenu={() => setMenuForId(c.id)}
+                menuOpen={menuForId === `${c._mode}-${c.id}`}
+                onOpenMenu={() => setMenuForId(`${c._mode}-${c.id}`)}
                 onCloseMenu={() => setMenuForId(null)}
                 onPin={() => handleTogglePin(c)}
                 onMute={() => handleToggleMute(c)}
@@ -966,317 +924,190 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
           </div>
         )}
 
-        {/* Chat window */}
+        {/* ── Chat ── */}
         {active && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column',
-            height: '100%', minHeight: 0 }}>
-            {/* Chat header */}
-            <div style={{ backgroundColor: '#fff', padding: '12px 16px',
-              borderBottom: '1px solid #f1f5f9', display: 'flex',
-              alignItems: 'center', gap: 12, flexShrink: 0 }}>
-              <button onClick={() => buyerDeepLink
-                  ? onNavigate('back')
-                  : (setActive(null), setMessages([]))}
-                style={{ background: 'none', border: 'none', fontSize: 20,
-                  cursor: 'pointer', color: '#64748b' }}>←</button>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>
-                  {active._mode === 'buyer'
-                    ? (active.commerceProfile?.displayName || active.seller?.storeName || active.seller?.name || t('seller_inbox.seller_fallback'))
-                    : (active.customer?.name || t('seller_inbox.customer_fallback'))}
-                </div>
-                <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {active._mode !== 'buyer' && (active.customer?.phone || '')}
-                  {active.linkedContextTitle && (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4,
-                      color: '#7c3aed', fontWeight: 700, overflow: 'hidden' }}>
-                      {active.linkedContextImage
-                        ? <img src={active.linkedContextImage} alt="" style={{ width: 14, height: 14, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                        : '🏷️'}
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {active.linkedContextTitle}
-                      </span>
-                    </span>
-                  )}
-                </div>
-              </div>
-              {/* Status dropdown — seller-only CRM control */}
-              {active._mode !== 'buyer' && (
-              <select value={active.status}
-                onChange={e => handleStatusChange(e.target.value)}
-                style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8,
-                  border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-                <option value="open">{t('seller_inbox.filter_open')}</option>
-                <option value="pending">{t('seller_inbox.filter_pending')}</option>
-                <option value="resolved">{t('seller_inbox.filter_resolved')}</option>
-                <option value="closed">⛔ {t('seller_inbox.status_closed')}</option>
-              </select>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, backgroundColor: CHAT_BG }}>
+            <header style={{ height: 60, backgroundColor: '#fff', borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', gap: 8, padding: '0 8px', flexShrink: 0 }}>
+              <button type="button" aria-label={t('common.back')} onClick={closeChat}
+                style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon d={IC.back} size={22} color={INK} sw={2.2} />
+              </button>
+              <Avatar photo={party.photo} name={party.name} size={40} />
+              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                <span data-testid="chat-name" style={{ fontSize: 16, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{party.name}</span>
+                <span style={{ fontSize: 12, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {isSellerSide ? [t('seller_inbox.customer_fallback'), active.customer?.phone].filter(Boolean).join(' · ') : 'Biashara'}
+                </span>
+              </span>
+              {isSellerSide && active.customer?.phone && (
+                <a href={`tel:${active.customer.phone}`} aria-label="Piga simu"
+                  style={{ width: 40, height: 40, borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon d={IC.phone} size={20} color={INK} />
+                </a>
               )}
-            </div>
+              {isBusinessSeller && (
+                <select aria-label="Hali ya mazungumzo" value={active.status || 'open'} onChange={e => handleStatusChange(e.target.value)}
+                  style={{ height: 32, padding: '0 8px', borderRadius: 16, border: '1px solid #cfd9de', backgroundColor: '#fff', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', color: INK }}>
+                  {['open', 'pending', 'resolved', 'closed'].map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                </select>
+              )}
+            </header>
 
-            {/* Messages — minHeight:0 is required here: without it this
-                flex:1 scroll area sizes to its content instead of clamping
-                to the flex column, which pushes the input bar below out
-                of the visible viewport on mobile (looked like overlapping
-                content, and made the input impossible to reach/type in). */}
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 16px',
-              backgroundColor: '#f8fafc' }}>
+            {active.linkedContextTitle && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', backgroundColor: '#fff', borderBottom: `1px solid ${LINE}`, flexShrink: 0 }}>
+                {active.linkedContextImage
+                  ? <img src={active.linkedContextImage} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  : <span style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#f7f9f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={IC.bag} size={18} /></span>}
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 12, color: MUTED }}>Kuhusu</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{active.linkedContextTitle}</span>
+                </span>
+              </div>
+            )}
+
+            {/* minHeight:0 keeps this scroll area inside the column, so the composer stays on screen. */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 12px' }}>
               {msgLoading ? (
-                <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳</div>
+                <div role="status" style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={24} color={BLUE} label={t('seller_inbox.loading')} /></div>
               ) : messages.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40 }}>
-                  <div style={{ fontSize: 36 }}>👋</div>
-                  <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 16px' }}>
+                  <span style={{ fontSize: 13, color: MUTED, backgroundColor: '#fff', padding: '8px 12px', borderRadius: 10, textAlign: 'center', maxWidth: 280 }}>
                     {t('seller_inbox.start_conversation_prompt')}
-                  </div>
+                  </span>
                 </div>
               ) : (
-              <>
-                {hasMoreMessages && (
-                  <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                    <button onClick={loadOlderMessages} disabled={loadingMore}
-                      style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 100,
-                        padding: '6px 16px', fontSize: 11, fontWeight: 700, color: '#1d4ed8',
-                        cursor: loadingMore ? 'default' : 'pointer' }}>
-                      {loadingMore ? t('seller_inbox.loading') : t('seller_inbox.load_older_messages')}
-                    </button>
-                  </div>
-                )}
-                {messages.map(msg => (
-                <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} onRetry={handleRetry} onNavigate={onNavigate} />
-              ))}
-              </>
+                <>
+                  {hasMoreMessages && (
+                    <div style={{ textAlign: 'center', margin: '4px 0 8px' }}>
+                      <button type="button" onClick={loadOlderMessages} disabled={loadingMore}
+                        style={{ background: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 600, color: BLUE, cursor: loadingMore ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+                        {loadingMore ? t('seller_inbox.loading') : t('seller_inbox.load_older_messages')}
+                      </button>
+                    </div>
+                  )}
+                  {groups.map((g, gi) => (
+                    <React.Fragment key={`${g.label}-${gi}`}>
+                      {g.label && (
+                        <div style={{ textAlign: 'center', margin: '8px 0' }}>
+                          <span data-testid="day-separator" style={{ fontSize: 12, color: MUTED, backgroundColor: '#fff', padding: '4px 10px', borderRadius: 8 }}>{g.label}</span>
+                        </div>
+                      )}
+                      {g.items.map(msg => <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} onRetry={handleRetry} onNavigate={onNavigate} />)}
+                    </React.Fragment>
+                  ))}
+                </>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Order Form — seller-only CRM tool */}
-            {active._mode !== 'buyer' && showOrderForm && (
-              <div style={{ backgroundColor: '#f0fdf4', borderTop: '1px solid #86efac',
-                padding: 14 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 10 }}>
-                  {t('seller_inbox.quick_order_title')}
+            {/* ── Quick invoice (business seller) ── */}
+            {isBusinessSeller && showOrderForm && (
+              <div style={{ ...sheet, maxHeight: '60vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 16, fontWeight: 800 }}>{t('seller_inbox.quick_order_title')}</span>
+                  <button type="button" aria-label={t('seller_inbox.close_button')} onClick={() => setShowOrderForm(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: MUTED }}>×</button>
                 </div>
-                {/* Pre-filled from the conversation's own customer record —
-                    editable rather than hardcoded, since active.customer?.name
-                    is often just the generic "Mnunuzi" fallback (a customer
-                    who never typed a real name), which used to get baked
-                    straight into the invoice with no way for the seller to
-                    correct it before sending. */}
-                <input placeholder={t('seller_inbox.recipient_name_placeholder')} value={orderForm.recipientName}
-                  onChange={e => setOrderForm(p => ({...p, recipientName: e.target.value}))}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
-                    border: '1px solid #86efac', fontSize: 12, marginBottom: 6,
-                    boxSizing: 'border-box', outline: 'none' }} />
-                <input placeholder={t('seller_inbox.product_name_placeholder')} value={orderForm.productName}
-                  onChange={e => setOrderForm(p => ({...p, productName: e.target.value}))}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
-                    border: '1px solid #86efac', fontSize: 12, marginBottom: 6,
-                    boxSizing: 'border-box', outline: 'none' }} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
-                  <input placeholder={t('seller_inbox.price_tzs_placeholder')} type="number" value={orderForm.price}
-                    onChange={e => setOrderForm(p => ({...p, price: e.target.value}))}
-                    style={{ padding: '8px 10px', borderRadius: 8,
-                      border: '1px solid #86efac', fontSize: 12, outline: 'none' }} />
-                  <input placeholder={t('seller_inbox.qty_placeholder')} type="number" value={orderForm.qty}
-                    onChange={e => setOrderForm(p => ({...p, qty: e.target.value}))}
-                    style={{ padding: '8px 10px', borderRadius: 8,
-                      border: '1px solid #86efac', fontSize: 12, outline: 'none' }} />
+                {/* Pre-filled from the conversation's customer record, editable. */}
+                <input aria-label={t('seller_inbox.recipient_name_placeholder')} placeholder={t('seller_inbox.recipient_name_placeholder')} value={orderForm.recipientName}
+                  onChange={e => setOrderForm(p => ({ ...p, recipientName: e.target.value }))} style={field} />
+                <input aria-label={t('seller_inbox.product_name_placeholder')} placeholder={t('seller_inbox.product_name_placeholder')} value={orderForm.productName}
+                  onChange={e => setOrderForm(p => ({ ...p, productName: e.target.value }))} style={field} />
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+                  <input aria-label={t('seller_inbox.price_tzs_placeholder')} placeholder={t('seller_inbox.price_tzs_placeholder')} inputMode="numeric" value={orderForm.price}
+                    onChange={e => setOrderForm(p => ({ ...p, price: e.target.value.replace(/[^0-9]/g, '') }))} style={field} />
+                  <input aria-label={t('seller_inbox.qty_placeholder')} placeholder={t('seller_inbox.qty_placeholder')} inputMode="numeric" value={orderForm.qty}
+                    onChange={e => setOrderForm(p => ({ ...p, qty: e.target.value.replace(/[^0-9]/g, '') }))} style={field} />
                 </div>
-                <input placeholder={t('seller_inbox.recipient_phone_placeholder')} value={orderForm.phone}
-                  onChange={e => setOrderForm(p => ({...p, phone: e.target.value}))}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
-                    border: '1px solid #86efac', fontSize: 12, marginBottom: 6,
-                    boxSizing: 'border-box', outline: 'none' }} />
-                {/* Structured region/district/ward — was missing entirely,
-                    address was free text only. */}
-                <div style={{ marginBottom: 6 }}>
-                  <LocationPicker
-                    label={t('seller_inbox.delivery_location_label')}
-                    value={orderLocation}
-                    onChange={setOrderLocation}
-                  />
-                </div>
-                <input placeholder={t('seller_inbox.delivery_address_placeholder')} value={orderForm.address}
-                  onChange={e => setOrderForm(p => ({...p, address: e.target.value}))}
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
-                    border: '1px solid #86efac', fontSize: 12, marginBottom: 8,
-                    boxSizing: 'border-box', outline: 'none' }} />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={handleCreateOrder} disabled={creatingOrder || !orderForm.productName.trim()}
-                    style={{ flex: 2, backgroundColor: '#16a34a', color: '#fff', border: 'none',
-                      padding: '9px 12px', borderRadius: 8, cursor: 'pointer',
-                      fontSize: 12, fontWeight: 800 }}>
-                    {creatingOrder ? '⏳...' : t('seller_inbox.create_order_button')}
-                  </button>
-                  <button onClick={() => setShowOrderForm(false)}
-                    style={{ flex: 1, backgroundColor: '#fff', color: '#64748b',
-                      border: '1px solid #e2e8f0', padding: '9px 12px', borderRadius: 8,
-                      cursor: 'pointer', fontSize: 12 }}>
-                    {t('seller_inbox.close_button')}
-                  </button>
-                </div>
+                <input aria-label={t('seller_inbox.recipient_phone_placeholder')} placeholder={t('seller_inbox.recipient_phone_placeholder')} inputMode="tel" value={orderForm.phone}
+                  onChange={e => setOrderForm(p => ({ ...p, phone: e.target.value }))} style={field} />
+                <LocationPicker label={t('seller_inbox.delivery_location_label')} value={orderLocation} onChange={setOrderLocation} />
+                <input aria-label={t('seller_inbox.delivery_address_placeholder')} placeholder={t('seller_inbox.delivery_address_placeholder')} value={orderForm.address}
+                  onChange={e => setOrderForm(p => ({ ...p, address: e.target.value }))} style={field} />
+                <button type="button" onClick={handleCreateOrder} disabled={creatingOrder || !orderForm.productName.trim()}
+                  style={{ ...pillBtn(creatingOrder || !orderForm.productName.trim() ? '#cfd9de' : INK), width: '100%' }}>
+                  {creatingOrder ? <><Spinner size={16} color="#fff" />{t('seller_inbox.create_order_button')}</> : t('seller_inbox.create_order_button')}
+                </button>
               </div>
             )}
 
-            {/* Product picker — seller-only CRM tool */}
-            {active._mode !== 'buyer' && showProducts && (
-              <div style={{ backgroundColor: '#fff', borderTop: '1px solid #e2e8f0',
-                padding: 12, maxHeight: 200, overflowY: 'auto' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>
-                  {t('seller_inbox.choose_product_title')}
+            {/* ── Product picker (business seller) ── */}
+            {isBusinessSeller && showProducts && (
+              <div style={{ ...sheet, maxHeight: '50vh', overflowY: 'auto', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 16, fontWeight: 800 }}>{t('seller_inbox.choose_product_title')}</span>
+                  <button type="button" aria-label={t('seller_inbox.close_button')} onClick={() => setShowProducts(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: MUTED }}>×</button>
                 </div>
+                {products.length === 0 && <div style={{ fontSize: 14, color: MUTED, padding: '8px 0' }}>Bado huna bidhaa au matangazo.</div>}
                 {products.slice(0, 20).map(p => (
-                  <div key={`${p.type}-${p.id}`}
-                    style={{ display: 'flex', gap: 10, alignItems: 'center',
-                      padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <div onClick={() => handleShareProduct(p)}
-                      style={{ display: 'flex', gap: 10, alignItems: 'center', flex: 1,
-                        minWidth: 0, cursor: 'pointer' }}>
-                      {p.image ? (
-                        <img src={p.image} alt=""
-                          style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
-                      ) : (
-                        <span style={{ fontSize: 20, width: 36, textAlign: 'center', flexShrink: 0 }}>
-                          {p.type === 'classified' ? '🏷️' : '🛍️'}
-                        </span>
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden',
-                          textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: '#16a34a' }}>
-                          TZS {Number(p.price || 0).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                    <span onClick={() => handleShareProduct(p)}
-                      style={{ fontSize: 11, color: '#1d4ed8', cursor: 'pointer', flexShrink: 0 }}>
-                      {t('seller_inbox.send_arrow')}
+                  <div key={`${p.type}-${p.id}`} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${LINE}` }}>
+                    {p.image
+                      ? <img src={p.image} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                      : <span style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: '#f7f9f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={IC.bag} size={18} /></span>}
+                    <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                      <span style={{ fontSize: 13, color: MUTED }}>TZS {Number(p.price || 0).toLocaleString('en-US')}</span>
                     </span>
-                    {/* Attaches this listing to the Quick Invoice form
-                        instead of just sharing a card — the "allow adding
-                        classified [to the order/invoice]" ask. */}
-                    <button
-                      title={t('seller_inbox.use_for_invoice_title')}
+                    <button type="button" onClick={() => handleShareProduct(p)} style={{ ...pillBtn(INK), height: 34, padding: '0 14px', fontSize: 13 }}>{t('seller_inbox.send_arrow')}</button>
+                    {/* Attaches this listing to the quick invoice instead of just sharing a card. */}
+                    <button type="button" title={t('seller_inbox.use_for_invoice_title')} aria-label={t('seller_inbox.use_for_invoice_title')}
                       onClick={() => {
-                        setOrderForm(f => ({
-                          ...f,
-                          recipientName: f.recipientName || active.customer?.name || '',
-                          phone: f.phone || active.customer?.phone || '',
-                          productName: p.name,
-                          price: p.price || '',
-                          classifiedId: p.type === 'classified' ? p.id : null,
-                        }));
-                        setShowProducts(false);
-                        setShowOrderForm(true);
+                        setOrderForm(f => ({ ...f, recipientName: f.recipientName || active.customer?.name || '', phone: f.phone || active.customer?.phone || '',
+                          productName: p.name, price: p.price || '', classifiedId: p.type === 'classified' ? p.id : null }));
+                        setShowProducts(false); setShowOrderForm(true);
                       }}
-                      style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#16a34a',
-                        background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6,
-                        padding: '4px 8px', cursor: 'pointer' }}>
-                      🧾
+                      style={{ width: 34, height: 34, borderRadius: 17, border: '1px solid #cfd9de', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Icon d={IC.invoice} size={16} color={INK} />
                     </button>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Input bar — now that BottomNav is hidden on this page (it was
-                overlapping the composer, see App.js), this sits at the true
-                bottom edge of the screen, so it needs its own home-indicator
-                clearance on notched devices instead of borrowing BottomNav's. */}
-            <div style={{ backgroundColor: '#fff', padding: '10px 12px',
-              paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
-              borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
-              {/* Action buttons — seller-only CRM tools, hidden for the buyer side.
-                  overflowX:'auto' + flexShrink:0 per button so all four stay
-                  reachable via horizontal scroll on narrow phones instead of
-                  the row silently clipping the last one or two off-screen. */}
-              {active._mode !== 'buyer' && (
-              <div style={{ display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto',
-                paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
-                <button onClick={() => setShowProducts(!showProducts)}
-                  title={t('seller_inbox.share_product_title')}
-                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
-                    backgroundColor: showProducts ? '#eff6ff' : '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
-                  {t('seller_inbox.products_button')}
-                </button>
-                <button onClick={() => {
-                    if (!showOrderForm) {
-                      setOrderForm(p => ({
-                        ...p,
-                        recipientName: p.recipientName || active.customer?.name || '',
-                        phone: p.phone || active.customer?.phone || '',
-                      }));
-                    }
-                    setShowOrderForm(!showOrderForm);
-                  }}
-                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
-                    backgroundColor: showOrderForm ? '#f0fdf4' : '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>
-                  {t('seller_inbox.order_button')}
-                </button>
-                <button onClick={() => onNavigate('SellerShipment', {
-                    name:       active?.customer?.name       || '',
-                    phone:      active?.customer?.phone      || '',
-                    address:    active?.customer?.address    || '',
-                    regionId:   active?.customer?.regionId   || null,
-                    region:     active?.customer?.region     || '',
-                    districtId: active?.customer?.districtId || null,
-                    district:   active?.customer?.district   || '',
-                    wardId:     active?.customer?.wardId     || null,
-                    ward:       active?.customer?.ward       || '',
-                  })}
-                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
-                    backgroundColor: '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#7c3aed', whiteSpace: 'nowrap' }}>
-                  {t('seller_inbox.ship_button')}
-                </button>
-                <button onClick={() => setIsNote(!isNote)}
-                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
-                    backgroundColor: isNote ? '#fef3c7' : '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#92400e', whiteSpace: 'nowrap' }}>
-                  📝 {isNote ? t('seller_inbox.note_button_checked') : t('seller_inbox.note_button')}
-                </button>
+            {/* ── Tools sheet behind + (photo for everyone; seller tools on the seller side) ── */}
+            {showTools && (
+              <div role="dialog" aria-label="Zana" style={{ ...sheet, flexShrink: 0 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '14px 8px', padding: '4px 0 8px' }}>
+                  {TOOLS.map(tl => (
+                    <button type="button" key={tl.key} onClick={tl.run}
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', color: INK }}>
+                      <span style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: tl.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon d={tl.icon} size={22} color={tl.fg} />
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'center' }}>{tl.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              )}
+            )}
 
+            {/* ── Composer (BottomNav is hidden on this page, so it carries its own safe-area padding) ── */}
+            <div style={{ backgroundColor: CHAT_BG, padding: '6px 8px', paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))', flexShrink: 0 }}>
               {isNote && (
-                <div style={{ fontSize: 10, color: '#92400e', backgroundColor: '#fef3c7',
-                  padding: '4px 8px', borderRadius: 6, marginBottom: 6 }}>
+                <div style={{ fontSize: 13, color: '#92400e', backgroundColor: '#fef3c7', padding: '6px 10px', borderRadius: 10, margin: '0 4px 6px' }}>
                   {t('seller_inbox.internal_note_hint')}
                 </div>
               )}
-
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input ref={fileInputRef} type="file" accept="image/*" hidden
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) handleAttachImage(file);
-                    e.target.value = '';
-                  }} />
-                <button onClick={() => fileInputRef.current?.click()} disabled={uploadingImage}
-                  title={t('seller_inbox.attach_image_title')}
-                  style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-                    border: '1.5px solid #e2e8f0', backgroundColor: '#fff',
-                    cursor: uploadingImage ? 'default' : 'pointer', fontSize: 16 }}>
-                  {uploadingImage ? '⏳' : '📎'}
-                </button>
-                <input
-                  value={text}
-                  onChange={e => setText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                  placeholder={isNote ? t('seller_inbox.note_placeholder') : t('seller_inbox.message_placeholder')}
-                  style={{ flex: 1, padding: '10px 14px', borderRadius: 24,
-                    border: `2px solid ${isNote ? '#fde68a' : '#e2e8f0'}`,
-                    fontSize: 13, outline: 'none',
-                    backgroundColor: isNote ? '#fffbeb' : '#f8fafc' }} />
-                <button onClick={() => handleSend()} disabled={sending || !text.trim()}
-                  style={{ width: 44, height: 44, borderRadius: '50%',
-                    backgroundColor: text.trim() ? '#1d4ed8' : '#e2e8f0',
-                    border: 'none', cursor: text.trim() ? 'pointer' : 'default',
-                    fontSize: 18, color: '#fff', flexShrink: 0 }}>
-                  {sending ? '⏳' : '➤'}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6 }}>
+                <div style={{ flex: 1, minHeight: 46, backgroundColor: isNote ? '#fffbeb' : '#fff', borderRadius: 23, display: 'flex', alignItems: 'center', gap: 2, padding: '0 4px' }}>
+                  <button type="button" aria-label="Zana" aria-expanded={showTools} onClick={() => { setShowTools(v => !v); setShowProducts(false); setShowOrderForm(false); }}
+                    style={{ width: 38, height: 38, borderRadius: 19, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transform: showTools ? 'rotate(45deg)' : 'none', transition: 'transform .15s' }}>
+                    <Icon d={IC.plus} size={22} sw={2.2} />
+                  </button>
+                  <input value={text} onChange={e => setText(e.target.value)} aria-label={t('seller_inbox.message_placeholder')}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                    onFocus={() => setShowTools(false)}
+                    placeholder={isNote ? t('seller_inbox.note_placeholder') : t('seller_inbox.message_placeholder')}
+                    style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', fontSize: 16, background: 'transparent', fontFamily: 'inherit', color: INK }} />
+                  <button type="button" aria-label={t('seller_inbox.attach_image_title')} onClick={() => fileInputRef.current?.click()} disabled={uploadingImage}
+                    style={{ width: 38, height: 38, borderRadius: 19, border: 'none', background: 'none', cursor: uploadingImage ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {uploadingImage ? <Spinner size={18} color={MUTED} /> : <Icon d={IC.camera} size={21} />}
+                  </button>
+                </div>
+                <button type="button" aria-label="Tuma" onClick={() => handleSend()} disabled={sending || !text.trim()}
+                  style={{ width: 46, height: 46, borderRadius: 23, border: 'none', flexShrink: 0, cursor: text.trim() ? 'pointer' : 'default',
+                    backgroundColor: text.trim() ? BLUE : '#cfd9de', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M3 20.5l18-8.5L3 3.5l2.2 7L14 12l-8.8 1.5z" /></svg>
                 </button>
               </div>
             </div>

@@ -38,6 +38,19 @@ describe('SellerScopeService', () => {
       .rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('a service provider opens their own INBOX, but no other seller-scoped feature', async () => {
+    const { service } = build(AccountRoleType.SERVICE_PROVIDER, null);
+    await expect(service.resolveForInbox(userWithPayload(1, AccountRoleType.SERVICE_PROVIDER))).resolves.toBe(1);
+    await expect(service.resolve(userWithPayload(1, AccountRoleType.SERVICE_PROVIDER)))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('the inbox still refuses a buyer acting on a business inbox', async () => {
+    const { service } = build(AccountRoleType.BUYER, null);
+    await expect(service.resolveForInbox(userWithPayload(1, AccountRoleType.BUYER)))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('denies own-business access when the active role is transport_provider', async () => {
     const { service } = build(AccountRoleType.TRANSPORT_PROVIDER, null);
     await expect(service.resolve(userWithPayload(1, AccountRoleType.TRANSPORT_PROVIDER)))
