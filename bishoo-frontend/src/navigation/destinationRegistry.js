@@ -2,14 +2,14 @@ export const DESTINATION_KIND = Object.freeze({ PUBLIC: 'public', ACCOUNT: 'acco
 
 const destination = (id, kind, roles = [], capabilities = []) => ({ id, page: id, kind, roles, capabilities });
 const PUBLIC_PAGES = ['Home','AboutUs','ContactUs','HowItWorks','Privacy','PrivacyPolicy','Terms','TermsAndConditions','FlashSales','PickupPoints','ClassifiedDetail','ServiceDetail','ProductDetail','VerifyProduct','RouteCoverageMap','Store','Stores','ClassifiedsPublic','PublicLogin','Register','Search','Discover','Cart','BecomeSeller','BecomeSellerInfo','BecomeAgent','BecomeSuperAgentInfo','BecomeBusiness','VerifyReceipt','PayInvoice','TrackParcel','Services','Listings'];
-const ACCOUNT_PAGES = ['Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','MyClassifieds','CreateClassified'];
+const ACCOUNT_PAGES = ['MyAdvertising','Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','MyClassifieds','CreateClassified'];
 const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','SellerWallet','StoreSettings','SellerProducts','MyBrands','POS','SellerClassifieds','SellerOrders','SellerShipping','SellerInvoices','SellerShipment','SellerWarrantyClaims','SellerAnalytics','SellerTeam'];
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
 const TRANSPORT_PAGES = ['TransportProviderDashboard','TransportProviderSettings'];
 const ADMIN_PAGES = ['Profile','Dashboard','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin',
   // In the admin menu but missing here, so a click went back to the Dashboard (2026-10-24).
-  'Businesses','AdminShipments','AdminDispatchReminders'];
+  'Businesses','AdminShipments','AdminDispatchReminders','AdminAdvertisers'];
 
 export const DESTINATIONS = Object.freeze(Object.fromEntries([
   ...PUBLIC_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.PUBLIC)]),

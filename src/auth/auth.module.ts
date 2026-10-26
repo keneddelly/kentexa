@@ -1,3 +1,4 @@
+import { AdvertisersModule } from '../advertisers/advertisers.module';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -24,6 +25,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     CommerceProfilesModule,
     PoliciesModule,
     IdentityModule,
+    // Advertiser links (?ref=K......): the new user is recorded for that advertiser.
+    AdvertisersModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

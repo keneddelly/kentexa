@@ -137,6 +137,9 @@ import CollectionFees from './admin/pages/CollectionFees';
 import BatchHandoff from './public/pages/BatchHandoff';
 import SuperAgentParcel from './public/pages/SuperAgentParcel';
 import SuperAgentSettings from './public/pages/SuperAgentSettings';
+import MyAdvertising from './public/pages/MyAdvertising';
+import AdminAdvertisers from './admin/pages/AdminAdvertisers';
+import { rememberReferral } from './utils/referralLink';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
 import MyShipments from './public/pages/MyShipments';
@@ -209,6 +212,8 @@ function App() {
     // straight into tracking instead of always landing on Home.
     // e.g. https://kentexa.com/?track=KTX-ORD-47  →  TrackParcel-KTX-ORD-47
     try {
+      // A registration link (?ref=...) is kept until the visitor registers.
+      rememberReferral(window.location.search);
       const params = new URLSearchParams(window.location.search);
       const track   = params.get('track');
       const receive = params.get('receive');
@@ -849,6 +854,7 @@ function App() {
       case 'AddProfilePhoto':   return requireLogin(<AddProfilePhoto {...publicProps} />);
       case 'RouteCoverageMap':   return <RouteCoverageMap {...publicProps} />;
       case 'MyProfile':         return requireLogin(<MyProfile {...publicProps} />);
+      case 'MyAdvertising':     return requireLogin(<MyAdvertising {...publicProps} />);
       case 'CommerceProfile':     return requireLogin(<CommerceProfile {...publicProps} pageParam={null} track={track} />);
       case 'Store':
       case 'Stores':            return <Stores {...publicProps} />;
@@ -909,6 +915,7 @@ function App() {
       case 'Orders':      return requireAdmin(<Orders activePage={page} {...adminProps} />);
       case 'AdminShipments': return requireAdmin(<AdminShipments activePage={page} {...adminProps} />);
       case 'AdminDispatchReminders': return requireAdmin(<AdminDispatchReminders activePage={page} {...adminProps} />);
+      case 'AdminAdvertisers': return requireAdmin(<AdminAdvertisers activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return activeContext?.roleType === 'admin'

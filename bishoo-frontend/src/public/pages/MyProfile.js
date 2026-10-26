@@ -118,6 +118,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [pushState, setPushState] = useState('');
   const [pushKey, setPushKey] = useState(null);
+  // An advertiser (added by KenteXa admin) sees a link to their page; nobody else does.
+  const [isAdvertiser, setIsAdvertiser] = useState(false);
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/advertisers/me').then(() => setIsAdvertiser(true)).catch(() => setIsAdvertiser(false));
+  }, [isLoggedIn]);
+
   useEffect(() => {
     if (section !== 'settings') return;
     api.get('/notifications/push/vapid-key').then(({ data }) => {
@@ -790,6 +797,10 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 value={fmt(followed.length)} onAction={() => onNavigate('Stores')} />
               <Row icon="📋" label={t('my_profile.order_status_label')}
                 onAction={() => onNavigate('MyOrders')} />
+              {isAdvertiser && (
+                <Row icon="📣" label="Matangazo yangu (kiungo na kamisheni)"
+                  onAction={() => onNavigate('MyAdvertising')} />
+              )}
             </SCard>
 
             {orders.length > 0 && (

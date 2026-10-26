@@ -1,3 +1,4 @@
+import { referralCode as keptReferralCode } from '../../utils/referralLink';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
@@ -18,7 +19,8 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
 
   // Referral program (Phase 4) — same window.location.search pattern
   // App.js already uses for other deep-link params (track/confirm/token).
-  const [referralCode] = useState(() => new URLSearchParams(window.location.search).get('ref') || '');
+  // The link may have been opened earlier and kept (utils/referralLink).
+  const [referralCode] = useState(() => keptReferralCode());
 
   // Step 3 — mandatory profile photo, verified account/JWT already exist
   // by this point (token stashed in handleVerify below), just not
