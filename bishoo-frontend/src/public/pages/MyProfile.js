@@ -843,6 +843,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <Row icon="🔎" label="Fuatilia mzigo"
                 sub="Fuatilia mzigo kwa namba yako ya ufuatiliaji"
                 onAction={() => onNavigate('TrackParcel')} />
+              <Row icon="🚚" label="Omba bei"
+                sub="Kodi gari zima, au tuma mzigo mkubwa / kontena"
+                onAction={() => onNavigate('QuoteRequest')} />
+              <Row icon="📝" label="Maombi yangu ya bei"
+                sub="Bei ulizopata; chagua moja"
+                onAction={() => onNavigate('MyQuoteRequests')} />
             </SCard>
             {['agent','super_agent','transport_provider'].includes(role) && <SCard>
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>

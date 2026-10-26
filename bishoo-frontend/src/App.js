@@ -138,6 +138,9 @@ import BatchHandoff from './public/pages/BatchHandoff';
 import SuperAgentParcel from './public/pages/SuperAgentParcel';
 import SuperAgentSettings from './public/pages/SuperAgentSettings';
 import MyAdvertising from './public/pages/MyAdvertising';
+import QuoteRequest from './public/pages/QuoteRequest';
+import MyQuoteRequests from './public/pages/MyQuoteRequests';
+import QuoteInbox from './public/pages/QuoteInbox';
 import AdminAdvertisers from './admin/pages/AdminAdvertisers';
 import { rememberReferral } from './utils/referralLink';
 import SellerShipment from './public/pages/SellerShipment';
@@ -855,6 +858,9 @@ function App() {
       case 'RouteCoverageMap':   return <RouteCoverageMap {...publicProps} />;
       case 'MyProfile':         return requireLogin(<MyProfile {...publicProps} />);
       case 'MyAdvertising':     return requireLogin(<MyAdvertising {...publicProps} />);
+      case 'QuoteRequest':      return requireLogin(<QuoteRequest {...publicProps} kind={navParams?.kind} />);
+      case 'MyQuoteRequests':   return requireLogin(<MyQuoteRequests {...publicProps} />);
+      case 'QuoteInbox':        return requireLogin(<QuoteInbox {...publicProps} />);
       case 'CommerceProfile':     return requireLogin(<CommerceProfile {...publicProps} pageParam={null} track={track} />);
       case 'Store':
       case 'Stores':            return <Stores {...publicProps} />;

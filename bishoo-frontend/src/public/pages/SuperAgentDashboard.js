@@ -1008,6 +1008,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             { key: 'mapato', tour: 'sa-tab-mapato', title: 'Mapato', hint: 'Kiasi ulichopata, kwa siku na kwa mwezi', onClick: () => setActiveTab('mapato') },
             { key: 'bei', title: 'Bei zangu', hint: 'Bei za safari, kuchukua na kupeleka', onClick: () => setActiveTab('bei') },
             ...(isDar ? [{ key: 'van', title: 'Van', hint: 'Dawati la van, kwa ofisi za Dar', onClick: () => { setActiveTab('van'); fetchVanDesk(); } }] : []),
+            { key: 'maombi', title: 'Maombi ya bei', hint: 'Wateja wanaoomba bei ya mzigo mkubwa au kontena', onClick: () => onNavigate('QuoteInbox') },
+            { key: 'kodi', title: 'Kodi gari zima', hint: 'Omba bei za gari zima kwa wasafirishaji', onClick: () => onNavigate('QuoteRequest', { kind: 'vehicle' }) },
             { key: 'washirika', title: 'Washirika', hint: 'Usafiri na ofisi unazofanya nazo kazi; alika mpya', onClick: () => setActiveTab('washirika') },
             { key: 'ofisi', title: 'Ofisi yangu', hint: 'Jina, simu na mahali pa ofisi', onClick: () => onNavigate('SuperAgentSettings') },
           ]} />
