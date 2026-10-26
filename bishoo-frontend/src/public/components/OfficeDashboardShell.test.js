@@ -2,6 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { OfficeHome, OfficeScreenHeader, OfficeMenu, OfficeRow } from './OfficeDashboardShell';
 
+jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn() } }));
+
 test('Mwanzo: the two jobs with what waits in each, search and the menu', () => {
   const on = { onPokea: jest.fn(), onTuma: jest.fn(), onMenu: jest.fn(), onInbox: jest.fn(), onSearch: jest.fn() };
   render(<OfficeHome officeName="Ofisi ya Kariakoo" city="Dar es Salaam" pokeaCount={6} tumaCount={9} inboxUnread={2} {...on} />);
@@ -33,4 +35,15 @@ test('menu: every item opens its page; a row shows its count and an alert', () =
   expect(open).toHaveBeenCalled();
   render(<OfficeRow testId="r" title="Shehena" count={4} alert onClick={() => {}} />);
   expect(screen.getByTestId('r').textContent).toMatch(/Shehena4/);
+});
+
+test('Washirika: own transport and partners, and an invitation from the office phone', async () => {
+  const api = require('../../api/api').default;
+  api.get.mockResolvedValue({ data: { transport: [{ id: 3, name: 'Abood Bus', relation: 'own', phone: '255700000003' }, { id: 9, name: 'Lori la Juma', relation: 'partner' }] } });
+  const OfficePartners = require('./OfficePartners').default;
+  render(<OfficePartners officeName="Ofisi ya Kariakoo" />);
+  expect((await screen.findByTestId('office-partner-3')).textContent).toMatch(/Abood Bus.*Usafiri wako · 255700000003/);
+  expect(screen.getByTestId('office-partner-9').textContent).toMatch(/Mshirika/);
+  fireEvent.click(screen.getByTestId('invite-carrier'));
+  expect(screen.getByTestId('invite-carrier-send').getAttribute('href')).toMatch(/Ofisi%20ya%20Kariakoo/);
 });

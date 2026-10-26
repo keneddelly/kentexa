@@ -26,6 +26,7 @@
  *   Daily batch for same-city deliveries
  */
 import { OfficeHome, OfficeScreenHeader, OfficeMenu, OfficeRow, officeSection, OFFICE_COLORS } from '../components/OfficeDashboardShell';
+import OfficePartners from '../components/OfficePartners';
 import ShehenaTransportPicker from '../components/ShehenaTransportPicker';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -183,8 +184,8 @@ const PCard = ({ p, actions = [] }) => (
 // ── Main component ─────────────────────────────────────────────────────────
 
 // Office dashboard screens (mockup 2026-10-11): two jobs, the rest in the menu.
-const OFFICE_SCREEN_TITLE = { pokea: 'POKEA', tuma: 'TUMA', menu: 'Menyu', historia: 'Historia', mapato: 'Mapato', bei: 'Bei zangu', van: 'Van' };
-const MENU_PAGES = ['historia', 'mapato', 'bei', 'van'];
+const OFFICE_SCREEN_TITLE = { pokea: 'POKEA', tuma: 'TUMA', menu: 'Menyu', historia: 'Historia', mapato: 'Mapato', bei: 'Bei zangu', van: 'Van', washirika: 'Washirika' };
+const MENU_PAGES = ['historia', 'mapato', 'bei', 'van', 'washirika'];
 
 const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const { t } = useTranslation();
@@ -1091,6 +1092,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             onSearch={(q) => openParcelHistory(q)} />
         )}
 
+        {activeTab === 'washirika' && <OfficePartners officeName={profile?.businessName} />}
+
         {/* ── Menyu: everything else ── */}
         {activeTab === 'menu' && (
           <OfficeMenu items={[
@@ -1098,6 +1101,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             { key: 'mapato', tour: 'sa-tab-mapato', title: 'Mapato', hint: 'Kiasi ulichopata, kwa siku na kwa mwezi', onClick: () => setActiveTab('mapato') },
             { key: 'bei', title: 'Bei zangu', hint: 'Bei za safari, kuchukua na kupeleka', onClick: () => setActiveTab('bei') },
             ...(isDar ? [{ key: 'van', title: 'Van', hint: 'Dawati la van, kwa ofisi za Dar', onClick: () => { setActiveTab('van'); fetchVanDesk(); } }] : []),
+            { key: 'washirika', title: 'Washirika', hint: 'Usafiri na ofisi unazofanya nazo kazi; alika mpya', onClick: () => setActiveTab('washirika') },
             { key: 'ofisi', title: 'Ofisi yangu', hint: 'Simu, anwani, saa za kazi na mipangilio', onClick: () => onNavigate('SuperAgentSettings') },
           ]} />
         )}

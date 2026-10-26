@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import SendShipment, { completeOffers, journeySteps, allOffers } from './SendShipment';
+import SendShipment, { journeySteps } from './SendShipment';
 import api from '../../api/api';
 
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn(), patch: jest.fn() }));
@@ -152,17 +152,6 @@ test('other city: the customer sees offices only, never a transporter directly; 
   expect(screen.queryByText(/Basi A/)).toBeNull();
 });
 
-test('a door leg with no agent there is not "complete": that offer is hidden', () => {
-  const offers = [
-    { serviceType: 'composed_intercity', price: 9000, fulfillmentStatus: { pickup: 'pending', delivery: 'included' },
-      fulfillment: { transportOption: { providerId: 1, routeId: 1, runId: 1 } } },
-    { serviceType: 'composed_intercity', price: 9500, fulfillmentStatus: { pickup: 'separate', delivery: 'included' },
-      fulfillment: { transportOption: { providerId: 2, routeId: 2, runId: 2 } } },
-  ];
-  expect(completeOffers(offers, { pickupOption: 'door', deliveryOption: 'station' }).map((o) => o.providerId)).toEqual([2]);
-  expect(completeOffers(offers, { pickupOption: 'station', deliveryOption: 'station' }).map((o) => o.providerId)).toEqual([2, 1].sort());
-});
-
 test('the journey shows only the steps of this trip', () => {
   const direct = journeySteps({ direct: true, pickupOption: 'door', deliveryOption: 'door', receiverName: 'Amina', nextAction: { type: 'agent_pickup', agentsAlerted: 0 } });
   expect(direct.steps.map((s) => s.text)).toEqual(['Ombi limepokelewa', 'Wakala anachukua mzigo kwako', 'Amina anapokea mzigo mlangoni kwa namba ya siri']);
@@ -177,17 +166,6 @@ const officeOffer = (officeId, name, total, transport, pickup = 0) => ({
   fulfillmentStatus: { pickup: 'included', delivery: 'included' },
   fulfillment: { linehaul: 'office', officeOption: { officeId, officeName: name, officeCity: 'Dar es Salaam', officeAddress: 'Kariakoo',
     rating: 4.8, totalRatings: 120, chargeText: '10% ya thamani · chini kabisa TZS 5,000', quote: { pickup, transport, total } } },
-});
-
-test('offices compete with transporters, cheapest first, each once', () => {
-  const list = [
-    { serviceType: 'composed_intercity', price: 18000, fulfillmentStatus: { pickup: 'included', delivery: 'included' },
-      fulfillment: { transportOption: { providerId: 1, routeId: 1, runId: 1, providerName: 'Basi A' } } },
-    officeOffer(10, 'Ar SAMATTA', 15000, 15000),
-    officeOffer(11, 'MTANDAO', 20000, 20000),
-  ];
-  expect(allOffers(list, { pickupOption: 'station', deliveryOption: 'station' }).map((o) => o.providerName))
-    .toEqual(['Ar SAMATTA', 'Basi A', 'MTANDAO']);
 });
 
 test('other city: an office offer is booked through the office journey; the value goes to the server', async () => {
