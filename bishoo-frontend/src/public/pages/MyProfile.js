@@ -17,6 +17,7 @@ import { enablePushNotifications, disablePushNotifications, getPushNotificationS
 import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import WorkWithKentexa from '../components/WorkWithKentexa';
+import { LineIcon, LINE_ICONS } from '../components/LineIcon';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -27,20 +28,20 @@ const fmt  = n => Number(n||0).toLocaleString();
 const fmtD = d => d ? new Date(d).toLocaleDateString('sw-TZ') : '—';
 
 const getTiers = t => [
-  { min:900, name:t('my_profile.tier_elite'),   icon:'🏆', color:'#DC2626', bg:'#FEE2E2' },
-  { min:600, name:t('my_profile.tier_partner'), icon:'💎', color:'#7C3AED', bg:'#EDE9FE' },
-  { min:300, name:t('my_profile.tier_loyal'),   icon:'🌟', color:B,          bg:'#DBEAFE' },
-  { min:100, name:t('my_profile.tier_trusted'), icon:'⭐', color:'#16A34A',  bg:'#DCFCE7' },
-  { min:0,   name:t('my_profile.tier_new'),     icon:'🌱', color:GR,         bg:'#F1F5F9' },
+  { min:900, name:t('my_profile.tier_elite'),   icon:'trophy', color:'#DC2626', bg:'#FEE2E2' },
+  { min:600, name:t('my_profile.tier_partner'), icon:'gem', color:'#7C3AED', bg:'#EDE9FE' },
+  { min:300, name:t('my_profile.tier_loyal'),   icon:'star', color:B,          bg:'#DBEAFE' },
+  { min:100, name:t('my_profile.tier_trusted'), icon:'star', color:'#16A34A',  bg:'#DCFCE7' },
+  { min:0,   name:t('my_profile.tier_new'),     icon:'sprout', color:GR,         bg:'#F1F5F9' },
 ];
 
 const getRoleMeta = t => ({
-  user:               { icon:'👤', label:t('my_profile.role_buyer'),            color:'#475569', bg:'#F1F5F9' },
-  seller:             { icon:'🏪', label:t('my_profile.role_seller'),           color:B,          bg:'#EFF6FF' },
-  agent:              { icon:'🏍️', label:t('my_profile.role_agent'),            color:'#A21CAF',  bg:'#FDF2F8' },
-  super_agent:        { icon:'🏢', label:t('my_profile.role_super_agent'),      color:'#7C3AED',  bg:'#F5F3FF' },
-  transport_provider: { icon:'🚌', label:t('my_profile.role_transporter'),      color:'#D97706',  bg:'#FEF3C7' },
-  service_provider:   { icon:'🔧', label:t('my_profile.role_service_provider'), color:'#16A34A',  bg:'#F0FDF4' },
+  user:               { icon:'person', label:t('my_profile.role_buyer'),            color:'#475569', bg:'#F1F5F9' },
+  seller:             { icon:'store', label:t('my_profile.role_seller'),           color:B,          bg:'#EFF6FF' },
+  agent:              { icon:'moto', label:t('my_profile.role_agent'),            color:'#A21CAF',  bg:'#FDF2F8' },
+  super_agent:        { icon:'office', label:t('my_profile.role_super_agent'),      color:'#7C3AED',  bg:'#F5F3FF' },
+  transport_provider: { icon:'bus', label:t('my_profile.role_transporter'),      color:'#D97706',  bg:'#FEF3C7' },
+  service_provider:   { icon:'wrench', label:t('my_profile.role_service_provider'), color:'#16A34A',  bg:'#F0FDF4' },
 });
 
 // ── Simple QR code via API (no library needed) ───────────────────────────────
@@ -65,7 +66,7 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
   <div onClick={onAction}
     style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', minHeight:44,
       borderBottom:'1px solid #eff3f4', cursor:onAction?'pointer':'default' }}>
-    <span style={{ fontSize:20, flexShrink:0, width:28, textAlign:'center' }}>{icon}</span>
+    <span style={{ width:28, display:'flex', justifyContent:'center', flexShrink:0 }}><LineIcon name={icon} size={22} /></span>
     <div style={{ flex:1, minWidth:0 }}>
       <div style={{ fontSize:15, fontWeight:400, color:'#0f1419', lineHeight:'20px' }}>{label}</div>
       {sub && <div style={{ fontSize:13, color:'#536471', marginTop:1 }}>{sub}</div>}
@@ -237,6 +238,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
     }
   }, [section]); // eslint-disable-line
 
+  // The card is the identity of the CURRENT role: a business when one is active (BiS), else the person.
+  const cardIsBusiness = !!(activeProfile && activeProfile.type && activeProfile.type !== 'personal');
+  const cardName = cardIsBusiness
+    ? (activeProfile.displayName || activeProfile.name)
+    : (profile?.name || profile?.storeName || t('my_profile.default_name'));
+  const cardPhoto = cardIsBusiness ? activeProfile.photoUrl : profile?.avatarUrl;
   const score = rep?.score || profile?.reputationScore || 0;
   const tier  = getTier(score);
   const roles = availableRoles.filter(r => r.status === 'active').map(r => r.roleType);
@@ -252,17 +259,17 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const isPaidRole      = ['seller','agent'].includes(role);
 
   const NAV = [
-    { key:'identity',      icon:'👤', label:t('my_profile.nav_identity') },
+    { key:'identity',      icon:'person', label:t('my_profile.nav_identity') },
     // An advertiser's page sits at the top level, not buried inside a section.
-    isAdvertiser && { key:'advertising', icon:'📣', label:'Kiungo changu na kamisheni', go:'MyAdvertising' },
-    { key:'businesses',    icon:'🏢', label:t('my_profile.nav_businesses') },
-    { key:'commerce',      icon:'📦', label:t('my_profile.nav_commerce') },
-    { key:'logistics',     icon:'🚚', label:t('my_profile.nav_logistics') },
-    isPaidRole && { key:'finance', icon:'💰', label:t('my_profile.nav_finance') },
-    { key:'reputation',    icon:'⭐', label:t('my_profile.nav_reputation') },
-    { key:'communication', icon:'💬', label:t('my_profile.nav_communication'), badge: unread },
-    { key:'settings',      icon:'⚙️', label:t('my_profile.nav_settings') },
-    { key:'roles',         icon:'🔐', label:t('my_profile.operations_access') },
+    isAdvertiser && { key:'advertising', icon:'megaphone', label:'Kiungo changu na kamisheni', go:'MyAdvertising' },
+    { key:'businesses',    icon:'office', label:t('my_profile.nav_businesses') },
+    { key:'commerce',      icon:'box', label:t('my_profile.nav_commerce') },
+    { key:'logistics',     icon:'truck', label:t('my_profile.nav_logistics') },
+    isPaidRole && { key:'finance', icon:'money', label:t('my_profile.nav_finance') },
+    { key:'reputation',    icon:'star', label:t('my_profile.nav_reputation') },
+    { key:'communication', icon:'chat', label:t('my_profile.nav_communication'), badge: unread },
+    { key:'settings',      icon:'gear', label:t('my_profile.nav_settings') },
+    { key:'roles',         icon:'lock', label:t('my_profile.operations_access') },
   ].filter(Boolean);
 
   if (!isLoggedIn) return null;
@@ -284,7 +291,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                 stroke={DK} strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
               <span style={{ fontSize:16, fontWeight:800, color:DK }}>
-                {NAV.find(n => n.key === section)?.icon} {NAV.find(n => n.key === section)?.label}
+                {NAV.find(n => n.key === section)?.label}
               </span>
             </button>
             <div style={{ width:20 }} />
@@ -309,28 +316,30 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           <div style={{ display:'flex', alignItems:'center', gap:14 }}>
             <div style={{ width:64, height:64, borderRadius:18, overflow:'hidden', backgroundColor:'#0f1419', color:WH,
               flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {profile.avatarUrl
-                ? <img src={profile.avatarUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                : <span style={{ fontSize:26, fontWeight:800 }}>{(profile.name||'K').charAt(0).toUpperCase()}</span>}
+              {cardPhoto
+                ? <img src={cardPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                : <span style={{ fontSize:26, fontWeight:800 }}>{(cardName||'K').charAt(0).toUpperCase()}</span>}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:20, fontWeight:800, lineHeight:'24px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                {profile.name || profile.storeName || t('my_profile.default_name')}
+              <div data-testid="profile-card-name" style={{ fontSize:20, fontWeight:800, lineHeight:'24px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {cardName}
               </div>
               <div style={{ fontSize:15, color:'#536471', marginTop:2 }}>
-                {profile.phone}{profile.isVerified && t('my_profile.verified_suffix')}
+                {cardIsBusiness ? (activeProfile.isVerified ? 'Imethibitishwa' : ({ business: 'Biashara', service_provider: 'Mtoa huduma', agent: 'Wakala', hub: 'Ofisi', transport_provider: 'Msafirishaji' }[activeProfile.type] || 'Biashara'))
+                  : <>{profile.phone}{profile.isVerified && t('my_profile.verified_suffix')}</>}
               </div>
               <div style={{ fontSize:15, color:'#536471' }}>
-                {profile.city || profile.businessLocation || t('my_profile.location_fallback')}
+                {(cardIsBusiness ? activeProfile.location : null) || profile.city || profile.businessLocation || t('my_profile.location_fallback')}
               </div>
             </div>
           </div>
           <div style={{ display:'flex', gap:8, marginTop:14, flexWrap:'wrap' }}>
-            <button onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile?.id || personalProfile?.id })}
+            {/* The card, edit and view all follow the CURRENT role's identity (owner 2026-10-27). */}
+            <button data-testid="edit-current-profile" onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile?.id || personalProfile?.id })}
               style={{ height:36, padding:'0 16px', borderRadius:18, border:'1px solid #cfd9de', background:'#fff', color:'#0f1419', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
               {t('profile_editor.title')}
             </button>
-            <button onClick={() => onNavigate('CommerceProfile')}
+            <button data-testid="view-current-profile" onClick={() => onNavigate('CommerceProfile')}
               style={{ height:36, padding:'0 16px', borderRadius:18, border:'none', background:'#0f1419', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
               {t('my_profile.public_profile_button')}
             </button>
@@ -345,7 +354,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           {networkOpen && <div style={{marginTop:10,background:'#f7f9f9',borderRadius:12,padding:8}}>
             {(networkOpen==='followers'?followers:followingPeople).length===0 ? <div style={{fontSize:13,color:'#536471',padding:8}}>No connections yet.</div> :
               (networkOpen==='followers'?followers:followingPeople).map(person=><button key={person.profileId || person.ownerId} onClick={()=>person.profileId && onNavigate(`CommerceProfile-${person.profileId}`,{commerceProfileId:person.profileId})} style={{display:'flex',alignItems:'center',gap:9,width:'100%',border:'none',background:'none',color:'#0f1419',padding:7,cursor:person.profileId?'pointer':'default',textAlign:'left'}}>
-                {person.photoUrl ? <img src={person.photoUrl} alt="" style={{width:32,height:32,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.2)',display:'grid',placeItems:'center'}}>👤</span>}
+                {person.photoUrl ? <img src={person.photoUrl} alt="" style={{width:32,height:32,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.2)',display:'grid',placeItems:'center'}}><LineIcon name="person" size={18} color="#fff" /></span>}
                 <span style={{fontSize:12,fontWeight:800}}>{person.displayName}</span>
                 {person.isFollowedBy && networkOpen==='followers' && <span style={{fontSize:10,opacity:.75}}>Follows you</span>}
               </button>)}
@@ -370,7 +379,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               return (
                 <button key={business.id} onClick={() => onNavigate(`BusinessHome-${business.id}`)}
                   style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'11px 0', border:'none', borderTop:'1px solid #F1F5F9', background:'none', cursor:'pointer', textAlign:'left' }}>
-                  <span style={{ fontSize:22 }}>🏢</span>
+                  <LineIcon name="office" size={22} />
                   <span style={{ flex:1, minWidth:0 }}>
                     <span style={{ display:'block', fontSize:13, fontWeight:800, color:DK }}>{business.tradingName || business.legalName}</span>
                     <span style={{ display:'block', fontSize:11, color:GR, marginTop:2 }}>
@@ -384,7 +393,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               );
             })}
             <button onClick={() => onNavigate('MyClassifieds')} style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'12px 0 2px', border:'none', borderTop:'1px solid #F1F5F9', background:'none', cursor:'pointer', textAlign:'left' }}>
-              <span style={{ fontSize:20 }}>🏷️</span>
+              <LineIcon name="tag" size={20} />
               <span style={{ flex:1, fontSize:13, fontWeight:800, color:DK }}>{t('my_profile.my_classifieds')}</span>
               <span style={{ color:'#CBD5E1' }}>›</span>
             </button>
@@ -401,15 +410,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         // gate was the exact same "verification as permission" bug already
         // fixed on the dashboard itself; this is the other place it lived.
         if (role === 'seller') actions.push({
-          icon:'🏪', label:t('my_profile.seller_center_label'),
-          value: sellerStats?.stats?.pendingOrders > 0 ? String(sellerStats.stats.pendingOrders) : t('my_profile.manage_sales_sub'),
-          sub: sellerStats?.stats?.pendingOrders > 0 ? t('my_profile.tap_to_view') : t('my_profile.sell_on_kentexa_sub'),
+          icon:'store', label:t('my_profile.seller_center_label'),
+          value: sellerStats?.stats?.needsShipping > 0 ? String(sellerStats.stats.needsShipping) : t('my_profile.manage_sales_sub'),
+          sub: sellerStats?.stats?.needsShipping > 0 ? t('my_profile.tap_to_view') : t('my_profile.sell_on_kentexa_sub'),
           color:B, bg:'#EFF6FF',
           onAction:()=>onNavigate('SellerDashboard'),
         });
         if (role === 'seller') {
           actions.push({
-            icon:'💰', label:t('my_profile.revenue_label'),
+            icon:'money', label:t('my_profile.revenue_label'),
             value: sellerStats?.stats?.totalRevenue != null ? `TZS ${fmt(sellerStats.stats.totalRevenue)}` : '—',
             sub:t('my_profile.recent_orders_sub'), color:'#16A34A', bg:'#F0FDF4',
             onAction:()=>onNavigate('SellerAnalytics'),
@@ -430,12 +439,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         // admin isn't a CommerceProfile type you switch into at all.
         if (role === 'agent') {
           actions.push({
-            icon:'🏍️', label:t('my_profile.my_jobs_label'),
+            icon:'moto', label:t('my_profile.my_jobs_label'),
             value:'View', sub:t('my_profile.available_near_you'), color:'#A21CAF', bg:'#FDF2F8',
             onAction:()=>onNavigate('AgentDashboard'),
           });
           actions.push({
-            icon:'💰', label:t('my_profile.pending_payout_label'),
+            icon:'money', label:t('my_profile.pending_payout_label'),
             value: agentData?.pendingEarnings != null ? `TZS ${fmt(agentData.pendingEarnings)}` : '—',
             sub:t('my_profile.earnings_sub'), color:'#16A34A', bg:'#F0FDF4',
             onAction:()=>onNavigate('AgentEarnings'),
@@ -443,19 +452,19 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         }
         if (role === 'super_agent') {
           actions.push({
-            icon:'📦', label:t('my_profile.hub_parcels_label'),
+            icon:'box', label:t('my_profile.hub_parcels_label'),
             value:'View', sub: saData?.city || t('my_profile.your_hub_fallback'), color:'#7C3AED', bg:'#F5F3FF',
             onAction:()=>onNavigate('SuperAgentDashboard'),
           });
         }
         if (role === 'transport_provider') {
           actions.push({
-            icon:'🚌', label:t('my_profile.todays_routes_label'),
+            icon:'bus', label:t('my_profile.todays_routes_label'),
             value:'View', sub:t('my_profile.assignments_sub'), color:'#D97706', bg:'#FEF3C7',
             onAction:()=>onNavigate('TransportProviderDashboard'),
           });
         }
-        // The old Navbar.js hamburger menu (which had a "🛡️ Admin Panel"
+        // The old Navbar.js hamburger menu (which had a "Admin Panel"
         // entry) was removed when the app moved to the CommerceProfile-
         // driven bottom nav — nothing replaced it, leaving admin/manager
         // accounts with no way to reach the admin pages (Dashboard,
@@ -463,13 +472,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         // renderPage(), just orphaned from the UI). This is that entry point.
         if (role === 'admin' || role === 'manager') {
           actions.push({
-            icon:'🛡️', label:t('my_profile.admin_panel_label'),
+            icon:'shield', label:t('my_profile.admin_panel_label'),
             value:'Open', sub:t('my_profile.admin_panel_sub'), color:'#7C3AED', bg:'#F5F3FF',
             onAction:()=>onNavigate('Dashboard'),
           });
         }
         actions.push({
-          icon:'💬', label:t('my_profile.messages_label'),
+          icon:'chat', label:t('my_profile.messages_label'),
           value: unread > 0 ? String(unread) : '—',
           sub: unread > 0 ? t('my_profile.new_sub') : t('my_profile.all_read_sub'), color: unread>0?'#EF4444':GR,
           bg: unread>0?'#FEF2F2':'#F8FAFC',
@@ -484,7 +493,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <button key={i} onClick={a.onAction}
                   style={{ backgroundColor:WH, border:'1px solid #eff3f4', borderRadius:16,
                     padding:'12px', cursor:'pointer', textAlign:'left', fontFamily:'inherit', minWidth:0 }}>
-                  <div style={{ fontSize:18, marginBottom:6 }}>{a.icon}</div>
+                  <div style={{ marginBottom:6 }}><LineIcon name={a.icon} size={20} /></div>
                   <div style={{ fontSize:17, fontWeight:800, color:'#0f1419', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.value}</div>
                   <div style={{ fontSize:13, color:'#536471', marginTop:2 }}>{a.label}</div>
                 </button>
@@ -507,7 +516,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   padding:'14px 0', minHeight:52, border:'none', background:'none', cursor:'pointer',
                   borderBottom: i < NAV.length-1 ? '1px solid #eff3f4' : 'none',
                   textAlign:'left', fontFamily:'inherit' }}>
-                <span style={{ fontSize:20, width:26, textAlign:'center', flexShrink:0 }}>{n.icon}</span>
+                <span style={{ width:26, display:'flex', justifyContent:'center', flexShrink:0 }}><LineIcon name={n.icon} size={22} /></span>
                 <span style={{ flex:1, fontSize:15, fontWeight:400, color:'#0f1419' }}>{n.label}</span>
                 {n.badge > 0 && (
                   <span style={{ backgroundColor:'#EF4444', color:WH, fontSize:10,
@@ -537,7 +546,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.basic_info_title')}
               </div>
-              <Row icon="📸" label={t('my_profile.profile_photo_label')}
+              <Row icon="camera" label={t('my_profile.profile_photo_label')}
                 value={profile?.avatarUrl ? t('my_profile.set_status') : t('my_profile.incomplete_status')}
                 color={profile?.avatarUrl ? '#16A34A' : '#DC2626'}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'photo' })} />
@@ -545,17 +554,17 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 onAction={() => onNavigate('CustomerProfile', { editField: 'username' })} />
               {personalProfile && <Row icon="▧" label={t('profile_editor.coverImage')}
                 onAction={() => onNavigate('EditPublicProfile', { commerceProfileId: personalProfile.id })} />}
-              <Row icon="🆔" label={t('my_profile.kentexa_id_label')} value={profile?.kentexaId || '—'} />
-              <Row icon="✏️" label={t('my_profile.full_name_label')} value={profile?.name || '—'}
+              <Row icon="idcard" label={t('my_profile.kentexa_id_label')} value={profile?.kentexaId || '—'} />
+              <Row icon="pencil" label={t('my_profile.full_name_label')} value={profile?.name || '—'}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'name' })} />
-              <Row icon="📱" label={t('my_profile.phone_number_label')} value={profile?.phone || '—'} onAction={() => onNavigate('CustomerProfile', { editField: 'phone' })} />
-              <Row icon="✉️" label={t('my_profile.email_label')} value={profile?.email || t('my_profile.not_set')}
+              <Row icon="phone" label={t('my_profile.phone_number_label')} value={profile?.phone || '—'} onAction={() => onNavigate('CustomerProfile', { editField: 'phone' })} />
+              <Row icon="mail" label={t('my_profile.email_label')} value={profile?.email || t('my_profile.not_set')}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'email' })} />
-              <Row icon="📍" label={t('my_profile.location_label')}
+              <Row icon="pin" label={t('my_profile.location_label')}
                 value={(personalProfile?.location ?? profile?.city) || t('my_profile.not_set')}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'city' })} />
-              <Row icon="📝" label={t('my_profile.short_bio_label')}
-                value={(personalProfile?.bio ?? profile?.bio) ? '✓' : t('my_profile.incomplete_status')}
+              <Row icon="note" label={t('my_profile.short_bio_label')}
+                value={(personalProfile?.bio ?? profile?.bio) ? 'Imekamilika' : t('my_profile.incomplete_status')}
                 color={(personalProfile?.bio ?? profile?.bio) ? '#16A34A' : '#DC2626'}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'bio' })} />
             </SCard>
@@ -564,25 +573,25 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.verification_status_title')}
               </div>
-              <Row icon="📱" label={t('my_profile.phone_verified_label')}
+              <Row icon="phone" label={t('my_profile.phone_verified_label')}
                 value={profile?.isVerified ? t('my_profile.yes_label') : t('my_profile.not_yet_label')}
                 color={profile?.isVerified ? '#16A34A' : '#DC2626'} />
               {/* The ID is separate from the phone (utils/identityState): only the admin-checked ID counts. */}
-              <Row icon="🪪" label={t('my_profile.identity_label')}
+              <Row icon="idcard" label={t('my_profile.identity_label')}
                 value={identityStatus?.status === 'verified' ? t('my_profile.identity_verified')
                   : identityStatus?.status === 'pending' ? t('my_profile.identity_pending')
                   : identityStatus?.status === 'rejected' ? t('my_profile.identity_rejected')
                   : t('my_profile.identity_not_verified')}
                 color={identityStatus?.status === 'verified' ? '#16A34A' : identityStatus?.status === 'pending' ? '#CA8A04' : '#DC2626'}
                 onAction={needsIdentityStep(identityStatus) ? () => setShowVerifyIdentity(true) : undefined} />
-              <Row icon="✅" label={t('my_profile.account_setup_label')}
+              <Row icon="check" label={t('my_profile.account_setup_label')}
                 value={profile?.onboardingCompleted ? t('my_profile.account_completed_label') : t('my_profile.incomplete_status')}
                 color={profile?.onboardingCompleted ? '#16A34A' : '#D97706'}
                 onAction={() => !profile?.onboardingCompleted && onNavigate('Onboarding')} />
               {/* ID/KYC row removed — no verification pipeline exists yet
                   (kycLevel is never set anywhere); re-add once a real
                   document-upload + admin-review flow is built. */}
-              <Row icon="🏢" label={t('my_profile.business_verified_label')}
+              <Row icon="office" label={t('my_profile.business_verified_label')}
                 value={isBusinessOwner ? t('my_profile.yes_label') : t('my_profile.not_yet_label')}
                 color={isBusinessOwner ? '#16A34A' : GR} />
             </SCard>
@@ -622,12 +631,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 {t('my_profile.one_account_desc')}
               </div>
               {roles.filter(r => r !== 'buyer' && !['admin','manager','customer_care','arbitrator'].includes(r)).map(r => {
-                const m = ROLE_META[r] || { icon:'👤', label:r, color:GR, bg:'#F1F5F9' };
+                const m = ROLE_META[r] || { icon:'person', label:r, color:GR, bg:'#F1F5F9' };
                 return (
                   <div key={r} style={{ display:'flex', alignItems:'center', gap:14,
                     padding:'14px 16px', borderRadius:12, marginBottom:10,
                     backgroundColor:m.bg, border:`1px solid ${m.color}20` }}>
-                    <span style={{ fontSize:28 }}>{m.icon}</span>
+                    <LineIcon name={m.icon} size={28} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:14, fontWeight:800, color:m.color }}>
                         {m.label}
@@ -666,7 +675,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       padding:'12px 14px', borderRadius:12, marginBottom:8,
                       backgroundColor:'#F8FAFC', border:'1.5px dashed #E2E8F0',
                       cursor:'pointer' }}>
-                    <span style={{ fontSize:24 }}>{m.icon}</span>
+                    <LineIcon name={m.icon} size={24} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:13, fontWeight:700, color:DK }}>{m.label}</div>
                       <div style={{ fontSize:11, color:GR }}>{t('my_profile.tap_to_register')}</div>
@@ -686,32 +695,32 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.my_businesses_title')}
               </div>
-              <Row icon="🏢" label={t('my_profile.nav_businesses')}
+              <Row icon="office" label={t('my_profile.nav_businesses')}
                 value={businesses.length}
                 onAction={() => onNavigate('MyBusinesses')} />
-              <Row icon="🏷️" label={t('my_profile.my_classifieds')}
+              <Row icon="tag" label={t('my_profile.my_classifieds')}
                 onAction={() => onNavigate('MyClassifieds')} />
               {isBusinessOwner && <>
-              <Row icon="📊" label={t('my_profile.seller_dashboard_label')}
+              <Row icon="chart" label={t('my_profile.seller_dashboard_label')}
                 onAction={() => onNavigate('SellerDashboard')} />
-              <Row icon="🏪" label={t('my_profile.online_store_label')}
+              <Row icon="store" label={t('my_profile.online_store_label')}
                 value={profile?.storeName || t('my_profile.not_set_up_yet')}
                 onAction={() => onNavigate('StoreSettings')} />
-              <Row icon="⚙️" label={t('my_profile.store_settings_label')}
+              <Row icon="gear" label={t('my_profile.store_settings_label')}
                 onAction={() => onNavigate('StoreSettings')} />
-              <Row icon="👥" label={t('my_profile.team_members_label')}
+              <Row icon="people" label={t('my_profile.team_members_label')}
                 onAction={() => onNavigate('SellerTeam')} />
-              <Row icon="🏷️" label={t('my_profile.my_products_label')}
+              <Row icon="tag" label={t('my_profile.my_products_label')}
                 value={fmt(sellerStats?.stats?.totalProducts||0)}
                 onAction={() => onNavigate('SellerClassifieds')} />
-              <Row icon="🔧" label={t('my_profile.my_services_label')}
+              <Row icon="wrench" label={t('my_profile.my_services_label')}
                 value={t('my_profile.services_count', { count: myServices.length })}
                 onAction={() => onNavigate('MyServices')} />
-              <Row icon="📊" label={t('my_profile.business_analytics_label')}
+              <Row icon="chart" label={t('my_profile.business_analytics_label')}
                 onAction={() => onNavigate('SellerAnalytics')} />
-              <Row icon="📸" label={t('my_profile.share_moment_label')}
+              <Row icon="camera" label={t('my_profile.share_moment_label')}
                 onAction={() => onOpenMoment?.('selling')} />
-              <Row icon="📢" label={t('my_profile.my_posts_label')}
+              <Row icon="megaphone" label={t('my_profile.my_posts_label')}
                 onAction={() => onNavigate('CommerceProfile')} />
               </>}
             </SCard>
@@ -724,7 +733,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
                     { label:t('my_profile.revenue_stat'), value:`TZS ${fmt(sellerStats.stats?.totalRevenue||0)}`, color:'#16A34A' },
-                    { label:t('my_profile.my_orders_stat'),  value:fmt(sellerStats.stats?.pendingOrders||0),           color:B },
+                    { label:t('my_profile.my_orders_stat'),  value:fmt(sellerStats.stats?.needsShipping||0),           color:B },
                     { label:t('my_profile.all_products_stat'),    value:fmt(sellerStats.stats?.totalProducts||0),            color:'#7C3AED' },
                     { label:t('my_profile.customers_stat'),         value:fmt(sellerStats.stats?.totalCustomers||0),           color:'#D97706' },
                   ].map(s => (
@@ -744,9 +753,9 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         {section === 'commerce' && (
           <>
             <SCard>
-              <Row icon="🏪" label={t('my_profile.seller_center_label')}
+              <Row icon="store" label={t('my_profile.seller_center_label')}
                 onAction={() => onNavigate('SellerDashboard')} />
-              <Row icon="🪪" label={t('my_profile.identity_label')}
+              <Row icon="idcard" label={t('my_profile.identity_label')}
                 value={
                   identityStatus?.status === 'verified' ? t('my_profile.identity_verified')
                   : identityStatus?.status === 'pending' ? t('my_profile.identity_pending')
@@ -756,7 +765,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 color={identityStatus?.status === 'verified' ? '#16a34a' : identityStatus?.status === 'pending' ? '#ca8a04' : GR}
                 onAction={needsIdentityStep(identityStatus) ? () => setShowVerifyIdentity(true) : undefined} />
               {sellerProfile?.sellerType === 'business' && (
-                <Row icon="🏢" label={t('my_profile.business_verification_label')}
+                <Row icon="office" label={t('my_profile.business_verification_label')}
                   value={
                     sellerProfile.businessDocumentsStatus === 'verified' ? t('my_profile.identity_verified')
                     : sellerProfile.businessDocumentsStatus === 'pending' ? t('my_profile.identity_pending')
@@ -771,19 +780,19 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.business_activity_title')}
               </div>
-              <Row icon="🛒" label={t('my_profile.my_orders_label')} value={fmt(orders.length)}
+              <Row icon="cart" label={t('my_profile.my_orders_label')} value={fmt(orders.length)}
                 onAction={() => onNavigate('MyOrders')} />
-              <Row icon="🧾" label={t('my_profile.pay_invoice_label')}
+              <Row icon="receipt" label={t('my_profile.pay_invoice_label')}
                 onAction={() => onNavigate('PayInvoice')} />
-              <Row icon="🔍" label={t('my_profile.track_parcel_label')}
+              <Row icon="search" label={t('my_profile.track_parcel_label')}
                 onAction={() => onNavigate('TrackParcel')} />
-              <Row icon="❤️" label={t('my_profile.wishlist_label')}
+              <Row icon="heart" label={t('my_profile.wishlist_label')}
                 onAction={() => onNavigate('Wishlist')} />
-              <Row icon="🛡️" label={t('my_profile.my_warranties_label')}
+              <Row icon="shield" label={t('my_profile.my_warranties_label')}
                 onAction={() => onNavigate('MyWarranties')} />
-              <Row icon="🏪" label={t('my_profile.businesses_i_follow_label')}
+              <Row icon="store" label={t('my_profile.businesses_i_follow_label')}
                 value={fmt(followed.length)} onAction={() => onNavigate('Stores')} />
-              <Row icon="📋" label={t('my_profile.order_status_label')}
+              <Row icon="list" label={t('my_profile.order_status_label')}
                 onAction={() => onNavigate('MyOrders')} />
             </SCard>
 
@@ -832,19 +841,19 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   Every authenticated person must be able to reach their own
                   shipment history regardless of whether they are also an
                   Agent, Super Agent or Transport Provider. */}
-              <Row icon="📦" label="Mizigo yangu"
+              <Row icon="box" label="Mizigo yangu"
                 sub="Angalia mizigo uliyotuma na hatua ilipofikia"
                 onAction={() => onNavigate('MyShipments')} />
-              <Row icon="➕" label="Tuma mzigo"
+              <Row icon="plus" label="Tuma mzigo"
                 sub="Anzisha usafirishaji mpya"
                 onAction={() => onNavigate('SendShipment')} />
-              <Row icon="🔎" label="Fuatilia mzigo"
+              <Row icon="search" label="Fuatilia mzigo"
                 sub="Fuatilia mzigo kwa namba yako ya ufuatiliaji"
                 onAction={() => onNavigate('TrackParcel')} />
-              <Row icon="🚚" label="Omba bei"
+              <Row icon="truck" label="Omba bei"
                 sub="Kodi gari zima, au tuma mzigo mkubwa / kontena"
                 onAction={() => onNavigate('QuoteRequest')} />
-              <Row icon="📝" label="Maombi yangu ya bei"
+              <Row icon="note" label="Maombi yangu ya bei"
                 sub="Bei ulizopata; chagua moja"
                 onAction={() => onNavigate('MyQuoteRequests')} />
             </SCard>
@@ -854,37 +863,37 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
               {role === 'agent' && (
                 <>
-                  <Row icon="🏍️" label={t('my_profile.delivery_jobs_label')}
+                  <Row icon="moto" label={t('my_profile.delivery_jobs_label')}
                     onAction={() => onNavigate('AgentDashboard')} />
-                  <Row icon="💰" label={t('my_profile.agent_earnings_label')}
+                  <Row icon="money" label={t('my_profile.agent_earnings_label')}
                     value={agentData ? `TZS ${fmt(agentData.totalEarnings)}` : '—'}
                     onAction={() => onNavigate('AgentEarnings')} />
-                  <Row icon="📊" label={t('my_profile.my_scorecard_label')}
+                  <Row icon="chart" label={t('my_profile.my_scorecard_label')}
                     onAction={() => onNavigate('AgentScorecard')} />
-                  <Row icon="✅" label={t('my_profile.delivered_label')}
+                  <Row icon="check" label={t('my_profile.delivered_label')}
                     value={fmt(agentData?.totalDeliveriesCompleted||0)} />
                 </>
               )}
               {role === 'super_agent' && (
                 <>
-                  <Row icon="🏢" label={t('my_profile.hub_dashboard_label')}
+                  <Row icon="office" label={t('my_profile.hub_dashboard_label')}
                     onAction={() => onNavigate('SuperAgentDashboard')} />
-                  <Row icon="📦" label={t('my_profile.hub_parcels_label2')}
+                  <Row icon="box" label={t('my_profile.hub_parcels_label2')}
                     onAction={() => onNavigate('SuperAgentDashboard')} />
-                  <Row icon="🚌" label={t('my_profile.arrange_transport_label')}
+                  <Row icon="bus" label={t('my_profile.arrange_transport_label')}
                     onAction={() => onNavigate('SuperAgentDashboard')} />
                 </>
               )}
               {role === 'transport_provider' && (
                 <>
-                  <Row icon="🚌" label={t('my_profile.routes_dashboard_label')}
+                  <Row icon="bus" label={t('my_profile.routes_dashboard_label')}
                     onAction={() => onNavigate('TransportProviderDashboard')} />
-                  <Row icon="📍" label={t('my_profile.my_routes_label')}
+                  <Row icon="pin" label={t('my_profile.my_routes_label')}
                     onAction={() => onNavigate('TransportProviderDashboard')} />
-                  <Row icon="📦" label={t('my_profile.cargo_orders_label')}
+                  <Row icon="box" label={t('my_profile.cargo_orders_label')}
                     value={fmt(tpData?.completedAssignments||0)}
                     onAction={() => onNavigate('TransportProviderDashboard')} />
-                  <Row icon="🗺️" label={t('my_profile.route_map_label')}
+                  <Row icon="map" label={t('my_profile.route_map_label')}
                     onAction={() => onNavigate('RouteCoverageMap')} />
                 </>
               )}
@@ -899,28 +908,28 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.finance_payments_title')}
               </div>
-              <Row icon="💳" label={t('my_profile.my_payments_label')}
+              <Row icon="card" label={t('my_profile.my_payments_label')}
                 value={t('my_profile.payments_count', { count: payments.length })}
                 onAction={() => onNavigate('SellerPayouts')} />
-              <Row icon="📄" label={t('my_profile.invoices_label')}
+              <Row icon="doc" label={t('my_profile.invoices_label')}
                 value={t('my_profile.invoices_count', { count: invoices.length })}
                 onAction={() => onNavigate('SellerInvoices')} />
               {isBusinessOwner && (<>
-              <Row icon="💸" label={t('my_profile.payout_method_label')}
+              <Row icon="money" label={t('my_profile.payout_method_label')}
                 value={undefined}
                 
                 onAction={() => onNavigate('PayoutSettings')} />
-              <Row icon="🏦" label={t('my_profile.bank_account_label')}
+              <Row icon="bank" label={t('my_profile.bank_account_label')}
                 value={undefined}
                 onAction={() => onNavigate('PayoutSettings')} />
               </>)}
               {roles.includes('agent') && (
-                <Row icon="💰" label={t('my_profile.agent_earnings_label')}
+                <Row icon="money" label={t('my_profile.agent_earnings_label')}
                   value={agentData ? `TZS ${fmt(agentData.totalEarnings)}` : '—'}
                   onAction={() => onNavigate('AgentEarnings')} />
               )}
               {isBusinessOwner && (
-                <Row icon="📊" label={t('my_profile.payout_overview_label')}
+                <Row icon="chart" label={t('my_profile.payout_overview_label')}
                   onAction={() => onNavigate('SellerPayouts')} />
               )}
             </SCard>
@@ -958,7 +967,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             <div style={{ background:`linear-gradient(135deg,${tier.color},${B})`,
               borderRadius:20, padding:24, color:WH, textAlign:'center',
               marginBottom:12 }}>
-              <div style={{ fontSize:48, marginBottom:8 }}>{tier.icon}</div>
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:8 }}><LineIcon name={tier.icon} size={44} color="#fff" /></div>
               <div style={{ fontSize:22, fontWeight:800 }}>{tier.name}</div>
               <div style={{ fontSize:36, fontWeight:800, margin:'8px 0', lineHeight:1 }}>
                 {score}
@@ -982,7 +991,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <div key={tier.name} style={{ display:'flex', alignItems:'center', gap:12,
                   padding:'10px 0', borderBottom:'1px solid #F8FAFC',
                   opacity: score >= tier.min ? 1 : 0.4 }}>
-                  <span style={{ fontSize:22 }}>{tier.icon}</span>
+                  <LineIcon name={tier.icon} size={22} color={tier.color} />
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:13, fontWeight:700, color:tier.color }}>{tier.name}</div>
                     <div style={{ fontSize:10, color:GR }}>{t('my_profile.score_plus_label', { min: tier.min })}</div>
@@ -1052,15 +1061,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.messages_title')}
               </div>
-              <Row icon="📨" label={t('my_profile.inbox_label')} sub={t('my_profile.business_inbox_sub')}
+              <Row icon="mail" label={t('my_profile.inbox_label')} sub={t('my_profile.business_inbox_sub')}
                 onAction={() => onNavigate('SellerInbox')} />
-              <Row icon="🔔" label={t('my_profile.notifications_label')} value={unread > 0 ? t('my_profile.new_count', { count: unread }) : t('my_profile.all_read')}
+              <Row icon="bell" label={t('my_profile.notifications_label')} value={unread > 0 ? t('my_profile.new_count', { count: unread }) : t('my_profile.all_read')}
                 color={unread>0?'#EF4444':GR}
                 onAction={() => onNavigate('Activity')} />
-              <Row icon="📢" label={t('my_profile.business_updates_label')}
+              <Row icon="megaphone" label={t('my_profile.business_updates_label')}
                 sub={t('my_profile.new_products_sub')}
                 onAction={() => onNavigate('Home')} />
-              <Row icon="🎧" label={t('my_profile.support_label')}
+              <Row icon="headset" label={t('my_profile.support_label')}
                 onAction={() => onNavigate('ContactUs')} />
             </SCard>
 
@@ -1073,7 +1082,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   <div key={n.id} style={{ display:'flex', gap:12, padding:'10px 0',
                     borderBottom:'1px solid #F8FAFC',
                     opacity: n.isRead ? 0.6 : 1 }}>
-                    <span style={{ fontSize:20 }}>{n.icon || '🔔'}</span>
+                    <span style={{ fontSize:20 }}><LineIcon name={n.icon && LINE_ICONS[n.icon] ? n.icon : 'bell'} size={20} /></span>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:12, fontWeight: n.isRead ? 600 : 800, color:DK }}>
                         {n.title}
@@ -1104,13 +1113,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.account_title')}
               </div>
-              <Row icon="✏️" label={t('my_profile.edit_profile_label')}
+              <Row icon="pencil" label={t('my_profile.edit_profile_label')}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'name' })} />
               {canInstallKentexa && (
-                <Row icon="📲" label={t('my_profile.install_kentexa_label')}
+                <Row icon="phone" label={t('my_profile.install_kentexa_label')}
                   sub={t('my_profile.install_kentexa_sub')} onAction={onInstallKentexa} />
               )}
-              <Row icon="🔔" label="Phone notifications"
+              <Row icon="bell" label="Phone notifications"
                 sub={pushState === 'enabled' ? 'Alerts are on for this device' :
                   pushState === 'unavailable' ? 'Alerts are not available yet' :
                   pushState === 'denied' ? 'Allow alerts in your device settings' :
@@ -1125,13 +1134,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   } catch { setPushState('unavailable'); }
                 } : undefined} />
               {isBusinessOwner && (
-                <Row icon="🏪" label={t('my_profile.store_settings_label')}
+                <Row icon="store" label={t('my_profile.store_settings_label')}
                   onAction={() => onNavigate('StoreSettings')} />
               )}
               {/* "Verify ID" removed — same dead KYC row already removed from
                   the Identity tab; it linked to CustomerProfile, which has no
                   ID-verification UI, for any role, seller included. */}
-              <Row icon="🌐" label={t('my_profile.language_label')}
+              <Row icon="globe" label={t('my_profile.language_label')}
                 value={(LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0]).label}
                 onAction={() => setShowLanguagePicker(p => !p)} />
               {showLanguagePicker && (
@@ -1149,13 +1158,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                   {t('my_profile.payments_title')}
                 </div>
-                <Row icon="🏦" label={t('my_profile.payout_method_label')}
+                <Row icon="bank" label={t('my_profile.payout_method_label')}
                   value={undefined}
                   onAction={() => onNavigate('PayoutSettings')} />
-                <Row icon="👤" label={t('my_profile.account_name_label')}
+                <Row icon="person" label={t('my_profile.account_name_label')}
                   value={undefined}
                   onAction={() => onNavigate('PayoutSettings')} />
-                <Row icon="🏛️" label={t('my_profile.bank_label')}
+                <Row icon="bank" label={t('my_profile.bank_label')}
                   value={undefined}
                   onAction={() => onNavigate('PayoutSettings')} />
               </SCard>
@@ -1165,14 +1174,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.security_privacy_title')}
               </div>
-              <Row icon="🔑" label={t('my_profile.change_password_label')}
+              <Row icon="key" label={t('my_profile.change_password_label')}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'password' })} />
-              <Row icon="📱" label={t('my_profile.verify_phone_label')}
+              <Row icon="phone" label={t('my_profile.verify_phone_label')}
                 value={profile?.isVerified ? t('my_profile.verified_label') : t('my_profile.not_yet_label')}
                 color={profile?.isVerified ? '#16A34A' : '#DC2626'} />
-              <Row icon="🛡️" label={t('my_profile.privacy_label')}
+              <Row icon="shield" label={t('my_profile.privacy_label')}
                 onAction={() => onNavigate('PrivacyPolicy')} />
-              <Row icon="📋" label={t('my_profile.terms_label')}
+              <Row icon="list" label={t('my_profile.terms_label')}
                 onAction={() => onNavigate('TermsAndConditions')} />
             </SCard>
 
@@ -1180,10 +1189,10 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.about_kentexa_title')}
               </div>
-              <Row icon="🌐" label={t('my_profile.version_label')} value={t('my_profile.version_value')} />
-              <Row icon="📞" label={t('my_profile.contact_us_label')}
+              <Row icon="globe" label={t('my_profile.version_label')} value={t('my_profile.version_value')} />
+              <Row icon="call" label={t('my_profile.contact_us_label')}
                 onAction={() => onNavigate('ContactUs')} />
-              <Row icon="❓" label={t('my_profile.how_it_works_label')}
+              <Row icon="help" label={t('my_profile.how_it_works_label')}
                 onAction={() => onNavigate('HowItWorks')} />
             </SCard>
 

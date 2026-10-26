@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { BUYER_TABS, ORDER_STEPS, PAYMENT_STATUS, STATUS_TONE, statusLabel, stepIndex } from '../utils/orderStatus';
+import { PageLoading, Spinner } from '../components/Loading';
+import { LineIcon } from '../components/LineIcon';
 import { DirectPaymentNotice } from '../components/DirectPayment';
 import LipaPaymentReview from '../components/LipaPaymentReview';
 import { isDirectPaymentOrder, usePaymentMode } from '../../utils/paymentMode';
@@ -138,6 +141,26 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
     setPayMode(null);
   };
 
+  // After the PIN prompt: re-read the orders every 5 seconds for up to 2 minutes and stop as
+  // soon as the order (or classified invoice) shows as paid. Nothing is ever marked paid here.
+  const waitForPayment = (orderId, _requestId, onPaid, invoiceNumber) => {
+    let tries = 0;
+    const tick = async () => {
+      tries += 1;
+      try {
+        const [o, i] = await Promise.all([api.get('/orders/my-orders'), api.get('/classifieds/invoices/my-requests')]);
+        setOrders(o.data); setClassifiedInvoices(i.data);
+        const paid = orderId != null
+          ? (o.data || []).some((x) => x.id === orderId && ['paid', 'released', 'upfront_paid'].includes(x.paymentStatus))
+          : (i.data || []).some((x) => x.invoiceNumber === invoiceNumber && x.status === 'paid');
+        if (paid) { setPaymentPending(false); onPaid(); return; }
+      } catch { /* keep waiting */ }
+      if (tries < 24) setTimeout(tick, 5000);
+      else { setPaymentPending(false); setMessage('Bado hatujapata uthibitisho wa malipo. Ukishaweka PIN, itaonekana hapa punde.'); }
+    };
+    setTimeout(tick, 5000);
+  };
+
   const handlePayOnline = async () => {
     if (!payerPhone.trim()) { setError(t('my_orders.enter_phone_error')); return; }
     try {
@@ -149,18 +172,13 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         phone:         payerPhone.trim(),
         provider:      'selcom',
       });
+      // The buyer confirms with their PIN on the phone; the payment provider tells KenteXa.
+      // Never confirmed from here: wait for the order to show as paid.
       setPaymentPending(true);
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setMessage(t('my_orders.payment_confirmed_msg'));
-          closePayModal();
-          fetchData();
-        } catch {
-          setError(t('my_orders.payment_confirm_failed'));
-          setPaymentPending(false);
-        }
-      }, 4000);
+      waitForPayment(payModalOrder.id, res.data?.providerRequestId, () => {
+        setMessage(t('my_orders.payment_confirmed_msg'));
+        closePayModal();
+      });
     } catch (err) {
       setError(err?.response?.data?.message || t('my_orders.payment_failed'));
     } finally {
@@ -221,16 +239,12 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         phone:         onlinePayPhone.trim(),
         provider:      'selcom',
       });
-      // Mock confirm in dev
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setMessage(t('my_orders.payment_confirmed_classified_msg'));
-          setPayingInvoice(null); setOnlinePayPhone('');
-          fetchData();
-        } catch { setError(t('my_orders.payment_confirm_failed_retry')); }
-      }, 4000);
+      // Confirmed by the payment provider, never from here: wait for the invoice to show as paid.
       setMessage(t('my_orders.check_phone_pin_msg'));
+      waitForPayment(null, res.data?.providerRequestId, () => {
+        setMessage(t('my_orders.payment_confirmed_classified_msg'));
+        setPayingInvoice(null); setOnlinePayPhone('');
+      }, inv.invoiceNumber);
     } catch (err) {
       setError(err?.response?.data?.message || t('my_orders.payment_failed_retry'));
     } finally {
@@ -238,37 +252,10 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
     }
   };
 
-  const statusColor = (status) => {
-    switch (status) {
-      case 'pending':    return { backgroundColor: '#fef9c3', color: '#ca8a04' };
-      case 'confirmed':  return { backgroundColor: '#dbeafe', color: '#2563eb' };
-      case 'processing': return { backgroundColor: '#ede9fe', color: '#7c3aed' };
-      case 'shipped':    return { backgroundColor: '#ffedd5', color: '#ea580c' };
-      case 'delivered':  return { backgroundColor: '#dcfce7', color: '#16a34a' };
-      case 'cancelled':  return { backgroundColor: '#fee2e2', color: '#dc2626' };
-      default:           return { backgroundColor: '#f1f5f9', color: '#64748b' };
-    }
-  };
-
-  const paymentColor = (status) => {
-    switch (status) {
-      case 'paid':   return { backgroundColor: '#dcfce7', color: '#16a34a' };
-      case 'failed': return { backgroundColor: '#fee2e2', color: '#dc2626' };
-      default:       return { backgroundColor: '#fef9c3', color: '#ca8a04' };
-    }
-  };
-
-  const statusIcon = (status) => {
-    switch (status) {
-      case 'pending':    return '⏳';
-      case 'confirmed':  return '✅';
-      case 'processing': return '⚙️';
-      case 'shipped':    return '🚚';
-      case 'delivered':  return '📦';
-      case 'cancelled':  return '❌';
-      default:           return '📋';
-    }
-  };
+  const paymentColor = (status) => (
+    ['paid', 'released'].includes(status) ? { backgroundColor: '#ecfdf3', color: '#166534' }
+      : status === 'failed' ? { backgroundColor: '#fef2f2', color: '#b91c1c' }
+        : { backgroundColor: '#fffbeb', color: '#92400e' });
 
   const invoiceStatusStyle = (status) => {
     switch (status) {
@@ -282,17 +269,16 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
   const invoiceStatusLabel = (status) => {
     switch (status) {
-      case 'pending':   return `⏳ ${t('my_orders.waiting_seller_short')}`;
-      case 'sent':      return `📄 ${t('my_orders.invoice_ready')}`;
-      case 'paid':      return `✅ ${t('my_orders.paid')}`;
-      case 'cancelled': return `❌ ${t('my_orders.filter_cancelled')}`;
+      case 'pending':   return t('my_orders.waiting_seller_short');
+      case 'sent':      return t('my_orders.invoice_ready');
+      case 'paid':      return t('my_orders.paid');
+      case 'cancelled': return t('my_orders.filter_cancelled');
       default:          return status;
     }
   };
 
-  const filteredOrders = filter === 'all'
-    ? orders
-    : orders.filter(o => o.status === filter);
+  const tabStatuses = (BUYER_TABS.find((x) => x.key === filter) || BUYER_TABS[0]).statuses;
+  const filteredOrders = tabStatuses ? orders.filter(o => tabStatuses.includes(o.status)) : orders;
 
   const pendingInvoicesCount = classifiedInvoices.filter(i => i.status === 'sent').length;
 
@@ -306,10 +292,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
             <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>{t('my_orders.title')}</span>
           </button>
         </div>
-        <div style={{ textAlign: 'center', padding: '80px', color: '#64748b' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          {t('my_orders.loading')}
-        </div>
+        <PageLoading label={t('my_orders.loading')} />
       </div>
     );
   }
@@ -321,7 +304,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         <button onClick={() => onNavigate('Home')} style={{ background:'none', border:'none', cursor:'pointer',
           display:'flex', alignItems:'center', gap:10 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" style={{ flexShrink:0 }}><polyline points="15,18 9,12 15,6"/></svg>
-          <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>📦 {t('my_orders.title')}</span>
+          <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>{t('my_orders.title')}</span>
         </button>
       </div>
 
@@ -330,13 +313,13 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         {/* Messages */}
         {message && (
           <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', fontWeight: '600' }}>
-            ✅ {message}
+            {message}
             <button onClick={() => setMessage('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button>
           </div>
         )}
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>
-            ❌ {error}
+            {error}
             <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
@@ -344,17 +327,17 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           {[
-            { label: t('my_orders.total'),     value: orders.length,                                          color: '#6366f1', icon: '🛒' },
-            { label: t('my_orders.pending'),   value: orders.filter(o => o.status === 'pending').length,       color: '#f59e0b', icon: '⏳' },
-            { label: t('my_orders.delivered'), value: orders.filter(o => o.status === 'delivered').length,     color: '#10b981', icon: '📦' },
-            { label: t('my_orders.invoices'),  value: classifiedInvoices.length,                               color: '#7c3aed', icon: '🧾' },
+            { label: t('my_orders.total'),     value: orders.length,                                                          color: '#1d4ed8', icon: 'cart' },
+            { label: 'Za kulipa',              value: orders.filter(o => o.status === 'pending_payment').length,             color: '#92400e', icon: 'clock' },
+            { label: 'Zimefika',               value: orders.filter(o => ['delivered', 'completed'].includes(o.status)).length, color: '#166534', icon: 'box' },
+            { label: t('my_orders.invoices'),  value: classifiedInvoices.length,                                           color: '#536471', icon: 'receipt' },
           ].map(stat => (
             <div key={stat.label} style={{
               backgroundColor: '#fff', borderRadius: '10px', padding: '16px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               borderTop: `3px solid ${stat.color}`, textAlign: 'center',
             }}>
-              <div style={{ fontSize: '20px', marginBottom: '4px' }}>{stat.icon}</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}><LineIcon name={stat.icon} size={20} color={stat.color} /></div>
               <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#0f172a' }}>{stat.value}</div>
               <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase' }}>{stat.label}</div>
             </div>
@@ -364,8 +347,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         {/* Tab Switcher */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
           {[
-            { key: 'orders',   label: `🛒 ${t('my_orders.store_orders')}` },
-            { key: 'invoices', label: `🧾 ${t('my_orders.classified_invoices')}` },
+            { key: 'orders',   label: t('my_orders.store_orders') },
+            { key: 'invoices', label: t('my_orders.classified_invoices') },
           ].map(tab => (
             <button
               key={tab.key}
@@ -399,9 +382,10 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
           <>
             {/* Filter Tabs */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-              {['all', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].map(status => (
+              {BUYER_TABS.map(({ key: status, label }) => (
                 <button
                   key={status}
+                  data-testid={`buyer-tab-${status}`}
                   onClick={() => setFilter(status)}
                   style={{
                     padding: '8px 16px', borderRadius: '20px', border: 'none',
@@ -411,21 +395,21 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                   }}
                 >
-                  {t(`my_orders.filter_${status}`)}
+                  {label}
                 </button>
               ))}
             </div>
 
             {filteredOrders.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: '56px', marginBottom: '16px' }}>🛒</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}><LineIcon name="cart" size={44} color="#94a3b8" /></div>
                 <h3 style={{ color: '#0f172a', marginBottom: '8px' }}>{t('my_orders.no_orders')}</h3>
                 <p style={{ color: '#64748b', marginBottom: '24px' }}>{t('my_orders.no_orders_desc')}</p>
                 <button
                   onClick={() => onNavigate('Store')}
                   style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
                 >
-                  🏪 {t('my_orders.browse_store')}
+                  {t('my_orders.browse_store')}
                 </button>
               </div>
             ) : (
@@ -450,35 +434,34 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       </div>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '13px', fontWeight: '600', padding: '4px 12px', borderRadius: '20px', ...paymentColor(order.paymentStatus) }}>
-                          💳 {order.paymentStatus}
+                          {PAYMENT_STATUS[order.paymentStatus] || order.paymentStatus}
                         </span>
-                        <span style={{ fontSize: '13px', fontWeight: '600', padding: '4px 12px', borderRadius: '20px', ...statusColor(order.status) }}>
-                          {statusIcon(order.status)} {order.status}
+                        <span data-testid="buyer-status" style={{ fontSize: '13px', fontWeight: '700', padding: '4px 12px', borderRadius: '20px', backgroundColor: STATUS_TONE(order.status).bg, color: STATUS_TONE(order.status).fg }}>
+                          {statusLabel(order.status)}
                         </span>
                       </div>
                     </div>
 
                     {/* Order Progress */}
-                    {order.status !== 'cancelled' && (
+                    {!['cancelled', 'disputed'].includes(order.status) && (
                       <div style={{ marginBottom: '16px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          {['pending', 'confirmed', 'processing', 'shipped', 'delivered'].map((step, index) => {
-                            const steps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
-                            const currentIndex = steps.indexOf(order.status);
+                          {ORDER_STEPS.map((step, index) => {
+                            const currentIndex = stepIndex(order.status);
                             const isCompleted = index <= currentIndex;
                             return (
                               <div key={step} style={{ textAlign: 'center', flex: 1 }}>
                                 <div style={{
                                   width: '28px', height: '28px', borderRadius: '50%',
-                                  backgroundColor: isCompleted ? '#6366f1' : '#e2e8f0',
+                                  backgroundColor: isCompleted ? '#1d4ed8' : '#e2e8f0',
                                   color: isCompleted ? '#fff' : '#94a3b8',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                                   margin: '0 auto 4px', fontSize: '12px', fontWeight: 'bold',
                                 }}>
-                                  {isCompleted ? '✓' : index + 1}
+                                  {isCompleted ? <LineIcon name="check" size={14} color="#fff" strokeWidth={3} /> : index + 1}
                                 </div>
-                                <div style={{ fontSize: '10px', color: isCompleted ? '#6366f1' : '#94a3b8', fontWeight: isCompleted ? '600' : '400' }}>
-                                  {t(`my_orders.filter_${step}`)}
+                                <div style={{ fontSize: '11px', color: isCompleted ? '#1d4ed8' : '#94a3b8', fontWeight: isCompleted ? '700' : '400' }}>
+                                  {step}
                                 </div>
                               </div>
                             );
@@ -493,7 +476,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         {order.product?.images?.[0] ? (
                           <img src={order.product.images[0]} alt={order.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
                         ) : (
-                          <span style={{ fontSize: '28px' }}>📦</span>
+                          <LineIcon name="box" size={28} color="#1d4ed8" />
                         )}
                       </div>
                       <div style={{ flex: 1 }}>
@@ -512,12 +495,12 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         </p>
                         {order.product?.productType !== 'digital' && (
                           <div style={{ fontSize: '13px', color: '#64748b' }}>
-                            📍 {order.deliveryAddress || '—'}
+                            {order.deliveryAddress || '—'}
                           </div>
                         )}
                         {order.seller && (
                           <div style={{ fontSize: '12px', color: '#7c3aed', marginTop: '4px' }}>
-                            🏪 {t('my_orders.seller_label', { name: order.seller?.storeName || order.seller?.businessName || order.seller?.name || '—' })}
+                            {t('my_orders.seller_label', { name: order.seller?.storeName || order.seller?.businessName || order.seller?.name || '—' })}
                           </div>
                         )}
                       </div>
@@ -568,7 +551,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         if (order.paymentStatus === 'paid') return null;
                         return (
                           <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>🚚 {t('my_orders.cod_label')}</div>
+                            <div style={{ fontSize: '12px', fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>{t('my_orders.cod_label')}</div>
                             <div style={{ fontSize: 12, color: '#1e293b' }}>
                               {order.paymentStatus === 'upfront_paid'
                                 ? t('my_orders.cod_upfront_already_paid_notice', { remaining: (codRemaining || Number(order.totalAmount)).toLocaleString() })
@@ -612,15 +595,16 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           disabled={downloadingOrderId === order.id}
                           style={{ backgroundColor: '#fff', color: '#7c3aed', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: downloadingOrderId === order.id ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '800', whiteSpace: 'nowrap' }}
                         >
-                          {downloadingOrderId === order.id ? t('my_orders.downloading') : `📥 ${t('my_orders.download_file')}`}
+                          {downloadingOrderId === order.id ? t('my_orders.downloading') : t('my_orders.download_file')}
                         </button>
                       </div>
                     )}
 
                     {/* Actions */}
                     <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                      {order.status === 'pending' && (
+                      {order.status === 'pending_payment' && (
                         <button
+                          data-testid={`cancel-${order.id}`}
                           onClick={() => handleCancel(order.id)}
                           disabled={cancellingId === order.id}
                           style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: cancellingId === order.id ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600' }}
@@ -658,7 +642,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       )}
                       {order.status === 'completed' && order.buyerRating && (
                         <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 700, padding: '6px 0' }}>
-                          {'⭐'.repeat(order.buyerRating)}
+                          {`Umempa nyota ${order.buyerRating} kati ya 5`}
                         </span>
                       )}
                       {/* Warranty registration — only offered on branded
@@ -676,7 +660,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
                             fontSize: 12, fontWeight: 800 }}
                         >
-                          {registeringWarrantyId === order.id ? t('my_orders.please_wait') : `🛡️ ${t('my_orders.register_warranty_button')}`}
+                          {registeringWarrantyId === order.id ? t('my_orders.please_wait') : t('my_orders.register_warranty_button')}
                         </button>
                       )}
                       {order.status === 'completed' && order.brandId && registeredWarrantyOrderIds.includes(order.id) && (
@@ -686,14 +670,14 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
                             fontSize: 12, fontWeight: 800 }}
                         >
-                          🛡️ {t('my_orders.view_warranty_button')}
+                          {t('my_orders.view_warranty_button')}
                         </button>
                       )}
                       <button
                         onClick={() => onNavigate('Store')}
                         style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                       >
-                        🏪 {t('my_orders.shop_more')}
+                        {t('my_orders.shop_more')}
                       </button>
                     </div>
                   </div>
@@ -709,7 +693,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
           <div>
             {classifiedInvoices.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🧾</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="receipt" size={40} color="#1d4ed8" /></div>
                 <h3 style={{ color: '#0f172a', marginBottom: '8px' }}>{t('my_orders.no_invoices')}</h3>
                 <p style={{ color: '#64748b', marginBottom: '24px' }}>
                   {t('my_orders.no_invoices_desc')}
@@ -718,7 +702,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                   onClick={() => onNavigate('ClassifiedsPublic')}
                   style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
                 >
-                  📋 {t('my_orders.browse_classifieds')}
+                  {t('my_orders.browse_classifieds')}
                 </button>
               </div>
             ) : (
@@ -762,7 +746,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                     {/* Waiting state */}
                     {inv.status === 'pending' && (
                       <div style={{ backgroundColor: '#fef9c3', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', color: '#92400e', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '20px' }}>⏳</span>
+                        <LineIcon name="clock" size={20} color="#1d4ed8" />
                         <div>
                           <strong>{t('my_orders.waiting_seller')}</strong>
                           <div style={{ marginTop: '2px' }}>{t('my_orders.waiting_seller_desc')}</div>
@@ -820,7 +804,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
                             {invIsCod && (
                               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 12, marginBottom: 10 }}>
-                                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>🚚 {t('my_orders.cod_label')}</div>
+                                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>{t('my_orders.cod_label')}</div>
                                 <div style={{ fontSize: 12, color: '#1e293b' }}>
                                   {codUpfront > 0
                                     ? t('my_orders.cod_upfront_notice', { upfront: codUpfront.toLocaleString(), remaining: codRemaining.toLocaleString() })
@@ -837,7 +821,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                               {/* Pay via Agent */}
                               <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, border: '1.5px solid #bfdbfe' }}>
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                                  <span style={{ fontSize: 22, flexShrink: 0 }}>🤝</span>
+                                  <LineIcon name="handshake" size={22} color="#1d4ed8" />
                                   <div>
                                     <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 3 }}>{t('my_orders.pay_via_agent_title')}</div>
                                     <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
@@ -854,7 +838,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                               {/* Pay Online */}
                               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, border: '1.5px solid #86efac' }}>
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                                  <span style={{ fontSize: 22, flexShrink: 0 }}>💳</span>
+                                  <LineIcon name="card" size={22} color="#1d4ed8" />
                                   <div style={{ flex: 1 }}>
                                     <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a', marginBottom: 3 }}>{invIsCod ? t('my_orders.pay_deposit_title') : t('my_orders.pay_online_title')}</div>
                                     <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6, marginBottom: 8 }}>
@@ -876,7 +860,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                                           <button onClick={() => handlePayClassifiedOnline(inv)}
                                             disabled={!onlinePayPhone.trim() || payingOnline}
                                             style={{ flex: 2, backgroundColor: !onlinePayPhone.trim() || payingOnline ? '#e2e8f0' : '#16a34a', color: !onlinePayPhone.trim() || payingOnline ? '#94a3b8' : '#fff', border: 'none', padding: 8, borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                            {payingOnline ? '⏳' : t('my_orders.pay_amount_button', { amount: dueNow.toLocaleString() })}
+                                            {payingOnline ? <Spinner size={16} color="currentColor" /> : t('my_orders.pay_amount_button', { amount: dueNow.toLocaleString() })}
                                           </button>
                                         </div>
                                       </div>
@@ -896,7 +880,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                     {inv.status === 'paid' && (
                       <div>
                         <div style={{ backgroundColor: '#dcfce7', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', color: '#16a34a', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 10 }}>
-                          <span style={{ fontSize: '24px' }}>✅</span>
+                          <LineIcon name="check" size={24} color="#1d4ed8" />
                           <div>
                             <div>{t('my_orders.via')} {inv.paymentMethod || '—'}</div>
                             {inv.paidAt && <div style={{ fontWeight: '400', marginTop: '2px' }}>{t('my_orders.paid_on_label', { date: new Date(inv.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) })}</div>}
@@ -909,18 +893,18 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             separately. */}
                         {inv.shipment && !inv.shipment.requiresShipment && (
                           <div style={{ backgroundColor: '#ecfeff', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#0e7490' }}>
-                            🏠 {t('my_orders.buyer_pickup_notice')}
+                            {t('my_orders.buyer_pickup_notice')}
                           </div>
                         )}
                         {inv.shipment?.requiresShipment && !inv.shipment.trackingNumber && (
                           <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#9a3412' }}>
-                            ⏳ {t('my_orders.shipment_pending_notice')}
+                            {t('my_orders.shipment_pending_notice')}
                           </div>
                         )}
                         {inv.shipment?.trackingNumber && (
                           <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '14px 16px', marginBottom: 10, border: '1px solid #bfdbfe' }}>
                             <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>
-                              🚚 {t('my_orders.shipment_created_label')}
+                              {t('my_orders.shipment_created_label')}
                             </div>
                             <div style={{ fontSize: 16, fontWeight:800, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 4 }}>
                               {inv.shipment.trackingNumber}
@@ -963,27 +947,27 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
             {payMode !== 'agent' ? (
               <>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>💳</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="card" size={40} color="#1d4ed8" /></div>
                 <h2 style={{ fontSize: 19, fontWeight:800, color: '#1e293b', marginBottom: 4, fontFamily:'inherit' }}>{t('my_orders.complete_payment_title')}</h2>
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginBottom: modalIsCod ? 8 : 16, fontSize: 13, color: '#64748b' }}>
                   {t('my_orders.order_number', { id: payModalOrder.id })} · <strong style={{ color: '#2563eb', fontSize: 15 }}>TZS {modalDueNow.toLocaleString()}</strong>
                 </div>
                 {modalIsCod && (
                   <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 10, marginBottom: 16, fontSize: 12, color: '#1d4ed8', textAlign: 'left' }}>
-                    🚚 {t('my_orders.cod_upfront_notice', { upfront: modalDueNow.toLocaleString(), remaining: modalRemaining.toLocaleString() })}
+                    {t('my_orders.cod_upfront_notice', { upfront: modalDueNow.toLocaleString(), remaining: modalRemaining.toLocaleString() })}
                   </div>
                 )}
 
                 {error && (
                   <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 12px', borderRadius: 10, marginBottom: 14, fontSize: 12, textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>❌ {error}</span>
+                    <span>{error}</span>
                     <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
                   </div>
                 )}
 
                 {payMode !== 'online' ? (
                   <button onClick={() => setPayMode('online')} style={{ width: '100%', border: '2px solid #16a34a', borderRadius: 14, padding: '18px 16px', backgroundColor: '#f0fdf4', cursor: 'pointer', marginBottom: 12, textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, marginBottom: 6 }}>💳</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="card" size={28} color="#1d4ed8" /></div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: '#065f46', marginBottom: 4 }}>{t('my_orders.pay_online_modal_title')}</div>
                     <div style={{ fontSize: 12, color: '#047857', marginBottom: 6 }}>{t('my_orders.pay_online_modal_sub')}</div>
                     <div style={{ display: 'inline-block', backgroundColor: '#16a34a', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20 }}>{t('my_orders.instant_confirm_badge')}</div>
@@ -999,13 +983,13 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           <button onClick={() => setPayMode(null)} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('my_orders.cancel')}</button>
                           <button onClick={handlePayOnline} disabled={paying || !payerPhone.trim()}
                             style={{ flex: 2, background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
-                            {paying ? '⏳' : t('my_orders.pay_amount_button', { amount: modalDueNow.toLocaleString() })}
+                            {paying ? <Spinner size={16} color="currentColor" /> : t('my_orders.pay_amount_button', { amount: modalDueNow.toLocaleString() })}
                           </button>
                         </div>
                       </>
                     ) : (
                       <div style={{ textAlign: 'center', padding: 12 }}>
-                        <div style={{ fontSize: 36, marginBottom: 8 }}>📱</div>
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="phone" size={36} color="#1d4ed8" /></div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('my_orders.check_phone_title')}</div>
                         <div style={{ fontSize: 12, color: '#64748b' }}>{t('my_orders.enter_pin_desc')}</div>
                       </div>
@@ -1014,7 +998,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                 )}
 
                 <button onClick={handlePayViaAgent} style={{ width: '100%', border: '2px solid #2563eb', borderRadius: 14, padding: '18px 16px', backgroundColor: '#eff6ff', cursor: 'pointer', marginBottom: 12, textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>🤝</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="handshake" size={28} color="#1d4ed8" /></div>
                   <div style={{ fontSize: 15, fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>{t('my_orders.pay_via_agent_modal_title')}</div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>{t('my_orders.pay_via_agent_modal_desc')}</div>
                 </button>
@@ -1025,7 +1009,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
               </>
             ) : (
               <>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>🤝</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="handshake" size={36} color="#1d4ed8" /></div>
                 <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', marginBottom: 4, fontFamily:'inherit' }}>{t('my_orders.pay_via_agent_modal_title')}</h2>
                 <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>{t('my_orders.visit_agent_notice')}</p>
 
@@ -1037,7 +1021,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                   </div>
                   <button onClick={() => handleCopyInvoice(payModalOrder.invoiceNumber || String(payModalOrder.id))}
                     style={{ backgroundColor: copied ? '#dcfce7' : '#2563eb', color: copied ? '#16a34a' : '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                    {copied ? '✅' : t('my_orders.copy_button')}
+                    {copied ? 'Imenakiliwa' : t('my_orders.copy_button')}
                   </button>
                 </div>
 
@@ -1051,8 +1035,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                 ) : nearbyAgents.map(agent => (
                   <div key={agent.id} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid #e2e8f0', textAlign: 'left' }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 2 }}>{agent.fullName}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>📍 {[agent.district, agent.region].filter(Boolean).join(', ') || '—'}</div>
-                    <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>📞 {agent.phone}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{[agent.district, agent.region].filter(Boolean).join(', ') || '—'}</div>
+                    <div style={{ fontSize: 12, color: '#2563eb', fontWeight: 600 }}>{agent.phone}</div>
                   </div>
                 ))}
 
