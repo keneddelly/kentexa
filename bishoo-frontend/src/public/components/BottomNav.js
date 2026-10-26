@@ -16,6 +16,13 @@ import { useTranslation } from 'react-i18next';
 import { itemsForRole } from '../../navigation/navigationRegistry';
 import { isAppleMobile } from '../utils/isAppleMobile';
 
+/**
+ * Space a page must leave at its bottom so nothing sits under the bottom menu: the
+ * 60px bar, the profile pill above it (bottom 66px, ~34px tall) and the phone's own
+ * bottom area (safe-area inset). A long form's last button stays reachable on every phone.
+ */
+export const BOTTOM_NAV_CLEARANCE = 'calc(124px + env(safe-area-inset-bottom, 0px))';
+
 const B = '#2563EB';
 
 const HomeIcon = (active) => (

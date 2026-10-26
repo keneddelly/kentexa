@@ -2,6 +2,7 @@
  * SuperAgentSettings.js — Hub profile and settings for Super Agent
  * Accessed via ⚙️ gear icon on SuperAgentDashboard
  */
+import { BOTTOM_NAV_CLEARANCE } from '../components/BottomNav';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
@@ -173,7 +174,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_settings.page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto',
-        width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
+        width: '100%', boxSizing: 'border-box', paddingBottom: BOTTOM_NAV_CLEARANCE }}>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳</div>
