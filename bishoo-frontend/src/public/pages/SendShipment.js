@@ -20,8 +20,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api/api';
 import {
-  quoteBody, shipmentBody, isTransportService, canDeliverDirect, isDirectDelivery,
-  confirmBody, searchOutcome, serviceOfferCommitBody,
+  shipmentBody, canDeliverDirect, isDirectDelivery, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
 import { formatWaybill } from '../../utils/waybill';
 import PickupPinFields from '../components/PickupPinFields';
@@ -119,32 +118,6 @@ const PlaceInput = ({ id, labelText, value, onChange, onResolved, resolved, plac
   );
 };
 
-/** Intercity offers the sender can actually book for everything chosen in step 3. */
-export function completeOffers(offers, { pickupOption, deliveryOption }) {
-  const list = (Array.isArray(offers) ? offers : [])
-    .filter((o) => o?.serviceType === 'composed_intercity' && o.fulfillment?.transportOption)
-    .filter((o) => !(pickupOption === 'door' && o.fulfillmentStatus?.pickup === 'pending'))
-    .filter((o) => !(deliveryOption === 'door' && o.fulfillmentStatus?.delivery === 'pending'))
-    // Only a dated trip can be booked; a route with no trip yet cannot.
-    .filter((o) => Number(o.fulfillment.transportOption.runId) > 0)
-    .map((o) => ({
-      ...o.fulfillment.transportOption,
-      servicePrice: o.price,
-      etaLabel: o.etaLabel,
-      fulfillmentStatus: o.fulfillmentStatus,
-    }));
-  // Each provider once: its cheapest priced offer.
-  const byProvider = new Map();
-  for (const o of list) {
-    const prev = byProvider.get(o.providerId);
-    const price = o.servicePrice == null ? Infinity : Number(o.servicePrice);
-    const prevPrice = prev ? (prev.servicePrice == null ? Infinity : Number(prev.servicePrice)) : Infinity;
-    if (!prev || price < prevPrice) byProvider.set(o.providerId, o);
-  }
-  return [...byProvider.values()].sort((a, b) =>
-    (a.servicePrice == null ? Infinity : a.servicePrice) - (b.servicePrice == null ? Infinity : b.servicePrice));
-}
-
 /** Office offers (Super Agents) from the same discovery answer: each office once, with its own price. */
 export function officeOffers(offers) {
   return (Array.isArray(offers) ? offers : [])
@@ -165,12 +138,6 @@ export function officeOffers(offers) {
       fulfillmentStatus: o.fulfillmentStatus,
     }))
     // Cheapest first; an office with no price yet last.
-    .sort((a, b) => (a.servicePrice == null ? Infinity : a.servicePrice) - (b.servicePrice == null ? Infinity : b.servicePrice));
-}
-
-/** Offices and transporters together, cheapest first; an offer with no price last. */
-export function allOffers(offers, choices) {
-  return [...officeOffers(offers), ...completeOffers(offers, choices)]
     .sort((a, b) => (a.servicePrice == null ? Infinity : a.servicePrice) - (b.servicePrice == null ? Infinity : b.servicePrice));
 }
 
@@ -248,8 +215,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [directOffer, setDirectOffer] = useState(null);
   const [doorCheck, setDoorCheck] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [originHubId, setOriginHubId] = useState('');
-  const [destinationHubId, setDestinationHubId] = useState('');
 
   // 5-6
   const [submitting, setSubmitting] = useState(false);
@@ -275,12 +240,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     senderName: forSomeoneElse ? senderName : (currentUser?.name || senderName),
     senderPhone: forSomeoneElse ? senderPhone : (currentUser?.phone || senderPhone),
     pickupOption, deliveryOption, pickupPin, pickupLandmark,
-    transportProviderId: navParams?.transportProviderId, originHubId, destinationHubId,
+    transportProviderId: navParams?.transportProviderId,
   };
 
   const findOffers = useCallback(async () => {
     setSearching(true); setSearchReason(null); setOffers([]); setDirectOffer(null); setDoorCheck(null);
-    setSelected(null); setOriginHubId(''); setDestinationHubId('');
+    setSelected(null);
     try {
       const side = (resolved, text) => (resolved?.placeRef
         ? { place: { providerKey: resolved.placeRef.providerKey, providerPlaceId: resolved.placeRef.providerPlaceId } }
@@ -318,11 +283,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         const complete = officeOffers(list);
         setOffers(complete);
         const first = complete[0] || null;
-        if (first) {
-          setSelected(first);
-          setOriginHubId(pickupOption === 'station' && first.originPoints?.length === 1 ? String(first.originPoints[0].hubId) : '');
-          setDestinationHubId(deliveryOption === 'station' && first.destinationPoints?.length === 1 ? String(first.destinationPoints[0].hubId) : '');
-        }
+        if (first) setSelected(first);
         setSearchReason(complete.length ? 'available' : 'no_route');
       }
     } catch (err) {
@@ -332,11 +293,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     }
   }, [fromCity, toCity, weightKg, declaredValue, pickupPin, pickupOption, deliveryOption, originResolved, destinationResolved, origin, destination, sameCity, navParams?.transportProviderId]);
 
-  const choose = (offer) => {
-    setSelected(offer);
-    setOriginHubId(pickupOption === 'station' && offer.originPoints?.length === 1 ? String(offer.originPoints[0].hubId) : '');
-    setDestinationHubId(deliveryOption === 'station' && offer.destinationPoints?.length === 1 ? String(offer.destinationPoints[0].hubId) : '');
-  };
+  const choose = (offer) => setSelected(offer);
 
   const valueOk = Number(digits(declaredValue)) > 0;
   const step1Ok = itemDescription.trim() && Number(weightKg) > 0 && Number(pieces) >= 1 && valueOk;
@@ -344,9 +301,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     && receiverName.trim() && digits(receiverPhone).length >= 9
     && (!forSomeoneElse || (senderName.trim() && digits(senderPhone).length >= 9));
   const step3Ok = pickupOption !== 'door' || landmarkOk(pickupLandmark);
-  const pointsOk = isDirectDelivery(selected) || !selected || selected.office
-    || ((pickupOption !== 'station' || Boolean(originHubId)) && (deliveryOption !== 'station' || Boolean(destinationHubId)));
-  const step4Ok = Boolean(selected) && pointsOk;
+  const step4Ok = Boolean(selected);
 
   // Known prices only: the fare (or the agent's fee for same city). An agent's fee for
   // a door leg of an intercity trip is paid to the agent and shown as such, never guessed.
@@ -370,20 +325,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       else lines.push([`Kuchukua ofisini ${toShort || ''}`.trim(), 'Bure']);
       return { lines, total: selected.servicePrice != null ? Number(selected.servicePrice) : null };
     }
-    const fare = selected.servicePrice != null ? Number(selected.servicePrice) : null;
-    const lines = [];
-    if (pickupOption === 'door') lines.push(['Kuchukua kwako', 'Ada ya wakala (unamlipa wakala)']);
-    else lines.push(['Kupeleka ofisini', 'Bure']);
-    lines.push(['Usafiri', fare != null ? tzs(fare) : 'Inathibitishwa na ofisi']);
-    if (deliveryOption === 'door') lines.push([`Kufikishwa mlangoni ${toShort || ''}`.trim(), 'Ada ya wakala (inalipwa kwa wakala)']);
-    else lines.push([`Kuchukua ofisini ${toShort || ''}`.trim(), 'Bure']);
-    return { lines, total: fare };
+    return { lines: [], total: null };
   }, [selected, directOffer, pickupOption, deliveryOption, toShort]);
 
   const handleConfirm = async () => {
     setSubmitting(true); setError(''); setNoAgentAtConfirm(null);
     try {
-      let acceptedQuote = null;
       let journeySelection = null;
       const direct = isDirectDelivery(selected);
       const office = Boolean(selected?.office);
@@ -397,25 +344,19 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         });
         journeySelection = journey.data;
       }
-      if (!direct && !office && isTransportService(selected)) {
-        const journey = await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, selected, false));
-        journeySelection = journey.data;
-        const offered = await api.post('/transport/quotes', quoteBody(journeySelection, selected, requestState));
-        const accepted = await api.post(`/transport/quotes/${offered.data.id}/accept`);
-        acceptedQuote = accepted.data;
-      }
       if (direct) {
         const journey = await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, selected, true));
         journeySelection = journey.data;
       }
-      const res = await api.post('/shipments', shipmentBody(requestState, selected, acceptedQuote, direct || office ? journeySelection : null));
-      // An office journey decides its own origin office on the server; no hub is sent.
-      const final = await api.patch(`/shipments/${res.data.id}/confirm-and-activate`, confirmBody(direct || office ? {} : requestState));
+      // The customer books an agent or an office only (owner 2026-10-26); the office
+      // books the transport itself. An office journey decides its own origin office.
+      const res = await api.post('/shipments', shipmentBody(requestState, selected, null, journeySelection));
+      const final = await api.patch(`/shipments/${res.data.id}/confirm-and-activate`, {});
       setConfirmed({
         trackingNumber: final.data.shipment?.trackingNumber,
         waybillNumber: final.data.parcel?.waybillNumber || null,
         nextAction: final.data.nextAction || null,
-        total: acceptedQuote?.totalAmount ?? bill.total,
+        total: bill.total,
         direct,
         office: office ? { name: selected.providerName, address: selected.officeAddress || selected.officeCity || null } : null,
       });
@@ -758,28 +699,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                     );
                   })}
                 </div>
-                {selected && !isDirectDelivery(selected) && !selected.office && pickupOption === 'station' && (
-                  <div style={{ ...field, marginTop: 16 }}>
-                    <label htmlFor="ofisi-kuanzia" style={label}>Ofisi utakayopeleka mzigo</label>
-                    {selected.originPoints?.length ? (
-                      <select id="ofisi-kuanzia" value={originHubId} onChange={(e) => setOriginHubId(e.target.value)} style={input}>
-                        <option value="">Chagua ofisi</option>
-                        {selected.originPoints.map((h) => <option key={h.hubId} value={h.hubId}>{h.name || 'Ofisi'}{h.address ? ` · ${h.address}` : ''}</option>)}
-                      </select>
-                    ) : <div role="alert" style={{ fontSize: 14, color: '#92400e' }}>Msafirishaji huyu hana ofisi ya kupokea mzigo hapa bado. Rudi uchague "Njoo uchukue kwangu" au ofa nyingine.</div>}
-                  </div>
-                )}
-                {selected && !isDirectDelivery(selected) && !selected.office && deliveryOption === 'station' && (
-                  <div style={{ ...field, marginTop: pickupOption === 'station' ? 0 : 16 }}>
-                    <label htmlFor="ofisi-kufika" style={label}>Ofisi ya kuchukulia {toShort || ''}</label>
-                    {selected.destinationPoints?.length ? (
-                      <select id="ofisi-kufika" value={destinationHubId} onChange={(e) => setDestinationHubId(e.target.value)} style={input}>
-                        <option value="">Chagua ofisi</option>
-                        {selected.destinationPoints.map((h) => <option key={h.hubId} value={h.hubId}>{h.name || 'Ofisi'}{h.address ? ` · ${h.address}` : ''}</option>)}
-                      </select>
-                    ) : <div role="alert" style={{ fontSize: 14, color: '#92400e' }}>Msafirishaji huyu hana ofisi ya kuchukulia huko bado. Rudi uchague "Uletwe mlangoni" au ofa nyingine.</div>}
-                  </div>
-                )}
                 {selected?.office && pickupOption === 'station' && (
                   <div style={{ ...card, marginTop: 16, fontSize: 14, lineHeight: 1.5 }}>
                     Utapeleka mzigo: <strong>{selected.providerName}</strong>{selected.officeAddress ? `, ${selected.officeAddress}` : ''}

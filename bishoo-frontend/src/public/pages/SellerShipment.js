@@ -26,7 +26,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
 import PlaceSearchField, { placeLabel, fromCandidate } from '../components/PlaceSearchField';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
-import { serviceOfferCommitBody, shipmentBody, quoteBody, confirmBody } from '../../api/shipmentRequests';
+import { serviceOfferCommitBody, shipmentBody } from '../../api/shipmentRequests';
 import { officeOffers } from './SendShipment';
 import InviteCarrier from '../components/InviteCarrier';
 
@@ -88,7 +88,7 @@ export function sellerOffers(list, { inCity, cod }) {
   // A seller is a customer too: offices and agents only, never a transporter directly
   // (owner 2026-10-26); the office books the transport and keeps its fare.
   const others = officeOffers(all);
-  return [...agent, ...others.map((o) => ({ ...o, key: o.office ? `office-${o.officeId}` : `t-${o.providerId}-${o.routeId}` }))];
+  return [...agent, ...others.map((o) => ({ ...o, key: `office-${o.officeId}` }))];
 }
 
 const Choice = ({ selected, title, hint, onClick, testId }) => (
@@ -299,29 +299,20 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
         return;
       }
       // 1 Book the chosen offer with the shipment engine, exactly as the customer form does.
-      let journey = null;
-      let acceptedQuote = null;
-      if (chosen.direct) {
-        journey = (await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, chosen, true))).data;
-      } else if (chosen.office) {
-        journey = (await api.post('/transport/service-offers/commit', {
+      // The seller books an agent or an office only (owner 2026-10-26); the office books the transport.
+      const journey = chosen.direct
+        ? (await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, chosen, true))).data
+        : (await api.post('/transport/service-offers/commit', {
           ...serviceOfferCommitBody(requestState, chosen, false),
           serviceType: 'office', officeId: Number(chosen.officeId), providerId: undefined, routeId: undefined, runId: undefined,
           declaredValue: goods || undefined,
         })).data;
-      } else {
-        const j = (await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, chosen, false))).data;
-        const offered = await api.post('/transport/quotes', quoteBody(j, chosen, requestState));
-        acceptedQuote = (await api.post(`/transport/quotes/${offered.data.id}/accept`)).data;
-      }
       // 2 The Shipment, as the seller's.
       const shipment = (await api.post('/shipments', {
-        ...shipmentBody(requestState, chosen, acceptedQuote, chosen.direct || chosen.office ? journey : null),
+        ...shipmentBody(requestState, chosen, null, journey),
         senderPhone: undefined, senderName: undefined,
       })).data;
-      const points = chosen.direct || chosen.office ? {} : confirmBody({
-        originHubId: chosen.originPoints?.[0]?.hubId, destinationHubId: chosen.destinationPoints?.[0]?.hubId,
-      });
+      const points = {};
       // 3 A marketplace order: the order goes on the Shipment and it starts (its waybill stays).
       if (fromOrder) {
         const res = await api.post(`/orders/${prefill.orderId}/ship-engine`, { shipmentId: shipment.id, confirm: points });
@@ -384,8 +375,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
               : `${name || 'Mteja'} amepata SMS yenye ${cod ? 'bei na ' : ''}namba ya kufuatilia.`}</div>
             <div>{chosen?.own ? 'Tuma mzigo kwa njia yako na umpe mteja namba hii ya kufuatilia.'
               : chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
-              : chosen?.office ? `Peleka mzigo ${chosen.officeAddress || chosen.officeCity || 'ofisini'} (${chosen.providerName}).`
-                : `Peleka mzigo ${chosen?.originPoints?.[0]?.name || 'kituoni'} (${chosen?.providerName || 'msafirishaji'}).`}</div>
+              : `Peleka mzigo ${chosen?.officeAddress || chosen?.officeCity || 'ofisini'} (${chosen?.providerName || 'ofisi'}).`}</div>
             {result.billing && !result.billing.isFreeOrder && (
               <div style={{ color: GREY }}>Ada ya KenteXa {tzs(result.billing.platformFeeCharged)} imeongezwa kwenye deni lako.</div>
             )}
@@ -595,8 +585,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                   <Choice key={o.key} testId={`offer-${o.key}`} selected={chosen?.key === o.key} onClick={() => setChosen(o)}
                     title={`${o.providerName}${cod && o.direct && fee != null ? ` · ${tzs(fee)}` : o.servicePrice != null ? ` · ${tzs(o.servicePrice)}` : ''}`}
                     hint={o.direct ? `Anachukua dukani kwako na kumfikishia ${name || 'mteja'} mlangoni`
-                      : o.office ? `Peleka mzigo ${o.officeAddress || o.officeCity || 'ofisini'}; ofisi inaupeleka ${destCity}`
-                        : `Peleka mzigo ${o.originPoints?.[0]?.name || 'kituoni'}; ${name || 'mteja'} anachukua ${o.destinationPoints?.[0]?.name || destCity}`} />
+                      : `Peleka mzigo ${o.officeAddress || o.officeCity || 'ofisini'}; ofisi inaupeleka ${destCity}`} />
                 ))}
                 <InviteCarrier shopName={null} destCity={destCity} />
               </div>

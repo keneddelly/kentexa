@@ -102,11 +102,13 @@ export function OfficeScreenHeader({ title, count, kind, onBack, backLabel = 'Mw
 
 /** A row that opens one kind of work, with how many are waiting. */
 export function OfficeRow({ title, hint, count, onClick, testId, tour, alert }) {
+  // A row with nothing to open is plain text, not a button.
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <button type="button" data-testid={testId} data-tour={tour} onClick={onClick}
+    <Tag type={onClick ? 'button' : undefined} data-testid={testId} data-tour={tour} onClick={onClick}
       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%', minHeight: 72, boxSizing: 'border-box',
         padding: '12px 16px', marginBottom: 10, borderRadius: 16, background: '#ffffff', border: alert ? '2px solid #b91c1c' : `1px solid ${OFFICE_COLORS.line}`,
-        color: OFFICE_COLORS.ink, cursor: 'pointer', textAlign: 'left', fontFamily: FONT }}>
+        color: OFFICE_COLORS.ink, cursor: onClick ? 'pointer' : 'default', textAlign: 'left', fontFamily: FONT }}>
       <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{ fontSize: 18, fontWeight: 800 }}>{title}</span>
         {hint && <span style={{ fontSize: 13, color: OFFICE_COLORS.grey }}>{hint}</span>}
@@ -114,7 +116,7 @@ export function OfficeRow({ title, hint, count, onClick, testId, tour, alert }) 
       {count != null && (
         <span style={{ minWidth: 34, height: 34, boxSizing: 'border-box', padding: '0 10px', borderRadius: 999, background: alert ? '#b91c1c' : OFFICE_COLORS.ink, color: '#ffffff', fontSize: 16, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{count}</span>
       )}
-    </button>
+    </Tag>
   );
 }
 
