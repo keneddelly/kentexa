@@ -64,7 +64,7 @@ const SellerPartnerAgentsCard = () => {
     <div data-testid="seller-partner-agents" style={{ backgroundColor: '#fff', borderRadius: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', padding: 16, marginBottom: 16 }}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontSize: 20 }}>🛵</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f1419" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 18a3 3 0 100-6 3 3 0 000 6zM19 18a3 3 0 100-6 3 3 0 000 6zM8 15h6l3-6h-4M14 9l-2-4H9" /></svg>
         <span style={{ flex: 1 }}>
           <span style={{ display: 'block', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Wakala washirika</span>
           <span style={{ display: 'block', fontSize: 12, color: '#64748b' }}>Mwalike anayekusafirishia mizigo afanye kazi nawe KenteXa</span>

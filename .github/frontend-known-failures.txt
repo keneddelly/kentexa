@@ -1,4 +1,3 @@
 # Frontend test files that were already failing on the production line at
 # bbcb1a9. Same rule as logistics-known-failures.txt: new failures block,
 # and a listed file that starts passing must be removed from this list.
-src/public/pages/SellerInbox.context.test.js

@@ -112,6 +112,17 @@ export class SellerController {
     );
   }
 
+  // The seller's orders page: every order (not the dashboard's latest 30 per source).
+  @UseGuards(JwtAuthGuard)
+  @Get('orders')
+  async getOrders(
+    @Request() req,
+    @Query('commerceProfileId') commerceProfileId?: string,
+  ) {
+    const sellerId = await this.resolveOrSelf(req.user, 'canViewOrders');
+    return this.sellerService.getSellerOrders(sellerId, commerceProfileId ? Number(commerceProfileId) : undefined);
+  }
+
   @Get('my-payouts')
   @UseGuards(JwtAuthGuard)
   async getMyPayouts(

@@ -55,7 +55,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         {checks.map(c => (
           <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: c.done ? '#16a34a' : '#94a3b8', fontWeight: 600 }}>
-            <span>{c.done ? '✅' : '⬜'}</span>
+            <span aria-hidden="true" style={{ width: 16, height: 16, borderRadius: 8, flexShrink: 0, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: c.done ? '#1d4ed8' : 'transparent', border: c.done ? 'none' : '2px solid #cfd9de' }}>{c.done && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}</span>
             <span>{c.label}</span>
           </div>
         ))}
