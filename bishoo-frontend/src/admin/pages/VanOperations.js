@@ -45,7 +45,7 @@ export default function VanOperations({ onNavigate, activePage }) {
       </div>
       <div style={{...card,marginBottom:14,border:'1px solid #dbeafe',background:'#eff6ff'}}>
         <div style={{fontSize:13,fontWeight:900,color:'#1e3a8a'}}>Operations desk</div>
-        <div style={{fontSize:12,color:'#475569',marginTop:4,lineHeight:1.55}}>Canonical Stage 3S runs are the operational source of truth. Transport Providers manage routes, stops, vehicles, manifests, load/unload and run lifecycle; Super Agents own hub receipt/custody. Admin monitors the network and exceptions without impersonating either actor.</div>
+        <div style={{fontSize:12,color:'#475569',marginTop:4,lineHeight:1.55}}>Canonical Stage 3S runs are the operational source of truth. Transport Providers manage routes, stops, vehicles, manifests, load/unload and run lifecycle; Offices own hub receipt/custody. Admin monitors the network and exceptions without impersonating either actor.</div>
       </div>
       {error && <div style={{background:'#fef2f2',color:'#b91c1c',padding:12,borderRadius:10,marginBottom:14}}>{error}</div>}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:18}}>
@@ -79,9 +79,9 @@ export default function VanOperations({ onNavigate, activePage }) {
           <div style={{fontSize:12,color:'#64748b',margin:'6px 0 18px'}}>Status: {selected.run?.status} · Provider #{selected.run?.providerId}</div>
           {(selected.stops||[]).map(s=>{const n=selected.assignmentsByStop?.[s.id]||{};return <div key={s.id} style={{...card,boxShadow:'none',border:'1px solid #e2e8f0',marginBottom:10}}>
             <div style={{fontWeight:900}}>Stop {s.sequence}: {s.label||s.city||('Hub #'+(s.superAgentId||'—'))}</div>
-            <div style={{fontSize:12,color:'#64748b',marginTop:5}}>Loading: {n.loading||0} · Unloading: {n.unloading||0}{s.superAgentId?' · Super Agent #'+s.superAgentId:''}</div>
+            <div style={{fontSize:12,color:'#64748b',marginTop:5}}>Loading: {n.loading||0} · Unloading: {n.unloading||0}{s.superAgentId?' · Office #'+s.superAgentId:''}</div>
           </div>})}
-          <div style={{fontSize:12,color:'#64748b',marginTop:14}}>Admin is visibility/control only. Load, unload, receipt and custody writes remain with the authorized Transport Provider or Super Agent role.</div>
+          <div style={{fontSize:12,color:'#64748b',marginTop:14}}>Admin is visibility/control only. Load, unload, receipt and custody writes remain with the authorized Transport Provider or Office role.</div>
         </div>
       </div>}
     </main>

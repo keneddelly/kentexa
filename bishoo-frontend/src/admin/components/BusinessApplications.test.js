@@ -18,7 +18,7 @@ test('lists pending applications and approves one', async () => {
   api.post.mockResolvedValue({ data: {} });
   render(<BusinessApplications />);
   expect(await screen.findByText('Mtandao Transport')).toBeTruthy();
-  expect(screen.getByText('Office (Super Agent)')).toBeTruthy();
+  expect(screen.getByText('Office')).toBeTruthy();
   expect(screen.getByText('City: Mwanza')).toBeTruthy();
   expect(api.get).toHaveBeenCalledWith('/admin/business-capability-applications', { params: { status: 'pending' } });
   fireEvent.click(screen.getByText('Approve'));

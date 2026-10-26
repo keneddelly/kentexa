@@ -99,7 +99,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
               🏢 Usimamizi wa Vituo
             </div>
             <div style={{ fontSize:12, color:'#64748b' }}>
-              Panga Super Agents katika miji na vituo maalum
+              Panga ofisi katika miji na vituo maalum
             </div>
           </div>
           <div style={{ display:'flex', gap:8 }}>
@@ -144,7 +144,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                   </div>
                   <div style={{ fontSize:22, fontWeight:900, color:'#1d4ed8',
                     marginBottom:8 }}>{h.count}</div>
-                  <div style={{ fontSize:11, color:'#64748b' }}>Super Agent{h.count!==1?'s':''}</div>
+                  <div style={{ fontSize:11, color:'#64748b' }}>Ofisi</div>
                   {h.agents.slice(0,2).map(a => (
                     <div key={a.id} style={{ fontSize:11, color:'#475569',
                       marginTop:4, padding:'3px 0',
@@ -162,7 +162,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                   <div style={{ fontSize:13, fontWeight:700, color:'#94a3b8', marginBottom:4 }}>
                     📍 {c}
                   </div>
-                  <div style={{ fontSize:11, color:'#cbd5e1' }}>Hakuna Super Agent</div>
+                  <div style={{ fontSize:11, color:'#cbd5e1' }}>Hakuna ofisi</div>
                 </div>
               ))}
             </div>
@@ -194,7 +194,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                 <div style={{ textAlign:'center', padding:60, backgroundColor:'#fff',
                   borderRadius:16, color:'#94a3b8' }}>
                   <div style={{ fontSize:40, marginBottom:8 }}>👤</div>
-                  <div>Hakuna Super Agents</div>
+                  <div>Hakuna ofisi</div>
                 </div>
               ) : superAgents.map(sa => {
                 const sc = STATUS[sa.status] || STATUS.pending;

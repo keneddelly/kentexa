@@ -72,7 +72,7 @@ export default function MyShipments({onNavigate}){
     <div style={{maxWidth:620,margin:'0 auto',padding:16}}>
       <div style={{fontSize:15,color:'#64748b',lineHeight:1.5,marginBottom:14}}>Hapa utaona mizigo uliyotuma na hatua ilipofikia. Kentexa itakuonyesha hatua muhimu bila kukusumbua na mchakato wa ndani.</div>
       <div style={{background:'#fff',borderRadius:14,padding:16,marginBottom:14,border:'1px solid #dbeafe'}}>
-        <strong style={{fontSize:16,color:'#0f172a'}}>Ulituma mzigo kwenye dawati la Super Agent?</strong>
+        <strong style={{fontSize:16,color:'#0f172a'}}>Ulituma mzigo kwenye dawati la ofisi?</strong>
         <p style={{fontSize:15,lineHeight:1.5,color:'#475569',margin:'8px 0'}}>Tumia Namba ya Mzigo na namba ya siri iliyochapishwa kwenye risiti ili kuuongeza kwenye Mizigo Yangu.</p>
         <button type="button" onClick={()=>{setClaimOpen(v=>!v);setClaimError('');}} style={{border:0,borderRadius:10,padding:'12px 16px',background:'#2563eb',color:'#fff',fontSize:15,fontWeight:800}}>{claimOpen?'Funga':'Ongeza mzigo wa dawati'}</button>
         {claimOpen&&<form onSubmit={submitClaim} style={{display:'grid',gap:12,marginTop:14}}>

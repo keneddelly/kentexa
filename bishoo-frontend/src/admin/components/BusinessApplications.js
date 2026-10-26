@@ -5,7 +5,7 @@ import api from '../../api/api';
 // offer services). The server has always had these routes; no admin screen read them,
 // so applications could not be seen or decided (owner 2026-10-24).
 const CAPABILITY = {
-  commerce: 'Selling (Seller)', transport: 'Transport', cargo: 'Cargo', super_agent: 'Office (Super Agent)', service: 'Services',
+  commerce: 'Selling (Seller)', transport: 'Transport', cargo: 'Cargo', super_agent: 'Office', service: 'Services',
 };
 const STATUSES = [['pending', 'Pending'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['cancelled', 'Cancelled']];
 const cell = { padding: '8px 10px', borderTop: '1px solid #e2e8f0', verticalAlign: 'top', fontSize: 14 };

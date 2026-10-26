@@ -59,7 +59,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/super-agents/${id}/approve`);
-      setMessage('Super Agent approved and activated!');
+      setMessage('Office approved and activated!');
       fetchAgents();
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to approve');
@@ -89,7 +89,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/super-agents/${selected.id}/suspend`, { reason: suspendReason });
-      setMessage(suspendIsReject ? 'Application rejected.' : 'Super Agent suspended.');
+      setMessage(suspendIsReject ? 'Application rejected.' : 'Office suspended.');
       setShowSuspendModal(false);
       setSuspendReason('');
       setSuspendIsReject(false);
@@ -164,7 +164,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>🏢 Super Agents</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>🏢 Offices</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>{agents.length} total super agents</p>
           </div>
           <button onClick={fetchAgents} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>🔄 Refresh</button>
@@ -289,7 +289,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: 32, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
-              {suspendIsReject ? '❌ Reject Application' : '🚫 Suspend Super Agent'}
+              {suspendIsReject ? '❌ Reject Application' : '🚫 Suspend Office'}
             </h2>
             <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>{selected?.businessName} — {selected?.agentCode}</p>
             <label style={{ display: 'block', fontSize: 13, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>

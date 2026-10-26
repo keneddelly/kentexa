@@ -25,7 +25,7 @@ const STATUS_STYLE = {
 const SOURCE_STYLE = {
   online:            { bg: '#eff6ff', color: '#2563eb', label: '🌐 Mtandaoni', short: 'Mtandaoni' },
   offline:           { bg: '#f1f5f9', color: '#64748b', label: '🤝 Mauzo ya Nje', short: 'Nje' },
-  offline_intercity: { bg: '#f5f3ff', color: '#7c3aed', label: '🏢 Super Agent', short: 'Super Agent' },
+  offline_intercity: { bg: '#f5f3ff', color: '#7c3aed', label: '🏢 Ofisi', short: 'Ofisi' },
   seller_shipment:   { bg: '#fff7ed', color: '#c2410c', label: '📦 Muuzaji-Msafirishaji', short: 'Msafirishaji' },
 };
 const sourceStyleOf = (s) => SOURCE_STYLE[s] || { bg: '#f1f5f9', color: '#64748b', label: s || '—', short: s || '—' };
@@ -289,7 +289,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
             {selected.source === 'offline_intercity' && (
               <div style={{ backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#5b21b6', lineHeight: 1.6 }}>
                 🏢 <strong>SUPER AGENT — MAUZO YA KAUNTA</strong><br/>
-                Mteja alilipa taslimu kwa {selected.handlingSuperAgent?.businessName || 'Super Agent'} kaunta ya intercity. Hakuna muuzaji (seller) kwenye agizo hili — Super Agent ndiye aliyepokea malipo na kusajili kifurushi.
+                Mteja alilipa taslimu kwa {selected.handlingSuperAgent?.businessName || 'ofisi'} kaunta ya intercity. Hakuna muuzaji (seller) kwenye agizo hili — ofisi ndiyo iliyopokea malipo na kusajili kifurushi.
               </div>
             )}
             {selected.source === 'seller_shipment' && (
@@ -312,7 +312,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                 { label: 'Mnunuzi',   value: selected.buyer?.name || selected.manualBuyerName || '—' },
                 { label: 'Simu ya Mnunuzi', value: selected.buyer?.phone || selected.phone || selected.manualBuyerPhone || '—', isPhone: true },
                 selected.source === 'offline_intercity'
-                  ? { label: 'Super Agent', value: selected.handlingSuperAgent?.businessName || '—' }
+                  ? { label: 'Ofisi', value: selected.handlingSuperAgent?.businessName || '—' }
                   : { label: 'Muuzaji',   value: selected.seller?.storeName || selected.seller?.name || '—' },
                 { label: 'Simu ya Muuzaji', value: selected.seller?.phone || '—', isPhone: true },
                 { label: 'Bidhaa',    value: selected.product?.name || selected.manualProductName || '—' },

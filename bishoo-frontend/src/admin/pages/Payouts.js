@@ -161,7 +161,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {[
             { key: 'seller', label: '🏪 Malipo ya Wauzaji' },
-            { key: 'agents', label: '🏢 Gharama za Super Agents' },
+            { key: 'agents', label: '🏢 Gharama za Ofisi' },
             { key: 'local_agents', label: '🤝 Malipo ya Wakala' },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -296,7 +296,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             Settle action (settling is per-item, not per-agent). */}
         {tab === 'agents' && (
           <div style={{ backgroundColor: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 24 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>🤝 Gharama za Usafirishaji — Super Agents</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>🤝 Gharama za Usafirishaji — Ofisi</h3>
             {ledgerLoading ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>⏳ Inapakia...</div>
             ) : agentLedger.length === 0 ? (
@@ -355,7 +355,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
               <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>🤝 Kamisheni ya Mawakala (Kukusanya Malipo)</h3>
               <div style={{ fontSize: 13, color: '#64748b' }}>
                 Hawa ni mawakala wanaokusanya malipo ya M-Pesa kwa niaba ya wanunuzi.
-                KenteXa inawadaiwa kamisheni hii tu — uwasilishaji na ukusanyaji wa vifurushi wanalipwa na Super Agent moja kwa moja nje ya mfumo.
+                KenteXa inawadaiwa kamisheni hii tu — uwasilishaji na ukusanyaji wa vifurushi wanalipwa na ofisi moja kwa moja nje ya mfumo.
               </div>
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>

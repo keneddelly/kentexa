@@ -57,7 +57,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
     if (userRole === 'buyer' || !userRole) {
       loggedIn.push({ label: '🏪 Become a Seller',      page: 'BecomeSeller' });
       loggedIn.push({ label: '🤝 Become an Agent',      page: 'BecomeAgent' });
-      loggedIn.push({ label: '🏢 Become a Super Agent', page: 'BecomeSuperAgentInfo' });
+      loggedIn.push({ label: '🏢 Fungua ofisi', page: 'BecomeSuperAgentInfo' });
     }
     return [...common, ...loggedIn];
   };
