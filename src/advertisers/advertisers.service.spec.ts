@@ -86,6 +86,16 @@ describe('AdvertisersService.inviter', () => {
     await expect(service.inviter('NOPE99')).resolves.toBeNull();
     await expect(service.inviter("x'; drop")).resolves.toBeNull();
   });
+});
+
+describe('AdvertisersService applications', () => {
+  const make = (impl: (sql: string, p: any[]) => any) => {
+    const db: any = { query: jest.fn(async (sql: string, p: any[] = []) => {
+      if (sql.includes('to_regclass')) return [{ ok: true }];
+      return impl(sql.replace(/\s+/g, ' '), p);
+    }) };
+    return { svc: new AdvertisersService(db), db };
+  };
 
   describe('applications (self-service)', () => {
     it('a user applies once; the phone falls back to their account phone; advertisers and duplicates are refused', async () => {
