@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { WORK_ROLES, workRoleStatus, openWorkRole, serviceRecordFromAds } from '../../utils/workRoles';
+import { WORK_ROLES, workRoleStatus, openWorkRole, serviceRecordFromAds, advertiserRecord } from '../../utils/workRoles';
 
 // "Fanya kazi na KenteXa" on the profile's main list (audit B step 2): every
 // work role with its status; tapping one opens its form or status page
@@ -23,8 +23,8 @@ export default function WorkWithKentexa({ onNavigate, onSwitchAccountRole, avail
 
   useEffect(() => {
     let alive = true;
-    Promise.all([myRecord('/agents/my-profile'), myRecord('/super-agents/my-profile'), myRecord('/seller/my-profile'), myRecord('/services/my/ads'), myRecord('/transport/my-profile')])
-      .then(([agent, office, seller, ads, transport]) => { if (alive) setRecords({ agent, office, seller, service: serviceRecordFromAds(ads), transport }); });
+    Promise.all([myRecord('/agents/my-profile'), myRecord('/super-agents/my-profile'), myRecord('/seller/my-profile'), myRecord('/services/my/ads'), myRecord('/transport/my-profile'), myRecord('/advertisers/application/me')])
+      .then(([agent, office, seller, ads, transport, adv]) => { if (alive) setRecords({ agent, office, seller, service: serviceRecordFromAds(ads), transport, advertiser: advertiserRecord(adv) }); });
     return () => { alive = false; };
   }, []);
 
@@ -35,9 +35,9 @@ export default function WorkWithKentexa({ onNavigate, onSwitchAccountRole, avail
         <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{t('work_roles.desc')}</div>
       </div>
       {WORK_ROLES.map((role, i) => {
-        const roleRow = availableRoles.find((r) => r.roleType === role.roleType) || null;
+        const roleRow = role.roleType ? availableRoles.find((r) => r.roleType === role.roleType) || null : null;
         const record = role.recordKey && records ? records[role.recordKey] : null;
-        const status = records ? workRoleStatus({ record, roleRow, identity: identityStatus, recordWins: !!role.recordWins }) : null;
+        const status = records ? workRoleStatus({ record, roleRow, identity: identityStatus, recordWins: !!role.recordWins, noIdentityWait: !!role.noIdentityWait }) : null;
         const s = STATUS_STYLE[status] || STATUS_STYLE.none;
         return (
           <button key={role.key} data-testid={`work-role-${role.key}`} disabled={!status}

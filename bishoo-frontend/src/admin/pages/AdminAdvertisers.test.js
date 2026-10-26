@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import AdminAdvertisers from './AdminAdvertisers';
 import api from '../../api/api';
 
@@ -18,8 +18,10 @@ const DATA = {
   ],
 };
 
+let APPS = [];
 beforeEach(() => {
-  api.get.mockResolvedValue({ data: DATA });
+  APPS = [];
+  api.get.mockImplementation((path) => Promise.resolve({ data: path === '/advertisers/applications' ? { ready: true, applications: APPS } : DATA }));
   api.put.mockResolvedValue({ data: DATA.rates });
   api.post.mockResolvedValue({ data: {} });
   api.patch.mockResolvedValue({ data: {} });
@@ -60,4 +62,25 @@ test('Ongeza stays off until name and phone are filled', async () => {
   expect(add).not.toBeDisabled();
   fireEvent.click(add);
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/advertisers', { name: 'Neema', phone: '0714 000 000' }));
+});
+
+test('applications: accept gives the link; reject needs a reason the applicant will see', async () => {
+  APPS = [
+    { id: 7, name: 'Neema', phone: '255714000000', area: 'Arusha', plan: 'WhatsApp groups', createdAt: '2026-10-26T10:00:00Z' },
+    { id: 8, name: 'Baraka', phone: '255715000000', area: null, plan: null, createdAt: '2026-10-26T11:00:00Z' },
+  ];
+  render(<AdminAdvertisers />);
+  expect(await screen.findByTestId('adv-applications')).toHaveTextContent('Maombi mapya (2)');
+  fireEvent.click(within(screen.getByTestId('adv-app-7')).getByRole('button', { name: 'Kubali' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/advertisers/applications/7/accept'));
+  await screen.findByText(/Neema amekubaliwa/);
+  await waitFor(() => expect(within(screen.getByTestId('adv-app-8')).getByRole('button', { name: 'Kataa' })).toBeEnabled());
+
+  const row8 = screen.getByTestId('adv-app-8');
+  fireEvent.click(within(row8).getByRole('button', { name: 'Kataa' }));
+  const confirm = within(row8).getByRole('button', { name: 'Kataa ombi' });
+  expect(confirm).toBeDisabled();
+  fireEvent.change(within(row8).getByLabelText('Sababu ya kukataa'), { target: { value: 'Tayari tuna watangazaji wa kutosha' } });
+  fireEvent.click(confirm);
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/advertisers/applications/8/reject', { reason: 'Tayari tuna watangazaji wa kutosha' }));
 });

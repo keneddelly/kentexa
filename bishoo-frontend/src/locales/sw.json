@@ -5791,7 +5791,8 @@
     "status_active": "Inatumika",
     "status_suspended": "Imesimamishwa",
     "status_rejected": "Imekataliwa: unaweza kuomba tena",
-    "transport": "Msafirishaji (basi, lori, van)"
+    "transport": "Msafirishaji (basi, lori, van)",
+    "advertiser": "Mtangazaji (leta watu, pata kamisheni)"
   },
   "seller_signup": {
     "identity_waiting_note": "Unaweza kuomba sasa. Duka litaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa.",

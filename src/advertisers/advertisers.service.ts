@@ -30,6 +30,11 @@ export const ADVERTISER_MESSAGES = {
   notFound: 'Mtangazaji hakupatikana.',
   notAdvertiser: 'Wewe si mtangazaji wa KenteXa.',
   badRate: 'Kiasi lazima kiwe namba isiyo hasi.',
+  appsNotReady: 'Maombi ya utangazaji bado hayajawashwa. Jaribu tena baadaye.',
+  alreadyAdvertiser: 'Wewe tayari ni mtangazaji wa KenteXa.',
+  alreadyApplied: 'Ombi lako tayari linasubiri KenteXa.',
+  appNotFound: 'Ombi halikupatikana au limeshaamuliwa.',
+  badReason: 'Andika sababu fupi ya kukataa.',
 } as const;
 
 /** Each event, and the SQL that says whether user $1 has done it. */
@@ -48,6 +53,8 @@ const tz = (raw: unknown) => (typeof raw === 'string' ? normalizeTzPhone(raw) : 
 export class AdvertisersService {
   private ready = false;
   private checkedAt = 0;
+  private appsReady = false;
+  private appsCheckedAt = 0;
 
   constructor(private readonly db: DataSource) {}
 
@@ -61,6 +68,23 @@ export class AdvertisersService {
       } catch { this.ready = false; }
     }
     return this.ready;
+  }
+
+  /** Applications exist once migration 1793300000000 ran. */
+  async applicationsReady(): Promise<boolean> {
+    if (!(await this.isReady())) return false;
+    if (!this.appsReady && Date.now() - this.appsCheckedAt > 60_000) {
+      this.appsCheckedAt = Date.now();
+      try {
+        const [row] = await this.db.query(`SELECT to_regclass('public.advertiser_application') IS NOT NULL AS ok`);
+        this.appsReady = Boolean(row?.ok);
+      } catch { this.appsReady = false; }
+    }
+    return this.appsReady;
+  }
+
+  private async mustHaveApplications() {
+    if (!(await this.applicationsReady())) throw new BadRequestException(ADVERTISER_MESSAGES.appsNotReady);
   }
 
   private async mustBeReady() {
@@ -137,7 +161,7 @@ export class AdvertisersService {
     return this.rates();
   }
 
-  async create(input: { name?: unknown; phone?: unknown }) {
+  async create(input: { name?: unknown; phone?: unknown }, opts: { userId?: number } = {}) {
     await this.mustBeReady();
     const name = typeof input?.name === 'string' ? input.name.trim().slice(0, 100) : '';
     if (name.length < 2) throw new BadRequestException(ADVERTISER_MESSAGES.badName);
@@ -145,7 +169,8 @@ export class AdvertisersService {
     if (!/^255\d{9}$/.test(phone)) throw new BadRequestException(ADVERTISER_MESSAGES.badPhone);
     const [dup] = await this.db.query(`SELECT id FROM public.advertiser WHERE phone = $1`, [phone]);
     if (dup) throw new ConflictException(ADVERTISER_MESSAGES.taken);
-    const [user] = await this.db.query(`SELECT id FROM public."user" WHERE phone = $1 LIMIT 1`, [phone]);
+    const [user] = opts.userId ? [{ id: opts.userId }]
+      : await this.db.query(`SELECT id FROM public."user" WHERE phone = $1 LIMIT 1`, [phone]);
     for (let i = 0; i < 5; i++) {
       const code = `K${randomBytes(4).toString('hex').toUpperCase().slice(0, 6)}`;
       const rows: any[] = await this.db.query(
@@ -246,4 +271,86 @@ export class AdvertisersService {
     return office?.businessName ? { kind: 'office', name: String(office.businessName).slice(0, 100) } : null;
   }
 
+
+  // ── Applications: a user asks, admin accepts (link created) or rejects ──
+
+  private async advertiserOf(userId: number, userPhone?: string | null) {
+    const phone = tz(userPhone || '');
+    const [adv] = await this.db.query(
+      `SELECT id FROM public.advertiser WHERE "userId" = $1 OR ($2 <> '' AND phone = $2) ORDER BY id LIMIT 1`, [userId, phone]);
+    return adv || null;
+  }
+
+  private appView(r: any) {
+    return r ? { id: Number(r.id), name: r.name, phone: r.phone, area: r.area, plan: r.plan, status: r.status,
+      reason: r.reason, createdAt: r.createdAt, decidedAt: r.decidedAt } : null;
+  }
+
+  /** The user's own standing: advertiser already, or their latest application. */
+  async myApplication(userId: number, userPhone?: string | null) {
+    if (!(await this.applicationsReady())) {
+      return { ready: false, isAdvertiser: (await this.isReady()) ? Boolean(await this.advertiserOf(userId, userPhone)) : false, application: null };
+    }
+    const isAdvertiser = Boolean(await this.advertiserOf(userId, userPhone));
+    const [row] = await this.db.query(
+      `SELECT * FROM public.advertiser_application WHERE "userId" = $1 ORDER BY id DESC LIMIT 1`, [userId]);
+    return { ready: true, isAdvertiser, application: this.appView(row), rates: await this.rates() };
+  }
+
+  async apply(userId: number, userPhone: string | null | undefined,
+    input: { name?: unknown; phone?: unknown; area?: unknown; plan?: unknown }) {
+    await this.mustHaveApplications();
+    if (await this.advertiserOf(userId, userPhone)) throw new ConflictException(ADVERTISER_MESSAGES.alreadyAdvertiser);
+    const name = typeof input?.name === 'string' ? input.name.trim().slice(0, 100) : '';
+    if (name.length < 2) throw new BadRequestException(ADVERTISER_MESSAGES.badName);
+    const phone = tz(typeof input?.phone === 'string' && input.phone.trim() ? input.phone : userPhone || '');
+    if (!/^255\d{9}$/.test(phone)) throw new BadRequestException(ADVERTISER_MESSAGES.badPhone);
+    const [taken] = await this.db.query(`SELECT id FROM public.advertiser WHERE phone = $1`, [phone]);
+    if (taken) throw new ConflictException(ADVERTISER_MESSAGES.taken);
+    const text = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+    const rows: any[] = await this.db.query(
+      `INSERT INTO public.advertiser_application ("userId", name, phone, area, plan)
+       VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING *`,
+      [userId, name, phone, text(input?.area, 120), text(input?.plan, 500)]);
+    if (!rows.length) throw new ConflictException(ADVERTISER_MESSAGES.alreadyApplied);
+    return this.appView(rows[0]);
+  }
+
+  /** Admin: applications waiting for a decision, oldest first. */
+  async applications() {
+    if (!(await this.applicationsReady())) return { ready: false, applications: [] };
+    const rows: any[] = await this.db.query(
+      `SELECT * FROM public.advertiser_application WHERE status = 'pending' ORDER BY "createdAt" ASC LIMIT 200`);
+    return { ready: true, applications: rows.map((r) => ({ ...this.appView(r), userId: Number(r.userId) })) };
+  }
+
+  /** Admin accepts: the advertiser (with its link) is created for that user. */
+  async accept(id: number) {
+    await this.mustHaveApplications();
+    const [app] = await this.db.query(
+      `UPDATE public.advertiser_application SET status = 'accepted', "decidedAt" = now()
+        WHERE id = $1 AND status = 'pending' RETURNING *`, [id]);
+    if (!app) throw new NotFoundException(ADVERTISER_MESSAGES.appNotFound);
+    try {
+      const adv = await this.create({ name: app.name, phone: app.phone }, { userId: Number(app.userId) });
+      await this.db.query(`UPDATE public.advertiser_application SET "advertiserId" = $2 WHERE id = $1`, [id, adv.id]);
+      return adv;
+    } catch (e) {
+      await this.db.query(
+        `UPDATE public.advertiser_application SET status = 'pending', "decidedAt" = NULL WHERE id = $1`, [id]).catch(() => undefined);
+      throw e;
+    }
+  }
+
+  /** Admin rejects with a short reason the applicant sees; they may apply again. */
+  async reject(id: number, reason: unknown) {
+    await this.mustHaveApplications();
+    const why = typeof reason === 'string' ? reason.trim().slice(0, 300) : '';
+    if (why.length < 3) throw new BadRequestException(ADVERTISER_MESSAGES.badReason);
+    const [app] = await this.db.query(
+      `UPDATE public.advertiser_application SET status = 'rejected', reason = $2, "decidedAt" = now()
+        WHERE id = $1 AND status = 'pending' RETURNING *`, [id, why]);
+    if (!app) throw new NotFoundException(ADVERTISER_MESSAGES.appNotFound);
+    return this.appView(app);
+  }
 }

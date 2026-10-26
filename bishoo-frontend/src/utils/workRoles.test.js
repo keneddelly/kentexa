@@ -5,7 +5,7 @@ const waitingId = { status: 'pending' };
 
 describe('work role status ("Fanya kazi na KenteXa")', () => {
   it('lists the five roles in order (Msafirishaji last)', () => {
-    expect(WORK_ROLES.map((r) => r.key)).toEqual(['agent', 'office', 'seller', 'service', 'transport']);
+    expect(WORK_ROLES.map((r) => r.key)).toEqual(['agent', 'office', 'seller', 'service', 'transport', 'advertiser']);
   });
 
   it('no request yet', () => {
@@ -110,5 +110,19 @@ describe('dashboard buttons on the Wakala and Ofisi status pages', () => {
     openRolePage({ roleType: 'super_agent', page: 'SuperAgentDashboard', availableRoles: roles, onNavigate, onSwitchAccountRole });
     expect(onSwitchAccountRole).not.toHaveBeenCalled();
     expect(onNavigate).toHaveBeenCalledWith('SuperAgentDashboard');
+  });
+});
+
+describe('advertiser', () => {
+  const { advertiserRecord } = require('./workRoles');
+  const advertiser = WORK_ROLES.find((r) => r.key === 'advertiser');
+  test('status comes from the application, and does not wait for the ID check', () => {
+    expect(advertiserRecord(null)).toBeNull();
+    expect(advertiserRecord({ isAdvertiser: true })).toEqual({ status: 'active' });
+    expect(advertiserRecord({ application: { status: 'pending' } })).toEqual({ status: 'pending' });
+    expect(advertiserRecord({ application: { status: 'rejected' } })).toEqual({ status: 'rejected' });
+    expect(workRoleStatus({ record: { status: 'pending' }, roleRow: null, identity: null, recordWins: true, noIdentityWait: advertiser.noIdentityWait })).toBe('waiting');
+    expect(workRoleTarget(advertiser, 'active')).toBe('MyAdvertising');
+    expect(workRoleTarget(advertiser, 'none')).toBe('MyAdvertising');
   });
 });

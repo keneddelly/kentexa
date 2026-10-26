@@ -1,9 +1,9 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import MyAdvertising from './MyAdvertising';
 import api from '../../api/api';
 
-jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn() } }));
+jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
 jest.mock('../components/BackBar', () => () => null);
 
 test('the advertiser sees their link, what they are owed and paid, the rates and who joined', async () => {
@@ -24,4 +24,29 @@ test('someone who is not an advertiser is told so', async () => {
   api.get.mockRejectedValue({ response: { data: { message: 'Wewe si mtangazaji wa KenteXa.' } } });
   render(<MyAdvertising onNavigate={jest.fn()} />);
   expect(await screen.findByRole('alert')).toHaveTextContent('Wewe si mtangazaji');
+});
+
+const notAdvertiser = (standing) => api.get.mockImplementation((path) => (path === '/advertisers/me'
+  ? Promise.reject({ response: { status: 404, data: { message: 'Wewe si mtangazaji wa KenteXa.' } } })
+  : Promise.resolve({ data: standing })));
+const RATES = { first_listing: 200, business: 300, office: 2000, seller: 500 };
+
+test('not an advertiser yet: the page is the application, prefilled, and sends it', async () => {
+  notAdvertiser({ ready: true, isAdvertiser: false, application: null, rates: RATES });
+  api.post.mockResolvedValue({ data: { id: 3, status: 'pending', name: 'Asha', phone: '255713000000', area: 'Mwanza' } });
+  render(<MyAdvertising onNavigate={jest.fn()} currentUser={{ name: 'Asha', phone: '0713000000' }} />);
+  expect(await screen.findByText('Kuwa mtangazaji wa KenteXa')).toBeInTheDocument();
+  expect(screen.getByText('Amefungua ofisi').nextSibling).toHaveTextContent('TZS 2,000');
+  expect(screen.getByLabelText('Jina lako')).toHaveValue('Asha');
+  fireEvent.change(screen.getByLabelText('Unafanyia kazi wapi?'), { target: { value: 'Mwanza' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tuma ombi' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/advertisers/apply', { name: 'Asha', phone: '0713000000', area: 'Mwanza', plan: '' }));
+  expect(await screen.findByTestId('adv-pending')).toHaveTextContent('Ombi lako limepokelewa');
+});
+
+test('a rejected applicant sees the reason and can apply again', async () => {
+  notAdvertiser({ ready: true, isAdvertiser: false, application: { status: 'rejected', reason: 'Eneo hili lina watangazaji wa kutosha' }, rates: RATES });
+  render(<MyAdvertising onNavigate={jest.fn()} currentUser={{ name: 'Asha' }} />);
+  expect(await screen.findByTestId('adv-rejected')).toHaveTextContent('Eneo hili lina watangazaji wa kutosha');
+  expect(screen.getByRole('button', { name: 'Tuma ombi' })).toBeEnabled();
 });
