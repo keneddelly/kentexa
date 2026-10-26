@@ -62,3 +62,30 @@ test('someone who is not an advertiser does not see it', async () => {
   await waitFor(() => expect(api.get).toHaveBeenCalledWith('/advertisers/me'));
   expect(screen.queryByText('Kiungo changu na kamisheni')).not.toBeInTheDocument();
 });
+
+test('the card follows the current role: BiS active shows BiS, and opens the active profile', async () => {
+  api.get.mockImplementation(path => {
+    if (path === '/auth/profile') return Promise.resolve({ data: { id: 7, name: 'Kened', phone: '0700' } });
+    return Promise.reject(new Error('not needed'));
+  });
+  const onNavigate = jest.fn();
+  render(<MyProfile isLoggedIn currentUser={{ id: 7, name: 'Kened' }} userRole="seller"
+    activeProfile={{ id: 2, type: 'business', displayName: 'BiS', isVerified: true }}
+    availableRoles={[{ roleType: 'seller', status: 'active' }]} roleOptions={[]}
+    onNavigate={onNavigate} onLogout={jest.fn()} />);
+  expect(await screen.findByTestId('profile-card-name')).toHaveTextContent('BiS');
+  fireEvent.click(screen.getByTestId('view-current-profile'));
+  expect(onNavigate).toHaveBeenCalledWith('CommerceProfile');
+  fireEvent.click(screen.getByTestId('edit-current-profile'));
+  expect(onNavigate).toHaveBeenCalledWith('EditPublicProfile', { commerceProfileId: 2 });
+});
+
+test('as the person (no business active) the card shows the person', async () => {
+  api.get.mockImplementation(path => (path === '/auth/profile'
+    ? Promise.resolve({ data: { id: 7, name: 'Kened', phone: '0700' } }) : Promise.reject(new Error('not needed'))));
+  render(<MyProfile isLoggedIn currentUser={{ id: 7, name: 'Kened' }} userRole="buyer"
+    activeProfile={{ id: 30, type: 'personal', displayName: 'Kened' }}
+    availableRoles={[{ roleType: 'buyer', status: 'active' }]} roleOptions={[]}
+    onNavigate={jest.fn()} onLogout={jest.fn()} />);
+  expect(await screen.findByTestId('profile-card-name')).toHaveTextContent('Kened');
+});
