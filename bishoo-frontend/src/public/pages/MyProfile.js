@@ -253,6 +253,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
 
   const NAV = [
     { key:'identity',      icon:'👤', label:t('my_profile.nav_identity') },
+    // An advertiser's page sits at the top level, not buried inside a section.
+    isAdvertiser && { key:'advertising', icon:'📣', label:'Kiungo changu na kamisheni', go:'MyAdvertising' },
     { key:'businesses',    icon:'🏢', label:t('my_profile.nav_businesses') },
     { key:'commerce',      icon:'📦', label:t('my_profile.nav_commerce') },
     { key:'logistics',     icon:'🚚', label:t('my_profile.nav_logistics') },
@@ -500,7 +502,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           <div style={{ backgroundColor:WH, borderRadius:16,
             border:'1px solid #eff3f4', overflow:'hidden', padding:'0 16px' }}>
             {NAV.map((n,i) => (
-              <button key={n.key} onClick={() => setSection(n.key)}
+              <button key={n.key} onClick={() => (n.go ? onNavigate(n.go) : setSection(n.key))}
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:14,
                   padding:'14px 0', minHeight:52, border:'none', background:'none', cursor:'pointer',
                   borderBottom: i < NAV.length-1 ? '1px solid #eff3f4' : 'none',
@@ -783,10 +785,6 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 value={fmt(followed.length)} onAction={() => onNavigate('Stores')} />
               <Row icon="📋" label={t('my_profile.order_status_label')}
                 onAction={() => onNavigate('MyOrders')} />
-              {isAdvertiser && (
-                <Row icon="📣" label="Matangazo yangu (kiungo na kamisheni)"
-                  onAction={() => onNavigate('MyAdvertising')} />
-              )}
             </SCard>
 
             {orders.length > 0 && (
