@@ -25,6 +25,7 @@
  * 🚐 VAN YA LEO (Dar es Salaam only):
  *   Daily batch for same-city deliveries
  */
+import { OfficeHome, OfficeScreenHeader, OfficeMenu, OfficeRow, officeSection, OFFICE_COLORS } from '../components/OfficeDashboardShell';
 import ShehenaTransportPicker from '../components/ShehenaTransportPicker';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -181,6 +182,10 @@ const PCard = ({ p, actions = [] }) => (
 
 // ── Main component ─────────────────────────────────────────────────────────
 
+// Office dashboard screens (mockup 2026-10-11): two jobs, the rest in the menu.
+const OFFICE_SCREEN_TITLE = { pokea: 'POKEA', tuma: 'TUMA', menu: 'Menyu', historia: 'Historia', mapato: 'Mapato', bei: 'Bei zangu', van: 'Van' };
+const MENU_PAGES = ['historia', 'mapato', 'bei', 'van'];
+
 const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const { t } = useTranslation();
 
@@ -192,7 +197,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [localAgents, setLocalAgents]   = useState([]);
   const [loading, setLoading]           = useState(true);
   const [profileStatus, setProfileStatus] = useState(null);
-  const [activeTab, setActiveTab]       = useState('pokea');
+  const [activeTab, setActiveTab]       = useState('home');
+  const [tumaMode, setTumaMode]         = useState('list'); // 'list' | 'shehena'
   const [historiaSearch, setHistoriaSearch] = useState('');
   const [historyModal, setHistoryModal] = useState(null); // { trackingNumber, loading, data, error }
   const [receiptModal, setReceiptModal] = useState(null); // { trackingNumber, loading, data, error }
@@ -445,7 +451,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       });
       setSuccess(`✅ Shehena imetumwa — vifurushi ${res.data.parcelsDispatched}, ujumbe kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}`);
       resetBulkForm();
-      setBulkStep('open'); setPokeaMode('list'); fetchAll();
+      setBulkStep('open'); setTumaMode('list'); setPokeaMode('list'); fetchAll();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kutuma shehena');
     } finally { setActionLoading(false); }
@@ -558,13 +564,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // ── Parcel grouping ───────────────────────────────────────────────────────
 
   const parcels       = dashData?.parcels || [];
-  const atHub         = parcels.filter(p => ['received_at_hub','verified','ready_for_dispatch'].includes(p.status));
   const incoming      = parcels.filter(p => ['dispatched','in_transit','arrived_at_hub'].includes(p.status) && p.myRole === 'destination');
   // C2: a parcel for another region is never a local-agent parcel, whatever was chosen at intake.
   const isDirectLocalParcel = p => !isIntercityPlace(p.originCity, p.destinationCity) && (p.transportMethod === 'local_agent' || (!p.transportMethod && String(p.originCity || '').trim().toLowerCase() === String(p.destinationCity || '').trim().toLowerCase()));
   const toDispatch    = parcels.filter(p => ['received_at_hub','ready_for_dispatch'].includes(p.status) && p.myRole !== 'destination');
   const inTransit     = parcels.filter(p => ['dispatched','in_transit'].includes(p.status) && p.myRole !== 'destination');
   const awaitingBuyer = parcels.filter(p => ['awaiting_buyer','out_for_delivery'].includes(p.status) && p.myRole !== 'origin');
+  // What waits in each job (mockup: every row shows its count).
+  const pokeaCount = incoming.length + (handoverRequests?.length || 0);
+  const tumaCount  = toDispatch.length + awaitingBuyer.length;
   // eslint-disable-next-line no-unused-vars
   const delivered     = parcels.filter(p => p.status === 'delivered');
 
@@ -1025,84 +1033,23 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         </div>
       )}
 
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '16px 16px 0' }}>
-        <div style={{ maxWidth: 560, margin: '0 auto' }}>
-          {/* Hub name + settings */}
-          <div style={{ display: 'flex', justifyContent: 'space-between',
-            alignItems: 'flex-start', marginBottom: 14 }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 1 }}>
-                HUB YA KENTEXA
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>
-                {profile?.businessName || 'Hub Yangu'}
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-                📍 {profile?.city} · {profile?.agentCode || '—'}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => onNavigate('SellerInbox')} title={t('bottom_nav.messages')}
-                style={{ position: 'relative', background: 'rgba(255,255,255,0.1)', border: 'none',
-                  borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
-                  color: '#fff', fontSize: 16 }}>
-                💬
-                {inboxUnread > 0 && (
-                  <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 15, height: 15,
-                    padding: '0 3px', borderRadius: 100, backgroundColor: '#DC2626', color: '#fff',
-                    fontSize: 9, fontWeight: 800, lineHeight: '15px', textAlign: 'center' }}>
-                    {inboxUnread > 99 ? '99+' : inboxUnread}
-                  </span>
-                )}
-              </button>
-              <button onClick={() => onNavigate('SuperAgentSettings')}
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
-                  borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
-                  color: '#fff', fontSize: 16 }}>⚙️</button>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 14 }}>
-            {[
-              { icon: '📥', label: 'Hubuni',  value: atHub.length,         c: '#60a5fa' },
-              { icon: '🚌', label: 'Inakuja', value: incoming.length,      c: '#a78bfa' },
-              { icon: '📤', label: 'Tuma',    value: toDispatch.length,    c: '#34d399' },
-              { icon: '⏳', label: 'Mteja',   value: awaitingBuyer.length, c: '#f87171' },
-            ].map(s => (
-              <div key={s.label} style={{ backgroundColor: 'rgba(255,255,255,0.08)',
-                borderRadius: 10, padding: '8px 4px', textAlign: 'center' }}>
-                <div style={{ fontSize: 14 }}>{s.icon}</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: s.c }}>{s.value}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[
-              { key: 'pokea',   label: '📥 POKEA'   },
-              { key: 'tuma',    label: '📤 TUMA'    },
-              { key: 'historia',label: '🕘 HISTORIA'},
-              { key: 'mapato',  label: '💰 MAPATO'  },
-              { key: 'bei',     label: '📋 BEI'     },
-              ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
-            ].map(t => (
-              <button key={t.key} data-tour={`sa-tab-${t.key}`}
-                onClick={() => { setActiveTab(t.key); setPokeaMode('list'); if (t.key === 'van') fetchVanDesk(); }}
-                style={{ flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
-                  fontSize: 10, fontWeight: 800, borderRadius: '6px 6px 0 0',
-                  backgroundColor: activeTab === t.key ? '#f1f5f9' : 'transparent',
-                  color: activeTab === t.key ? '#1d4ed8' : 'rgba(255,255,255,0.6)' }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* ── Screen header (mockup 2026-10-11): none on Mwanzo, coloured on POKEA / TUMA ── */}
+      {activeTab !== 'home' && (
+        <OfficeScreenHeader
+          kind={activeTab === 'pokea' ? 'pokea' : activeTab === 'tuma' ? 'tuma' : null}
+          title={OFFICE_SCREEN_TITLE[activeTab] || 'Ofisi'}
+          count={activeTab === 'pokea' && pokeaMode === 'list' ? pokeaCount
+            : activeTab === 'tuma' && !dispatchParcel && tumaMode === 'list' ? tumaCount : null}
+          backLabel={(activeTab === 'pokea' && pokeaMode !== 'list') ? 'POKEA'
+            : (activeTab === 'tuma' && (dispatchParcel || tumaMode !== 'list')) ? 'TUMA'
+            : MENU_PAGES.includes(activeTab) ? 'Menyu' : 'Mwanzo'}
+          onBack={() => {
+            if (activeTab === 'pokea' && pokeaMode !== 'list') { setPokeaMode('list'); return; }
+            if (activeTab === 'tuma' && dispatchParcel) { setDispatchParcel(null); return; }
+            if (activeTab === 'tuma' && tumaMode !== 'list') { setTumaMode('list'); resetBulkForm(); setBulkStep('open'); return; }
+            setActiveTab(MENU_PAGES.includes(activeTab) ? 'menu' : 'home');
+          }} />
+      )}
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto',
@@ -1127,9 +1074,33 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
         {/* Red notice: received but no dispatch information (separate, never blocks the counter).
             "Add to shehena" opens the existing shehena screen, unchanged. */}
-        <StaleParcelsNotice onAddToShehena={() => {
-          setActiveTab('pokea'); setPokeaMode('consolidated'); setBulkStep('open'); fetchOpenShipments();
-        }} />
+        {(activeTab === 'home' || (activeTab === 'tuma' && tumaMode === 'list' && !dispatchParcel)) && (
+          <StaleParcelsNotice onAddToShehena={() => {
+            setActiveTab('tuma'); setTumaMode('shehena'); setDispatchParcel(null); setBulkStep('open'); fetchOpenShipments();
+          }} />
+        )}
+
+        {/* ── Mwanzo: the two jobs ── */}
+        {activeTab === 'home' && (
+          <OfficeHome officeName={profile?.businessName} city={profile?.city}
+            pokeaCount={pokeaCount} tumaCount={tumaCount} inboxUnread={inboxUnread}
+            onPokea={() => { setActiveTab('pokea'); setPokeaMode('list'); }}
+            onTuma={() => { setActiveTab('tuma'); setTumaMode('list'); setDispatchParcel(null); }}
+            onMenu={() => setActiveTab('menu')}
+            onInbox={() => onNavigate('SellerInbox')}
+            onSearch={(q) => openParcelHistory(q)} />
+        )}
+
+        {/* ── Menyu: everything else ── */}
+        {activeTab === 'menu' && (
+          <OfficeMenu items={[
+            { key: 'historia', tour: 'sa-tab-historia', title: 'Historia', hint: 'Mizigo yote iliyopita ofisini', onClick: () => setActiveTab('historia') },
+            { key: 'mapato', tour: 'sa-tab-mapato', title: 'Mapato', hint: 'Kiasi ulichopata, kwa siku na kwa mwezi', onClick: () => setActiveTab('mapato') },
+            { key: 'bei', title: 'Bei zangu', hint: 'Bei za safari, kuchukua na kupeleka', onClick: () => setActiveTab('bei') },
+            ...(isDar ? [{ key: 'van', title: 'Van', hint: 'Dawati la van, kwa ofisi za Dar', onClick: () => { setActiveTab('van'); fetchVanDesk(); } }] : []),
+            { key: 'ofisi', title: 'Ofisi yangu', hint: 'Simu, anwani, saa za kazi na mipangilio', onClick: () => onNavigate('SuperAgentSettings') },
+          ]} />
+        )}
 
 
         {/* ════════════════════════════════════════════════════════════════
@@ -1150,44 +1121,22 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   </button>
                 )}
 
+                {/* Walk-in: the customer is at the counter (mockup: the first, biggest choice). */}
+                <button type="button" data-tour="sa-walkin-trigger" data-testid="pokea-walkin" onClick={() => setPokeaMode('walk_in')}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', minHeight: 76, boxSizing: 'border-box',
+                    padding: '14px 18px', marginBottom: 16, borderRadius: 16, border: 0, background: OFFICE_COLORS.pokea, color: '#ffffff', cursor: 'pointer', textAlign: 'left' }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 22, fontWeight: 800 }}>Walk-in</span>
+                    <span style={{ fontSize: 14, color: '#dbeafe' }}>Mteja amekuja ofisini. Andika mzigo mpya.</span>
+                  </span>
+                  <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+
+                <div style={officeSection}>KUTOKA KENTEXA</div>
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
                 <HubExpectedShipments onReceived={() => { fetchAll(); setReceivedCount((n) => n + 1); }} />
                 {/* Send-form parcels received here: record what the sender paid (2026-10-24). */}
                 <OfficeShipmentPayments refreshKey={receivedCount} />
-
-                {/* Four action buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 20 }}>
-                  <button data-tour="sa-walkin-trigger" onClick={() => setPokeaMode('walk_in')}
-                    style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none',
-                      padding: '14px 6px', borderRadius: 12, cursor: 'pointer',
-                      fontSize: 10, fontWeight: 800, textAlign: 'center' }}>
-                    <div style={{ fontSize: 18, marginBottom: 4 }}>👤</div>
-                    Walk-In
-                  </button>
-                  <button onClick={() => setPokeaMode('online_order')}
-                    style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
-                      padding: '14px 6px', borderRadius: 12, cursor: 'pointer',
-                      fontSize: 10, fontWeight: 800, textAlign: 'center' }}>
-                    <div style={{ fontSize: 18, marginBottom: 4 }}>📱</div>
-                    Agizo la KenteXa
-                  </button>
-                  <button onClick={() => setPokeaMode('confirm_arrival')}
-                    style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none',
-                      padding: '14px 6px', borderRadius: 12, cursor: 'pointer',
-                      fontSize: 10, fontWeight: 800, textAlign: 'center' }}>
-                    <div style={{ fontSize: 18, marginBottom: 4 }}>🚌</div>
-                    Imefika Hub
-                  </button>
-                  <button onClick={() => { setPokeaMode('consolidated'); setBulkStep('open'); fetchOpenShipments(); }}
-                    style={{ backgroundColor: '#d97706', color: '#fff', border: 'none',
-                      padding: '14px 6px', borderRadius: 12, cursor: 'pointer',
-                      fontSize: 10, fontWeight: 800, textAlign: 'center' }}>
-                    <div style={{ fontSize: 18, marginBottom: 4 }}>📦</div>
-                    Shehena
-                  </button>
-                </div>
-
-                {/* Parcels at hub */}
                 {handoverRequests.length > 0 && (
                   <section style={{ marginBottom: 20 }}>
                     <h3 style={{ fontSize: 14 }}>Agent handovers awaiting receipt ({handoverRequests.length})</h3>
@@ -1202,40 +1151,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ))}
                   </section>
                 )}
-                {atHub.length > 0 && (
-                  <>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-                      🏢 ZIKO HUBUNI — TAYARI KUTUMA ({atHub.length})
-                    </div>
-                    {atHub.map(p => (
-                      <PCard key={p.trackingNumber} p={p} actions={[
-                        { label: '📤 Tuma', color: '#16a34a',
-                          fn: (parcel) => {
-                            setActiveTab('tuma'); setDispatchParcel(parcel);
-                            setDispatchForm({ transportType: 'bus', busCompany: '',
-                              busTicketNumber: '', busDeparture: '',
-                              courierName: '', courierTrackingRef: '', notes: '',
-                              driverName: '', driverPhone: '', vehicleNumber: '',
-                              departureDate: '', departureTime: '',
-                              expectedArrivalDate: '', expectedArrivalTime: '',
-                              destinationSuperAgentId: null });
-                            setSelectedAgent(null); setDispatchMode('transport');
-                            fetchDestinationHubs(parcel.destinationCity);
-                          } },
-                        { label: 'Sasisha', color: '#64748b',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
-                      ]} />
-                    ))}
-                  </>
-                )}
+                <OfficeRow testId="pokea-order" title="Oda ya KenteXa" hint="Muuzaji au mteja analeta oda. Andika namba yake." onClick={() => setPokeaMode('online_order')} />
 
+                <div style={officeSection}>KUTOKA OFISI NYINGINE</div>
                 {/* Incoming intercity parcels */}
                 {incoming.length > 0 && (
                   <>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#7c3aed',
-                      marginBottom: 8, marginTop: 16 }}>
-                      🚌 ZINAKUJA — KUTOKA MIJI MINGINE ({incoming.length})
-                    </div>
                     {incoming.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: '✅ Pokea', color: '#7c3aed',
@@ -1245,30 +1166,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ))}
                   </>
                 )}
-
-                {/* Awaiting buyer */}
-                {awaitingBuyer.length > 0 && (
-                  <>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#dc2626',
-                      marginBottom: 8, marginTop: 16 }}>
-                      ⏳ ZINASUBIRI MTEJA ({awaitingBuyer.length})
-                    </div>
-                    {awaitingBuyer.map(p => (
-                      <PCard key={p.trackingNumber} p={p} actions={[
-                        ...(canHandOverToRecipient(p) ? [handoverAction] : []),
-                        { label: 'Sasisha Hali', color: '#7c3aed',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
-                      ]} />
-                    ))}
-                  </>
-                )}
-
-                {atHub.length === 0 && incoming.length === 0 && awaitingBuyer.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                    <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
-                    Hakuna vifurushi vya kupokea sasa
-                  </div>
-                )}
+                <OfficeRow testId="pokea-arrival" title="Imefika ofisini" hint="Thibitisha mizigo iliyofika kutoka ofisi nyingine" count={incoming.length || null} onClick={() => setPokeaMode('confirm_arrival')} />
               </>
             )}
 
@@ -1792,7 +1690,225 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               </div>
             )}
 
-            {pokeaMode === 'consolidated' && (
+          </>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            📤 TUMA TAB
+            ════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'tuma' && (
+          <>
+            {/* Dispatch form — shown when parcel selected */}
+            {dispatchParcel ? (
+              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between',
+                  alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>📤 Tuma</div>
+                  <button onClick={() => setDispatchParcel(null)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 20, color: '#64748b' }}>×</button>
+                </div>
+                <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8',
+                  marginBottom: 14 }}>
+                  {displayParcelNumber(dispatchParcel)} → {dispatchParcel.destinationCity}
+                  {dispatchParcel.transitCity && <span style={{ color: '#f59e0b' }}>
+                    {' '}via {dispatchParcel.transitCity}
+                  </span>}
+                </div>
+
+                {/* Mode toggle — C2: an intercity parcel goes by bus/courier only; the
+                    local agent choice is for same-city parcels (and the backend refuses it too). */}
+                {!isIntercityPlace(dispatchParcel.originCity || profile?.city, dispatchParcel.destinationCity) && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  {[
+                    { k: 'transport', l: '🚌 Basi / Courier' },
+                    { k: 'agent',     l: '🏍️ Wakala wa Mtaa' },
+                  ].map(m => (
+                    <button key={m.k} onClick={() => setDispatchMode(m.k)}
+                      style={{ flex: 1, padding: '9px 8px', borderRadius: 8,
+                        cursor: 'pointer', fontSize: 12, fontWeight: 700, border: 'none',
+                        backgroundColor: dispatchMode === m.k ? '#1d4ed8' : '#f1f5f9',
+                        color: dispatchMode === m.k ? '#fff' : '#475569' }}>
+                      {m.l}
+                    </button>
+                  ))}
+                </div>
+                )}
+
+                {dispatchMode === 'transport' && (
+                  <>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      {[{ k: 'bus', l: '🚌 Basi' }, { k: 'courier', l: '📦 Courier' }].map(t => (
+                        <button key={t.k}
+                          onClick={() => setDispatchForm(f => ({ ...f, transportType: t.k }))}
+                          style={{ flex: 1, padding: 8, borderRadius: 8, cursor: 'pointer',
+                            fontSize: 12, fontWeight: 700,
+                            border: dispatchForm.transportType === t.k
+                              ? '2px solid #1d4ed8' : '2px solid #e2e8f0',
+                            backgroundColor: dispatchForm.transportType === t.k ? '#eff6ff' : '#fff',
+                            color: dispatchForm.transportType === t.k ? '#1d4ed8' : '#64748b' }}>
+                          {t.l}
+                        </button>
+                      ))}
+                    </div>
+
+                    {dispatchForm.transportType === 'bus' && (
+                      <>
+                        <input type="text" placeholder="Jina la Basi (e.g. Abood, Tahmeed, Scandinavian...)"
+                          value={dispatchForm.busCompany}
+                          onChange={e => setDispatchForm(f => ({ ...f, busCompany: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                        <input type="text" placeholder="Namba ya Tiketi *"
+                          value={dispatchForm.busTicketNumber}
+                          onChange={e => setDispatchForm(f => ({ ...f, busTicketNumber: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                        <input type="text" placeholder="Saa ya Kuondoka (e.g. 6am)"
+                          value={dispatchForm.busDeparture}
+                          onChange={e => setDispatchForm(f => ({ ...f, busDeparture: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                      </>
+                    )}
+                    {dispatchForm.transportType === 'courier' && (
+                      <>
+                        <input type="text" placeholder="Jina la Courier"
+                          value={dispatchForm.courierName}
+                          onChange={e => setDispatchForm(f => ({ ...f, courierName: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                        <input type="text" placeholder="Namba ya Kufuatilia"
+                          value={dispatchForm.courierTrackingRef}
+                          onChange={e => setDispatchForm(f => ({ ...f, courierTrackingRef: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                      </>
+                    )}
+
+                    {/* Hub-to-hub hand-off — send to another Super Agent's hub
+                        in the destination city, who then arranges last-mile
+                        delivery to the customer themselves. Optional: skip
+                        this and the parcel just travels to the buyer directly. */}
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
+                      marginTop: 10, marginBottom: 6, textTransform: 'uppercase' }}>
+                      Chagua Super Agent Atakayepokea (hiari)
+                    </div>
+                    {loadingHubs ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>⏳ Inatafuta...</div>
+                    ) : destinationHubs.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+                        Hakuna Super Agent mwingine katika {dispatchParcel.destinationCity}
+                      </div>
+                    ) : (
+                      <div style={{ marginBottom: 8 }}>
+                        {destinationHubs.map(h => (
+                          <div key={h.id}
+                            onClick={() => setDispatchForm(f => ({ ...f,
+                              destinationSuperAgentId: f.destinationSuperAgentId === h.id ? null : h.id }))}
+                            style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                              marginBottom: 6,
+                              border: dispatchForm.destinationSuperAgentId === h.id
+                                ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+                              backgroundColor: dispatchForm.destinationSuperAgentId === h.id ? '#f5f3ff' : '#fff' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700 }}>
+                              {h.businessName} {dispatchForm.destinationSuperAgentId === h.id && '✅'}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              ⭐ {Number(h.rating || 5).toFixed(1)} · {h.address || h.city}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Optional — only fields actually filled in get included in the receiver SMS */}
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
+                      marginTop: 6, marginBottom: 6, textTransform: 'uppercase' }}>
+                      Maelezo ya ziada (hiari)
+                    </div>
+                    <input type="text" placeholder="Jina la Dereva (hiari)"
+                      value={dispatchForm.driverName}
+                      onChange={e => setDispatchForm(f => ({ ...f, driverName: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    <input type="text" placeholder="Namba ya Simu ya Dereva (hiari)"
+                      value={dispatchForm.driverPhone}
+                      onChange={e => setDispatchForm(f => ({ ...f, driverPhone: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    <input type="text" placeholder="Namba ya Gari (hiari)"
+                      value={dispatchForm.vehicleNumber}
+                      onChange={e => setDispatchForm(f => ({ ...f, vehicleNumber: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    {/* Partner invitation: the driver / transport not yet on KenteXa joins through this waybill. */}
+                    <PartnerInvitePanel parcel={dispatchParcel}
+                      defaultPhone={dispatchForm.driverPhone} defaultName={dispatchForm.driverName} />
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input type="date" placeholder="Tarehe ya Kuondoka"
+                        value={dispatchForm.departureDate}
+                        onChange={e => setDispatchForm(f => ({ ...f, departureDate: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                      <input type="time" placeholder="Saa ya Kuondoka"
+                        value={dispatchForm.departureTime}
+                        onChange={e => setDispatchForm(f => ({ ...f, departureTime: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input type="date" placeholder="Tarehe ya Kufika"
+                        value={dispatchForm.expectedArrivalDate}
+                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalDate: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                      <input type="time" placeholder="Saa ya Kufika"
+                        value={dispatchForm.expectedArrivalTime}
+                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalTime: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                    </div>
+                  </>
+                )}
+
+                {dispatchMode === 'agent' && (
+                  <>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+                      Chagua wakala wa mtaa kwa uwasilishaji wa mwisho
+                      katika {dispatchParcel.destinationCity}
+                    </div>
+                    {localAgents.length === 0 ? (
+                      <div style={{ backgroundColor: '#fff7ed', borderRadius: 8,
+                        padding: 12, fontSize: 12, color: '#c2410c' }}>
+                        Hakuna mawakala walioidhinishwa katika {dispatchParcel.destinationCity}
+                      </div>
+                    ) : (
+                      localAgents.map(a => (
+                        <div key={a.id}
+                          onClick={() => setSelectedAgent(selectedAgent?.id === a.id ? null : a)}
+                          style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                            marginBottom: 8,
+                            border: selectedAgent?.id === a.id
+                              ? '2px solid #16a34a' : '1px solid #e2e8f0',
+                            backgroundColor: selectedAgent?.id === a.id ? '#f0fdf4' : '#fff' }}>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>
+                            {a.fullName} {selectedAgent?.id === a.id && '✅'}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#64748b' }}>
+                            ⭐ {Number(a.rating || 5).toFixed(1)} ·
+                            TZS {Number(a.deliveryFee || 1000).toLocaleString()}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </>
+                )}
+
+                <input type="text" placeholder="Maelezo ya ziada (hiari)"
+                  value={dispatchForm.notes}
+                  onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
+                  style={{ ...inp, marginBottom: 14, marginTop: 8 }} />
+
+                <button onClick={handleDispatch} disabled={actionLoading}
+                  style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff',
+                    border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer',
+                    fontSize: 14, fontWeight: 900 }}>
+                  {actionLoading ? '⏳' : '📤 Tuma Sasa'}
+                </button>
+              </div>
+            ) : tumaMode === 'shehena' ? (
+              <>
+            {true && (
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between',
@@ -1800,7 +1916,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
                     📦 Shehena (Hamisha Vifurushi Vingi)
                   </div>
-                  <button onClick={() => { setPokeaMode('list'); resetBulkForm(); setBulkStep('open'); }}
+                  <button onClick={() => { setTumaMode('list'); resetBulkForm(); setBulkStep('open'); }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer',
                       fontSize: 20, color: '#64748b' }}>×</button>
                 </div>
@@ -2059,231 +2175,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 )}
               </div>
             )}
-          </>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════
-            📤 TUMA TAB
-            ════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'tuma' && (
-          <>
-            {/* Dispatch form — shown when parcel selected */}
-            {dispatchParcel ? (
-              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between',
-                  alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>📤 Tuma</div>
-                  <button onClick={() => setDispatchParcel(null)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 20, color: '#64748b' }}>×</button>
-                </div>
-                <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8',
-                  marginBottom: 14 }}>
-                  {displayParcelNumber(dispatchParcel)} → {dispatchParcel.destinationCity}
-                  {dispatchParcel.transitCity && <span style={{ color: '#f59e0b' }}>
-                    {' '}via {dispatchParcel.transitCity}
-                  </span>}
-                </div>
-
-                {/* Mode toggle — C2: an intercity parcel goes by bus/courier only; the
-                    local agent choice is for same-city parcels (and the backend refuses it too). */}
-                {!isIntercityPlace(dispatchParcel.originCity || profile?.city, dispatchParcel.destinationCity) && (
-                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                  {[
-                    { k: 'transport', l: '🚌 Basi / Courier' },
-                    { k: 'agent',     l: '🏍️ Wakala wa Mtaa' },
-                  ].map(m => (
-                    <button key={m.k} onClick={() => setDispatchMode(m.k)}
-                      style={{ flex: 1, padding: '9px 8px', borderRadius: 8,
-                        cursor: 'pointer', fontSize: 12, fontWeight: 700, border: 'none',
-                        backgroundColor: dispatchMode === m.k ? '#1d4ed8' : '#f1f5f9',
-                        color: dispatchMode === m.k ? '#fff' : '#475569' }}>
-                      {m.l}
-                    </button>
-                  ))}
-                </div>
-                )}
-
-                {dispatchMode === 'transport' && (
-                  <>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                      {[{ k: 'bus', l: '🚌 Basi' }, { k: 'courier', l: '📦 Courier' }].map(t => (
-                        <button key={t.k}
-                          onClick={() => setDispatchForm(f => ({ ...f, transportType: t.k }))}
-                          style={{ flex: 1, padding: 8, borderRadius: 8, cursor: 'pointer',
-                            fontSize: 12, fontWeight: 700,
-                            border: dispatchForm.transportType === t.k
-                              ? '2px solid #1d4ed8' : '2px solid #e2e8f0',
-                            backgroundColor: dispatchForm.transportType === t.k ? '#eff6ff' : '#fff',
-                            color: dispatchForm.transportType === t.k ? '#1d4ed8' : '#64748b' }}>
-                          {t.l}
-                        </button>
-                      ))}
-                    </div>
-
-                    {dispatchForm.transportType === 'bus' && (
-                      <>
-                        <input type="text" placeholder="Jina la Basi (e.g. Abood, Tahmeed, Scandinavian...)"
-                          value={dispatchForm.busCompany}
-                          onChange={e => setDispatchForm(f => ({ ...f, busCompany: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Namba ya Tiketi *"
-                          value={dispatchForm.busTicketNumber}
-                          onChange={e => setDispatchForm(f => ({ ...f, busTicketNumber: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Saa ya Kuondoka (e.g. 6am)"
-                          value={dispatchForm.busDeparture}
-                          onChange={e => setDispatchForm(f => ({ ...f, busDeparture: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                      </>
-                    )}
-                    {dispatchForm.transportType === 'courier' && (
-                      <>
-                        <input type="text" placeholder="Jina la Courier"
-                          value={dispatchForm.courierName}
-                          onChange={e => setDispatchForm(f => ({ ...f, courierName: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Namba ya Kufuatilia"
-                          value={dispatchForm.courierTrackingRef}
-                          onChange={e => setDispatchForm(f => ({ ...f, courierTrackingRef: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                      </>
-                    )}
-
-                    {/* Hub-to-hub hand-off — send to another Super Agent's hub
-                        in the destination city, who then arranges last-mile
-                        delivery to the customer themselves. Optional: skip
-                        this and the parcel just travels to the buyer directly. */}
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
-                      marginTop: 10, marginBottom: 6, textTransform: 'uppercase' }}>
-                      Chagua Super Agent Atakayepokea (hiari)
-                    </div>
-                    {loadingHubs ? (
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>⏳ Inatafuta...</div>
-                    ) : destinationHubs.length === 0 ? (
-                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-                        Hakuna Super Agent mwingine katika {dispatchParcel.destinationCity}
-                      </div>
-                    ) : (
-                      <div style={{ marginBottom: 8 }}>
-                        {destinationHubs.map(h => (
-                          <div key={h.id}
-                            onClick={() => setDispatchForm(f => ({ ...f,
-                              destinationSuperAgentId: f.destinationSuperAgentId === h.id ? null : h.id }))}
-                            style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                              marginBottom: 6,
-                              border: dispatchForm.destinationSuperAgentId === h.id
-                                ? '2px solid #7c3aed' : '1px solid #e2e8f0',
-                              backgroundColor: dispatchForm.destinationSuperAgentId === h.id ? '#f5f3ff' : '#fff' }}>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>
-                              {h.businessName} {dispatchForm.destinationSuperAgentId === h.id && '✅'}
-                            </div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
-                              ⭐ {Number(h.rating || 5).toFixed(1)} · {h.address || h.city}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Optional — only fields actually filled in get included in the receiver SMS */}
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
-                      marginTop: 6, marginBottom: 6, textTransform: 'uppercase' }}>
-                      Maelezo ya ziada (hiari)
-                    </div>
-                    <input type="text" placeholder="Jina la Dereva (hiari)"
-                      value={dispatchForm.driverName}
-                      onChange={e => setDispatchForm(f => ({ ...f, driverName: e.target.value }))}
-                      style={{ ...inp, marginBottom: 8 }} />
-                    <input type="text" placeholder="Namba ya Simu ya Dereva (hiari)"
-                      value={dispatchForm.driverPhone}
-                      onChange={e => setDispatchForm(f => ({ ...f, driverPhone: e.target.value }))}
-                      style={{ ...inp, marginBottom: 8 }} />
-                    <input type="text" placeholder="Namba ya Gari (hiari)"
-                      value={dispatchForm.vehicleNumber}
-                      onChange={e => setDispatchForm(f => ({ ...f, vehicleNumber: e.target.value }))}
-                      style={{ ...inp, marginBottom: 8 }} />
-                    {/* Partner invitation: the driver / transport not yet on KenteXa joins through this waybill. */}
-                    <PartnerInvitePanel parcel={dispatchParcel}
-                      defaultPhone={dispatchForm.driverPhone} defaultName={dispatchForm.driverName} />
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                      <input type="date" placeholder="Tarehe ya Kuondoka"
-                        value={dispatchForm.departureDate}
-                        onChange={e => setDispatchForm(f => ({ ...f, departureDate: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                      <input type="time" placeholder="Saa ya Kuondoka"
-                        value={dispatchForm.departureTime}
-                        onChange={e => setDispatchForm(f => ({ ...f, departureTime: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                      <input type="date" placeholder="Tarehe ya Kufika"
-                        value={dispatchForm.expectedArrivalDate}
-                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalDate: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                      <input type="time" placeholder="Saa ya Kufika"
-                        value={dispatchForm.expectedArrivalTime}
-                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalTime: e.target.value }))}
-                        style={{ ...inp, flex: 1 }} />
-                    </div>
-                  </>
-                )}
-
-                {dispatchMode === 'agent' && (
-                  <>
-                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                      Chagua wakala wa mtaa kwa uwasilishaji wa mwisho
-                      katika {dispatchParcel.destinationCity}
-                    </div>
-                    {localAgents.length === 0 ? (
-                      <div style={{ backgroundColor: '#fff7ed', borderRadius: 8,
-                        padding: 12, fontSize: 12, color: '#c2410c' }}>
-                        Hakuna mawakala walioidhinishwa katika {dispatchParcel.destinationCity}
-                      </div>
-                    ) : (
-                      localAgents.map(a => (
-                        <div key={a.id}
-                          onClick={() => setSelectedAgent(selectedAgent?.id === a.id ? null : a)}
-                          style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                            marginBottom: 8,
-                            border: selectedAgent?.id === a.id
-                              ? '2px solid #16a34a' : '1px solid #e2e8f0',
-                            backgroundColor: selectedAgent?.id === a.id ? '#f0fdf4' : '#fff' }}>
-                          <div style={{ fontSize: 13, fontWeight: 700 }}>
-                            {a.fullName} {selectedAgent?.id === a.id && '✅'}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#64748b' }}>
-                            ⭐ {Number(a.rating || 5).toFixed(1)} ·
-                            TZS {Number(a.deliveryFee || 1000).toLocaleString()}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </>
-                )}
-
-                <input type="text" placeholder="Maelezo ya ziada (hiari)"
-                  value={dispatchForm.notes}
-                  onChange={e => setDispatchForm(f => ({ ...f, notes: e.target.value }))}
-                  style={{ ...inp, marginBottom: 14, marginTop: 8 }} />
-
-                <button onClick={handleDispatch} disabled={actionLoading}
-                  style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff',
-                    border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer',
-                    fontSize: 14, fontWeight: 900 }}>
-                  {actionLoading ? '⏳' : '📤 Tuma Sasa'}
-                </button>
-              </div>
+              </>
             ) : (
               <>
-                {/* Ready to dispatch */}
+                <div style={officeSection}>KWA USAFIRI (MKOA MWINGINE)</div>
+                <OfficeRow testId="tuma-shehena" title="Shehena" hint="Mizigo ya mji mmoja, inafungwa pamoja"
+                  onClick={() => { setTumaMode('shehena'); setBulkStep('open'); fetchOpenShipments(); }} />
+                {/* Ready to dispatch, one by one */}
                 {toDispatch.length > 0 && (
                   <>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a',
-                      marginBottom: 8 }}>
-                      📤 TAYARI KUTUMA ({toDispatch.length})
-                    </div>
+                    <div style={officeSection}>MZIGO MMOJA ({toDispatch.length})</div>
                     {toDispatch.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={p.transportMethod === 'van' ? [
                         { label: '🚐 Fungua Van Desk', color: '#1d4ed8', fn: () => { setActiveTab('van'); fetchVanDesk(); } },
@@ -2324,9 +2225,26 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   </>
                 )}
 
-                {toDispatch.length === 0 && inTransit.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                    <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
+                {/* To the recipient here in town (moved from POKEA, mockup screen 4) */}
+                <div style={officeSection}>KWA MPOKEAJI (HAPA MJINI)</div>
+                {/* Awaiting buyer */}
+                {awaitingBuyer.length > 0 && (
+                  <>
+                    {awaitingBuyer.map(p => (
+                      <PCard key={p.trackingNumber} p={p} actions={[
+                        ...(canHandOverToRecipient(p) ? [handoverAction] : []),
+                        { label: 'Sasisha Hali', color: '#7c3aed',
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
+                      ]} />
+                    ))}
+                  </>
+                )}
+                {awaitingBuyer.length === 0 && (
+                  <div style={{ fontSize: 14, color: '#475569', marginBottom: 12 }}>Hakuna mzigo unaosubiri mpokeaji.</div>
+                )}
+
+                {toDispatch.length === 0 && inTransit.length === 0 && awaitingBuyer.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: 24, color: '#475569', fontSize: 14 }}>
                     Vifurushi vyote vimetumwa
                   </div>
                 )}
