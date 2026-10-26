@@ -356,10 +356,10 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={labelStyle}>Super Agent wa Eneo hili</label>
+              <label style={labelStyle}>Ofisi ya Eneo hili</label>
               <select value={form.zoneAgentId}
                 onChange={e => setForm({...form, zoneAgentId: e.target.value})} style={inputStyle}>
-                <option value="">— Chagua Super Agent —</option>
+                <option value="">— Chagua Ofisi —</option>
                 {agents.map(agent => (
                   <option key={agent.id} value={agent.id}>
                     {agent.businessName || agent.user?.name || `Agent #${agent.id}`} — {agent.city || agent.region || ''}
@@ -368,7 +368,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
               </select>
               {agents.length === 0 && (
                 <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4 }}>
-                  ⚠️ Hakuna Super Agents waliosajiliwa bado. Unaweza kuongeza agent baadaye.
+                  ⚠️ Hakuna ofisi zilizosajiliwa bado. Unaweza kuongeza baadaye.
                 </div>
               )}
             </div>

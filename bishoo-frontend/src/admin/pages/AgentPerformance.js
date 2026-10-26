@@ -77,9 +77,9 @@ const AgentPerformance = ({ onNavigate }) => {
       <Sidebar onNavigate={onNavigate} activeItem="AgentPerformance" />
       <div style={{ flex: 1, padding: 24 }}>
 
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: '0 0 4px' }}>📊 Utendaji wa Super Agents</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: '0 0 4px' }}>📊 Utendaji wa Ofisi</h1>
         <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px' }}>
-          Rating, vifurushi, mapato, na malalamiko — Super Agents wote kwa jicho moja
+          Rating, vifurushi, mapato, na malalamiko — ofisi zote kwa jicho moja
         </p>
 
         {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>❌ {error}</div>}
@@ -88,7 +88,7 @@ const AgentPerformance = ({ onNavigate }) => {
         {!loading && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
             {[
-              { label: 'Super Agents',     value: agents.length,    color: '#1d4ed8', bg: '#dbeafe' },
+              { label: 'Ofisi',            value: agents.length,    color: '#1d4ed8', bg: '#dbeafe' },
               { label: 'Wanaofanya kazi',  value: agents.filter(a => a.status === 'active').length, color: '#16a34a', bg: '#dcfce7' },
               { label: 'Vifurushi Jumla',  value: agents.reduce((s,a) => s + a.totalParcelsDelivered, 0), color: '#7c3aed', bg: '#ede9fe' },
               { label: 'Malalamiko',       value: agents.reduce((s,a) => s + a.totalComplaints, 0), color: '#dc2626', bg: '#fee2e2' },

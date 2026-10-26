@@ -43,7 +43,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
     { icon: '🏬', label: 'Businesses',        page: 'Businesses' },
     { icon: '🪪', label: 'Identity Verification', page: 'IdentityVerifications' },
     { icon: '🤝', label: 'Agents',            page: 'Agents' },
-    { icon: '🏢', label: 'Super Agents',      page: 'SuperAgents' },
+    { icon: '🏢', label: 'Ofisi',            page: 'SuperAgents' },
     { icon: '📊', label: 'Agent Performance', page: 'AgentPerformance' },
     { icon: '📦', label: 'Products',          page: 'Products' },
     { icon: '🏷️', label: 'Brands',            page: 'AdminBrands' },

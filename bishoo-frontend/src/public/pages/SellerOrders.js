@@ -292,7 +292,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
             superAgentCity: selectedHub.city || selectedHub.region || 'Tanzania',
             // The office itself, so it sees this order coming with its waybill.
             superAgentId: selectedHub.id || undefined,
-            notes: `Handing to ${selectedHub.businessName || selectedHub.user?.name || 'Super Agent'}`,
+            notes: `Handing to ${selectedHub.businessName || selectedHub.user?.name || 'ofisi'}`,
           });
         } catch {}
       }
@@ -889,7 +889,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         style={{ backgroundColor: selectedHub?.id === hub.id ? '#f0fdf4' : '#f8fafc', borderRadius: 10, padding: '12px 14px', border: selectedHub?.id === hub.id ? '2px solid #16a34a' : '2px solid #e2e8f0', cursor: 'pointer' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{hub.businessName || hub.user?.name || 'Super Agent Hub'}</div>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{hub.businessName || hub.user?.name || 'Ofisi'}</div>
                             <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>📍 {hub.city || hub.region || '—'}</div>
                             <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 600 }}>📞 {hub.user?.phone || hub.phone || '—'}</div>
                           </div>

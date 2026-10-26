@@ -783,7 +783,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                     <label style={{ fontSize:12,fontWeight:800,color:'#334155',display:'block',marginBottom:6 }}>Van stops / Kentexa hubs</label>
                     <button type="button" onClick={loadActiveHubs} style={{border:'none',borderRadius:8,padding:'8px 10px',fontWeight:800,marginBottom:8}}>Load active Kentexa hubs</button>
                     {activeHubs.length>0 && <select defaultValue="" onChange={e=>{addNewRouteStop(e.target.value);e.target.value='';}} style={{...inp,marginBottom:8}}>
-                      <option value="">Add Super Agent hub…</option>
+                      <option value="">Ongeza ofisi…</option>
                       {activeHubs.map(h=><option key={h.id} value={h.id}>{h.businessName} · {h.address || h.city}</option>)}
                     </select>}
                     {newRouteStops.map((st,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',gap:8,padding:'7px 0',fontSize:12,borderTop:'1px solid #f1f5f9'}}>

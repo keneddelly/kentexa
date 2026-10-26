@@ -6,7 +6,7 @@ const ROLE_STYLE = {
   buyer:        { bg: '#f1f5f9', color: '#475569',  label: '👤 Mnunuzi' },
   seller:       { bg: '#ede9fe', color: '#7c3aed',  label: '🏪 Muuzaji' },
   agent:        { bg: '#dbeafe', color: '#2563eb',  label: '🤝 Agent' },
-  super_agent:  { bg: '#fef9c3', color: '#ca8a04',  label: '⭐ Super Agent' },
+  super_agent:  { bg: '#fef9c3', color: '#ca8a04',  label: '⭐ Ofisi' },
   admin:        { bg: '#fee2e2', color: '#dc2626',  label: '🛡️ Admin' },
   manager:      { bg: '#dcfce7', color: '#16a34a',  label: '📊 Manager' },
 };

@@ -6,7 +6,7 @@ const AUDIENCE_LABELS = {
   all:         { label: '👥 Wote', color: '#6366f1' },
   sellers:     { label: '🏪 Wauzaji', color: '#7c3aed' },
   agents:      { label: '🤝 Agents', color: '#2563eb' },
-  super_agents:{ label: '⭐ Super Agents', color: '#ca8a04' },
+  super_agents:{ label: '⭐ Ofisi', color: '#ca8a04' },
   buyers:      { label: '👤 Wanunuzi', color: '#16a34a' },
 };
 
@@ -173,7 +173,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                           <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>👤 {a.targetUserName || `User #${a.targetUserId}`}</span>
                         ) : a.thresholdEntity ? (
                           <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>
-                            💰 {a.thresholdEntity === 'seller' ? 'Wauzaji' : 'Super Agents'} {a.thresholdOperator === 'gte' ? '≥' : '≤'} TZS {Number(a.thresholdAmount).toLocaleString()}
+                            💰 {a.thresholdEntity === 'seller' ? 'Wauzaji' : 'Ofisi'} {a.thresholdOperator === 'gte' ? '≥' : '≤'} TZS {Number(a.thresholdAmount).toLocaleString()}
                           </span>
                         ) : (
                           <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: as_.color }}>{as_.label}</span>
@@ -246,7 +246,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                   <select value={form.thresholdEntity} onChange={e => setForm({...form, thresholdEntity: e.target.value})}
                     style={{ ...inputStyle, flex: 1 }}>
                     <option value="seller">🏪 Wauzaji</option>
-                    <option value="super_agent">⭐ Super Agents</option>
+                    <option value="super_agent">⭐ Ofisi</option>
                   </select>
                   <select value={form.thresholdOperator} onChange={e => setForm({...form, thresholdOperator: e.target.value})}
                     style={{ ...inputStyle, flex: '0 0 90px' }}>
@@ -258,7 +258,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                   onChange={e => setForm({...form, thresholdAmount: e.target.value})}
                   style={{ ...inputStyle, marginTop: 8 }} />
                 <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, marginBottom: 0 }}>
-                  Itamlenga kila {form.thresholdEntity === 'seller' ? 'muuzaji' : 'Super Agent'} ambaye deni lake (outstanding balance) ni {form.thresholdOperator === 'gte' ? 'kubwa kuliko au sawa na' : 'kidogo kuliko au sawa na'} kiasi hiki — inahesabiwa upya kila wakati, si picha ya zamani.
+                  Itamlenga kila {form.thresholdEntity === 'seller' ? 'muuzaji' : 'ofisi'} ambayo deni lake (outstanding balance) ni {form.thresholdOperator === 'gte' ? 'kubwa kuliko au sawa na' : 'kidogo kuliko au sawa na'} kiasi hiki — inahesabiwa upya kila wakati, si picha ya zamani.
                 </p>
               </div>
             )}
