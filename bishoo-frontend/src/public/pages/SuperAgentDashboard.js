@@ -1085,7 +1085,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         {/* ── Mwanzo: the two jobs ── */}
         {activeTab === 'home' && (
           <OfficeHome officeName={profile?.businessName} city={profile?.city}
-            pokeaCount={pokeaCount} tumaCount={tumaCount} inboxUnread={inboxUnread}
+            pokeaCount={pokeaCount} tumaCount={tumaCount} inboxUnread={inboxUnread} today={dashData?.stats?.today || null}
             onPokea={() => { setActiveTab('pokea'); setPokeaMode('list'); }}
             onTuma={() => { setActiveTab('tuma'); setTumaMode('list'); setDispatchParcel(null); }}
             onMenu={() => setActiveTab('menu')}

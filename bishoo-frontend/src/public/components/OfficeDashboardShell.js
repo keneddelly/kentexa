@@ -14,7 +14,7 @@ const Icon = ({ d, color = OFFICE_COLORS.ink, size = 22, width = 2 }) => (
 );
 
 /** Mwanzo: search, then the two jobs with what is waiting in each. */
-export function OfficeHome({ officeName, city, pokeaCount, tumaCount, onPokea, onTuma, onMenu, onInbox, inboxUnread, onSearch }) {
+export function OfficeHome({ officeName, city, pokeaCount, tumaCount, today, onPokea, onTuma, onMenu, onInbox, inboxUnread, onSearch }) {
   const [q, setQ] = useState('');
   const submit = (e) => { e.preventDefault(); if (q.trim()) onSearch(q.trim()); };
   const big = (bg, color) => ({
@@ -76,6 +76,13 @@ export function OfficeHome({ officeName, city, pokeaCount, tumaCount, onPokea, o
           <span style={{ fontSize: 16, fontWeight: 600 }}>zinasubiri kutumwa</span>
         </span>
       </button>
+
+      {today && (
+        <div data-testid="office-today" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500, color: OFFICE_COLORS.grey, padding: '0 4px' }}>
+          <span>Leo: {today.received} zimepokelewa</span>
+          <span>{today.sent} zimetumwa</span>
+        </div>
+      )}
     </div>
   );
 }

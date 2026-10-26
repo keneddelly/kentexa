@@ -46,4 +46,11 @@ test('Washirika: own transport and partners, and an invitation from the office p
   expect(screen.getByTestId('office-partner-9').textContent).toMatch(/Mshirika/);
   fireEvent.click(screen.getByTestId('invite-carrier'));
   expect(screen.getByTestId('invite-carrier-send').getAttribute('href')).toMatch(/Ofisi%20ya%20Kariakoo/);
+
+test('Mwanzo shows today only when the server counted it', () => {
+  const noop = () => {};
+  const { rerender } = render(<OfficeHome pokeaCount={0} tumaCount={0} today={{ received: 14, sent: 11 }} onPokea={noop} onTuma={noop} onMenu={noop} onInbox={noop} onSearch={noop} />);
+  expect(screen.getByTestId('office-today').textContent).toBe('Leo: 14 zimepokelewa11 zimetumwa');
+  rerender(<OfficeHome pokeaCount={0} tumaCount={0} today={null} onPokea={noop} onTuma={noop} onMenu={noop} onInbox={noop} onSearch={noop} />);
+  expect(screen.queryByTestId('office-today')).toBeNull();
 });
