@@ -151,6 +151,28 @@ export class AgentsService {
 
     return { message: AGENT_SIGNUP_MESSAGES.submitted };
   }
+  /**
+   * What anyone may see about an approved agent: name, area, vehicle and their record.
+   * Never the phone, ID, address, earnings or commission (owner rule: identity is public,
+   * private data is not). Not approved: nothing.
+   */
+  async findPublicByUserId(userId: number) {
+    const agent = await this.agentRepo.findOne({ where: { user: { id: userId } } });
+    if (!agent || agent.status !== AgentStatus.APPROVED) return null;
+    return {
+      fullName: agent.fullName,
+      agentCode: agent.agentCode,
+      city: agent.city,
+      district: agent.district,
+      region: agent.region,
+      coverageAreas: agent.coverageAreas || [],
+      agentType: agent.agentType,
+      totalDeliveriesCompleted: Number(agent.totalDeliveriesCompleted || 0),
+      rating: Number(agent.rating || 0),
+      totalRatings: Number(agent.totalRatings || 0),
+    };
+  }
+
 
   // ── Agent: my profile ─────────────────────────────────────────────────────
 

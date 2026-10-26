@@ -19,6 +19,8 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LineIcon } from '../components/LineIcon';
+import { Spinner } from '../components/Loading';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
@@ -40,9 +42,9 @@ const STATUS_COLOR = {
 };
 
 const getTierStyle = t => ({
-  basic:  { bg: '#f1f5f9', color: '#64748b', icon: '🥉', label: t('agent_dashboard.tier_basic') },
-  silver: { bg: '#e2e8f0', color: '#475569', icon: '🥈', label: t('agent_dashboard.tier_silver') },
-  gold:   { bg: '#fef9c3', color: '#ca8a04', icon: '🥇', label: t('agent_dashboard.tier_gold') },
+  basic:  { bg: '#f1f5f9', color: '#64748b', label: t('agent_dashboard.tier_basic') },
+  silver: { bg: '#e2e8f0', color: '#475569', label: t('agent_dashboard.tier_silver') },
+  gold:   { bg: '#fef9c3', color: '#ca8a04', label: t('agent_dashboard.tier_gold') },
 });
 
 // ── Launch scope ──────────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ const JOB_QUEUE_ENABLED = true;
 const ComingSoonPanel = ({ icon, title, body }) => (
   <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 40,
     textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-    <div style={{ fontSize: 40, marginBottom: 12 }}>{icon}</div>
+    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name={icon} size={36} color="#94a3b8" /></div>
     <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{title}</div>
     <div style={{ fontSize: 13, color: '#64748b', maxWidth: 320, margin: '0 auto' }}>{body}</div>
   </div>
@@ -119,7 +121,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
                 style={{ fontSize: 11, color: '#1d4ed8', textDecoration: 'none',
                   fontWeight: 700, marginTop: 4, display: 'block' }}
                 onClick={e => e.stopPropagation()}>
-                📞 {order.seller?.user?.phone || order.seller?.phone}
+                {order.seller?.user?.phone || order.seller?.phone}
               </a>
             ) : null}
           </div>
@@ -144,7 +146,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
                 style={{ fontSize: 11, color: '#16a34a', textDecoration: 'none',
                   fontWeight: 700, marginTop: 4, display: 'block' }}
                 onClick={e => e.stopPropagation()}>
-                📞 {order.buyer?.phone || order.phone || order.manualBuyerPhone}
+                {order.buyer?.phone || order.phone || order.manualBuyerPhone}
               </a>
             ) : null}
           </div>
@@ -154,7 +156,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
         {order.deliveryAddress && (
           <div style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '7px 10px',
             fontSize: 11, color: '#64748b', marginBottom: 10, display: 'flex', gap: 6 }}>
-            <span>📍</span>
+            <span></span>
             <span>{order.deliveryAddress}</span>
           </div>
         )}
@@ -177,7 +179,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
             style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
               background: 'linear-gradient(135deg,#f59e0b,#f97316)',
               color: '#fff', fontSize: 14, fontWeight:800, cursor: 'pointer' }}>
-            {actionLoading[order.id] ? '⏳...' : t('agent_dashboard.picked_up_button')}
+            {actionLoading[order.id] ? '…' : t('agent_dashboard.picked_up_button')}
           </button>
         )}
         {isPickedUp && (
@@ -186,7 +188,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
             style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
               background: 'linear-gradient(135deg,#16a34a,#059669)',
               color: '#fff', fontSize: 14, fontWeight:800, cursor: 'pointer' }}>
-            {actionLoading[order.id] ? '⏳...' : t('agent_dashboard.delivered_to_buyer_button')}
+            {actionLoading[order.id] ? '…' : t('agent_dashboard.delivered_to_buyer_button')}
           </button>
         )}
         {isDelivered && (
@@ -436,7 +438,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setActionLoading(true); setError('');
       await api.post(`/super-agents/parcels/${trackingNumber}/confirm-agent-handoff`, { code });
       setHandoffCodes(prev => ({ ...prev, [trackingNumber]: '' }));
-      setSuccess('✅ Kifurushi kimepokelewa kutoka hub');
+      setSuccess('Kifurushi kimepokelewa kutoka hub');
       fetchWork(profile);
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha makabidhiano');
@@ -542,7 +544,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onConfirm} disabled={loading}
           style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-          {loading ? '⏳' : `✅ ${label}`}
+          {loading ? <Spinner size={16} color="currentColor" /> : label}
         </button>
         <button onClick={() => { setSelectedItem(null); setNote(''); }}
           style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 12, color: '#64748b' }}>
@@ -557,7 +559,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0} />
       <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
+        <div style={{ fontSize: 36, marginBottom: 12 }}></div>
         {t('agent_dashboard.loading_ellipsis')}
       </div>
     </div>
@@ -578,8 +580,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button onClick={() => onNavigate('SellerInbox')} title={t('bottom_nav.messages')}
               style={{ position: 'relative', background: 'none', border: 'none',
-                cursor: 'pointer', fontSize: 18, padding: 0 }}>
-              💬
+                cursor: 'pointer', fontSize: 18, padding: 0, display: 'flex' }} aria-label={t('bottom_nav.messages')}>
+              <LineIcon name="chat" size={22} color="#0f1419" />
               {inboxUnread > 0 && (
                 <span style={{ position: 'absolute', top: -6, right: -8, minWidth: 14, height: 14,
                   padding: '0 3px', borderRadius: 100, backgroundColor: '#DC2626', color: '#fff',
@@ -610,12 +612,12 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 fontWeight: 800, fontSize: 12,
                 backgroundColor: isOnline ? '#dcfce7' : 'rgba(255,255,255,0.2)',
                 color: isOnline ? '#15803d' : '#fff' }}>
-              {togglingOnline ? '⏳' : isOnline ? t('agent_dashboard.online_label') : t('agent_dashboard.offline_label')}
+              {togglingOnline ? '…' : isOnline ? t('agent_dashboard.online_label') : t('agent_dashboard.offline_label')}
             </button>
           )}
           {profile?.status === 'approved' && (
             <div style={{ ...tier, padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
-              {tier.icon} {tier.label}
+              {tier.label}
             </div>
           )}
         </div>
@@ -642,13 +644,13 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         {/* Alerts */}
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-            <span>❌ {error}</span>
+            <span>{error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
         {success && (
           <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
-            <span>✅ {success}</span>
+            <span>{success}</span>
             <button onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button>
           </div>
         )}
@@ -666,7 +668,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         {profileStatus !== 'approved' && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '32px 20px', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>
-              {profileStatus === 'pending' ? '⏳' : profileStatus === 'rejected' ? '❌' : profileStatus === 'suspended' ? '🚫' : '🤝'}
+              <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={profileStatus === 'pending' ? 'clock' : ['rejected', 'suspended'].includes(profileStatus) ? 'cross' : 'handshake'} size={44} color="#536471" /></div>
             </div>
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
               {profileStatus === 'pending'     ? t('agent_dashboard.pending_title')  : ''}
@@ -718,13 +720,13 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             {/* Stats strip */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
               {[
-                { icon: '📦', label: t('agent_dashboard.jobs_today_label'),    value: totalWorkItems,                color: '#1d4ed8', bg: '#dbeafe' },
-                { icon: '✅', label: t('agent_dashboard.completed_label'),      value: stats?.delivered || 0,         color: '#16a34a', bg: '#dcfce7' },
-                { icon: '💰', label: t('agent_dashboard.payment_earnings_label'),value: payStats ? `TZS ${Number(payStats.stats?.confirmedEarnings || 0).toLocaleString()}` : '—', color: '#7c3aed', bg: '#ede9fe' },
-                { icon: '⭐', label: t('agent_dashboard.rating_label'),         value: profile?.rating ? Number(profile.rating).toFixed(1) : '5.0', color: '#f59e0b', bg: '#fef9c3' },
+                { icon: 'box', label: t('agent_dashboard.jobs_today_label'),    value: totalWorkItems,                color: '#1d4ed8', bg: '#dbeafe' },
+                { icon: 'check', label: t('agent_dashboard.completed_label'),      value: stats?.delivered || 0,         color: '#16a34a', bg: '#dcfce7' },
+                { icon: 'money', label: t('agent_dashboard.payment_earnings_label'),value: payStats ? `TZS ${Number(payStats.stats?.confirmedEarnings || 0).toLocaleString()}` : '—', color: '#7c3aed', bg: '#ede9fe' },
+                { icon: 'star', label: t('agent_dashboard.rating_label'),         value: Number(profile?.totalRatings) > 0 && Number(profile?.rating) > 0 ? Number(profile.rating).toFixed(1) : '—', color: '#f59e0b', bg: '#fef9c3' },
               ].map(s => (
                 <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 16 }}>{s.icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={18} color={s.color} /></div>
                   <div style={{ fontSize: 15, fontWeight:800, color: s.color, wordBreak: 'break-all' }}>{s.value}</div>
                   <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{s.label}</div>
                 </div>
@@ -749,7 +751,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
             {/* ═══ TAB: WORK QUEUE ══════════════════════════════════════════ */}
             {tab === 'work' && !JOB_QUEUE_ENABLED && (
-              <ComingSoonPanel icon="🚧" title={t('agent_dashboard.job_queue_title')}
+              <ComingSoonPanel icon="wrench" title={t('agent_dashboard.job_queue_title')}
                 body={t('agent_dashboard.job_queue_desc')} />
             )}
             {tab === 'work' && JOB_QUEUE_ENABLED && (
@@ -760,7 +762,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
                 {!workLoading && !collectionLoading && totalWorkItems === 0 && (
                   <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 40, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="check" size={36} color="#16a34a" /></div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('agent_dashboard.all_done_title')}</div>
                     <div style={{ fontSize: 13, color: '#64748b' }}>{t('agent_dashboard.all_done_desc')}</div>
                   </div>
@@ -804,9 +806,9 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               {order.status?.replace(/_/g, ' ').toUpperCase()}
                             </span>
                           </div>
-                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 8 }}>📦 {order.product?.name || '—'}</div>
+                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 8 }}>{order.product?.name || '—'}</div>
                           <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                            👤 {order.buyer?.name || '—'} · 📍 {order.deliveryAddress || '—'}
+                            {order.buyer?.name || '—'} · {order.deliveryAddress || '—'}
                           </div>
                           {canPickup && !isSelected && (
                             <button onClick={() => { setSelectedItem({ type: 'order', id: order.id }); setNote(''); }}
@@ -856,10 +858,10 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       return (
                         <div key={parcel.trackingNumber} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 10, borderLeft: '4px solid #16a34a' }}>
                           <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 800, color: '#16a34a', marginBottom: 6 }}>{parcel.trackingNumber}</div>
-                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>📦 {parcel.order?.product?.name || '—'}</div>
+                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>{parcel.order?.product?.name || '—'}</div>
                           <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                            👤 {parcel.recipientName || '—'} · 📞 {parcel.buyerPhone || '—'}
-                            {parcel.deliveryAddress && ` · 📍 ${parcel.deliveryAddress}`}
+                            {parcel.recipientName || '—'} · {parcel.buyerPhone || '—'}
+                            {parcel.deliveryAddress && ` · ${parcel.deliveryAddress}`}
                           </div>
                           {/* Agent fills transport details after collecting from seller */}
                           {canUpdateTransport && (
@@ -911,7 +913,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                       } catch {} finally { setSavingTransport(null); }
                                     }} disabled={savingTransport === parcel.trackingNumber}
                                       style={{ flex: 1, backgroundColor: '#c2410c', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                      {savingTransport ? '⏳' : t('agent_dashboard.save_button')}
+                                      {savingTransport ? '…' : t('agent_dashboard.save_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm(false)}
                                       style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 12 }}>
@@ -945,7 +947,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                       } catch {} finally { setSavingTransport(null); }
                                     }} disabled={savingTransport === parcel.trackingNumber}
                                       style={{ flex: 1, backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                      {savingTransport ? '⏳' : t('agent_dashboard.save_button')}
+                                      {savingTransport ? '…' : t('agent_dashboard.save_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm(false)}
                                       style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 12 }}>
@@ -1060,12 +1062,12 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             </span>
                           </div>
                         </div>
-                        <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>📦 {job.order?.product?.name || '—'}</div>
+                        <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>{job.order?.product?.name || '—'}</div>
                         <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
                           <div style={{ fontSize: 10, color: '#92400e', fontWeight: 700 }}>{t('agent_dashboard.seller_pickup_label')}</div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{job.seller?.storeName || job.seller?.name || '—'}</div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>📞 {job.seller?.phone || '—'}</div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>📍 {job.pickupAddress || '—'}</div>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>{job.seller?.phone || '—'}</div>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>{job.pickupAddress || '—'}</div>
                         </div>
                         <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>{t('agent_dashboard.city_label', { city: job.city })}</div>
                         <button onClick={() => handleClaimCollection(job.id)} disabled={actionLoading}
@@ -1096,13 +1098,13 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               +TZS {Number(job.collectionFee).toLocaleString()}
                             </span>
                           </div>
-                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>📦 {job.order?.product?.name || '—'}</div>
+                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>{job.order?.product?.name || '—'}</div>
                           <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
                             <div style={{ fontSize: 10, color: '#92400e', fontWeight: 700 }}>
                               {job.status === 'claimed' ? t('agent_dashboard.go_here_label') : t('agent_dashboard.deliver_hub_label')}
                             </div>
                             <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{job.seller?.name || '—'} · {job.seller?.phone || '—'}</div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>📍 {job.pickupAddress}</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{job.pickupAddress}</div>
                           </div>
                           {canConfirmCollected && !isSelected && (
                             <button onClick={() => { setSelectedItem({ type: 'collection', id: job.id }); setNote(''); }}
@@ -1139,7 +1141,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
                 {paymentPending ? (
                   <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 30, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}></div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('agent_dashboard.processing_payment_title')}</div>
                     <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>{t('agent_dashboard.please_wait_desc')}</div>
                   </div>
@@ -1235,14 +1237,14 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t('agent_dashboard.my_tier_label')}</div>
                     <div style={{ ...tier, padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>
-                      {tier.icon} {tier.label}
+                      {tier.label}
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                     {[
-                      { label: `🥉 ${t('agent_dashboard.tier_basic')}`, commission: '2.5%', range: t('agent_dashboard.range_0_50'), active: profile?.tier === 'basic' },
-                      { label: `🥈 ${t('agent_dashboard.tier_silver')}`, commission: '3.5%', range: t('agent_dashboard.range_51_200'), active: profile?.tier === 'silver' },
-                      { label: `🥇 ${t('agent_dashboard.tier_gold')}`, commission: '5.0%', range: t('agent_dashboard.range_200_plus'), active: profile?.tier === 'gold' },
+                      { label: `${t('agent_dashboard.tier_basic')}`, commission: '2.5%', range: t('agent_dashboard.range_0_50'), active: profile?.tier === 'basic' },
+                      { label: `${t('agent_dashboard.tier_silver')}`, commission: '3.5%', range: t('agent_dashboard.range_51_200'), active: profile?.tier === 'silver' },
+                      { label: `${t('agent_dashboard.tier_gold')}`, commission: '5.0%', range: t('agent_dashboard.range_200_plus'), active: profile?.tier === 'gold' },
                     ].map(tierItem => (
                       <div key={tierItem.label} style={{ backgroundColor: tierItem.active ? '#fef9c3' : '#f8fafc', borderRadius: 10, padding: 10, textAlign: 'center', border: tierItem.active ? '2px solid #f59e0b' : '1px solid #e2e8f0' }}>
                         <div style={{ fontSize: 11, fontWeight: 800, color: '#1e293b' }}>{tierItem.label}</div>
@@ -1280,7 +1282,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {[
                       { l: t('agent_dashboard.delivered_stat'), v: stats?.delivered || 0, c: '#16a34a', bg: '#dcfce7' },
                       { l: t('agent_dashboard.in_progress_stat'), v: stats?.inProgress || 0, c: '#f59e0b', bg: '#fef9c3' },
-                      { l: t('agent_dashboard.rating_label'), v: profile?.rating ? `${Number(profile.rating).toFixed(1)} ⭐` : '5.0 ⭐', c: '#f59e0b', bg: '#fef9c3' },
+                      { l: t('agent_dashboard.rating_label'), v: Number(profile?.totalRatings) > 0 && Number(profile?.rating) > 0 ? `${Number(profile.rating).toFixed(1)} / 5` : 'Bado', c: '#f59e0b', bg: '#fef9c3' },
                       { l: t('agent_dashboard.active_city_stat'), v: profile?.city || profile?.district || '—', c: '#1d4ed8', bg: '#dbeafe' },
                     ].map(s => (
                       <div key={s.l} style={{ backgroundColor: s.bg, borderRadius: 10, padding: 12 }}>
