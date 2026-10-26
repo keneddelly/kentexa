@@ -5,7 +5,6 @@ import api from '../../api/api';
 import WishlistHeart   from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
-import LocationPicker from '../components/LocationPicker';
 import { useTranslation } from 'react-i18next';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
@@ -44,31 +43,20 @@ const CAT_ICONS = {
   tickets_vouchers: '🎟️', free_giveaway: '🎁',
 };
 
+const contactBtn = { display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, padding: '0 12px',
+  borderRadius: 22, border: '1px solid #cfd9de', backgroundColor: '#fff', color: '#0f1419', textDecoration: 'none',
+  fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxSizing: 'border-box' };
+
 const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifiedId, currentUser, onOpenMoment, openComments, activeProfileId }) => {
   const { t } = useTranslation();
   const [classified, setClassified]     = useState(null);
   const [loading, setLoading]           = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [showContact, setShowContact]   = useState(false);
   const [contactInfo, setContactInfo]   = useState(null);
-  const [loadingContact, setLoadingContact] = useState(false);
-  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
-  const [invoiceResult, setInvoiceResult] = useState(null);
-  const [sendingInvoice, setSendingInvoice] = useState(false);
-  const [invoiceForm, setInvoiceForm]   = useState({ buyerName: '', buyerPhone: '', deliveryAddress: '', message: '' });
-  // Structured delivery location — the free-text address field alone had
-  // no way to match against Kentexa's real region/district/ward data,
-  // unlike every shipping-adjacent form elsewhere in the app.
-  const [invoiceLocation, setInvoiceLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
-  const [showOffer,   setShowOffer]     = useState(false);
-  const [offerAmount, setOfferAmount]   = useState('');
-  const [offerNote,   setOfferNote]     = useState('');
-  const [offerSent,   setOfferSent]     = useState(false);
-  const [offerLoading,setOfferLoading]  = useState(false);
   const [message, setMessage]           = useState(''); // eslint-disable-line no-unused-vars
   const [showMenu, setShowMenu]         = useState(false);
   const [related, setRelated]           = useState([]);
-  const [error, setError]               = useState('');
+  const [, setError]                    = useState('');
   const [wishlist, setWishlist]         = useState(false);
   const commentsRef = React.useRef(null);
   // Category attribute schema — same purpose as ProductDetail.js's: order
@@ -129,37 +117,11 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
     finally { setLoading(false); }
   };
 
-  const handleShowContact = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
-    try {
-      setLoadingContact(true);
-      const res = await api.get(`/classifieds/${classifiedId}/contact`);
-      setContactInfo(res.data); setShowContact(true);
-    } catch { setError('Failed to load contact info'); }
-    finally { setLoadingContact(false); }
-  };
-
-  const handleRequestInvoice = async () => {
-    if (!invoiceForm.buyerName.trim()) { setError(t('classified_detail.name_required')); return; }
-    if (!invoiceForm.buyerPhone.trim()) { setError(t('classified_detail.phone_required')); return; }
-    if (!invoiceForm.deliveryAddress.trim()) { setError(t('classified_detail.address_required')); return; }
-    try {
-      setSendingInvoice(true); setError('');
-      const res = await api.post(`/classifieds/${classifiedId}/request-invoice`, {
-        buyerName:       invoiceForm.buyerName.trim(),
-        buyerPhone:      invoiceForm.buyerPhone.trim(),
-        deliveryAddress: invoiceForm.deliveryAddress.trim(),
-        message:         invoiceForm.message.trim(),
-        regionId: invoiceLocation.regionId || undefined, regionName: invoiceLocation.regionName || undefined,
-        districtId: invoiceLocation.districtId || undefined, districtName: invoiceLocation.districtName || undefined,
-        wardId: invoiceLocation.wardId || undefined, wardName: invoiceLocation.wardName || undefined,
-      });
-      setInvoiceResult(res.data); setShowInvoiceForm(false);
-      setInvoiceForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', message: '' });
-      setInvoiceLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
-    } catch (err) { setError(err?.response?.data?.message || 'Failed to send request'); }
-    finally { setSendingInvoice(false); }
-  };
+  // Logged in: the seller's contact loads with the page (read-only lookup).
+  useEffect(() => {
+    if (!isLoggedIn || !classifiedId) return;
+    api.get(`/classifieds/${classifiedId}/contact`).then(r => setContactInfo(r.data)).catch(() => {});
+  }, [isLoggedIn, classifiedId]);
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
@@ -221,31 +183,10 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   const messageSellerNavParams = { ...sellerNavParams, contextType: 'classified', contextId: classified.id };
   const isVerifiedSeller = ['seller','admin','manager'].includes(classified.seller?.role);
 
-  const handleMakeOffer = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
-    if (!offerAmount || Number(offerAmount) <= 0) {
-      alert('Enter your offer price'); return;
-    }
-    try {
-      setOfferLoading(true);
-      await api.post('/offers', {
-        classifiedId: classified.id,
-        offerAmount:  Number(offerAmount),
-        buyerNote:    offerNote || undefined,
-      });
-      setOfferSent(true);
-      setShowOffer(false);
-      alert('✅ Your offer was sent to the seller!');
-    } catch (e) {
-      alert(e.response?.data?.message || 'Something went wrong. Please try again.');
-    } finally {
-      setOfferLoading(false);
-    }
-  };
 
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", color: '#0f1419' }}>
       <style>{`
         .cd-root { max-width: 480px; margin: 0 auto; width: 100%; padding: 0 0 24px; }
         .cd-grid { display: block; }
@@ -448,7 +389,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
 
         <div style={{ backgroundColor: '#fff', padding: '14px 16px', marginBottom: 8 }}>
           <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: '0 0 10px' }}>📄 {t('classified_detail.description')}</h3>
-          <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.8, margin: 0 }}>
+          <p style={{ fontSize: 15, color: '#0f1419', lineHeight: '22px', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
             {classified.description || t('classified_detail.no_description')}
           </p>
         </div>
@@ -466,156 +407,46 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
         {classified.status === 'active' && (
           <div style={{ padding: '0 0 16px' }}>
 
-            <>
-                <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: '12px 14px', marginBottom: 10, border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {[
-                      { icon: '🛡️', text: t('classified_detail.kentexa_protection') },
-                      // Trust signal only — verification no longer gates
-                      // whether the invoice flow below is offered at all.
-                      ...(isVerifiedSeller ? [{ icon: '✅', text: t('classified_detail.verified_store') }] : []),
-                      { icon: '↩️', text: t('classified_detail.return_policy') },
-                      { icon: '🤝', text: t('classified_detail.pay_via_agent') },
-                    ].map(b => (
-                      <div key={b.text} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#475569' }}>
-                        {b.icon} {b.text}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {invoiceResult && (
-                  <div style={{ backgroundColor: '#dcfce7', borderRadius: 14, padding: 18, marginBottom: 10, border: '2px solid #86efac', textAlign: 'center' }}>
-                    <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
-                    <h3 style={{ fontSize: 15, fontWeight: 900, color: '#15803d', margin: '0 0 6px' }}>{t('classified_detail.request_sent')}</h3>
-                    <p style={{ fontSize: 13, color: '#166534', margin: '0 0 12px' }}>{t('classified_detail.request_sent_desc')}</p>
-                    <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 800, fontSize: 13 }}>📋 {t('classified_detail.view_orders')}</button>
-                  </div>
-                )}
-
-                {!invoiceResult && (
-                  <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18, marginBottom: 10, border: '2px solid #7c3aed', boxShadow: '0 4px 16px rgba(124,58,237,0.1)' }}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
-                      <span style={{ fontSize: 28 }}>🧾</span>
-                      <div>
-                        <h3 style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', margin: 0 }}>{t('classified_detail.pay_via_kentexa')}</h3>
-                        <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>{t('classified_detail.secure_payment_desc')}</p>
-                      </div>
-                    </div>
-                    {!showInvoiceForm ? (
-                      <button onClick={() => { if (!isLoggedIn) { onNavigate('PublicLogin'); return; } setShowInvoiceForm(true); }}
-                        style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800, boxShadow: '0 4px 14px rgba(124,58,237,0.35)' }}>
-                        📄 {t('classified_detail.request_invoice')}
-                      </button>
-                    ) : (
-                      <div>
-                        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 12px', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>❌ {error}<button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}>×</button></div>}
-                        {[
-                          { label: t('classified_detail.your_name'), key: 'buyerName', placeholder: 'e.g. Amina Hassan', type: 'text' },
-                          { label: t('classified_detail.your_phone'), key: 'buyerPhone', placeholder: '255712345678', type: 'tel' },
-                        ].map(f => (
-                          <div key={f.key} style={{ marginBottom: 10 }}>
-                            <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{f.label}</label>
-                            <input type={f.type} placeholder={f.placeholder} value={invoiceForm[f.key]}
-                              onChange={e => setInvoiceForm({ ...invoiceForm, [f.key]: e.target.value })}
-                              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
-                              onFocus={e => e.target.style.border = '2px solid #7c3aed'}
-                              onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
-                          </div>
-                        ))}
-                        {/* Structured region/district/ward — was missing
-                            entirely, only a free-text address existed. */}
-                        <div style={{ marginBottom: 10 }}>
-                          <LocationPicker
-                            label={t('classified_detail.delivery_location')}
-                            value={invoiceLocation}
-                            onChange={setInvoiceLocation}
-                          />
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{t('classified_detail.delivery_address')}</label>
-                          <input type="text" placeholder="e.g. Mwanza, Ilemela" value={invoiceForm.deliveryAddress}
-                            onChange={e => setInvoiceForm({ ...invoiceForm, deliveryAddress: e.target.value })}
-                            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
-                            onFocus={e => e.target.style.border = '2px solid #7c3aed'}
-                            onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
-                        </div>
-                        <div style={{ marginBottom: 12 }}>
-                          <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{t('classified_detail.message_to_seller')}</label>
-                          <textarea placeholder={t('classified_detail.message_placeholder')} rows={2} value={invoiceForm.message}
-                            onChange={e => setInvoiceForm({ ...invoiceForm, message: e.target.value })}
-                            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', resize: 'none', outline: 'none' }} />
-                        </div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => { setShowInvoiceForm(false); setError(''); }} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 11, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('classified_detail.cancel')}</button>
-                          <button onClick={handleRequestInvoice} disabled={sendingInvoice}
-                            style={{ flex: 2, background: sendingInvoice ? '#a5b4fc' : 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: 11, borderRadius: 8, cursor: sendingInvoice ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
-                            {sendingInvoice ? `⏳ ${t('classified_detail.sending')}` : `📤 ${t('classified_detail.send_request')}`}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-
-            {!showContact ? (
-              <button onClick={handleShowContact} disabled={loadingContact}
-                style={{ width: '100%', backgroundColor: '#fff', color: '#1e293b', border: '2px solid #e2e8f0', padding: 13, borderRadius: 12, cursor: loadingContact ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-                {loadingContact ? '⏳...' : isLoggedIn ? `📞 ${t('classified_detail.contact_seller')}` : `🔐 ${t('classified_detail.login_to_contact')}`}
+            {/* Contact is shown straight away (owner 2026-10-26: buyers did not know to tap
+                "Wasiliana na muuzaji"). Signed out: one button to sign in. */}
+            {!isLoggedIn ? (
+              <button onClick={() => onNavigate('PublicLogin')}
+                style={{ width: '100%', height: 48, backgroundColor: '#0f1419', color: '#fff', border: 'none', borderRadius: 24, cursor: 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }}>
+                {t('classified_detail.login_to_contact')}
               </button>
             ) : (
-              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 8, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg,#667eea,#764ba2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>👤</div>
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{contactInfo?.sellerName}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>
-                      {isVerifiedSeller ? `✅ ${t('classified_detail.verified_store')}` : 'Individual Seller'}
-                    </div>
-                  </div>
+              <div data-testid="seller-contact" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, border: '1px solid #eff3f4' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#0f1419', marginBottom: 12 }}>
+                  {contactInfo?.sellerName || sellerName}
+                  <span style={{ fontWeight: 400, color: '#536471' }}> · {isVerifiedSeller ? t('classified_detail.verified_store') : 'Muuzaji binafsi'}</span>
                 </div>
-                {!contactInfo?.sellerPhone && !contactInfo?.sellerEmail ? (
-                  <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#92400e', fontWeight: 600 }}>
-                    ⚠️ {t('classified_detail.no_contact_info')}
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    {classified.seller?.id && (
-                      <button onClick={() => onNavigate(`MessageSeller-${classified.seller.id}`, messageSellerNavParams)}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                        💬 {t('classified_detail.message_seller')}
-                      </button>
-                    )}
-                    {contactInfo?.sellerPhone && listingWhatsAppHref({ phone: contactInfo.sellerPhone }) && (
-                      <a href={listingWhatsAppHref({
-                        phone: contactInfo.sellerPhone, kind: 'classified', title: classified.title, price: classified.price,
-                        url: listingUrl('classified', classified.id), shopName: sellerName,
-                      })} target="_blank" rel="noreferrer"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 800 }}>
-                        💬 WhatsApp
-                      </a>
-                    )}
-                    {classified?.isNegotiable && !offerSent && (
-                      <button onClick={() => setShowOffer(true)}
-                        style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:11,backgroundColor:'#f0fdf4',color:'#16a34a',border:'1px solid #bbf7d0',borderRadius:10,cursor:'pointer',fontSize:13,fontWeight:800,width:'100%' }}>
-                        💰 Remove Price Yako
-                      </button>
-                    )}
-                    {contactInfo?.sellerPhone && (
-                      <a href={`tel:${contactInfo.sellerPhone}`}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#3b82f6', color: '#fff', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 800 }}>
-                        📞 Call
-                      </a>
-                    )}
-                    {contactInfo?.sellerEmail && (
-                      <a href={`mailto:${contactInfo.sellerEmail}?subject=Inquiry: ${classified.title}`}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#f59e0b', color: '#fff', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 800, gridColumn: '1/-1' }}>
-                        📧 Email Seller
-                      </a>
-                    )}
-                  </div>
-                )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                  {classified.seller?.id && (
+                    <button onClick={() => onNavigate(`MessageSeller-${classified.seller.id}`, messageSellerNavParams)}
+                      style={{ ...contactBtn, backgroundColor: '#0f1419', color: '#fff', border: 'none', gridColumn: contactInfo?.sellerPhone ? 'auto' : '1 / -1' }}>
+                      {t('classified_detail.message_seller')}
+                    </button>
+                  )}
+                  {contactInfo?.sellerPhone && listingWhatsAppHref({ phone: contactInfo.sellerPhone }) && (
+                    <a href={listingWhatsAppHref({
+                      phone: contactInfo.sellerPhone, kind: 'classified', title: classified.title, price: classified.price,
+                      url: listingUrl('classified', classified.id), shopName: sellerName,
+                    })} target="_blank" rel="noreferrer"
+                      style={{ ...contactBtn, backgroundColor: '#25D366', color: '#fff', border: 'none' }}>
+                      WhatsApp
+                    </a>
+                  )}
+                  {contactInfo?.sellerPhone && (
+                    <a href={`tel:${contactInfo.sellerPhone}`} style={{ ...contactBtn, gridColumn: '1 / -1' }}>
+                      Piga simu · {contactInfo.sellerPhone}
+                    </a>
+                  )}
+                  {contactInfo?.sellerEmail && (
+                    <a href={`mailto:${contactInfo.sellerEmail}?subject=${encodeURIComponent(classified.title)}`} style={{ ...contactBtn, gridColumn: '1 / -1' }}>
+                      Barua pepe
+                    </a>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -688,58 +519,6 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
         </div>
       )}
 
-      {/* Offer Modal */}
-      {showOffer && (
-        <div style={{ position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',
-          zIndex:3000,display:'flex',alignItems:'flex-end' }}>
-          <div style={{ width:'100%',backgroundColor:'#fff',
-            borderRadius:'20px 20px 0 0',padding:'24px 20px 40px' }}>
-            <div style={{ fontSize:16,fontWeight:900,color:'#1e293b',marginBottom:4 }}>
-              💰 Toa Bei Yako
-            </div>
-            <div style={{ fontSize:12,color:'#64748b',marginBottom:16 }}>
-              Price ya muuzaji: TZS {Number(classified.price||0).toLocaleString()}
-            </div>
-            <div style={{ marginBottom:12 }}>
-              <label style={{ fontSize:12,fontWeight:700,color:'#64748b',
-                display:'block',marginBottom:6 }}>Price Unayotoa (TZS) *</label>
-              <input type="number"
-                style={{ width:'100%',padding:'12px 14px',borderRadius:10,
-                  border:'1.5px solid #e2e8f0',fontSize:16,fontWeight:800,
-                  boxSizing:'border-box',outline:'none',color:'#1d4ed8' }}
-                placeholder="e.g. 45000"
-                value={offerAmount}
-                onChange={e => setOfferAmount(e.target.value)} />
-            </div>
-            <div style={{ marginBottom:20 }}>
-              <label style={{ fontSize:12,fontWeight:700,color:'#64748b',
-                display:'block',marginBottom:6 }}>Message (hiari)</label>
-              <textarea
-                style={{ width:'100%',padding:'10px 14px',borderRadius:10,
-                  border:'1px solid #e2e8f0',fontSize:13,resize:'vertical',
-                  minHeight:70,boxSizing:'border-box',outline:'none',fontFamily:'inherit' }}
-                placeholder="e.g. Naweza kuja leo..."
-                value={offerNote}
-                onChange={e => setOfferNote(e.target.value)} />
-            </div>
-            <div style={{ display:'flex',gap:10 }}>
-              <button onClick={() => setShowOffer(false)}
-                style={{ flex:1,backgroundColor:'#f1f5f9',color:'#64748b',
-                  border:'none',borderRadius:10,padding:'13px 0',
-                  cursor:'pointer',fontSize:14,fontWeight:700 }}>
-                Funga
-              </button>
-              <button onClick={handleMakeOffer} disabled={offerLoading}
-                style={{ flex:2,background:'linear-gradient(135deg,#16a34a,#15803d)',
-                  color:'#fff',border:'none',borderRadius:10,padding:'13px 0',
-                  cursor:offerLoading?'not-allowed':'pointer',
-                  fontSize:14,fontWeight:800 }}>
-                {offerLoading ? '⏳...' : '✅ Send Offer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <div style={{ height: 90 }} />
     </div>
   );
