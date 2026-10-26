@@ -239,7 +239,12 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
                   {inboxUnread > 99 ? '99+' : inboxUnread}
                 </span>
               )}
-              {/* Instagram-style: icons only; the name is the button's aria-label. */}
+              {/* Small words under the bold icons (owner 2026-10-26: "keep small words"). */}
+              {tab.label ? (
+                <span style={{ fontSize: 11, lineHeight: '13px', fontWeight: isActive ? 700 : 500, color: INK, opacity: isActive ? 1 : 0.75 }}>
+                  {tab.label}
+                </span>
+              ) : null}
             </button>
           );
         })}
