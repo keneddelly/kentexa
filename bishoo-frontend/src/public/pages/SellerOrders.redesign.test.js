@@ -71,3 +71,13 @@ test('every row says how it is paid: pay on delivery and Lipa Namba are obvious'
   fireEvent.click(await screen.findByTestId('tab-way'));
   expect(within(screen.getByTestId('order-2')).getByTestId('row-pay')).toHaveTextContent('Lipa ukipokea');
 });
+
+test('a Lipa Namba order (starts as preparing, payment unconfirmed) asks the seller to confirm the money first', async () => {
+  const lipa = { id: 9, status: 'preparing', source: 'online', paymentMethod: 'lipa_namba', paymentStatus: 'pending', shippingMethod: 'agent',
+    totalAmount: 50000, quantity: 1, product: { name: 'Taa' }, createdAt: new Date().toISOString() };
+  expect(nextStep(lipa)).toMatchObject({ label: 'Thibitisha malipo ya Lipa Namba', action: 'lipa' });
+  expect(nextStep({ ...lipa, paymentStatus: 'paid' })).toMatchObject({ action: 'engine' });   // then it is sent
+  api.get.mockResolvedValue({ data: [lipa] });
+  render(<SellerOrders onNavigate={jest.fn()} highlightOrderId={9} />);
+  expect(await screen.findByTestId('lipa-review')).toBeInTheDocument();
+});

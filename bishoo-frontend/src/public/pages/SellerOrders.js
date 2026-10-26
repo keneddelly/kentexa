@@ -145,7 +145,9 @@ export const nextStep = (o) => {
   if (s === 'disputed') return { label: 'Mteja ameleta malalamiko', tone: 'red', action: null };
   if (s === 'cancelled') return { label: 'Limeghairiwa', tone: 'red', action: null };
   if (s === 'completed') return { label: 'Limekamilika', tone: 'green', action: null };
-  if (lipaUnpaid && ['pending_payment', 'paid'].includes(s)) return { label: 'Thibitisha malipo ya Lipa Namba', tone: 'amber', action: 'lipa' };
+  // A Lipa Namba order starts as "preparing" with the payment unconfirmed: the seller confirms
+  // the money first, whatever the order status (owner 2026-10-27: the confirm was missing).
+  if (lipaUnpaid && !['delivered', 'completed'].includes(s)) return { label: 'Thibitisha malipo ya Lipa Namba', tone: 'amber', action: 'lipa' };
   if (s === 'pending_payment') return { label: 'Inasubiri malipo ya mteja', tone: 'amber', action: null };
   const cod = o?.paymentMethod === 'cod' && !o?.codBalanceCollected && Number(o?.codRemainingBalance) > 0;
   if (s === 'paid') {
@@ -154,6 +156,7 @@ export const nextStep = (o) => {
     if (!isManualOrder(o)) return { label: cod ? 'Lipa ukipokea. Itume' : 'Imelipwa. Itume', tone: 'blue', action: 'modal' };
   }
   if (s === 'preparing') {
+    if (engineShippable(o)) return { label: cod ? 'Lipa ukipokea. Itume' : 'Imelipwa. Itume', tone: 'blue', action: 'engine' };
     if (o.shippingMethod === 'kentexa_delivery' && !sentThroughKentexa(o)) return { label: 'Peleka ofisini', tone: 'blue', action: null };
     if (!o.trackingNumber && !isManualOrder(o) && !sentThroughKentexa(o)) return { label: 'Weka uthibitisho wa kutuma', tone: 'blue', action: 'modal' };
     if (o.trackingNumber && !isManualOrder(o) && !sentThroughKentexa(o)) return { label: 'Thibitisha umetuma', tone: 'blue', action: 'shipped' };
@@ -510,7 +513,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           {codOwed && (
             <span style={{ fontSize: 14, color: MUTED, lineHeight: 1.45 }}>Mteja analipa {money(o.codRemainingBalance)} akipokea.</span>
           )}
-          {step.action === 'lipa' && <LipaPaymentReview orderId={o.id} />}
+          {step.action === 'lipa' && <LipaPaymentReview orderId={o.id} onChanged={() => fetchOrders()} />}
           {step.action && step.action !== 'lipa' && (
             <button type="button" data-testid="next-action" onClick={() => runAction(o, step.action)}
               disabled={actionLoading || (step.action === 'confirm' && confirmLoading[o.id])} style={pillBtn(BLUE)}>
