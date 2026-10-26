@@ -242,6 +242,9 @@ function App() {
       const join = params.get('join');
       if (join === 'transport') return 'BecomeTransportProvider';
       if (join === 'office') return 'BecomeSuperAgentInfo';
+      // A registration link (?ref=..., an advertiser's or an office's): a visitor who is
+      // not signed in goes straight to registration (owner 2026-10-26).
+      if (params.get('ref') && !getAccessToken()) return 'Register';
       // Real shareable paths (/product/42, /store/7, ...) — resolves
       // synchronously from the URL alone, no network round trip needed.
       const fromPath = pathToPage(window.location.pathname);

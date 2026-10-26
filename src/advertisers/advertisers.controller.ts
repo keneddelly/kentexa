@@ -18,6 +18,13 @@ export class AdvertisersController {
     return this.service.mine(req.user.id, req.user.phone);
   }
 
+  // ── Public: who invited the visitor (registration page shows the name) ──
+  @Get('invite/:code')
+  @Header('Cache-Control', 'public, max-age=300')
+  async invite(@Param('code') code: string) {
+    return (await this.service.inviter(code)) ?? { kind: null, name: null };
+  }
+
   // ── Admin ────────────────────────────────────────────────────────────────
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.ADMIN)

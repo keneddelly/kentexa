@@ -1,5 +1,5 @@
 import { referralCode as keptReferralCode } from '../../utils/referralLink';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
@@ -21,6 +21,13 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
   // App.js already uses for other deep-link params (track/confirm/token).
   // The link may have been opened earlier and kept (utils/referralLink).
   const [referralCode] = useState(() => keptReferralCode());
+  // Who invited them, by name (an advertiser or an office); unknown codes show a plain welcome.
+  const [inviter, setInviter] = useState(null);
+  useEffect(() => {
+    if (!referralCode) return;
+    api.get(`/advertisers/invite/${encodeURIComponent(referralCode)}`)
+      .then((r) => setInviter(r.data?.name ? r.data : null)).catch(() => setInviter(null));
+  }, [referralCode]);
 
   // Step 3 — mandatory profile photo, verified account/JWT already exist
   // by this point (token stashed in handleVerify below), just not
@@ -170,7 +177,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
 
           {referralCode && step === 1 && (
             <div style={{ backgroundColor:'#eff6ff', color:'#1d4ed8', padding:'10px 14px', borderRadius:10, marginBottom:16, fontSize:12.5, fontWeight:600 }}>
-              🎉 {t('register.referral_invited')}
+              {inviter?.name ? `Umealikwa na ${inviter.name}. Karibu KenteXa!` : 'Umealikwa kujiunga na KenteXa. Karibu!'}
             </div>
           )}
 
