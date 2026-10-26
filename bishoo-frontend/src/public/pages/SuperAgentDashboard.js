@@ -25,6 +25,7 @@
  * 🚐 VAN YA LEO (Dar es Salaam only):
  *   Daily batch for same-city deliveries
  */
+import ShehenaTransportPicker from '../components/ShehenaTransportPicker';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
@@ -352,7 +353,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [bulkHubsLoading, setBulkHubsLoading] = useState(false);
   const [bulkLastMileAgentId, setBulkLastMileAgentId] = useState(null);
   const [bulkManualContact, setBulkManualContact] = useState({ name: '', phone: '', city: '', address: '' });
-  const [bulkTransport, setBulkTransport] = useState({ transportCompany: '', transportRef: '', totalShippingCost: '' });
+  const [bulkTransport, setBulkTransport] = useState({ transportCompany: '', transportProviderId: null, transportRef: '', totalShippingCost: '' });
 
   const fetchOpenShipments = async () => {
     try {
@@ -389,7 +390,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setBulkHubs([]); setBulkLastMileAgentId(null);
     setBulkDestText('');
     setBulkManualContact({ name: '', phone: '', city: '', address: '' });
-    setBulkTransport({ transportCompany: '', transportRef: '', totalShippingCost: '' });
+    setBulkTransport({ transportCompany: '', transportProviderId: null, transportRef: '', totalShippingCost: '' });
     setBulkActiveShipment(null);
   };
 
@@ -438,6 +439,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setActionLoading(true); setError('');
       const res = await api.patch(`/super-agents/bulk-shipments/${bulkActiveShipment.id}/dispatch`, {
         transportCompany: bulkTransport.transportCompany || undefined,
+        transportProviderId: bulkTransport.transportProviderId || undefined,
         transportRef: bulkTransport.transportRef || undefined,
         totalShippingCost: Number(bulkTransport.totalShippingCost) || undefined,
       });
@@ -2030,10 +2032,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       Taarifa za usafiri ni hiari — ujumbe MMOJA utatumwa kwa mshirika ukiwa na
                       vifurushi vyote vya shehena hii.
                     </div>
-                    <input type="text" placeholder="Kampuni ya usafiri (hiari — e.g. Shabiby Bus)"
-                      value={bulkTransport.transportCompany}
-                      onChange={e => setBulkTransport(p => ({ ...p, transportCompany: e.target.value }))}
-                      style={{ ...inp, marginBottom: 8 }} />
+                    <ShehenaTransportPicker value={bulkTransport} inputStyle={inp}
+                      onChange={(t) => setBulkTransport(p => ({ ...p, ...t }))} />
                     <input type="text" placeholder="Namba ya Tiketi/Rejea (hiari)"
                       value={bulkTransport.transportRef}
                       onChange={e => setBulkTransport(p => ({ ...p, transportRef: e.target.value }))}

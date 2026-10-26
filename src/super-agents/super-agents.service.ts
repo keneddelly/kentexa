@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { OfficePriceService } from './office-price.service';
 import { ShipmentActivationService } from '../shipments/shipment-activation.service';
+import { ShehenaTransportService } from './shehena-transport.service';
 import { checkChargedAmount, isDarEsSalaam } from './office-price';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
@@ -231,6 +232,7 @@ export class SuperAgentsService {
     // One shipment engine for every order (owner 2026-10-25): a seller's sale booked
     // through it is confirmed and started by the same activation as the send form.
     @Optional() private shipmentActivation?: ShipmentActivationService,
+    @Optional() private shehenaTransport?: ShehenaTransportService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -3264,6 +3266,19 @@ export class SuperAgentsService {
 
   // This agent's own OPEN shipments — lets the UI offer "add to the batch
   // already headed to Iringa" instead of always starting a new one.
+  /** The transport this office can load a shehena onto (own and partners'). */
+  async officeTransport(user: User) {
+    const agent = await this.resolveActingSuperAgent(user.id);
+    if (!agent) throw new BadRequestException('Super Agent profile not found');
+    if (!this.shehenaTransport) return { transport: [], ready: false };
+    return { transport: await this.shehenaTransport.listFor(agent.id), ready: await this.shehenaTransport.ready() };
+  }
+
+  async shehenaForTransporter(user: User) {
+    if (!this.shehenaTransport) return { providers: [], shehena: [] };
+    return this.shehenaTransport.forTransporter(user.id);
+  }
+
   async getMyOpenBulkShipments(user: User) {
     const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) throw new BadRequestException('Super Agent profile not found');
@@ -3408,6 +3423,8 @@ export class SuperAgentsService {
     shipmentId: number,
     dto: {
       transportCompany?: string;
+      /** A transporter on KenteXa: the office's own or a partner (shehena-transport.service). */
+      transportProviderId?: number;
       transportRef?: string;
       totalShippingCost?: number;
       courierCostReceipt?: string;
@@ -3430,6 +3447,12 @@ export class SuperAgentsService {
           (roleContext.profileId !== agent?.id || agent?.status !== SuperAgentStatus.ACTIVE))) {
       throw new ForbiddenException('An active origin hub or admin role must dispatch this shipment');
     }
+
+    // The transporter on KenteXa that carries it (own or partner), checked before anything changes.
+    const carrier = dto.transportProviderId != null && this.shehenaTransport && shipment.superAgent?.id
+      ? await this.shehenaTransport.assertUsable(shipment.superAgent.id, Number(dto.transportProviderId))
+      : null;
+    if (carrier && !String(dto.transportCompany || '').trim()) dto = { ...dto, transportCompany: carrier.name };
 
     const lastMileAgent = (shipment as any).lastMileSuperAgent as SuperAgent | null;
     const receiverName =
@@ -3503,6 +3526,19 @@ export class SuperAgentsService {
       );
     }
 
+    if (carrier && this.shehenaTransport) {
+      await this.shehenaTransport.link(shipmentId, carrier.id).catch((e) => console.warn('Shehena transport link failed:', e?.message));
+      // The transporter sees it on its dashboard (in-app only: no KenteXa SMS spent).
+      const [owner] = await this.dataSource.query(`SELECT "userId" FROM public.transport_provider WHERE id = $1`, [carrier.id]).catch(() => []);
+      if (owner?.userId) {
+        this.inAppNotif.notify({
+          userId: Number(owner.userId), type: 'shipment_created' as any, title: 'Shehena mpya',
+          body: `${agent?.businessName || 'Ofisi'} imekupa vifurushi ${parcels.length} kwenda ${shipment.destinationCity}.`,
+          icon: '📦', actionPage: 'TransportProviderDashboard',
+        }).catch(() => {});
+      }
+    }
+
     // ONE message to the receiving agent covering the whole batch — the
     // actual gap being closed. A long tracking-number list gets truncated
     // so the SMS stays a normal length; the dashboard has the full list.
@@ -3546,6 +3582,7 @@ export class SuperAgentsService {
       shipmentId,
       parcelsDispatched: parcels.length,
       agentNotifySent,
+      transportProviderId: carrier?.id ?? null,
     };
   }
 

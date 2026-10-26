@@ -490,6 +490,21 @@ export class SuperAgentsController {
     return this.service.addParcelsToShipment(req.user, Number(id), dto, roleContext);
   }
 
+  // The transport this office can load a shehena onto: its own and its partners'.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Get('shehena/transport')
+  shehenaTransport(@Request() req) {
+    return this.service.officeTransport(req.user);
+  }
+
+  // The transporter's own view: the shehena offices loaded onto it.
+  @UseGuards(JwtAuthGuard)
+  @Get('shehena/as-transport')
+  shehenaAsTransport(@Request() req) {
+    return this.service.shehenaForTransporter(req.user);
+  }
+
   // Dispatch a sealed bulk shipment with courier cost + receipt
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)

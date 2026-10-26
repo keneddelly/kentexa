@@ -38,6 +38,7 @@ import { BodaRateCard } from '../boda-rates/boda-rate-card.entity';
 import { SuperAgentPriceRule } from './entities/super-agent-price-rule.entity';
 import { OfficePriceService } from './office-price.service';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
+import { ShehenaTransportService } from './shehena-transport.service';
 import { OfficePriceController } from './office-price.controller';
 import { RouteRangeService } from './route-range.service';
 
@@ -86,7 +87,7 @@ import { RouteRangeService } from './route-range.service';
     LocationIntelligenceModule,
   ],
   controllers: [SuperAgentsController, OfficePriceController],
-  providers: [SuperAgentsService, OfficePriceService, OfficeBodaFeeService, RouteRangeService],
+  providers: [SuperAgentsService, OfficePriceService, OfficeBodaFeeService, RouteRangeService, ShehenaTransportService],
   exports: [SuperAgentsService, OfficePriceService],
 })
 export class SuperAgentsModule {}
