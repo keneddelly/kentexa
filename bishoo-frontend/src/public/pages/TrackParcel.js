@@ -1,88 +1,129 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { buildBuyerInquiryMessage, KENTEXA_SUPPORT as KENTEXA_SUPPORT_WHATSAPP } from '../utils/whatsapp-link';
-import { hasAnyRole } from '../utils/roles';
+import { KENTEXA_SUPPORT } from '../utils/whatsapp-link';
+import { Spinner } from '../components/Loading';
 import { normalizeWaybill, formatWaybill } from '../../utils/waybill';
 
-const CITY_TRANSIT_DAYS = {
-  'dar-mbeya': 1, 'dar-mwanza': 1, 'dar-arusha': 1, 'dar-dodoma': 1,
-  'dar-tanga': 1, 'dar-morogoro': 1, 'dar-mtwara': 2, 'dar-songea': 2,
-  'dar-kigoma': 3, 'dar-tabora': 2, 'dar-shinyanga': 2, 'dar-bukoba': 2,
-};
-const getETA = (origin, dest, type, t) => {
-  if (!origin || !dest) return null;
-  const key = `${origin.toLowerCase().split(' ')[0]}-${dest.toLowerCase().split(' ')[0]}`;
-  const rev = `${dest.toLowerCase().split(' ')[0]}-${origin.toLowerCase().split(' ')[0]}`;
-  const days = CITY_TRANSIT_DAYS[key] || CITY_TRANSIT_DAYS[rev] || 2;
-  const total = type === 'boda' ? 0 : type === 'van' ? Math.round(days * 0.5) : days;
-  const eta = new Date(); eta.setDate(eta.getDate() + total);
-  if (total === 0) return t('track_parcel.eta_today');
-  if (total === 1) return t('track_parcel.eta_tomorrow');
-  return eta.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
-};
+/**
+ * TrackParcel — Fuatilia mzigo (owner 2026-10-27 redesign, same look as Soko and
+ * Ujumbe). Shows only what the public tracking projection really returns: no
+ * guessed arrival days, no empty contact boxes, no adverts, no emoji. One timeline
+ * of real milestones; when the parcel reaches the office, the receiver chooses
+ * pickup or delivery.
+ */
+export const INK = '#0f1419';
+export const MUTED = '#536471';
+export const LINE = '#eff3f4';
+export const BLUE = '#1d4ed8';
 
-// ── Status steps — keys match BOTH SuperAgent parcel statuses AND
-//    the mapped statuses returned by trackByOrderId ──────────────
-// Batch parcel status → STATUS_STEPS key mapping
-const BATCH_STATUS_MAP = {
-  awaiting_handover: 'pending',
-  at_hub:            'ready_for_dispatch',
-  on_van:            'in_transit',
-  at_zone:           'arrived_at_hub',
-  out_for_delivery:  'out_for_delivery',
-  delivered:         'delivered',
-};
-
-const getStatusSteps = t => [
-  { key: 'pending',            icon: '📋', swLabel: t('track_parcel.step_pending_label'),            desc: t('track_parcel.step_pending_desc'),            color: '#64748b' },
-  { key: 'paid',               icon: '💳', swLabel: t('track_parcel.step_paid_label'),               desc: t('track_parcel.step_paid_desc'),               color: '#7c3aed' },
-  { key: 'ready_for_dispatch', icon: '📦', swLabel: t('track_parcel.step_ready_for_dispatch_label'), desc: t('track_parcel.step_ready_for_dispatch_desc'), color: '#f59e0b' },
-  { key: 'dispatched',         icon: '🚀', swLabel: t('track_parcel.step_dispatched_label'),         desc: t('track_parcel.step_dispatched_desc'),         color: '#f97316' },
-  { key: 'in_transit',         icon: '🚌', swLabel: t('track_parcel.step_in_transit_label'),         desc: t('track_parcel.step_in_transit_desc'),         color: '#1d4ed8' },
-  { key: 'arrived_at_hub',     icon: '🏙️', swLabel: t('track_parcel.step_arrived_at_hub_label'),     desc: t('track_parcel.step_arrived_at_hub_desc'),     color: '#0891b2' },
-  { key: 'out_for_delivery',   icon: '🏍️', swLabel: t('track_parcel.step_out_for_delivery_label'), desc: t('track_parcel.step_out_for_delivery_desc'),   color: '#059669' },
-  { key: 'delivered',          icon: '✅', swLabel: t('track_parcel.step_delivered_label'),          desc: t('track_parcel.step_delivered_desc'),          color: '#16a34a' },
+// Milestones a person understands, in order. Every parcel/batch status maps to one.
+export const MILESTONES = [
+  'Ombi limeundwa',
+  'Umepokelewa ofisini',
+  'Tayari kusafirishwa',
+  'Uko safarini',
+  'Umefika ofisi ya kupokelea',
+  'Unaletwa kwako',
+  'Umepokelewa',
 ];
+const MILESTONE_OF = {
+  pending: 0, collection_requested: 0, awaiting_handover: 0, confirmed: 0,
+  collected_by_agent: 1, received_at_hub: 1, verified: 1, at_hub: 1, collected: 1,
+  ready_for_dispatch: 2,
+  dispatched: 3, in_transit: 3, transferred_hub: 3, on_van: 3,
+  arrived_at_hub: 4, awaiting_buyer: 4, at_zone: 4,
+  out_for_delivery: 5,
+  delivered: 6, self_pickup: 6, completed: 6,
+};
+// Handover events (custody) recorded by offices, agents and transporters.
+const CUSTODY = {
+  origin_hub_received: ['Umepokelewa ofisini', 1],
+  collection_received_at_origin_hub: ['Umepokelewa ofisini', 1],
+  seller_collected_by_agent: ['Wakala ameuchukua kwa mtumaji', 1],
+  origin_agent_collected: ['Wakala ameuchukua kwa mtumaji', 1],
+  transport_provider_collected: ['Msafirishaji ameuchukua', 3],
+  parcel_run_loaded: ['Umepakiwa kwenye gari', 3],
+  parcel_run_unloaded: ['Umeshushwa kwenye gari', 3],
+  parcel_run_received: ['Umepokelewa kutoka garini', 3],
+  destination_hub_received: ['Umefika ofisi ya kupokelea', 4],
+  destination_agent_received: ['Wakala wa mwisho ameupokea', 5],
+  recipient_agent_delivery: ['Umekabidhiwa kwa mpokeaji', 6],
+  recipient_self_pickup: ['Mpokeaji ameuchukua ofisini', 6],
+};
+// The headline for the current status.
+export const STATUS_TITLE = {
+  pending: 'Unasubiri kufikishwa ofisini', collection_requested: 'Wakala atakuja kuuchukua', awaiting_handover: 'Unasubiri kukabidhiwa',
+  confirmed: 'Tunajiandaa kuuchukua', collected: 'Mzigo umechukuliwa', collected_by_agent: 'Wakala ameuchukua',
+  received_at_hub: 'Umepokelewa ofisini', verified: 'Umekaguliwa ofisini', at_hub: 'Uko ofisini',
+  ready_for_dispatch: 'Tayari kusafirishwa', dispatched: 'Safari imeanza', in_transit: 'Uko safarini', transferred_hub: 'Uko safarini',
+  on_van: 'Uko safarini', arrived_at_hub: 'Mzigo wako umefika', awaiting_buyer: 'Mzigo wako umefika', at_zone: 'Umefika eneo lako',
+  out_for_delivery: 'Unaletwa kwako', delivered: 'Umepokelewa', self_pickup: 'Umechukuliwa ofisini', completed: 'Imekamilika',
+  returned: 'Umerudishwa kwa mtumaji', disputed: 'Kuna tatizo limeripotiwa', cancelled: 'Imeghairiwa',
+};
+export const eventLabel = (e) => CUSTODY[e.status]?.[0] || STATUS_TITLE[e.status] || 'Taarifa mpya';
+const eventMilestone = (e) => (CUSTODY[e.status] ? CUSTODY[e.status][1] : MILESTONE_OF[e.status]);
 
-const STATUS_COLOR = {
-  pending:            { bg: '#fef9c3', color: '#ca8a04' },
-  received_at_hub:    { bg: '#dbeafe', color: '#2563eb' },
-  ready_for_dispatch: { bg: '#fef3c7', color: '#d97706' },
-  dispatched:         { bg: '#ffedd5', color: '#ea580c' },
-  in_transit:         { bg: '#e0f2fe', color: '#0284c7' },
-  arrived_at_hub:     { bg: '#d1fae5', color: '#059669' },
-  out_for_delivery:   { bg: '#dcfce7', color: '#16a34a' },
-  delivered:          { bg: '#dcfce7', color: '#15803d' },
-  returned:           { bg: '#fee2e2', color: '#dc2626' },
-  disputed:           { bg: '#fee2e2', color: '#991b1b' },
+const DAY_SW = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
+const MONTH_SW = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ago', 'Sep', 'Okt', 'Nov', 'Des'];
+const pad = (n) => String(n).padStart(2, '0');
+/** "leo 09:05", "jana 16:20", "Jumamosi 10:12", "24 Okt 10:12". */
+export const when = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  const start = (x) => { const y = new Date(x); y.setHours(0, 0, 0, 0); return y; };
+  const days = Math.round((start(new Date()) - start(d)) / 86400000);
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (days <= 0) return `leo ${time}`;
+  if (days === 1) return `jana ${time}`;
+  if (days < 7) return `${DAY_SW[d.getDay()]} ${time}`;
+  return `${d.getDate()} ${MONTH_SW[d.getMonth()]} ${time}`;
+};
+const dateLong = (value) => { const d = new Date(value); return `${DAY_SW[d.getDay()]}, ${d.getDate()} ${MONTH_SW[d.getMonth()]}`; };
+
+export const Icon = ({ d, size = 20, color = MUTED, sw = 2 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true" style={{ flexShrink: 0 }}><path d={d} /></svg>
+);
+export const IC = {
+  back: 'M15 6l-6 6 6 6', share: 'M12 3v13M7 8l5-5 5 5M5 14v6h14v-6', copy: 'M8 8h11v13H8zM5 16V3h11',
+  arrow: 'M5 12h14M13 6l6 6-6 6', check: 'M5 12.5l4.5 4.5L19 7', box: 'M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10',
+  office: 'M4 21V6.2L12 3l8 3.2V21h-6v-5h-4v5z', home: 'M3.5 10.2L12 3.3l8.5 6.9V20a1 1 0 01-1 1h-5v-6.5h-5V21h-5a1 1 0 01-1-1z',
+  chat: 'M12 3.5c4.97 0 9 3.6 9 8.05 0 4.45-4.03 8.05-9 8.05-1.1 0-2.15-.17-3.12-.5L3.5 20.5l1.45-4.1A7.6 7.6 0 013 11.55C3 7.1 7.03 3.5 12 3.5z',
+  search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5', alert: 'M12 4l9 16H3zM12 10v4M12 17h.01',
+};
+export const card = { border: `1px solid ${LINE}`, borderRadius: 16, padding: 14 };
+export const pill = (bg, fg = '#fff', border = 'none') => ({ height: 48, borderRadius: 24, border, backgroundColor: bg, color: fg, fontSize: 15, fontWeight: 700,
+  cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', padding: '0 18px' });
+export const tone = (status) => {
+  const m = MILESTONE_OF[status];
+  if (status === 'returned' || status === 'disputed' || status === 'cancelled') return ['#fef2f2', '#b91c1c'];
+  if (m === 4) return ['#fffbeb', '#92400e'];
+  if (m === 6) return ['#ecfdf3', '#166534'];
+  return ['#eff6ff', BLUE];
 };
 
-const getMethodInfo = t => ({
-  boda:     { icon: '🛵', label: t('track_parcel.method_boda_label'),     desc: t('track_parcel.method_boda_desc') },
-  personal: { icon: '🚶', label: t('track_parcel.method_personal_label'), desc: t('track_parcel.method_personal_desc') },
-  direct:   { icon: '📦', label: t('track_parcel.method_direct_label'),   desc: t('track_parcel.method_direct_desc') },
-  agent:    { icon: '🏢', label: t('track_parcel.method_agent_label'),    desc: t('track_parcel.method_agent_desc') },
-});
-
-const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, trackingNumber: propTracking, orderId: propOrderId }) => {
+const TrackParcel = ({ onNavigate, isLoggedIn, trackingNumber: propTracking, orderId: propOrderId }) => {
   const { t } = useTranslation();
-  const STATUS_STEPS = getStatusSteps(t);
-  const METHOD_INFO = getMethodInfo(t);
   const [trackingInput, setTrackingInput] = useState(propTracking || (propOrderId ? `KTX-ORD-${propOrderId}` : ''));
   const [result, setResult]               = useState(null);
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
   const [notice, setNotice]               = useState('');
-  const [showPhoneSearch, setShowPhoneSearch] = useState(false);
   const [phoneResults, setPhoneResults]   = useState(null);
   const [phoneLoading, setPhoneLoading]   = useState(false);
   const [phoneError, setPhoneError]       = useState('');
+  const [copied, setCopied]               = useState(false);
 
   useEffect(() => {
     if (propTracking) handleTrack(propTracking);
     else if (propOrderId) handleTrackByOrderId(propOrderId);
   }, [propTracking, propOrderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Signed in with nothing to look up yet: show my parcels straight away.
+  useEffect(() => {
+    if (isLoggedIn && !propTracking && !propOrderId) handlePhoneSearch();
+  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Unified search — detects input type and routes correctly ──
   const handleSearch = async (input) => {
@@ -197,604 +238,247 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
   };
   const handleTrackByOrderId = (id) => handleSearch(`KTX-ORD-${id}`);
 
-  const getStepIndex = (status) => {
-    // Map batch parcel status to step key first
-    const mapped = BATCH_STATUS_MAP[status] || status;
-    return STATUS_STEPS.findIndex(s => s.key === mapped);
+  // ── What the result says, from real fields only ──────────────────────────
+  const status = result?.status;
+  const history = Array.isArray(result?.history) ? [...result.history]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)) : []; // newest first
+  const latest = history[0];
+  const current = status != null ? (MILESTONE_OF[status] ?? (latest ? eventMilestone(latest) : -1)) : -1;
+  const problem = ['returned', 'disputed', 'cancelled'].includes(status);
+  const arrived = ['superagent', 'shipment-parcel'].includes(result?._source) && ['arrived_at_hub', 'awaiting_buyer'].includes(status)
+    && result?.buyerRequestedDelivery == null;
+  const shownNumber = result ? (result.waybillNumber ? formatWaybill(result.waybillNumber) : (result.shipmentTrackingNumber || result.trackingNumber)) : '';
+  const shareLink = result ? `${window.location.origin}/?track=${encodeURIComponent(result.shipmentTrackingNumber || result.trackingNumber || '')}` : '';
+  const askHref = result ? `https://wa.me/${KENTEXA_SUPPORT}?text=${encodeURIComponent(`Habari KenteXa, naomba msaada kuhusu mzigo ${shownNumber}.`)}` : '#';
+  const stepMeta = (i) => {
+    const e = history.find((h) => eventMilestone(h) === i);
+    return e ? [e.city, when(e.createdAt)].filter(Boolean).join(' · ') : '';
   };
-  const currentStep  = result ? getStepIndex(result.status) : -1;
-  const methodInfo   = result?.shippingMethod ? (METHOD_INFO[result.shippingMethod] || METHOD_INFO.agent) : null;
+  const copy = () => { try { navigator.clipboard?.writeText(shownNumber); } catch { /* still visible */ } setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  const share = () => {
+    if (navigator.share) navigator.share({ title: 'Fuatilia mzigo', text: `Mzigo ${shownNumber}`, url: shareLink }).catch(() => {});
+    else { try { navigator.clipboard?.writeText(shareLink); } catch { /* ignore */ } setCopied(true); setTimeout(() => setCopied(false), 1500); }
+  };
+  const details = result ? [
+    ['Kitu', result.description || result.product || result.manualProductName],
+    ['Ofisi ya kutuma', result.originAgent],
+    ['Ofisi ya kupokelea', result.destinationAgent],
+    ['Usafiri', result.busCompany],
+    ['Muda wa safari', result.estimatedDays ? `Siku ${result.estimatedDays}` : null],
+  ].filter(([, v]) => v && v !== '—') : [];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '32px 16px', textAlign: 'center', position:'relative' }}>
-        <button onClick={() => onNavigate('back')} style={{ position:'absolute', top:14, left:14,
-          background:'rgba(255,255,255,0.15)', border:'none', borderRadius:8, padding:6, cursor:'pointer' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff', color: INK, fontFamily: 'inherit', paddingBottom: 96 }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 10, height: 52, display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px',
+        backgroundColor: 'rgba(255,255,255,0.97)', borderBottom: `1px solid ${LINE}` }}>
+        <button type="button" aria-label={t('common.back')} onClick={() => onNavigate('back')}
+          style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon d={IC.back} size={22} color={INK} sw={2.2} />
         </button>
-        <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
-        <h1 style={{ fontSize: 24, fontWeight:800, color: '#fff', margin: '0 0 6px', fontFamily:'inherit' }}>{t('track_parcel.header_title')}</h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>{t('track_parcel.header_subtitle')}</p>
-      </div>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, flex: 1 }}>{t('track_parcel.header_title')}</h1>
+        {result && (
+          <button type="button" aria-label="Shiriki" onClick={share}
+            style={{ width: 40, height: 40, borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Icon d={IC.share} color={INK} />
+          </button>
+        )}
+      </header>
 
-      <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-
-        {/* Search box */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16, marginTop: 16 }}>
+      <div style={{ maxWidth: 560, margin: '0 auto' }}>
+        {/* ── Search ── */}
+        <form role="search" onSubmit={(e) => { e.preventDefault(); handleSearch(); }} style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <label htmlFor="track-input" style={{ fontSize: 14, fontWeight: 600, color: MUTED }}>Namba iliyo kwenye risiti au SMS</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              placeholder={t('track_parcel.search_placeholder')}
-              value={trackingInput}
-              onChange={e => setTrackingInput(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              style={{ flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, fontFamily: 'monospace', fontWeight: 700, outline: 'none', boxSizing: 'border-box' }}
-              onFocus={e => e.target.style.border = '2px solid #1d4ed8'}
-              onBlur={e => e.target.style.border = '2px solid #e2e8f0'}
-            />
-            <button onClick={() => handleSearch()} disabled={loading}
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 16px', borderRadius: 10, flexShrink: 0, cursor: 'pointer', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
-              {loading ? '⏳' : t('track_parcel.track_button')}
+            <input id="track-input" value={trackingInput} placeholder={t('track_parcel.search_placeholder')} autoCapitalize="characters"
+              onChange={(e) => setTrackingInput(e.target.value.toUpperCase())}
+              style={{ flex: 1, minWidth: 0, height: 52, border: '1px solid #cfd9de', borderRadius: 14, padding: '0 14px', fontSize: 17, fontWeight: 700,
+                letterSpacing: 0.5, fontFamily: 'inherit', outline: 'none', color: INK }} />
+            <button type="submit" disabled={loading} style={{ ...pill(BLUE), height: 52, borderRadius: 14, flexShrink: 0 }}>
+              {loading ? <Spinner size={18} color="#fff" /> : null}{t('track_parcel.track_button')}
             </button>
           </div>
-          {error && (
-            <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginTop: 12, fontSize: 13 }}>
-              ❌ {error}
-            </div>
-          )}
-          {notice && (
-            <div data-testid="track-notice" style={{ backgroundColor: '#fef9c3', color: '#854d0e', padding: '10px 14px', borderRadius: 8, marginTop: 12, fontSize: 13 }}>
-              {notice}
-            </div>
-          )}
+          {error && <div role="alert" style={{ backgroundColor: '#fef2f2', color: '#b91c1c', padding: '10px 12px', borderRadius: 12, fontSize: 14 }}>{error}</div>}
+          {notice && <div data-testid="track-notice" style={{ backgroundColor: '#fffbeb', color: '#854d0e', padding: '10px 12px', borderRadius: 12, fontSize: 14, lineHeight: 1.45 }}>{notice}</div>}
+        </form>
 
-          {isLoggedIn && (
-            <div style={{ marginTop: 12, textAlign: 'center' }}>
-              <button onClick={() => {
-                  const next = !showPhoneSearch;
-                  setShowPhoneSearch(next); setPhoneResults(null); setPhoneError('');
-                  if (next) handlePhoneSearch();
-                }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: '#1d4ed8', fontWeight: 700 }}>
-                {showPhoneSearch ? '✕ Funga' : '📱 Sina namba ya ufuatiliaji — ona vifurushi vyangu'}
-              </button>
-            </div>
-          )}
-
-          {showPhoneSearch && (
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
-              {phoneLoading && (
-                <div style={{ textAlign: 'center', padding: '10px 0', color: '#64748b', fontSize: 13 }}>⏳ Inapakia...</div>
-              )}
-              {phoneError && (
-                <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginTop: 10, fontSize: 13 }}>
-                  ❌ {phoneError}
-                </div>
-              )}
-              {phoneResults && phoneResults.length === 0 && (
-                <div style={{ padding: '12px 0', color: '#94a3b8', fontSize: 13, textAlign: 'center' }}>
-                  Hakuna vifurushi vilivyopatikana kwa namba hii
-                </div>
-              )}
-              {phoneResults && phoneResults.length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  {phoneResults.map(p => (
-                    <button key={p.trackingNumber}
-                      onClick={() => { setTrackingInput(p.trackingNumber); setShowPhoneSearch(false); handleSearch(p.trackingNumber); }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', backgroundColor: '#f8fafc', border: 'none', borderRadius: 8, padding: '10px 12px', marginBottom: 6, cursor: 'pointer' }}>
-                      <div style={{ fontSize: 12.5, fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8' }}>{p.trackingNumber}</div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                        {p.originCity} → {p.destinationCity} · {p.status?.replace(/_/g, ' ')}
-                        {p.senderName ? ` · kutoka ${p.senderName}` : ''}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Result */}
+        {/* ── Result ── */}
         {result && (
-          <>
-            {['superagent', 'shipment-parcel'].includes(result._source) &&
-              ['arrived_at_hub', 'awaiting_buyer'].includes(result.status) &&
-              result.buyerRequestedDelivery == null && (
-                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 14,
-                  padding: 16, marginBottom: 12 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>
-                    Mzigo wako umefika. Chagua namna ya kuupokea.
-                  </div>
-                  <button onClick={() => onNavigate(isLoggedIn
-                    ? `BuyerParcelAction-${result.trackingNumber}` : 'PublicLogin')}
-                    style={{ width: '100%', minHeight: 48, border: 0, borderRadius: 10,
-                      background: '#1d4ed8', color: '#fff', fontSize: 16, fontWeight: 800,
-                      cursor: 'pointer' }}>
-                    Chagua kuletewa au kuchukua
-                  </button>
-                  <div style={{ fontSize: 13, color: '#475569', marginTop: 8 }}>
-                    Ingia kwa akaunti ya mpokeaji kuthibitisha chaguo.
-                  </div>
-                </div>
-              )}
-            {/* Status banner */}
-            <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('track_parcel.tracking_number_label')}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 16, fontWeight:800, color: '#1d4ed8' }}>{result.waybillNumber ? formatWaybill(result.waybillNumber) : result.trackingNumber}</div>
-                  {result.waybillNumber && result.trackingNumber && (
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{result.trackingNumber}</div>
-                  )}
+          <div data-testid="track-result" style={{ borderTop: `8px solid #f7f9f9` }}>
+            <section style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 13, color: MUTED }}>Namba ya mzigo</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span data-testid="track-number" style={{ fontSize: 22, fontWeight: 800, letterSpacing: 0.5, fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{shownNumber}</span>
+                <button type="button" aria-label="Nakili namba" onClick={copy}
+                  style={{ width: 32, height: 32, borderRadius: 16, border: 'none', backgroundColor: '#f7f9f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon d={copied ? IC.check : IC.copy} size={16} color={copied ? '#166534' : MUTED} />
+                </button>
+              </span>
+              {result.waybillNumber && result.trackingNumber && <span style={{ fontSize: 12, color: MUTED }}>{result.trackingNumber}</span>}
+              <span data-testid="track-status" style={{ marginTop: 8, fontSize: 26, fontWeight: 800, letterSpacing: -0.3, color: problem ? '#b91c1c' : INK }}>
+                {STATUS_TITLE[status] || 'Inaendelea'}
+              </span>
+              {latest && <span style={{ fontSize: 15, color: MUTED }}>{[eventLabel(latest), latest.city, when(latest.createdAt)].filter(Boolean).join(' · ')}</span>}
+            </section>
 
-                </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-                  backgroundColor: (STATUS_COLOR[result.status] || { bg: '#f1f5f9' }).bg,
-                  color: (STATUS_COLOR[result.status] || { color: '#64748b' }).color,
-                }}>
-                  {STATUS_STEPS.find(s => s.key === result.status)?.swLabel || result.status?.replace(/_/g, ' ').toUpperCase()}
-                </span>
-              </div>
+            {/* The receiver chooses once the parcel is at the office. */}
+            {arrived && (
+              <section style={{ margin: '0 16px 16px', padding: 16, borderRadius: 16, backgroundColor: '#eff6ff', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <span style={{ fontSize: 17, fontWeight: 800 }}>Ungependa kuupokeaje?</span>
+                <button type="button" onClick={() => onNavigate(isLoggedIn ? `BuyerParcelAction-${result.trackingNumber}` : 'PublicLogin')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, border: 'none', backgroundColor: '#fff', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: INK }}>
+                  <span style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={IC.office} color={BLUE} /></span>
+                  <span style={{ display: 'flex', flexDirection: 'column' }}><strong style={{ fontSize: 15 }}>Nitachukua ofisini</strong>
+                    {result.destinationAgent && <span style={{ fontSize: 13, color: MUTED }}>{result.destinationAgent}</span>}</span>
+                </button>
+                <button type="button" onClick={() => onNavigate(isLoggedIn ? `BuyerParcelAction-${result.trackingNumber}` : 'PublicLogin')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, border: 'none', backgroundColor: '#fff', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: INK }}>
+                  <span style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={IC.home} color={BLUE} /></span>
+                  <span style={{ display: 'flex', flexDirection: 'column' }}><strong style={{ fontSize: 15 }}>Niletewe nyumbani</strong>
+                    <span style={{ fontSize: 13, color: MUTED }}>Wakala atakupigia kupanga muda</span></span>
+                </button>
+                <span style={{ fontSize: 13, color: MUTED }}>Ingia kwa akaunti ya mpokeaji kuthibitisha chaguo.</span>
+              </section>
+            )}
 
-              {/* WhatsApp contact — goes to seller's WhatsApp (BiS etc.) or KenteXa support */}
-              <a
-                href={buildBuyerInquiryMessage(result.sellerWhatsApp, {
-                  trackingNumber:      result.trackingNumber,
-                  productName:         result.product,
-                  sellerStoreName:     result.sellerStoreName,
-                  shippingMethod:      result.shippingMethod,
-                  bodaName:            result.courierName,       // boda rider name, if set
-                  bodaPhone:           result.localAgent?.phone,
-                  busCompany:          result.busCompany,
-                  busTicketNumber:     result.busTicketNumber,
-                  courierName:         result.courierName,
-                  externalTrackingRef: result.externalTrackingRef,
-                })}
-                target="_blank" rel="noreferrer"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  background: 'linear-gradient(135deg,#25D366,#128C7E)', color: '#fff',
-                  padding: '11px 16px', borderRadius: 12, fontSize: 13, fontWeight: 800,
-                  textDecoration: 'none', marginBottom: 14,
-                }}>
-                {t('track_parcel.whatsapp_contact')}
-              </a>
+            {problem && (
+              <section role="status" style={{ margin: '0 16px 16px', padding: 14, borderRadius: 16, backgroundColor: '#fef2f2', color: '#7f1d1d', display: 'flex', gap: 10, fontSize: 14, lineHeight: 1.45 }}>
+                <Icon d={IC.alert} color="#b91c1c" />
+                <span>{status === 'returned' ? 'Mzigo huu umerudishwa kwa mtumaji.' : status === 'cancelled' ? 'Ombi hili limeghairiwa.' : 'Tatizo limeripotiwa kuhusu mzigo huu.'} Uliza KenteXa kwa msaada.</span>
+              </section>
+            )}
 
-              {/* Delivery method badge */}
-              {methodInfo && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: 10, marginBottom: 10, border: '1px solid #e2e8f0' }}>
-                  <span style={{ fontSize: 18 }}>{methodInfo.icon}</span>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b' }}>{methodInfo.label}</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>{methodInfo.desc}</div>
-                  </div>
-                  {result.courierName && (
-                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: '#2563eb' }}>{result.courierName}</span>
-                  )}
-                </div>
-              )}
-
-              {/* Rich shipping info based on method */}
-              {result.shippingMethod === 'bus' && (result.busCompany || result.busTicketNumber) && (
-                <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>{t('track_parcel.bus_details_title')}</div>
-                  {result.busCompany && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#92400e' }}>{t('track_parcel.company_label')}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.busCompany}</span>
-                    </div>
-                  )}
-                  {result.busTicketNumber && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#92400e' }}>{t('track_parcel.ticket_number_label')}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{result.busTicketNumber}</span>
-                    </div>
-                  )}
-                  <div style={{ fontSize: 11, color: '#b45309', marginTop: 8, lineHeight: 1.5 }}>
-                    {t('track_parcel.bus_contact_hint')}
-                  </div>
-                </div>
-              )}
-
-              {result.shippingMethod === 'courier' && (result.courierName || result.externalTrackingRef) && (
-                <div style={{ backgroundColor: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#4338ca', marginBottom: 8 }}>{t('track_parcel.courier_details_title')}</div>
-                  {result.courierName && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#4338ca' }}>{t('track_parcel.company_label')}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.courierName}</span>
-                    </div>
-                  )}
-                  {result.externalTrackingRef && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#4338ca' }}>{t('track_parcel.tracking_ref_label')}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', fontFamily: 'monospace' }}>{result.externalTrackingRef}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {result.shippingMethod === 'kentexa_delivery' && (
-                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>{t('track_parcel.van_title')}</div>
-                  {result.superAgentHub && <div style={{ fontSize: 12, color: '#1d4ed8', marginBottom: 4 }}>🗺️ {result.superAgentHub}</div>}
-                  {result.dispatchTime && (
-                    <div style={{ fontSize: 12, color: '#1d4ed8' }}>
-                      🕐 {t('track_parcel.departed_label', { time: new Date(result.dispatchTime).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' }) })}
-                    </div>
-                  )}
-                  {result.estimatedArrival && (
-                    <div style={{ fontSize: 12, color: '#1d4ed8', marginTop: 4 }}>
-                      ⏰ {t('track_parcel.eta_label', { time: new Date(result.estimatedArrival).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' }) })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {result.shippingMethod === 'agent' && result.superAgentHub && result.superAgentHub !== '—' && (
-                <div style={{ backgroundColor: '#dcfce7', border: '1px solid #86efac', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>{t('track_parcel.super_agent_title')}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.superAgentHub}</div>
-                  {result.destinationCity && <div style={{ fontSize: 12, color: '#16a34a', marginTop: 3 }}>📍 {result.destinationCity}</div>}
-                  {(() => {
-                    const eta = getETA(result.originCity, result.destinationCity, result.transportType, t);
-                    return eta && !['completed','delivered'].includes(result.status) ? (
-                      <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, marginTop: 4,
-                        backgroundColor: '#f5f3ff', borderRadius: 6, padding: '3px 8px', display: 'inline-block' }}>
-                        {t('track_parcel.expected_label', { eta })}
-                      </div>
-                    ) : null;
-                  })()}
-                  {result.localAgent && (
-                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #bbf7d0' }}>
-                      <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>{t('track_parcel.local_agent_title')}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.localAgent.name}</div>
-                      {result.localAgent.phone && <div style={{ fontSize: 12, color: '#16a34a' }}>📞 {result.localAgent.phone}</div>}
-                      {result.localAgent.address && <div style={{ fontSize: 12, color: '#64748b' }}>📍 {result.localAgent.address}</div>}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Route */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{result.originCity || '—'}</span>
-                <div style={{ flex: 1, position: 'relative', height: 2, backgroundColor: '#e2e8f0' }}>
-                  <span style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', fontSize: 16 }}>
-                    {methodInfo?.icon || '✈️'}
+            {(result.originCity || result.destinationCity) && (
+              <section style={{ ...card, margin: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: 12, color: MUTED }}>Kutoka</span>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>{result.originCity || '—'}</span>
+                  </span>
+                  <Icon d={IC.arrow} color={BLUE} size={22} />
+                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'right' }}>
+                    <span style={{ fontSize: 12, color: MUTED }}>Kwenda</span>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>{result.destinationCity || '—'}</span>
                   </span>
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{result.destinationCity || '—'}</span>
-              </div>
+                {current >= 0 && (
+                  <div aria-hidden="true" style={{ height: 6, borderRadius: 3, backgroundColor: LINE, position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.round((current / (MILESTONES.length - 1)) * 100)}%`, borderRadius: 3, backgroundColor: problem ? '#b91c1c' : BLUE }} />
+                  </div>
+                )}
+                {(result.transitCity || result.expectedArrival) && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', fontSize: 13, color: MUTED }}>
+                    {result.transitCity ? <span>Kupitia {result.transitCity}</span> : <span />}
+                    {/* Only a real expected date from the parcel record, never a guess. */}
+                    {result.expectedArrival && current < 6 && <span>Inatarajiwa: <strong style={{ color: INK }}>{dateLong(result.expectedArrival)}</strong></span>}
+                  </div>
+                )}
+              </section>
+            )}
 
-              {/* Transit city — shown when route is multi-hop */}
-              {result.transitCity && (
-                <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '8px 14px', marginBottom: 12, fontSize: 12, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>🔄</span>
-                  <span>
-                    {t('track_parcel.via_transit_notice', { city: result.transitCity, dest: result.destinationCity })}
-                  </span>
-                </div>
-              )}
+            {/* ── Timeline of real milestones ── */}
+            {result._source !== 'shipment' && current >= 0 && (
+              <section style={{ padding: '4px 16px 8px' }}>
+                <h2 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 800 }}>Safari ya mzigo</h2>
+                <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  {MILESTONES.map((label, i) => {
+                    const done = i < current || (i === current && current === MILESTONES.length - 1);
+                    const now = i === current && !done;
+                    const meta = stepMeta(i);
+                    return (
+                      <li key={label} data-testid={`milestone-${i}`} aria-current={now ? 'step' : undefined} style={{ display: 'flex', gap: 12 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24, flexShrink: 0 }}>
+                          <span style={{ width: 24, height: 24, borderRadius: 12, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            backgroundColor: done ? BLUE : '#fff', border: done ? 'none' : now ? `3px solid ${problem ? '#b91c1c' : BLUE}` : '2px solid #cfd9de' }}>
+                            {done && <Icon d={IC.check} size={14} color="#fff" sw={3} />}
+                          </span>
+                          {i < MILESTONES.length - 1 && <span style={{ width: 2, flex: 1, minHeight: 26, backgroundColor: i < current ? BLUE : LINE }} />}
+                        </div>
+                        <div style={{ paddingBottom: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{ fontSize: 15, fontWeight: now ? 800 : 600, color: i > current ? '#8b98a5' : INK }}>{label}</span>
+                          {meta && <span style={{ fontSize: 13, color: MUTED }}>{meta}</span>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            )}
 
-              {/* Expected arrival */}
-              {result.expectedArrival && (
-                <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '8px 14px', marginBottom: 12, fontSize: 12, color: '#15803d', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>📅</span>
-                  <span>{t('track_parcel.expected_arrival_notice', { date: new Date(result.expectedArrival).toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' }) })}</span>
-                </div>
-              )}
-              {/* ── COMPLETE PARCEL INFORMATION ──────────────────────────── */}
-
-              {/* Item details */}
-              <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 10 }}>{t('track_parcel.item_details_title')}</div>
-                {[
-                  [t('track_parcel.product_label'), result.description || result.product || result.manualProductName],
-                  [t('track_parcel.weight_label'), result.weightKg ? `${result.weightKg} kg` : null],
-                  [t('track_parcel.size_label'), result.parcelSize ? ({small:t('track_parcel.size_small'),medium:t('track_parcel.size_medium'),large:t('track_parcel.size_large'),cargo:t('track_parcel.size_cargo')}[result.parcelSize]||result.parcelSize) : null],
-                  [t('track_parcel.value_label'), result.declaredValue ? `TZS ${Number(result.declaredValue).toLocaleString()}` : null],
-                  [t('track_parcel.time_label'), result.estimatedDays ? t('track_parcel.days_value', { count: result.estimatedDays }) : null],
-                ].filter(([,v]) => v).map(([l,v]) => (
-                  <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid #f1f5f9', fontSize:13 }}>
-                    <span style={{ color:'#64748b' }}>{l}</span>
-                    <span style={{ fontWeight:700, color:'#1e293b' }}>{v}</span>
+            {details.length > 0 && (
+              <section style={{ ...card, margin: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <span style={{ fontSize: 13, color: MUTED }}>Kuhusu mzigo</span>
+                {details.map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15 }}>
+                    <span style={{ color: MUTED, flexShrink: 0 }}>{k}</span><strong style={{ textAlign: 'right' }}>{v}</strong>
                   </div>
                 ))}
-              </div>
+              </section>
+            )}
 
-              {/* Sender */}
-              {(result.senderName || result.sellerStoreName) && (
-                <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.sender_title')}</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.senderName || result.sellerStoreName}</div>
-                  {result.senderPhone && <a href={`tel:${result.senderPhone}`} style={{ fontSize:13, color:'#1d4ed8', textDecoration:'none', display:'block', marginTop:4 }}>📞 {result.senderPhone}</a>}
-                  {result.originCity && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.originCity}</div>}
-                </div>
-              )}
-
-              {/* Recipient */}
-              {result.recipientName && (
-                <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.recipient_title')}</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.recipientName}</div>
-                  {result.deliveryAddress && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.deliveryAddress}</div>}
-                  {result.destinationCity && <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>🏙️ {result.destinationCity}</div>}
-                  {/* Phone — only visible to logged-in seller, admin, or super agent */}
-                  {hasAnyRole(userRole, currentUser, ['seller', 'admin', 'super_agent']) && result.buyerPhone && (
-                    <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <a href={`tel:${result.buyerPhone}`}
-                        style={{ fontSize:13, color:'#1d4ed8', textDecoration:'none', fontWeight:700 }}>
-                        📞 {result.buyerPhone}
-                      </a>
-                      <a href={`https://wa.me/${String(result.buyerPhone).replace(/[^\d]/g,'').replace(/^0/,'255')}`}
-                        target="_blank" rel="noreferrer"
-                        style={{ fontSize:10, backgroundColor:'#25D366', color:'#fff',
-                          padding:'2px 8px', borderRadius:6, textDecoration:'none', fontWeight:700 }}>
-                        WA
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Origin Hub */}
-              {result.originAgent && (
-                <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.origin_hub_title')}</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.originAgent}</div>
-                  {result.originAgentPhone && <a href={`tel:${result.originAgentPhone}`} style={{ fontSize:13, color:'#1d4ed8', textDecoration:'none', display:'block', marginTop:4 }}>📞 {result.originAgentPhone}</a>}
-                  {result.originCity && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.originCity}</div>}
-                </div>
-              )}
-
-              {/* Destination Hub */}
-              {result.destinationAgent && (
-                <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#15803d', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.destination_hub_title')}</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.destinationAgent}</div>
-                  {result.destinationAgentPhone && <a href={`tel:${result.destinationAgentPhone}`} style={{ fontSize:13, color:'#16a34a', textDecoration:'none', display:'block', marginTop:4 }}>📞 {result.destinationAgentPhone}</a>}
-                  {result.destinationAgentAddress && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>🏢 {result.destinationAgentAddress}</div>}
-                  {result.destinationCity && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.destinationCity}</div>}
-                </div>
-              )}
-
-              {/* Bus / Courier details */}
-              {(result.busCompany || result.busTicketNumber || result.courierName || result.courierTrackingRef) && (
-                <div style={{ backgroundColor: '#fef9c3', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#92400e', letterSpacing: 0.5, marginBottom: 10 }}>
-                    {result.busCompany ? t('track_parcel.bus_details_title') : t('track_parcel.courier_details_title')}
-                  </div>
-                  {[
-                    [t('track_parcel.company_label'), result.busCompany || result.courierName],
-                    [t('track_parcel.tracking_ref_label'), result.busTicketNumber || result.courierTrackingRef],
-                    [t('track_parcel.departure_label'), result.busDeparture],
-                  ].filter(([,v]) => v).map(([l,v]) => (
-                    <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid #fde68a', fontSize:13 }}>
-                      <span style={{ color:'#92400e' }}>{l}</span>
-                      <span style={{ fontWeight:800, color: l===t('track_parcel.tracking_ref_label') ? '#1d4ed8' : '#1e293b', fontFamily: l===t('track_parcel.tracking_ref_label') ? 'monospace' : 'inherit', fontSize: l===t('track_parcel.tracking_ref_label') ? 15 : 13 }}>{v}</span>
-                    </div>
+            {history.length > 0 && (
+              <details style={{ margin: '0 16px 16px' }}>
+                <summary style={{ cursor: 'pointer', fontSize: 15, fontWeight: 700, padding: '8px 0' }}>Taarifa zote ({history.length})</summary>
+                <ul data-testid="track-history" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                  {history.map((e, i) => (
+                    <li key={i} style={{ padding: '10px 0', borderTop: i ? `1px solid ${LINE}` : 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 15, fontWeight: i === 0 ? 700 : 500 }}>{eventLabel(e)}</span>
+                      <span style={{ fontSize: 13, color: MUTED }}>{[e.city, when(e.createdAt)].filter(Boolean).join(' · ')}</span>
+                    </li>
                   ))}
-                </div>
-              )}
-
-
-            {/* ── KenteXa Marketing Footer ─────────────────────────────── */}
-            <div style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 20, marginTop: 8, marginBottom: 12 }}>
-              <div style={{ fontSize: 16, marginBottom: 6 }}>🛡️</div>
-              <div style={{ fontSize: 15, fontWeight:800, color: '#fff', marginBottom: 6 }}>{t('track_parcel.protected_title')}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, marginBottom: 14 }}>
-                {t('track_parcel.protected_desc')}
-              </div>
-              <div style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 14 }} />
-              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>
-                {t('track_parcel.seller_not_using_prompt')}
-              </div>
-              <div style={{ fontSize: 12, color: '#93c5fd', marginBottom: 16, lineHeight: 1.6 }}>
-                {t('track_parcel.seller_not_using_desc')}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => onNavigate(isLoggedIn ? 'BecomeSeller' : 'PublicLogin')}
-                  style={{ flex: 1, backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 8px',
-                    borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
-                  {t('track_parcel.register_seller_button')}
-                </button>
-                <a href={'https://wa.me/' + KENTEXA_SUPPORT_WHATSAPP + '?text=' + encodeURIComponent('Habari! Nataka kujua zaidi kuhusu KenteXa kwa wauzaji')}
-                  target="_blank" rel="noreferrer"
-                  style={{ flex: 1, backgroundColor: '#25D366', color: '#fff', padding: '10px 8px',
-                    borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
-                  {t('track_parcel.ask_whatsapp_button')}
-                </a>
-              </div>
-            </div>
-
-            {/* Local agent card */}
-            {result.localAgent && (
-              <div style={{ background: 'linear-gradient(135deg,#ecfdf5,#d1fae5)', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12, border: '1px solid #a7f3d0' }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#047857', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  {t('track_parcel.your_delivery_agent_title')}
-                </div>
-                <div style={{ fontSize: 16, fontWeight:800, color: '#0f172a', marginBottom: 4 }}>{result.localAgent.name}</div>
-                {result.localAgent.address && (
-                  <div style={{ fontSize: 13, color: '#475569', marginBottom: 10 }}>📍 {result.localAgent.address}</div>
-                )}
-                {result.localAgent.phone && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <a href={`tel:${result.localAgent.phone}`}
-                      style={{ flex: 1, textAlign: 'center', backgroundColor: '#fff', color: '#047857', border: '2px solid #6ee7b7', padding: '9px 14px', borderRadius: 10, fontSize: 13, fontWeight: 800, textDecoration: 'none' }}>
-                      {t('track_parcel.call_button')}
-                    </a>
-                    <a href={`https://wa.me/${result.localAgent.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
-                      style={{ flex: 1, textAlign: 'center', backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '9px 14px', borderRadius: 10, fontSize: 13, fontWeight: 800, textDecoration: 'none' }}>
-                      {t('track_parcel.whatsapp_button')}
-                    </a>
-                  </div>
-                )}
-              </div>
+                </ul>
+              </details>
             )}
 
-            {/* Boda/Personal contact seller card — shown when method is boda or personal */}
-            {(result.shippingMethod === 'boda' || result.shippingMethod === 'personal') && result.status !== 'delivered' && (
-              <div style={{ background: 'linear-gradient(135deg,#fff7ed,#ffedd5)', borderRadius: 16, padding: 18, marginBottom: 12, border: '1px solid #fed7aa' }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#ea580c', marginBottom: 8 }}>
-                  {result.shippingMethod === 'boda' ? t('track_parcel.boda_coming_title') : t('track_parcel.personal_delivery_title')}
-                </div>
-                <div style={{ fontSize: 13, color: '#7c2d12', marginBottom: 10, lineHeight: 1.6 }}>
-                  {result.shippingMethod === 'boda'
-                    ? t('track_parcel.boda_desc')
-                    : t('track_parcel.personal_desc')
-                  }
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#ea580c' }}>
-                  {t('track_parcel.order_number_hint', { num: result.trackingNumber?.replace('KTX-ORD-', '') || '—' })}
-                </div>
-              </div>
-            )}
-
-            {/* Progress steps */}
-            <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', fontFamily:'inherit' }}>{t('track_parcel.progress_title')}</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {STATUS_STEPS.map((step, index) => {
-                  const isDone    = currentStep >= 0 && index <= currentStep;
-                  const isCurrent = index === currentStep;
-                  return (
-                    <div key={step.key} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 32, flexShrink: 0 }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: '50%',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: isCurrent ? 16 : 13,
-                          backgroundColor: isCurrent ? (step.color || '#1d4ed8') : isDone ? '#1d4ed8' : '#f1f5f9',
-                          border: isCurrent ? `3px solid ${step.color || '#1d4ed8'}` : isDone ? 'none' : '2px solid #e2e8f0',
-                          boxShadow: isCurrent ? `0 0 0 4px ${(step.color || '#1d4ed8')}26` : 'none',
-                          color: isDone ? '#fff' : '#cbd5e1',
-                        }}>
-                          {isDone ? (isCurrent ? step.icon : '✓') : '○'}
-                        </div>
-                        {index < STATUS_STEPS.length - 1 && (
-                          <div style={{ width: 2, flex: 1, minHeight: 20, backgroundColor: isDone ? '#1d4ed8' : '#e2e8f0', margin: '2px 0', transition: 'background-color 0.3s' }} />
-                        )}
-                      </div>
-                      <div style={{ paddingBottom: 16, paddingTop: 6 }}>
-                        <div style={{ fontSize: 13, fontWeight: isCurrent ? 900 : 600,
-                          color: isDone ? '#1e293b' : '#94a3b8' }}>
-                          {step.swLabel}
-                        </div>
-                        {isCurrent && (
-                          <div style={{ fontSize: 11, color: step.color || '#1d4ed8',
-                            fontWeight: 700, marginTop: 2 }}>
-                            {step.desc}
-                          </div>
-                        )}
-                        {isDone && !isCurrent && (
-                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{t('track_parcel.step_done')}</div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            </div>
-
-            {/* Tracking history */}
-            {result.history?.length > 0 && (
-              <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px', fontFamily:'inherit' }}>{t('track_parcel.history_title')}</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {[...result.history].reverse().map((event, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 12px', backgroundColor: i === 0 ? '#eff6ff' : '#f8fafc', borderRadius: 10, border: i === 0 ? '1px solid #bfdbfe' : 'none' }}>
-                      <div style={{ fontSize: 20, flexShrink: 0 }}>
-                        {STATUS_STEPS.find(s => s.key === event.status)?.icon || '📍'}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                          {STATUS_STEPS.find(s => s.key === event.status)?.swLabel || event.status?.replace(/_/g, ' ')}
-                          {event.city && <span style={{ color: '#64748b', fontWeight: 500 }}> — {event.city}</span>}
-                        </div>
-                        {event.note && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{event.note}</div>}
-
-                        {/* Handler contact — who did this step */}
-                        {event.updatedBy && event.handlerType !== 'system' && (
-                          <div style={{ marginTop: 6, backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e2e8f0' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 11 }}>
-                                {event.handlerType === 'super_agent' ? '🏢' : '🤝'}
-                              </span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>
-                                {event.updatedBy}
-                              </span>
-                              {event.handlerPhone && (
-                                <a href={`tel:${event.handlerPhone}`}
-                                  style={{ fontSize: 11, color: '#1d4ed8', textDecoration: 'none', fontWeight: 600 }}>
-                                  📞 {event.handlerPhone}
-                                </a>
-                              )}
-                            </div>
-                            {event.handlerLocation && (
-                              <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-                                📍 {event.handlerLocation}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                          {event.createdAt ? new Date(event.createdAt).toLocaleString('sw-TZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Delivered banner */}
-            {result.status === 'delivered' && (
-              <div style={{ backgroundColor: '#f0fdf4', borderRadius: 16, padding: 20, border: '2px solid #86efac', textAlign: 'center', marginBottom: 12 }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
-                <div style={{ fontSize: 16, fontWeight:800, color: '#15803d', marginBottom: 4 }}>{t('track_parcel.delivered_title')}</div>
-                {result.deliveredTime && (
-                  <div style={{ fontSize: 13, color: '#16a34a' }}>
-                    {t('track_parcel.delivered_time_label', { time: new Date(result.deliveredTime).toLocaleString('sw-TZ') })}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Empty state */}
-        {!result && !loading && !error && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>{t('track_parcel.empty_title')}</h3>
-            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
-              {t('track_parcel.empty_desc')}
-            </p>
-            <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, fontSize: 12, color: '#64748b', textAlign: 'left' }}>
-              <div style={{ fontWeight: 800, marginBottom: 8, color: '#1e293b' }}>{t('track_parcel.number_types_title')}</div>
-              <div style={{ marginBottom: 4 }}>
-                <span style={{ fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 700 }}>KTX-DAR-MZA-000001</span>
-                <span style={{ marginLeft: 8 }}>{t('track_parcel.type_super_agent')}</span>
-              </div>
-              <div style={{ marginBottom: 4 }}>
-                <span style={{ fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 700 }}>KTX-ORD-1234</span>
-                <span style={{ marginLeft: 8 }}>{t('track_parcel.type_boda')}</span>
-              </div>
-              <div>
-                <span style={{ fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 700 }}>1234</span>
-                <span style={{ marginLeft: 8 }}>{t('track_parcel.type_order')}</span>
-              </div>
+            <div style={{ padding: '0 16px 16px', display: 'flex', gap: 10 }}>
+              <a href={askHref} target="_blank" rel="noreferrer" style={{ ...pill('#fff', INK, '1px solid #cfd9de'), flex: 1 }}>
+                <Icon d={IC.chat} size={18} color={INK} />Uliza KenteXa
+              </a>
+              <button type="button" onClick={share} style={{ ...pill(INK), flex: 1 }}>{copied ? 'Imenakiliwa' : 'Shiriki namba'}</button>
             </div>
           </div>
         )}
+
+        {/* ── My parcels (signed in) ── */}
+        {!result && isLoggedIn && (
+          <section style={{ borderTop: `8px solid #f7f9f9`, paddingTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 16px 8px', gap: 8 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Mizigo yangu</h2>
+              <span style={{ fontSize: 13, color: MUTED }}>Kwa namba yako ya simu</span>
+            </div>
+            {phoneLoading && <div role="status" style={{ padding: 16, display: 'flex', gap: 8, alignItems: 'center', color: MUTED }}><Spinner size={16} color={BLUE} />Inapakia…</div>}
+            {phoneError && <div role="alert" style={{ margin: '0 16px', backgroundColor: '#fef2f2', color: '#b91c1c', padding: '10px 12px', borderRadius: 12, fontSize: 14 }}>{phoneError}</div>}
+            {phoneResults && phoneResults.length === 0 && (
+              <div style={{ padding: '8px 16px 16px', fontSize: 14, color: MUTED }}>Hakuna mizigo inayokuja kwa namba yako kwa sasa.</div>
+            )}
+            {phoneResults && phoneResults.map((p) => {
+              const [bg, fg] = tone(p.status);
+              return (
+                <button type="button" key={p.trackingNumber} onClick={() => { setTrackingInput(p.trackingNumber); handleSearch(p.trackingNumber); }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', border: 'none', borderBottom: `1px solid ${LINE}`,
+                    background: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: INK }}>
+                  <span style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon d={IC.box} color={fg} /></span>
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700 }}>{[p.originCity, p.destinationCity].filter(Boolean).join(' → ') || p.trackingNumber}</span>
+                    <span style={{ fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {[p.waybillNumber ? formatWaybill(p.waybillNumber) : p.trackingNumber, p.senderName].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: fg, textAlign: 'right', flexShrink: 0, maxWidth: 110 }}>{STATUS_TITLE[p.status] || 'Inaendelea'}</span>
+                </button>
+              );
+            })}
+          </section>
+        )}
+
+        {/* ── Nothing yet, signed out ── */}
+        {!result && !isLoggedIn && !loading && !error && !notice && (
+          <section style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: 10, color: MUTED, fontSize: 14, lineHeight: 1.5 }}>
+            <span>Namba ya mzigo iko kwenye risiti ya ofisi au kwenye SMS uliyotumiwa, mfano <strong style={{ color: INK }}>KTX 4821 0937 52</strong>.</span>
+            <span>Umenunua mtandaoni? Weka namba ya agizo lako, mfano <strong style={{ color: INK }}>1234</strong>.</span>
+            <button type="button" onClick={() => onNavigate('PublicLogin')} style={{ ...pill('#fff', INK, '1px solid #cfd9de'), alignSelf: 'flex-start' }}>Ingia uone mizigo yako</button>
+          </section>
+        )}
       </div>
-      <div style={{ height: 90 }} />
     </div>
   );
 };
