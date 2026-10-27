@@ -65,6 +65,7 @@ import { CommunicationFeatureFlagsModule } from './communication/communication-f
 import { OwnershipFeatureFlagsModule } from './ownership/ownership-feature-flags.module';
 import { PartnerInvitationsModule } from './partner-invitations/partner-invitations.module';
 import { AdvertisersModule } from './advertisers/advertisers.module';
+import { FoodOrdersModule } from './food-orders/food-orders.module';
 import { QuoteRequestsModule } from './quote-requests/quote-requests.module';
 import { SellerAgentPartnersModule } from './partner-invitations/seller-agent-partners.module';
 import { VersionController } from './version.controller';
@@ -155,6 +156,7 @@ export const allowDevelopmentSchemaSync =
     OwnershipFeatureFlagsModule,
     PartnerInvitationsModule,
     AdvertisersModule,
+    FoodOrdersModule,
     QuoteRequestsModule,
     SellerAgentPartnersModule,
     // Blanket default rate limit — most controllers had none at all (only

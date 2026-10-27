@@ -2,7 +2,10 @@ export const DESTINATION_KIND = Object.freeze({ PUBLIC: 'public', ACCOUNT: 'acco
 
 const destination = (id, kind, roles = [], capabilities = []) => ({ id, page: id, kind, roles, capabilities });
 const PUBLIC_PAGES = ['Home','AboutUs','ContactUs','HowItWorks','Privacy','PrivacyPolicy','Terms','TermsAndConditions','FlashSales','PickupPoints','ClassifiedDetail','ServiceDetail','ProductDetail','VerifyProduct','RouteCoverageMap','Store','Stores','ClassifiedsPublic','PublicLogin','Register','Search','Discover','Cart','BecomeSeller','BecomeSellerInfo','BecomeAgent','BecomeSuperAgentInfo','BecomeBusiness','VerifyReceipt','PayInvoice','TrackParcel','Services','Listings'];
-const ACCOUNT_PAGES = ['MyAdvertising','QuoteRequest','MyQuoteRequests','QuoteInbox','Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','MyClassifieds','CreateClassified'];
+const ACCOUNT_PAGES = ['MyAdvertising','QuoteRequest','MyQuoteRequests','QuoteInbox','Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','MyClassifieds','CreateClassified',
+  // Hotel food ordering (owner 2026-10-27): the customer's orders, and the hotel's kitchen and
+  // menu (the server checks that the caller owns that Business).
+  'FoodOrder','HotelKitchen','HotelMenuManager'];
 const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','SellerWallet','StoreSettings','SellerProducts','MyBrands','POS','SellerClassifieds','SellerOrders','SellerShipping','SellerInvoices','SellerShipment','SellerWarrantyClaims','SellerAnalytics','SellerTeam'];
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
@@ -35,6 +38,7 @@ const DYNAMIC_DESTINATIONS = [
   [/^SellerInbox-/, 'SellerInbox'], [/^SellerOrders-/, 'SellerOrders'], [/^SellerPayouts-/, 'SellerPayouts'], [/^SellerWarrantyClaims-/, 'SellerWarrantyClaims'],
   [/^EditProduct-/, 'SellerProducts'], [/^EditClassified-/, 'SellerClassifieds'], [/^BuyerParcelAction-/, 'MyOrders'], [/^BatchHandoff-/, 'BatchHandoff'],
   [/^BusinessHome-/, 'BusinessHome'],
+  [/^HotelMenu-\d+$/, 'HotelMenu'], [/^FoodOrder-\d+$/, 'FoodOrder'], [/^HotelKitchen-\d+$/, 'HotelKitchen'],
   // I2 correction: the I2C/I2D/B6C Business routes App.js already handles. Each
   // pattern is anchored and numeric (and, for capabilities, limited to the two
   // codes the App parser supports) -- deliberately NOT a broad wildcard.
@@ -59,6 +63,7 @@ const DYNAMIC_ONLY_DESTINATIONS = Object.freeze({
   SellerCheckout: destination('SellerCheckout', DESTINATION_KIND.PUBLIC),
   PartnerInvite: destination('PartnerInvite', DESTINATION_KIND.PUBLIC),
   SellerAgentInvite: destination('SellerAgentInvite', DESTINATION_KIND.PUBLIC),
+  HotelMenu: destination('HotelMenu', DESTINATION_KIND.PUBLIC),
 });
 
 export const destinationForPage = (page) => {

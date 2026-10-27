@@ -104,7 +104,7 @@ export function DirectPaymentChoice({ loading, options = [], sameCity, regionCho
  * (POST /upload/payment-proof). The thumbnail is the local file; only the seller
  * sees the stored copy, through a short-lived link.
  */
-function ProofUpload({ value, onChange, testId }) {
+export function ProofUpload({ value, onChange, testId }) {
   const { t } = useTranslation();
   const [state, setState] = useState('idle'); // idle | uploading | failed
   const pick = async (e) => {

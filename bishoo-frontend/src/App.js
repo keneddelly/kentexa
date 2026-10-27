@@ -36,6 +36,11 @@ import ConfirmDelivery    from './public/pages/ConfirmDelivery';
 import SellerCheckout     from './public/pages/SellerCheckout';
 import PartnerInvite      from './public/pages/PartnerInvite';
 import SellerAgentInvite  from './public/pages/SellerAgentInvite';
+import HotelMenu          from './public/pages/HotelMenu';
+import FoodOrder          from './public/pages/FoodOrder';
+import HotelKitchen       from './public/pages/HotelKitchen';
+import HotelMenuManager   from './public/pages/HotelMenuManager';
+import { parseMenuPath }  from './utils/food';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import SellerPayouts     from './public/pages/SellerPayouts';
@@ -238,6 +243,9 @@ function App() {
       if (agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)) return `SellerAgentInvite-${agentInvite}`;
       if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
       if (track) return `TrackParcel-${track}`;
+      // A hotel's menu link or the QR on its table/room (/menu/:businessId?meza=4), owner 2026-10-27.
+      const menu = parseMenuPath(window.location.pathname, window.location.search);
+      if (menu) return menu.page;
       // A seller's invitation to a transporter or an office (components/InviteCarrier.js).
       const join = params.get('join');
       if (join === 'transport') return 'BecomeTransportProvider';
@@ -258,6 +266,8 @@ function App() {
     // WHICH of that account's profiles (personal/business/hub/transport)
     // to show, since CommerceProfile.js can't tell from the bare id alone.
     try {
+      const menu = parseMenuPath(window.location.pathname, window.location.search);
+      if (menu) return menu.navParams;
       return pathToNavParams(window.location.pathname, window.location.search);
     } catch { return null; }
   });
@@ -371,6 +381,9 @@ function App() {
       setPage(resume.page);
       return;
     }
+    // A hotel's menu / table QR link (/menu/:businessId?meza=4) stays on that menu.
+    const menu = parseMenuPath(window.location.pathname, window.location.search);
+    if (activeContext?.roleType && menu) { setNavParams(menu.navParams); setPage(menu.page); return; }
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
@@ -489,6 +502,9 @@ function App() {
             // A partner invitation: back to the join page after login.
             const partnerInvite = params.get('partnerInvite');
             const agentInvite = params.get('agentInvite');
+            // Logged in from a hotel's menu (or its table QR): back to that menu, same table.
+            const menu = parseMenuPath(window.location.pathname, window.location.search);
+            if (menu) { setNavParams(menu.navParams); setPage(menu.page); return; }
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
               : sellerCheckout && SELLER_TOKEN.test(sellerCheckout)
@@ -792,6 +808,14 @@ function App() {
       return requireLogin(<SellerCheckout token={page.slice('SellerCheckout-'.length)} onNavigate={publicProps.onNavigate} />);
     if (page.startsWith('PartnerInvite-'))
       return <PartnerInvite token={page.slice('PartnerInvite-'.length)} isLoggedIn={isLoggedIn} onNavigate={publicProps.onNavigate} />;
+    // Hotel food ordering (owner 2026-10-27): anyone may look at a menu; ordering needs login.
+    if (page.startsWith('HotelMenu-'))
+      return <HotelMenu {...publicProps} businessId={Number(page.split('HotelMenu-')[1])}
+        placeType={navParams?.placeType} placeNumber={navParams?.placeNumber} />;
+    if (page.startsWith('HotelKitchen-'))
+      return requireLogin(<HotelKitchen {...publicProps} businessId={Number(page.split('HotelKitchen-')[1])} />);
+    if (page.startsWith('FoodOrder-'))
+      return requireLogin(<FoodOrder {...publicProps} orderId={Number(page.split('FoodOrder-')[1])} />);
     if (page.startsWith('SellerAgentInvite-'))
       return <SellerAgentInvite token={page.slice('SellerAgentInvite-'.length)} isLoggedIn={isLoggedIn} onNavigate={publicProps.onNavigate} />;
     if (page.startsWith('BuyerParcelAction-'))
@@ -861,6 +885,9 @@ function App() {
       case 'RouteCoverageMap':   return <RouteCoverageMap {...publicProps} />;
       case 'MyProfile':         return requireLogin(<MyProfile {...publicProps} />);
       case 'MyAdvertising':     return requireLogin(<MyAdvertising {...publicProps} />);
+      case 'FoodOrder':         return requireLogin(<FoodOrder {...publicProps} orderId={null} />);
+      case 'HotelKitchen':      return requireLogin(<HotelKitchen {...publicProps} businessId={navParams?.businessId} />);
+      case 'HotelMenuManager':  return requireLogin(<HotelMenuManager {...publicProps} businessId={navParams?.businessId} />);
       case 'QuoteRequest':      return requireLogin(<QuoteRequest {...publicProps} kind={navParams?.kind} />);
       case 'MyQuoteRequests':   return requireLogin(<MyQuoteRequests {...publicProps} />);
       case 'QuoteInbox':        return requireLogin(<QuoteInbox {...publicProps} />);
