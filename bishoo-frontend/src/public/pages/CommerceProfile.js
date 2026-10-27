@@ -277,6 +277,17 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // this replaced (a visitor landing on someone's personal page seeing
   // their business/hub tabs and follower counts bleed in).
   const [activeProfile, setActiveProfile] = useState(null);
+  // Hotel food ordering (owner 2026-10-27): a business with a menu shows a "Menyu" button.
+  const [foodMenuBusinessId, setFoodMenuBusinessId] = useState(null);
+  useEffect(() => {
+    setFoodMenuBusinessId(null);
+    if (activeProfile?.type !== 'business' || !activeProfile?.id) return undefined;
+    let alive = true;
+    api.get(`/food/profile/${activeProfile.id}`)
+      .then((r) => { if (alive && r.data?.hasMenu) setFoodMenuBusinessId(r.data.businessId); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [activeProfile?.id, activeProfile?.type]);
   const isOwnProfile = !!(activeProfile && currentUser && activeProfile.ownerId === currentUser.id);
   const [shareMsg, setShareMsg] = useState('');
 
@@ -690,6 +701,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                     <path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1.9.4 1.8.7 2.7a2 2 0 01-.5 2.1L8 9.8a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.3 1.8.6 2.7.7a2 2 0 011.7 2z"/>
                   </svg>
                 </a>
+              )}
+              {foodMenuBusinessId && (
+                <button type="button" data-testid="profile-food-menu" onClick={() => onNavigate(`HotelMenu-${foodMenuBusinessId}`)}
+                  style={{ ...pillOutline, backgroundColor: '#1d4ed8', color: WH, borderColor: '#1d4ed8' }}>
+                  Menyu
+                </button>
               )}
               <button onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
                 style={pillOutline}>

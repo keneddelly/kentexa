@@ -90,6 +90,15 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Food orders at hotels live on their own page (owner 2026-10-27); link to it when there are any.
+  const [foodCount, setFoodCount] = useState(0);
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    Promise.resolve(api.get('/food/orders/mine'))
+      .then((r) => setFoodCount(Array.isArray(r?.data) ? r.data.length : 0))
+      .catch(() => {});
+  }, [isLoggedIn]);
+
   // Deep-linked from a notification — scroll to and highlight that order.
   useEffect(() => {
     if (!highlightOrderId || !orders.length || !highlightRef.current) return;
@@ -322,6 +331,14 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
             {error}
             <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
+        )}
+
+        {foodCount > 0 && (
+          <button type="button" data-testid="my-food-orders" onClick={() => onNavigate('FoodOrder')}
+            style={{ width: '100%', minHeight: 52, marginBottom: 16, padding: '0 16px', borderRadius: 14, border: '1px solid #e2e8f0', background: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
+            <span>Oda za chakula</span><span style={{ color: '#64748b' }}>{foodCount}</span>
+          </button>
         )}
 
         {/* Stats */}

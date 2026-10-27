@@ -150,6 +150,21 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
           );
         })}
 
+        {/* Hotel food ordering (owner 2026-10-27): a food business runs its kitchen and menu from here.
+            Capability-based: only businesses in the food category see it. */}
+        {business?.id && String(business.category || '').toLowerCase() === 'food' && (
+          <div data-testid="business-hotel-card" style={{ backgroundColor: WH, borderRadius: 16, padding: 16, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <strong style={{ fontSize: 16, color: '#0f1419' }}>Hoteli: oda za chakula</strong>
+            <span style={{ fontSize: 14, color: GR, lineHeight: 1.4 }}>Wateja wanaagiza kutoka menyu yako au QR ya meza; jikoni mnaona oda papo hapo.</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => onNavigate('HotelKitchen', { businessId: business.id })}
+                style={{ flex: 1, height: 44, borderRadius: 22, border: 'none', background: '#0f1419', color: WH, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Oda za jikoni</button>
+              <button type="button" onClick={() => onNavigate('HotelMenuManager', { businessId: business.id })}
+                style={{ flex: 1, height: 44, borderRadius: 22, border: '1px solid #cfd9de', background: WH, color: '#0f1419', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Menyu yangu</button>
+            </div>
+          </div>
+        )}
+
         {/* I2C: one canonical CTA per not-yet-active capability of THIS Business
             (Start / Pending / Rejected), driven by the server's own reports
             for this exact Business. Selling and Transport open the generic
