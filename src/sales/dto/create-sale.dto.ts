@@ -74,4 +74,26 @@ export class CreateSaleDto {
   @IsOptional()
   @IsString()
   customerPhone?: string;
+
+  // ── POS part 1 (owner 2026-10-27) ──────────────────────────────────────────
+  // The till's own id for this sale (a UUID, also for a sale made offline): sending it
+  // again records the sale once.
+  @IsOptional()
+  @IsString()
+  clientSaleId?: string;
+
+  // When a sale made offline really happened (ISO time), at most 30 days ago.
+  @IsOptional()
+  @IsString()
+  soldAt?: string;
+
+  // A split payment: [{ method, amount, reference? }]. Checked in SalesService.
+  @IsOptional()
+  @IsArray()
+  payments?: Array<{ method: string; amount: number; reference?: string }>;
+
+  // "Deni": the customer takes the goods and owes the rest (needs name and phone).
+  @IsOptional()
+  @IsBoolean()
+  credit?: boolean;
 }

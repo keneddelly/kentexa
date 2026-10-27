@@ -42,6 +42,9 @@ export class InventoryService {
       // adjustStock calls) commits or rolls back as one atomic unit instead
       // of each line item being its own independent transaction.
       manager?: EntityManager;
+      // A sale made offline already happened: stock sold beyond the recorded count goes to
+      // zero instead of refusing the sale (the count is corrected at the next stock count).
+      floorAtZero?: boolean;
     } = {},
   ): Promise<Product> {
     if (!delta) return this.dataSource.getRepository(Product).findOneOrFail({ where: { id: productId } });
@@ -56,7 +59,13 @@ export class InventoryService {
         .getOne();
       if (!product) throw new NotFoundException('Product not found');
 
-      const newStock = product.stock + delta;
+      const before = product.stock;
+      let newStock = product.stock + delta;
+      let note = opts.note ?? null;
+      if (newStock < 0 && opts.floorAtZero) {
+        note = `${note ? note + ' ' : ''}Imeuzwa bila mtandao: ${-newStock} zaidi ya idadi iliyokuwa imeandikwa.`;
+        newStock = 0;
+      }
       if (newStock < 0) {
         throw new BadRequestException(
           `Insufficient stock for "${product.name}" — have ${product.stock}, need ${-delta}`,
@@ -77,12 +86,12 @@ export class InventoryService {
       await manager.getRepository(InventoryMovement).save(
         manager.getRepository(InventoryMovement).create({
           productId,
-          delta,
+          delta: newStock - before,
           reason,
           referenceType: opts.referenceType ?? null,
           referenceId: opts.referenceId ?? null,
           balanceAfter: product.stock,
-          note: opts.note ?? null,
+          note,
           createdByUserId: opts.userId ?? null,
         }),
       );
