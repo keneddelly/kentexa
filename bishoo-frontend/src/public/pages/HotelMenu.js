@@ -6,13 +6,16 @@
  * which fills in the table. Anyone can look; ordering needs an account. Prices shown are the
  * hotel's menu; the server prices the order again from the menu. The customer pays the hotel
  * directly (Lipa Namba, after eating, or on pickup when the hotel allows it).
+ * "Letewa" (part 2): a wakala brings the food; the customer pays the wakala on delivery, the
+ * food plus the delivery fee KenteXa sets for that place (shown before ordering).
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
 import BackBar from '../components/BackBar';
 import { PageLoading } from '../components/Loading';
 import { LineIcon } from '../components/LineIcon';
-import { tzs, foodPaymentOptions, PAY_LABEL, MODE_LABEL, FOOD_COLORS as C } from '../../utils/food';
+import PlaceSearchField, { placeLabel } from '../components/PlaceSearchField';
+import { tzs, foodPaymentOptions, PAY_LABEL, DELIVERY_PAY, MODE_LABEL, FOOD_COLORS as C } from '../../utils/food';
 
 const cartKey = (id) => `kentexa_food_cart_${id}`;
 const readCart = (id) => { try { return JSON.parse(sessionStorage.getItem(cartKey(id)) || '{}') || {}; } catch { return {}; } };
@@ -41,6 +44,23 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
   const [payment, setPayment] = useState(null);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
+  const [area, setArea] = useState(null);         // where to deliver (a place from the search)
+  const [details, setDetails] = useState('');     // "karibu na ..." for the wakala
+  const [phone, setPhone] = useState('');         // empty = the account's phone
+  const [fee, setFee] = useState({ state: 'idle', value: null }); // idle | loading | ok | none
+
+  const areaText = placeLabel(area);
+  useEffect(() => {
+    if (mode !== 'delivery' || areaText.trim().length < 3) { setFee({ state: 'idle', value: null }); return undefined; }
+    let alive = true;
+    setFee({ state: 'loading', value: null });
+    const timer = setTimeout(() => {
+      Promise.resolve(api.get(`/food/menu/${businessId}/delivery-fee`, { params: { to: areaText } }))
+        .then((r) => { if (alive) setFee(r?.data?.fee != null ? { state: 'ok', value: Number(r.data.fee) } : { state: 'none', value: null }); })
+        .catch(() => alive && setFee({ state: 'none', value: null }));
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [mode, areaText, businessId]);
 
   useEffect(() => {
     let alive = true;
@@ -49,7 +69,7 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
         if (!alive) return;
         setData(res.data);
         const s = res.data?.settings || {};
-        setMode((m) => m || (s.dineIn ? 'dine_in' : s.pickup ? 'pickup' : null));
+        setMode((m) => m || (s.dineIn ? 'dine_in' : s.pickup ? 'pickup' : s.delivery ? 'delivery' : null));
       })
       .catch((err) => alive && setLoadError(err?.response?.data?.message || 'Menyu haikupatikana. Jaribu tena.'));
     return () => { alive = false; };
@@ -62,6 +82,8 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
   const count = lines.reduce((n, l) => n + l.qty, 0);
   const total = lines.reduce((n, l) => n + l.qty * l.price, 0);
   const settings = data?.settings || {};
+  const isDelivery = mode === 'delivery';
+  const deliveryFee = isDelivery && fee.state === 'ok' ? fee.value : 0;
   const payOptions = mode ? foodPaymentOptions(settings, mode) : [];
   const chosenPay = payOptions.includes(payment) ? payment : payOptions[0] || null;
 
@@ -85,6 +107,7 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
   );
 
   const { hotel } = data;
+  const modes = ['dine_in', 'pickup', 'delivery'].filter((m) => (m === 'dine_in' ? settings.dineIn : m === 'pickup' ? settings.pickup : settings.delivery));
   const openProfile = () => hotel.ownerId && onNavigate(`CommerceProfile-${hotel.ownerId}`, hotel.commerceProfileId ? { commerceProfileId: hotel.commerceProfileId } : undefined);
   const message = () => (isLoggedIn
     ? onNavigate(`MessageSeller-${hotel.ownerId}`, hotel.commerceProfileId ? { commerceProfileId: hotel.commerceProfileId } : undefined)
@@ -95,12 +118,15 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     if (!mode) { setError('Chagua kula hapa au kuchukua.'); return; }
     if (mode === 'dine_in' && !(Number(placeNumber) > 0)) { setError('Andika namba ya meza au chumba.'); return; }
+    if (isDelivery && fee.state !== 'ok') { setError('Chagua mahali pa kukuletea ili tukuonyeshe bei ya usafiri.'); return; }
     if (!chosenPay) { setError('Hoteli hii haina njia ya kulipa kwa huduma hii. Wasiliana nao.'); return; }
     setPlacing(true);
     try {
       const res = await api.post('/food/orders', {
         businessId: hotel.businessId, mode, paymentMethod: chosenPay, note: note.trim() || undefined,
         placeType: mode === 'dine_in' ? placeType : undefined, placeNumber: mode === 'dine_in' ? Number(placeNumber) : undefined,
+        deliveryAddress: isDelivery ? [areaText, details.trim()].filter(Boolean).join(' — ') : undefined,
+        deliveryPhone: isDelivery && phone.trim() ? phone.trim() : undefined,
         items: lines.map((l) => ({ itemId: l.id, qty: l.qty })),
       });
       setCart({});
@@ -162,6 +188,22 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
                 </div>
                 {qrType && <span style={{ fontSize: 13, color: C.muted }}>Namba imetoka kwenye QR uliyopiga picha.</span>}
               </div>
+            ) : isDelivery ? (
+              <div data-testid="food-delivery" style={{ padding: 14, borderRadius: 16, border: `2px solid ${C.blue}`, background: C.blueSoft, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <strong style={{ fontSize: 16 }}>Letewa na wakala</strong>
+                <PlaceSearchField id="food-delivery-place" value={area} onChange={setArea} placeholder="Mtaa wako, mfano Mbezi Beach" />
+                <input aria-label="Maelezo ya mahali" value={details} onChange={(e) => setDetails(e.target.value)} maxLength={150}
+                  placeholder="mf. Nyumba ya bluu, karibu na shule"
+                  style={{ height: 48, borderRadius: 12, border: `1px solid ${C.border}`, padding: '0 14px', fontSize: 16, fontFamily: 'inherit' }} />
+                <input aria-label="Simu ya kupokea" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Simu ya kupokea (tupu = namba ya akaunti yako)"
+                  style={{ height: 48, borderRadius: 12, border: `1px solid ${C.border}`, padding: '0 14px', fontSize: 16, fontFamily: 'inherit' }} />
+                <span data-testid="food-delivery-fee" style={{ fontSize: 15, fontWeight: 700, color: fee.state === 'none' ? C.red : C.ink }}>
+                  {fee.state === 'ok' ? `Usafiri: ${tzs(fee.value)}` : fee.state === 'loading' ? 'Tunaangalia bei ya usafiri' : fee.state === 'none'
+                    ? 'Hatuwezi kuleta mahali hapa kwa sasa. Chagua kuchukua.' : 'Chagua mtaa uone bei ya usafiri.'}
+                </span>
+                {settings.deliveryFrom && <span style={{ fontSize: 13, color: C.muted }}>Wakala anachukua chakula {settings.deliveryFrom}. Bei ya usafiri inawekwa na KenteXa.</span>}
+              </div>
             ) : (
               <div style={{ padding: 14, borderRadius: 16, border: `2px solid ${C.blue}`, background: C.blueSoft, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <strong style={{ fontSize: 16 }}>Chukua</strong>
@@ -186,8 +228,8 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
                     <span style={{ width: 20, height: 20, borderRadius: 10, boxSizing: 'border-box', flexShrink: 0,
                       border: on ? `6px solid ${C.blue}` : '2px solid #8b98a5', background: '#fff' }} />
                     <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <strong style={{ fontSize: 15 }}>{PAY_LABEL[p].label}</strong>
-                      <span style={{ fontSize: 13, color: C.muted }}>{PAY_LABEL[p].hint}</span>
+                      <strong style={{ fontSize: 15 }}>{(isDelivery ? DELIVERY_PAY : PAY_LABEL[p]).label}</strong>
+                      <span style={{ fontSize: 13, color: C.muted }}>{(isDelivery ? DELIVERY_PAY : PAY_LABEL[p]).hint}</span>
                     </span>
                   </button>
                 );
@@ -204,12 +246,18 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
           </section>
 
           <section style={{ margin: '20px 0 0', padding: 16, borderTop: `1px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {isDelivery && deliveryFee > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, color: C.muted }}>
+                <span>Chakula {tzs(total)} + usafiri {tzs(deliveryFee)}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span style={{ fontSize: 15, color: C.muted }}>Jumla ya kulipa</span>
-              <strong data-testid="food-total" style={{ fontSize: 30, fontVariantNumeric: 'tabular-nums' }}>{tzs(total)}</strong>
+              <strong data-testid="food-total" style={{ fontSize: 30, fontVariantNumeric: 'tabular-nums' }}>{tzs(total + deliveryFee)}</strong>
             </div>
             {error && <div role="alert" style={{ fontSize: 14, color: C.red }}>{error}</div>}
-            <button type="button" data-testid="food-place-order" onClick={place} disabled={placing || lines.length === 0 || !settings.acceptingOrders}
+            <button type="button" data-testid="food-place-order" onClick={place}
+              disabled={placing || lines.length === 0 || !settings.acceptingOrders || (isDelivery && fee.state !== 'ok')}
               style={{ height: 56, borderRadius: 28, border: 'none', background: lines.length && settings.acceptingOrders ? C.blue : '#94a3b8', color: '#fff',
                 fontSize: 17, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
               {placing ? 'Inatuma' : isLoggedIn ? 'Tuma oda jikoni' : 'Ingia ili utume oda'}
@@ -263,9 +311,9 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
           </div>
         )}
 
-        {(settings.dineIn || settings.pickup) && (
-          <div role="radiogroup" aria-label="Utapokeaje chakula" style={{ padding: '0 16px 14px', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-            {['dine_in', 'pickup'].filter((m) => (m === 'dine_in' ? settings.dineIn : settings.pickup)).map((m) => (
+        {modes.length > 0 && (
+          <div role="radiogroup" aria-label="Utapokeaje chakula" style={{ padding: '0 16px 14px', display: 'grid', gridTemplateColumns: `repeat(${modes.length}, minmax(0, 1fr))`, gap: 8 }}>
+            {modes.map((m) => (
               <button key={m} type="button" role="radio" aria-checked={mode === m} data-testid={`food-mode-${m}`} onClick={() => setMode(m)} style={pill(mode === m)}>
                 <strong style={{ fontSize: 14 }}>{MODE_LABEL[m].label}</strong>
                 <span style={{ fontSize: 12, color: C.muted }}>{MODE_LABEL[m].hint}</span>

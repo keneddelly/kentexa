@@ -10,6 +10,15 @@ import { parseMenuPath, foodPaymentOptions, menuLink } from '../../utils/food';
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() } }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key) => key }) }));
 jest.mock('../components/BackBar', () => ({ title, right }) => <div><span>{title}</span>{right}</div>);
+jest.mock('../components/PlaceSearchField', () => {
+  const R = require('react');
+  return {
+    __esModule: true,
+    default: ({ id, onChange }) => R.createElement('input', { 'aria-label': `place-${id}`,
+      onChange: (e) => onChange({ displayLabel: e.target.value, placeRef: { providerKey: 'tz_seed', providerPlaceId: e.target.value } }) }),
+    placeLabel: (v) => (v && v.displayLabel) || '',
+  };
+});
 
 const MENU = {
   hotel: { businessId: 9, name: 'Hoteli Amani', ownerId: 70, commerceProfileId: 31, isVerified: true, area: 'Sinza, Dar es Salaam', phone: '0712000000' },
@@ -104,4 +113,39 @@ test('menu manager: "kipo leo" switch and the hotel allowing cash on pickup', as
 test('hotel screens never guess a business', () => {
   render(<HotelKitchen onNavigate={jest.fn()} isLoggedIn activeContext={{ identityType: 'PERSONAL' }} />);
   expect(screen.getByText('Fungua ukurasa huu kutoka kwenye biashara yako.')).toBeInTheDocument();
+});
+
+test('Letewa: the customer sees KenteXa\'s delivery fee before ordering, and pays the wakala on delivery', async () => {
+  api.get.mockImplementation((url) => Promise.resolve(url.endsWith('/delivery-fee')
+    ? { data: { fee: 3000 } }
+    : { data: { ...MENU, settings: { ...MENU.settings, dineIn: false, pickup: false, delivery: true, deliveryFrom: 'Sinza' } } }));
+  api.post.mockResolvedValue({ data: { id: 500 } });
+  const onNavigate = jest.fn();
+  render(<HotelMenu businessId={9} onNavigate={onNavigate} isLoggedIn />);
+  fireEvent.click(await screen.findByTestId('food-add-1'));
+  fireEvent.click(screen.getByTestId('food-cart-bar'));
+  expect(screen.getByTestId('food-place-order')).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('place-food-delivery-place'), { target: { value: 'Mbezi Beach' } });
+  expect(await screen.findByText('Usafiri: TZS 3,000')).toBeInTheDocument();
+  expect(api.get).toHaveBeenCalledWith('/food/menu/9/delivery-fee', { params: { to: 'Mbezi Beach' } });
+  expect(screen.getByTestId('food-total')).toHaveTextContent('TZS 10,000');
+  expect(screen.getByText('Mlipe wakala akifika: chakula na usafiri. Taslimu au Lipa Namba ya hoteli.')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Maelezo ya mahali'), { target: { value: 'karibu na shule' } });
+  fireEvent.click(screen.getByTestId('food-place-order'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/food/orders', expect.objectContaining({
+    mode: 'delivery', paymentMethod: 'cod', deliveryAddress: 'Mbezi Beach — karibu na shule',
+  })));
+});
+
+test('Letewa in the kitchen: the address, and the code to give the wakala', async () => {
+  api.get.mockResolvedValue({ data: { hotel: { name: 'Hoteli Amani' }, acceptingOrders: true, hasMenu: true, today: { orders: 1, sales: 0, toConfirm: 0 },
+    orders: [{ id: 500, code: 'H-0500', status: 'cooking', mode: 'delivery', place: 'Letewa', items: [{ itemId: 1, name: 'Pilau ya nyama', qty: 1 }],
+      total: 7000, deliveryFee: 3000, deliveryAddress: 'Mbezi Beach', deliveryPhone: '255712345678', trackingNumber: 'KTX1234567890', shipmentId: 77,
+      paymentMethod: 'cod', paymentStatus: 'pending', createdAt: new Date().toISOString(), acceptedAt: new Date().toISOString(), readyInMinutes: 20 }] } });
+  api.post.mockResolvedValue({ data: { code: '482913' } });
+  render(<HotelKitchen businessId={9} onNavigate={jest.fn()} isLoggedIn />);
+  expect(await screen.findByTestId('kitchen-delivery-500')).toHaveTextContent('Inaletwa: Mbezi Beach');
+  fireEvent.click(screen.getByRole('button', { name: 'Namba ya kumkabidhi wakala' }));
+  expect(await screen.findByTestId('kitchen-handoff-code')).toHaveTextContent('482913');
+  expect(api.post).toHaveBeenCalledWith('/shipments/77/pickup-task/handoff-code');
 });

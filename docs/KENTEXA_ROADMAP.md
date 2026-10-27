@@ -22,11 +22,12 @@
 4. **Cash and mobile money only:** branch feature/cash-mobile-money-only, not released.
 5. **Receipt fix for M-Pesa and Airtel:** branch fix/receipt-mpesa-airtel-manual, not released.
 6. **Office dashboard:** built. POKEA and TUMA, everything else in the menu. POKEA "Kutoka KenteXa" is one list for marketplace orders, seller orders and customer shipments. A single parcel goes out as a shehena of one; the receiver over there is asked, never pre-filled (PR #177). Office SMS end with the office's phone.
-7. **Pickup and last mile:** built (office pickup offer, same-city delivery, mobile-money collection); migrations 1792700000000, 1792800000000, 1792900000000 to apply on live.
+7. **Pickup and last mile:** built (office pickup offer, same-city delivery, mobile-money collection); migrations 1792700000000, 1792800000000, 1792900000000 applied on live (2026-10-26).
 8. **One shipment engine for all orders:** built. Sellers no longer set the delivery price; checkout prices come from the engine; no transport is never a block (the seller ships their own way and can invite carriers).
-9. **Office–transport link on shehena:** built (PR #166); migration 1793000000000 to apply on live.
-10. **Advertiser links:** built (PR #176); commission per event, rates set by admin; migration 1793100000000 to apply on live.
+9. **Office–transport link on shehena:** built (PR #166); migration 1793000000000 applied on live (2026-10-26).
+10. **Advertiser links:** built (PR #176); commission per event, rates set by admin; migration 1793100000000 applied on live (2026-10-26).
 11. **Other agreed items (not built):** re-openable receipts; 22:00 reminder for parcels without dispatch info; loud pickup-request alerts; hire a whole vehicle; types of goods per office (containers vs parcels); rename "Super Agent" to "ofisi" in the rest of the app.
+12. **Hotel food ordering:** part 1 built (PR #211: menu, table QR, kitchen board, menu manager); part 2 Letewa (wakala delivery, paid on delivery, fee from the Dar rate card) built. Migrations 1793400000000 and 1793500000000 to apply on live; see docs/PENDING_MIGRATIONS.md.
 
 ## Open
 

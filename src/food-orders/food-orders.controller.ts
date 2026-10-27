@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Header, Param, ParseIntPipe, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, ParseIntPipe, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { FoodOrdersService } from './food-orders.service';
@@ -13,6 +13,12 @@ export class FoodOrdersController {
   @Header('Cache-Control', 'no-store')
   menu(@Param('businessId', ParseIntPipe) businessId: number) {
     return this.service.publicMenu(businessId);
+  }
+
+  @Get('menu/:businessId/delivery-fee')
+  @Header('Cache-Control', 'no-store')
+  deliveryFee(@Param('businessId', ParseIntPipe) businessId: number, @Query('to') to: string) {
+    return this.service.deliveryFee(businessId, to);
   }
 
   @Get('profile/:commerceProfileId')
@@ -101,7 +107,7 @@ export class FoodOrdersController {
     return this.service.kitchen(businessId, req.user);
   }
 
-  // action: accept {minutes} | reject {reason} | ready | done | confirm-payment | reject-payment {reason}
+  // action: accept {minutes} | reject {reason} | ready | done | dispatch | confirm-payment | reject-payment {reason}
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post('hotel/:businessId/orders/:orderId/:action')
   step(@Request() req, @Param('businessId', ParseIntPipe) businessId: number, @Param('orderId', ParseIntPipe) orderId: number,

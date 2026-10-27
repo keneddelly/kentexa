@@ -5,6 +5,7 @@ export const tzs = (n) => `TZS ${Math.round(Number(n || 0)).toLocaleString('en-U
 
 /** Same rule as the server: Lipa Namba when set; after eating for eat-here; cash on pickup when allowed. */
 export function foodPaymentOptions(settings, mode) {
+  if (mode === 'delivery') return settings?.delivery ? ['cod'] : [];
   const out = [];
   if (settings?.lipaNamba) out.push('lipa_namba');
   if (mode === 'dine_in' && settings?.payAfterDineIn) out.push('pay_after');
@@ -17,10 +18,13 @@ export const PAY_LABEL = {
   pay_after: { label: 'Lipa ukimaliza kula', hint: 'Taslimu au Lipa Namba kwa mhudumu' },
   cod: { label: 'Lipa ukipokea', hint: 'Lipa ukichukua chakula hotelini' },
 };
+/** Delivery is paid to the wakala at the door: the food and the delivery fee. */
+export const DELIVERY_PAY = { label: 'Lipa ukipokea', hint: 'Mlipe wakala akifika: chakula na usafiri. Taslimu au Lipa Namba ya hoteli.' };
 
 export const MODE_LABEL = {
   dine_in: { label: 'Kula hapa', hint: 'Meza au chumba' },
   pickup: { label: 'Chukua', hint: 'Nitapita kuchukua' },
+  delivery: { label: 'Letewa', hint: 'Wakala analeta' },
 };
 
 /** What the customer reads as the order's state. */
@@ -41,6 +45,7 @@ export function foodPaymentLine(order, forHotel) {
   const m = order?.paymentMethod;
   const s = order?.paymentStatus;
   if (m === 'pay_after') return s === 'paid' ? 'Amelipa' : forHotel ? 'Atalipa akimaliza kula' : 'Utalipa ukimaliza kula';
+  if (m === 'cod' && order?.mode === 'delivery') return s === 'paid' ? 'Amelipa' : forHotel ? 'Atamlipa wakala akipokea' : 'Utamlipa wakala ukipokea';
   if (m === 'cod') return s === 'paid' ? 'Amelipa' : forHotel ? 'Atalipa akichukua' : 'Utalipa ukichukua';
   if (s === 'paid') return 'Lipa Namba · imethibitishwa';
   if (s === 'proof_sent') return forHotel ? 'Lipa Namba · picha imetumwa, thibitisha' : 'Lipa Namba · hoteli inathibitisha';
