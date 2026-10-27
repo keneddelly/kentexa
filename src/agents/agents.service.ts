@@ -36,7 +36,9 @@ import {
 import { agentOnlineRequired } from './agent-online';
 
 /** Vehicle types an agent can choose (step 3 of sign-up). */
-export const AGENT_VEHICLE_TYPES = ['boda', 'car', 'van', 'truck', 'foot'] as const;
+// Any of these is a last-mile agent and may collect pay-on-delivery cash (owner 2026-10-27:
+// "not only boda boda"). Kirikuu/van is 'van'.
+export const AGENT_VEHICLE_TYPES = ['boda', 'bajaji', 'bicycle', 'car', 'van', 'truck', 'foot'] as const;
 
 export const AGENT_SIGNUP_MESSAGES = {
   identityFirst: 'Thibitisha kitambulisho chako kwanza (Hatua 1).',
@@ -190,6 +192,9 @@ export class AgentsService {
       // Section 18 (b): whether the fixed base point is set (required to go online).
       hasBasePoint: agent.baseLatitude != null && agent.baseLongitude != null,
       baseSetAt: agent.baseSetAt ?? null,
+      // The agent's own base point, for their own map card only (never in any list).
+      baseLatitude: agent.baseLatitude != null ? Number(agent.baseLatitude) : null,
+      baseLongitude: agent.baseLongitude != null ? Number(agent.baseLongitude) : null,
       district: agent.district,
       region: agent.region,
       agentCode: agent.agentCode,
@@ -202,6 +207,9 @@ export class AgentsService {
       totalRatings: agent.totalRatings,
       totalDeliveriesCompleted: agent.totalDeliveriesCompleted,
       totalCollectionsCompleted: agent.totalCollectionsCompleted,
+      agentType: agent.agentType ?? null,
+      maxWeightKg: agent.maxWeightKg != null ? Number(agent.maxWeightKg) : null,
+      vehicleDescription: agent.vehicleDescription ?? null,
       totalEarnings: Number(agent.totalEarnings),
       pendingEarnings: Number(agent.pendingEarnings),
       rejectionReason: agent.rejectionReason,
@@ -240,10 +248,11 @@ export class AgentsService {
             city: a.city,
             agentCode: a.agentCode,
             tier: a.tier,
-            rating: Number(a.rating),
+            rating: Number(a.rating || 0),
+            totalRatings: Number(a.totalRatings || 0),
             totalDeliveriesCompleted: a.totalDeliveriesCompleted,
-            agentType: (a as any).agentType || 'boda',
-            maxWeightKg: Number((a as any).maxWeightKg || 20),
+            agentType: (a as any).agentType ?? null,
+            maxWeightKg: (a as any).maxWeightKg != null ? Number((a as any).maxWeightKg) : null,
             vehicleDescription: (a as any).vehicleDescription || null,
             isOnline: (a as any).isOnline || false,
             // Delivery rate — what buyer sees and agrees to before requesting delivery
@@ -616,22 +625,6 @@ export class AgentsService {
       order: { rating: 'DESC' },
     });
 
-    const AGENT_TYPE_LABELS: Record<string, string> = {
-      boda: '🏍️ Boda/Pikipiki',
-      car: '🚗 Gari Binafsi',
-      van: '🚐 Van/Bajaj',
-      truck: '🚛 Lori/Truck',
-      foot: '🚶 Mjumbe wa Miguu',
-    };
-
-    const DELIVERY_TIME: Record<string, string> = {
-      boda: 'Masaa 1-2',
-      car: 'Masaa 2-4',
-      van: 'Masaa 3-6',
-      truck: 'Masaa 4-8',
-      foot: 'Masaa 1-3',
-    };
-
     return agents
       .filter((a) => {
         const agentCity =
@@ -651,22 +644,66 @@ export class AgentsService {
         fullName: a.fullName,
         phone: a.phone || a.user?.phone,
         agentCode: a.agentCode,
-        agentType: (a as any).agentType || 'boda',
-        agentTypeLabel:
-          AGENT_TYPE_LABELS[(a as any).agentType || 'boda'] || '🏍️ Boda',
-        deliveryTime:
-          DELIVERY_TIME[(a as any).agentType || 'boda'] || 'Masaa 1-4',
-        maxWeightKg: Number((a as any).maxWeightKg || 20),
+        // Only what the agent's record says (owner rule: never invent fees, times or ratings).
+        agentType: (a as any).agentType ?? null,
+        maxWeightKg: (a as any).maxWeightKg != null ? Number((a as any).maxWeightKg) : null,
         vehicleDescription: (a as any).vehicleDescription || null,
-        deliveryFee: Number(a.deliveryCommission || 1000),
-        collectionFeeUrban: Number(a.collectionFeeUrban || 1500),
-        collectionFeeRural: Number(a.collectionFeeRural || 3000),
-        rating: Number(a.rating || 5),
+        deliveryFee: a.deliveryCommission != null ? Number(a.deliveryCommission) : null,
+        collectionFeeUrban: a.collectionFeeUrban != null ? Number(a.collectionFeeUrban) : null,
+        collectionFeeRural: a.collectionFeeRural != null ? Number(a.collectionFeeRural) : null,
+        rating: Number(a.rating || 0),
+        totalRatings: Number(a.totalRatings || 0),
         totalDeliveries: a.totalDeliveriesCompleted || 0,
         // Yes/no only: the base point itself never leaves the server.
         hasBasePoint: a.baseLatitude != null && a.baseLongitude != null,
         isOnline: (a as any).isOnline === true,
       }));
+  }
+
+  /**
+   * The agent's own day, from the records only (owner 2026-10-27, "Mapato"):
+   * deliveries finished and the delivery fees for them (the fee the customer pays the
+   * agent), the pay-on-delivery cash taken at the door, and what is still owed to
+   * KenteXa from it. Days are Tanzania days.
+   */
+  async getMySummary(user: User) {
+    const agent = await this.agentRepo.findOne({ where: { user: { id: user.id } } });
+    if (!agent) throw new NotFoundException('Wakala hapatikani');
+    const day = `(now() AT TIME ZONE 'Africa/Dar_es_Salaam')::date`;
+    const local = (col: string) => `((${col}) AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Dar_es_Salaam')::date`;
+    const [jobs] = await this.agentRepo.manager.query(`
+      WITH done AS (
+        SELECT t."deliveredAt" AS at, p."agreedDeliveryFee" AS fee
+          FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId"
+         WHERE t."agentProfileId" = $1 AND t.status = 'delivered' AND t."deliveredAt" IS NOT NULL
+        UNION ALL
+        SELECT p."deliveredTime" AS at, p."agreedDeliveryFee" AS fee
+          FROM public.parcel p
+         WHERE p."localAgentId" = $2::text AND p.status::text = 'delivered' AND p."deliveredTime" IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM public.parcel_pickup_task t2 WHERE t2."parcelId" = p.id AND t2."agentProfileId" = $1)
+      )
+      SELECT COUNT(*) FILTER (WHERE ${local('at')} = ${day})::int AS "todayCount",
+             COALESCE(SUM(fee) FILTER (WHERE ${local('at')} = ${day}), 0) AS "todayFees",
+             COUNT(*) FILTER (WHERE ${local('at')} > ${day} - 7)::int AS "weekCount",
+             COALESCE(SUM(fee) FILTER (WHERE ${local('at')} > ${day} - 7), 0) AS "weekFees",
+             COUNT(*)::int AS "allCount"
+        FROM done`, [agent.id, String(user.id)]).catch(() => [null]);
+    const [cash] = await this.agentRepo.manager.query(`
+      SELECT COALESCE(SUM(c."collectedAmount") FILTER (WHERE ${local('c."recordedAt"')} = ${day}), 0) AS "codToday",
+             COALESCE(SUM(c."cashLiability" - COALESCE(r.remitted, 0)), 0) AS "owedToKentexa"
+        FROM public.agent_cod_collection c
+        LEFT JOIN (SELECT "collectionId", SUM(amount) AS remitted FROM public.agent_cod_remittance GROUP BY "collectionId") r
+          ON r."collectionId" = c.id
+       WHERE c."agentId" = $1`, [agent.id]).catch(() => [null]);
+    const n = (v: any) => Math.round(Number(v || 0) * 100) / 100;
+    return {
+      today: { deliveries: n(jobs?.todayCount), fees: n(jobs?.todayFees), codCollected: n(cash?.codToday) },
+      week: { deliveries: n(jobs?.weekCount), fees: n(jobs?.weekFees) },
+      totalDeliveries: Math.max(n(jobs?.allCount), Number(agent.totalDeliveriesCompleted || 0)),
+      owedToKentexa: Math.max(0, n(cash?.owedToKentexa)),
+      rating: Number(agent.totalRatings) > 0 ? Number(agent.rating) : null,
+      totalRatings: Number(agent.totalRatings || 0),
+    };
   }
 
   // ── Update agent profile (type, vehicle, rates) ────────────────────────────
@@ -689,8 +726,15 @@ export class AgentsService {
     });
     if (!agent) throw new NotFoundException('Wakala hapatikani');
     const updates: any = {};
-    if (dto.agentType) updates.agentType = dto.agentType;
-    if (dto.maxWeightKg) updates.maxWeightKg = dto.maxWeightKg;
+    if (dto.agentType != null) {
+      if (!AGENT_VEHICLE_TYPES.includes(dto.agentType as any)) throw new BadRequestException('Chagua aina ya usafiri kwenye orodha.');
+      updates.agentType = dto.agentType;
+    }
+    if (dto.maxWeightKg != null) {
+      const kg = Number(dto.maxWeightKg);
+      if (!Number.isFinite(kg) || kg < 1 || kg > 5000) throw new BadRequestException('Uzito wa juu uwe kati ya kg 1 na 5,000.');
+      updates.maxWeightKg = Math.round(kg);
+    }
     if (dto.vehicleDescription)
       updates.vehicleDescription = dto.vehicleDescription;
     if (dto.deliveryCommission)

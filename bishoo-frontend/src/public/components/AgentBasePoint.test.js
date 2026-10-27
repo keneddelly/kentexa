@@ -35,10 +35,20 @@ test('a weak GPS fix: the server message is shown, nothing silent', async () => 
   expect(screen.getByRole('alert')).toHaveTextContent('Usahihi wa GPS ni mdogo');
 });
 
-test('base point set: a short line with "Badilisha"', () => {
-  render(<AgentBasePoint hasBasePoint baseSetAt="2026-10-12T10:00:00Z" />);
-  expect(screen.getByText(sw.agent_base.change)).toBeInTheDocument();
+test('base point set: a big "Kituo changu" card with a map, the date and a large change button', () => {
+  render(<AgentBasePoint hasBasePoint baseSetAt="2026-10-12T10:00:00Z" latitude={-6.816} longitude={39.2895} area="Kariakoo, Dar es Salaam" />);
+  expect(screen.getByText(sw.agent_base.card_title)).toBeInTheDocument();
+  expect(screen.getByText('Kariakoo, Dar es Salaam')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Fungua kituo changu kwenye ramani' }).getAttribute('href')).toMatch(/openstreetmap\.org\/\?mlat=-6\.816&mlon=39\.2895/);
+  expect(screen.getByRole('button', { name: sw.agent_base.change })).toBeInTheDocument();
   expect(screen.queryByText(sw.agent_base.title)).toBeNull();
+});
+
+test('the map tile is the one that holds the base point', () => {
+  const { tileFor } = require('./AgentBasePoint');
+  const tile = tileFor(-6.816, 39.2895, 16);
+  expect(tile).toMatchObject({ zoom: 16, x: 39920, y: 34011 });
+  expect(tile.fx).toBeGreaterThanOrEqual(0); expect(tile.fx).toBeLessThan(1);
 });
 
 test('open jobs show the rounded distance from the agent base', async () => {

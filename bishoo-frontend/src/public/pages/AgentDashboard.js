@@ -1,276 +1,61 @@
 /**
- * AgentDashboard.js — unified dashboard for local KenteXa agents
+ * AgentDashboard.js — the last-mile agent's work (approved mockup 2026-10-27).
  *
- * Combines what was previously split across two pages:
- *   - AgentDashboard (hub parcel claim + payment collection)
- *   - AgentOrderDashboard (direct seller pickup orders)
+ * An agent is anyone who carries parcels the last mile in their city, by any vehicle
+ * (boda, bajaji, bicycle, car, van, truck or on foot), and may collect pay-on-delivery cash.
+ * Two tabs only:
+ *   Kazi    — my jobs (collect from the sender, deliver to the customer, take to an office),
+ *             jobs near my base point, and parcels an office handed me to deliver.
+ *   Mapato  — delivery fees and pay-on-delivery cash from the records, my base point and
+ *             my vehicle.
  *
- * A local agent has two types of work:
- *   1. DIRECT ORDERS — seller-to-buyer within one city.
- *      Buyer pays online, agent picks up from seller, delivers to buyer.
- *      Flow: Available → Claim → Pickup confirmed → Delivered
- *
- *   2. HUB PARCELS — intercity parcels that arrived at Super Agent hub.
- *      Super Agent assigns parcel to local agent for last-mile delivery.
- *      Flow: Arrived at hub (claim) → Out for delivery → Delivered
- *
- *   3. PAYMENT COLLECTION — agent processes M-Pesa/Airtel payments for buyers
- *      who walk in without a phone/card. Commission per transaction.
+ * Removed (owner 2026-10-27, old KenteXa payment model): taking buyers' invoice payments for
+ * marketplace orders, the commission tiers, claiming marketplace orders directly and the old
+ * seller "collections". Buyers now pay sellers directly; agents get jobs from shipments.
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineIcon } from '../components/LineIcon';
-import { Spinner } from '../components/Loading';
+import { PageLoading } from '../components/Loading';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import ShipmentPickupQueue from '../components/ShipmentPickupQueue';
 import AgentBasePoint from '../components/AgentBasePoint';
+import AgentVehicleCard from '../components/AgentVehicleCard';
 import AgentPartnerSellersCard from '../components/AgentPartnerSellersCard';
 
-// ── Status colours used across both order and parcel cards ────────────────
-const STATUS_COLOR = {
-  pending:          { bg: '#fef9c3', color: '#ca8a04' },
-  paid:             { bg: '#dbeafe', color: '#2563eb' },
-  preparing:        { bg: '#ede9fe', color: '#7c3aed' },
-  in_transit:       { bg: '#fef3c7', color: '#d97706' },
-  delivered:        { bg: '#dcfce7', color: '#16a34a' },
-  cancelled:        { bg: '#fee2e2', color: '#dc2626' },
-  arrived_at_hub:   { bg: '#eff6ff', color: '#1d4ed8' },
-  out_for_delivery: { bg: '#fef9c3', color: '#ca8a04' },
-};
-
-const getTierStyle = t => ({
-  basic:  { bg: '#f1f5f9', color: '#64748b', label: t('agent_dashboard.tier_basic') },
-  silver: { bg: '#e2e8f0', color: '#475569', label: t('agent_dashboard.tier_silver') },
-  gold:   { bg: '#fef9c3', color: '#ca8a04', label: t('agent_dashboard.tier_gold') },
-});
-
-// ── Launch scope ──────────────────────────────────────────────────────────
-// Job queue (claim/pickup/deliver flow) re-enabled — the backend endpoints
-// it calls have been live all along, this just un-stubs the Work tab.
-const JOB_QUEUE_ENABLED = true;
-
-const ComingSoonPanel = ({ icon, title, body }) => (
-  <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 40,
-    textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name={icon} size={36} color="#94a3b8" /></div>
-    <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{title}</div>
-    <div style={{ fontSize: 13, color: '#64748b', maxWidth: 320, margin: '0 auto' }}>{body}</div>
-  </div>
-);
-
-
-const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }) => {
-  const { t } = useTranslation();
-  const isClaimed    = order.status === 'preparing' || order.agentId;
-  const isPickedUp   = order.status === 'in_transit';
-  const isDelivered  = order.status === 'delivered';
-  const fee          = Number(order.deliveryFeeAmount || order.agentCommissionAmount || 0);
-  const weight       = order.weightKg || order.items?.reduce((s,i) => s + (i.weight||0)*i.qty, 0) || 0;
-
-  return (
-    <div style={{ backgroundColor: '#fff', borderRadius: 16, marginBottom: 12,
-      boxShadow: '0 2px 12px rgba(0,0,0,0.08)', overflow: 'hidden',
-      border: isClaimed ? '2px solid #f59e0b' : '1px solid #e2e8f0' }}>
-
-      {/* Header bar */}
-      <div style={{ background: isClaimed ? 'linear-gradient(135deg,#f59e0b,#f97316)'
-        : 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-        padding: '10px 16px', display: 'flex',
-        justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>
-          {isClaimed ? t('agent_dashboard.job_active_badge') : t('agent_dashboard.job_new_badge')}
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {weight > 0 && (
-            <span style={{ fontSize: 10, backgroundColor: 'rgba(255,255,255,0.2)',
-              color: '#fff', padding: '2px 8px', borderRadius: 100, fontWeight: 700 }}>
-              {weight}kg
-            </span>
-          )}
-          <span style={{ fontSize: 11, fontWeight:800, color: '#fff' }}>
-            TZS {fee.toLocaleString() || '—'}
-          </span>
-        </div>
-      </div>
-
-      <div style={{ padding: 14 }}>
-        {/* Product */}
-        <div style={{ fontSize: 14, fontWeight:800, color: '#1e293b', marginBottom: 12 }}>
-          {order.product?.name || order.manualProductName || order.description || t('agent_dashboard.product_fallback')}
-          {order.quantity > 1 && <span style={{ color: '#64748b', fontWeight: 600 }}> ×{order.quantity}</span>}
-        </div>
-
-        {/* Route: Pickup → Delivery */}
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 0, marginBottom: 12 }}>
-          {/* Pickup */}
-          <div style={{ flex: 1, backgroundColor: '#eff6ff', borderRadius: '10px 0 0 10px',
-            padding: '10px 12px' }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: '#1d4ed8',
-              letterSpacing: 0.5, marginBottom: 4 }}>{t('agent_dashboard.pickup_from_label')}</div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-              {order.seller?.storeName || order.seller?.businessName || order.seller?.name || t('agent_dashboard.seller_fallback')}
-            </div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-              {order.sellerPickupAddress || order.originCity || profile?.city || '—'}
-            </div>
-            {order.seller?.user?.phone || order.seller?.phone ? (
-              <a href={`tel:${order.seller?.user?.phone || order.seller?.phone}`}
-                style={{ fontSize: 11, color: '#1d4ed8', textDecoration: 'none',
-                  fontWeight: 700, marginTop: 4, display: 'block' }}
-                onClick={e => e.stopPropagation()}>
-                {order.seller?.user?.phone || order.seller?.phone}
-              </a>
-            ) : null}
-          </div>
-
-          {/* Arrow */}
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f8fafc',
-            padding: '0 8px', fontSize: 16, color: '#94a3b8' }}>→</div>
-
-          {/* Delivery */}
-          <div style={{ flex: 1, backgroundColor: '#f0fdf4', borderRadius: '0 10px 10px 0',
-            padding: '10px 12px' }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: '#16a34a',
-              letterSpacing: 0.5, marginBottom: 4 }}>{t('agent_dashboard.deliver_to_label')}</div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-              {order.buyer?.name || order.manualBuyerName || order.recipientName || t('agent_dashboard.buyer_fallback')}
-            </div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-              {order.ward || order.district || order.deliveryAddress?.split(',')[0] || order.destinationCity || '—'}
-            </div>
-            {order.buyer?.phone || order.phone || order.manualBuyerPhone ? (
-              <a href={`tel:${order.buyer?.phone || order.phone || order.manualBuyerPhone}`}
-                style={{ fontSize: 11, color: '#16a34a', textDecoration: 'none',
-                  fontWeight: 700, marginTop: 4, display: 'block' }}
-                onClick={e => e.stopPropagation()}>
-                {order.buyer?.phone || order.phone || order.manualBuyerPhone}
-              </a>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Full delivery address */}
-        {order.deliveryAddress && (
-          <div style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '7px 10px',
-            fontSize: 11, color: '#64748b', marginBottom: 10, display: 'flex', gap: 6 }}>
-            <span></span>
-            <span>{order.deliveryAddress}</span>
-          </div>
-        )}
-
-        {/* Action button */}
-        {!isClaimed && !isDelivered && (
-          <button onClick={() => onClaim(order.id)}
-            disabled={actionLoading[order.id]}
-            style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
-              background: actionLoading[order.id] ? '#94a3b8'
-                : 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-              color: '#fff', fontSize: 14, fontWeight:800,
-              cursor: actionLoading[order.id] ? 'not-allowed' : 'pointer' }}>
-            {actionLoading[order.id] ? t('agent_dashboard.processing_button') : t('agent_dashboard.claim_job_button')}
-          </button>
-        )}
-        {isClaimed && !isPickedUp && !isDelivered && (
-          <button onClick={() => onPickup(order.id)}
-            disabled={actionLoading[order.id]}
-            style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
-              background: 'linear-gradient(135deg,#f59e0b,#f97316)',
-              color: '#fff', fontSize: 14, fontWeight:800, cursor: 'pointer' }}>
-            {actionLoading[order.id] ? '…' : t('agent_dashboard.picked_up_button')}
-          </button>
-        )}
-        {isPickedUp && (
-          <button onClick={() => onDeliver(order.id)}
-            disabled={actionLoading[order.id]}
-            style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: 'none',
-              background: 'linear-gradient(135deg,#16a34a,#059669)',
-              color: '#fff', fontSize: 14, fontWeight:800, cursor: 'pointer' }}>
-            {actionLoading[order.id] ? '…' : t('agent_dashboard.delivered_to_buyer_button')}
-          </button>
-        )}
-        {isDelivered && (
-          <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 13,
-            fontWeight: 800, color: '#16a34a' }}>
-            {t('agent_dashboard.delivered_badge')}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+const INK = '#0f1419';
+const MUTED = '#536471';
+const LINE = '#eff3f4';
+const BLUE = '#1d4ed8';
+const tzs = (n) => `TZS ${Math.round(Number(n || 0)).toLocaleString()}`;
 
 const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const { t } = useTranslation();
-  const TIER_STYLE = getTierStyle(t);
-  // ── State ────────────────────────────────────────────────────────────────
-  const [profile, setProfile]           = useState(null);
+  const [profile, setProfile]             = useState(null);
   const [profileStatus, setProfileStatus] = useState(null);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState('');
-  const [success, setSuccess]           = useState('');
-  const [tab, setTab]                   = useState('pay'); // 'work' | 'pay' | 'earnings'
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState('');
+  const [success, setSuccess]             = useState('');
+  const [tab, setTab]                     = useState('work'); // 'work' | 'earnings'
   const [actionLoading, setActionLoading] = useState(false);
-  const [isOnline, setIsOnline]               = useState(false);
-  const [togglingOnline, setTogglingOnline]     = useState(false);
-  // eslint-disable-next-line no-unused-vars -- read once /delivery-jobs/available ships, see fetchJobs TODO
-  const [availableJobs, setAvailableJobs]     = useState([]);
-  // eslint-disable-next-line no-unused-vars -- read once /delivery-jobs/available ships, see fetchJobs TODO
-  const [jobsLoading, setJobsLoading]           = useState(false);
-  const [transportForms, setTransportForms]     = useState({});
-  const [savingTransport, setSavingTransport]   = useState(null);
-
-  // Work queue — both direct orders and hub parcels combined
-  const [directOrders, setDirectOrders]   = useState([]);
-  const [myOrders, setMyOrders]           = useState([]);
+  const [isOnline, setIsOnline]           = useState(false);
+  const [togglingOnline, setTogglingOnline] = useState(false);
+  const [transportForms, setTransportForms] = useState({});
+  const [savingTransport, setSavingTransport] = useState(null);
   const [myParcels, setMyParcels]         = useState([]);
   const [handoffCodes, setHandoffCodes]   = useState({});
   const [deliveryCodes, setDeliveryCodes] = useState({});
-  const [codCollected, setCodCollected]     = useState({});
-  const [workLoading, setWorkLoading]     = useState(false);
-  // Gate 4: Shipment pickup jobs count as work too (reported by the queue itself).
+  const [codCollected, setCodCollected]   = useState({});
   const [shipmentPickupCount, setShipmentPickupCount] = useState(0);
-
-  // Stats
-  const [stats, setStats]               = useState(null);
-  const [payStats, setPayStats]         = useState(null);
-
-  // Payment collection state
-  const [invoiceInput, setInvoiceInput]   = useState('');
-  const [invoiceLookup, setInvoiceLookup] = useState(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [agentPhone, setAgentPhone]       = useState('');
-  const [processing, setProcessing]       = useState(false);
-  const [paymentResult, setPaymentResult] = useState(null);
-  const [paymentPending, setPaymentPending] = useState(false);
-
-  // Collection jobs state
-  const [availableCollections, setAvailableCollections] = useState([]);
-  const [myCollections, setMyCollections]               = useState([]);
-  const [collectionLoading, setCollectionLoading]       = useState(false);
-
-  // Delivery note for confirmations
-  const [selectedItem, setSelectedItem]   = useState(null); // { type: 'order'|'parcel'|'collection', id }
-  const [note, setNote]                   = useState('');
+  const [summary, setSummary]             = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     fetchAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Data fetching ─────────────────────────────────────────────────────────
-  const fetchJobs = async (city, maxWeight) => {
-    try {
-      setJobsLoading(true);
-      await api.get(`/agents/available?city=${encodeURIComponent(city || '')}&weight=${maxWeight || 20}`);
-      // Actually we need delivery jobs, not agents — for now show a placeholder
-      // TODO: wire to /delivery-jobs/available when built
-      setAvailableJobs([]);
-    } catch { setAvailableJobs([]); }
-    finally { setJobsLoading(false); }
-  };
 
   const handleToggleOnline = async () => {
     try {
@@ -279,14 +64,13 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setIsOnline(res.data.isOnline);
       // D1: once switched back on, the "switched off automatically" note no longer applies.
       setProfile((p) => (p ? { ...p, offlineReason: null } : p));
-      if (res.data.isOnline && profile?.city) {
-        fetchJobs(profile.city, profile.maxWeightKg);
-      }
     } catch (err) {
-      console.error('Toggle failed:', err);
-      // e.g. "Weka kituo chako kwanza" (section 18 b) — never fail silently.
       setError(err?.response?.data?.message || t('common.error_try_again', 'Imeshindikana. Jaribu tena.'));
     } finally { setTogglingOnline(false); }
+  };
+
+  const fetchSummary = async () => {
+    try { setSummary((await api.get('/agents/my-summary')).data); } catch { setSummary(null); }
   };
 
   const fetchAll = async () => {
@@ -295,14 +79,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       const profileRes = await api.get('/agents/my-profile');
       setProfile(profileRes.data);
       setIsOnline(profileRes.data?.isOnline || false);
-      if (profileRes.data?.isOnline && profileRes.data?.city) {
-        fetchJobs(profileRes.data.city, profileRes.data.maxWeightKg);
-      }
       setProfileStatus(profileRes.data.status);
-
-      if (profileRes.data.status === 'approved') {
-        await Promise.all([fetchWork(profileRes.data), fetchPayStats()]);
-      }
+      if (profileRes.data.status === 'approved') await Promise.all([fetchWork(), fetchSummary()]);
     } catch (err) {
       if (err?.response?.status === 404) setProfileStatus('not_applied');
       else setError(t('agent_dashboard.load_error'));
@@ -311,81 +89,17 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     }
   };
 
+  // Parcels an office handed this agent for the last mile (keyed to the agent on the server).
   const fetchWork = async () => {
     try {
-      setWorkLoading(true);
-      // Assigned Parcels are keyed to the active Agent on the server. A
-      // missing profile city or an unrelated direct-order error must not
-      // hide a physical handoff that this Agent needs to acknowledge.
-      const [availRes, myRes, statsRes, parcelRes] = await Promise.allSettled([
-        api.get('/agent-orders/available'),
-        api.get('/agent-orders/my-orders'),
-        api.get('/agent-orders/stats'),
-        api.get('/super-agents/my-deliveries'),
-      ]);
-      setDirectOrders(availRes.status === 'fulfilled' ? availRes.value.data || [] : []);
-      setMyOrders(myRes.status === 'fulfilled' ? myRes.value.data || [] : []);
-      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
-      setMyParcels(parcelRes.status === 'fulfilled' ? parcelRes.value.data || [] : []);
-      if (parcelRes.status === 'rejected') {
-        setError('Imeshindwa kupakia vifurushi ulivyokabidhiwa; jaribu tena');
-      }
-      // Fetch collection jobs
-      try {
-        setCollectionLoading(true);
-        const [availColRes, myColRes] = await Promise.all([
-          api.get('/collections/available'),
-          api.get('/collections/my-collections'),
-        ]);
-        setAvailableCollections(availColRes.data || []);
-        setMyCollections(myColRes.data || []);
-      } catch {} finally { setCollectionLoading(false); }
-    } catch {}
-    finally { setWorkLoading(false); }
+      const res = await api.get('/super-agents/my-deliveries');
+      setMyParcels(res.data || []);
+    } catch {
+      setMyParcels([]);
+      setError('Imeshindwa kupakia vifurushi ulivyokabidhiwa; jaribu tena');
+    }
   };
-
-  const fetchPayStats = async () => {
-    try {
-      const res = await api.get('/payments/agent/dashboard');
-      setPayStats(res.data);
-    } catch {}
-  };
-
-  // ── Direct order actions ──────────────────────────────────────────────────
-  const handleClaimOrder = async (orderId) => {
-    try {
-      setActionLoading(true); setError('');
-      await api.post(`/agent-orders/${orderId}/claim`);
-      setSuccess(t('agent_dashboard.claim_order_success', { id: orderId }));
-      fetchWork(profile);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.claim_order_error'));
-    } finally { setActionLoading(false); }
-  };
-
-  const handlePickup = async (orderId) => {
-    try {
-      setActionLoading(true); setError('');
-      await api.patch(`/agent-orders/${orderId}/pickup`, { note });
-      setSuccess(t('agent_dashboard.pickup_success', { id: orderId }));
-      setSelectedItem(null); setNote('');
-      fetchWork(profile);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.confirm_error'));
-    } finally { setActionLoading(false); }
-  };
-
-  const handleDeliverOrder = async (orderId) => {
-    try {
-      setActionLoading(true); setError('');
-      await api.patch(`/agent-orders/${orderId}/deliver`, { note });
-      setSuccess(t('agent_dashboard.deliver_order_success', { id: orderId }));
-      setSelectedItem(null); setNote('');
-      fetchWork(profile);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.confirm_error'));
-    } finally { setActionLoading(false); }
-  };
+  const refresh = () => { fetchWork(); fetchSummary(); };
 
   // ── Hub parcel actions ────────────────────────────────────────────────────
   const handleIssueDeliveryCode = async (trackingNumber) => {
@@ -438,154 +152,42 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setActionLoading(true); setError('');
       await api.post(`/super-agents/parcels/${trackingNumber}/confirm-agent-handoff`, { code });
       setHandoffCodes(prev => ({ ...prev, [trackingNumber]: '' }));
-      setSuccess('Kifurushi kimepokelewa kutoka hub');
+      setSuccess('Kifurushi kimepokelewa kutoka ofisi');
       fetchWork(profile);
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha makabidhiano');
     } finally { setActionLoading(false); }
   };
 
-  // ── Payment collection ────────────────────────────────────────────────────
-  const handleLookupInvoice = async () => {
-    if (!invoiceInput.trim()) return;
-    try {
-      setLookupLoading(true); setError(''); setInvoiceLookup(null);
-      const res = await api.get(`/payments/agent/lookup/${invoiceInput.trim()}`);
-      setInvoiceLookup(res.data);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.invoice_not_found'));
-    } finally { setLookupLoading(false); }
-  };
 
-  const handleCollectPayment = async () => {
-    if (!agentPhone.trim()) { setError(t('agent_dashboard.enter_phone_error')); return; }
-    try {
-      setProcessing(true); setError('');
-      const res = await api.post('/payments/agent/initiate', {
-        invoiceNumber: invoiceLookup.invoiceNumber,
-        agentPhone:    agentPhone.trim(),
-        provider:      'selcom',
-      });
-      setPaymentPending(true);
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setPaymentResult({
-            invoiceNumber:    invoiceLookup.invoiceNumber,
-            amount:           invoiceLookup.amount,
-            commissionAmount: Math.round(invoiceLookup.amount * 0.025),
-          });
-          setPaymentPending(false);
-          setInvoiceLookup(null);
-          setInvoiceInput('');
-          setAgentPhone('');
-          fetchPayStats();
-        } catch { setError(t('agent_dashboard.payment_failed')); setPaymentPending(false); }
-      }, 4000);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.payment_init_error'));
-    } finally { setProcessing(false); }
-  };
-
-  // ── Collection handlers ──────────────────────────────────────────────────
-  const handleClaimCollection = async (collectionId) => {
-    try {
-      setActionLoading(true); setError('');
-      await api.post(`/collections/${collectionId}/claim`);
-      setSuccess(t('agent_dashboard.claim_collection_success'));
-      fetchWork(profile);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.claim_collection_error'));
-    } finally { setActionLoading(false); }
-  };
-
-  const handleConfirmCollected = async (collectionId) => {
-    try {
-      setActionLoading(true); setError('');
-      await api.patch(`/collections/${collectionId}/collected`, { notes: note });
-      setSuccess(t('agent_dashboard.confirm_collected_success'));
-      setSelectedItem(null); setNote('');
-      fetchWork(profile);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.confirm_error'));
-    } finally { setActionLoading(false); }
-  };
-
-  const handleHandedOver = async (collectionId) => {
-    try {
-      setActionLoading(true); setError('');
-      await api.patch(`/collections/${collectionId}/handed-over`);
-      setSuccess('Makabidhiano yameombwa. Ofisi inayopokea lazima ithibitishe mzigo kabla ada yako ya kuchukua haijaingizwa.');
-      setSelectedItem(null); setNote('');
-      fetchWork(profile);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.confirm_error'));
-    } finally { setActionLoading(false); }
-  };
-
-  // ── Computed work queue counts ─────────────────────────────────────────────
-  const pendingDirectOrders  = directOrders.length;
-  const activeDirectOrders   = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
-  const activeHubParcels     = myParcels.length;
-  const totalCollections = availableCollections.length + myCollections.length;
-  const totalWorkItems = pendingDirectOrders + activeDirectOrders + activeHubParcels + totalCollections + shipmentPickupCount;
-
-  // ── Render helpers ─────────────────────────────────────────────────────────
-  const inputStyle = {
-    width: '100%', padding: '11px 14px', borderRadius: 10,
-    border: '2px solid #e2e8f0', fontSize: 13,
-    boxSizing: 'border-box', outline: 'none',
-  };
-
-  const ActionNote = ({ onConfirm, label, loading }) => (
-    <div style={{ marginTop: 8 }}>
-      <input placeholder={t('agent_dashboard.note_placeholder')} value={note}
-        onChange={e => setNote(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={onConfirm} disabled={loading}
-          style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-          {loading ? <Spinner size={16} color="currentColor" /> : label}
-        </button>
-        <button onClick={() => { setSelectedItem(null); setNote(''); }}
-          style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 12, color: '#64748b' }}>
-          {t('agent_dashboard.cancel_button')}
-        </button>
-      </div>
-    </div>
-  );
-
-  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0} />
-      <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}></div>
-        {t('agent_dashboard.loading_ellipsis')}
-      </div>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
+      <BackBar onBack={() => onNavigate('Home')} title="Wakala" top={0} />
+      <PageLoading label="Inapakia kazi zako" />
     </div>
   );
 
-  const tier = TIER_STYLE[profile?.tier || 'basic'];
-
-  // Lets the generic FeatureTour engine switch this page's own tab before
-  // measuring a step's target — same pattern as SuperAgentDashboard.js.
-  const handleTourStepChange = (requiredState) => {
-    if (requiredState.tab) setTab(requiredState.tab);
-  };
+  const workCount = myParcels.length + shipmentPickupCount;
+  const vehicleLabel = profile?.agentType ? t(`agent_signup.vehicle_${profile.agentType}`) : null;
+  const area = [profile?.district, profile?.city].filter(Boolean).join(', ') || profile?.region || null;
+  const handleTourStepChange = (requiredState) => { if (requiredState.tab) setTab(requiredState.tab); };
+  const tiles = [
+    { label: 'Kazi sasa', value: String(workCount) },
+    { label: 'Ada leo', value: summary ? Math.round(summary.today.fees).toLocaleString() : '—' },
+    { label: 'Lipa ukipokea leo', value: summary ? Math.round(summary.today.codCollected).toLocaleString() : '—' },
+  ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', paddingBottom: 90 }}>
-      <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0}
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff', color: INK, paddingBottom: 90 }}>
+      <BackBar onBack={() => onNavigate('Home')} title="Wakala" top={0}
         right={(
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={() => onNavigate('SellerInbox')} title={t('bottom_nav.messages')}
-              style={{ position: 'relative', background: 'none', border: 'none',
-                cursor: 'pointer', fontSize: 18, padding: 0, display: 'flex' }} aria-label={t('bottom_nav.messages')}>
-              <LineIcon name="chat" size={22} color="#0f1419" />
+            <button type="button" onClick={() => onNavigate('SellerInbox')} aria-label={t('bottom_nav.messages')}
+              style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}>
+              <LineIcon name="chat" size={22} color={INK} />
               {inboxUnread > 0 && (
-                <span style={{ position: 'absolute', top: -6, right: -8, minWidth: 14, height: 14,
-                  padding: '0 3px', borderRadius: 100, backgroundColor: '#DC2626', color: '#fff',
-                  fontSize: 8, fontWeight: 800, lineHeight: '14px', textAlign: 'center' }}>
+                <span style={{ position: 'absolute', top: -6, right: -8, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 100,
+                  backgroundColor: '#DC2626', color: '#fff', fontSize: 8, fontWeight: 800, lineHeight: '14px', textAlign: 'center' }}>
                   {inboxUnread > 99 ? '99+' : inboxUnread}
                 </span>
               )}
@@ -595,38 +197,19 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         )} />
       <FeatureTour tourKey="agent_dashboard_orientation" onStepChange={handleTourStepChange} autoStart />
 
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)', padding: '20px 16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: '0 0 2px' }}>
-              {profile?.fullName || t('agent_dashboard.name_fallback')}
-            </h1>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
-              {profile?.agentCode || '—'} · {profile?.city || profile?.district || t('agent_dashboard.location_not_set')}
-            </div>
-          </div>
-          {profile?.status === 'approved' && (
-            <button onClick={handleToggleOnline} disabled={togglingOnline}
-              style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: togglingOnline ? 'not-allowed' : 'pointer',
-                fontWeight: 800, fontSize: 12,
-                backgroundColor: isOnline ? '#dcfce7' : 'rgba(255,255,255,0.2)',
-                color: isOnline ? '#15803d' : '#fff' }}>
-              {togglingOnline ? '…' : isOnline ? t('agent_dashboard.online_label') : t('agent_dashboard.offline_label')}
-            </button>
-          )}
-          {profile?.status === 'approved' && (
-            <div style={{ ...tier, padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
-              {tier.label}
-            </div>
-          )}
-        </div>
-      </div>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+        {/* Who I am */}
+        <section data-testid="agent-identity" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ width: 56, height: 56, borderRadius: 28, background: INK, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, fontWeight: 800, flexShrink: 0 }}>{String(profile?.fullName || 'W').trim().charAt(0).toUpperCase()}</span>
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <strong style={{ fontSize: 18 }}>{profile?.fullName || t('agent_dashboard.name_fallback')}</strong>
+            <span style={{ fontSize: 14, color: MUTED }}>{['Wakala', vehicleLabel, area].filter(Boolean).join(' · ')}</span>
+            {profile?.agentCode && <span style={{ fontSize: 13, color: MUTED }}>{profile.agentCode}</span>}
+          </span>
+        </section>
 
-      <div style={{ padding: '16px', maxWidth: 700, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
-
-        {/* D1: a clear "Uko offline" note, with the reason when it happened by itself. */}
-        {/* Only when going online is required for jobs (agent-online.ts); by default it is not. */}
+        <div style={{ padding: '0 16px' }}>
         {profile?.status === 'approved' && !isOnline && profile?.onlineRequired === true && (
           <div role="status" data-testid="agent-offline-banner" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, lineHeight: 1.5 }}>
             <strong>{t('agent_presence.offline_title')}</strong><br />
@@ -641,32 +224,24 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           </div>
         )}
 
-        {/* Alerts */}
+        </div>
         {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-            <span>{error}</span>
-            <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
+          <div role="alert" style={{ margin: '0 16px 12px', backgroundColor: '#fef2f2', color: '#b91c1c', padding: '12px 14px', borderRadius: 12, fontSize: 14, display: 'flex', gap: 10 }}>
+            <span style={{ flex: 1 }}>{error}</span>
+            <button type="button" aria-label="Funga" onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontSize: 18, padding: 0 }}>×</button>
           </div>
         )}
         {success && (
-          <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
-            <span>{success}</span>
-            <button onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button>
+          <div role="status" style={{ margin: '0 16px 12px', backgroundColor: '#ecfdf3', color: '#166534', padding: '12px 14px', borderRadius: 12, fontSize: 14, display: 'flex', gap: 10 }}>
+            <span style={{ flex: 1 }}>{success}</span>
+            <button type="button" aria-label="Funga" onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', fontSize: 18, padding: 0 }}>×</button>
           </div>
         )}
 
-        {/* Section 18 (b): fixed base point, required to go online and accept pickups. */}
-        {profile?.status === 'approved' && (
-          <AgentBasePoint hasBasePoint={!!profile?.hasBasePoint} baseSetAt={profile?.baseSetAt}
-            onSaved={(d) => setProfile((p) => ({ ...p, hasBasePoint: true, baseSetAt: d?.baseSetAt }))} />
-        )}
-
-        {/* Sellers this agent works with as their partner agent (owner 2026-10-22). */}
-        <AgentPartnerSellersCard />
-
+        <div style={{ padding: '0 16px' }}>
         {/* ── NOT APPROVED YET ─────────────────────────────────────────── */}
         {profileStatus !== 'approved' && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '32px 20px', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '32px 20px', textAlign: 'center', border: '1px solid #eff3f4' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={profileStatus === 'pending' ? 'clock' : ['rejected', 'suspended'].includes(profileStatus) ? 'cross' : 'handshake'} size={44} color="#536471" /></div>
             </div>
@@ -684,163 +259,55 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             </p>
             {(profileStatus === 'not_applied' || profileStatus === 'rejected') && (
               <button onClick={() => onNavigate('BecomeAgent')}
-                style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
+                style={{ background: '#1d4ed8', color: '#fff', border: 'none', height: 48, padding: '0 24px', borderRadius: 24, cursor: 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }}>
                 {profileStatus === 'rejected' ? t('agent_dashboard.apply_again_button') : t('agent_dashboard.apply_now_button')}
               </button>
             )}
           </div>
         )}
 
-        {/* ── APPROVED — FULL DASHBOARD ─────────────────────────────────── */}
+        </div>
+
         {profileStatus === 'approved' && (
           <>
-            {/* Payment success banner */}
-            {paymentResult && (
-              <div style={{ background: 'linear-gradient(135deg,#43e97b,#38f9d7)', borderRadius: 16, padding: 20, marginBottom: 16 }}>
-                <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight:800, color: '#1e293b' }}>{t('agent_dashboard.payment_done_title')}</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-                  {[
-                    { l: t('agent_dashboard.invoice_label'), v: paymentResult.invoiceNumber },
-                    { l: t('agent_dashboard.amount_label'), v: `TZS ${Number(paymentResult.amount).toLocaleString()}` },
-                    { l: t('agent_dashboard.your_commission_label'), v: `TZS ${Number(paymentResult.commissionAmount).toLocaleString()}` },
-                  ].map(i => (
-                    <div key={i.l} style={{ backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 8, padding: 10 }}>
-                      <div style={{ fontSize: 10, color: 'rgba(0,0,0,0.5)', fontWeight: 700 }}>{i.l}</div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{i.v}</div>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => setPaymentResult(null)}
-                  style={{ marginTop: 12, backgroundColor: 'rgba(255,255,255,0.3)', color: '#1e293b', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-                  {t('agent_dashboard.close_button')}
-                </button>
-              </div>
-            )}
-
-            {/* Stats strip */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
-              {[
-                { icon: 'box', label: t('agent_dashboard.jobs_today_label'),    value: totalWorkItems,                color: '#1d4ed8', bg: '#dbeafe' },
-                { icon: 'check', label: t('agent_dashboard.completed_label'),      value: stats?.delivered || 0,         color: '#16a34a', bg: '#dcfce7' },
-                { icon: 'money', label: t('agent_dashboard.payment_earnings_label'),value: payStats ? `TZS ${Number(payStats.stats?.confirmedEarnings || 0).toLocaleString()}` : '—', color: '#7c3aed', bg: '#ede9fe' },
-                { icon: 'star', label: t('agent_dashboard.rating_label'),         value: Number(profile?.totalRatings) > 0 && Number(profile?.rating) > 0 ? Number(profile.rating).toFixed(1) : '—', color: '#f59e0b', bg: '#fef9c3' },
-              ].map(s => (
-                <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
-                  <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={18} color={s.color} /></div>
-                  <div style={{ fontSize: 15, fontWeight:800, color: s.color, wordBreak: 'break-all' }}>{s.value}</div>
-                  <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{s.label}</div>
+            <section data-testid="agent-tiles" style={{ padding: '0 16px 16px', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+              {tiles.map((s) => (
+                <div key={s.label} style={{ padding: 12, border: `1px solid ${LINE}`, borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, color: MUTED }}>{s.label}</span>
+                  <strong style={{ fontSize: 18, fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.value}</strong>
                 </div>
               ))}
-            </div>
+            </section>
 
-            {/* Tab bar */}
-            <div style={{ display: 'flex', gap: 4, backgroundColor: '#fff', borderRadius: 12, padding: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-              {[
-                { key: 'work',     label: JOB_QUEUE_ENABLED ? t('agent_dashboard.tab_work_count', { count: totalWorkItems }) : t('agent_dashboard.tab_work_soon') },
-                { key: 'pay',      label: t('agent_dashboard.tab_pay') },
-                { key: 'earnings', label: t('agent_dashboard.tab_earnings') },
-              ].map(tabItem => (
-                <button key={tabItem.key} data-tour={`ag-tab-${tabItem.key}`} onClick={() => setTab(tabItem.key)}
-                  style={{ flex: 1, padding: '10px 8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                    backgroundColor: tab === tabItem.key ? '#2563eb' : 'transparent',
-                    color: tab === tabItem.key ? '#fff' : '#64748b' }}>
-                  {tabItem.label}
-                </button>
-              ))}
-            </div>
+            <nav role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}` }}>
+              {[['work', `Kazi${workCount ? ` ${workCount}` : ''}`], ['earnings', 'Mapato']].map(([key, label]) => {
+                const on = tab === key;
+                return (
+                  <button key={key} type="button" role="tab" aria-selected={on} data-tour={`ag-tab-${key}`} data-testid={`agent-tab-${key}`} onClick={() => setTab(key)}
+                    style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '12px 0 0',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: 15, fontWeight: on ? 800 : 600, color: on ? INK : MUTED }}>
+                    {label}
+                    <span style={{ marginTop: 10, height: 4, width: 48, borderRadius: 2, background: on ? BLUE : 'transparent' }} />
+                  </button>
+                );
+              })}
+            </nav>
 
-            {/* ═══ TAB: WORK QUEUE ══════════════════════════════════════════ */}
-            {tab === 'work' && !JOB_QUEUE_ENABLED && (
-              <ComingSoonPanel icon="wrench" title={t('agent_dashboard.job_queue_title')}
-                body={t('agent_dashboard.job_queue_desc')} />
-            )}
-            {tab === 'work' && JOB_QUEUE_ENABLED && (
-              <>
-                {(workLoading || collectionLoading) && (
-                  <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>{t('agent_dashboard.loading_jobs')}</div>
-                )}
-
-                {!workLoading && !collectionLoading && totalWorkItems === 0 && (
-                  <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 40, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="check" size={36} color="#16a34a" /></div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('agent_dashboard.all_done_title')}</div>
-                    <div style={{ fontSize: 13, color: '#64748b' }}>{t('agent_dashboard.all_done_desc')}</div>
+            {tab === 'work' && (
+              <div style={{ padding: 16 }}>
+                {!profile?.hasBasePoint && (
+                  <div style={{ marginBottom: 16 }}>
+                    <AgentBasePoint hasBasePoint={false}
+                      onSaved={(d) => setProfile((p) => ({ ...p, hasBasePoint: true, baseSetAt: d?.baseSetAt, baseLatitude: d?.latitude, baseLongitude: d?.longitude }))} />
                   </div>
                 )}
-
-                {/* SECTION A: Direct orders from sellers (available to claim) */}
-                {directOrders.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#1d4ed8' }} />
-                      {t('agent_dashboard.section_a_title', { count: directOrders.length })}
-                    </div>
-                    {directOrders.map(order => (
-                      <JobCard key={order.id} order={order} profile={profile}
-                        actionLoading={actionLoading}
-                        onClaim={handleClaimOrder}
-                        onPickup={(id) => handleClaimOrder(id)}
-                        onDeliver={(id) => handleClaimOrder(id)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* SECTION B: My active direct orders */}
-                {myOrders.filter(o => !['delivered','cancelled'].includes(o.status)).length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-                      {t('agent_dashboard.section_b_title')}
-                    </div>
-                    {myOrders.filter(o => !['delivered','cancelled'].includes(o.status)).map(order => {
-                      const sc = STATUS_COLOR[order.status] || { bg: '#f1f5f9', color: '#64748b' };
-                      const isSelected = selectedItem?.type === 'order' && selectedItem?.id === order.id;
-                      const canPickup  = order.status === 'preparing';
-                      const canDeliver = order.status === 'in_transit';
-                      return (
-                        <div key={order.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 10, borderLeft: '4px solid #f59e0b' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t('agent_dashboard.order_number', { id: order.id })}</div>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: sc.bg, color: sc.color }}>
-                              {order.status?.replace(/_/g, ' ').toUpperCase()}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 8 }}>{order.product?.name || '—'}</div>
-                          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                            {order.buyer?.name || '—'} · {order.deliveryAddress || '—'}
-                          </div>
-                          {canPickup && !isSelected && (
-                            <button onClick={() => { setSelectedItem({ type: 'order', id: order.id }); setNote(''); }}
-                              style={{ width: '100%', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                              {t('agent_dashboard.confirm_pickup_button')}
-                            </button>
-                          )}
-                          {canPickup && isSelected && (
-                            <ActionNote onConfirm={() => handlePickup(order.id)} label={t('agent_dashboard.note_label_picked')} loading={actionLoading} />
-                          )}
-                          {canDeliver && !isSelected && (
-                            <button onClick={() => { setSelectedItem({ type: 'order', id: order.id }); setNote(''); }}
-                              style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#22c55e)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                              {t('agent_dashboard.confirm_deliver_button')}
-                            </button>
-                          )}
-                          {canDeliver && isSelected && (
-                            <ActionNote onConfirm={() => handleDeliverOrder(order.id)} label={t('agent_dashboard.note_label_delivered')} loading={actionLoading} />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* Shipment jobs: my jobs (one next action each), then jobs near my base. */}
+                <ShipmentPickupQueue onChanged={refresh} onCount={setShipmentPickupCount} />
 
                 {/* SECTION D: My active hub parcel deliveries */}
                 {myParcels.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#16a34a' }} />
-                      {t('agent_dashboard.section_d_title')}
-                    </div>
+                    <h2 style={{ margin: '4px 0 8px', fontSize: 17, fontWeight: 800 }}>{t('agent_dashboard.section_d_title')}</h2>
                     {myParcels.map(parcel => {
                       const canMarkOut   = ['arrived_at_hub', 'awaiting_buyer'].includes(parcel.status) &&
                         parcel.buyerRequestedDelivery === true;
@@ -856,8 +323,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         return { ...f, [parcel.trackingNumber]: { ...f[parcel.trackingNumber], data: next } };
                       });
                       return (
-                        <div key={parcel.trackingNumber} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 10, borderLeft: '4px solid #16a34a' }}>
-                          <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 800, color: '#16a34a', marginBottom: 6 }}>{parcel.trackingNumber}</div>
+                        <div key={parcel.trackingNumber} style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, border: '1px solid #eff3f4', marginBottom: 10 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#536471', marginBottom: 6 }}>{parcel.trackingNumber}</div>
                           <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>{parcel.order?.product?.name || '—'}</div>
                           <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
                             {parcel.recipientName || '—'} · {parcel.buyerPhone || '—'}
@@ -913,7 +380,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                       } catch {} finally { setSavingTransport(null); }
                                     }} disabled={savingTransport === parcel.trackingNumber}
                                       style={{ flex: 1, backgroundColor: '#c2410c', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                      {savingTransport ? '…' : t('agent_dashboard.save_button')}
+                                      {savingTransport ? 'Inahifadhi' : t('agent_dashboard.save_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm(false)}
                                       style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 12 }}>
@@ -947,7 +414,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                       } catch {} finally { setSavingTransport(null); }
                                     }} disabled={savingTransport === parcel.trackingNumber}
                                       style={{ flex: 1, backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                      {savingTransport ? '…' : t('agent_dashboard.save_button')}
+                                      {savingTransport ? 'Inahifadhi' : t('agent_dashboard.save_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm(false)}
                                       style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 12 }}>
@@ -970,7 +437,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           {canMarkOut && (
                             <div style={{ backgroundColor: '#eff6ff', padding: 10, borderRadius: 8 }}>
                               <div style={{ fontSize: 16, marginBottom: 8 }}>
-                                Pokea kifurushi hubuni; ingiza namba uliyopewa na mhudumu.
+                                Pokea kifurushi ofisini; weka namba uliyopewa na mhudumu wa ofisi.
                               </div>
                               <input value={handoffCodes[parcel.trackingNumber] || ''}
                                 onChange={e => setHandoffCodes(prev => ({ ...prev,
@@ -982,13 +449,13 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                 disabled={actionLoading || (handoffCodes[parcel.trackingNumber] || '').length !== 6}
                                 style={{ width: '100%', minHeight: 44, padding: 10, border: 'none', borderRadius: 8,
                                   color: '#fff', backgroundColor: '#2563eb', fontWeight: 800, fontSize: 16 }}>
-                                Thibitisha nimepokea kutoka hub
+                                Thibitisha nimepokea kutoka ofisi
                               </button>
                             </div>
                           )}
                           {canDeliver && parcel.order?.paymentMethod === 'cod' && (
                             <div style={{ backgroundColor: '#fef3c7', padding: 10, borderRadius: 8, fontSize: 16 }}>
-                              <div style={{ marginBottom: 8 }}>Kusanya salio la COD na omba namba ya mpokeaji wakati wa makabidhiano.</div>
+                              <div style={{ marginBottom: 8 }}>Pokea pesa ya lipa ukipokea, kisha muombe mpokeaji namba yake wakati wa kumkabidhi.</div>
                               <button onClick={() => handleIssueDeliveryCode(parcel.trackingNumber)} disabled={actionLoading}
                                 style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 16 }}>
                                 Tuma namba kwa mpokeaji
@@ -1001,14 +468,14 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               <input value={codCollected[parcel.trackingNumber] || ''}
                                 onChange={e => setCodCollected(prev => ({ ...prev, [parcel.trackingNumber]: e.target.value }))}
                                 inputMode="decimal" type="number" min="0" step="0.01"
-                                placeholder={`Salio la COD: TZS ${Number(parcel.order?.codRemainingBalance || 0).toLocaleString()}`}
+                                placeholder={`Pesa ya kupokea: TZS ${Number(parcel.order?.codRemainingBalance || 0).toLocaleString()}`}
                                 style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box', fontSize: 16 }} />
                               <button onClick={() => handleConfirmCodDelivery(parcel.trackingNumber)}
                                 disabled={actionLoading || (deliveryCodes[parcel.trackingNumber] || '').length !== 6 ||
                                   codCollected[parcel.trackingNumber] === undefined || codCollected[parcel.trackingNumber] === ''}
                                 style={{ width: '100%', minHeight: 44, padding: 9, border: 'none', borderRadius: 8,
                                   backgroundColor: '#166534', color: '#fff', fontWeight: 700, fontSize: 16 }}>
-                                Thibitisha COD na kupokelewa
+                                Thibitisha pesa na umemkabidhi
                               </button>
                             </div>
                           )}
@@ -1036,261 +503,57 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     })}
                   </div>
                 )}
-              {/* SECTION E: Available collection jobs — new parcels to pick up from sellers */}
-                {/* Gate 4: Shipment pickups and direct deliveries, in the same work list. */}
-                <ShipmentPickupQueue onChanged={() => fetchWork(profile)} onCount={setShipmentPickupCount} />
-
-                {availableCollections.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#0f172a' }} />
-                      {t('agent_dashboard.section_e_title', { count: availableCollections.length })}
-                    </div>
-                    <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: '#475569' }}>
-                      {t('agent_dashboard.collection_notice')}
-                    </div>
-                    {availableCollections.map(job => (
-                      <div key={job.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 10, borderLeft: '4px solid #0f172a' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t('agent_dashboard.collection_number', { id: job.id })}</div>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            {job.isRural && (
-                              <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: '#fef9c3', color: '#ca8a04' }}>{t('agent_dashboard.rural_badge')}</span>
-                            )}
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-                              TZS {Number(job.collectionFee).toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>{job.order?.product?.name || '—'}</div>
-                        <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
-                          <div style={{ fontSize: 10, color: '#92400e', fontWeight: 700 }}>{t('agent_dashboard.seller_pickup_label')}</div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{job.seller?.storeName || job.seller?.name || '—'}</div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>{job.seller?.phone || '—'}</div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>{job.pickupAddress || '—'}</div>
-                        </div>
-                        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>{t('agent_dashboard.city_label', { city: job.city })}</div>
-                        <button onClick={() => handleClaimCollection(job.id)} disabled={actionLoading}
-                          style={{ width: '100%', background: 'linear-gradient(135deg,#0f172a,#1e293b)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                          {t('agent_dashboard.claim_collection_button', { fee: Number(job.collectionFee).toLocaleString() })}
-                        </button>
-                      </div>
-                    ))}
+                {workCount === 0 && (
+                  <div data-testid="agent-no-work" style={{ textAlign: 'center', padding: '32px 8px', color: MUTED, fontSize: 15, lineHeight: 1.5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><LineIcon name="box" size={36} color="#94a3b8" /></div>
+                    Hakuna kazi sasa. Kazi mpya karibu na kituo chako zitaonekana hapa.
+                    {!profile?.hasBasePoint && <div style={{ marginTop: 8 }}>Weka kituo chako kwenye Mapato ili kazi zikufikie.</div>}
                   </div>
                 )}
 
-                {/* SECTION F: My active collection jobs */}
-                {myCollections.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#ca8a04', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ca8a04' }} />
-                      {t('agent_dashboard.section_f_title')}
-                    </div>
-                    {myCollections.map(job => {
-                      const isSelected = selectedItem?.type === 'collection' && selectedItem?.id === job.id;
-                      const canConfirmCollected = job.status === 'claimed';
-                      const canHandOver = job.status === 'collected' && !job.handedOverAt;
-                      return (
-                        <div key={job.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 10, borderLeft: '4px solid #ca8a04' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t('agent_dashboard.collection_number', { id: job.id })}</div>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-                              +TZS {Number(job.collectionFee).toLocaleString()}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>{job.order?.product?.name || '—'}</div>
-                          <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '8px 10px', marginBottom: 8 }}>
-                            <div style={{ fontSize: 10, color: '#92400e', fontWeight: 700 }}>
-                              {job.status === 'claimed' ? t('agent_dashboard.go_here_label') : t('agent_dashboard.deliver_hub_label')}
-                            </div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{job.seller?.name || '—'} · {job.seller?.phone || '—'}</div>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>{job.pickupAddress}</div>
-                          </div>
-                          {canConfirmCollected && !isSelected && (
-                            <button onClick={() => { setSelectedItem({ type: 'collection', id: job.id }); setNote(''); }}
-                              style={{ width: '100%', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                              {t('agent_dashboard.collected_from_seller_button')}
-                            </button>
-                          )}
-                          {canConfirmCollected && isSelected && (
-                            <ActionNote onConfirm={() => handleConfirmCollected(job.id)} label={t('agent_dashboard.note_label_collected')} loading={actionLoading} />
-                          )}
-                          {canHandOver && !isSelected && (
-                            <button onClick={() => handleHandedOver(job.id)} disabled={actionLoading}
-                              style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                              {t('agent_dashboard.handed_over_button')}
-                            </button>
-                          )}
-                          {job.status === 'collected' && job.handedOverAt && (
-                            <div role="status" style={{ padding: 10, color: '#92400e' }}>Inasubiri ofisi inayopokea ithibitishe</div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ═══ TAB: PAYMENT COLLECTION ══════════════════════════════════ */}
-            {tab === 'pay' && (
-              <div>
-                <div style={{ backgroundColor: '#eff6ff', borderRadius: 14, padding: '14px 16px', marginBottom: 16, fontSize: 13, color: '#1d4ed8' }}>
-                  {t('agent_dashboard.pay_hint')}
-                </div>
-
-                {paymentPending ? (
-                  <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 30, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                    <div style={{ fontSize: 40, marginBottom: 12 }}></div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('agent_dashboard.processing_payment_title')}</div>
-                    <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>{t('agent_dashboard.please_wait_desc')}</div>
-                  </div>
-                ) : invoiceLookup ? (
-                  <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('agent_dashboard.invoice_found_title')}</div>
-                    {[
-                      [t('agent_dashboard.invoice_field_label'), invoiceLookup.invoiceNumber],
-                      [t('agent_dashboard.amount_field_label'), `TZS ${Number(invoiceLookup.amount).toLocaleString()}`],
-                      [t('agent_dashboard.customer_field_label'), invoiceLookup.buyerName || '—'],
-                      [t('agent_dashboard.product_field_label'), invoiceLookup.productName || '—'],
-                    ].map(([l, v]) => (
-                      <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc', fontSize: 13 }}>
-                        <span style={{ color: '#64748b' }}>{l}</span>
-                        <span style={{ fontWeight: 700, color: '#1e293b' }}>{v}</span>
-                      </div>
-                    ))}
-                    <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '10px 14px', margin: '12px 0' }}>
-                      <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>{t('agent_dashboard.your_commission_label2')}</div>
-                      <div style={{ fontSize: 18, fontWeight:800, color: '#16a34a' }}>
-                        TZS {Math.round(invoiceLookup.amount * 0.025).toLocaleString()}
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('agent_dashboard.your_phone_confirm_label')}</label>
-                      <input type="tel" placeholder="255XXXXXXXXX" value={agentPhone}
-                        onChange={e => setAgentPhone(e.target.value)} style={inputStyle} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={handleCollectPayment} disabled={processing}
-                        style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-                        {processing ? t('agent_dashboard.processing_ellipsis') : t('agent_dashboard.collect_payment_button')}
-                      </button>
-                      <button onClick={() => { setInvoiceLookup(null); setInvoiceInput(''); setAgentPhone(''); }}
-                        style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#64748b' }}>
-                        {t('agent_dashboard.cancel_button')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                    <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>{t('agent_dashboard.invoice_number_field_label')}</label>
-                    <input data-tour="ag-invoice-input" type="text" placeholder="mf. KNT-INV-2025-00001"
-                      value={invoiceInput} onChange={e => setInvoiceInput(e.target.value)}
-                      style={{ ...inputStyle, marginBottom: 10 }} />
-                    <button onClick={handleLookupInvoice} disabled={lookupLoading || !invoiceInput.trim()}
-                      style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-                      {lookupLoading ? t('agent_dashboard.searching_ellipsis') : t('agent_dashboard.search_invoice_button')}
-                    </button>
-                  </div>
-                )}
-
-                {/* Recent payment transactions */}
-                {payStats?.recentTransactions?.length > 0 && (
-                  <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginTop: 14 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('agent_dashboard.recent_transactions_title')}</div>
-                    {payStats.recentTransactions.slice(0, 5).map((tx, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc', fontSize: 12 }}>
-                        <span style={{ color: '#64748b' }}>{tx.invoiceNumber}</span>
-                        <span style={{ fontWeight: 700, color: '#16a34a' }}>+TZS {Number(tx.commissionAmount || 0).toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Sellers this agent works with as their partner agent (owner 2026-10-22). */}
+                <AgentPartnerSellersCard />
               </div>
             )}
 
-            {/* ═══ TAB: EARNINGS ════════════════════════════════════════════ */}
             {tab === 'earnings' && (
-              <div>
-                {/* Full Earnings History + Scorecard */}
-                <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-                  <button onClick={() => onNavigate('AgentEarnings')}
-                    style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#059669)',
-                      color: '#fff', border: 'none', padding: '14px 16px', borderRadius: 14,
-                      cursor: 'pointer', fontSize: 13, fontWeight: 800,
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                    <span>{t('agent_dashboard.earnings_history_label')}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>{t('agent_dashboard.full_transaction_log')}</span>
-                  </button>
-                  <button onClick={() => onNavigate('AgentScorecard')}
-                    style={{ flex: 1, background: 'linear-gradient(135deg,#2563EB,#7C3AED)',
-                      color: '#fff', border: 'none', padding: '14px 16px', borderRadius: 14,
-                      cursor: 'pointer', fontSize: 13, fontWeight: 800,
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                    <span>{t('agent_dashboard.scorecard_label')}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.85 }}>{t('agent_dashboard.performance_stats')}</span>
-                  </button>
-                </div>
-
-                {/* Tier progress */}
-                <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t('agent_dashboard.my_tier_label')}</div>
-                    <div style={{ ...tier, padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>
-                      {tier.label}
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+              <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <section data-testid="agent-earnings" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <span style={{ fontSize: 13, color: MUTED }}>Ada za kufikisha mizigo</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
                     {[
-                      { label: `${t('agent_dashboard.tier_basic')}`, commission: '2.5%', range: t('agent_dashboard.range_0_50'), active: profile?.tier === 'basic' },
-                      { label: `${t('agent_dashboard.tier_silver')}`, commission: '3.5%', range: t('agent_dashboard.range_51_200'), active: profile?.tier === 'silver' },
-                      { label: `${t('agent_dashboard.tier_gold')}`, commission: '5.0%', range: t('agent_dashboard.range_200_plus'), active: profile?.tier === 'gold' },
-                    ].map(tierItem => (
-                      <div key={tierItem.label} style={{ backgroundColor: tierItem.active ? '#fef9c3' : '#f8fafc', borderRadius: 10, padding: 10, textAlign: 'center', border: tierItem.active ? '2px solid #f59e0b' : '1px solid #e2e8f0' }}>
-                        <div style={{ fontSize: 11, fontWeight: 800, color: '#1e293b' }}>{tierItem.label}</div>
-                        <div style={{ fontSize: 16, fontWeight:800, color: '#f59e0b' }}>{tierItem.commission}</div>
-                        <div style={{ fontSize: 10, color: '#94a3b8' }}>{tierItem.range}</div>
+                      ['Leo', summary ? tzs(summary.today.fees) : '—'],
+                      ['Wiki hii', summary ? tzs(summary.week.fees) : '—'],
+                      ['Mizigo nimefikisha', summary ? String(summary.totalDeliveries) : '—'],
+                      ['Alama ya wateja', summary?.rating != null ? `${Number(summary.rating).toFixed(1)} / 5 (${summary.totalRatings})` : 'Bado'],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{ padding: 14, border: `1px solid ${LINE}`, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 13, color: MUTED }}>{label}</span>
+                        <strong style={{ fontSize: 20, fontVariantNumeric: 'tabular-nums' }}>{value}</strong>
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
 
-                {/* Payment earnings */}
-                {payStats && (
-                  <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('agent_dashboard.payment_earnings_title')}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      {[
-                        { l: t('agent_dashboard.total_transactions_label'), v: payStats.stats?.totalTransactions || 0, c: '#7c3aed', bg: '#ede9fe' },
-                        { l: t('agent_dashboard.confirmed_earnings_label'), v: `TZS ${Number(payStats.stats?.confirmedEarnings || 0).toLocaleString()}`, c: '#16a34a', bg: '#dcfce7' },
-                        { l: t('agent_dashboard.pending_label'), v: `TZS ${Number(payStats.stats?.pendingEarnings || 0).toLocaleString()}`, c: '#f59e0b', bg: '#fef9c3' },
-                        { l: t('agent_dashboard.commission_rate_label'), v: `${payStats.stats?.commissionRate || 2.5}%`, c: '#1d4ed8', bg: '#dbeafe' },
-                      ].map(s => (
-                        <div key={s.l} style={{ backgroundColor: s.bg, borderRadius: 10, padding: 12 }}>
-                          <div style={{ fontSize: 15, fontWeight:800, color: s.c }}>{s.v}</div>
-                          <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{s.l}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                {summary && (summary.today.codCollected > 0 || summary.owedToKentexa > 0) && (
+                  <section data-testid="agent-cod-cash" style={{ padding: 16, borderRadius: 16, background: '#fffbeb', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Pesa za lipa ukipokea ulizopokea leo</span>
+                    <strong style={{ fontSize: 26, fontVariantNumeric: 'tabular-nums' }}>{tzs(summary.today.codCollected)}</strong>
+                    {summary.owedToKentexa > 0 && (
+                      <span style={{ fontSize: 14, color: MUTED, lineHeight: 1.45 }}>Unadaiwa na KenteXa ada yake tu: {tzs(summary.owedToKentexa)}.</span>
+                    )}
+                  </section>
                 )}
 
-                {/* Delivery earnings */}
-                <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('agent_dashboard.delivery_earnings_title')}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    {[
-                      { l: t('agent_dashboard.delivered_stat'), v: stats?.delivered || 0, c: '#16a34a', bg: '#dcfce7' },
-                      { l: t('agent_dashboard.in_progress_stat'), v: stats?.inProgress || 0, c: '#f59e0b', bg: '#fef9c3' },
-                      { l: t('agent_dashboard.rating_label'), v: Number(profile?.totalRatings) > 0 && Number(profile?.rating) > 0 ? `${Number(profile.rating).toFixed(1)} / 5` : 'Bado', c: '#f59e0b', bg: '#fef9c3' },
-                      { l: t('agent_dashboard.active_city_stat'), v: profile?.city || profile?.district || '—', c: '#1d4ed8', bg: '#dbeafe' },
-                    ].map(s => (
-                      <div key={s.l} style={{ backgroundColor: s.bg, borderRadius: 10, padding: 12 }}>
-                        <div style={{ fontSize: 15, fontWeight:800, color: s.c, wordBreak: 'break-all' }}>{s.v}</div>
-                        <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>{s.l}</div>
-                      </div>
-                    ))}
-                  </div>
+                <div style={{ borderTop: '8px solid #f7f9f9', margin: '0 -16px', padding: '20px 16px 0' }}>
+                  <AgentBasePoint hasBasePoint={!!profile?.hasBasePoint} baseSetAt={profile?.baseSetAt}
+                    latitude={profile?.baseLatitude} longitude={profile?.baseLongitude} area={area}
+                    onSaved={(d) => setProfile((p) => ({ ...p, hasBasePoint: true, baseSetAt: d?.baseSetAt, baseLatitude: d?.latitude ?? p?.baseLatitude, baseLongitude: d?.longitude ?? p?.baseLongitude }))} />
+                </div>
+
+                <div style={{ borderTop: '8px solid #f7f9f9', margin: '0 -16px', padding: '20px 16px 0' }}>
+                  <AgentVehicleCard agentType={profile?.agentType} maxWeightKg={profile?.maxWeightKg}
+                    onSaved={(v) => setProfile((p) => ({ ...p, ...v }))} />
                 </div>
               </div>
             )}

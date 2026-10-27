@@ -2665,16 +2665,12 @@
     "bh_step_roles_title": "Uza, safirisha au toa huduma pia",
     "bh_step_roles_desc": "Akaunti moja, majukumu yote. Gusa Profaili kisha Majukumu wakati wowote kuwa Muuzaji, Wakala, Ofisi au Msafirishaji — huhitaji kuamua sasa.",
     "agent_dashboard_title": "Dashibodi Yako ya Wakala",
-    "ag_step_intro_title": "Unachofanya kama Wakala",
-    "ag_step_intro_desc": "Unasaidia wanunuzi kulipa ana kwa ana na kupata kamisheni kwa kila malipo unayoshughulikia. Tembelea haraka?",
-    "ag_step_work_title": "Kazi zinazopatikana",
-    "ag_step_work_desc": "Kazi inaonyesha kazi zilizo karibu unazoweza kuzichukua.",
-    "ag_step_pay_title": "Pokea malipo",
-    "ag_step_pay_desc": "Lipa ndipo unapotafuta ankara ya mnunuzi na kupokea malipo yake ana kwa ana.",
-    "ag_step_invoice_title": "Tafuta ankara",
-    "ag_step_invoice_desc": "Ingiza namba ya ankara aliyokupa mnunuzi, kisha thibitisha kiasi na kupokea malipo.",
-    "ag_step_earnings_title": "Fuatilia mapato yako",
-    "ag_step_earnings_desc": "Mapato inaonyesha kamisheni yako kutoka kwa kila malipo uliyopokea."
+    "ag_step_intro_title": "Kazi yako kama Wakala",
+    "ag_step_intro_desc": "Unachukua mizigo kwa wauzaji na kuifikisha kwa wateja wa mji wako, kwa usafiri wowote. Tembelea haraka?",
+    "ag_step_work_title": "Kazi zako",
+    "ag_step_work_desc": "Kazi inaonyesha mizigo yako ya kuchukua na kufikisha, na kazi mpya karibu na kituo chako.",
+    "ag_step_earnings_title": "Mapato, kituo na usafiri",
+    "ag_step_earnings_desc": "Mapato inaonyesha ada za kufikisha, pesa za lipa ukipokea, kituo chako na usafiri wako."
   },
   "flash_sales": {
     "expired": "Imekwisha",
@@ -4271,7 +4267,7 @@
     "via_label": "Via",
     "expected_label": "Inatarajiwa",
     "shipping_label": "Usafirishaji",
-    "boda_agent_local": "Boda/Agent wa mtaa",
+    "boda_agent_local": "Wakala wa mtaa",
     "ticket_label": "Tiketi",
     "ref_label": "Ref",
     "kentexa_super_agent": "Ofisi kwenye KenteXa",
@@ -4322,7 +4318,7 @@
     "days_label": "Siku",
     "base_price_line": "Bei ya msingi: TZS {{base}} + ada ya wilaya: TZS {{district}}",
     "local_delivery_title": "Uwasilishaji wa Ndani — {{city}}",
-    "local_delivery_desc": "Boda au wakala wa mtaa · Kawaida masaa 1-4 kulingana na dereva · Mpokeaji ataona tracking mara moja",
+    "local_delivery_desc": "Wakala wa mtaa (boda, bajaji, baiskeli au gari) · Mpokeaji ataona tracking mara moja",
     "finding_route": "⏳ Inatafuta njia...",
     "route_summary": "📍 {{from}} → {{to}}",
     "via_transit": "🔄 Via {{city}}",
@@ -4340,7 +4336,7 @@
     "size_large": "Kubwa (10kg+)",
     "step3_title": "Jinsi Unavyotuma",
     "step3_subtitle": "Hii INAHITAJIKA — bila maelezo ya usafirishaji, mpokeaji hawezi kujua bidhaa yake iko wapi",
-    "boda_local_agent_title": "🏍️ Boda / Wakala wa Mtaa",
+    "boda_local_agent_title": "Wakala wa mtaa",
     "boda_local_agent_desc": "Baada ya kulipa, mawakala wa KenteXa katika {{city}} wataona agizo hili na mmoja atachukua kazi ya kuwasilisha kwa mpokeaji.",
     "extra_notes_optional": "Maelezo ya Ziada (si lazima)",
     "extra_notes_hint": "e.g. Mpokeaji yuko nyumbani baada ya 2pm",
@@ -4374,12 +4370,12 @@
     "validate_address": "Weka anwani ya mpokeaji",
     "validate_cod_overpaid": "Kiasi kilicholipwa hakiwezi kuzidi thamani ya mzigo",
     "validate_cod_full_paid": "Mnunuzi amelipa kiasi chote. Rekodi kama taslimu au pesa ya simu, si Malipo Baada ya Kupokea.",
-    "cod_intracity_only": "Malipo Baada ya Kupokea ni kwa mzigo wa ndani ya mji mmoja tu (boda). Kwa mji mwingine, mnunuzi alipe kwanza.",
-    "cod_boda_fee_label": "Ada ya boda ya kufikisha (TZS)",
-    "cod_boda_fee_hint": "Mnunuzi analipa ada hii pamoja na bidhaa wakati wa kupokea. Dar es Salaam: acha wazi kutumia ada ya boda ya KenteXa.",
-    "cod_pickup_place_label": "Duka lako: boda atachukua mzigo hapa",
-    "cod_pickup_place_hint": "Chagua duka lako kwenye ramani. Boda wa mji wako atakubali kazi na kuchukua mzigo hapa.",
-    "cod_pickup_place_required": "Chagua duka lako kwenye ramani: boda atachukua mzigo hapo.",
+    "cod_intracity_only": "Lipa ukipokea ni kwa mzigo wa ndani ya mji mmoja tu. Kwa mji mwingine, mnunuzi alipe kwanza.",
+    "cod_boda_fee_label": "Ada ya usafiri ya kufikisha (TZS)",
+    "cod_boda_fee_hint": "Mnunuzi analipa ada hii pamoja na bidhaa wakati wa kupokea. Dar es Salaam: acha wazi kutumia ada ya usafiri ya KenteXa.",
+    "cod_pickup_place_label": "Duka lako: wakala atachukua mzigo hapa",
+    "cod_pickup_place_hint": "Chagua duka lako kwenye ramani. Wakala wa mji wako atakubali kazi na kuchukua mzigo hapa.",
+    "cod_pickup_place_required": "Chagua duka lako kwenye ramani: wakala atachukua mzigo hapo.",
     "create_order_failed": "Imeshindwa kuunda agizo. Jaribu tena.",
     "enter_mpesa_number": "Weka namba yako ya M-Pesa",
     "payment_failed_retry": "Malipo yameshindwa. Jaribu tena.",
@@ -5764,22 +5760,26 @@
     "city_placeholder": "Tafuta mji, wilaya au kata…",
     "base_taken": "Kituo kimewekwa (±{{m}} m)",
     "step3_title": "Unabeba nini",
-    "vehicle_boda": "🏍️ Boda",
-    "vehicle_car": "🚗 Gari",
-    "vehicle_van": "🚐 Van/Bajaji",
-    "vehicle_truck": "🚛 Lori",
-    "vehicle_foot": "🚶 Miguu",
+    "vehicle_boda": "Boda",
+    "vehicle_car": "Gari",
+    "vehicle_van": "Kirikuu / Van",
+    "vehicle_truck": "Lori",
+    "vehicle_foot": "Miguu",
     "max_kg_label": "Uzito wa juu unaoweza kubeba (kilo)",
     "submit": "Tuma ombi",
-    "status_waiting_id_desc": "Ombi lako la kuwa wakala limepokelewa. Kitambulisho chako kikithibitishwa, KenteXa itaidhinisha ombi na utaanza kupokea kazi."
+    "status_waiting_id_desc": "Ombi lako la kuwa wakala limepokelewa. Kitambulisho chako kikithibitishwa, KenteXa itaidhinisha ombi na utaanza kupokea kazi.",
+    "vehicle_bajaji": "Bajaji",
+    "vehicle_bicycle": "Baiskeli"
   },
   "agent_base": {
     "title": "Weka kituo chako kwanza",
-    "explain": "Simama mahali unapoanzia kazi kila siku, kisha bonyeza kitufe. Kazi za kuchukua mizigo zitakufikia kwanza zikiwa karibu na kituo chako. Huwezi kuwa mtandaoni bila kituo.",
-    "button": "📍 Weka kituo changu",
+    "explain": "Simama mahali unapoanzia kazi kila siku, kisha bonyeza kitufe. Kazi za kuchukua mizigo zitakufikia kwanza zikiwa karibu na kituo chako.",
+    "button": "Weka kituo changu",
     "saved": "Kituo chako kimehifadhiwa.",
     "set_on": "Kituo chako kimewekwa ({{date}}).",
-    "change": "Badilisha"
+    "change": "Badilisha kituo (nipo hapa sasa)",
+    "card_title": "Kituo changu",
+    "near_first": "Kazi za kuchukua mizigo karibu na hapa zinakufikia kwanza."
   },
   "work_roles": {
     "title": "Fanya kazi na KenteXa",
@@ -5829,7 +5829,7 @@
     "go_online": "Ingia online"
   },
   "pickup_queue": {
-    "title": "Kazi za kuchukua mizigo",
+    "title": "Kazi zangu",
     "parcel": "Mzigo",
     "default_hub": "Ofisi ya usafirishaji",
     "step_collect_from_sender": "Chukua mzigo kwa mtumaji",
@@ -5843,7 +5843,7 @@
     "confirm_collection": "Thibitisha umechukua mzigo",
     "collected_ok": "Mzigo umechukuliwa kwa mtumaji.",
     "recipient_explain": "Ukiwa na mpokeaji, mtumie namba yake kwa SMS. Mkabidhi mzigo pale tu atakapokutajia namba hiyo.",
-    "cod_collect": "Kusanya TZS {{total}} (bidhaa {{goods}} + boda {{boda}})",
+    "cod_collect": "Pokea TZS {{total}} kwa mteja (bidhaa {{goods}} + usafiri {{boda}})",
     "cod_code_sent": "Mnunuzi tayari ana namba ya kupokea (ilitumwa ulipokubali kazi). Muombe akupe ukifika.",
     "send_code_again": "Tuma namba tena",
     "send_code": "Mtumie mpokeaji namba",
@@ -5869,7 +5869,9 @@
     "landmark": "Alama",
     "open_map": "Fungua ramani",
     "pin_accuracy": "Usahihi wa pin: ±{{m}} m",
-    "no_pin": "Hakuna pin. Piga simu kwa mtumaji."
+    "no_pin": "Hakuna pin. Piga simu kwa mtumaji.",
+    "available_title": "Kazi karibu na kituo chako",
+    "available_hint": "Unaona mtaa tu hadi uchukue kazi"
   },
   "transport_signup": {
     "identity_title": "Kwanza: kitambulisho chako",
@@ -5990,5 +5992,13 @@
     "proof": "Picha ya malipo",
     "proof_open": "Fungua picha",
     "reference": "Namba ya muamala"
+  },
+  "agent_vehicle": {
+    "title": "Usafiri wangu",
+    "max_kg": "Uzito wa juu ninaoweza kubeba (kg)",
+    "any_vehicle": "Aina yoyote ya usafiri inafanya kazi ya mwisho na inaweza kupokea lipa ukipokea.",
+    "save": "Hifadhi usafiri",
+    "saved": "Usafiri wako umehifadhiwa.",
+    "failed": "Imeshindikana kuhifadhi. Jaribu tena."
   }
 }
