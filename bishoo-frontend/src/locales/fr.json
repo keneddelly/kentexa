@@ -2874,16 +2874,12 @@
     "bh_step_roles_title": "Vendez, livrez ou proposez des services aussi",
     "bh_step_roles_desc": "Un seul compte, tous les rôles. Appuyez sur Profil puis Rôles à tout moment pour devenir Vendeur, Agent, Super Agent ou Transporteur — pas besoin de décider maintenant.",
     "agent_dashboard_title": "Votre tableau de bord Agent",
-    "ag_step_intro_title": "Votre rôle en tant qu'Agent",
-    "ag_step_intro_desc": "Vous aidez les acheteurs à payer en personne et gagnez une commission sur chaque paiement que vous traitez. Faire une visite rapide ?",
-    "ag_step_work_title": "Missions disponibles",
-    "ag_step_work_desc": "Travail affiche les missions à proximité que vous pouvez accepter.",
-    "ag_step_pay_title": "Encaisser un paiement",
-    "ag_step_pay_desc": "Payer est l'endroit où vous recherchez la facture d'un acheteur et encaissez son paiement en personne.",
-    "ag_step_invoice_title": "Rechercher la facture",
-    "ag_step_invoice_desc": "Saisissez le numéro de facture donné par l'acheteur, puis confirmez le montant et encaissez le paiement.",
-    "ag_step_earnings_title": "Suivez vos gains",
-    "ag_step_earnings_desc": "Gains affiche votre commission sur chaque paiement que vous avez encaissé."
+    "ag_step_intro_title": "Votre travail d’agent",
+    "ag_step_intro_desc": "Vous récupérez les colis chez les vendeurs et les livrez aux clients de votre ville, avec n’importe quel véhicule. Petite visite ?",
+    "ag_step_work_title": "Vos courses",
+    "ag_step_work_desc": "Courses montre les colis à récupérer et à livrer, et les nouvelles courses près de votre base.",
+    "ag_step_earnings_title": "Gains, base et véhicule",
+    "ag_step_earnings_desc": "Gains montre vos frais de livraison, l’argent du paiement à la livraison, votre base et votre véhicule."
   },
   "flash_sales": {
     "expired": "Terminé",
@@ -5813,22 +5809,26 @@
     "city_placeholder": "Chercher ville, district ou quartier…",
     "base_taken": "Point de base enregistré (±{{m}} m)",
     "step3_title": "Ce que vous transportez",
-    "vehicle_boda": "🏍️ Moto",
-    "vehicle_car": "🚗 Voiture",
-    "vehicle_van": "🚐 Van/Bajaji",
-    "vehicle_truck": "🚛 Camion",
-    "vehicle_foot": "🚶 À pied",
+    "vehicle_boda": "Moto",
+    "vehicle_car": "Voiture",
+    "vehicle_van": "Pick-up / Van",
+    "vehicle_truck": "Camion",
+    "vehicle_foot": "À pied",
     "max_kg_label": "Poids maximum transportable (kg)",
     "submit": "Envoyer la demande",
-    "status_waiting_id_desc": "Votre demande d’agent a été reçue. Une fois votre identité vérifiée, KenteXa approuve la demande et vous commencez à recevoir des missions."
+    "status_waiting_id_desc": "Votre demande d’agent a été reçue. Une fois votre identité vérifiée, KenteXa approuve la demande et vous commencez à recevoir des missions.",
+    "vehicle_bajaji": "Tuk-tuk",
+    "vehicle_bicycle": "Vélo"
   },
   "agent_base": {
     "title": "Définissez d'abord votre point de base",
-    "explain": "Placez-vous là où vous commencez le travail chaque jour, puis appuyez sur le bouton. Les ramassages proches de votre base vous arrivent en premier. Vous ne pouvez pas être en ligne sans point de base.",
-    "button": "📍 Définir mon point de base",
+    "explain": "Placez-vous là où vous commencez chaque jour, puis appuyez sur le bouton. Les courses proches de votre base vous arrivent en premier.",
+    "button": "Définir ma base",
     "saved": "Votre point de base est enregistré.",
     "set_on": "Votre point de base est défini ({{date}}).",
-    "change": "Modifier"
+    "change": "Changer de base (je suis ici)",
+    "card_title": "Ma base",
+    "near_first": "Les courses proches d’ici vous arrivent en premier."
   },
   "work_roles": {
     "title": "Travailler avec KenteXa",
@@ -5878,7 +5878,7 @@
     "go_online": "Passer en ligne"
   },
   "pickup_queue": {
-    "title": "Ramassages de colis",
+    "title": "Mes courses",
     "parcel": "Colis",
     "default_hub": "Bureau de transport",
     "step_collect_from_sender": "Récupérer chez l’expéditeur",
@@ -5892,7 +5892,7 @@
     "confirm_collection": "Confirmer la récupération",
     "collected_ok": "Colis récupéré chez l’expéditeur.",
     "recipient_explain": "Quand vous êtes avec le destinataire, envoyez-lui son code par SMS. Remettez le colis seulement quand il vous dit le code.",
-    "cod_collect": "Encaisser TZS {{total}} (marchandises {{goods}} + boda {{boda}})",
+    "cod_collect": "Encaissez TZS {{total}} auprès du client (articles {{goods}} + livraison {{boda}})",
     "cod_code_sent": "L'acheteur a déjà le code de réception (envoyé quand vous avez accepté). Demandez-le à la porte.",
     "send_code_again": "Renvoyer le code",
     "send_code": "Envoyer le code au destinataire",
@@ -5918,7 +5918,9 @@
     "landmark": "Repère",
     "open_map": "Ouvrir la carte",
     "pin_accuracy": "Précision du point : ±{{m}} m",
-    "no_pin": "Pas de point. Appelez l’expéditeur."
+    "no_pin": "Pas de point. Appelez l’expéditeur.",
+    "available_title": "Courses près de votre base",
+    "available_hint": "Vous ne voyez que le quartier avant d’accepter"
   },
   "transport_signup": {
     "identity_title": "D’abord : votre pièce d’identité",
@@ -6015,5 +6017,13 @@
     "place": "Zone",
     "address": "Adresse",
     "expires": "Ce lien privé fonctionne jusqu'au {{date}}. Ne le partagez pas."
+  },
+  "agent_vehicle": {
+    "title": "Mon véhicule",
+    "max_kg": "Charge maximale (kg)",
+    "any_vehicle": "Tout véhicule fait la livraison finale et peut encaisser le paiement à la livraison.",
+    "save": "Enregistrer",
+    "saved": "Votre véhicule est enregistré.",
+    "failed": "Échec de l’enregistrement. Réessayez."
   }
 }

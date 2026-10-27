@@ -13,12 +13,15 @@ import api from '../../api/api';
 // The server decides what is allowed; this only shows what it returns
 // (`nextAction`) and never holds a code longer than the input field.
 // Texts follow the app language (pickup_queue.* in locales).
-const card = { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' };
+// Agent dashboard style (approved mockup 2026-10-27): plain cards, one big action.
+const card = { backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 10, border: '1px solid #eff3f4' };
 const btn = (primary) => ({
-  border: 'none', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 800, cursor: 'pointer',
-  backgroundColor: primary ? '#2563eb' : '#EFF6FF', color: primary ? '#fff' : '#1d4ed8',
+  minHeight: 44, border: primary ? 'none' : '1px solid #cfd9de', borderRadius: 22, padding: '0 18px', fontSize: 15, fontWeight: 700,
+  cursor: 'pointer', fontFamily: 'inherit', backgroundColor: primary ? '#1d4ed8' : '#fff', color: primary ? '#fff' : '#0f1419',
 });
-const input = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', borderRadius: 10, border: '1px solid #E2E8F0', fontSize: 16, letterSpacing: 4, textAlign: 'center', margin: '8px 0' };
+const input = { width: '100%', boxSizing: 'border-box', height: 48, padding: '0 12px', borderRadius: 14, border: '1px solid #cfd9de', fontSize: 18, letterSpacing: 6, textAlign: 'center', margin: '10px 0', fontFamily: 'inherit' };
+const STAGE = { collect_from_sender: '#1d4ed8', deliver_to_recipient: '#166534', take_to_hub: '#92400e', wait_for_hub: '#536471' };
+const heading = { margin: '4px 0 8px', fontSize: 17, fontWeight: 800, color: '#0f1419' };
 
 // The exact pickup point, shown only after the agent accepted (section 18).
 // No pin: the landmark note and "call the sender".
@@ -31,7 +34,7 @@ export function PickupPoint({ point }) {
       {point.hasPin ? (
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <a href={point.mapsUrl} target="_blank" rel="noopener noreferrer"
-            style={{ ...btn(true), textDecoration: 'none', display: 'inline-block' }}>📍 {t('pickup_queue.open_map')}</a>
+            style={{ ...btn(true), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>{t('pickup_queue.open_map')}</a>
           {point.accuracyM != null && <span style={{ fontSize: 11, color: '#64748b' }}>{t('pickup_queue.pin_accuracy', { m: point.accuracyM })}</span>}
         </div>
       ) : (
@@ -87,9 +90,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
 
   return (
     <div style={{ marginBottom: 16 }} data-testid="shipment-pickup-queue">
-      <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
-        {t('pickup_queue.title')}
-      </div>
+      {open.length > 0 && <h2 style={heading}>{t('pickup_queue.title')}</h2>}
       {message && (
         <div role={message.type === 'error' ? 'alert' : 'status'} style={{ ...card, padding: 10, fontSize: 12, fontWeight: 700,
           color: message.type === 'error' ? '#B91C1C' : '#065F46', backgroundColor: message.type === 'error' ? '#FEF2F2' : '#ECFDF5' }}>
@@ -98,16 +99,18 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
       )}
 
       {open.map((job) => (
-        <div key={job.id} style={{ ...card, border: '2px solid #2563eb' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <strong style={{ fontSize: 14 }}>{job.itemDescription || t('pickup_queue.parcel')}</strong>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#2563eb' }}>{job.trackingNumber}</span>
+        <div key={job.id} style={card}>
+          <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.3, textTransform: 'uppercase', color: STAGE[job.nextAction] || '#536471' }}>
+            {job.nextAction ? t(`pickup_queue.step_${job.nextAction}`) : ''}
           </div>
-          <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 4 }}>
+            <strong style={{ fontSize: 15 }}>{job.itemDescription || t('pickup_queue.parcel')}</strong>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#536471' }}>{job.trackingNumber}</span>
+          </div>
+          <div style={{ fontSize: 13, color: '#536471', marginTop: 4 }}>
             {job.pickupArea} → {job.deliverTo === 'recipient' ? job.destinationArea : (job.originHub?.name || t('pickup_queue.default_hub'))}
             {job.weightKg > 0 ? ` · ${job.weightKg} kg` : ''}
           </div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', marginTop: 10 }}>{job.nextAction ? t(`pickup_queue.step_${job.nextAction}`) : ''}</div>
 
           {job.nextAction === 'collect_from_sender' && (
             <>
@@ -151,8 +154,8 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
               )}
               {/* COD: what to collect at the door (goods + the rider's boda fee). */}
               {job.cod && (
-                <div data-testid="pickup-cod" style={{ fontSize: 13, fontWeight: 800, color: '#b45309', backgroundColor: '#fffbeb',
-                  border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginTop: 6 }}>
+                <div data-testid="pickup-cod" style={{ fontSize: 14, fontWeight: 700, color: '#92400e', backgroundColor: '#fffbeb',
+                  borderRadius: 12, padding: '10px 12px', marginTop: 8 }}>
                   {t('pickup_queue.cod_collect', {
                     total: Number(job.cod.total).toLocaleString('en-US'),
                     goods: Number(job.cod.goods).toLocaleString('en-US'),
@@ -196,11 +199,17 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
         </div>
       ))}
 
+      {available.length > 0 && (
+        <div style={{ marginTop: open.length > 0 ? 16 : 0 }}>
+          <h2 style={{ ...heading, marginBottom: 2 }}>{t('pickup_queue.available_title')}</h2>
+          <div style={{ fontSize: 13, color: '#536471', marginBottom: 8 }}>{t('pickup_queue.available_hint')}</div>
+        </div>
+      )}
       {available.map((job) => (
         <div key={job.id} style={card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <strong style={{ fontSize: 14 }}>{job.itemDescription || t('pickup_queue.parcel')}</strong>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b' }}>{job.deliverTo === 'recipient' ? t('pickup_queue.direct_delivery') : t('pickup_queue.to_hub')}</span>
+            <strong style={{ fontSize: 15 }}>{job.itemDescription || t('pickup_queue.parcel')}</strong>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#536471' }}>{job.deliverTo === 'recipient' ? t('pickup_queue.direct_delivery') : t('pickup_queue.to_hub')}</span>
           </div>
           <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
             {job.pickupArea} → {job.deliverTo === 'recipient' ? job.destinationArea : (job.originHubName || t('pickup_queue.default_hub'))}
@@ -208,7 +217,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
           </div>
           {/* Before accepting: the ward only — the exact pin comes after accepting. */}
           {job.pickupWard && <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>{t('pickup_queue.ward_near')}: {job.pickupWard}</div>}
-          {job.distance && <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>📍 {t('pickup_queue.distance')}: {job.distance}</div>}
+          {job.distance && <div style={{ fontSize: 13, color: '#536471', marginTop: 4 }}>{t('pickup_queue.distance')}: {job.distance}</div>}
           <div style={{ marginTop: 10 }}>
             <button style={btn(true)} disabled={busy === job.id}
               onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/claim`), t('pickup_queue.claimed_ok'))}>

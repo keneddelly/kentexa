@@ -219,20 +219,6 @@ export const TOURS = {
         descKey: 'tours.ag_step_work_desc',
       },
       {
-        id: 'pay',
-        target: 'ag-tab-pay',
-        requiresState: { tab: 'pay' },
-        titleKey: 'tours.ag_step_pay_title',
-        descKey: 'tours.ag_step_pay_desc',
-      },
-      {
-        id: 'invoice_input',
-        target: 'ag-invoice-input',
-        requiresState: { tab: 'pay' },
-        titleKey: 'tours.ag_step_invoice_title',
-        descKey: 'tours.ag_step_invoice_desc',
-      },
-      {
         id: 'earnings',
         target: 'ag-tab-earnings',
         requiresState: { tab: 'earnings' },

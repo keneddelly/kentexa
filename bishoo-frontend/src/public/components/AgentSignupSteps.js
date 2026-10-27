@@ -16,7 +16,7 @@ import { pickAccountPlace } from '../../utils/accountPlace';
 //   - the city is pre-filled from the account when it matches the place list;
 //   - asked: place, base point (GPS), vehicle, maximum weight.
 // The server re-checks everything; this only guides.
-const VEHICLES = ['boda', 'car', 'van', 'truck', 'foot'];
+export const VEHICLES = ['boda', 'bajaji', 'bicycle', 'car', 'van', 'truck', 'foot'];
 const card = { background: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' };
 const input = { width: '100%', padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 16, boxSizing: 'border-box', fontFamily: 'inherit' };
 const heading = { fontSize: 14, fontWeight:800, margin: '16px 0 8px', color: '#1e293b' };
@@ -97,7 +97,7 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
       onVerified={() => { setShowIdentity(false); setIdentity((p) => afterIdentitySent(p)); }} />
   );
 
-  if (!identity) return <div data-testid="agent-signup" style={{ ...card, color: '#64748b' }}>⏳</div>;
+  if (!identity) return <div data-testid="agent-signup" style={{ ...card, color: '#64748b' }}>…</div>;
 
   // The one ID screen: only when no ID was sent, or it was rejected.
   if (needsIdentityStep(identity)) {
@@ -129,11 +129,11 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
       <h3 style={heading}>{t('agent_signup.step2_title')}</h3>
       <IntelligentLocationInput label={t('agent_signup.city_label')} value={placeText} onTextChange={setPlaceText}
         onResolved={setPlace} placeholder={t('agent_signup.city_placeholder')} required />
-      {place?.regionName && <div style={{ fontSize: 12, color: '#16a34a', margin: '-6px 0 10px' }}>✔ {place.regionName}</div>}
+      {place?.regionName && <div style={{ fontSize: 12, color: '#16a34a', margin: '-6px 0 10px' }}>{place.regionName}</div>}
       <div style={{ fontSize: 12, color: '#475569', margin: '6px 0 8px' }}>{t('agent_base.explain')}</div>
       <button type="button" data-testid="agent-base-button" onClick={takeBase} disabled={locating}
         style={{ ...primary(true), background: base ? '#ecfdf5' : '#ea580c', color: base ? '#065f46' : '#fff' }}>
-        {locating ? t('pickup_pin.locating') : base ? `✔ ${t('agent_signup.base_taken', { m: Math.round(base.accuracyM || 0) })}` : t('agent_base.button')}
+        {locating ? t('pickup_pin.locating') : base ? t('agent_signup.base_taken', { m: Math.round(base.accuracyM || 0) }) : t('agent_base.button')}
       </button>
 
       <h3 style={heading}>{t('agent_signup.step3_title')}</h3>

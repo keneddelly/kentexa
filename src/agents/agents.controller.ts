@@ -120,6 +120,12 @@ export class AgentsController {
   // user.id -- deliberately not gated by active role, same reasoning as
   // SellerController.getMyProfile: a pending applicant is active as buyer
   // and must still be able to see their own application status.
+  // The agent's day in numbers for the dashboard's "Mapato" (records only).
+  @Get('my-summary')
+  getMySummary(@Request() req) {
+    return this.service.getMySummary(req.user);
+  }
+
   @Get('my-profile')
   async getMyProfile(@Request() req) {
     const profile: any = await this.service.getMyProfile(req.user);
