@@ -125,13 +125,16 @@ export default function FoodOrder({ orderId, onNavigate, isLoggedIn }) {
   const ended = ['rejected', 'cancelled'].includes(order.status);
   const rank = { new: 0, cooking: 1, ready: 2, done: 3 }[order.status] ?? -1;
   const st = (i) => (rank > i || order.status === 'done' ? 'done' : rank === i ? 'now' : 'todo');
-  const lastTitle = order.mode === 'pickup' ? 'Umechukua chakula' : `Umeletewa ${order.placeType === 'room' ? 'chumbani' : 'mezani'}`;
+  const lastTitle = order.mode === 'pickup' ? 'Umechukua chakula'
+    : order.mode === 'delivery' ? 'Umeletewa na wakala' : `Umeletewa ${order.placeType === 'room' ? 'chumbani' : 'mezani'}`;
+  const isDelivery = order.mode === 'delivery';
+  const toPay = Number(order.total || 0) + (isDelivery ? Number(order.deliveryFee || 0) : 0);
   const needsProof = order.paymentMethod === 'lipa_namba' && ['pending', 'rejected'].includes(order.paymentStatus) && !ended;
 
   let sub = null;
   if (order.status === 'new') sub = 'Jikoni wataona oda yako sasa hivi.';
   if (order.status === 'cooking' && order.readyInMinutes) sub = `Jikoni wamesema: tayari baada ya dakika ${order.readyInMinutes}.`;
-  if (order.status === 'ready') sub = order.mode === 'pickup' ? 'Pita hotelini kuchukua.' : `Kinaletwa ${order.place}.`;
+  if (order.status === 'ready') sub = order.mode === 'pickup' ? 'Pita hotelini kuchukua.' : isDelivery ? 'Wakala anakileta. Mlipe ukipokea.' : `Kinaletwa ${order.place}.`;
   if (order.status === 'rejected') sub = order.rejectReason;
 
   return (
@@ -139,7 +142,7 @@ export default function FoodOrder({ orderId, onNavigate, isLoggedIn }) {
       <BackBar onBack={() => onNavigate('back')} title={`Oda ${order.code}`} top={0} />
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
         <section style={{ padding: '20px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 14, color: C.muted }}>{hotel.name} · {order.place}</span>
+          <span style={{ fontSize: 14, color: C.muted }}>{hotel.name} · {isDelivery ? 'Letewa' : order.place}</span>
           <strong data-testid="food-status" style={{ fontSize: 30, lineHeight: 1.15, color: order.status === 'rejected' ? C.red : C.ink }}>{foodStatusTitle(order)}</strong>
           {sub && <span style={{ fontSize: 16 }}>{sub}</span>}
           {order.status === 'cooking' && order.readyInMinutes && <span style={{ fontSize: 13, color: C.muted }}>Muda huu umewekwa na hoteli ilipopokea oda.</span>}
@@ -154,9 +157,24 @@ export default function FoodOrder({ orderId, onNavigate, isLoggedIn }) {
           </ol>
         )}
 
+        {isDelivery && (
+          <section data-testid="food-delivery-box" style={{ margin: '0 16px 12px', padding: 16, borderRadius: 16, border: `1px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.muted }}>Inaletwa</span>
+            <strong style={{ fontSize: 15 }}>{order.deliveryAddress}</strong>
+            <span style={{ fontSize: 14, color: C.muted }}>Usafiri {tzs(order.deliveryFee)} · bei ya KenteXa</span>
+            {order.trackingNumber && (
+              <button type="button" onClick={() => onNavigate(`TrackParcel-${order.trackingNumber}`)}
+                style={{ alignSelf: 'flex-start', height: 40, padding: '0 16px', borderRadius: 20, border: `1px solid ${C.border}`, background: '#fff', color: C.ink,
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Fuatilia wakala · {order.trackingNumber}</button>
+            )}
+            {!order.trackingNumber && order.status === 'cooking' && <span style={{ fontSize: 13, color: C.muted }}>Tunamtafuta wakala wa karibu.</span>}
+          </section>
+        )}
+
         <section data-testid="food-payment" style={{ margin: '0 16px', padding: 16, borderRadius: 16, background: needsProof ? '#f7f9f9' : C.amberSoft, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: C.amber }}>Malipo</span>
-          <strong style={{ fontSize: 26, fontVariantNumeric: 'tabular-nums' }}>{tzs(order.total)}</strong>
+          <strong style={{ fontSize: 26, fontVariantNumeric: 'tabular-nums' }}>{tzs(toPay)}</strong>
+          {isDelivery && <span style={{ fontSize: 13, color: C.muted }}>Chakula {tzs(order.total)} + usafiri {tzs(order.deliveryFee)}</span>}
           <span style={{ fontSize: 14, color: C.muted }}>{foodPaymentLine(order, false)}</span>
           {order.paymentStatus === 'rejected' && order.paymentNote && <span style={{ fontSize: 14, color: C.red }}>{order.paymentNote}</span>}
           {needsProof && (

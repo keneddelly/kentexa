@@ -7,7 +7,9 @@
  *  - how the hotel serves: eat here, pick up; which ways it takes payment: after eating,
  *    cash on pickup (COD); its Lipa Namba; opening hours;
  *  - QR codes for its tables and rooms: printed and put on each table, they open the menu
- *    with that table's number.
+ *    with that table's number;
+ *  - delivery ("Letewa"): where the wakala collects (a place from the search) and on/off.
+ *    The fee is KenteXa's; the customer pays the wakala on delivery.
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
@@ -15,6 +17,7 @@ import BackBar from '../components/BackBar';
 import { PageLoading, Spinner } from '../components/Loading';
 import { tzs, menuLink, FOOD_COLORS as C } from '../../utils/food';
 import { hotelBusinessId, NoHotel } from './HotelKitchen';
+import PlaceSearchField from '../components/PlaceSearchField';
 
 const EMPTY = { id: null, name: '', section: '', price: '', description: '', photoUrl: '' };
 const input = { height: 48, border: `1px solid ${C.border}`, borderRadius: 14, padding: '0 14px', fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box', width: '100%' };
@@ -120,6 +123,7 @@ export default function HotelMenuManager({ businessId: routeBusinessId, activeCo
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState(null); // settings being edited
   const [showQr, setShowQr] = useState(false);
+  const [pickupArea, setPickupArea] = useState(null);
 
   const loadAll = async () => {
     try {
@@ -130,7 +134,7 @@ export default function HotelMenuManager({ businessId: routeBusinessId, activeCo
         dineIn: st ? !!st.dineIn : true, pickup: st ? !!st.pickup : true, payAfterDineIn: st ? !!st.payAfterDineIn : true,
         codPickup: st ? !!st.codPickup : false, tableCount: String(st?.tableCount ?? 0), roomCount: String(st?.roomCount ?? 0),
         openingHours: st?.openingHours || '', lipaNamba: st?.lipaNamba || '', lipaNambaName: st?.lipaNambaName || '',
-        enabled: st ? !!st.enabled : true,
+        enabled: st ? !!st.enabled : true, delivery: !!st?.delivery,
       });
       if (!(i.data || []).length) setEditing({ ...EMPTY });
     } catch (err) { setLoadError(msg(err, 'Imeshindikana kupakia menyu.')); }
@@ -251,8 +255,33 @@ export default function HotelMenuManager({ businessId: routeBusinessId, activeCo
           {row('Chukua mwenyewe', null, 'pickup')}
           {row('Lipa ukimaliza kula', 'Taslimu au Lipa Namba kwa mhudumu', 'payAfterDineIn')}
           {row('Ruhusu lipa ukipokea', 'Mteja analipa akichukua chakula', 'codPickup')}
-          <span style={{ fontSize: 13, color: C.muted }}>Kuletewa na wakala kunakuja hivi karibuni.</span>
         </section>
+
+        {info.deliveryAvailable && (
+          <section data-testid="food-delivery-settings" style={{ margin: '12px 16px 0', padding: 16, borderRadius: 16, border: `1px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <strong style={{ fontSize: 16 }}>Kuletea wateja (Letewa)</strong>
+            <span style={{ fontSize: 14, color: C.muted, lineHeight: 1.4 }}>
+              Wakala wa karibu anachukua chakula hapa na kumletea mteja. Bei ya usafiri inawekwa na KenteXa; mteja anamlipa wakala chakula na usafiri akipokea.
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={labelText}>Wakala achukue chakula wapi</span>
+              {info.settings?.pickupPlace?.label && <strong style={{ fontSize: 15 }}>{info.settings.pickupPlace.label}</strong>}
+              <PlaceSearchField id="food-pickup-place" value={pickupArea} onChange={setPickupArea} placeholder="Mtaa wa hoteli, mfano Sinza" />
+              <button type="button" data-testid="food-pickup-save" disabled={busy || !pickupArea?.placeRef}
+                onClick={() => run(async () => {
+                  const r = await api.patch(`/food/hotel/${businessId}/settings`, { pickupPlace: pickupArea.placeRef });
+                  setInfo(r.data); setPickupArea(null);
+                }, 'Mahali pamehifadhiwa')}
+                style={{ height: 44, borderRadius: 22, border: `1px solid ${C.border}`, background: '#fff', color: C.ink, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Hifadhi mahali
+              </button>
+            </div>
+            {row('Wateja waletewe', info.settings?.pickupPlace ? null : 'Weka mahali kwanza', 'delivery')}
+            {form.delivery && !info.deliveryWorks && (
+              <span role="status" style={{ fontSize: 13, color: C.amber }}>Kwa sasa kuletewa kunapatikana Dar es Salaam tu.</span>
+            )}
+          </section>
+        )}
 
         <section style={{ margin: '12px 16px 0', padding: 16, borderRadius: 16, border: `1px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <strong style={{ fontSize: 16 }}>Malipo na saa za kazi</strong>

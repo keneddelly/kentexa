@@ -53,6 +53,33 @@ export function NoHotel({ onNavigate, title }) {
   );
 }
 
+/** The code the kitchen gives the wakala who comes for a delivery (the engine's handoff code). */
+function HandoffCode({ shipmentId }) {
+  const [state, setState] = useState({ code: null, error: '', busy: false });
+  const get = async () => {
+    setState({ code: null, error: '', busy: true });
+    try {
+      const r = await api.post(`/shipments/${shipmentId}/pickup-task/handoff-code`);
+      setState({ code: r.data?.code || null, error: '', busy: false });
+    } catch (err) {
+      const status = err?.response?.status;
+      setState({ code: null, busy: false,
+        error: status === 409 ? 'Subiri wakala akubali kazi kwanza, kisha omba namba.' : (err?.response?.data?.message || 'Imeshindikana. Jaribu tena.') });
+    }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {state.code && <strong data-testid="kitchen-handoff-code" style={{ fontSize: 30, letterSpacing: 4, fontVariantNumeric: 'tabular-nums' }}>{state.code}</strong>}
+      {state.code && <span style={{ fontSize: 13, color: C.muted }}>Mpe wakala namba hii akichukua chakula. Inadumu dakika 10.</span>}
+      {state.error && <span role="alert" style={{ fontSize: 13, color: C.red }}>{state.error}</span>}
+      <button type="button" onClick={get} disabled={state.busy}
+        style={{ height: 44, borderRadius: 22, border: `1px solid ${C.border}`, background: '#fff', color: C.ink, fontSize: 15, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>
+        {state.code ? 'Namba mpya' : 'Namba ya kumkabidhi wakala'}
+      </button>
+    </div>
+  );
+}
+
 function Ticket({ o, onStep, busy }) {
   const [minutes, setMinutes] = useState(20);
   const [rejecting, setRejecting] = useState(false);
@@ -77,6 +104,21 @@ function Ticket({ o, onStep, busy }) {
         <span style={{ fontSize: 13, fontWeight: 700, color: late ? C.red : C.muted }}>{age}</span>
       </div>
       {(o.items || []).map((i) => <div key={i.itemId} style={{ fontSize: 16, fontWeight: 600 }}>{i.qty} × {i.name}</div>)}
+      {o.mode === 'delivery' && (
+        <div data-testid={`kitchen-delivery-${o.id}`} style={{ fontSize: 14, lineHeight: 1.4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <span><strong>Inaletwa:</strong> {o.deliveryAddress}</span>
+          {o.deliveryPhone && <span style={{ color: C.muted }}>Simu: {o.deliveryPhone}</span>}
+          <span style={{ color: C.muted }}>Usafiri {tzs(o.deliveryFee)}{o.trackingNumber ? ` · ${o.trackingNumber}` : ''}</span>
+        </div>
+      )}
+      {o.mode === 'delivery' && o.deliveryError && !o.trackingNumber && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 12, background: C.amberSoft }}>
+          <span style={{ fontSize: 14, color: C.amber }}>Wakala hajaitwa: {o.deliveryError}</span>
+          <button type="button" data-testid={`kitchen-dispatch-${o.id}`} disabled={busy} onClick={() => onStep(o, 'dispatch')}
+            style={{ height: 44, borderRadius: 22, border: 'none', background: C.blue, color: '#fff', fontSize: 15, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>Mwite wakala tena</button>
+        </div>
+      )}
+      {o.mode === 'delivery' && o.shipmentId && ['cooking', 'ready'].includes(o.status) && <HandoffCode shipmentId={o.shipmentId} />}
       {o.note && <div style={{ fontSize: 14, color: C.amber, background: C.amberSoft, padding: '8px 10px', borderRadius: 10 }}>{o.note}</div>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, color: o.paymentStatus === 'proof_sent' ? C.amber : C.muted, fontWeight: o.paymentStatus === 'proof_sent' ? 700 : 400 }}>
@@ -143,9 +185,12 @@ function Ticket({ o, onStep, busy }) {
       {o.status === 'cooking' && (
         <button type="button" data-testid={`kitchen-ready-${o.id}`} style={btn(C.green)} disabled={busy} onClick={() => onStep(o, 'ready')}>Tayari</button>
       )}
-      {o.status === 'ready' && (
+      {o.status === 'ready' && o.mode === 'delivery' && o.trackingNumber && (
+        <span style={{ fontSize: 14, color: C.muted }}>Wakala anakileta. Oda itakamilika akifikisha kwa mteja.</span>
+      )}
+      {o.status === 'ready' && !(o.mode === 'delivery' && o.trackingNumber) && (
         <button type="button" data-testid={`kitchen-done-${o.id}`} style={btn(C.ink)} disabled={busy} onClick={() => onStep(o, 'done')}>
-          {o.mode === 'pickup' ? 'Amechukua' : `Imefika ${o.placeType === 'room' ? 'chumbani' : 'mezani'}`}
+          {o.mode === 'pickup' ? 'Amechukua' : o.mode === 'delivery' ? 'Tumeleta wenyewe' : `Imefika ${o.placeType === 'room' ? 'chumbani' : 'mezani'}`}
         </button>
       )}
     </article>
