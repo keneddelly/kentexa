@@ -41,6 +41,7 @@ import FoodOrder          from './public/pages/FoodOrder';
 import HotelKitchen       from './public/pages/HotelKitchen';
 import HotelMenuManager   from './public/pages/HotelMenuManager';
 import { parseMenuPath }  from './utils/food';
+import { loadSession as loadPosSession } from './utils/posOffline';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import SellerPayouts     from './public/pages/SellerPayouts';
@@ -180,6 +181,9 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+/** The installed till's address (owner 2026-10-27). */
+const isPosPath = () => { try { return /^\/pos\/?$/.test(window.location.pathname); } catch { return false; } };
+
 function App() {
   const { t, i18n } = useTranslation();
   const roleContext = useRoleContext();
@@ -197,6 +201,19 @@ function App() {
     refreshContext,
     logout: roleLogout,
   } = roleContext;
+  // POS that opens without internet (owner 2026-10-27): /pos on a computer where the till
+  // was used before opens with the products and sales kept there, even when the session
+  // cannot be restored (no internet). Nothing is sent until the account is back online.
+  const [posOfflineBoot, setPosOfflineBoot] = useState(() => isPosPath() && !!loadPosSession()
+    && typeof navigator !== 'undefined' && navigator.onLine === false);
+  useEffect(() => {
+    if (authStatus !== 'restoring' || !isPosPath() || !loadPosSession()) return undefined;
+    const timer = setTimeout(() => setPosOfflineBoot(true), 6000);
+    return () => clearTimeout(timer);
+  }, [authStatus]);
+  useEffect(() => {
+    if (authStatus === 'authenticated' && posOfflineBoot && navigator.onLine !== false) setPosOfflineBoot(false);
+  }, [authStatus, posOfflineBoot]);
   const { showInstallPrompt, showGuide, handleInstall, handleDismiss, closeGuide,
     canInstall, environment } = usePWA();
   const [showPostModal, setShowPostModal] = useState(false);
@@ -246,6 +263,7 @@ function App() {
       // A hotel's menu link or the QR on its table/room (/menu/:businessId?meza=4), owner 2026-10-27.
       const menu = parseMenuPath(window.location.pathname, window.location.search);
       if (menu) return menu.page;
+      if (/^\/pos\/?$/.test(window.location.pathname)) return 'POS';
       // A seller's invitation to a transporter or an office (components/InviteCarrier.js).
       const join = params.get('join');
       if (join === 'transport') return 'BecomeTransportProvider';
@@ -384,6 +402,8 @@ function App() {
     // A hotel's menu / table QR link (/menu/:businessId?meza=4) stays on that menu.
     const menu = parseMenuPath(window.location.pathname, window.location.search);
     if (activeContext?.roleType && menu) { setNavParams(menu.navParams); setPage(menu.page); return; }
+    // The installed till (/pos) stays on the till.
+    if (activeContext?.roleType && /^\/pos\/?$/.test(window.location.pathname)) { setPage('POS'); return; }
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
@@ -505,6 +525,7 @@ function App() {
             // Logged in from a hotel's menu (or its table QR): back to that menu, same table.
             const menu = parseMenuPath(window.location.pathname, window.location.search);
             if (menu) { setNavParams(menu.navParams); setPage(menu.page); return; }
+            if (/^\/pos\/?$/.test(window.location.pathname)) { setPage('POS'); return; }
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
               : sellerCheckout && SELLER_TOKEN.test(sellerCheckout)
@@ -1008,6 +1029,10 @@ function App() {
     changeAppLanguage(i18n, lang);
     setShowLangPicker(false);
   };
+
+  if (posOfflineBoot && (authStatus === 'restoring' || !isLoggedIn)) {
+    return <POS onNavigate={() => {}} offlineBoot />;
+  }
 
   if (authStatus === 'restoring') {
     return <div role="status" style={{ minHeight:'100vh', display:'grid', placeItems:'center', color:'#64748b' }}>Loading…</div>;

@@ -178,3 +178,72 @@ describe('SalesService — Cash on Delivery', () => {
     });
   });
 });
+
+describe('SalesService — POS part 1: offline, split payment, Deni (owner 2026-10-27)', () => {
+  const seller = { id: 1, name: 'Duka Store' } as any;
+  const product = { id: 10, seller, displayPrice: 5_000, sku: 'SKU1', name: 'Sukari', availableInStore: true } as any;
+  function harness(opts: { existing?: any } = {}) {
+    const managerQuery = jest.fn(async () => []);
+    const adjustStock = jest.fn(async () => {});
+    const mockManager: any = {
+      getRepository: (entity: any) => {
+        if (entity.name === 'Product') return { findOne: jest.fn(async () => product) };
+        if (entity.name === 'Sale') return saleRepo;
+        if (entity.name === 'SaleItem') return { create: jest.fn((x) => x) };
+        return {};
+      },
+      query: managerQuery,
+    };
+    const saleRepo: any = { create: jest.fn((x) => x), save: jest.fn(async (x) => ({ ...x, id: 5, items: x.items })), findOne: jest.fn(async () => opts.existing ?? null) };
+    const dataSource: any = {
+      transaction: jest.fn((cb) => cb(mockManager)),
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes('information_schema.columns')) return [{ ok: true }];
+        if (sql.includes('"clientSaleId" = $2')) return opts.existing ? [{ id: opts.existing.id }] : [];
+        return [];
+      }),
+    };
+    const service = new SalesService(saleRepo, {} as any, {} as any, {} as any, { findOne: jest.fn(async () => seller) } as any,
+      dataSource, { adjustStock } as any, { generateReceiptNumber: jest.fn(async () => 'R-1') } as any,
+      { sendSms: jest.fn(async () => true) } as any, { appendInvite: jest.fn(async (m: string) => m) } as any);
+    return { service, saleRepo, managerQuery, adjustStock, dataSource };
+  }
+  const id = '3f2b8c1e-9a4d-4c6b-8e2f-1a2b3c4d5e6f';
+  const base = { channel: SaleChannel.LOCAL_POS, items: [{ productId: 10, quantity: 2 }], paymentMethod: SalePaymentMethod.CASH, amountPaid: 0 };
+
+  it('a split payment: the sum is what was paid and the largest part is the method; all parts are kept', async () => {
+    const h = harness();
+    const sale: any = await h.service.createSale(1, 9, { ...base, clientSaleId: id,
+      payments: [{ method: 'cash', amount: 4000 }, { method: 'mpesa', amount: 6000, reference: 'QK12' }] } as any);
+    expect(sale).toMatchObject({ amountPaid: 10000, paymentMethod: 'mpesa', changeDue: 0 });
+    const update = h.managerQuery.mock.calls.find(([sql]) => String(sql).includes('"clientSaleId" = $2'));
+    expect(update[1]).toEqual([5, id, null, JSON.stringify([
+      { method: 'cash', amount: 4000, reference: null }, { method: 'mpesa', amount: 6000, reference: 'QK12' }]), false]);
+  });
+
+  it('the same offline sale sent twice is recorded once', async () => {
+    const h = harness({ existing: { id: 44, receiptNumber: 'R-44' } });
+    await expect(h.service.createSale(1, 9, { ...base, amountPaid: 10000, clientSaleId: id, soldAt: new Date().toISOString() } as any))
+      .resolves.toMatchObject({ id: 44 });
+    expect(h.saleRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('an offline sale takes stock to zero instead of refusing; an online one does not', async () => {
+    const h = harness();
+    await h.service.createSale(1, 9, { ...base, amountPaid: 10000, clientSaleId: id, soldAt: new Date().toISOString() } as any);
+    expect(h.adjustStock).toHaveBeenCalledWith(10, -2, expect.anything(), expect.objectContaining({ floorAtZero: true }));
+    const online = harness();
+    await online.service.createSale(1, 9, { ...base, amountPaid: 10000 } as any);
+    expect(online.adjustStock).toHaveBeenCalledWith(10, -2, expect.anything(), expect.objectContaining({ floorAtZero: false }));
+  });
+
+  it('Deni: needs the customer, leaves the balance owed, and is not "paid in full"', async () => {
+    const h = harness();
+    await expect(h.service.createSale(1, 9, { ...base, amountPaid: 4000, credit: true } as any)).rejects.toThrow('jina na simu');
+    const sale: any = await h.service.createSale(1, 9, { ...base, amountPaid: 4000, credit: true, customerName: 'Neema', customerPhone: '0712345678' } as any);
+    expect(sale).toMatchObject({ balanceDue: 6000, changeDue: 0, isCod: false });
+    await expect(h.service.createSale(1, 9, { ...base, amountPaid: 10000, credit: true, customerName: 'Neema', customerPhone: '0712345678' } as any))
+      .rejects.toThrow('hakuna deni');
+    await expect(h.service.createSale(1, 9, { ...base, amountPaid: 4000 } as any)).rejects.toThrow(BadRequestException);
+  });
+});

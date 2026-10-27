@@ -1,4 +1,8 @@
 const STATIC_CACHE = 'kentexa-static-v4';
+// The till (/pos) must open without internet (owner 2026-10-27). Only that one page is kept:
+// fetched from the network every time it can be, and the copy is used only when the
+// network fails. No other page is ever served from a cache.
+const POS_SHELL_CACHE = 'kentexa-pos-shell-v1';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -6,7 +10,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys
-        .filter((key) => key.startsWith('kentexa-api-') || (key.startsWith('kentexa-') && key !== STATIC_CACHE))
+        .filter((key) => key.startsWith('kentexa-api-') || (key.startsWith('kentexa-') && key !== STATIC_CACHE && key !== POS_SHELL_CACHE))
         .map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
@@ -27,6 +31,16 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.origin !== self.location.origin) return;
+  if (request.destination === 'document' && /^\/pos\/?$/.test(url.pathname)) {
+    event.respondWith(fetch(request).then((response) => {
+      if (response.ok && response.type === 'basic') {
+        const clone = response.clone();
+        caches.open(POS_SHELL_CACHE).then((cache) => cache.put('/pos', clone));
+      }
+      return response;
+    }).catch(() => caches.open(POS_SHELL_CACHE).then((cache) => cache.match('/pos')).then((cached) => cached || Response.error())));
+    return;
+  }
   // Never serve a stale document or cache a same-origin user image. Only
   // versioned build assets and the published Kentexa icon set are static.
   const isStatic = url.pathname.startsWith('/static/') ||

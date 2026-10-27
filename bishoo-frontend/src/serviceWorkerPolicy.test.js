@@ -85,3 +85,32 @@ test('tapping an alert navigates an open installed app to its exact notification
   expect(focus).toHaveBeenCalledTimes(1);
   expect(openWindow).not.toHaveBeenCalled();
 });
+
+test('the till (/pos) is the one page kept for offline: network first, the copy only when the network fails', async () => {
+  const handlers = {};
+  const stored = {};
+  const cache = { put: jest.fn((k, v) => { stored[k] = v; }), match: jest.fn(async (k) => stored[k] || null) };
+  const fetch = jest.fn();
+  vm.runInNewContext(fs.readFileSync(path.join(process.cwd(), 'public', 'service-worker.js'), 'utf8'), {
+    self: { location: { origin: 'https://kentexa.com' }, addEventListener: (type, handler) => { handlers[type] = handler; } },
+    URL, fetch, Response: { error: () => 'network-error' },
+    caches: { match: jest.fn().mockResolvedValue(null), open: jest.fn().mockResolvedValue(cache) },
+  });
+  const nav = (url) => ({ method: 'GET', url, destination: 'document', headers: { has: () => false } });
+  const page = { ok: true, type: 'basic', clone: () => 'pos-page-copy' };
+  fetch.mockResolvedValueOnce(page);
+  const online = { request: nav('https://kentexa.com/pos'), respondWith: jest.fn() };
+  handlers.fetch(online);
+  await expect(online.respondWith.mock.calls[0][0]).resolves.toBe(page);
+  await new Promise((r) => setTimeout(r, 0));
+  expect(cache.put).toHaveBeenCalledWith('/pos', 'pos-page-copy');
+
+  fetch.mockRejectedValueOnce(new Error('offline'));
+  const offline = { request: nav('https://kentexa.com/pos'), respondWith: jest.fn() };
+  handlers.fetch(offline);
+  await expect(offline.respondWith.mock.calls[0][0]).resolves.toBe('pos-page-copy');
+
+  const other = { request: nav('https://kentexa.com/orders/10'), respondWith: jest.fn() };
+  handlers.fetch(other);
+  expect(other.respondWith).not.toHaveBeenCalled();
+});
