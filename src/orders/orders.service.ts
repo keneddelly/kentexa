@@ -319,12 +319,12 @@ export class OrdersService {
     if ((product as any).productType !== 'digital' && !sellerDelivers) {
       const { methods } = await this.getDeliveryMethods(dto.deliveryAddress || '', dto.productId);
       const wanted = dto.shippingMethod || chosenMethod;
-      const method: any = methods.find((m: any) => m.key === wanted) || (dto.shippingMethod ? null : methods[0]);
-      if (!method) {
-        throw new BadRequestException(dto.shippingMethod
-          ? `Shipping method "${dto.shippingMethod}" is not available for this delivery address`
-          : 'Hakuna usafiri kwenda mahali hapo kwa sasa. Jaribu tena baadaye.');
-      }
+      // Owner 2026-10-25 (repeated 2026-10-27): no transport is never a block. When the way the
+      // checkout asked for is not offered for this address (e.g. no office priced the trip yet),
+      // the order is still placed with what the server does offer for it - where KenteXa has no
+      // transport yet that is "Muuzaji atapanga usafiri" (the seller ships their own way).
+      const method: any = methods.find((m: any) => m.key === wanted) || methods[0];
+      if (!method) throw new BadRequestException('Hakuna usafiri kwenda mahali hapo kwa sasa. Jaribu tena baadaye.');
       chosenMethod = method.key;
       engineFee = Number(method.fee) || 0;
     }
