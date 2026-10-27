@@ -78,5 +78,5 @@ test('the account city is pre-filled, and picked only on an exact match from the
   await act(async () => { render(<AgentSignupSteps currentUser={{ ...user, city: 'Arusha' }} />); });
   expect(api.get).toHaveBeenCalledWith('/location-intelligence/places', { params: { q: 'Arusha', limit: 8 } });
   expect(screen.getByTestId('place')).toHaveAttribute('data-value', 'Arusha');
-  expect(screen.getByText('✔ Arusha')).toBeInTheDocument();      // picked: region shown
+  expect(screen.getByText('Arusha', { selector: 'div' })).toBeInTheDocument();      // picked: region shown
 });

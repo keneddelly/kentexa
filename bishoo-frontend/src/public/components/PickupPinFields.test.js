@@ -47,9 +47,9 @@ test('sender: a weak GPS fix is flagged', async () => {
 test('agent after accepting: "Fungua ramani" with the pin, or "Hakuna pin" without', () => {
   const { rerender } = render(<PickupPoint point={{ hasPin: true, latitude: -6.8155, longitude: 39.2866, accuracyM: 18,
     landmark: 'Geti jeusi', ward: null, mapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=-6.8155,39.2866', note: null }} />);
-  expect(screen.getByText('📍 Fungua ramani').closest('a')).toHaveAttribute('href', 'https://www.google.com/maps/dir/?api=1&destination=-6.8155,39.2866');
+  expect(screen.getByText('Fungua ramani').closest('a')).toHaveAttribute('href', 'https://www.google.com/maps/dir/?api=1&destination=-6.8155,39.2866');
   expect(screen.getByText(/Geti jeusi/)).toBeInTheDocument();
   rerender(<PickupPoint point={{ hasPin: false, landmark: 'Geti jeusi', note: 'Hakuna pin — piga simu kwa mtumaji' }} />);
   expect(screen.getByText('Hakuna pin — piga simu kwa mtumaji')).toBeInTheDocument();
-  expect(screen.queryByText('📍 Fungua ramani')).toBeNull();
+  expect(screen.queryByText('Fungua ramani')).toBeNull();
 });
