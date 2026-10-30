@@ -529,14 +529,30 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   };
 
   const handleShare = async () => {
-    await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
-    setCounts(c => ({ ...c, shares: c.shares + 1 }));
-    if (navigator.share) {
-      navigator.share({ title: post.title, url: window.location.href }).catch(() => {});
-    } else {
-      navigator.clipboard?.writeText(window.location.href).catch(() => {});
-      setShareMsg(t('home_feed.link_copied'));
-      setTimeout(() => setShareMsg(''), 2000);
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    try {
+      let completed = false;
+      if (navigator.share) {
+        await navigator.share({ title: post.title, url: window.location.href });
+        completed = true;
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(window.location.href);
+        completed = true;
+        setShareMsg(t('home_feed.link_copied'));
+        setTimeout(() => setShareMsg(''), 2000);
+      }
+
+      // Do not record a share when no share mechanism exists or the user
+      // dismisses the native share sheet.
+      if (!completed) return;
+      const tracked = await Engagement.track(
+        post.id, entityType, entityId, 'share', true, onNavigate
+      );
+      if (tracked !== null) {
+        setCounts(c => ({ ...c, shares: c.shares + 1 }));
+      }
+    } catch {
+      // A dismissed native share sheet is not a completed share.
     }
   };
 
@@ -550,8 +566,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
   const openComments = () => {
     setShowComments(s => !s);
-    // Track view
-    Engagement.track(post.id, entityType, entityId, 'view', true, onNavigate);
   };
 
   // Navigate to detail page based on type
@@ -607,6 +621,29 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
         </span>
       </div>
 
+      {/* ── Post context: explain why this matters before the visual ── */}
+      {(post.title || post.body) && (
+        <div style={{ padding:'12px 14px 10px' }}>
+          {post.title && (
+            <div style={{ fontSize:15, fontWeight:800, color:DK, lineHeight:1.4, marginBottom:post.body ? 4 : 0 }}>
+              {post.title}
+            </div>
+          )}
+          {post.body && (
+            <div style={{ fontSize:13, color:'#475569', lineHeight:1.55 }}>
+              {post.body.length > 220 ? post.body.slice(0,220) + '…' : post.body}
+            </div>
+          )}
+          <button onClick={openComments}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:9,
+              padding:'7px 11px', borderRadius:999, border:'1px solid #DBEAFE',
+              backgroundColor:'#EFF6FF', color:B, cursor:'pointer',
+              fontSize:12, fontWeight:800 }}>
+            💬 {t('home_feed.ask_question_placeholder')}
+          </button>
+        </div>
+      )}
+
       {/* ── Image ── */}
       {image && (
         <div onClick={goToDetail}
@@ -618,14 +655,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
         </div>
       )}
 
-      {/* Text-only */}
-      {!image && post.body && (
-        <div onClick={goToDetail}
-          style={{ padding:'16px 14px', backgroundColor:'#F8FAFC',
-            fontSize:15, color:DK, lineHeight:1.6, cursor:'pointer', minHeight:60 }}>
-          {post.body}
-        </div>
-      )}
 
       {/* ── Price + primary action ── */}
       {price > 0 && (
@@ -763,17 +792,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
           </div>
         )}
 
-        {/* Caption — product/post title, not the store name again */}
-        {post.title && (
-          <div style={{ fontSize:13, fontWeight:700, color:DK, lineHeight:1.5, marginBottom:4 }}>
-            {post.title}
-          </div>
-        )}
-        {post.body && post.title && (
-          <div style={{ fontSize:12, color:GR, lineHeight:1.4, marginBottom:4 }}>
-            {post.body.slice(0,120)}{post.body.length > 120 ? '...' : ''}
-          </div>
-        )}
 
         {/* Comment count link */}
         {counts.comments > 0 && (
