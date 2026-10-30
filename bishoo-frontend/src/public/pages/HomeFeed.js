@@ -531,15 +531,26 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const handleShare = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     try {
+      let completed = false;
       if (navigator.share) {
         await navigator.share({ title: post.title, url: window.location.href });
+        completed = true;
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(window.location.href);
+        completed = true;
         setShareMsg(t('home_feed.link_copied'));
         setTimeout(() => setShareMsg(''), 2000);
       }
-      await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
-      setCounts(c => ({ ...c, shares: c.shares + 1 }));
+
+      // Do not record a share when no share mechanism exists or the user
+      // dismisses the native share sheet.
+      if (!completed) return;
+      const tracked = await Engagement.track(
+        post.id, entityType, entityId, 'share', true, onNavigate
+      );
+      if (tracked !== null) {
+        setCounts(c => ({ ...c, shares: c.shares + 1 }));
+      }
     } catch {
       // A dismissed native share sheet is not a completed share.
     }
