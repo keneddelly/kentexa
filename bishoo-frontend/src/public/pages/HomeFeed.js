@@ -628,7 +628,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
               padding:'7px 11px', borderRadius:999, border:'1px solid #DBEAFE',
               backgroundColor:'#EFF6FF', color:B, cursor:'pointer',
               fontSize:12, fontWeight:800 }}>
-            💬 {post.type === 'looking_for' ? 'Unaweza kusaidia? Jibu hapa' : 'Una swali au maoni? Shiriki hapa'}
+            💬 {post.type === 'looking_for' ? t('home_feed.have_this_reply_button') : t('home_feed.ask_question_placeholder')}
           </button>
         </div>
       )}
@@ -644,14 +644,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
         </div>
       )}
 
-      {/* Text-only */}
-      {!image && post.body && (
-        <div onClick={goToDetail}
-          style={{ padding:'16px 14px', backgroundColor:'#F8FAFC',
-            fontSize:15, color:DK, lineHeight:1.6, cursor:'pointer', minHeight:60 }}>
-          {post.body}
-        </div>
-      )}
 
       {/* ── Price + primary action ── */}
       {price > 0 && (
