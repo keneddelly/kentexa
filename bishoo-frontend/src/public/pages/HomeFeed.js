@@ -529,14 +529,19 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   };
 
   const handleShare = async () => {
-    await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
-    setCounts(c => ({ ...c, shares: c.shares + 1 }));
-    if (navigator.share) {
-      navigator.share({ title: post.title, url: window.location.href }).catch(() => {});
-    } else {
-      navigator.clipboard?.writeText(window.location.href).catch(() => {});
-      setShareMsg(t('home_feed.link_copied'));
-      setTimeout(() => setShareMsg(''), 2000);
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: post.title, url: window.location.href });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(window.location.href);
+        setShareMsg(t('home_feed.link_copied'));
+        setTimeout(() => setShareMsg(''), 2000);
+      }
+      await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
+      setCounts(c => ({ ...c, shares: c.shares + 1 }));
+    } catch {
+      // A dismissed native share sheet is not a completed share.
     }
   };
 
@@ -550,8 +555,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
   const openComments = () => {
     setShowComments(s => !s);
-    // Track view
-    Engagement.track(post.id, entityType, entityId, 'view', true, onNavigate);
   };
 
   // Navigate to detail page based on type
@@ -606,6 +609,29 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
           {typeInfo.label}
         </span>
       </div>
+
+      {/* ── Post context: explain why this matters before the visual ── */}
+      {(post.title || post.body) && (
+        <div style={{ padding:'12px 14px 10px' }}>
+          {post.title && (
+            <div style={{ fontSize:15, fontWeight:800, color:DK, lineHeight:1.4, marginBottom:post.body ? 4 : 0 }}>
+              {post.title}
+            </div>
+          )}
+          {post.body && (
+            <div style={{ fontSize:13, color:'#475569', lineHeight:1.55 }}>
+              {post.body.length > 220 ? post.body.slice(0,220) + '…' : post.body}
+            </div>
+          )}
+          <button onClick={openComments}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:9,
+              padding:'7px 11px', borderRadius:999, border:'1px solid #DBEAFE',
+              backgroundColor:'#EFF6FF', color:B, cursor:'pointer',
+              fontSize:12, fontWeight:800 }}>
+            💬 {post.type === 'looking_for' ? 'Unaweza kusaidia? Jibu hapa' : 'Una swali au maoni? Shiriki hapa'}
+          </button>
+        </div>
+      )}
 
       {/* ── Image ── */}
       {image && (
@@ -763,17 +789,6 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
           </div>
         )}
 
-        {/* Caption — product/post title, not the store name again */}
-        {post.title && (
-          <div style={{ fontSize:13, fontWeight:700, color:DK, lineHeight:1.5, marginBottom:4 }}>
-            {post.title}
-          </div>
-        )}
-        {post.body && post.title && (
-          <div style={{ fontSize:12, color:GR, lineHeight:1.4, marginBottom:4 }}>
-            {post.body.slice(0,120)}{post.body.length > 120 ? '...' : ''}
-          </div>
-        )}
 
         {/* Comment count link */}
         {counts.comments > 0 && (
