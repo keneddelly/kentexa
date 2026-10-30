@@ -639,7 +639,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
               padding:'7px 11px', borderRadius:999, border:'1px solid #DBEAFE',
               backgroundColor:'#EFF6FF', color:B, cursor:'pointer',
               fontSize:12, fontWeight:800 }}>
-            💬 {post.type === 'looking_for' ? t('home_feed.have_this_reply_button') : t('home_feed.ask_question_placeholder')}
+            💬 {t('home_feed.ask_question_placeholder')}
           </button>
         </div>
       )}
