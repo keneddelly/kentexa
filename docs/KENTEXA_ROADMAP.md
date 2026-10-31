@@ -32,3 +32,10 @@
 ## Open
 
 - Migrations are applied on live by the owner with the guarded script; MIGRATION_RUN_UPTO pins auto-run. New code checks a column or table exists before using it.
+
+
+## Social Engagement Experience
+
+The product discovery and Claude handoff are maintained in [docs/SOCIAL_ENGAGEMENT_ROADMAP.md](SOCIAL_ENGAGEMENT_ROADMAP.md).
+
+**Status:** Discovery/design handoff only; not approved for implementation. Claude's first task is a read-only audit of the existing feed, composer, post formats, Moments, engagement, comments, identity context and analytics. No code, migrations, branch changes or deployment until the product owner approves the designs and technical specification. See `CLAUDE.md` for the mandatory handoff rule.
