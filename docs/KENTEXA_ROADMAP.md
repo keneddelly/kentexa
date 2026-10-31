@@ -39,3 +39,10 @@
 The product discovery and Claude handoff are maintained in [docs/SOCIAL_ENGAGEMENT_ROADMAP.md](SOCIAL_ENGAGEMENT_ROADMAP.md).
 
 **Status:** Discovery/design handoff only; not approved for implementation. Claude's first task is a read-only audit of the existing feed, composer, post formats, Moments, engagement, comments, identity context and analytics. No code, migrations, branch changes or deployment until the product owner approves the designs and technical specification. See `CLAUDE.md` for the mandatory handoff rule.
+
+
+## Experience & Tools Product Architecture
+
+The product-owner decisions and architecture/navigation proposal are maintained in [docs/KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md](KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md).
+
+**Agreed decisions:** all users land on Home after login; operational tools are accessed through a dedicated My Workspace hub. Experience and Tools share identity, permissions and intelligence foundations. Inbox is accessible from both. This is product direction and design/audit handoff only — not implementation authorization. Claude must perform the read-only audit and wait for explicit approval of designs and technical specifications before coding. See the architecture document for boundaries, navigation, business context switching, privacy rules and acceptance criteria.
