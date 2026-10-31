@@ -236,3 +236,8 @@ Before changing the Home Feed, post composer, post formats, Moments, reactions, 
 - `docs/SOCIAL_ENGAGEMENT_ROADMAP.md`
 
 This document is the product-owner handoff for the Social Engagement Experience. It defines the agreed direction, design gates, read-only audit requirements and Claude's first task. **It is not permission to code.** Follow its workflow: audit → findings → design → owner approval → technical specification → owner approval → implementation. Preserve the approved Twitter-style visual language, compact header, inline AI search and Moments. Do not redesign or modify these surfaces without explicit approval.
+
+
+## Experience & Tools architecture — mandatory product handoff
+
+Before changing login landing behavior, primary Experience navigation, My Workspace, tool entry points, business switching, active identity/role context or the boundary between public and operational data, read `docs/KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md` and `docs/KENTEXA_ROADMAP.md`. Product-owner decisions are: login lands on Home for everyone; tools are accessed through a dedicated My Workspace hub; Inbox is accessible from both environments. The architecture document requires a read-only repository audit and explicit product-owner approval of designs and technical specifications before implementation. **It is not permission to code.** Do not modify code, migrations, branches or deployment as part of this handoff without explicit approval.
