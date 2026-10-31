@@ -227,3 +227,12 @@ Every AI-generated recommendation or automated action should itself produce an A
 ## The long-term vision
 
 Kentexa should evolve from a platform that stores transactions into a platform that understands business activity — able to answer: what happened, who was involved, which identity, what led to it, what happened afterward, is this normal, what does it mean, and what should happen next.
+
+
+## Social Engagement Experience — mandatory product handoff
+
+Before changing the Home Feed, post composer, post formats, Moments, reactions, comments, polls, sharing, social discovery or engagement analytics, read:
+
+- `docs/SOCIAL_ENGAGEMENT_ROADMAP.md`
+
+This document is the product-owner handoff for the Social Engagement Experience. It defines the agreed direction, design gates, read-only audit requirements and Claude's first task. **It is not permission to code.** Follow its workflow: audit → findings → design → owner approval → technical specification → owner approval → implementation. Preserve the approved Twitter-style visual language, compact header, inline AI search and Moments. Do not redesign or modify these surfaces without explicit approval.
