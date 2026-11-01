@@ -65,3 +65,14 @@ The professional identity initiative is maintained in [docs/KENTEXA_PROFESSIONAL
 **Product direction:** after basic profile creation, users may select multiple ways to use Kentexa (including professional, service provider, business/organization and personal/community participation), skip and return later. These onboarding choices are not automatic permissions or a replacement for authoritative roles. Missing service categories can be proposed for review; users must still be able to create a professional identity and participate while a category is reviewed.
 
 **Status:** discovery/design handoff only. Claude must audit onboarding, account roles, identity switching, organization authorization, service provider profiles, category taxonomy, service records, discovery and permissions. No implementation authorization.
+
+
+## Hybrid Social Feed Visual Direction
+
+Kentexa's Home Feed should develop its own visual identity: Twitter/X-inspired conversation structure and readable feed density combined with Instagram-inspired visual storytelling and media quality, expressed through Kentexa's own commerce, professional identity and discovery language. This evolves the existing Home Feed rather than replacing it.
+
+Preserve the current foundation—compact header, prominent search, For You/Following/Nearby/Products/Services discovery, Moments, bottom navigation and familiar feed interactions—unless the approved design audit recommends specific changes. Make discussions, professional contributions, business updates, product showcases, service content and demand posts feel native to one coherent feed, with context-specific card treatments and relevant actions.
+
+The full design principles, content-specific treatments, audit checklist and approval gate are documented in [docs/SOCIAL_ENGAGEMENT_ROADMAP.md](SOCIAL_ENGAGEMENT_ROADMAP.md) under **Kentexa Hybrid Social Feed — Visual Direction**.
+
+**Status:** visual direction only; audit and mockups before implementation. No coding or redesign authorization.
