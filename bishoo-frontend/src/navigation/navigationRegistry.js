@@ -3,20 +3,25 @@ const common = {
   home: item('home', 'nav.home', 'home', 'Home'), post: item('post', '', 'add', '__POST__'),
   inbox: item('inbox', 'bottom_nav.inbox', 'inbox', 'SellerInbox'), profile: item('profile', 'nav.profile', 'profile', 'MyProfile'),
 };
-const bottom = (second) => [common.home, second, common.post, common.inbox, common.profile];
+// Kazi (owner 2026-11-01): one bottom bar for every role -- Mwanzo, Tafuta, Tengeneza, Inbox,
+// Kazi. Each role's tools live in Kazi (Workspace); a role's `home` stays its main tool page.
+// Profile opens from the avatar on the Home header and in Kazi.
+const discover = item('discover', 'common.search', 'search', 'Search');
+const workspace = item('workspace', 'bottom_nav.workspace', 'work', 'Workspace');
+const bottom = () => [common.home, discover, common.post, common.inbox, workspace];
 
 export const ACCOUNT_ROLE_TYPES = Object.freeze(['buyer','seller','agent','super_agent','transport_provider','service_provider','customer_care','manager','admin','arbitrator']);
 export const ROLE_NAVIGATION = Object.freeze({
-  buyer: { home: 'Home', items: bottom(item('discover','common.search','search','Search')) },
-  seller: { home: 'SellerDashboard', items: bottom(item('seller.dashboard','bottom_nav.dashboard','dashboard','SellerDashboard')) },
-  agent: { home: 'AgentDashboard', items: bottom(item('agent.dashboard','bottom_nav.dashboard','agent','AgentDashboard')) },
-  super_agent: { home: 'SuperAgentDashboard', items: bottom(item('hub.dashboard','bottom_nav.dashboard','hub','SuperAgentDashboard')) },
-  transport_provider: { home: 'TransportProviderDashboard', items: bottom(item('transport.dashboard','bottom_nav.dashboard','transport','TransportProviderDashboard')) },
-  service_provider: { home: 'MyServices', items: bottom(item('services.mine','bottom_nav.my_services','services','MyServices')) },
-  customer_care: { home: 'Home', items: bottom(item('discover','common.search','search','Search')) },
-  arbitrator: { home: 'Home', items: bottom(item('discover','common.search','search','Search')) },
-  manager: { home: 'Dashboard', items: bottom(item('admin.dashboard','bottom_nav.dashboard','admin','Dashboard')) },
-  admin: { home: 'Dashboard', items: bottom(item('admin.dashboard','bottom_nav.dashboard','admin','Dashboard')) },
+  buyer: { home: 'Home', items: bottom() },
+  seller: { home: 'SellerDashboard', items: bottom() },
+  agent: { home: 'AgentDashboard', items: bottom() },
+  super_agent: { home: 'SuperAgentDashboard', items: bottom() },
+  transport_provider: { home: 'TransportProviderDashboard', items: bottom() },
+  service_provider: { home: 'MyServices', items: bottom() },
+  customer_care: { home: 'Home', items: bottom() },
+  arbitrator: { home: 'Home', items: bottom() },
+  manager: { home: 'Dashboard', items: bottom() },
+  admin: { home: 'Dashboard', items: bottom() },
 });
 
 export const ADMIN_NAVIGATION = Object.freeze([

@@ -80,6 +80,7 @@ import SellerDashboard from './public/pages/SellerDashboard';
 import BusinessDashboard from './public/pages/BusinessDashboard';
 import MyBusinesses from './public/pages/MyBusinesses';
 import BusinessHome from './public/pages/BusinessHome';
+import Workspace from './public/pages/Workspace';
 import BecomeBusinessServiceProvider from './public/pages/BecomeBusinessServiceProvider';
 import BecomeBusinessCapability from './public/pages/BecomeBusinessCapability';
 import ConnectSelling from './public/pages/ConnectSelling';
@@ -940,6 +941,7 @@ function App() {
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'MyBusinesses':      return requireLogin(<MyBusinesses {...publicProps} />);
+      case 'Workspace':         return requireLogin(<Workspace {...publicProps} />);
       case 'ConnectSelling':    return requireLogin(<ConnectSelling {...publicProps} />);
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import BottomNav from './BottomNav';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key) => key }) }));
@@ -12,15 +12,17 @@ const renderNav = (roleType, activeProfile = { type: 'business', sellerProfileId
   return onNavigate;
 };
 
-test('transport context wins over misleading seller presentation metadata', () => {
-  const onNavigate = renderNav('transport_provider');
-  fireEvent.click(screen.getAllByRole('button')[1]);
-  expect(onNavigate).toHaveBeenCalledWith('TransportProviderDashboard');
-});
-test('buyer context wins over brand presentation metadata', () => {
-  const onNavigate = renderNav('buyer', { type: 'brand' });
-  fireEvent.click(screen.getAllByRole('button')[1]);
-  expect(onNavigate).toHaveBeenCalledWith('Search');
+test('one bar for every role (owner 2026-11-01): Mwanzo, Tafuta, +, Inbox, Kazi', () => {
+  for (const role of ['buyer', 'seller', 'transport_provider', 'super_agent', 'agent', 'service_provider']) {
+    const onNavigate = renderNav(role, role === 'buyer' ? { type: 'brand' } : undefined);
+    expect(screen.getByLabelText('nav.home')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('common.search'));
+    expect(onNavigate).toHaveBeenCalledWith('Search');
+    fireEvent.click(screen.getByLabelText('bottom_nav.workspace'));
+    expect(onNavigate).toHaveBeenCalledWith('Workspace');
+    expect(screen.queryByLabelText('nav.profile')).toBeNull();
+    cleanup();
+  }
 });
 
 test('tab icons are line icons, never emoji', () => {

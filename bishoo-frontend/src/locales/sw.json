@@ -630,7 +630,8 @@
     "routes": "Njia",
     "scorecard": "Alama",
     "earnings": "Mapato",
-    "my_services": "Huduma Zangu"
+    "my_services": "Huduma Zangu",
+    "workspace": "Kazi"
   },
   "brand_dashboard": {
     "title": "Dashibodi ya Chapa",
@@ -2663,7 +2664,7 @@
     "bh_step_filters_title": "Chuja mtiririko wako",
     "bh_step_filters_desc": "Telezesha kuona wauzaji unaowafuata, vilivyo karibu, vinavyovuma, au bidhaa, huduma na usafirishaji tu.",
     "bh_step_roles_title": "Uza, safirisha au toa huduma pia",
-    "bh_step_roles_desc": "Akaunti moja, majukumu yote. Gusa Profaili kisha Majukumu wakati wowote kuwa Muuzaji, Wakala, Ofisi au Msafirishaji — huhitaji kuamua sasa.",
+    "bh_step_roles_desc": "Akaunti moja, kazi zote. Gusa Kazi wakati wowote kuwa Muuzaji, Wakala, Ofisi au Msafirishaji, na kufungua zana zako. Huhitaji kuamua sasa.",
     "agent_dashboard_title": "Dashibodi Yako ya Wakala",
     "ag_step_intro_title": "Kazi yako kama Wakala",
     "ag_step_intro_desc": "Unachukua mizigo kwa wauzaji na kuifikisha kwa wateja wa mji wako, kwa usafiri wowote. Tembelea haraka?",

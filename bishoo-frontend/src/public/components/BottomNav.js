@@ -40,6 +40,8 @@ const ICONS = {
   transport: { d: 'M2.5 6.5h11.5v9.5H2.5zM14 9.5h4l3.5 3.5V16H14z', cut: null, wheels: true },
   services:  { d: 'M14.7 6.3a4 4 0 00-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.5 2.5-2.5-2.5z' },
   admin:     { d: 'M12 3l7.5 3v5.2c0 4.6-3.1 8.4-7.5 9.8-4.4-1.4-7.5-5.2-7.5-9.8V6z', cut: 'M8.8 12l2.2 2.2 4.2-4.4' },
+  // Kazi (My Workspace): a briefcase.
+  work:      { d: 'M3.5 8h17v12h-17zM9 8V5h6v3', cut: 'M3.5 13.5h17' },
   dot:       { d: 'M12 14a2 2 0 100-4 2 2 0 000 4z' },
 };
 const boldIcon = (name) => (active) => {
@@ -87,7 +89,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
   const semanticIcon = {
     home: boldIcon('home'), search: boldIcon('search'), inbox: boldIcon('inbox'), dashboard: boldIcon('dashboard'),
     agent: boldIcon('agent'), hub: boldIcon('hub'), transport: boldIcon('transport'),
-    services: boldIcon('services'), admin: boldIcon('admin'),
+    services: boldIcon('services'), admin: boldIcon('admin'), work: boldIcon('work'),
   };
   const rawTabs = itemsForRole(activeContext?.roleType).map(entry => {
     if (entry.destination === '__POST__') return {
@@ -192,7 +194,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
           return (
             <button
               key={tab.key}
-              data-tour={tab.key === 'MyProfile' ? 'bottomnav-profile' : undefined}
+              data-tour={tab.key === 'Workspace' ? 'bottomnav-workspace' : tab.key === 'MyProfile' ? 'bottomnav-profile' : undefined}
               aria-label={isPost ? 'Tengeneza' : tab.label || undefined}
               aria-current={isActive ? 'page' : undefined}
               onClick={() => {

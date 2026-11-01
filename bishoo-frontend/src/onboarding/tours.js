@@ -193,7 +193,7 @@ export const TOURS = {
       },
       {
         id: 'roles',
-        target: 'bottomnav-profile',
+        target: 'bottomnav-workspace',
         titleKey: 'tours.bh_step_roles_title',
         descKey: 'tours.bh_step_roles_desc',
         isFinal: true,

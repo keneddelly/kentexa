@@ -839,7 +839,8 @@
     "routes": "Itinéraires",
     "scorecard": "Bilan",
     "earnings": "Revenus",
-    "my_services": "Mes Services"
+    "my_services": "Mes Services",
+    "workspace": "Espace de travail"
   },
   "brand_dashboard": {
     "title": "Tableau de Bord de la Marque",
@@ -2872,7 +2873,7 @@
     "bh_step_filters_title": "Filtrez votre fil",
     "bh_step_filters_desc": "Glissez pour voir les vendeurs que vous suivez, ce qui est à proximité, les tendances, ou juste les produits, services et transport.",
     "bh_step_roles_title": "Vendez, livrez ou proposez des services aussi",
-    "bh_step_roles_desc": "Un seul compte, tous les rôles. Appuyez sur Profil puis Rôles à tout moment pour devenir Vendeur, Agent, Super Agent ou Transporteur — pas besoin de décider maintenant.",
+    "bh_step_roles_desc": "Un seul compte, tous les rôles. Appuyez sur Kazi à tout moment pour devenir Vendeur, Agent, Bureau ou Transporteur, et ouvrir vos outils. Pas besoin de décider maintenant.",
     "agent_dashboard_title": "Votre tableau de bord Agent",
     "ag_step_intro_title": "Votre travail d’agent",
     "ag_step_intro_desc": "Vous récupérez les colis chez les vendeurs et les livrez aux clients de votre ville, avec n’importe quel véhicule. Petite visite ?",
