@@ -22,7 +22,8 @@ test('tabs are by job: to send, on the way, arrived, problem', () => {
   expect(tabOf({ status: 'preparing', source: 'online' })).toBe('send');            // proof still to add
   expect(tabOf({ status: 'preparing', source: 'online', trackingNumber: 'X' })).toBe('way');
   expect(nextStep(ORDERS[0])).toMatchObject({ label: 'Imelipwa. Itume', action: 'engine' });
-  expect(nextStep({ status: 'paid', source: 'online', shippingMethod: 'boda' })).toMatchObject({ action: 'modal' });
+  expect(nextStep({ status: 'paid', source: 'online', shippingMethod: 'boda' })).toMatchObject({ action: 'engine' });
+  expect(nextStep({ status: 'paid', source: 'online', shippingMethod: 'bus' })).toMatchObject({ action: 'modal' });
   expect(nextStep({ status: 'pending_payment', paymentMethod: 'lipa_namba', paymentStatus: 'pending' })).toMatchObject({ action: 'lipa' });
   expect(nextStep(ORDERS[2]).label).toBe('Limekamilika');
 });

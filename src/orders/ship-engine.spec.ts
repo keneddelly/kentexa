@@ -42,10 +42,15 @@ describe('OrdersService.shipWithEngine', () => {
     ]);
   });
 
-  it('refused: another seller\'s order, unpaid, pay-on-delivery still owed, another person\'s or used Shipment, already shipped', async () => {
+  it('pay on delivery goes through the engine too: the agent collects at the door (owner 2026-11-01)', async () => {
+    const t = build(order({ codRemainingBalance: 50000 }));
+    await t.svc.shipWithEngine(9, seller, 7, { shipmentId: 88, confirm: {} });
+    expect(t.raw.shipmentActivation.confirmAndActivate).toHaveBeenCalledWith(7, 88, {});
+  });
+
+  it('refused: another seller\'s order, unpaid, another person\'s or used Shipment, already shipped', async () => {
     await expect(build(order({ seller: { id: 6 } })).svc.shipWithEngine(9, seller, 7, { shipmentId: 88 })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(build(order({ status: 'pending_payment' })).svc.shipWithEngine(9, seller, 7, { shipmentId: 88 })).rejects.toThrow('Order must be paid');
-    await expect(build(order({ codRemainingBalance: 50000 })).svc.shipWithEngine(9, seller, 7, { shipmentId: 88 })).rejects.toThrow(/kulipa ukipokea/);
     await expect(build(order(), { id: 88, requestedByUserId: 8, status: 'pending', orderId: null }).svc.shipWithEngine(9, seller, 7, { shipmentId: 88 }))
       .rejects.toBeInstanceOf(NotFoundException);
     await expect(build(order(), { id: 88, requestedByUserId: 7, status: 'confirmed', orderId: null }).svc.shipWithEngine(9, seller, 7, { shipmentId: 88 }))
