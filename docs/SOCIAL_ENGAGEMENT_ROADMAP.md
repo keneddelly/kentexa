@@ -4,14 +4,14 @@
 **Owner:** Kentexa product owner  
 **Design/specification lead:** ChatGPT  
 **Implementation lead:** Claude  
-**Last updated:** 2026-10-31  
+**Last updated:** 2026-11-01  
 **Reference branch for this handoff:** `worktree-service-provider-profiles`
 
 > This document is the durable handoff for the Social Engagement Experience initiative. It records the agreed direction and the work Claude must do before proposing implementation. It is not permission to start coding.
 
 ## 1. Product objective
 
-Build a social experience that gives people meaningful reasons to publish, respond, participate, return, discover identities and conduct commerce. Success is not measured by likes alone.
+Build a social experience that gives people meaningful reasons to publish, respond, participate, return, discover identities, express needs, connect with relevant supply and conduct commerce. The Home Feed should support natural social participation while helping demand and supply discover one another. Success is not measured by likes alone.
 
 Kentexa's product philosophy in `CLAUDE.md` remains authoritative:
 
@@ -71,6 +71,7 @@ The initiative covers these connected surfaces:
 12. Author-facing post insights and engagement analytics.
 13. Feed discovery/ranking and content relevance.
 14. Accessibility, mobile responsiveness, localization and performance.
+15. Demand expression, intent understanding and relevant opportunity discovery.
 
 ## 5. Candidate post formats
 
@@ -83,7 +84,7 @@ These are proposed formats to evaluate against existing functionality. Do not cr
 | Poll | Collect structured opinions | Vote, view results, discuss |
 | Showcase | Present an identity, product, service or work | Like, comment, repost, enquire, view details, save |
 | Offer | Communicate a promotion or special offer | View offer, enquire, claim if supported, share |
-| Looking for | Express demand and request recommendations | Recommend, respond, contact |
+| Looking for | Express demand and request recommendations | Recommend, respond, contact, receive relevant offers where permitted |
 | Business update | Keep an identity active and informed | Follow, comment, enquire, message |
 
 A post's **content type**, **engagement mechanics**, and **business outcome/action** are separate concepts. For example, a showcase can allow comments and saves while also linking to a product. A poll is a participation mechanic and must not be treated as a product listing.
@@ -120,7 +121,42 @@ Evaluate the full journey, not just likes:
 
 Define event names, deduplication, attribution windows, privacy, authorization and data retention only after auditing the existing event/analytics infrastructure. Do not introduce a second competing event system. Follow the centralized activity/event principles in `CLAUDE.md`.
 
-## 8. Required audit before design is finalized
+## 8. Demand Intelligence & Opportunity Discovery
+
+**Strategic pillar:** Kentexa Home Feed should become a social discovery environment where everyday participation can reveal genuine demand and help relevant supply find it. It is not a conventional marketplace search replacement and must not turn every conversation into a sales lead.
+
+A user may express demand naturally in a Moment, general post, question or dedicated Looking for format. Examples include “looking for a spy camera”, “Natafuta laptop”, “nahitaji fundi wa umeme” or “nina mzigo wa kusafirisha kwenda Mwanza”. The Bakar Darous Moment (“spy camera”) is a concrete product example: a short natural post can signal demand without the user completing a formal product search or listing request.
+
+### Intended journey
+
+1. **Natural expression:** user publishes a post/Moment or Looking for request in their own words.
+2. **Intent understanding:** Kentexa may identify a possible product, service, recommendation or logistics need, with confidence and uncertainty handled explicitly.
+3. **Relevant discovery:** eligible businesses/service providers may discover opportunities that match their capabilities, geography and permissions.
+4. **Respectful connection:** the author can receive recommendations or responses through approved interaction and messaging paths, subject to visibility and contact preferences.
+5. **Commerce handoff:** where both parties choose, the conversation can lead to authoritative product/service details, an order, booking or logistics workflow.
+
+### Product principles
+
+- Natural posts and Moments remain first-class; do not force users into forms or a rigid request template.
+- A structured Looking for format may be offered as an optional enhancement, not a requirement for expressing demand.
+- Separate **content format**, **detected intent**, **eligible audience**, **engagement action** and **business outcome**. Do not overload the post type field with AI classifications.
+- AI intent recognition is assistive and probabilistic. It must not silently edit, reclassify, publish, expose or route a user's post in ways that contradict their selected visibility and contact preferences.
+- Do not assume every mention of a product is a purchase request. Questions, jokes, discussions, research and casual references must not automatically become sales leads.
+- Give authors understandable controls over whether a post can be used for relevant business discovery or direct responses. Respect audience settings, blocking, reporting and moderation.
+- Avoid exposing sensitive personal details or precise location unnecessarily. Match only on information the author has chosen to share and business capabilities the provider is authorized to advertise.
+- Do not enable unsolicited bulk outreach, scrape posts into external lead lists or reveal private demand signals to businesses.
+- Prefer relevant, limited opportunities over flooding businesses with every possible match. Provide explanation and feedback mechanisms where recommendations are surfaced.
+- AI may suggest relevant categories or clarify intent, but the user remains in control and domain systems remain authoritative for products, services, availability, pricing, payments, orders and logistics.
+
+### Supply-side experience
+
+Relevant businesses should have an appropriate way to discover and respond to opportunities without turning the public feed into an advertising wall. The exact surface (for example a filtered opportunity view in Workspace, a contextual notification or an approved feed interaction) must be designed after auditing existing roles, inbox, notification and business capabilities. Do not assume a new dashboard or lead-management module is approved.
+
+### Measurement
+
+Measure the complete, privacy-respecting journey: eligible demand posts, intent-detection quality, relevant matches, provider response rate, author-initiated or author-approved conversations, useful recommendations, enquiries, bookings/orders where attributable, and repeat participation. Track false positives, unwanted contact, hides/reports and author opt-outs as quality and safety metrics. Do not optimize solely for lead volume or conversion.
+
+## 9. Required audit before design is finalized
 
 Claude: perform a read-only audit first. Do not edit files, run migrations, change schemas or alter deployed branches during this audit.
 
@@ -159,7 +195,7 @@ Inspect and report:
 
 Do not infer backend behavior from frontend UI alone. Verify code and tests. If something cannot be verified, mark it unknown.
 
-## 9. Design deliverables required before implementation
+## 10. Design deliverables required before implementation
 
 Prepare and review these in order:
 
@@ -176,19 +212,21 @@ Prepare and review these in order:
 
 The product owner must approve the designs and technical scope before Claude begins implementation.
 
-## 10. Suggested delivery phases (not implementation authorization)
+## 11. Suggested delivery phases (not implementation authorization)
 
 - **Discovery:** read-only audit and current-state map.
 - **Design foundation:** user journeys, feed and composer experience.
 - **Core interaction:** unify and refine existing reactions, comments, replies, reposts/shares, saves and follow paths where needed.
 - **Participation formats:** question/discussion and polls, only after domain and UX approval.
+- **Demand discovery foundation:** audit existing post/Moment and search capabilities; define author controls, intent taxonomy, privacy boundaries and quality measures before proposing matching.
 - **Commerce-connected content:** showcase, offer, recommendation and enquiry flows, reusing authoritative product/service/business records.
+- **Demand-to-supply connection:** prototype relevant opportunity discovery and respectful response flows only after the demand model, permissions and owner-approved UX are defined.
 - **Intelligence and analytics:** meaningful performance insights and optional AI suggestions after reliable event definitions exist.
 - **Optimization:** accessibility, mobile performance, feed relevance, abuse prevention and measured iteration.
 
 Phase boundaries and order may change after the audit. Do not create speculative migrations or build all formats at once.
 
-## 11. Non-negotiable safeguards for Claude
+## 12. Non-negotiable safeguards for Claude
 
 - Do not redesign the Home Feed or replace its approved visual language without explicit owner approval.
 - Do not remove Moments.
@@ -198,12 +236,16 @@ Phase boundaries and order may change after the audit. Do not create speculative
 - Do not create new post, reaction, comment, identity or analytics systems before checking existing ones.
 - Do not weaken authorization or bypass active identity/profile context.
 - Do not let AI decide authoritative product, payment, order, shipment, role or permission state.
+- Do not treat every product/service mention as purchase intent or automatically convert ordinary posts into sales leads.
+- Do not expose private posts, hidden demand signals, precise location or contact details to businesses.
+- Do not enable unsolicited bulk outreach or external lead harvesting from feed content.
+- Do not automatically publish, edit, reclassify or route a user's content based on inferred intent.
 - Do not fabricate engagement or use dark patterns.
 - Do not touch unrelated logistics, POS, inbox, payments, deployment configuration or production data as part of this initiative.
 - Do not merge or deploy without the owner's explicit approval.
 
-## 12. First handoff instruction to Claude
+## 13. First handoff instruction to Claude
 
-Start with a read-only repository audit of the Social Engagement Experience described here. Read `CLAUDE.md`, `docs/KENTEXA_ROADMAP.md`, and this document. Confirm the current branch and working tree before inspecting. Map the existing frontend and backend implementation with exact file paths and API/data relationships. Return the audit report and a prioritized list of product decisions and mockups needed.
+Start with a read-only repository audit of the Social Engagement Experience described here. Read `CLAUDE.md`, `docs/KENTEXA_ROADMAP.md`, and this document. Confirm the current branch and working tree before inspecting. Map the existing frontend and backend implementation with exact file paths and API/data relationships. Include a read-only audit of existing demand/request/search capabilities, post and Moment visibility controls, business discovery, messaging permissions, notification infrastructure and any existing intent/matching logic. Distinguish verified capabilities from hypotheses. Return the audit report and a prioritized list of product decisions and mockups needed.
 
 **Do not code, edit files, create migrations, change branches, open implementation PRs, or deploy. Wait for product-owner approval after presenting the audit.**
