@@ -1,7 +1,7 @@
 # Kentexa Experience & Tools Architecture
 
 **Status:** Product direction agreed; proposal for audit and design. Not implementation authorization.
-**Last updated:** 2026-10-31
+**Last updated:** 2026-11-01
 **Branch:** `worktree-service-provider-profiles`
 
 ## Owner decisions
@@ -163,3 +163,12 @@ Deliver exact file paths, current-state maps, capability matrix, APIs/entities, 
 Read this document with `CLAUDE.md`, `docs/KENTEXA_ROADMAP.md` and `docs/SOCIAL_ENGAGEMENT_ROADMAP.md` before changing Experience navigation, workspace/tool entry or identity context. Confirm branch and working tree, then perform the read-only audit above and return exact paths, current behavior, API/domain relationships, risks and recommendations.
 
 **Do not code, edit files, create migrations, change branches, open implementation PRs or deploy until the product owner has reviewed and explicitly approved designs and technical specifications.**
+
+
+## 15. Home Feed as demand-and-supply discovery
+
+The Home Feed is not only a social engagement surface. Natural participation can reveal genuine demand and create opportunities for relevant businesses and service providers to connect with people. A short Moment such as “spy camera” may express a need without a formal marketplace search. This is a strategic extension of the Experience layer and is specified in `docs/SOCIAL_ENGAGEMENT_ROADMAP.md` under **Demand Intelligence & Opportunity Discovery**.
+
+The Experience remains the place where users express needs in their own words. The shared Identity & Intelligence foundation may assist with intent understanding and relevance, subject to the author's visibility and contact preferences. Tools may provide an appropriate, permission-aware place for eligible businesses to discover and respond to opportunities. The exact supply-side surface requires audit and product approval; it is not authorization to build a lead dashboard.
+
+Non-negotiable boundaries: ordinary product mentions are not automatically purchase intent; inferred intent is probabilistic; private posts and hidden demand signals must not be exposed; no unsolicited bulk outreach or external lead harvesting; no automatic content editing or publication. The author controls visibility and contact preferences. Product, service, availability, pricing, order, payment and logistics truth remains with the relevant domain systems.
