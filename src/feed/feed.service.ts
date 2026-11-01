@@ -11,7 +11,9 @@ import {
   FeedItemType,
   MomentIntent,
   MomentStatus,
+  MomentVisibility,
 } from '../business/entities/business-feed-item.entity';
+import { assertPublishInput } from './publish-input';
 import {
   PostEngagement,
   EngagementType,
@@ -36,7 +38,7 @@ import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 import { SearchIndexService } from '../search/search-index.service';
-import { NOT_FROM_HIDDEN_PROFILE } from '../commerce-profiles/public-visibility';
+import { NOT_FROM_HIDDEN_PROFILE, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
 
 export type FeedFilter =
   | 'for_you'
@@ -129,6 +131,8 @@ export class FeedService {
     },
     roleContext?: RoleContext,
   ): Promise<BusinessFeedItem> {
+    // Phase A: a publish body is checked before anything is saved (was `dto: any`, unchecked).
+    assertPublishInput(dto);
     const intent =
       (dto.intent as MomentIntent) || deriveIntent(dto.type as FeedItemType);
 
@@ -245,7 +249,8 @@ export class FeedService {
     // Moments are first-class discovery documents. Index the human text so
     // Kentexa AI/semantic search can retrieve what people and businesses are
     // saying now, not only permanent listings and profiles.
-    this.searchIndex.upsert(
+    // Only public posts become search documents (phase A: followers-only stays out of search).
+    if (!item.visibility || item.visibility === MomentVisibility.PUBLIC) this.searchIndex.upsert(
       'moment',
       item.id,
       [item.title, item.body, item.category, item.locationLabel, item.intent].filter(Boolean).join(' \n '),
@@ -440,6 +445,7 @@ export class FeedService {
       .leftJoinAndSelect('f.business', 'b')
       .where('f.type IN (:...types)', { types: ['moment', 'looking_for'] })
       .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 }) // followers-only posts: author and followers only
       .andWhere('f.isActive = true')
       .andWhere('f.createdAt > :since', { since })
       .orderBy('f.createdAt', 'DESC')
@@ -605,6 +611,7 @@ export class FeedService {
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
           .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+          .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
           .andWhere('f.createdAt > :cutoff', { cutoff: cutoff7d })
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
           .orderBy('f.cvsScore', 'DESC')
@@ -631,6 +638,7 @@ export class FeedService {
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
           .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+          .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
         // Following someone's Business profile (or a legacy account-level
         // follow) surfaces everything under that businessId; following any
@@ -752,6 +760,7 @@ export class FeedService {
                 .leftJoinAndSelect('f.business', 'b')
                 .where('f.isActive = true')
                 .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+                .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
                 .andWhere(
                   new Brackets((sub) => {
                     if (forYouFollowed.businessScopedIds.length > 0) {
@@ -775,6 +784,7 @@ export class FeedService {
             .leftJoinAndSelect('f.business', 'b')
             .where('f.isActive = true')
             .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+            .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
             .andWhere('f.createdAt > :cutoff', { cutoff: cutoff7d })
             .orderBy('f.cvsScore', 'DESC')
             .take(5)
@@ -879,6 +889,7 @@ export class FeedService {
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
           .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+          .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: 0 }) // followers-only posts: author and followers only
           .andWhere('f.createdAt > :cutoff', {
             cutoff: new Date(Date.now() - 6 * 60 * 60 * 1000),
           })
@@ -1054,6 +1065,7 @@ export class FeedService {
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
           .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+          .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
         qb.andWhere(
           new Brackets((sub) => {
@@ -1118,11 +1130,15 @@ export class FeedService {
   async getBusinessFeed(
     sellerId: number,
     commerceProfileId?: number,
+    viewerId?: number | null,
   ): Promise<BusinessFeedItem[]> {
-    const items = await this.feedRepo.find({
-      where: commerceProfileId
-        ? { businessId: sellerId, isActive: true, commerceProfileId }
-        : { businessId: sellerId, isActive: true },
+    // Followers-only posts show on the profile only to its author and followers (phase A).
+    const qb = this.feedRepo.createQueryBuilder('f')
+      .where('f."businessId" = :sellerId', { sellerId })
+      .andWhere('f.isActive = true')
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 });
+    if (commerceProfileId) qb.andWhere('f."commerceProfileId" = :commerceProfileId', { commerceProfileId });
+    const items = await qb
       // A profile's own Posts tab is a chronological timeline of what THIS
       // identity has shared — like any social app's own-profile grid — not
       // an algorithmically-ranked discovery surface. Sorting by cvsScore
@@ -1130,9 +1146,9 @@ export class FeedService {
       // post with accumulated engagement above a brand-new one with none,
       // which read as "new posts sink to the bottom" from the profile
       // owner's own page.
-      order: { createdAt: 'DESC' },
-      take: 20,
-    });
+      .orderBy('f.createdAt', 'DESC')
+      .take(20)
+      .getMany();
     // Strips the old burned-in price+category banner from any Moment
     // created before that overlay was removed — read-time only, no data
     // migration, see strip-legacy-overlay.util.ts.

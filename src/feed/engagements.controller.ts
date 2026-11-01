@@ -59,6 +59,7 @@ import {
 } from './comment-support.service';
 import { AiService } from '../ai/ai.service';
 import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
+import { moderateCommentBody } from './comment-moderation';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
@@ -715,38 +716,8 @@ export class CommentsController {
           )
         : PurchaseVerification.NONE;
 
-    // NEW — Kentexa AI moderation. Fails open: comment creation must never
-    // hard-depend on Anthropic's uptime.
-    let moderationFlag: 'clean' | 'flagged' | 'blocked' | null = null;
-    let moderationReason: string | null = null;
-    if (dto.body?.trim()) {
-      try {
-        const template = this.aiPrompts.moderationPrompt();
-        const result = await this.aiService.generate<{
-          verdict: 'clean' | 'flagged' | 'blocked';
-          reason: string;
-        }>({
-          task: 'moderation',
-          prompt: dto.body.trim(),
-          system: template.system,
-          schema: template.schema,
-          schemaName: template.schemaName,
-        });
-        const verdict = result.data;
-        moderationFlag = verdict.verdict;
-        moderationReason = verdict.verdict === 'clean' ? null : verdict.reason;
-        if (verdict.verdict === 'blocked') {
-          throw new BadRequestException(
-            'This comment could not be posted: ' + verdict.reason,
-          );
-        }
-      } catch (err) {
-        if (err instanceof BadRequestException) throw err;
-        // AI unavailable/errored — fail open, don't block the comment.
-        moderationFlag = null;
-        moderationReason = null;
-      }
-    }
+    // Kentexa AI moderation: the one shared check (comment-moderation.ts). Fails open.
+    const { moderationFlag, moderationReason } = await moderateCommentBody(this.aiService, this.aiPrompts, dto.body);
 
     const comment = await this.commentRepo.save(
       this.commentRepo.create({

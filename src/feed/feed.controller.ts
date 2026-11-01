@@ -73,14 +73,17 @@ export class FeedController {
   }
 
   // ── Business feed ─────────────────────────────────────────────────────────
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('business/:id')
   getBusinessFeed(
     @Param('id', ParseIntPipe) id: number,
     @Query('commerceProfileId') commerceProfileId?: string,
+    @Request() req?,
   ) {
     return this.svc.getBusinessFeed(
       id,
       commerceProfileId ? Number(commerceProfileId) : undefined,
+      req?.user?.id || null,
     );
   }
 
@@ -112,9 +115,10 @@ export class FeedController {
   }
 
   // ── Comments ──────────────────────────────────────────────────────────────
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id/comments')
-  getComments(@Param('id', ParseIntPipe) id: number) {
-    return this.cvs.getComments(id);
+  getComments(@Param('id', ParseIntPipe) id: number, @Request() req?) {
+    return this.cvs.getComments(id, req?.user?.id || null);
   }
 
   @Post(':id/comments')

@@ -44,6 +44,7 @@ describe('I2B — Moment publish derives the actor from the server-resolved cont
     svc.logger = { warn: jest.fn() };
     svc.notifyFollowers = jest.fn().mockResolvedValue(undefined);
     svc.matchNeedToSellers = jest.fn().mockResolvedValue(undefined);
+    svc.searchIndex = { upsert: jest.fn().mockResolvedValue(undefined) };
     return { svc: svc as FeedService, saved, scope: svc.profileScope };
   };
   const dto = { type: 'moment', title: 'Hello' } as any;
@@ -116,11 +117,21 @@ describe('I2B — Moment publish derives the actor from the server-resolved cont
 describe('profile Moment timeline', () => {
   it('queries only Moments stamped with that profile, excluding untagged legacy rows', async () => {
     const svc: any = Object.create(FeedService.prototype);
-    svc.feedRepo = { find: jest.fn().mockResolvedValue([]) };
-    await svc.getBusinessFeed(200, 70);
-    expect(svc.feedRepo.find).toHaveBeenCalledWith(expect.objectContaining({
-      where: { businessId: 200, isActive: true, commerceProfileId: 70 },
-    }));
+    const calls: Array<[string, any?]> = [];
+    const qb: any = {
+      where: (c: string, p?: any) => { calls.push([c, p]); return qb; },
+      andWhere: (c: string, p?: any) => { calls.push([c, p]); return qb; },
+      orderBy: () => qb, take: () => qb, getMany: jest.fn().mockResolvedValue([]),
+    };
+    svc.feedRepo = { createQueryBuilder: jest.fn(() => qb) };
+    await svc.getBusinessFeed(200, 70, 5);
+    expect(calls).toEqual(expect.arrayContaining([
+      ['f."businessId" = :sellerId', { sellerId: 200 }],
+      ['f.isActive = true', undefined],
+      ['f."commerceProfileId" = :commerceProfileId', { commerceProfileId: 70 }],
+    ]));
+    // Phase A: followers-only posts only for the author and followers (VISIBLE_TO_VIEWER).
+    expect(calls.some(([c, p]) => c.includes("visibility = 'public'") && p?.feedViewerId === 5)).toBe(true);
   });
 });
 
