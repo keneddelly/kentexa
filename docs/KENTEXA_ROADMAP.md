@@ -56,3 +56,12 @@ The Social Engagement roadmap now includes demand expression and demand-to-suppl
 ## Smart Post System
 
 The Smart Post System product specification and read-only audit handoff are maintained in [docs/KENTEXA_SMART_POST_SYSTEM.md](KENTEXA_SMART_POST_SYSTEM.md). It extends existing Moments/feed infrastructure with participation-first creation and optional contextual AI suggestions. **Current instruction: audit only; no implementation authorization.** Claude must verify the existing composer, post formats, poll/vote support, media pipeline, identity/visibility enforcement, AI, notifications, analytics and tests before proposing implementation.
+
+
+## Professional Identity & Service Discovery
+
+The professional identity initiative is maintained in [docs/KENTEXA_PROFESSIONAL_IDENTITY_SERVICE_DISCOVERY.md](KENTEXA_PROFESSIONAL_IDENTITY_SERVICE_DISCOVERY.md). It connects professional participation and preserved personal/organization brands to Kentexa's existing Services domain, including broader service-category coverage and a governed process for suggesting missing categories.
+
+**Product direction:** after basic profile creation, users may select multiple ways to use Kentexa (including professional, service provider, business/organization and personal/community participation), skip and return later. These onboarding choices are not automatic permissions or a replacement for authoritative roles. Missing service categories can be proposed for review; users must still be able to create a professional identity and participate while a category is reviewed.
+
+**Status:** discovery/design handoff only. Claude must audit onboarding, account roles, identity switching, organization authorization, service provider profiles, category taxonomy, service records, discovery and permissions. No implementation authorization.
