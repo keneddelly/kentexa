@@ -51,3 +51,8 @@ The product-owner decisions and architecture/navigation proposal are maintained 
 ### Demand Intelligence & Opportunity Discovery
 
 The Social Engagement roadmap now includes demand expression and demand-to-supply discovery as a strategic Home Feed pillar. Natural posts and Moments can express needs; intent understanding and relevant business discovery must respect author visibility, contact preferences and privacy. See the **Demand Intelligence & Opportunity Discovery** section in [docs/SOCIAL_ENGAGEMENT_ROADMAP.md](SOCIAL_ENGAGEMENT_ROADMAP.md) and its connection to the Experience/Tools boundary in [docs/KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md](KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md). This is discovery/design scope, not implementation authorization.
+
+
+## Smart Post System
+
+The Smart Post System product specification and read-only audit handoff are maintained in [docs/KENTEXA_SMART_POST_SYSTEM.md](KENTEXA_SMART_POST_SYSTEM.md). It extends existing Moments/feed infrastructure with participation-first creation and optional contextual AI suggestions. **Current instruction: audit only; no implementation authorization.** Claude must verify the existing composer, post formats, poll/vote support, media pipeline, identity/visibility enforcement, AI, notifications, analytics and tests before proposing implementation.
