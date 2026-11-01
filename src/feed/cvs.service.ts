@@ -5,9 +5,9 @@
  * Computes and updates CVS whenever a commerce action fires.
  * CVS = Purchases×10 + Shipments×8 + Saves×3 + Comments×2 + Shares×1 + Views×0.5
  */
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In } from 'typeorm';
+import { Repository, IsNull, In, Brackets } from 'typeorm';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 import {
   PostEngagement,
@@ -48,7 +48,10 @@ import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
-import { NOT_FROM_HIDDEN_PROFILE } from '../commerce-profiles/public-visibility';
+import { NOT_FROM_HIDDEN_PROFILE, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
+import { moderateCommentBody } from './comment-moderation';
+import { AiService } from '../ai/ai.service';
+import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
 
 @Injectable()
 export class CvsService {
@@ -76,7 +79,21 @@ export class CvsService {
     private readonly purchaseVerification: PurchaseVerificationService,
     private readonly commerceProfiles: CommerceProfilesService,
     private readonly activityEvents: ActivityEventService,
+    // Phase A: feed comments get the same AI moderation as entity comments. Optional so
+    // hand-built test instances keep constructing; missing = fail open (no flag).
+    @Optional() private readonly aiService?: AiService,
+    @Optional() private readonly aiPrompts?: AiPromptTemplateService,
   ) {}
+
+  /** A post the viewer may not see answers "not found" (phase A: followers-only posts). */
+  private async assertCanSeePost(postId: number, viewerId: number | null | undefined): Promise<void> {
+    const rows: any[] = await this.feedRepo.createQueryBuilder('f')
+      .select('f.id', 'id')
+      .where('f.id = :postId', { postId })
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+      .getRawMany();
+    if (!rows.length) throw new NotFoundException('Chapisho halipatikani.');
+  }
 
   // ── Record engagement + update CVS ───────────────────────────────────────
   async engage(
@@ -161,6 +178,7 @@ export class CvsService {
     // service, its comment thread IS that entity's own thread — not a
     // separate one. A review left here shows up on ProductDetail.js too,
     // and vice versa, because it's literally the same rows.
+    await this.assertCanSeePost(postId, userId);
     const post = await this.feedRepo.findOne({ where: { id: postId } });
     const linked =
       post?.linkedEntityType &&
@@ -210,8 +228,14 @@ export class CvsService {
           )
         : PurchaseVerification.NONE;
 
+    // Same AI moderation as /comments (comment-moderation.ts): blocked is refused, flagged is
+    // kept with its flag for review. Fails open.
+    const { moderationFlag, moderationReason } = await moderateCommentBody(this.aiService, this.aiPrompts, body);
+
     const comment = await this.commentRepo.save(
       this.commentRepo.create({
+        moderationFlag,
+        moderationReason,
         // Linked → store under the entity (unified thread). Not linked
         // (plain Moment, Looking For) → keep the original postId-only thread.
         postId: linked ? null : postId,
@@ -418,7 +442,8 @@ export class CvsService {
   // Unified: a Moment tagged to a real entity reads that entity's own
   // thread — same reviews/questions/comments a product/listing/service
   // page shows, not a separate Moment-only list.
-  async getComments(postId: number): Promise<any[]> {
+  async getComments(postId: number, viewerId?: number | null): Promise<any[]> {
+    await this.assertCanSeePost(postId, viewerId);
     const post = await this.feedRepo.findOne({ where: { id: postId } });
     const linked =
       post?.linkedEntityType &&
@@ -551,6 +576,7 @@ export class CvsService {
             .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo'])
             .where('f.id IN (:...ids)', { ids: postIds })
             .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+            .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
             .getMany()
         : [],
       byType.classified.length
@@ -778,7 +804,8 @@ export class CvsService {
         'b.role',
       ])
       .where('f.isActive = true')
-      .andWhere(NOT_FROM_HIDDEN_PROFILE('f')); // training offices etc. never in public feeds
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }); // followers-only posts: author and followers only
 
     let [topPurchased, fastestGrowing, topBusinesses, topServices, topRoutes] =
       (await Promise.all([
@@ -1150,6 +1177,7 @@ export class CvsService {
       ])
       .where('f.isActive = true')
       .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
       .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
 
     // Once a user has genuinely viewed a post, it drops out of the
@@ -1165,18 +1193,32 @@ export class CvsService {
     }
 
     switch (filter) {
-      case 'following':
+      case 'following': {
         if (!userId) {
           return { items: [], total: 0 };
         }
-        if (followedSellerIds.size === 0) {
+        // Phase A (owner 2026-11-01): follows are by identity. Following someone's business
+        // shows that business's posts, not the owner's personal ones; following a personal
+        // profile shows that profile only. A legacy account follow (no profile follow of a
+        // business yet) still shows that account's business posts.
+        const { businessScopedIds, profileScopedIds } = await this.commerceProfiles
+          .getFollowedProfiles(userId)
+          .catch(() => ({ businessScopedIds: [] as number[], profileScopedIds: [] as number[] }));
+        if (businessScopedIds.length === 0 && profileScopedIds.length === 0) {
           return { items: [], total: 0 };
         }
-        qb.andWhere('f."businessId" IN (:...followedIds)', {
-          followedIds: [...followedSellerIds],
-        });
+        qb.andWhere(new Brackets((sub) => {
+          if (businessScopedIds.length > 0) {
+            sub.orWhere(`(f."businessId" IN (:...followBusinessIds) AND (f."commerceProfileId" IS NULL OR EXISTS (SELECT 1 FROM public.commerce_profile fp WHERE fp.id = f."commerceProfileId" AND fp.type = 'business')))`,
+              { followBusinessIds: businessScopedIds });
+          }
+          if (profileScopedIds.length > 0) {
+            sub.orWhere('f."commerceProfileId" IN (:...followProfileIds)', { followProfileIds: profileScopedIds });
+          }
+        }));
         qb.orderBy('f.createdAt', 'DESC');
         break;
+      }
       // following fallback is handled after getManyAndCount below
 
       case 'nearby':
@@ -1284,6 +1326,7 @@ export class CvsService {
         ])
         .where('f.isActive = true')
         .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
+        .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
         .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
         .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`)
         .andWhere(

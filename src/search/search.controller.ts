@@ -22,7 +22,7 @@ import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { publicServiceAdWhere } from '../services/service-ad-visibility';
 import { CommerceProfile, CommerceProfileStatus } from '../commerce-profiles/entities/commerce-profile.entity';
-import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
+import { BusinessFeedItem, MomentVisibility } from '../business/entities/business-feed-item.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 
 // The AI "front door" — one endpoint the frontend's unified search bar hits
@@ -159,7 +159,8 @@ export class SearchController {
           ? this.profileRepo.find({ where: { id: In(idsByType.profile), hiddenFromPublic: false, status: Not(CommerceProfileStatus.PENDING) } })
           : [],
         idsByType.moment?.length
-          ? this.momentRepo.find({ where: { id: In(idsByType.moment), isActive: true } })
+          // A followers-only post is never a search result (phase A), even if it was indexed before.
+          ? this.momentRepo.find({ where: { id: In(idsByType.moment), isActive: true, visibility: MomentVisibility.PUBLIC } })
           : [],
         idsByType.transport_route?.length
           ? this.routeRepo.find({ where: { id: In(idsByType.transport_route), isActive: true } })

@@ -5,7 +5,7 @@ import { Product } from '../products/entities/products.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
-import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
+import { BusinessFeedItem, MomentVisibility } from '../business/entities/business-feed-item.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { SearchIndexService } from './search-index.service';
 
@@ -33,7 +33,8 @@ export class SearchBackfillService {
       this.classifiedRepo.find(),
       this.serviceAdRepo.find(),
       this.profileRepo.find(),
-      this.momentRepo.find({ where: { isActive: true } }),
+      // Only public posts are search documents (followers-only stays out of search, phase A).
+      this.momentRepo.find({ where: { isActive: true, visibility: MomentVisibility.PUBLIC } }),
       this.routeRepo.find({ where: { isActive: true } }),
     ]);
 
