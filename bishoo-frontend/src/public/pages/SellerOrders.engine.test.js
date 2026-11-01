@@ -2,12 +2,14 @@ import { engineShippable, orderToSend } from './SellerOrders';
 
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn(), patch: jest.fn() }));
 
-test('a paid network order is sent through the engine; pay-on-delivery still owed, own delivery and already sent are not', () => {
+test('a network order is sent through the engine, pay on delivery too; own delivery and already sent are not', () => {
   const o = { id: 9, status: 'paid', shippingMethod: 'agent', source: 'online' };
   expect(engineShippable(o)).toBe(true);
   expect(engineShippable({ ...o, shippingMethod: 'kentexa_delivery', status: 'preparing' })).toBe(true);
   expect(engineShippable({ ...o, shippingMethod: 'direct' })).toBe(false);
-  expect(engineShippable({ ...o, codRemainingBalance: 20000 })).toBe(false);
+  expect(engineShippable({ ...o, codRemainingBalance: 20000 })).toBe(true);
+  expect(engineShippable({ ...o, shippingMethod: 'boda' })).toBe(true);
+  expect(engineShippable({ ...o, source: 'seller_shipment' })).toBe(false);
   expect(engineShippable({ ...o, shippingNote: 'Imetumwa kupitia KenteXa' })).toBe(false);
   expect(engineShippable({ ...o, status: 'pending_payment' })).toBe(false);
 });

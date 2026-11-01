@@ -2,6 +2,7 @@ import { fromTyped } from '../components/PlaceSearchField';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import OrderAgentPanel from '../components/OrderAgentPanel';
 import api from '../../api/api';
 import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
@@ -83,11 +84,11 @@ const getShippingMethods = (t) => [
 /**
  * One shipment engine (owner 2026-10-25): a paid marketplace order that travels through
  * the KenteXa network is sent with the same seller form as every other send. Its waybill
- * from checkout stays. Pay-on-delivery with money still to collect keeps the counter path.
+ * from checkout stays. Pay on delivery too (owner 2026-11-01): the agent collects at the door.
  */
 export const engineShippable = (order) => ['paid', 'preparing'].includes(order?.status)
-  && ['agent', 'kentexa_delivery'].includes(order?.shippingMethod)
-  && order?.source !== 'seller_shipment' && !(Number(order?.codRemainingBalance) > 0)
+  && ['agent', 'kentexa_delivery', 'boda'].includes(order?.shippingMethod)
+  && order?.source !== 'seller_shipment'
   && !String(order?.shippingNote || '').startsWith('Imetumwa kupitia KenteXa')
   && order?.product?.productType !== 'digital';
 
@@ -528,6 +529,8 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
             </button>
           )}
         </section>
+
+        <OrderAgentPanel orderId={o.id} viewer="seller" />
 
         <section style={{ padding: 16 }}>
           <span style={{ fontSize: 13, color: MUTED }}>Mteja</span>

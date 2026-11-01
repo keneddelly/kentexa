@@ -117,13 +117,18 @@ export class PickupTasksService {
     @Optional() private readonly invoices?: InvoicesService,
   ) {}
 
-  /** The Order behind a pickup's Parcel when it is a COD seller shipment still to collect; else null. */
+  /**
+   * The Order behind a pickup's Parcel when the agent collects its pay-on-delivery money:
+   * a COD seller shipment, or (owner 2026-11-01: every agent collects COD) a marketplace
+   * pay-on-delivery order with a balance still to collect. Else null.
+   */
   private async codOrderFor(em: any, orderId: number | null, lock = false) {
     if (!orderId) return null;
     const rows: any[] = await em.query(`SELECT id, source, "paymentMethod", "codRemainingBalance", "totalAmount",
       "codBalanceCollected" FROM public."order" WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [orderId]);
     const o = rows[0];
-    return o && o.paymentMethod === 'cod' && o.source === 'seller_shipment' ? o : null;
+    if (!o || o.paymentMethod !== 'cod') return null;
+    return o.source === 'seller_shipment' || Number(o.codRemainingBalance) > 0 ? o : null;
   }
 
   async requestForShipment(userId: number, shipmentId: number, input: RequestPickupDto) {
@@ -152,7 +157,9 @@ export class PickupTasksService {
         'SELECT id,status,"orderId","shipmentId" FROM public.parcel WHERE "shipmentId"=$1 FOR UPDATE',
         [shipmentId],
       );
-      if (parcels.length !== 1 || parcels[0].orderId !== null) {
+      // One Parcel; an Order's Parcel only on the Shipment booked for that same Order
+      // (one shipment engine for every order: marketplace and manual orders get an agent too).
+      if (parcels.length !== 1 || (parcels[0].orderId !== null && Number(s.orderId) !== Number(parcels[0].orderId))) {
         throw new ConflictException('Shipment needs one independent Parcel');
       }
       const parcelId = parcels[0].id;
@@ -409,13 +416,20 @@ export class PickupTasksService {
    * can produce. Issuing proves nothing by itself.
    */
   async issueHandoffCode(userId: number, shipmentId: number) {
+    return this.handoffCodeFor(shipmentId, (s) => {
+      if (s.requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
+    });
+  }
+
+  /** The handoff code for a Shipment whose requester (or the Order's seller) was checked by `allow`. */
+  private async handoffCodeFor(shipmentId: number, allow: (s: any) => void) {
     const code = String(randomInt(100000, 1000000));
     const salt = randomBytes(16).toString('hex');
     const now = new Date();
     return this.db.transaction(async (em) => {
       const s: any[] = await em.query('SELECT * FROM public.shipment WHERE id=$1 FOR UPDATE', [shipmentId]);
       if (!s[0]) throw new NotFoundException('Shipment not found');
-      if (s[0].requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
+      allow(s[0]);
       const p: any[] = await em.query('SELECT id,status FROM public.parcel WHERE "shipmentId"=$1 FOR UPDATE', [shipmentId]);
       if (p.length !== 1) throw new ConflictException('Shipment needs one independent Parcel');
       const t: any[] = await em.query(`SELECT * FROM public.parcel_pickup_task WHERE "parcelId"=$1
@@ -456,9 +470,9 @@ export class PickupTasksService {
       if (!normalizeCity(agent.city) || normalizeCity(agent.city) !== normalizeCity(s.originCity)) {
         throw new ForbiddenException('Agent does not cover this pickup city');
       }
-      // An Order's Parcel is collected here only as a COD seller shipment (its boda job).
+      // An Order's Parcel: a COD seller shipment (its boda job) or the Shipment booked for that Order.
       if (s.status !== 'confirmed' || p.status !== 'pending' ||
-          (p.orderId !== null && !(await this.codOrderFor(em, p.orderId)))) {
+          (p.orderId !== null && Number(s.orderId) !== Number(p.orderId) && !(await this.codOrderFor(em, p.orderId)))) {
         throw new ConflictException('Parcel is not awaiting sender handoff');
       }
       const legacy: any[] = await em.query(`SELECT id FROM public.parcel_collection
@@ -964,6 +978,89 @@ export class PickupTasksService {
         : r.orderId != null && r.orderSource === 'online' ? 'receive_order'
         : 'receive_from_sender',
     }));
+  }
+
+  // ══ Orders (owner 2026-11-01): the seller and the buyer see the agent and their code ══
+
+  /** The Order's latest agent job: its Parcel, Shipment and task with the agent. Caller checked access. */
+  private async orderJob(orderId: number) {
+    const [row] = await this.db.query(
+      `SELECT t.id, t.status, t."servicePath", t."claimedAt", t."collectedAt", t."deliveredAt",
+              t."deliveryCodeIssuedAt", t."deliveryCodeExpiresAt",
+              p.id AS "parcelId", p."shipmentId",
+              a."fullName" AS "agentName", COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS "agentPhone"
+         FROM public.parcel p
+         JOIN public.parcel_pickup_task t ON t."parcelId" = p.id
+         LEFT JOIN public.agent a ON a.id = t."agentProfileId"
+         LEFT JOIN public."user" u ON u.id = a."userId"
+        WHERE p."orderId" = $1 AND p."shipmentId" IS NOT NULL
+        ORDER BY t.id DESC LIMIT 1`, [orderId]);
+    return row || null;
+  }
+
+  /** What the seller or the buyer of an Order sees of its agent job. */
+  async jobForOrder(orderId: number, viewer: 'seller' | 'buyer') {
+    const j = await this.orderJob(orderId);
+    if (!j || j.status === 'cancelled') return { task: null };
+    const assigned = ['claimed', 'collected', 'awaiting_hub', 'hub_received', 'delivered'].includes(j.status);
+    const direct = j.servicePath === 'direct_delivery';
+    const codeLive = !!(j.deliveryCodeExpiresAt && new Date(j.deliveryCodeExpiresAt).getTime() > Date.now());
+    return {
+      task: {
+        id: Number(j.id), status: j.status, servicePath: j.servicePath as PickupServicePath,
+        agent: assigned ? { name: j.agentName ?? null, phone: j.agentPhone ?? null } : null,
+        claimedAt: j.claimedAt, collectedAt: j.collectedAt, deliveredAt: j.deliveredAt,
+        // The seller gives a code when the agent comes; the buyer gives one when it arrives.
+        canShowCode: viewer === 'seller'
+          ? j.status === 'claimed'
+          : direct && ['claimed', 'collected'].includes(j.status),
+        receiveCodeSent: viewer === 'buyer' && direct && codeLive,
+      },
+    };
+  }
+
+  /** The seller's handoff code for an Order's agent (seller access checked by the caller). */
+  async handoffCodeForOrder(orderId: number) {
+    const j = await this.orderJob(orderId);
+    if (!j || j.status !== 'claimed') {
+      throw new ConflictException('Subiri wakala akubali kazi kwanza.');
+    }
+    return this.handoffCodeFor(Number(j.shipmentId), () => undefined);
+  }
+
+  /**
+   * The buyer's receive code, shown in the app (buyer access checked by the caller). A new
+   * code replaces any earlier one (also the one sent by SMS) and lasts until delivery;
+   * still one-use, bound to the agent, and, for pay on delivery, to the recipient's phone.
+   */
+  async receiveCodeForOrder(orderId: number) {
+    const pre = await this.orderJob(orderId);
+    if (!pre || pre.servicePath !== 'direct_delivery' || !['claimed', 'collected'].includes(pre.status)) {
+      throw new ConflictException('Namba ya kupokea inapatikana wakala akishakubali kukuletea mzigo.');
+    }
+    const code = String(randomInt(100000, 1000000));
+    const salt = randomBytes(16).toString('hex');
+    const now = new Date();
+    return this.db.transaction(async (em) => {
+      const { s, p, t } = await this.lockChain(em, Number(pre.id));
+      if (Number(p.orderId) !== Number(orderId) || t.servicePath !== 'direct_delivery' ||
+          !['claimed', 'collected'].includes(t.status) || t.agentProfileId == null) {
+        throw new ConflictException('Namba ya kupokea inapatikana wakala akishakubali kukuletea mzigo.');
+      }
+      if (t.deliveryCodeIssuedAt && now.getTime() - new Date(t.deliveryCodeIssuedAt).getTime() < CODE_COOLDOWN_MS) {
+        throw new ConflictException('Subiri dakika moja kabla ya kuomba namba nyingine.');
+      }
+      const [agent] = await em.query('SELECT "userId" FROM public.agent WHERE id=$1', [t.agentProfileId]);
+      if (!agent?.userId) throw new ConflictException('Assigned Agent is unavailable');
+      const cod = await this.codOrderFor(em, p.orderId);
+      const phone = typeof s.receiverPhone === 'string' ? s.receiverPhone.trim() : '';
+      if (cod && !phone) throw new ConflictException('Recipient contact number is missing');
+      const hash = `${salt}:${scryptSync(deliveryCodeMaterial(code, p.id, Number(agent.userId), t.id, cod ? phone : null), salt, 32).toString('hex')}`;
+      await em.query(`UPDATE public.parcel_pickup_task SET "deliveryCodeHash"=$1,"deliveryCodeIssuedAt"=$2,
+        "deliveryCodeExpiresAt"=$3,"deliveryAttempts"=0,"updatedAt"=now() WHERE id=$4`,
+      [hash, now, new Date(now.getTime() + COD_CODE_TTL_MS), t.id]);
+      return { code };
+    });
   }
 
   /** The sender's view of their Shipment's pickup: its state and, once claimed, who is coming. */

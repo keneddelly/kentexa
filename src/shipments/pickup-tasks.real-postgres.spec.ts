@@ -104,4 +104,15 @@ suite('Stage 3S pickup request and claim: real PostgreSQL', () => {
       .toMatchObject({ parcelId: 4, status: 'claimed', replay: true });
     await expect(service.requestForShipment(5, 4, body(9))).rejects.toThrow('not ready');
   });
+
+  it('an order gets its agent job only on the Shipment booked for that same order (owner 2026-11-01)', async () => {
+    await db.query('ALTER TABLE public.shipment ADD COLUMN IF NOT EXISTS "orderId" integer');
+    await db.query(`INSERT INTO public.shipment (id,"requestedByUserId",status,"originCity","destinationCity",
+      "originHubSource","destinationHubSource","originProviderKey","originResolutionMethod","orderId") VALUES
+      (20,5,'confirmed','Dar es Salaam','Dar es Salaam','not_required','not_required','tz_seed','admin_seed',77),
+      (21,5,'confirmed','Dar es Salaam','Dar es Salaam','not_required','not_required','tz_seed','admin_seed',NULL)`);
+    await db.query("INSERT INTO public.parcel VALUES (20,20,77,'pending'),(21,21,78,'pending')");
+    expect(await service.requestForShipment(5, 20, body(20))).toMatchObject({ parcelId: 20, status: 'requested' });
+    await expect(service.requestForShipment(5, 21, body(21))).rejects.toThrow('independent Parcel');
+  });
 });

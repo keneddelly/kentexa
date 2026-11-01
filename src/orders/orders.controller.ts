@@ -334,6 +334,35 @@ export class OrdersController {
     return this.ordersService.shipWithEngine(id, { id: sellerId } as User, req.user.id, body, scope);
   }
 
+  // ── The order's agent (owner 2026-11-01): seller hands over, buyer receives ──
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get(':id/agent-job')
+  async sellerOrderAgent(@Param('id', ParseIntPipe) id: number, @Request() req, @CurrentRoleContext() roleContext: RoleContext) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canCreateOrders');
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.ordersService.sellerOrderAgent(id, { id: sellerId } as User, scope);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Post(':id/agent-job/handoff-code')
+  async sellerOrderHandoffCode(@Param('id', ParseIntPipe) id: number, @Request() req, @CurrentRoleContext() roleContext: RoleContext) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canCreateOrders');
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.ordersService.sellerOrderHandoffCode(id, { id: sellerId } as User, scope);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/delivery-agent')
+  buyerOrderAgent(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.ordersService.buyerOrderAgent(id, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/delivery-agent/receive-code')
+  buyerOrderReceiveCode(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.ordersService.buyerOrderReceiveCode(id, req.user);
+  }
+
   // ── Seller: Hand parcel to Super Agent ────────────────────────────────────
   // Called when seller physically hands parcel to super agent
   // System records handover — super agent will scan and generate tracking

@@ -10,6 +10,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ShipmentActivationService } from '../shipments/shipment-activation.service';
+import { PickupTasksService } from '../shipments/pickup-tasks.service';
 import { LogisticsServiceOfferService } from '../transport/logistics-service-offer.service';
 import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
 import { engineDeliveryFees } from './engine-delivery-price';
@@ -225,6 +226,7 @@ export class OrdersService {
     @Optional() private shipmentActivation?: ShipmentActivationService,
     @Optional() private serviceOffers?: LogisticsServiceOfferService,
     @Optional() private bodaRateCard?: OfficeBodaFeeService,
+    @Optional() private pickupTasks?: PickupTasksService,
   ) {}
 
   /** S0 shared guard — every checkout->fulfilment/COD-collection transition on Order goes through this. */
@@ -1387,8 +1389,8 @@ export class OrdersService {
     if (order.status !== OrderStatus.PAID && order.status !== OrderStatus.PREPARING)
       throw new BadRequestException('Order must be paid');
     if ((order as any).product?.productType === 'digital') throw new BadRequestException('Bidhaa ya kidijitali haisafirishwi');
-    if (Number((order as any).codRemainingBalance) > 0)
-      throw new BadRequestException('Oda ya kulipa ukipokea: peleka ofisini kama kawaida kwa sasa.');
+    // Pay on delivery goes through the engine too (owner 2026-11-01): the agent collects the
+    // money at the door (pickup-tasks deliver), the destination office at its counter.
     await this.assertVerifiedPaymentEvidence(order, 'Cannot ship an order without verified payment evidence');
 
     const shipmentId = Number(body?.shipmentId);
@@ -1419,6 +1421,49 @@ export class OrdersService {
       orderId, status: OrderStatus.PREPARING, trackingNumber: p?.trackingNumber || waybill, customerNumber: waybill,
       nextAction: activated?.nextAction ?? null,
     };
+  }
+
+  // ── The agent of an order (owner 2026-11-01): seller hands over, buyer receives ──
+  private async orderForAgentView(orderId: number) {
+    if (!this.pickupTasks) throw new BadRequestException('Huduma hii bado haijawashwa. Jaribu tena baadaye.');
+    const order = await this.repo.findOne({ where: { id: orderId }, relations: { seller: true, buyer: true, product: true } });
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
+  }
+
+  private async assertSellerOf(orderId: number, seller: User, scope?: SellerScope) {
+    const order = await this.orderForAgentView(orderId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
+    if (order.seller?.id !== seller.id) throw new ForbiddenException('Not your order');
+  }
+
+  private async assertBuyerOf(orderId: number, user: User) {
+    const order = await this.orderForAgentView(orderId);
+    if (!order.buyer?.id || order.buyer.id !== user.id) throw new ForbiddenException('Not your order');
+  }
+
+  /** The seller: who is coming for the parcel, and whether a handoff code can be shown. */
+  async sellerOrderAgent(orderId: number, seller: User, scope?: SellerScope) {
+    await this.assertSellerOf(orderId, seller, scope);
+    return this.pickupTasks!.jobForOrder(orderId, 'seller');
+  }
+
+  /** The seller's code: given to the agent in person when handing over the parcel. */
+  async sellerOrderHandoffCode(orderId: number, seller: User, scope?: SellerScope) {
+    await this.assertSellerOf(orderId, seller, scope);
+    return this.pickupTasks!.handoffCodeForOrder(orderId);
+  }
+
+  /** The buyer: who brings the parcel. */
+  async buyerOrderAgent(orderId: number, user: User) {
+    await this.assertBuyerOf(orderId, user);
+    return this.pickupTasks!.jobForOrder(orderId, 'buyer');
+  }
+
+  /** The buyer's receive code, shown in the app: given to the agent when the parcel is received. */
+  async buyerOrderReceiveCode(orderId: number, user: User) {
+    await this.assertBuyerOf(orderId, user);
+    return this.pickupTasks!.receiveCodeForOrder(orderId);
   }
 
   /** One short SMS to the office the seller is bringing a marketplace order to. */

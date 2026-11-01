@@ -8,6 +8,7 @@ import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
 import { API_BASE_URL } from '../../api/baseUrl';
 import { PageLoading, Spinner } from '../components/Loading';
+import OrderAgentPanel from '../components/OrderAgentPanel';
 
 const CHECK = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>;
 
@@ -304,6 +305,10 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             </a>
           </div>
         )}
+
+        {/* The agent who brings it, and the code to give at the door (owner 2026-11-01) */}
+        <OrderAgentPanel orderId={order.id} viewer="buyer" style={{ margin: '0 0 16px' }}
+          codAmount={order.paymentMethod === 'cod' && !order.codBalanceCollected ? Number(order.codRemainingBalance) || 0 : 0} />
 
         {/* Tracking Timeline */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
