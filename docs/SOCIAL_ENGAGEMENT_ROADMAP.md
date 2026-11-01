@@ -266,3 +266,36 @@ The onboarding, professional identity, service taxonomy and service-discovery pr
 - Reuse existing service provider, service listing, discovery, Inbox and identity infrastructure after audit. Service records remain authoritative for service details and business outcomes.
 
 **Status:** product direction and read-only audit handoff only. No implementation authorization.
+
+
+## Kentexa Hybrid Social Feed — Visual Direction
+
+**Product direction:** Build Kentexa's own recognizable Home Feed by combining the strongest interaction principles of Twitter/X with the visual storytelling quality of Instagram, without copying either product's interface. The existing Kentexa Home Feed screenshot is the starting point; this is an evolution, not a ground-up redesign.
+
+### Design principles
+- **Conversation structure:** retain readable author identity, clear text hierarchy, compact feed density, replies and familiar interaction controls. Discussions, questions and professional contributions must feel first-class.
+- **Visual storytelling:** present product/service photography, portfolios, business showcases and Moments with high-quality media treatment. Preserve original media and avoid destructive cropping or one forced aspect ratio.
+- **Kentexa-native commerce:** integrate product, service, professional identity, business and demand actions contextually. A social post should not look like a generic listing by default; commerce actions appear when relevant to the content and the author's intent.
+- **One coherent feed:** social posts, professional discussions, business updates, product showcases, service content and Looking-for requests share a consistent design system. They may have distinct content-specific treatments, but must not feel like separate apps.
+- **Preserve the current foundation:** keep the established compact header, prominent search entry, discovery tabs (For You, Following, Nearby, Products, Services), Moments, bottom navigation and familiar feed interactions unless an approved design audit recommends a specific change.
+- **Mobile-first quality:** readable body text, strong spacing, accessible contrast, large touch targets, responsive media and clear loading/empty/error states.
+- **Avoid feed fragmentation:** do not create separate social, professional and commerce home feeds as the default. Feed filters and ranking may provide discovery without splitting the community.
+- **No imitation or dark patterns:** borrow broad interaction principles, not another platform's exact layout, iconography or proprietary visual expression. Avoid engagement bait and ad-heavy presentation.
+
+### Content-specific visual treatment
+1. **Discussion/question:** text and author identity lead; replies are prominent.
+2. **Poll:** clear question and choice interaction, with real vote data only.
+3. **Photo/video/Moment:** media-led where appropriate, with natural social context and original media accessible.
+4. **Product showcase/listing:** attractive image, clear business identity, price and relevant contact/view action, without overwhelming the social context.
+5. **Service/professional showcase:** expertise and provider identity are visible; link to the authoritative service profile or record.
+6. **Business update/offer:** preserve the brand and make commercial actions clear but proportionate.
+7. **Looking for/demand:** communicate the request clearly and support relevant, privacy-respecting responses.
+
+### Design workflow and approval
+1. Audit the current Home Feed, post cards, Moments, composer, discovery tabs and mobile navigation.
+2. Produce a screen-by-screen visual system and high-fidelity Home Feed mockups using real Kentexa content types.
+3. Compare the proposed direction against the current screenshot and document what stays, changes or is removed.
+4. Review content density, media proportions, business card treatment, professional identity attribution and interaction hierarchy.
+5. Obtain explicit product-owner approval before frontend implementation.
+
+**Status:** visual product direction only; no implementation authorization. This direction must be coordinated with the Smart Post System and Professional Identity & Service Discovery specifications, not implemented as a separate feed project.
