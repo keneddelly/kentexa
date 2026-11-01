@@ -44,6 +44,7 @@ describe('I2B — Moment publish derives the actor from the server-resolved cont
     svc.logger = { warn: jest.fn() };
     svc.notifyFollowers = jest.fn().mockResolvedValue(undefined);
     svc.matchNeedToSellers = jest.fn().mockResolvedValue(undefined);
+    svc.searchIndex = { upsert: jest.fn().mockResolvedValue(undefined) };
     return { svc: svc as FeedService, saved, scope: svc.profileScope };
   };
   const dto = { type: 'moment', title: 'Hello' } as any;
