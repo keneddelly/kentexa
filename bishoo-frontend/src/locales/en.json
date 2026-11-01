@@ -5594,7 +5594,9 @@
     "submitting": "⏳ Creating...",
     "legal_name_required": "Enter the business's legal name",
     "phone_required": "Enter a phone number",
-    "submit_failed": "Failed to create business"
+    "submit_failed": "Failed to create business",
+    "open_business": "Open",
+    "open_another_business": "Open another business"
   },
   "send_shipment": {
     "title": "Send Something",

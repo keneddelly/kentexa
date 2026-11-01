@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
+import { getMyBusinesses } from '../../api/business';
 
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
@@ -31,19 +32,42 @@ const getCategories = (t) => [
   { key: 'services',    label: t('stores.cat_services'),    icon: '⚙️' },
 ];
 
+// What the person typed survives the trip to the login page (owner 2026-11-01: it was lost).
+const DRAFT_KEY = 'kentexa_business_draft';
+export const saveBusinessDraft = (form, location) => {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, location })); } catch { /* storage unavailable */ }
+};
+export const readBusinessDraft = () => {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    return d && typeof d.form === 'object' ? d : null;
+  } catch { return null; }
+};
+const clearBusinessDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ } };
+
+/** Where a new or chosen business opens: its own page with the capability tiles (same as "Biashara zangu"). */
+export const businessHomeFor = (business) => (business?.id ? `BusinessHome-${business.id}` : 'MyBusinesses');
+
 const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
   const { t } = useTranslation();
   const CATEGORIES = getCategories(t);
   const [checkingStatus, setCheckingStatus] = useState(true);
-  const [existingBusiness, setExistingBusiness] = useState(null);
-  const [step, setStep] = useState('form'); // 'form' | 'done'
+  const [myBusinesses, setMyBusinesses] = useState([]);
+  const [addAnother, setAddAnother] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [draft] = useState(readBusinessDraft);
   const [form, setForm] = useState({
     legalName: '', tradingName: '', description: '', category: '',
     address: '', phone: '', email: '',
+    ...(draft?.form || {}),
   });
-  const [location, setLocation] = useState({});
+  const [location, setLocation] = useState(draft?.location || {});
+  const goLogin = () => {
+    saveBusinessDraft(form, location);
+    try { localStorage.setItem('kentexa_after_login', 'BecomeBusiness'); } catch { /* storage unavailable */ }
+    onNavigate('PublicLogin');
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -56,23 +80,24 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
 
   useEffect(() => {
     if (!isLoggedIn) { setCheckingStatus(false); return; }
-    api.get('/business/mine')
-      .then(res => setExistingBusiness(res.data))
-      .catch(() => setExistingBusiness(null))
+    // Every business of this person (not only the first): pick one, or open another.
+    getMyBusinesses()
+      .then(list => setMyBusinesses(Array.isArray(list) ? list : []))
+      .catch(() => setMyBusinesses([]))
       .finally(() => setCheckingStatus(false));
   }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Back from login, the draft is in the form: it is used once, not on every later visit.
+  useEffect(() => { if (isLoggedIn && draft) clearBusinessDraft(); }, [isLoggedIn, draft]);
+  // Coming back from login with a draft: the form is shown straight away.
+  const showList = myBusinesses.length > 0 && !addAnother && !draft;
 
   const handleSubmit = async () => {
     if (!form.legalName.trim()) { setError(t('become_business.legal_name_required')); return; }
     if (!form.phone.trim()) { setError(t('become_business.phone_required')); return; }
-    if (!isLoggedIn) {
-      localStorage.setItem('kentexa_after_login', 'BecomeBusiness');
-      onNavigate('PublicLogin');
-      return;
-    }
+    if (!isLoggedIn) { goLogin(); return; }
     try {
       setLoading(true); setError('');
-      await api.post('/business/create', {
+      const res = await api.post('/business/create', {
         legalName: form.legalName,
         tradingName: form.tradingName || undefined,
         description: form.description || undefined,
@@ -87,7 +112,9 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
         wardId: location.wardId || undefined,
         ward: location.wardName || undefined,
       });
-      setStep('done');
+      clearBusinessDraft();
+      // The same page "Biashara zangu" opens: the business with its capability tiles.
+      onNavigate(businessHomeFor(res?.data));
     } catch (err) {
       setError(err?.response?.data?.message || t('become_business.submit_failed'));
     } finally { setLoading(false); }
@@ -110,25 +137,28 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
 
       <div style={{ padding: '16px', maxWidth: 680, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 
-        {/* Existing Business */}
-        {!checkingStatus && existingBusiness && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 20 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
+        {/* The person's businesses: open one (its capability page) or open another */}
+        {!checkingStatus && showList && (
+          <div data-testid="my-business-list" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>
               {t('become_business.already_have_title')}
             </h2>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px' }}>
-              {existingBusiness.tradingName || existingBusiness.legalName}
-            </p>
-            <button onClick={() => onNavigate('BusinessDashboard')}
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#a21caf)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-              {t('become_business.go_to_dashboard_button')}
+            {myBusinesses.map(b => (
+              <button key={b.id} type="button" onClick={() => onNavigate(businessHomeFor(b))}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', background: 'none', border: 'none', borderBottom: '1px solid #eff3f4', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: '#0f1419' }}>{b.tradingName || b.legalName}</span>
+                <span style={{ fontSize: 14, color: '#2563eb', fontWeight: 700 }}>{t('become_business.open_business')}</span>
+              </button>
+            ))}
+            <button type="button" data-testid="open-another-business" onClick={() => setAddAnother(true)}
+              style={{ marginTop: 16, width: '100%', height: 48, borderRadius: 24, border: '1px solid #cfd9de', background: '#fff', color: '#0f1419', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t('become_business.open_another_business')}
             </button>
           </div>
         )}
 
         {/* Benefits */}
-        {!checkingStatus && !existingBusiness && (
+        {!checkingStatus && myBusinesses.length === 0 && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>{t('become_business.benefits_title')}</h3>
             {[
@@ -150,18 +180,9 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
           </div>
         )}
 
-        {/* Form / done */}
-        {checkingStatus ? null : step === 'done' ? (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
-            <h2 style={{ fontSize: 20, fontWeight:800, color: '#1e293b', margin: '0 0 8px' }}>{t('become_business.done_title')}</h2>
-            <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px' }}>{t('become_business.done_desc')}</p>
-            <button onClick={() => onNavigate('BusinessDashboard')}
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#a21caf)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-              {t('become_business.go_to_dashboard_button')}
-            </button>
-          </div>
-        ) : !existingBusiness ? (
+        {/* Form */}
+        {checkingStatus || showList ? null : (
+
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>{t('become_business.form_title')}</h3>
 
@@ -257,7 +278,7 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
               {!isLoggedIn && (
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#92400e' }}>
                   💡 {t('become_business.login_required_pre')}{' '}
-                  <span onClick={() => { localStorage.setItem('kentexa_after_login', 'BecomeBusiness'); onNavigate('PublicLogin'); }}
+                  <span onClick={goLogin}
                     style={{ color: '#d97706', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}>
                     {t('become_business.login_required_link')}
                   </span>
@@ -271,7 +292,7 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
               </button>
             </div>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );
