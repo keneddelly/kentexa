@@ -241,3 +241,8 @@ This document is the product-owner handoff for the Social Engagement Experience.
 ## Experience & Tools architecture — mandatory product handoff
 
 Before changing login landing behavior, primary Experience navigation, My Workspace, tool entry points, business switching, active identity/role context or the boundary between public and operational data, read `docs/KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md` and `docs/KENTEXA_ROADMAP.md`. Product-owner decisions are: login lands on Home for everyone; tools are accessed through a dedicated My Workspace hub; Inbox is accessible from both environments. The architecture document requires a read-only repository audit and explicit product-owner approval of designs and technical specifications before implementation. **It is not permission to code.** Do not modify code, migrations, branches or deployment as part of this handoff without explicit approval.
+
+
+## Smart Post System — mandatory product handoff
+
+Before changing the Home Feed composer, Moments, post formats, polls, questions or participation suggestions, read `docs/KENTEXA_SMART_POST_SYSTEM.md` together with `docs/SOCIAL_ENGAGEMENT_ROADMAP.md`. The Smart Post document defines the approved visual direction, product specification draft, verified repository reconnaissance and Claude's read-only audit scope. **Current instruction: audit only. It is not permission to code.** Return exact file paths, APIs, entities, migrations, tests, permission paths and working/partial/absent/unknown status. Do not edit files, create migrations, change branches, open PRs or deploy until the product owner separately approves the final design and technical specification.
