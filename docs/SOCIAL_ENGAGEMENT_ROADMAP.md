@@ -249,3 +249,20 @@ Phase boundaries and order may change after the audit. Do not create speculative
 Start with a read-only repository audit of the Social Engagement Experience described here. Read `CLAUDE.md`, `docs/KENTEXA_ROADMAP.md`, and this document. Confirm the current branch and working tree before inspecting. Map the existing frontend and backend implementation with exact file paths and API/data relationships. Include a read-only audit of existing demand/request/search capabilities, post and Moment visibility controls, business discovery, messaging permissions, notification infrastructure and any existing intent/matching logic. Distinguish verified capabilities from hypotheses. Return the audit report and a prioritized list of product decisions and mockups needed.
 
 **Do not code, edit files, create migrations, change branches, open implementation PRs, or deploy. Wait for product-owner approval after presenting the audit.**
+
+
+## Professional Participation & Identity
+
+Professional participation is a connected part of the Social Engagement Experience, not a separate social network. Kentexa should attract skilled individuals, independent professionals, experts and organizations to create accounts, preserve their professional/organization brands, and participate in normal discussions as well as showcase expertise.
+
+A contribution must clearly identify whether it was made as a person, a professional-context identity or an authorized organization identity. Users must not need to offer a service to join discussions. Professional participation should connect to the existing Services domain when the user chooses to offer services; it must not turn every discussion into an advertisement.
+
+The onboarding, professional identity, service taxonomy and service-discovery product direction is maintained in [docs/KENTEXA_PROFESSIONAL_IDENTITY_SERVICE_DISCOVERY.md](KENTEXA_PROFESSIONAL_IDENTITY_SERVICE_DISCOVERY.md). Key principles:
+- After basic profile creation, offer a skippable, multi-select “How would you like to use Kentexa?” step. Choices are onboarding intent/capability pathways, not automatic security permissions or exclusive permanent roles.
+- Keep account role/capability, personal/professional/organization identity, profession/skill and service category separate.
+- Let professionals choose existing service categories through searchable selection. If no suitable category exists, allow a proposed category to be submitted for admin review rather than creating a global category immediately.
+- A missing service category must not block account creation, professional identity creation or participation in discussions.
+- Preserve organization brands and allow posting as an organization only through explicit authorized representation.
+- Reuse existing service provider, service listing, discovery, Inbox and identity infrastructure after audit. Service records remain authoritative for service details and business outcomes.
+
+**Status:** product direction and read-only audit handoff only. No implementation authorization.
