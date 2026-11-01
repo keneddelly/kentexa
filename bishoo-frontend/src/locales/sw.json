@@ -5524,7 +5524,9 @@
     "submitting": "⏳ Inaunda...",
     "legal_name_required": "Weka jina rasmi la biashara",
     "phone_required": "Weka namba ya simu",
-    "submit_failed": "Imeshindwa kuunda biashara"
+    "submit_failed": "Imeshindwa kuunda biashara",
+    "open_business": "Fungua",
+    "open_another_business": "Fungua biashara nyingine"
   },
   "send_shipment": {
     "title": "Tuma Kitu",

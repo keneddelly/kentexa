@@ -5581,7 +5581,9 @@
     "submitting": "⏳ Création...",
     "legal_name_required": "Entrez le nom légal de l'entreprise",
     "phone_required": "Entrez un numéro de téléphone",
-    "submit_failed": "Échec de la création de l'entreprise"
+    "submit_failed": "Échec de la création de l'entreprise",
+    "open_business": "Ouvrir",
+    "open_another_business": "Ouvrir une autre entreprise"
   },
   "send_shipment": {
     "title": "Envoyer un Colis",
