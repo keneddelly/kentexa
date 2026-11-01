@@ -50,6 +50,6 @@ import { OfficeShipmentPaymentController } from './office-shipment-payment.contr
   controllers: [ShipmentsController, PickupTasksController, OfficeShipmentPaymentController],
   providers: [ShipmentsService, PickupTasksService, ShipmentActivationService, LogisticsDispatchService, PickupOfferSmsService, PickupReleaseService, OfficeShipmentPaymentService],
   // The seller's sales book through the same engine (SuperAgentsService.createSellerShipment).
-  exports: [ShipmentsService, ShipmentActivationService],
+  exports: [ShipmentsService, ShipmentActivationService, PickupTasksService],
 })
 export class ShipmentsModule {}

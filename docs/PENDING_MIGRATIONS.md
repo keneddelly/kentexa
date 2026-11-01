@@ -1,5 +1,12 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-01:** `start:prod` now pins `MIGRATION_RUN_UPTO=1793600000000`, so the
+deploy after that change runs these four itself, in order, before the app starts (the same
+guarded runner). Nothing to run from the PC. To check afterwards, use the "Final check" below
+or `https://api.kentexa.com/version/migrations` (its `pending` list must be empty).
+
+The manual steps below stay for reference (or if a deploy fails to start).
+
 Run these on the live database from your PC, **in this order, one at a time**, with the
 guarded runner (`dist/database/run-migrations-direct.js`). Take the Render backup first,
 as in every release.

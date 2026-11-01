@@ -9,6 +9,7 @@ import { DirectPaymentNotice } from '../components/DirectPayment';
 import LipaPaymentReview from '../components/LipaPaymentReview';
 import { isDirectPaymentOrder, usePaymentMode } from '../../utils/paymentMode';
 import { API_BASE_URL } from '../../api/baseUrl';
+import OrderAgentPanel from '../components/OrderAgentPanel';
 
 const API_URL = API_BASE_URL;
 
@@ -615,6 +616,12 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           {downloadingOrderId === order.id ? t('my_orders.downloading') : t('my_orders.download_file')}
                         </button>
                       </div>
+                    )}
+
+                    {/* The agent who brings it, and the code to give at the door (owner 2026-11-01) */}
+                    {['preparing', 'in_transit', 'shipped'].includes(order.status) && order.product?.productType !== 'digital' && (
+                      <OrderAgentPanel orderId={order.id} viewer="buyer" style={{ margin: '0 0 16px' }}
+                        codAmount={order.paymentMethod === 'cod' && !order.codBalanceCollected ? Number(order.codRemainingBalance) || 0 : 0} />
                     )}
 
                     {/* Actions */}
