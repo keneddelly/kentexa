@@ -7,7 +7,7 @@ import {
 import { agentHoldsDelivery, recordSellerCodReceived } from '../orders/order-delivery-sync';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, Between, MoreThanOrEqual, IsNull } from 'typeorm';
-import { Sale, SaleChannel, SaleStatus } from './entities/sale.entity';
+import { Sale, SaleChannel, SalePaymentMethod, SaleStatus } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { Product } from '../products/entities/products.entity';
 import { Order, OrderSource, OrderStatus } from '../orders/entities/order.entity';
@@ -22,8 +22,39 @@ import { SmsService } from '../sms/sms.service';
 import { GrowthInviteService, InviteContext } from '../sms/growth-invite.service';
 import { COD_MESSAGES } from '../super-agents/cod-sms';
 
+/** POS part 1 (owner 2026-10-27): what the till may send for an offline, split or credit sale. */
+export const POS_MESSAGES = {
+  notReady: 'Huduma hii ya POS bado haijawashwa. Jaribu tena baadaye.',
+  badPayments: 'Kila njia ya kulipa iwe na kiasi kikubwa kuliko sifuri.',
+  creditNeedsCustomer: 'Deni linahitaji jina na simu ya mteja.',
+  creditFullyPaid: 'Amelipa yote: hakuna deni.',
+  overpaidCredit: 'Kiasi kilicholipwa hakiwezi kuzidi jumla kwa mauzo ya deni.',
+  badSoldAt: 'Muda wa mauzo si sahihi.',
+} as const;
+const PAY_METHODS = Object.values(SalePaymentMethod) as string[];
+const CLIENT_SALE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * A split payment, checked: each part a known method and a positive amount. The sale's
+ * paymentMethod is the largest part; amountPaid is the sum. Null when none was sent.
+ */
+export function normalizePayments(raw: unknown): { method: string; amount: number; reference: string | null }[] | null {
+  if (raw == null) return null;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 6) throw new BadRequestException(POS_MESSAGES.badPayments);
+  return raw.map((p: any) => {
+    const method = String(p?.method || '');
+    const amount = Math.round(Number(p?.amount) * 100) / 100;
+    if (!PAY_METHODS.includes(method) || !Number.isFinite(amount) || amount <= 0) throw new BadRequestException(POS_MESSAGES.badPayments);
+    const reference = typeof p?.reference === 'string' && p.reference.trim() ? p.reference.trim().slice(0, 60) : null;
+    return { method, amount, reference };
+  });
+}
+
 @Injectable()
 export class SalesService {
+  private posReady = false;
+  private posCheckedAt = 0;
+
   constructor(
     @InjectRepository(Sale) private saleRepo: Repository<Sale>,
     @InjectRepository(SaleItem) private saleItemRepo: Repository<SaleItem>,
@@ -48,6 +79,26 @@ export class SalesService {
     return { workspaceId: scope.workspaceId != null ? scope.workspaceId : IsNull() };
   }
 
+  /** The POS columns (clientSaleId, soldAt, payments, creditSale) exist once migration 1793600000000 ran. */
+  async isPosReady(): Promise<boolean> {
+    if (!this.posReady && Date.now() - this.posCheckedAt > 60_000) {
+      this.posCheckedAt = Date.now();
+      try {
+        const [row] = await this.dataSource.query(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'sale' AND column_name = 'clientSaleId') AS ok`);
+        this.posReady = Boolean(row?.ok);
+      } catch { this.posReady = false; }
+    }
+    return this.posReady;
+  }
+
+  /** A sale this till already sent (same clientSaleId): recorded once, never twice. */
+  private async findClientSale(sellerId: number, clientSaleId: string): Promise<Sale | null> {
+    const [row] = await this.dataSource.query(
+      `SELECT id FROM public.sale WHERE "sellerId" = $1 AND "clientSaleId" = $2`, [sellerId, clientSaleId]);
+    return row ? this.saleRepo.findOne({ where: { id: Number(row.id) } }) : null;
+  }
+
   async createSale(
     sellerId: number,
     cashierId: number,
@@ -58,7 +109,38 @@ export class SalesService {
       throw new BadRequestException('Unsupported sale channel');
     }
 
-    const saved = await this.dataSource.transaction(async (manager) => {
+    // POS part 1: offline id, split payment, credit ("Deni"), the real time of an offline sale.
+    const clientSaleId = typeof dto.clientSaleId === 'string' && CLIENT_SALE_ID.test(dto.clientSaleId) ? dto.clientSaleId.toLowerCase() : null;
+    const payments = normalizePayments(dto.payments);
+    const credit = !!dto.credit;
+    let soldAt: Date | null = null;
+    if (dto.soldAt) {
+      soldAt = new Date(dto.soldAt);
+      const now = Date.now();
+      if (Number.isNaN(soldAt.getTime()) || soldAt.getTime() > now + 5 * 60_000 || soldAt.getTime() < now - 30 * 86_400_000) {
+        throw new BadRequestException(POS_MESSAGES.badSoldAt);
+      }
+    }
+    const posReady = await this.isPosReady();
+    if (credit && !posReady) throw new BadRequestException(POS_MESSAGES.notReady);
+    if (clientSaleId && posReady) {
+      const existing = await this.findClientSale(sellerId, clientSaleId);
+      if (existing) return existing;
+    }
+    if (payments) {
+      dto.amountPaid = Math.round(payments.reduce((s, p) => s + p.amount, 0) * 100) / 100;
+      dto.paymentMethod = [...payments].sort((a, b) => b.amount - a.amount)[0].method as SalePaymentMethod;
+    }
+    if (credit) {
+      if (dto.isCod) throw new BadRequestException(POS_MESSAGES.badPayments);
+      if (!dto.customerName?.trim() || !dto.customerPhone?.trim()) throw new BadRequestException(POS_MESSAGES.creditNeedsCustomer);
+    }
+    // A sale made offline already happened: stock it sold beyond the recorded count goes to zero.
+    const offline = !!(clientSaleId && soldAt);
+
+    let saved: Sale;
+    try {
+    saved = await this.dataSource.transaction(async (manager) => {
       const productRepo = manager.getRepository(Product);
       const saleRepo = manager.getRepository(Sale);
 
@@ -106,7 +188,10 @@ export class SalesService {
       // full at creation" — everything else still enforces amountPaid >=
       // total exactly as before, so a plain shortfall on a non-COD sale
       // remains a rejected request, not a silent hole in this check.
-      if (dto.isCod) {
+      if (credit) {
+        if (dto.amountPaid > total) throw new BadRequestException(POS_MESSAGES.overpaidCredit);
+        if (dto.amountPaid >= total) throw new BadRequestException(POS_MESSAGES.creditFullyPaid);
+      } else if (dto.isCod) {
         if (!dto.customerPhone) {
           throw new BadRequestException('customerPhone is required for a COD sale — someone has to pay the balance later');
         }
@@ -121,7 +206,7 @@ export class SalesService {
           `Amount paid (${dto.amountPaid}) is less than the total due (${total})`,
         );
       }
-      const balanceDue = dto.isCod ? parseFloat((total - dto.amountPaid).toFixed(2)) : 0;
+      const balanceDue = dto.isCod || credit ? parseFloat((total - dto.amountPaid).toFixed(2)) : 0;
 
       const receiptNumber = await this.invoices.generateReceiptNumber();
 
@@ -141,13 +226,18 @@ export class SalesService {
         total,
         paymentMethod: dto.paymentMethod,
         amountPaid: dto.amountPaid,
-        changeDue: dto.isCod ? 0 : dto.amountPaid - total,
+        changeDue: dto.isCod || credit ? 0 : dto.amountPaid - total,
         isCod: !!dto.isCod,
         balanceDue,
         status: SaleStatus.COMPLETED,
         createdByUserId: cashierId,
       });
       const saved = await saleRepo.save(sale);
+      if (posReady && (clientSaleId || soldAt || payments || credit)) {
+        await manager.query(
+          `UPDATE public.sale SET "clientSaleId" = $2, "soldAt" = $3, payments = $4::jsonb, "creditSale" = $5 WHERE id = $1`,
+          [saved.id, clientSaleId, soldAt, payments ? JSON.stringify(payments) : null, credit]);
+      }
 
       const reason =
         dto.channel === SaleChannel.LOCAL_POS
@@ -159,11 +249,20 @@ export class SalesService {
           referenceId: saved.id,
           userId: cashierId,
           manager,
+          floorAtZero: offline,
         });
       }
 
       return saved;
     });
+    } catch (err: any) {
+      // The same offline sale sent twice at once: the second one finds the first.
+      if (clientSaleId && err?.code === '23505') {
+        const existing = await this.findClientSale(sellerId, clientSaleId);
+        if (existing) return existing;
+      }
+      throw err;
+    }
 
     // Digital receipt SMS — outside the DB transaction (this is external
     // I/O, not something that should ever roll back a completed sale) and
@@ -193,7 +292,11 @@ export class SalesService {
   private async sendReceiptSms(sellerId: number, sale: Sale): Promise<void> {
     const seller = await this.userRepo.findOne({ where: { id: sellerId } });
     const sellerName = (seller as any)?.storeName || seller?.name || 'Muuzaji';
-    const baseMessage = `KenteXa: Umepokea risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()} kutoka ${sellerName}.`;
+    const owed = Number(sale.balanceDue || 0);
+    // A credit sale ("Deni") says what was paid and what is still owed.
+    const baseMessage = owed > 0
+      ? `${sellerName}: Risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()}. Umelipa TZS ${Number(sale.amountPaid).toLocaleString()}, deni TZS ${owed.toLocaleString()}.`
+      : `KenteXa: Umepokea risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()} kutoka ${sellerName}.`;
     const message = await this.growthInvite.appendInvite(
       baseMessage,
       sale.customerPhone,
@@ -210,7 +313,12 @@ export class SalesService {
   async recordCodBalancePayment(sellerId: number, saleId: number, scope?: SellerScope): Promise<Sale> {
     const sale = await this.saleRepo.findOne({ where: { id: saleId, sellerId, ...this.saleWs(scope) } });
     if (!sale) throw new NotFoundException('Sale not found');
-    if (!sale.isCod) throw new BadRequestException('This sale is not a COD sale');
+    if (!sale.isCod) {
+      // A credit sale ("Deni", POS part 1) is collected the same way.
+      const [extra] = (await this.isPosReady())
+        ? await this.dataSource.query(`SELECT "creditSale" FROM public.sale WHERE id = $1`, [sale.id]) : [];
+      if (!extra?.creditSale) throw new BadRequestException('This sale is not a COD sale');
+    }
     if (Number(sale.balanceDue) <= 0) {
       throw new BadRequestException('No balance is due on this sale');
     }

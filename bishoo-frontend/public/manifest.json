@@ -30,21 +30,23 @@
   "background_color": "#0f172a",
   "scope": "/",
   "lang": "en",
-  "categories": ["shopping", "finance", "business"],
+  "categories": [
+    "shopping",
+    "finance",
+    "business"
+  ],
   "shortcuts": [
     {
-      "name": "Track Parcel",
-      "short_name": "Track",
-      "description": "Track your parcel",
-      "url": "/?track=",
-      "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Send Parcel",
-      "short_name": "Send",
-      "description": "Send a new parcel",
-      "url": "/?page=SellerShipment",
-      "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
+      "name": "POS: uza dukani",
+      "short_name": "POS",
+      "url": "/pos",
+      "icons": [
+        {
+          "src": "/logo192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
