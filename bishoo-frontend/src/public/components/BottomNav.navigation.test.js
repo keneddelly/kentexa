@@ -36,3 +36,25 @@ test('tab icons are line icons, never emoji', () => {
   }
   expect(screen.queryByText('💬')).toBeNull();
 });
+
+test('on a computer the same places sit in a left side menu, with the profile, and the page makes room', () => {
+  const original = window.matchMedia;
+  window.matchMedia = jest.fn().mockImplementation((q) => ({ matches: true, media: q, addEventListener: jest.fn(), removeEventListener: jest.fn() }));
+  try {
+    const onNavigate = jest.fn();
+    const { unmount } = render(<BottomNav currentPage="Workspace" onNavigate={onNavigate} isLoggedIn currentUser={{ name: 'User' }}
+      onPostClick={jest.fn()} activeProfile={{ type: 'personal' }} activeContext={{ roleType: 'seller', accountRoleId: 1 }}
+      onOpenSwitcher={jest.fn()} myProfiles={[{ type: 'personal' }]} inboxUnread={3} />);
+    expect(screen.getByTestId('side-nav')).toBeInTheDocument();
+    expect(document.body.classList.contains('kx-has-sidenav')).toBe(true);
+    fireEvent.click(screen.getByText('bottom_nav.workspace'));
+    expect(onNavigate).toHaveBeenCalledWith('Workspace');
+    fireEvent.click(screen.getByText('nav.profile'));
+    expect(onNavigate).toHaveBeenCalledWith('MyProfile');
+    expect(screen.getByText('3')).toBeInTheDocument(); // unread messages on Inbox
+    unmount();
+    expect(document.body.classList.contains('kx-has-sidenav')).toBe(false);
+  } finally {
+    window.matchMedia = original;
+  }
+});
