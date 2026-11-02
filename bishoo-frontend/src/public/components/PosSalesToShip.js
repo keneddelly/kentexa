@@ -31,7 +31,7 @@ export default function PosSalesToShip({ onNavigate, refreshKey = 0, visible = t
     Promise.resolve(api.get('/sales/to-ship')).then((r) => { if (alive) { const list = (Array.isArray(r?.data) ? r.data : []).filter((x) => x && x.receiptNumber); setRows(list); onCount?.(list.length); } })
       .catch(() => { if (alive) { setRows([]); onCount?.(0); } });
     return () => { alive = false; };
-  }, [refreshKey]);
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!rows.length || !visible) return null;
   return (
