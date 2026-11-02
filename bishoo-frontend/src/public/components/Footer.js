@@ -29,7 +29,6 @@ const Footer = ({ onNavigate }) => {
             { label: t('footer.link_browse_stores'), page: 'Stores' },
             { label: t('footer.link_classifieds'), page: 'ClassifiedsPublic' },
             { label: t('footer.link_all_listings'), page: 'Listings' },
-            { label: t('footer.link_pay_invoice'), page: 'PayInvoice' },
             { label: t('footer.link_track_parcel'), page: 'TrackParcel' },
           ].map(l => (
             <div key={l.page} onClick={() => onNavigate(l.page)}

@@ -39,7 +39,6 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
       { label: '🏠 Home',        page: 'Home' },
       { label: '🏪 Stores',      page: 'Stores' },
       { label: '📋 Classifieds', page: 'ClassifiedsPublic' },
-      { label: '💳 Pay Invoice', page: 'PayInvoice' },
     ];
     if (!isLoggedIn) {
       return [...common,
