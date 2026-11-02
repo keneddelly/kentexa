@@ -12,6 +12,7 @@
  *  Comments go to POST /comments (entity-based)
  */
 import ExpandableText from '../components/ExpandableText';
+import { photoAspect, momentRoleLine } from '../utils/feedPresentation';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -503,6 +504,9 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const [showContact,  setShowContact]  = useState(false);
   const [followed,     setFollowed]     = useState(!!post.business?.isFollowing);
   const [imgErr,       setImgErr]       = useState(false);
+  // Phase B (owner 2026-11-01): a photo keeps its own shape between portrait 4:5 and wide
+  // 16:9; only what falls outside that range is trimmed, never forced into one crop.
+  const [imgRatio,     setImgRatio]     = useState(null);
   const [shareMsg,     setShareMsg]     = useState('');
   const [counts,       setCounts]       = useState({
     saves:    post.saveCount    || 0,
@@ -683,8 +687,16 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
         {image && (
           <button type="button" onClick={goToDetail} aria-label={post.title || bizName}
-            style={{ padding:0, border:`1px solid ${LINE_TX}`, borderRadius:16, overflow:'hidden', cursor:'pointer', background:'#f7f9f9' }}>
-            <img src={image} alt="" style={{ width:'100%', maxHeight:420, objectFit:'cover', display:'block' }} onError={() => setImgErr(true)} />
+            style={{ position:'relative', padding:0, border:`1px solid ${LINE_TX}`, borderRadius:16, overflow:'hidden', cursor:'pointer', background:'#f7f9f9',
+              aspectRatio: photoAspect(imgRatio) }}>
+            <img src={image} alt="" data-testid="post-photo"
+              style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+              onLoad={(e) => { const { naturalWidth: w, naturalHeight: h } = e.currentTarget; if (w && h) setImgRatio(w / h); }}
+              onError={() => setImgErr(true)} />
+            {price > 0 && (
+              <span data-testid="photo-price" style={{ position:'absolute', left:10, bottom:10, padding:'4px 10px', borderRadius:14,
+                background:'rgba(15,20,25,0.78)', color:WH, fontSize:14, fontWeight:800 }}>TZS {fmt(price)}</span>
+            )}
           </button>
         )}
 
@@ -695,7 +707,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
               {(productName || rawTitle) && (
                 <div style={{ fontSize:15, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{productName || rawTitle}</div>
               )}
-              {price > 0 && (
+              {price > 0 && !image && (
                 <div style={{ fontSize:15, color: post.isFlashSale ? '#b91c1c' : INK_TX }}>
                   TZS {fmt(price)}{post.isNegotiable && !isProduct ? <span style={{ color:MUTED_TX }}> · {t('home_feed.negotiable_price')}</span> : null}
                 </div>
@@ -1364,10 +1376,16 @@ const MomentStory = ({ moment, onView }) => {
           </div>
         )}
       </div>
-      <span style={{ fontSize:9, color:DK, fontWeight:600, textAlign:'center',
-        width:64, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-        {name.split(' ')[0]}
+      <span style={{ fontSize:12, color:DK, fontWeight:700, textAlign:'center', lineHeight:'15px',
+        width:66, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+        {name}
       </span>
+      {momentRoleLine(moment) && (
+        <span data-testid="moment-role" style={{ fontSize:11, color:'#536471', textAlign:'center', lineHeight:'13px',
+          width:66, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {momentRoleLine(moment)}
+        </span>
+      )}
     </button>
   );
 };
