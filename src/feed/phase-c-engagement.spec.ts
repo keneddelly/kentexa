@@ -10,7 +10,8 @@ const build = (opts: { existing?: any; visible?: boolean; counts?: any[]; post?:
     getRawMany: jest.fn().mockResolvedValue(opts.visible === false ? [] : [{ id: 7 }]),
     getOne: jest.fn().mockResolvedValue(opts.visible === false ? null : opts.post ?? null),
   };
-  const countsQb: any = { ...qb, getRawMany: jest.fn().mockResolvedValue(opts.counts ?? []) };
+  const countsQb: any = { getRawMany: jest.fn().mockResolvedValue(opts.counts ?? []) };
+  for (const m of ['select', 'addSelect', 'where', 'andWhere', 'groupBy']) countsQb[m] = () => countsQb;
   svc.feedRepo = {
     createQueryBuilder: jest.fn(() => qb),
     findOne: jest.fn().mockResolvedValue({ id: 7, businessId: 3, title: 'Taa' }),
