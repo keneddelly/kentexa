@@ -63,6 +63,11 @@ export class CreateSaleDto {
   @IsBoolean()
   isCod?: boolean;
 
+  // POS (owner 2026-11-02): a paid sale the cashier marked "Itatumwa kwa mteja".
+  @IsOptional()
+  @IsBoolean()
+  toShip?: boolean;
+
   @IsOptional()
   @IsInt()
   customerId?: number;

@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-02 (POS to ship):** the pin is now `MIGRATION_RUN_UPTO=1794500000000`. The next deploy
+runs `1794500000000-AddSaleToShip` itself (sale."toShip": a paid POS sale marked "Itatumwa kwa mteja"). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-02 (Shehena code):** the pin is now `MIGRATION_RUN_UPTO=1794400000000`. The next deploy
 runs `1794400000000-AddShehenaHandoverCode` itself (bulk_shipment: hand-over code, transport confirmed time, wrong tries, received-without-code reason). Check: `/version/migrations` shows `pending: []`.
 

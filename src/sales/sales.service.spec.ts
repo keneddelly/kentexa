@@ -247,3 +247,15 @@ describe('SalesService — POS part 1: offline, split payment, Deni (owner 2026-
     await expect(h.service.createSale(1, 9, { ...base, amountPaid: 4000 } as any)).rejects.toThrow(BadRequestException);
   });
 });
+
+// Owner approved 2026-11-02: POS sales waiting to be sent = pay-on-delivery + "Itatumwa kwa mteja", no shipment yet.
+describe('SalesService.getSalesToShip', () => {
+  it('keeps COD sales and sales marked to ship; leaves paid pick-up sales out', async () => {
+    const { SalesService } = require('./sales.service');
+    const find = jest.fn(async () => [{ id: 1, isCod: true }, { id: 2, isCod: false }, { id: 3, isCod: false }]);
+    const query = jest.fn(async (sql: string) => (sql.includes('information_schema') ? [{ ok: true }] : sql.includes('"toShip" = true') ? [{ id: 3 }] : []));
+    const svc = Object.assign(Object.create(SalesService.prototype), { saleRepo: { find }, dataSource: { query }, toShipReady: false, toShipCheckedAt: 0 });
+    expect((await svc.getSalesToShip(9)).map((x: any) => x.id)).toEqual([1, 3]);
+    expect(find).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ sellerId: 9, status: 'completed' }) }));
+  });
+});

@@ -279,7 +279,47 @@ export class SalesService {
       );
     }
 
+    // "Itatumwa kwa mteja" (owner 2026-11-02): kept so the sale shows as waiting to be sent.
+    if (dto.toShip && !saved.isCod && (await this.isToShipReady())) {
+      await this.dataSource.query(`UPDATE public.sale SET "toShip" = true WHERE id = $1`, [saved.id]).catch(() => undefined);
+      (saved as any).toShip = true;
+    }
+
     return saved;
+  }
+
+  private toShipReady = false;
+  private toShipCheckedAt = 0;
+  /** sale."toShip" exists once migration 1794500000000 ran. */
+  async isToShipReady(): Promise<boolean> {
+    if (!this.toShipReady && Date.now() - this.toShipCheckedAt > 60_000) {
+      this.toShipCheckedAt = Date.now();
+      try {
+        const [row] = await this.dataSource.query(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'sale' AND column_name = 'toShip') AS ok`);
+        this.toShipReady = Boolean(row?.ok);
+      } catch { this.toShipReady = false; }
+    }
+    return this.toShipReady;
+  }
+
+  /**
+   * POS sales waiting to be sent (owner approved 2026-11-02): every pay-on-delivery sale and
+   * every sale marked "Itatumwa kwa mteja", not voided, with no shipment yet. Newest first.
+   */
+  async getSalesToShip(sellerId: number, scope?: SellerScope) {
+    const recent = await this.saleRepo.find({
+      where: { sellerId, ...this.saleWs(scope), status: SaleStatus.COMPLETED, shipmentTrackingNumber: IsNull() },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+    let marked = new Set<number>();
+    if (recent.length && (await this.isToShipReady())) {
+      const rows: any[] = await this.dataSource.query(
+        `SELECT id FROM public.sale WHERE id = ANY($1::int[]) AND "toShip" = true`, [recent.map((x) => x.id)]).catch(() => []);
+      marked = new Set(rows.map((r) => Number(r.id)));
+    }
+    return recent.filter((x) => x.isCod || marked.has(x.id)).slice(0, 50);
   }
 
   // The customer for a manual/local-POS sale very often did NOT come from

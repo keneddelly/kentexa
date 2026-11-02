@@ -106,6 +106,8 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
   const [parts, setParts] = useState([{ method: 'cash', amount: '' }]);
   const [credit, setCredit] = useState(false);
   const [cod, setCod] = useState(false);
+  // "Itatumwa kwa mteja" (owner 2026-11-02): a paid sale that will be sent shows in seller orders until sent.
+  const [toShip, setToShip] = useState(false);
   const [saleId, setSaleId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState(null);
@@ -242,12 +244,12 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     if (!cart.length) return;
     setSaleId(newSaleId());
     setParts([{ method: 'cash', amount: String(total) }]);
-    setCredit(false); setCod(false); setError('');
+    setCredit(false); setCod(false); setToShip(false); setError('');
     setStep('pay');
   };
   const resetSale = () => {
     setCart([]); setCustomer({ name: '', phone: '' }); setDiscount(''); setParts([{ method: 'cash', amount: '' }]);
-    setCredit(false); setCod(false); setReceipt(null); setSaleId(null); setStep('cart'); setError('');
+    setCredit(false); setCod(false); setToShip(false); setReceipt(null); setSaleId(null); setStep('cart'); setError('');
     if (!isAppleMobile()) searchRef.current?.focus();
   };
 
@@ -272,6 +274,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     if (owes && (!customer.name.trim() || !customer.phone.trim())) { setError('Deni na kulipa ukipokea vinahitaji jina na simu ya mteja.'); setShowCustomer(true); return; }
     if (!owes && totals.left > 0) { setError(`Bado ${tzs(totals.left)}. Ongeza malipo au chagua Deni.`); return; }
     if (owes && totals.left <= 0) { setError('Amelipa yote: hakuna deni.'); return; }
+    if (toShip && !cod && (!customer.name.trim() || !customer.phone.trim())) { setError('Mzigo wa kutuma unahitaji jina na simu ya mteja.'); setShowCustomer(true); return; }
     if (totals.overNonCash) { setError('Kiasi cha simu au benki kimezidi jumla.'); return; }
     const amountPaid = Math.min(totals.paid, total);
     // The server keeps the parts as paid; change given back is not part of the payment.
@@ -284,7 +287,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       discountAmount: num(discount),
       paymentMethod: payments[0]?.method || 'cash', amountPaid,
       ...(payments.length ? { payments } : {}),
-      ...(credit ? { credit: true } : {}), ...(cod ? { isCod: true } : {}),
+      ...(credit ? { credit: true } : {}), ...(cod ? { isCod: true } : {}), ...(toShip && !cod ? { toShip: true } : {}),
       customerName: customer.name.trim() || undefined, customerPhone: customer.phone.trim() || undefined,
     };
     const local = {
@@ -511,8 +514,12 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
               style={{ ...pill, ...(credit ? { borderColor: AMBER, color: AMBER, background: '#fffbeb' } : {}) }}>Deni</button>
             <button type="button" aria-pressed={cod} onClick={() => { setCod((v) => !v); setCredit(false); }}
               style={{ ...pill, ...(cod ? { borderColor: BLUE, color: BLUE, background: BLUE_SOFT } : {}) }}>Atalipa akipokea mzigo</button>
+            {!cod && (
+              <button type="button" data-testid="pos-to-ship" aria-pressed={toShip} onClick={() => setToShip((v) => !v)}
+                style={{ ...pill, ...(toShip ? { borderColor: BLUE, color: BLUE, background: BLUE_SOFT } : {}) }}>Itatumwa kwa mteja</button>
+            )}
           </div>
-          {(credit || cod) && (
+          {(credit || cod || toShip) && (
             <div style={{ display: 'flex', gap: 8 }}>
               <input aria-label="Jina la mteja" placeholder="Jina la mteja" value={customer.name} onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))} style={{ ...input, flex: 1, minWidth: 0 }} />
               <input aria-label="Simu ya mteja" placeholder="Simu" type="tel" value={customer.phone} onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))} style={{ ...input, width: 140 }} />

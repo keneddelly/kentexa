@@ -9,6 +9,7 @@ import { getAccessToken } from '../../api/tokenStore';
 import { buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
 import LipaPaymentReview from '../components/LipaPaymentReview';
 import { PageLoading, Spinner } from '../components/Loading';
+import PosSalesToShip from '../components/PosSalesToShip';
 
 // Shipping methods with their requirements
 const getShippingMethods = (t) => [
@@ -601,6 +602,8 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 <Svg d={P.plus} color="#fff" sw={2.4} size={16} />Uza
               </button>
             } />
+          {/* POS sales waiting to be sent (owner approved 2026-11-02). */}
+          <PosSalesToShip onNavigate={onNavigate} />
           <nav role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, maxWidth: 720, margin: '0 auto' }}>
             {TABS.map((tb) => {
               const on = shownTab === tb.key;
