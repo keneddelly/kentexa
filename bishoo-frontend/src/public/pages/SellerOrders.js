@@ -9,7 +9,7 @@ import { getAccessToken } from '../../api/tokenStore';
 import { buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
 import LipaPaymentReview from '../components/LipaPaymentReview';
 import { PageLoading, Spinner } from '../components/Loading';
-import PosSalesToShip from '../components/PosSalesToShip';
+import PosSalesToShip, { PosSalesList } from '../components/PosSalesToShip';
 
 // Shipping methods with their requirements
 const getShippingMethods = (t) => [
@@ -603,7 +603,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
               </button>
             } />
           {/* POS sales waiting to be sent (owner approved 2026-11-02). */}
-          <PosSalesToShip onNavigate={onNavigate} />
+          {shownTab === 'send' && kind !== 'pos' && <PosSalesToShip onNavigate={onNavigate} />}
           <nav role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, maxWidth: 720, margin: '0 auto' }}>
             {TABS.map((tb) => {
               const on = shownTab === tb.key;
@@ -619,14 +619,15 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           </nav>
           <div style={{ maxWidth: 720, margin: '0 auto' }}>
             <div style={{ display: 'flex', gap: 8, padding: '12px 16px' }}>
-              {[['all', 'Zote'], ['market', 'Sokoni'], ['mine', 'Mauzo yangu']].map(([k, label]) => (
+              {[['all', 'Zote'], ['market', 'Sokoni'], ['mine', 'Mauzo yangu'], ['pos', 'POS']].map(([k, label]) => (
                 <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}
                   style={{ height: 32, padding: '0 14px', borderRadius: 16, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                     border: kind === k ? 'none' : '1px solid #cfd9de', background: kind === k ? INK : '#fff', color: kind === k ? '#fff' : INK }}>{label}</button>
               ))}
             </div>
             {notices}
-            {loading ? <PageLoading label="Inapakia maagizo" /> : list.length === 0 ? (
+            {/* Owner 2026-11-02: every POS sale is seen in Maagizo too. */}
+            {kind === 'pos' ? <PosSalesList onNavigate={onNavigate} /> : loading ? <PageLoading label="Inapakia maagizo" /> : list.length === 0 ? (
               <div style={{ padding: '48px 24px', textAlign: 'center', color: MUTED, fontSize: 15 }}>
                 {shownTab === 'send' ? 'Hakuna agizo la kutuma sasa.' : shownTab === 'way' ? 'Hakuna agizo njiani.' : shownTab === 'done' ? 'Bado hakuna agizo lililofika.' : 'Hakuna agizo lenye tatizo.'}
               </div>
