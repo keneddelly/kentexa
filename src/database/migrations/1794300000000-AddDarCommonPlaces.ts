@@ -10,6 +10,8 @@ import { DAR_COMMON_PLACES } from '../../tz-location/dar-common-places';
  * Additive and safe to run twice: a name that already exists anywhere in Dar es Salaam is
  * skipped, and nothing happens when the location tables or the district are not there.
  * Coordinates stay empty: KenteXa does not invent a map point.
+ * Every parameter is cast (::varchar): without it PostgreSQL refuses the statement
+ * ("inconsistent types deduced for parameter $1"), which stopped the 2026-11-02 deploy.
  * Owner rule: never run down() on live.
  */
 export class AddDarCommonPlaces1794300000000 implements MigrationInterface {
@@ -21,10 +23,10 @@ export class AddDarCommonPlaces1794300000000 implements MigrationInterface {
     for (const p of DAR_COMMON_PLACES) {
       await q.query(
         `INSERT INTO public.tz_ward (name, "nameSw", district_id, region_id, "isUrban", "isActive", "densityClass")
-         SELECT $1, $1, d.id, d.region_id, true, true, 'high'
+         SELECT $1::varchar, $1::varchar, d.id, d.region_id, true, true, 'high'
            FROM public.tz_district d JOIN public.tz_region r ON r.id = d.region_id
-          WHERE r.name = 'Dar es Salaam' AND d.name = $2
-            AND NOT EXISTS (SELECT 1 FROM public.tz_ward w WHERE w.region_id = d.region_id AND lower(w.name) = lower($1))
+          WHERE r.name = 'Dar es Salaam' AND d.name = $2::varchar
+            AND NOT EXISTS (SELECT 1 FROM public.tz_ward w WHERE w.region_id = d.region_id AND lower(w.name) = lower($1::varchar))
           LIMIT 1`,
         [p.name, p.district],
       );
@@ -37,7 +39,7 @@ export class AddDarCommonPlaces1794300000000 implements MigrationInterface {
     if (!t?.w) return;
     await q.query(
       `DELETE FROM public.tz_ward w USING public.tz_region r
-        WHERE r.id = w.region_id AND r.name = 'Dar es Salaam' AND w.lat IS NULL AND w.lng IS NULL AND w.name = ANY($1)`,
+        WHERE r.id = w.region_id AND r.name = 'Dar es Salaam' AND w.lat IS NULL AND w.lng IS NULL AND w.name = ANY($1::varchar[])`,
       [DAR_COMMON_PLACES.map((p) => p.name)],
     );
   }
