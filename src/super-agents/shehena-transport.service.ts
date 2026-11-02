@@ -48,6 +48,21 @@ export class ShehenaTransportService {
     return this.columnReady;
   }
 
+  private codeReady = false;
+  private codeCheckedAt = 0;
+  /** bulk_shipment."transportConfirmedAt" exists once migration 1794400000000 ran (shehena code). */
+  private async codeColumnReady(): Promise<boolean> {
+    if (!this.codeReady && Date.now() - this.codeCheckedAt > 60_000) {
+      this.codeCheckedAt = Date.now();
+      try {
+        const [row] = await this.db.query(`SELECT 1 AS ok FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'bulk_shipment' AND column_name = 'transportConfirmedAt'`);
+        this.codeReady = Boolean(row?.ok);
+      } catch { this.codeReady = false; }
+    }
+    return this.codeReady;
+  }
+
   async listFor(officeId: number): Promise<OfficeTransport[]> {
     const used = (await this.ready())
       ? `UNION SELECT b."transportProviderId", 'partner' FROM public.bulk_shipment b
@@ -99,6 +114,7 @@ export class ShehenaTransportService {
       `SELECT b.id, b."shipmentCode" AS code, b.status::text AS status, b."originCity" AS "originCity",
               b."destinationCity" AS "destinationCity", b."totalParcels" AS parcels, b."totalWeightKg" AS "weightKg",
               b."totalShippingCost" AS fare, b."transportRef" AS ref, b."dispatchTime" AS "dispatchedAt",
+              ${(await this.codeColumnReady()) ? 'b."transportConfirmedAt"' : 'NULL::timestamptz'} AS "transportConfirmedAt",
               o."businessName" AS "fromOffice", o.phone AS "fromPhone",
               d."businessName" AS "toOffice", d.phone AS "toPhone"
          FROM public.bulk_shipment b

@@ -53,6 +53,7 @@ import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/OfficePricePreview';
 import RouteRangePanel from '../components/RouteRangePanel';
 import OfficePrices from '../components/OfficePrices';
+import { ShehenaIncoming, ShehenaSent } from '../components/ShehenaHandover';
 
 const pendingWalkInRequests = new Map();
 
@@ -481,6 +482,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     } finally { setActionLoading(false); }
   };
 
+  // Shehena hand-over code (owner 2026-11-02): refresh the sent list after a dispatch.
+  const [shehenaKey, setShehenaKey] = useState(0);
   const handleDispatchBulkShipment = async () => {
     if (!bulkActiveShipment) return;
     try {
@@ -491,7 +494,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         transportRef: bulkTransport.transportRef || undefined,
         totalShippingCost: Number(bulkTransport.totalShippingCost) || undefined,
       });
-      setSuccess(`Shehena imetumwa — vifurushi ${res.data.parcelsDispatched}, ujumbe kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}`);
+      setSuccess(`Shehena imetumwa — vifurushi ${res.data.parcelsDispatched}, ujumbe kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}` +
+        (res.data.handoverCode ? `. Andika namba ya shehena kwenye mzigo: ${res.data.handoverCode}` : ''));
+      setShehenaKey((k) => k + 1);
       resetBulkForm();
       setBulkStep('open'); setTumaMode('list'); setPokeaMode('list'); fetchAll();
     } catch (err) {
@@ -1047,6 +1052,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                 </button>
 
+                {/* Shehena code (owner 2026-11-02): receive a whole shehena with the code on the package. */}
+                <ShehenaIncoming onReceived={() => { fetchAll(); setReceivedCount((n) => n + 1); }} />
+
                 <div style={officeSection}>KUTOKA KENTEXA</div>
                 <div style={{ fontSize: 13, color: '#475569', margin: '-4px 0 10px' }}>Orodha moja: oda za sokoni, oda za wauzaji na mizigo ya wateja, zote kwa namba moja ya mzigo. Andika namba yoyote kupokea. Anayetuma ndiye analipa ada ya usafiri.</div>
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
@@ -1472,6 +1480,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'tuma' && (
           <>
+            {tumaMode === 'list' && !dispatchParcel && <ShehenaSent refreshKey={shehenaKey} />}
             {/* Dispatch form — shown when parcel selected */}
             {dispatchParcel ? (
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
