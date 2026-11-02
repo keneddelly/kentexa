@@ -1945,6 +1945,28 @@ export class CvsService {
     return { items: presented, total };
   }
 
+  /**
+   * New profiles (owner approved 2026-11-02): what a profile's header says about its talk -
+   * how many posts this viewer can see from it, and the topics it posts in most (last 90 days,
+   * up to 3). Only real posts; listings that posted themselves are not counted.
+   */
+  async getProfileSummary(commerceProfileId: number, viewerId: number | null): Promise<{ postCount: number; topics: string[] }> {
+    const base = () => this.feedRepo.createQueryBuilder('f')
+      .where('f."commerceProfileId" = :pcid', { pcid: commerceProfileId })
+      .andWhere('f.isActive = true')
+      .andWhere('f."autoListing" = false')
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 });
+    const [postCount, topicRows] = await Promise.all([
+      base().getCount().catch(() => 0),
+      base().select('f.topic', 'topic').addSelect('COUNT(*)', 'n')
+        .andWhere('f.topic IS NOT NULL')
+        .andWhere(`f."createdAt" > NOW() - INTERVAL '90 days'`)
+        .groupBy('f.topic').orderBy('n', 'DESC').limit(3)
+        .getRawMany().catch(() => [] as any[]),
+    ]);
+    return { postCount: Number(postCount) || 0, topics: topicRows.map((r: any) => String(r.topic)) };
+  }
+
   /** Social Home part 3: a community's posts, newest first, under the feed's visibility rules. */
   async getCommunityPosts(communityId: number, viewerId: number | null, page = 1, kind: string | null = null): Promise<{ items: any[]; total: number }> {
     const limit = 15;

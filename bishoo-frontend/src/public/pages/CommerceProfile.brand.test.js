@@ -48,9 +48,34 @@ test('personal profile: visitors see the Listings tab right after Moments; a lis
   render(<CommerceProfile pageParam="45" currentUser={{ id: 99 }} isLoggedIn onNavigate={onNavigate} />);
   const img = await screen.findByTestId('moment-image');
   const labels = screen.getAllByRole('button').map(b => b.textContent);
-  const iMoments = labels.indexOf('Moments');
+  const iMoments = labels.indexOf('Machapisho'); // owner 2026-11-02: Moments tab is now Machapisho
   expect(iMoments).toBeGreaterThan(-1);
   expect(labels[iMoments + 1]).toBe('commerce_profile.tab_listings');
   img.click();
   expect(onNavigate).toHaveBeenCalledWith('ClassifiedDetail-31');
+});
+
+test('new profiles: post count and the topics it talks about, from its real posts (owner approved 2026-11-02)', async () => {
+  const p = { id: 74, ownerId: 46, type: 'personal', displayName: 'Neema', followersCount: 3, followingCount: 2 };
+  api.get.mockImplementation(url => {
+    if (url === '/profiles/for-user/46') return Promise.resolve({ data: [p] });
+    if (url === '/profiles/74') return Promise.resolve({ data: p });
+    if (url === '/feed/profile/74/summary') return Promise.resolve({ data: { postCount: 42, topics: ['biashara', 'mtaa'] } });
+    return Promise.resolve({ data: [] });
+  });
+  render(<CommerceProfile pageParam="46" currentUser={{ id: 99 }} isLoggedIn onNavigate={jest.fn()} />);
+  expect(await screen.findByTestId('profile-post-count')).toHaveTextContent('42 Machapisho');
+  expect(screen.getByTestId('profile-topics')).toHaveTextContent('AnazungumziaBiasharaMtaa wako');
+});
+
+test('new profiles: the owner of a business is sent to Kazi; no Orders or Analytics tabs on the public page', async () => {
+  const p = { id: 75, ownerId: 99, type: 'business', displayName: 'Bishoo Electronics', followersCount: 0, followingCount: 0 };
+  serve(p);
+  const onNavigate = jest.fn();
+  render(<CommerceProfile pageParam="99" commerceProfileId={75} currentUser={{ id: 99 }} isLoggedIn onNavigate={onNavigate} />);
+  const kazi = await screen.findByTestId('owner-kazi');
+  expect(screen.queryByText('commerce_profile.tab_orders')).toBeNull();
+  expect(screen.queryByText('commerce_profile.tab_analytics')).toBeNull();
+  kazi.click();
+  expect(onNavigate).toHaveBeenCalledWith('Workspace');
 });

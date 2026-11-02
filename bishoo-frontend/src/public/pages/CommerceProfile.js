@@ -7,6 +7,7 @@
  */
 import { LineIcon } from '../components/LineIcon';
 import React, { useState, useEffect } from 'react';
+import { topicLabel } from '../utils/feedPresentation';
 import { useTranslation } from 'react-i18next';
 import ExpandableText from '../components/ExpandableText';
 import { trackProfileView } from '../hooks/useAnalytics';
@@ -182,7 +183,8 @@ const tabs = (profileType, isOwn, t) => {
   const feed = list.find(x => x.key === 'feed');
   const rest = list.filter(x => x.key !== 'feed');
   if (!rest.some(x => x.key === 'about')) rest.push({ key:'about', label:t('commerce_profile.tab_about') });
-  return feed ? [{ ...feed, label:'Moments' }, ...rest] : rest;
+  // New profiles (owner approved 2026-11-02): every profile opens on Machapisho.
+  return feed ? [{ ...feed, label:'Machapisho' }, ...rest] : rest;
 };
 const tabsInner = (profileType, isOwn, t) => {
   if (profileType === 'business') {
@@ -191,12 +193,8 @@ const tabsInner = (profileType, isOwn, t) => {
       { key:'services_pub',  label:t('commerce_profile.tab_services') },
       { key:'feed',          label:t('commerce_profile.tab_posts') },
     ];
-    if (isOwn) {
-      base.push(
-        { key:'orders',    label:t('commerce_profile.tab_orders') },
-        { key:'analytics', label:t('commerce_profile.tab_analytics') },
-      );
-    }
+    // New profiles (owner approved 2026-11-02): Orders and Analytics live in Kazi, not on the
+    // public page; the owner sees "Hii ni biashara yako - Fungua Kazi" instead.
     base.push(
       { key:'about',   label:t('commerce_profile.tab_about') },
       { key:'reviews', label:t('commerce_profile.tab_reviews') },
@@ -320,6 +318,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [isFollowedBy, setIsFollowedBy] = useState(false);
   // Phase F (owner approved 2026-11-02): undo a mute from the muted profile's own page.
   const [mutedProfile, setMutedProfile] = useState(false);
+  // New profiles: post count and the topics this profile talks about (from its real posts).
+  const [talk, setTalk] = useState(null);
+  useEffect(() => {
+    setTalk(null);
+    if (!activeProfile?.id) return undefined;
+    let alive = true;
+    api.get(`/feed/profile/${activeProfile.id}/summary`)
+      .then((r) => { if (alive) setTalk(r.data && typeof r.data.postCount === 'number' ? r.data : null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [activeProfile?.id]);
 
   // Step 1 — resolve exactly which profile this page is for.
   useEffect(() => {
@@ -791,7 +799,21 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             <button type="button" onClick={() => setConnections('following')} style={countBtn}>
               <b style={{ color:INK }}>{fmt(activeProfile.followingCount||0)}</b> <span style={{ color:MUTED }}>{t(activeProfile.type === 'personal' ? 'profile_connections.following' : 'profile_connections.account_following')}</span>
             </button>
+            {talk && (
+              <button type="button" data-testid="profile-post-count" onClick={() => setTab('feed')} style={countBtn}>
+                <b style={{ color:INK }}>{fmt(talk.postCount || 0)}</b> <span style={{ color:MUTED }}>Machapisho</span>
+              </button>
+            )}
           </div>
+
+          {talk?.topics?.length > 0 && (
+            <div data-testid="profile-topics" style={{ display:'flex', flexWrap:'wrap', gap:6, alignItems:'center' }}>
+              <span style={{ fontSize:13, color:MUTED }}>Anazungumzia</span>
+              {talk.topics.map((k) => (
+                <span key={k} style={{ fontSize:12, fontWeight:700, color:INK, border:`1px solid ${LINE}`, borderRadius:12, padding:'2px 9px' }}>{topicLabel(k)}</span>
+              ))}
+            </div>
+          )}
 
           {isTransportProfile && publicTransportData && !isOwnProfile && (
             <button onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin', isLoggedIn ? { transportProviderId: publicTransportData.id, transportProviderName: publicTransportData.name, transportProfileId: activeProfile.id } : undefined)}
@@ -858,6 +880,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
           <RoleActions role={roleActionsKey} onNavigate={onNavigate} />
         </div>
+      )}
+
+      {/* New profiles: the owner runs the business from Kazi, not from the public page. */}
+      {isOwnProfile && isBusinessProfile && (
+        <button type="button" data-testid="owner-kazi" onClick={() => onNavigate('Workspace')}
+          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, width:'calc(100% - 32px)', margin:'0 16px 8px',
+            padding:'10px 12px', border:`1px dashed ${LINE}`, borderRadius:12, background:WH, cursor:'pointer', fontFamily:'inherit', fontSize:14 }}>
+          <span style={{ color:MUTED }}>Hii ni biashara yako: oda, takwimu na zana zipo Kazi</span>
+          <span style={{ color:B, fontWeight:700, whiteSpace:'nowrap' }}>Fungua Kazi</span>
+        </button>
       )}
 
       {/* Tabs */}
