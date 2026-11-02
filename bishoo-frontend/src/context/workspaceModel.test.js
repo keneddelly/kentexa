@@ -54,3 +54,15 @@ describe('Kazi workspace model (owner 2026-11-01)', () => {
       .toEqual([{ key: 'me.orders', accountRoleId: null }]);
   });
 });
+
+describe('hotel tools (owner 2026-11-02: they did not show on live)', () => {
+  it('a food business is read from the word, not one exact value', () => {
+    const { isFoodBusiness } = require('./workspaceModel');
+    for (const c of ['food', 'Food', 'Hoteli', 'Hotel & Lodge', 'Restaurant', 'mgahawa', 'Cafe']) expect(isFoodBusiness(c)).toBe(true);
+    for (const c of ['electronics', 'Barbershop', '', null, 'hardware']) expect(isFoodBusiness(c)).toBe(false);
+  });
+  it('the hotel tools open the kitchen and the menu of that exact business', () => {
+    const { hotelTools } = require('./workspaceModel');
+    expect(hotelTools(10).map((t) => [t.destination, t.params])).toEqual([['HotelKitchen', { businessId: 10 }], ['HotelMenuManager', { businessId: 10 }]]);
+  });
+});

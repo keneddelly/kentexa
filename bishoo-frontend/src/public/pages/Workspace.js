@@ -4,7 +4,7 @@ import { getMyBusinesses } from '../../api/business';
 import { personalAttention, roleAttention } from '../../context/workspaceAttention';
 import {
   buildWorkspaces, initialWorkspaceKey, startOptionsFor, readRecentTools, rememberTool, usableRecent,
-  ROLE_STATE, STATE_TEXT,
+  ROLE_STATE, STATE_TEXT, isFoodBusiness, hotelTools,
 } from '../../context/workspaceModel';
 
 // Kazi (My Workspace), phase 1 (owner approved 2026-11-01): every tool a person may use,
@@ -66,11 +66,11 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
   const recentNow = usableRecent(recent, workspaces);
 
   const open = async (toolItem, role) => {
-    const item = { key: toolItem.key, label: toolItem.label, destination: toolItem.destination,
+    const item = { key: toolItem.key, label: toolItem.label, destination: toolItem.destination, params: toolItem.params,
       accountRoleId: role ? role.accountRoleId : null, workspaceKey: current?.key || 'personal' };
     rememberTool(item);
     setRecent(readRecentTools());
-    if (!role || role.isActive) { onNavigate(toolItem.destination); return; }
+    if (!role || role.isActive) { if (toolItem.params) onNavigate(toolItem.destination, toolItem.params); else onNavigate(toolItem.destination); return; }
     if (role.state !== ROLE_STATE.ACTIVE || typeof onSwitchAccountRole !== 'function') return;
     setOpening(toolItem.key);
     try { await onSwitchAccountRole(role.accountRoleId, toolItem.destination); } finally { setOpening(null); }
@@ -233,6 +233,20 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
               </div>
             )}
             {current.roles.map(roleBlock)}
+            {/* Hotel tools (owner 2026-11-02): kitchen and menu for a food business; any other
+                business can switch its menu on (the server checks the caller runs it). */}
+            {isFoodBusiness(current.category) ? (
+              <section aria-label="Hoteli" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: MUTED }}>Hoteli</span>
+                {toolGrid(hotelTools(current.businessId), null)}
+              </section>
+            ) : (
+              <button type="button" data-testid="hotel-start" onClick={() => onNavigate('HotelMenuManager', { businessId: current.businessId })}
+                style={{ minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '0 14px',
+                  border: `1px solid ${LINE}`, borderRadius: 14, background: '#fff', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, color: INK, cursor: 'pointer' }}>
+                <span>Una hoteli au mgahawa? Weka menyu ya chakula</span><Chevron />
+              </button>
+            )}
             <button type="button" data-testid="business-today" onClick={() => onNavigate(`BusinessDashboard-${current.businessId}`)}
               style={{ minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '0 14px',
                 border: `1px solid ${LINE}`, borderRadius: 14, background: '#fff', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, color: INK, cursor: 'pointer' }}>

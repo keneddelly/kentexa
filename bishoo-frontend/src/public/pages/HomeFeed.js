@@ -1563,17 +1563,17 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
         borderBottom:'1px solid #F1F5F9', paddingTop:'env(safe-area-inset-top, 0px)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-          padding:'0 14px', height:50, boxSizing:'border-box' }}>
+          padding:'0 8px 0 10px', height:44, boxSizing:'border-box' }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           {/* Kazi (owner 2026-11-01): Profile left the bottom bar; it opens from your photo here. */}
           {isLoggedIn && (
             <button type="button" aria-label="Wasifu wangu" data-testid="home-profile" onClick={() => onNavigate('MyProfile')}
-              style={{ width:40, height:40, display:'flex', alignItems:'center', justifyContent:'center',
+              style={{ width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center',
                 background:'none', border:'none', cursor:'pointer', padding:0 }}>
               {(currentUser?.avatarUrl || currentUser?.logo)
                 ? <img src={currentUser.avatarUrl || currentUser.logo} alt=""
-                    style={{ width:30, height:30, borderRadius:'50%', objectFit:'cover' }} />
-                : <span style={{ width:30, height:30, borderRadius:'50%', backgroundColor:'#cfd9de',
+                    style={{ width:28, height:28, borderRadius:'50%', objectFit:'cover' }} />
+                : <span style={{ width:28, height:28, borderRadius:'50%', backgroundColor:'#cfd9de',
                     display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:DK }}>
                     {(currentUser?.name || 'U').charAt(0).toUpperCase()}
                   </span>}
@@ -1582,10 +1582,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           <button onClick={() => onNavigate('Home')}
             style={{ display:'flex', alignItems:'center', gap:8, background:'none',
               border:'none', cursor:'pointer', padding:0 }}>
-            <div style={{ width:30, height:30, backgroundColor:'#1d4ed8', borderRadius:8,
+            <div style={{ width:24, height:24, backgroundColor:'#1d4ed8', borderRadius:7,
               display:'flex', alignItems:'center', justifyContent:'center',
               boxShadow:'0 2px 8px rgba(29,78,216,0.4)', flexShrink:0 }}>
-              <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+              <svg width="15" height="15" viewBox="0 0 22 22" fill="none">
                 <path d="M2 2 L7 8 L11 5 L11 20 L5 14 Z" fill="white"/>
                 <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#60a5fa"/>
                 <circle cx="7.5" cy="9.5" r="1" fill="#0f172a"/>
@@ -1593,9 +1593,9 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               </svg>
             </div>
             <div style={{ display:'flex', alignItems:'baseline', gap:0, lineHeight:1 }}>
-              <span style={{ fontSize:18, fontWeight:800, color:DK,
+              <span style={{ fontSize:17, fontWeight:800, color:DK,
                 letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Kente</span>
-              <span style={{ fontSize:18, fontWeight:800, color:'#1d4ed8',
+              <span style={{ fontSize:17, fontWeight:800, color:'#1d4ed8',
                 letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Xa</span>
             </div>
           </button>
@@ -1637,11 +1637,8 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         </div>
 
         {/* AI front door — the primary way to find anything on Kentexa */}
-        <div data-tour="hf-ai-search" style={{ padding:'8px 14px 0' }}>
-          <AiSearchBar onNavigate={onNavigate} />
-        </div>
-        <div style={{ padding:'6px 14px 8px', display:'flex', justifyContent:'flex-end' }}>
-          <TourTrigger tourKey="buyer_home_orientation" />
+        <div data-tour="hf-ai-search" style={{ padding:'2px 10px 6px' }}>
+          <AiSearchBar onNavigate={onNavigate} compact />
         </div>
 
         {/* Feed filters */}
@@ -1649,21 +1646,22 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           padding:'0 8px', borderTop:'1px solid #F8FAFC' }}>
           {FILTERS.map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
-              style={{ position:'relative', height:48, padding:'0 14px', border:'none', background:'none',
-                cursor:'pointer', fontSize:15, fontWeight: filter===f.key ? 700 : 500, whiteSpace:'nowrap', fontFamily:'inherit',
+              style={{ position:'relative', height:38, padding:'0 12px', border:'none', background:'none',
+                cursor:'pointer', fontSize:14, fontWeight: filter===f.key ? 700 : 500, whiteSpace:'nowrap', fontFamily:'inherit',
                 flexShrink:0, color: filter===f.key ? INK_TX : MUTED_TX }}>
               {f.label}
-              <span aria-hidden="true" style={{ position:'absolute', left:14, right:14, bottom:0, height:4, borderRadius:2,
+              <span aria-hidden="true" style={{ position:'absolute', left:12, right:12, bottom:0, height:3, borderRadius:2,
                 background: filter===f.key ? B : 'transparent' }} />
             </button>
           ))}
+          <span style={{ display:'flex', alignItems:'center', padding:'0 6px', flexShrink:0 }}>
+            <TourTrigger tourKey="buyer_home_orientation" style={{ padding:'4px 10px' }} />
+          </span>
         </div>
       </div>
 
 
-      {currentUser?.role === 'super_agent' && (
-        {/* Kazi (owner 2026-11-01): the office's parcels to send moved to Kazi, "Kinachohitaji wewe". */}
-      )}
+      {/* Kazi (owner 2026-11-01): the office's parcels to send moved to Kazi, "Kinachohitaji wewe". */}
 
       {/* ── Stories ── */}
       {(moments.length > 0 || sellers.length > 0) && (

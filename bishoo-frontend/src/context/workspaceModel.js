@@ -40,7 +40,24 @@ export const ICON = Object.freeze({
   store: 'M3 9l2-6h14l2 6M4 12v9h16v-9M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0',
 });
 
-const tool = (key, label, destination, icon) => ({ key, label, destination, icon });
+const tool = (key, label, destination, icon, params) => ({ key, label, destination, icon, ...(params ? { params } : {}) });
+
+/**
+ * A business that serves food (hotel, restaurant, cafe): its kitchen and menu tools show.
+ * The category is free text on older businesses ("Food", "Hoteli", "Restaurant & Bar"), so
+ * the check reads the word, not one exact value (owner 2026-11-02: the hotel tools did not show).
+ */
+const FOOD_WORDS = ['food', 'chakula', 'hotel', 'hoteli', 'restaurant', 'restoran', 'mgahawa', 'migahawa', 'cafe', 'café', 'kantini', 'canteen', 'bar'];
+export const isFoodBusiness = (category) => {
+  const c = String(category || '').toLowerCase();
+  return !!c && FOOD_WORDS.some((w) => c.split(/[^a-zà-ÿ]+/).includes(w) || c === w);
+};
+
+/** The hotel tools of one business (existing pages; the server checks the caller runs it). */
+export const hotelTools = (businessId) => [
+  tool(`hotel.kitchen.${businessId}`, 'Jiko: oda za chakula', 'HotelKitchen', ICON.order, { businessId }),
+  tool(`hotel.menu.${businessId}`, 'Menyu na QR za meza', 'HotelMenuManager', ICON.tag, { businessId }),
+];
 
 /** The tools each approved role opens (existing pages only; nothing new is invented). */
 export const ROLE_TOOLS = Object.freeze({
@@ -151,7 +168,7 @@ export function buildWorkspaces(roles = [], businesses = [], activeAccountRoleId
   const byBusiness = new Map();
   for (const b of businesses || []) {
     byBusiness.set(Number(b.id), { key: `business-${b.id}`, kind: 'business', businessId: Number(b.id),
-      title: b.tradingName || b.legalName || `Biashara #${b.id}`, roles: [], tools: [] });
+      title: b.tradingName || b.legalName || `Biashara #${b.id}`, category: b.category || null, roles: [], tools: [] });
   }
   for (const r of roles || []) {
     if (r.businessId == null) continue;

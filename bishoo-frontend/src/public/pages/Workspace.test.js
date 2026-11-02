@@ -94,3 +94,22 @@ test('each business keeps its daily summary ("Leo") as a tool', async () => {
   fireEvent.click(screen.getByTestId('business-today'));
   expect(onNavigate).toHaveBeenCalledWith('BusinessDashboard-10');
 });
+
+test('a food business shows its kitchen and menu; any other business can switch its menu on', async () => {
+  getMyBusinesses.mockResolvedValue([{ id: 10, legalName: 'Bishoo Electronics', category: 'Hoteli' }]);
+  api.get.mockImplementation(async () => ({ data: [] }));
+  const onNavigate = jest.fn();
+  await act(async () => {
+    render(<Workspace isLoggedIn onNavigate={onNavigate} currentUser={{ name: 'Kened' }} activeContext={{ accountRoleId: 2, roleType: 'seller' }}
+      roleOptions={roles} onSwitchAccountRole={jest.fn()} onRefreshContext={jest.fn()} />);
+  });
+  fireEvent.click(screen.getByTestId('tool-hotel.kitchen.10'));
+  expect(onNavigate).toHaveBeenCalledWith('HotelKitchen', { businessId: 10 });
+  expect(screen.queryByTestId('hotel-start')).toBeNull();
+});
+
+test('a business that is not food can still open the menu set-up', async () => {
+  const { onNavigate } = await setup(2, [], { roleType: 'seller' });
+  fireEvent.click(screen.getByTestId('hotel-start'));
+  expect(onNavigate).toHaveBeenCalledWith('HotelMenuManager', { businessId: 10 });
+});
