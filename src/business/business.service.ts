@@ -1,4 +1,5 @@
 import { assertBusinessSellingIdentity } from './business-selling-identity';
+import { UNSTAMPED_FOR } from '../commerce-profiles/legacy-rows';
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import type { RoleContext } from '../role-context/role-context.types';
 import { assertBusinessWriteTarget, pickBusinessEditableFields } from './business-write-authority';
@@ -255,7 +256,7 @@ export class BusinessService {
             .leftJoin('i.order', 'o')
             .where('o."sellerId" = :sid', { sid: user.id })
             .andWhere(
-              '(o."commerceProfileId" = :pid OR o."commerceProfileId" IS NULL)',
+              `(o."commerceProfileId" = :pid OR ${UNSTAMPED_FOR('o', 'pid')})`,
               { pid: profileId },
             )
             // I2G: a Business's intelligence covers ONLY that Business's workspaces' orders
@@ -293,7 +294,7 @@ export class BusinessService {
             .select('p.id')
             .where('p."sellerId" = :sid', { sid: user.id })
             .andWhere(
-              '(p."commerceProfileId" = :pid OR p."commerceProfileId" IS NULL)',
+              `(p."commerceProfileId" = :pid OR ${UNSTAMPED_FOR('p', 'pid')})`,
               { pid: profileId },
             )
             .getMany()
@@ -517,7 +518,9 @@ export class BusinessService {
         type: CommerceProfileType.BUSINESS,
         displayName: saved.tradingName || saved.legalName,
         usernameSeed: saved.tradingName || saved.legalName,
-        photoUrl: user.logo || saved.logo,
+        // Its own logo only: the account's logo belongs to its first business (owner
+        // 2026-11-02: a second business showed the first one's picture).
+        photoUrl: saved.logo || null,
         bio: saved.description,
         location: saved.address,
         status: CommerceProfileStatus.ACTIVE,

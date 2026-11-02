@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { LEGACY_ROWS_FOR, UNSTAMPED_FOR } from '../commerce-profiles/legacy-rows';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, Brackets } from 'typeorm';
 import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
@@ -449,9 +450,11 @@ export class SellerService {
         .orWhere(`(o."sellerId" = :sid AND o.source IN ('seller_shipment', 'offline', 'offline_intercity'))`)
         .orWhere('(o."sellerId" = :sid AND o."classifiedInvoiceId" IS NOT NULL)')), { sid: sellerId });
     if (commerceProfileId) {
+      // An order belongs to the identity it was placed with, else to its product's identity;
+      // an order with neither belongs to the account's original identities only (LEGACY_ROWS_FOR).
       qb.andWhere(new Brackets((w) => w
-        .where('o."commerceProfileId" = :cpid', { cpid: commerceProfileId })
-        .orWhere('(o."commerceProfileId" IS NULL AND o."sellerId" = :sid)', { sid: sellerId })));
+        .where('COALESCE(o."commerceProfileId", p."commerceProfileId") = :cpid', { cpid: commerceProfileId })
+        .orWhere(`(o."commerceProfileId" IS NULL AND p."commerceProfileId" IS NULL AND ${LEGACY_ROWS_FOR('cpid')})`)));
     }
     return qb;
   }
@@ -511,7 +514,7 @@ export class SellerService {
             .orWhere(
               new Brackets((qb2) =>
                 qb2
-                  .where('p."commerceProfileId" IS NULL')
+                  .where(UNSTAMPED_FOR('p', 'cpid'))
                   .andWhere('p."sellerId" = :sid', { sid: user.id }),
               ),
             ),
@@ -524,7 +527,7 @@ export class SellerService {
             .orWhere(
               new Brackets((qb2) =>
                 qb2
-                  .where('c."commerceProfileId" IS NULL')
+                  .where(UNSTAMPED_FOR('c', 'cpid'))
                   .andWhere('c."sellerId" = :sid', { sid: user.id }),
               ),
             ),
@@ -537,7 +540,7 @@ export class SellerService {
             .orWhere(
               new Brackets((qb2) =>
                 qb2
-                  .where('o."commerceProfileId" IS NULL')
+                  .where(UNSTAMPED_FOR('o', 'cpid'))
                   .andWhere('o."sellerId" = :sid', { sid: user.id }),
               ),
             ),
@@ -778,7 +781,7 @@ export class SellerService {
       .take(50);
     if (commerceProfileId) {
       ordersQb.andWhere(
-        '(o."commerceProfileId" = :cpid OR o."commerceProfileId" IS NULL)',
+        `(o."commerceProfileId" = :cpid OR ${UNSTAMPED_FOR('o', 'cpid')})`,
         { cpid: commerceProfileId },
       );
     }

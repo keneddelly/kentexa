@@ -330,7 +330,12 @@ export class CommerceProfilesService {
   ): Promise<CommerceProfile | null> {
     const linked = await this.repo.findOne({ where: { businessId } });
     if (linked) return linked;
-    return this.findForUserByType(ownerId, CommerceProfileType.BUSINESS);
+    // Owner 2026-11-02 (two businesses on one account were mixed): the fallback is only for a
+    // Business that predates the link. A business profile already linked to ANOTHER Business
+    // of this account is never borrowed.
+    const oldest = await this.findForUserByType(ownerId, CommerceProfileType.BUSINESS);
+    if (oldest?.businessId && Number(oldest.businessId) !== Number(businessId)) return null;
+    return oldest;
   }
 
   // Batch version of findForUserByType — for list endpoints (search

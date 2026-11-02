@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { UNSTAMPED_FOR } from '../commerce-profiles/legacy-rows';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Classified, ClassifiedStatus } from './entities/classified.entity';
@@ -292,7 +293,7 @@ export class ClassifiedsService {
     }
     if (commerceProfileId) {
       qb.andWhere(
-        '(c."commerceProfileId" = :cpid OR c."commerceProfileId" IS NULL)',
+        `(c."commerceProfileId" = :cpid OR ${UNSTAMPED_FOR('c', 'cpid')})`,
         { cpid: commerceProfileId },
       );
     }
@@ -328,7 +329,7 @@ export class ClassifiedsService {
 
     if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
       qb.andWhere(
-        '(c."commerceProfileId" = :commerceProfileId OR (c."commerceProfileId" IS NULL AND c."sellerId" = :ownerId))',
+        `(c."commerceProfileId" = :commerceProfileId OR (${UNSTAMPED_FOR('c', 'commerceProfileId')} AND c."sellerId" = :ownerId))`,
         { commerceProfileId, ownerId: profile.ownerId },
       );
     } else {
