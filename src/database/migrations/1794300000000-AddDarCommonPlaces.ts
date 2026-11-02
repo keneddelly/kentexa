@@ -11,7 +11,7 @@ import { DAR_COMMON_PLACES } from '../../tz-location/dar-common-places';
  * skipped, and nothing happens when the location tables or the district are not there.
  * Coordinates stay empty: KenteXa does not invent a map point.
  * Every parameter is cast (::varchar): without it PostgreSQL refuses the statement
- * ("inconsistent types deduced for parameter $1"), which stopped the 2026-11-02 deploy.
+ * ("inconsistent types deduced for parameter" one), which stopped the 2026-11-02 deploy.
  * Owner rule: never run down() on live.
  */
 export class AddDarCommonPlaces1794300000000 implements MigrationInterface {
