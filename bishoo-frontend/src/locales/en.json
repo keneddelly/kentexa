@@ -6125,6 +6125,15 @@
     "resend": "Send the code again",
     "change_number": "Change number",
     "resend_failed": "Could not send again.",
-    "code_label": "Verification code"
+    "code_label": "Verification code",
+    "photo_title": "Add your photo",
+    "photo_desc": "People trust you more when they see your face. You can add it later.",
+    "photo_choose": "Choose a photo",
+    "photo_change": "Change photo",
+    "photo_uploading": "Uploading...",
+    "photo_save": "Continue",
+    "photo_saving": "Saving...",
+    "photo_skip": "Skip for now",
+    "photo_failed": "The photo did not upload. Try again."
   }
 }

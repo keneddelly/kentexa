@@ -26,6 +26,7 @@ import MyProfile          from './public/pages/MyProfile';
 import RoleActivation     from './public/pages/RoleActivation';
 import Onboarding          from './public/pages/Onboarding';
 import AddProfilePhoto     from './public/pages/AddProfilePhoto';
+import { photoSkipped }   from './utils/photoLater';
 import FlashSales          from './public/pages/FlashSales';
 import PickupPoints        from './public/pages/PickupPoints';
 import RouteCoverageMap   from './public/pages/RouteCoverageMap';
@@ -225,6 +226,8 @@ function App() {
   const [momentModalMode, setMomentModalMode] = useState('selling');
   // Social Home part 3: the community the composer opens in (from a community page), or null.
   const [momentCommunityId, setMomentCommunityId] = useState(null);
+  // The welcome's first post (owner 2026-11-02): the composer can open on a kind with a ready start.
+  const [momentStart, setMomentStart] = useState(null);
   const [momentRefreshKey, setMomentRefreshKey] = useState(0);
   // Single source of truth for every unread-inbox badge (bottom nav,
   // anywhere else that wants it) — GET /business/inbox/unread-count
@@ -499,7 +502,7 @@ function App() {
           localStorage.setItem('kentexa_user', JSON.stringify(profile));
         } catch {}
         setNavParams(null);
-        if (profile && !profile.avatarUrl) {
+        if (profile && !profile.avatarUrl && !photoSkipped(profile.id)) {
           setPage('AddProfilePhoto');
           return;
         }
@@ -560,7 +563,7 @@ function App() {
       api.get('/auth/profile').then(res => {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
-        if (!res.data.avatarUrl) setPage('AddProfilePhoto');
+        if (!res.data.avatarUrl && !photoSkipped(res.data.id)) setPage('AddProfilePhoto');
         else if (res.data.onboardingCompleted === false) setPage('Onboarding');
       }).catch(() => {});
     }
@@ -679,6 +682,7 @@ function App() {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }
       setMomentModalMode('selling');
       setMomentCommunityId(opts?.communityId ?? null);
+      setMomentStart(opts?.kind || opts?.text ? { kind: opts.kind || null, text: opts.text || '' } : null);
       setShowMomentModal(true);
     },
     momentRefreshKey,
@@ -741,7 +745,8 @@ function App() {
     return component;
   };
 
-  const needsProfilePhoto = isLoggedIn && !!currentUser && !currentUser.avatarUrl;
+  // The photo is optional (owner approved 2026-11-02): "Ruka kwa sasa" is remembered on this phone.
+  const needsProfilePhoto = isLoggedIn && !!currentUser && !currentUser.avatarUrl && !photoSkipped(currentUser.id);
 
   const needsOnboarding = isLoggedIn && currentUser?.onboardingCompleted === false;
 
@@ -1127,6 +1132,7 @@ function App() {
             setShowPostModal(false);
             setMomentModalMode(mode);
             setMomentCommunityId(null);
+            setMomentStart(null);
             setShowMomentModal(true);
           }}
         />
@@ -1136,6 +1142,8 @@ function App() {
           currentUser={currentUser}
           initialMode={momentModalMode}
           initialCommunityId={momentCommunityId}
+          initialKind={momentStart?.kind || null}
+          initialText={momentStart?.text || ''}
           activeProfileId={momentActorProfileId(activeProfile) ?? null}
           activeProfile={activeProfile}
           onNavigate={handleNavigate}

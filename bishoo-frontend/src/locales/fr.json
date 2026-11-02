@@ -6080,6 +6080,15 @@
     "resend": "Renvoyer le code",
     "change_number": "Changer de numéro",
     "resend_failed": "Impossible de renvoyer.",
-    "code_label": "Code de vérification"
+    "code_label": "Code de vérification",
+    "photo_title": "Ajoutez votre photo",
+    "photo_desc": "On vous fait plus confiance quand on voit votre visage. Vous pourrez l’ajouter plus tard.",
+    "photo_choose": "Choisir une photo",
+    "photo_change": "Changer la photo",
+    "photo_uploading": "Envoi...",
+    "photo_save": "Continuer",
+    "photo_saving": "Enregistrement...",
+    "photo_skip": "Plus tard",
+    "photo_failed": "La photo n’a pas été envoyée. Réessayez."
   }
 }
