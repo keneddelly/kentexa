@@ -53,3 +53,10 @@ test('agent after accepting: "Fungua ramani" with the pin, or "Hakuna pin" witho
   expect(screen.getByText('Hakuna pin — piga simu kwa mtumaji')).toBeInTheDocument();
   expect(screen.queryByText('Fungua ramani')).toBeNull();
 });
+
+test('with the "Kutoka" place: the pin is offered only as "I am there now", optional (owner 2026-11-02)', () => {
+  render(<PickupPinFields pin={null} onPin={() => {}} landmark="" onLandmark={() => {}} placeName="Tabata Relini" getPosition={jest.fn()} />);
+  expect(screen.getByText('Uko Tabata Relini sasa hivi?')).toBeInTheDocument();
+  expect(screen.getByText('Ndiyo, tumia mahali nilipo')).toBeInTheDocument();
+  expect(screen.getByText(/Si lazima.*bei inatokana na Tabata Relini/)).toBeInTheDocument();
+});

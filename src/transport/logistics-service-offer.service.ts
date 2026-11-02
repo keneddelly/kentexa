@@ -8,7 +8,7 @@ import { JourneyComposerService } from './journey-composer.service';
 import { OfficePriceService } from '../super-agents/office-price.service';
 import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
 import { isDarEsSalaam } from '../Utils/delivery-zone-detector';
-import { darZoneOf } from '../boda-rates/dar-boda-zones';
+import { darMatch } from '../boda-rates/dar-boda-zones';
 import { OfficePickupOffer, OfficeRateRow, officeChargeText, officeEtaLabel, officePickupFeeFor, officePickupTableReady, officeSameCityColumnReady, isSameCityTrip, pickOfficeRates } from './office-offers';
 
 export interface DiscoverServiceOffersDto {
@@ -34,6 +34,8 @@ export interface LogisticsServiceOffer {
   areaUnknown?: boolean;
   /** Which place KenteXa did not know, so the form asks only for that one. */
   unknownPlaces?: ('origin' | 'destination')[];
+  /** Dar same-city: the places the fare is from and to, and the place of the GPS pin when it is in another zone. */
+  fromPlace?: string | null; toPlace?: string | null; pinPlace?: string | null;
   // For an intercity offer `price` is the transport fare only -- the same
   // number POST /transport/quotes freezes. Door pickup/delivery is never
   // inside it: 'separate' means an Agent covers that city and charges on top,
@@ -73,18 +75,40 @@ export class LogisticsServiceOfferService {
    * only; the agent's old flat fee is no longer used in Dar). undefined = not a Dar trip;
    * null = a place the zone table does not know (the customer picks an area).
    */
-  private async darZoneFee(city: string, dto: DiscoverServiceOffersDto, weight: number):
-    Promise<{ fee: number | null; unknown: ('origin' | 'destination')[] } | undefined> {
+  private async darZoneFee(city: string, dto: DiscoverServiceOffersDto, weight: number): Promise<{
+    fee: number | null; unknown: ('origin' | 'destination')[]; fromPlace: string | null; toPlace: string | null; pinPlace: string | null;
+  } | undefined> {
     if (!this.darFees || !isDarEsSalaam(city)) return undefined;
     const withArea = (area: unknown, words: string | null) =>
       [typeof area === 'string' ? area.trim().slice(0, 60) : '', words || ''].filter(Boolean).join(' — ') || null;
     const [from, to] = await Promise.all([this.placeWords(dto.origin), this.placeWords(dto.destination)]);
     const fromText = withArea(dto.originArea, from); const toText = withArea(dto.destinationArea, to);
+    const fromMatch = darMatch(fromText); const toMatch = darMatch(toText);
     const unknown: ('origin' | 'destination')[] = [];
-    if (!darZoneOf(fromText)) unknown.push('origin');
-    if (!darZoneOf(toText)) unknown.push('destination');
+    if (!fromMatch) unknown.push('origin');
+    if (!toMatch) unknown.push('destination');
     const fee = unknown.length ? null : await this.darFees.feeBetween(fromText, toText, weight).catch(() => null);
-    return { fee, unknown };
+    // The sender's GPS pin (owner 2026-11-02: "I put my pin at Kigamboni, nothing changed"):
+    // when it sits in another zone than "Kutoka", say where, so the form can ask which is right.
+    const pin = dto.pickup === 'door' ? await this.darPinPlace(dto.pickupPoint) : null;
+    const pinPlace = pin && fromMatch && pin.zone.key !== fromMatch.zone.key ? pin.place : null;
+    return { fee, unknown, fromPlace: fromMatch?.place ?? null, toPlace: toMatch?.place ?? null, pinPlace };
+  }
+
+  /**
+   * The Dar place nearest a GPS pin: the closest location-seed ward that has a map point
+   * (never an invented one), within 6 km; null when the pin is not near any.
+   */
+  private async darPinPlace(point: { latitude?: number; longitude?: number } | null | undefined) {
+    const lat = Number(point?.latitude); const lng = Number(point?.longitude);
+    if (!this.db || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    const [w] = await this.db.query(
+      `SELECT w.name, sqrt(power((w.lat::float8 - $1::float8) * 111.32, 2) + power((w.lng::float8 - $2::float8) * 111.32 * cos(radians($1::float8)), 2)) AS km
+         FROM public.tz_ward w JOIN public.tz_region r ON r.id = w.region_id
+        WHERE r.name = 'Dar es Salaam' AND w.lat IS NOT NULL AND w.lng IS NOT NULL AND w."isActive" = true
+        ORDER BY km ASC LIMIT 1`, [lat, lng]).catch(() => []);
+    if (!w || !(Number(w.km) <= 6)) return null;
+    return darMatch(String(w.name));
   }
 
   /**
@@ -209,6 +233,7 @@ export class LogisticsServiceOfferService {
         serviceType: 'direct_delivery', name: 'Direct Delivery',
         price: dar === undefined ? Math.max(directPickupFee, deliveryFee) : dar.fee, currency: 'TZS',
         ...(dar && dar.unknown.length ? { areaUnknown: true, unknownPlaces: dar.unknown } : {}),
+        ...(dar ? { fromPlace: dar.fromPlace, toPlace: dar.toPlace, pinPlace: dar.pinPlace } : {}),
         etaLabel: directAgent.deliveryTime ?? 'Same day',
         firstAction: dto.pickup === 'door' && pickupAgents.length > 0
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: pickupAgents.map((a: any) => a.id) }

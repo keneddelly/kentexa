@@ -213,6 +213,15 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [deliveryOption, setDeliveryOption] = useState('station');
   const [pickupPin, setPickupPin] = useState(null);
   const [pickupLandmark, setPickupLandmark] = useState('');
+  // Owner 2026-11-02: the landmark is remembered per "Kutoka" place on this phone, so it is
+  // not typed again each time (per-viewer convenience only; the server never relies on it).
+  const landmarkKey = (place) => `kx.pickupLandmark.${String(place || '').trim().toLowerCase()}`;
+  useEffect(() => {
+    if (!origin.trim()) return;
+    try { const saved = window.localStorage.getItem(landmarkKey(origin)); if (saved) setPickupLandmark((cur) => cur || saved); } catch { /* storage off */ }
+  }, [origin]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Asking the engine again after the sender chose between "Kutoka" and the pin's area.
+  const [recheck, setRecheck] = useState(0);
 
   // 4 Ofa
   const [searching, setSearching] = useState(false);
@@ -300,6 +309,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     }
   }, [fromCity, toCity, weightKg, declaredValue, pickupPin, pickupOption, deliveryOption, originResolved, destinationResolved, origin, destination, sameCity, navParams?.transportProviderId, originArea, destinationArea]);
 
+  useEffect(() => { if (recheck) findOffers(); }, [recheck]); // eslint-disable-line react-hooks/exhaustive-deps
   // A picked Dar area asks the engine again, now with a place it knows.
   useEffect(() => { if (originArea || destinationArea) findOffers(); }, [originArea, destinationArea]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -361,6 +371,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       // The customer books an agent or an office only (owner 2026-10-26); the office
       // books the transport itself. An office journey decides its own origin office.
       const res = await api.post('/shipments', shipmentBody(requestState, selected, null, journeySelection));
+      if (pickupOption === 'door' && pickupLandmark.trim()) {
+        try { window.localStorage.setItem(landmarkKey(origin), pickupLandmark.trim()); } catch { /* storage off */ }
+      }
       const final = await api.patch(`/shipments/${res.data.id}/confirm-and-activate`, {});
       setConfirmed({
         trackingNumber: final.data.shipment?.trackingNumber,
@@ -619,7 +632,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               </>
             )}
             {pickupOption === 'door' && (
-              <PickupPinFields pin={pickupPin} onPin={setPickupPin} landmark={pickupLandmark} onLandmark={setPickupLandmark} />
+              <PickupPinFields pin={pickupPin} onPin={setPickupPin} landmark={pickupLandmark} onLandmark={setPickupLandmark}
+                placeName={originResolved?.label || origin.split(',')[0]?.trim() || ''} />
             )}
             {!sameCity && (
               <>
@@ -654,6 +668,21 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             {!searching && sameCity && searchReason === 'available' && directOffer && (
               <>
                 <h1 style={{ ...h1, fontSize: 22 }}>Mlango kwa mlango</h1>
+                {directOffer.pinPlace && directOffer.fromPlace && (
+                  <div data-testid="pin-elsewhere" role="status" style={{ ...card, borderColor: '#fde68a', background: '#fffbeb', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ fontSize: 14, color: INK }}>Pin yako iko karibu na <b>{directOffer.pinPlace}</b>, si {directOffer.fromPlace}. Mzigo uchukuliwe wapi?</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button type="button" data-testid="pin-keep-origin" onClick={() => { setPickupPin(null); setRecheck((n) => n + 1); }}
+                        style={{ border: `1px solid ${INK}`, background: '#fff', color: INK, borderRadius: 999, padding: '8px 14px', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {directOffer.fromPlace} (ondoa pin)
+                      </button>
+                      <button type="button" data-testid="pin-use-place" onClick={() => setOriginArea(directOffer.pinPlace)}
+                        style={{ border: 'none', background: INK, color: '#fff', borderRadius: 999, padding: '8px 14px', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {directOffer.pinPlace} (nilipo sasa)
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {directOffer.areaUnknown && (directOffer.unknownPlaces || ['destination']).map((side) => (
                   <DarAreaPicker key={side} title={side === 'origin' ? 'Unatuma kutoka wapi?' : 'Mpokeaji yuko wapi?'}
                     placeText={side === 'origin' ? origin : destination}
@@ -667,6 +696,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                     <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{directOffer.price != null ? tzs(directOffer.price) : directOffer.areaUnknown ? 'Chagua eneo' : 'Bei: wakala'}</div>
                   </div>
                   <div style={{ fontSize: 13, color: '#334155' }}>Anachukua kwako na kumfikishia mpokeaji mlangoni</div>
+                  {directOffer.fromPlace && directOffer.toPlace && (
+                    <div data-testid="direct-fare-route" style={{ fontSize: 13, color: INK, fontWeight: 600 }}>Bei ya {directOffer.fromPlace} → {directOffer.toPlace}</div>
+                  )}
                   <div style={{ fontSize: 13, color: GREY }}>{etaText(directOffer.etaLabel) || 'Leo hii'}</div>
                 </button>
               </>

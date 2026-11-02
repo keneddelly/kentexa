@@ -96,18 +96,23 @@ const norm = (s: string) => ` ${String(s).toLowerCase().replace(/[^a-z0-9']+/g, 
  * on the same position the longer name wins ("Mbezi Beach" over "Mbezi").
  */
 export function darZoneOf(address: string | null | undefined): DarZone | null {
+  return darMatch(address)?.zone ?? null;
+}
+
+/** The zone and the exact place name KenteXa read in an address (for "Tabata Relini -> Mabibo Hostel"). */
+export function darMatch(address: string | null | undefined): { zone: DarZone; place: string } | null {
   if (!address || !String(address).trim()) return null;
   const text = norm(address);
-  let best: { zone: DarZone; at: number; len: number } | null = null;
+  let best: { zone: DarZone; place: string; at: number; len: number } | null = null;
   for (const z of DAR_ZONES) {
     for (const p of z.places) {
       const needle = norm(p);
       const at = text.indexOf(needle);
       if (at < 0) continue;
-      if (!best || at < best.at || (at === best.at && needle.length > best.len)) best = { zone: z, at, len: needle.length };
+      if (!best || at < best.at || (at === best.at && needle.length > best.len)) best = { zone: z, place: p, at, len: needle.length };
     }
   }
-  return best ? best.zone : null;
+  return best ? { zone: best.zone, place: best.place } : null;
 }
 
 export function darSteps(a: DarZone, b: DarZone): number {
