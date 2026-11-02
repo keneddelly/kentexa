@@ -4,7 +4,7 @@
  * Opened from the "+" sheet (create actions live only there) and, in edit mode, from a
  * post's own edit button within 15 minutes of publishing.
  *
- *  - Kinds: Moment, Swali, Mjadala, Onyesha bidhaa, Ofa, Natafuta ("Kura" comes in phase E).
+ *  - Kinds: Moment, Swali, Mjadala, Onyesha bidhaa, Ofa, Kura (phase E), Natafuta.
  *  - Up to 4 photos, each keeping its own width and height; 500 characters of text.
  *  - Onyesha bidhaa and Ofa link one of the person's real products, listings or services;
  *    the price comes from that record, never typed.
@@ -16,7 +16,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { saleIntent } from '../utils/saleIntent';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { COMPOSER, POST_KINDS, postPhotos } from '../utils/feedPresentation';
+import { COMPOSER, POST_KINDS, POLL, postPhotos } from '../utils/feedPresentation';
 
 const B  = '#2563EB';
 const DK = '#0F1419';
@@ -52,6 +52,7 @@ const KIND_ICON = {
   showcase: 'M6 7h12l1 13H5zM9 7a3 3 0 016 0',
   offer: 'M20 12l-8 8-9-9V3h8zM7.5 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
   looking_for: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5',
+  poll: 'M5 20V10M12 20V4M19 20v-7',
 };
 const Icon = ({ d, color = 'currentColor', size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
@@ -63,6 +64,7 @@ const PLACEHOLDER = {
   discussion: 'Anzisha mjadala...',
   showcase: 'Eleza bidhaa au huduma unayoonyesha...',
   offer: 'Eleza ofa yako...',
+  poll: 'Andika swali la kura...',
 };
 
 /** Reads a picked photo's own width and height (null when the browser cannot tell). */
@@ -86,6 +88,9 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const [caption,   setCaption]   = useState(isEdit ? (editPost.body || editPost.title || '') : '');
   const [audience,  setAudience]  = useState(isEdit && editPost.visibility === 'followers' ? 'followers' : 'public');
   const [category,  setCategory]  = useState('');
+  // Phase E: a poll's options (2 to 6) and how long it stays open.
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [pollDays,    setPollDays]    = useState(3);
   const [myItems,   setMyItems]   = useState([]);
   const [loadingItems, setLoadingItems] = useState(!isEdit);
   const [tagged,    setTagged]    = useState(null); // { type, id, title, price }
@@ -202,6 +207,12 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     if (mode === 'moment') {
       if (!photos.length && !text) { setError('Weka picha au andika kitu.'); return; }
       if ((kind === 'question' || kind === 'discussion') && !text) { setError('Andika swali au mada ya mjadala.'); return; }
+      if (kind === 'poll') {
+        if (!text) { setError('Andika swali la kura.'); return; }
+        const opts = pollOptions.map((o) => o.trim());
+        if (opts.some((o) => !o)) { setError('Jaza kila chaguo, au liondoe.'); return; }
+        if (new Set(opts.map((o) => o.toLowerCase())).size !== opts.length) { setError('Machaguo mawili yanafanana.'); return; }
+      }
       if (kindInfo.needsItem && !tagged) { setError('Chagua bidhaa, tangazo au huduma unayoonyesha.'); return; }
     } else {
       if (!text) { setError(t('create_moment_modal.validate_describe')); return; }
@@ -249,6 +260,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           linkedEntityId: tagged?.id || null,
           // The price is the linked record's own, never typed here.
           price: kindInfo.needsItem && tagged?.price ? tagged.price : undefined,
+          poll: kind === 'poll' ? { options: pollOptions.map((o) => o.trim()), durationDays: pollDays } : undefined,
           visibility: audience,
           commerceProfileId: activeProfileId || undefined,
         });
@@ -311,7 +323,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         <div style={{ flex:1, overflowY:'auto', padding:16, minHeight:0, display:'flex', flexDirection:'column', gap:14 }}>
           {/* The type grid: what kind of post this is. Not offered when editing. */}
           {!isEdit && (
-            <div role="radiogroup" aria-label="Aina ya chapisho" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6 }}>
+            <div role="radiogroup" aria-label="Aina ya chapisho" style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:6 }}>
               {POST_KINDS.map((k) => {
                 const on = kind === k.key;
                 return (
@@ -338,6 +350,39 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               {caption.length} / {COMPOSER.text}
             </div>
           </div>
+
+          {/* Phase E: the poll's options and how long it stays open */}
+          {kind === 'poll' && !isEdit && (
+            <div data-testid="poll-editor" style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {pollOptions.map((o, i) => (
+                <div key={i} style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <input value={o} maxLength={POLL.optionLength} aria-label={`Chaguo ${i + 1}`} data-testid={`poll-option-${i}`}
+                    placeholder={`Chaguo ${i + 1}`}
+                    onChange={(e) => setPollOptions((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))}
+                    style={{ flex:1, minWidth:0, height:40, padding:'0 10px', borderRadius:10, border:`1px solid ${LN}`, fontSize:15, fontFamily:'inherit', color:DK, background:WH }} />
+                  {pollOptions.length > POLL.minOptions && (
+                    <button type="button" aria-label={`Ondoa chaguo ${i + 1}`} onClick={() => setPollOptions((prev) => prev.filter((_, j) => j !== i))}
+                      style={{ width:32, height:32, border:'none', background:'none', color:GR, fontSize:20, cursor:'pointer' }}>×</button>
+                  )}
+                </div>
+              ))}
+              {pollOptions.length < POLL.maxOptions && (
+                <button type="button" data-testid="poll-add-option" onClick={() => setPollOptions((prev) => [...prev, ''])}
+                  style={{ height:38, borderRadius:10, border:`1.5px dashed ${LN}`, background:WH, color:GR, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                  + Ongeza chaguo ({pollOptions.length}/{POLL.maxOptions})
+                </button>
+              )}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                <span style={{ fontSize:14, fontWeight:700, color:DK }}>Kura inafungwa</span>
+                <span role="radiogroup" aria-label="Kura inafungwa" style={{ display:'flex', gap:6 }}>
+                  {POLL.days.map((d) => (
+                    <button key={d} type="button" role="radio" aria-checked={pollDays === d} data-testid={`poll-days-${d}`}
+                      onClick={() => setPollDays(d)} style={pill(pollDays === d)}>Siku {d}</button>
+                  ))}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Up to 4 photos */}
           <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handlePickFiles} data-testid="photo-input" />

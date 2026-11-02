@@ -42,6 +42,8 @@ export enum MomentIntent {
   // Home Feed phase D (2026-11-02): post formats. Answers use the normal comment thread.
   QUESTION = 'question',
   DISCUSSION = 'discussion',
+  // Phase E (2026-11-02): a poll; its question and options live in post_poll.
+  POLL = 'poll',
 }
 
 /** Phase D: one photo of a post, with its own size so the card keeps its shape. */

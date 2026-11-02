@@ -21,7 +21,7 @@ describe('phase D presentation (owner approved 2026-11-02)', () => {
     expect(canEditPost({ ...post, createdAt: '2026-11-02T10:04:00Z' }, 3, now)).toBe(false);
     expect(canEditPost({ ...post, id: 'prd-7' }, 3, now)).toBe(false);
   });
-  it('the composer offers six kinds; poll is not one yet (phase E)', () => {
-    expect(POST_KINDS.map((k) => k.label)).toEqual(['Moment', 'Swali', 'Mjadala', 'Onyesha bidhaa', 'Ofa', 'Natafuta']);
+  it('the composer offers seven kinds, Kura included (phase E)', () => {
+    expect(POST_KINDS.map((k) => k.label)).toEqual(['Moment', 'Swali', 'Mjadala', 'Onyesha bidhaa', 'Ofa', 'Kura', 'Natafuta']);
   });
 });

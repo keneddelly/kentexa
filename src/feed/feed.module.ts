@@ -18,6 +18,7 @@ import { PostCommentHelpfulVote } from './entities/post-comment-helpful-vote.ent
 import { Order } from '../orders/entities/order.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FeedService } from './feed.service';
+import { PollService } from './poll.service';
 import { CvsService } from './cvs.service';
 import { FeedController } from './feed.controller';
 import {
@@ -62,6 +63,7 @@ import { SearchModule } from '../search/search.module';
   providers: [
     FeedService,
     CvsService,
+    PollService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,

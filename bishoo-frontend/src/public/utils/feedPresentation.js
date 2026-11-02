@@ -33,13 +33,14 @@ export const postShareUrl = (post, entityType, entityId) => {
 
 export const COMPOSER = Object.freeze({ text: 500, photos: 4, editMinutes: 15 });
 
-/** The kinds of post the composer offers ("Kura" comes with phase E). */
+/** The kinds of post the composer offers (Kura added in phase E, 2026-11-02). */
 export const POST_KINDS = Object.freeze([
   { key: 'moment', label: 'Moment', intent: 'update' },
   { key: 'question', label: 'Swali', intent: 'question' },
   { key: 'discussion', label: 'Mjadala', intent: 'discussion' },
   { key: 'showcase', label: 'Onyesha bidhaa', intent: 'sell_available', needsItem: true },
   { key: 'offer', label: 'Ofa', intent: 'offer', needsItem: true },
+  { key: 'poll', label: 'Kura', intent: 'poll' },
   { key: 'looking_for', label: 'Natafuta' },
 ]);
 
@@ -51,7 +52,20 @@ export const postPhotos = (post) => {
 };
 
 /** The tag a post shows for its format (empty for a plain Moment). */
-export const formatTag = (intent) => ({ question: 'Swali', discussion: 'Mjadala', offer: 'Ofa' }[intent] || '');
+export const formatTag = (intent) => ({ question: 'Swali', discussion: 'Mjadala', offer: 'Ofa', poll: 'Kura' }[intent] || '');
+
+/** Phase E (owner approved 2026-11-02): poll limits, the same as the server's. */
+export const POLL = Object.freeze({ minOptions: 2, maxOptions: 6, optionLength: 80, days: [1, 3, 7] });
+
+/** "zimebaki siku 2" / "saa 5" / "imefungwa", from the poll's own close time. */
+export const pollTimeLeft = (closesAt, now = Date.now()) => {
+  const ms = Date.parse(closesAt) - now;
+  if (!Number.isFinite(ms) || ms <= 0) return 'imefungwa';
+  const hours = Math.floor(ms / 3600000);
+  if (hours >= 24) return `zimebaki siku ${Math.floor(hours / 24)}`;
+  if (hours >= 1) return `zimebaki saa ${hours}`;
+  return `zimebaki dakika ${Math.max(1, Math.floor(ms / 60000))}`;
+};
 
 /** The author may edit within 15 minutes of publishing (the server checks the same). */
 export const canEditPost = (post, userId, now = Date.now()) => {

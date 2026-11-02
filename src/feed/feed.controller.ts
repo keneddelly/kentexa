@@ -15,6 +15,7 @@ import {
   UseGuards,
   ParseIntPipe,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
@@ -24,12 +25,15 @@ import { FeedService } from './feed.service';
 import { CvsService } from './cvs.service';
 import { EngagementType } from './entities/post-engagement.entity';
 import { assertComposerText } from './publish-input';
+import { PollService, assertPollInput } from './poll.service';
 
 @Controller('feed')
 export class FeedController {
   constructor(
     private readonly svc: FeedService,
     private readonly cvs: CvsService,
+    // Phase E (Kura). Optional so hand-built test controllers keep constructing.
+    @Optional() private readonly polls?: PollService,
   ) {}
 
   // ── Discovery (no auth required, but personalized when logged in) ────────
@@ -93,12 +97,42 @@ export class FeedController {
   // ── Publish post ──────────────────────────────────────────────────────────
   @Post('publish')
   @UseGuards(JwtAuthGuard, RoleContextGuard)
-  publish(@Request() req, @Body() dto: any) {
+  async publish(@Request() req, @Body() dto: any) {
     // Phase D: what a person types in the composer is at most 500 characters.
     assertComposerText(dto);
+    // Phase E: a poll is checked before the post is saved, and only a poll post carries one.
+    const isPoll = dto?.intent === 'poll';
+    if (isPoll && !this.polls) throw new BadRequestException('Kura haipatikani kwa sasa.');
+    const poll = isPoll ? assertPollInput(dto.poll) : null;
     // I2B: the acting identity comes from the server-resolved active
     // context, never solely from a client-supplied commerceProfileId.
-    return this.svc.publish(req.user.id, dto, req.roleContext);
+    const item = await this.svc.publish(req.user.id, dto, req.roleContext);
+    if (poll && this.polls) {
+      try {
+        await this.polls.create(item.id, dto.title, poll);
+      } catch (err) {
+        // Never leave a poll post without its poll: the post is taken down again.
+        await this.svc.deletePost(req.user.id, item.id).catch(() => {});
+        throw err;
+      }
+    }
+    return item;
+  }
+
+  // ── Phase E: Kura ───────────────────────────────────────────────────────────
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':id/poll')
+  getPoll(@Param('id', ParseIntPipe) id: number, @Request() req?) {
+    if (!this.polls) throw new BadRequestException('Kura haipatikani kwa sasa.');
+    return this.polls.view(id, req?.user?.id || null);
+  }
+
+  @Post(':id/poll/vote')
+  @UseGuards(JwtAuthGuard)
+  votePoll(@Request() req, @Param('id', ParseIntPipe) id: number, @Body('optionId') optionId: any) {
+    if (!this.polls) throw new BadRequestException('Kura haipatikani kwa sasa.');
+    if (!Number.isInteger(Number(optionId)) || Number(optionId) <= 0) throw new BadRequestException('Chagua chaguo moja.');
+    return this.polls.vote(id, req.user.id, Number(optionId));
   }
 
   // ── Phase D: the author edits within 15 minutes (text, photos, audience) ──
