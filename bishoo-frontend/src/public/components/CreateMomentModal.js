@@ -76,7 +76,7 @@ const measure = (url) => new Promise((resolve) => {
   img.src = url;
 });
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited }) => {
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited, initialCommunityId = null }) => {
   const { t } = useTranslation();
   const isEdit = !!editPost;
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
@@ -104,7 +104,18 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     api.get('/feed/topics').then((r) => { if (alive) setTopicList(Array.isArray(r?.data) ? r.data : []); }).catch(() => {});
     return () => { alive = false; };
   }, [isEdit]);
-  const askTopic = !isEdit && kind !== 'looking_for' && topicList.length > 0;
+  // Social Home part 3: "Chapisha kwenye": Home, or one of the person's communities.
+  const [myCommunities, setMyCommunities] = useState([]);
+  const [communityId,   setCommunityId]   = useState(initialCommunityId ? Number(initialCommunityId) : null);
+  useEffect(() => {
+    if (isEdit) return undefined;
+    let alive = true;
+    api.get('/communities', { params: { mine: '1' } })
+      .then((r) => { if (alive) setMyCommunities(Array.isArray(r?.data) ? r.data : []); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isEdit]);
+  // In a community the post takes the community's topic unless one is chosen.
+  const askTopic = !isEdit && kind !== 'looking_for' && topicList.length > 0 && !communityId;
   const [myItems,   setMyItems]   = useState([]);
   const [loadingItems, setLoadingItems] = useState(!isEdit);
   const [tagged,    setTagged]    = useState(null); // { type, id, title, price }
@@ -276,7 +287,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           // The price is the linked record's own, never typed here.
           price: kindInfo.needsItem && tagged?.price ? tagged.price : undefined,
           poll: kind === 'poll' ? { options: pollOptions.map((o) => o.trim()), durationDays: pollDays } : undefined,
-          topic: askTopic ? topicKey : undefined,
+          topic: askTopic ? topicKey : (communityId && topicKey ? topicKey : undefined),
+          communityId: communityId || undefined,
           visibility: audience,
           commerceProfileId: activeProfileId || undefined,
         });
@@ -366,6 +378,20 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               {caption.length} / {COMPOSER.text}
             </div>
           </div>
+
+          {/* Social Home part 3: where the post goes */}
+          {!isEdit && kind !== 'looking_for' && myCommunities.length > 0 && (
+            <div>
+              <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:6 }}>Chapisha kwenye</div>
+              <div role="radiogroup" aria-label="Chapisha kwenye" style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                <button type="button" role="radio" aria-checked={!communityId} data-testid="post-where-home" onClick={() => setCommunityId(null)} style={pill(!communityId)}>Mwanzo (wote)</button>
+                {myCommunities.map((c) => (
+                  <button key={c.id} type="button" role="radio" aria-checked={communityId === c.id} data-testid={`post-where-${c.id}`}
+                    onClick={() => setCommunityId(c.id)} style={pill(communityId === c.id)}>{c.name}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Social Home: the topic of this post */}
           {askTopic && (

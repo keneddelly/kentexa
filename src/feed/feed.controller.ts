@@ -29,6 +29,7 @@ import { PollService, assertPollInput } from './poll.service';
 import { SocialSafetyService } from './social-safety.service';
 import { TopicsService } from './topics.service';
 import { TodayService } from './today.service';
+import { CommunitiesService } from './communities.service';
 
 @Controller('feed')
 export class FeedController {
@@ -43,6 +44,8 @@ export class FeedController {
     @Optional() private readonly topics?: TopicsService,
     // Social Home part 2: "Leo kwako". Optional for the same reason.
     @Optional() private readonly today?: TodayService,
+    // Social Home part 3: communities. Optional for the same reason.
+    @Optional() private readonly communities?: CommunitiesService,
   ) {}
 
   // ── Discovery (no auth required, but personalized when logged in) ────────
@@ -64,7 +67,11 @@ export class FeedController {
     @Query('topic') topic?: string,
   ) {
     const userId = req?.user?.id || null;
+    // Social Home part 3: the Jumuiya tab reads the communities this person belongs to.
+    const communityIds = filter === 'communities' && userId && this.communities
+      ? await this.communities.myCommunityIds(userId) : undefined;
     return this.cvs.getFilteredFeed({
+      communityIds,
       topic: typeof topic === 'string' && /^[a-z_]{2,40}$/.test(topic) ? topic : null,
       filter,
       userId,
@@ -116,6 +123,11 @@ export class FeedController {
       delete dto.autoListing;
       if (this.topics) dto.topic = await this.topics.assertTopic(dto.topic);
       else delete dto.topic;
+      // Social Home part 3: a post made in a community needs an active member; it takes the
+      // community's topic when none was chosen.
+      const community = this.communities ? await this.communities.assertCanPost(dto.communityId, req.user.id) : null;
+      dto.communityId = community?.id ?? null;
+      if (community && !dto.topic) dto.topic = community.topicKey;
     }
     // Phase E: a poll is checked before the post is saved, and only a poll post carries one.
     const isPoll = dto?.intent === 'poll';

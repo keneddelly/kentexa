@@ -23,14 +23,16 @@ suite('feed post visibility: real PostgreSQL', () => {
     await client.connect();
     await resetB5BTestSchema(client);
     await client.query(`CREATE TABLE public.business_feed_item (id int PRIMARY KEY, "businessId" int NOT NULL,
-      "commerceProfileId" int, visibility text NOT NULL DEFAULT 'public')`);
+      "commerceProfileId" int, visibility text NOT NULL DEFAULT 'public', "communityId" int)`);
+    await client.query(`CREATE TABLE public.community (id int PRIMARY KEY, "joinPolicy" text NOT NULL, status text NOT NULL)`);
+    await client.query(`CREATE TABLE public.community_member (id serial PRIMARY KEY, "communityId" int NOT NULL, "userId" int NOT NULL, status text NOT NULL)`);
     await client.query('CREATE TABLE public.commerce_profile (id int PRIMARY KEY, type text NOT NULL)');
     await client.query('CREATE TABLE public.commerce_profile_follow (id serial PRIMARY KEY, "followerId" int NOT NULL, "commerceProfileId" int NOT NULL)');
     await client.query('CREATE TABLE public.follow (id serial PRIMARY KEY, "followerId" int, "sellerId" int)');
     await client.query('CREATE TABLE public.profile_mute (id serial PRIMARY KEY, "userId" int NOT NULL, "mutedProfileId" int, "mutedUserId" int)');
     // Owner 10 has a personal profile (100) and a business (200).
     await client.query("INSERT INTO public.commerce_profile VALUES (100, 'personal'), (200, 'business')");
-    await client.query(`INSERT INTO public.business_feed_item VALUES
+    await client.query(`INSERT INTO public.business_feed_item (id, "businessId", "commerceProfileId", visibility) VALUES
       (1, 10, 200, 'public'),
       (2, 10, 200, 'followers'),
       (3, 10, 100, 'followers'),
@@ -73,5 +75,17 @@ suite('feed post visibility: real PostgreSQL', () => {
     expect(await notMuted(31)).toEqual([3, 5]);
     expect(await notMuted(32)).toEqual([1, 2, 3, 4]);
     expect(await notMuted(99)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('Social Home part 3: a request community is for its members; a hidden community for nobody but the author', async () => {
+    await client.query(`INSERT INTO public.community VALUES (1, 'open', 'active'), (2, 'request', 'active'), (3, 'open', 'hidden')`);
+    await client.query(`INSERT INTO public.community_member ("communityId", "userId", status) VALUES (2, 41, 'active'), (2, 42, 'pending')`);
+    await client.query(`INSERT INTO public.business_feed_item (id, "businessId", "commerceProfileId", visibility, "communityId") VALUES
+      (11, 10, 200, 'public', 1), (12, 10, 200, 'public', 2), (13, 10, 200, 'public', 3)`);
+    const community = async (viewer: number) => (await visibleTo(viewer)).filter((id) => id > 10);
+    expect(await community(99)).toEqual([11]);
+    expect(await community(41)).toEqual([11, 12]);
+    expect(await community(42)).toEqual([11]); // a pending request is not membership
+    expect(await community(10)).toEqual([11, 12, 13]); // the author
   });
 });

@@ -18,6 +18,7 @@ import PollBlock from '../components/PollBlock';
 import PostSafetyMenu from '../components/PostSafetyMenu';
 import TopicPicker from '../components/TopicPicker';
 import LeoKwako from '../components/LeoKwako';
+import CommunitiesPanel from '../components/CommunitiesPanel';
 import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -66,6 +67,8 @@ const VerifiedTick = () => (
 const getFilters = t => [
   { key:'for_you',    label:t('home_feed.filter_for_you')       },
   { key:'following',  label:t('home_feed.filter_following') },
+  // Social Home part 3 (owner approved 2026-11-02): communities.
+  { key:'communities', label:'Jumuiya' },
   { key:'nearby',     label:t('home_feed.filter_nearby')      },
   { key:'products',   label:t('home_feed.filter_products')    },
   { key:'services',   label:t('home_feed.filter_services')      },
@@ -778,11 +781,18 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         </div>
         {biz.businessLocation && <div style={{ fontSize:13, color:MUTED_TX, marginTop:-4 }}>{biz.businessLocation}</div>}
 
-        {(tag || post.topic) && (
+        {(tag || (post.topic && !post.community)) && (
           <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:MUTED_TX }}>
             {tag && <span data-testid="post-tag" style={{ fontWeight:700, color:B, background:'#EEF3FE', padding:'2px 8px', borderRadius:10 }}>{tag}</span>}
             {post.topic && <span data-testid="post-topic">{topicLabel(post.topic)}</span>}
           </div>
+        )}
+        {post.community?.id && (
+          <button type="button" data-testid="post-community" onClick={() => onNavigate(`Community-${post.community.id}`)}
+            style={{ alignSelf:'flex-start', border:'none', background:'none', padding:0, cursor:'pointer', fontFamily:'inherit',
+              fontSize:13, fontWeight:700, color:INK_TX }}>
+            {post.community.name}
+          </button>
         )}
         {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
         {postText && <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} />}
@@ -1935,6 +1945,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       )}
 
       {/* ── Trending bar ── */}
+      {/* Social Home part 3: the Jumuiya tab opens with the person's communities and ones to join. */}
+      {filter === 'communities' && (
+        <CommunitiesPanel isLoggedIn={isLoggedIn} onNavigate={onNavigate} topic={topic} />
+      )}
+
       {/* Social Home part 2: "Leo kwako" opens For You (only real activity; empty = nothing). */}
       {isLoggedIn && filter === 'for_you' && !topic && (
         <LeoKwako onNavigate={onNavigate} refreshKey={momentRefreshKey} />

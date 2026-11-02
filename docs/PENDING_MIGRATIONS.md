@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-02 (Jumuiya):** the pin is now `MIGRATION_RUN_UPTO=1794200000000`. The next deploy
+runs `1794200000000-AddCommunities` itself (communities, members, a post's community). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-02 (Social Home 1):** the pin is now `MIGRATION_RUN_UPTO=1794100000000`. The next deploy
 runs `1794100000000-AddFeedTopics` itself (topics, topic follows, post topic, listings marked out of Home). Check: `/version/migrations` shows `pending: []`.
 

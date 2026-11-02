@@ -99,3 +99,13 @@ test('Social Home: a post needs a topic when topics exist, and sends it (owner a
   await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
   expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({ topic: 'kilimo' }));
 });
+
+test('Social Home part 3: "Chapisha kwenye" sends the post into a community (no topic needed there)', async () => {
+  api.get.mockImplementation(async (url) => ({ data: url === '/feed/topics' ? [{ key: 'kilimo', label: 'Kilimo' }]
+    : url === '/communities' ? [{ id: 3, name: 'Wakulima Mwanza' }] : [] }));
+  await open();
+  type('Mvua zimeanza kwenu?');
+  fireEvent.click(screen.getByTestId('post-where-3'));
+  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({ communityId: 3 }));
+});
