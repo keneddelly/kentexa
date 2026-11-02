@@ -59,6 +59,15 @@ export class SalesController {
     return this.service.getDashboard(sellerId, scope);
   }
 
+  // POS sales waiting to be sent (owner approved 2026-11-02): pay-on-delivery and
+  // "Itatumwa kwa mteja" sales with no shipment yet. Declared before ':id'.
+  @Get('to-ship')
+  async toShip(@Request() req, @CurrentRoleContext() ctx: RoleContext) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canOperatePOS');
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, ctx);
+    return this.service.getSalesToShip(sellerId, scope);
+  }
+
   @Get(':id')
   async detail(@Request() req, @Param('id', ParseIntPipe) id: number, @CurrentRoleContext() ctx: RoleContext) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canOperatePOS');
