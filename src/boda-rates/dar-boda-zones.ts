@@ -22,6 +22,8 @@
  *   category 'dar_step', rateKey 'dar_heavy_multiplier' -> the heavy multiplier
  */
 
+import { DAR_COMMON_PLACES } from '../tz-location/dar-common-places';
+
 export type DarRoad = 'kati' | 'bagamoyo' | 'morogoro' | 'nyerere' | 'kilwa' | 'kigamboni';
 
 export interface DarZone {
@@ -37,8 +39,16 @@ export const DAR_ROAD_LABELS: Readonly<Record<DarRoad, string>> = Object.freeze(
   nyerere: 'Barabara ya Nyerere / Pugu', kilwa: 'Barabara ya Kilwa', kigamboni: 'Kigamboni',
 });
 
-const zone = (road: DarRoad, ring: number, places: string[]): DarZone =>
-  ({ key: `${road}_${ring}`, road, ring, label: places.slice(0, 2).join(' / '), places });
+// Each zone's places: its own list plus the common places of that zone (one list for the
+// place picker and the fee, src/tz-location/dar-common-places.ts), without repeats.
+const zone = (road: DarRoad, ring: number, own: string[]): DarZone => {
+  const key = `${road}_${ring}`;
+  const places: string[] = [];
+  for (const p of [...own, ...DAR_COMMON_PLACES.filter((c) => c.zone === key).map((c) => c.name)]) {
+    if (!places.some((x) => x.toLowerCase() === p.toLowerCase())) places.push(p);
+  }
+  return { key, road, ring, label: own.slice(0, 2).join(' / '), places };
+};
 
 /**
  * First list, owner to correct. Each place belongs to exactly one zone, and every Dar
@@ -64,7 +74,7 @@ export const DAR_ZONES: readonly DarZone[] = Object.freeze([
   zone('kilwa', 2, ['Mtoni', 'Tandika', 'Yombo', 'Azimio', 'Sandali', 'Kilakala', 'Makangarawe']),
   zone('kilwa', 3, ['Mbagala', 'Rangi Tatu', 'Kijichi', 'Kiburugwa', 'Toangoma', 'Charambe', 'Kinjengethia', 'Kibonde Maji']),
   zone('kilwa', 4, ['Kongowe', 'Chamazi', 'Vikindu', 'Mbagala Kuu']),
-  zone('kigamboni', 1, ['Kigamboni', 'Vijibweni', 'Ferry']),
+  zone('kigamboni', 1, ['Kigamboni', 'Vijibweni']),
   zone('kigamboni', 2, ['Kibada', 'Tuangoma']),
   zone('kigamboni', 3, ['Mjimwema', 'Kisota', 'Kisarawe II', 'Somangila']),
   zone('kigamboni', 4, ['Kimbiji', 'Pemba Mnazi']),

@@ -4,6 +4,7 @@ import { join } from 'path';
 import {
   DAR_ZONES, DEFAULT_DAR_RATES, darAreas, darFee, darRatesFrom, darSteps, darZoneOf,
 } from './dar-boda-zones';
+import { DAR_COMMON_PLACES } from '../tz-location/dar-common-places';
 import { DailyBatchesService } from '../daily-batches/daily-batches.service';
 import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
 
@@ -83,6 +84,27 @@ describe('Dar delivery zones', () => {
     const wards = [...block.matchAll(/name: ['"](.+?)['"],/g)].map((m) => m[1]);
     expect(wards.length).toBeGreaterThan(50);
     expect(wards.filter((w) => !darZoneOf(w))).toEqual([]);
+  });
+});
+
+describe('common Dar places (owner 2026-11-02: "add many common places")', () => {
+  it('each common place is found by name and lands in the zone the list gives it', () => {
+    expect(DAR_COMMON_PLACES.length).toBeGreaterThan(150);
+    expect(DAR_COMMON_PLACES.filter((p) => darZoneOf(p.name)?.key !== p.zone)).toEqual([]);
+  });
+
+  it('names are unique, districts are Dar councils, and no map point is invented', () => {
+    const names = DAR_COMMON_PLACES.map((p) => p.name.toLowerCase());
+    expect(new Set(names).size).toBe(names.length);
+    expect([...new Set(DAR_COMMON_PLACES.map((p) => p.district))].sort()).toEqual(['Ilala', 'Kigamboni', 'Kinondoni', 'Temeke', 'Ubungo']);
+    expect(DAR_COMMON_PLACES.every((p) => !('lat' in p) && !('lng' in p))).toBe(true);
+  });
+
+  it('real trips by the names people use', () => {
+    expect(darFee(DEFAULT_DAR_RATES, 'Posta', 'Tabata Relini')).toBe(5000);
+    expect(darFee(DEFAULT_DAR_RATES, 'Kariakoo Sokoni', 'Mlimani City')).toBe(7000);
+    expect(darFee(DEFAULT_DAR_RATES, 'Kimara Korogwe', 'Stendi ya Magufuli')).toBe(3000);
+    expect(darFee(DEFAULT_DAR_RATES, 'Tegeta Nyuki', 'Bunju B')).toBe(5000);
   });
 });
 
