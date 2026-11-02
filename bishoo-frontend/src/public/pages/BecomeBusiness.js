@@ -21,15 +21,17 @@ const inputStyle = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
+// Owner 2026-11-02: a hotel must be easy to find, so "Hoteli / mgahawa" (category food, which
+// turns on the menu, table QR and kitchen) comes first and says what it is. No emoji (owner rule).
 const getCategories = (t) => [
-  { key: 'electronics', label: t('stores.cat_electronics'), icon: '📱' },
-  { key: 'fashion',     label: t('stores.cat_fashion'),     icon: '👗' },
-  { key: 'food',        label: t('stores.cat_food'),        icon: '🍽️' },
-  { key: 'hardware',    label: t('stores.cat_hardware'),    icon: '🔧' },
-  { key: 'beauty',      label: t('stores.cat_beauty'),      icon: '💄' },
-  { key: 'furniture',   label: t('stores.cat_furniture'),   icon: '🛋️' },
-  { key: 'wholesale',   label: t('stores.cat_wholesale'),   icon: '📦' },
-  { key: 'services',    label: t('stores.cat_services'),    icon: '⚙️' },
+  { key: 'food',        label: 'Hoteli / mgahawa / chakula' },
+  { key: 'electronics', label: t('stores.cat_electronics') },
+  { key: 'fashion',     label: t('stores.cat_fashion') },
+  { key: 'hardware',    label: t('stores.cat_hardware') },
+  { key: 'beauty',      label: t('stores.cat_beauty') },
+  { key: 'furniture',   label: t('stores.cat_furniture') },
+  { key: 'wholesale',   label: t('stores.cat_wholesale') },
+  { key: 'services',    label: t('stores.cat_services') },
 ];
 
 // What the person typed survives the trip to the login page (owner 2026-11-01: it was lost).
@@ -48,7 +50,7 @@ const clearBusinessDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } c
 /** Where a new or chosen business opens: its own page with the capability tiles (same as "Biashara zangu"). */
 export const businessHomeFor = (business) => (business?.id ? `BusinessHome-${business.id}` : 'MyBusinesses');
 
-const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
+const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, presetCategory }) => {
   const { t } = useTranslation();
   const CATEGORIES = getCategories(t);
   const [checkingStatus, setCheckingStatus] = useState(true);
@@ -58,10 +60,12 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
   const [error, setError] = useState('');
   const [draft] = useState(readBusinessDraft);
   const [form, setForm] = useState({
-    legalName: '', tradingName: '', description: '', category: '',
+    legalName: '', tradingName: '', description: '', category: presetCategory || '',
     address: '', phone: '', email: '',
     ...(draft?.form || {}),
   });
+  // Opened from "Fungua hoteli": the form is shown straight away, as a hotel.
+  const isHotel = form.category === 'food' && presetCategory === 'food';
   const [location, setLocation] = useState(draft?.location || {});
   const goLogin = () => {
     saveBusinessDraft(form, location);
@@ -89,7 +93,7 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
   // Back from login, the draft is in the form: it is used once, not on every later visit.
   useEffect(() => { if (isLoggedIn && draft) clearBusinessDraft(); }, [isLoggedIn, draft]);
   // Coming back from login with a draft: the form is shown straight away.
-  const showList = myBusinesses.length > 0 && !addAnother && !draft;
+  const showList = myBusinesses.length > 0 && !addAnother && !draft && !presetCategory;
 
   const handleSubmit = async () => {
     if (!form.legalName.trim()) { setError(t('become_business.legal_name_required')); return; }
@@ -126,12 +130,11 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#7c3aed)', padding: '28px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 52, marginBottom: 10 }}>🏢</div>
         <h1 style={{ fontSize: 22, fontWeight:800, color: '#fff', margin: '0 0 6px', fontFamily:'inherit' }}>
-          {t('become_business.hero_title')}
+          {isHotel ? 'Fungua hoteli yako' : t('become_business.hero_title')}
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0 }}>
-          {t('become_business.hero_desc')}
+          {isHotel ? 'Weka menyu, QR za meza na upokee oda jikoni papo hapo.' : t('become_business.hero_desc')}
         </p>
       </div>
 
@@ -217,7 +220,7 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {CATEGORIES.map(c => (
-                    <button key={c.key} type="button"
+                    <button key={c.key} type="button" data-testid={`category-${c.key}`} aria-pressed={form.category === c.key}
                       onClick={() => setForm({ ...form, category: c.key })}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6,
@@ -227,7 +230,7 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
                         color: form.category === c.key ? '#7c3aed' : '#475569',
                         fontSize: 12, fontWeight: 700, cursor: 'pointer',
                       }}>
-                      <span>{c.icon}</span>{c.label}
+                      {c.label}
                     </button>
                   ))}
                 </div>

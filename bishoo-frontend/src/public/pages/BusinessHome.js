@@ -165,6 +165,15 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
             </div>
           </div>
         )}
+        {/* Owner 2026-11-02: any other business can still switch its food menu on (the server
+            checks only that the person owns the business). */}
+        {business?.id && !isFoodBusiness(business.category) && (
+          <button type="button" data-testid="business-hotel-start" onClick={() => onNavigate('HotelMenuManager', { businessId: business.id })}
+            style={{ width: '100%', backgroundColor: WH, color: '#0f1419', border: '1px solid #cfd9de', borderRadius: 12, padding: '12px 14px',
+              cursor: 'pointer', fontSize: 14, fontWeight: 700, marginBottom: 12, textAlign: 'left' }}>
+            Una hoteli au mgahawa? Weka menyu ya chakula
+          </button>
+        )}
 
         {/* I2C: one canonical CTA per not-yet-active capability of THIS Business
             (Start / Pending / Rejected), driven by the server's own reports

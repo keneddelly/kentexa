@@ -26,6 +26,7 @@ const ICON = {
   up: 'M12 20V6M6 12l6-6 6 6',
   route: 'M5 19a2 2 0 100-4 2 2 0 000 4zM19 9a2 2 0 100-4 2 2 0 000 4zM7 17h6a4 4 0 004-4V9',
   online: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 3',
+  hotel: 'M4 21V10M4 14h16v7M20 14v-2a3 3 0 00-3-3h-6v5M7 12a2 2 0 100-4 2 2 0 000 4z',
 };
 
 const Row = ({ icon, title, sub, onClick, accent = true }) => (
@@ -59,6 +60,9 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
     { key: 'ship', icon: ICON.shipment, title: 'Tuma mzigo', sub: 'Ofisi na mawakala wanakuletea bei', onClick: () => go('SendShipment') },
     { key: 'service', icon: ICON.service, title: 'Tangaza huduma', sub: 'Fundi, usafi, ushauri na zaidi', onClick: () => go('PostService') },
     { key: 'business', icon: ICON.business, title: 'Fungua biashara', sub: 'Duka, ofisi au huduma yako kwenye KenteXa', onClick: () => go('BecomeBusiness') },
+    // Owner 2026-11-02: a hotel must be easy to find. Same business form, with hotel chosen.
+    { key: 'hotel', icon: ICON.hotel, title: 'Fungua hoteli', sub: 'Hoteli au mgahawa: menyu, QR ya meza, jiko',
+      onClick: () => { onNavigate('BecomeBusiness', { category: 'food' }); onClose(); } },
   ];
 
   // Only the jobs of the profile you are acting as.

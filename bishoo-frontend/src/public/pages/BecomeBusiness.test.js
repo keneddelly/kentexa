@@ -52,3 +52,20 @@ test('what was typed before login comes back after it', async () => {
   expect(screen.getByPlaceholderText(T.legal_name_placeholder)).toHaveValue('Usafiri Express');
   expect(localStorage.getItem('kentexa_business_draft')).toBeNull();
 });
+
+test('"Fungua hoteli" opens the form as a hotel, even for someone who already has a business (owner 2026-11-02)', async () => {
+  api.post.mockResolvedValue({ data: { id: 50 } });
+  const onNavigate = await open({ isLoggedIn: true, presetCategory: 'food' }, [{ id: 7, legalName: 'Duka la Neema' }]);
+  expect(screen.queryByTestId('my-business-list')).toBeNull();
+  expect(screen.getByText('Fungua hoteli yako')).toBeInTheDocument();
+  expect(screen.getByTestId('category-food')).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.change(screen.getByPlaceholderText(T.legal_name_placeholder), { target: { value: 'Hoteli Bahari' } });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: T.submit_button })); });
+  expect(api.post).toHaveBeenCalledWith('/business/create', expect.objectContaining({ category: 'food' }));
+  expect(onNavigate).toHaveBeenCalledWith('BusinessHome-50');
+});
+
+test('the hotel choice comes first in the business form', async () => {
+  await open({ isLoggedIn: false });
+  expect(screen.getAllByTestId(/^category-/)[0]).toHaveTextContent('Hoteli / mgahawa / chakula');
+});

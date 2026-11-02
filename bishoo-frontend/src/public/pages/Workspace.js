@@ -281,7 +281,7 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
                   {startOptions.map((s) => (
-                    <button key={s.key} type="button" data-testid={`start-${s.key}`} onClick={() => onNavigate(s.destination)}
+                    <button key={s.key} type="button" data-testid={`start-${s.key}`} onClick={() => (s.params ? onNavigate(s.destination, s.params) : onNavigate(s.destination))}
                       style={{ minHeight: 96, border: `1px solid ${LINE}`, borderRadius: 14, padding: 12, background: '#fff', textAlign: 'left',
                         display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'inherit', color: INK, cursor: 'pointer' }}>
                       <Icon d={s.icon} color={BLUE} />

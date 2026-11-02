@@ -113,3 +113,9 @@ test('a business that is not food can still open the menu set-up', async () => {
   fireEvent.click(screen.getByTestId('hotel-start'));
   expect(onNavigate).toHaveBeenCalledWith('HotelMenuManager', { businessId: 10 });
 });
+
+test('"Fungua hoteli" is always offered and opens the business form as a hotel (owner 2026-11-02)', async () => {
+  const { onNavigate } = await setup(1);
+  fireEvent.click(screen.getByTestId('start-hotel'));
+  expect(onNavigate).toHaveBeenCalledWith('BecomeBusiness', { category: 'food' });
+});

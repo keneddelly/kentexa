@@ -952,7 +952,7 @@ function App() {
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
       case 'CreateClassified':  return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" createOnly prefill={navParams?.prefill} />);
-      case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
+      case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} presetCategory={navParams?.category} />;
       case 'SellerProducts':    return requireLogin(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
       case 'BrandDashboard':    return requireLogin(<BrandDashboard {...publicProps} />);
