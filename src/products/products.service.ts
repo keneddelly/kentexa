@@ -680,6 +680,8 @@ export class ProductsService {
           imageUrl: saved.images?.[0],
           linkedEntityType: 'product',
           linkedEntityId: saved.id,
+          // Social Home (owner 2026-11-02): stays on the profile and in search, not in Home.
+          autoListing: true,
           category: saved.category || undefined,
           price: Number(saved.displayPrice) || undefined,
           commerceProfileId: commerceProfileId || undefined,

@@ -86,3 +86,16 @@ test('Kura: a question, 2 to 6 options and how long it stays open (phase E)', as
     intent: 'poll', title: 'Tufungue Jumapili?', poll: { options: ['Ndiyo', 'Hapana', 'Nusu siku'], durationDays: 7 },
   }));
 });
+
+test('Social Home: a post needs a topic when topics exist, and sends it (owner approved 2026-11-02)', async () => {
+  try { localStorage.removeItem('kentexa_last_topic'); } catch { /* none */ }
+  api.get.mockImplementation(async (url) => ({ data: url === '/feed/topics' ? [{ key: 'biashara', label: 'Biashara' }, { key: 'kilimo', label: 'Kilimo' }] : [] }));
+  await open();
+  type('Bei ya mbolea imepanda Mwanza');
+  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  expect(screen.getByRole('alert')).toHaveTextContent('Chagua mada');
+  expect(api.post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByTestId('post-topic-kilimo'));
+  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({ topic: 'kilimo' }));
+});

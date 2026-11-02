@@ -12,10 +12,11 @@
  *  Comments go to POST /comments (entity-based)
  */
 import ExpandableText from '../components/ExpandableText';
-import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost } from '../utils/feedPresentation';
+import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
 import PostSafetyMenu from '../components/PostSafetyMenu';
+import TopicPicker from '../components/TopicPicker';
 import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -776,8 +777,11 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         </div>
         {biz.businessLocation && <div style={{ fontSize:13, color:MUTED_TX, marginTop:-4 }}>{biz.businessLocation}</div>}
 
-        {tag && (
-          <span data-testid="post-tag" style={{ alignSelf:'flex-start', fontSize:12, fontWeight:700, color:B, background:'#EEF3FE', padding:'2px 8px', borderRadius:10 }}>{tag}</span>
+        {(tag || post.topic) && (
+          <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:MUTED_TX }}>
+            {tag && <span data-testid="post-tag" style={{ fontWeight:700, color:B, background:'#EEF3FE', padding:'2px 8px', borderRadius:10 }}>{tag}</span>}
+            {post.topic && <span data-testid="post-topic">{topicLabel(post.topic)}</span>}
+          </div>
         )}
         {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
         {postText && <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} />}
@@ -1591,6 +1595,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const { t } = useTranslation();
   const FILTERS = getFilters(t);
   const [filter,      setFilter]      = useState('for_you');
+  // Social Home (owner approved 2026-11-02): topics. `topic` narrows the feed to one topic.
+  const [topics,      setTopics]      = useState([]);
+  const [topic,       setTopic]       = useState('');
+  const [askTopics,   setAskTopics]   = useState(false);
   const [posts,       setPosts]       = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1626,6 +1634,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
       const params = new URLSearchParams({ filter: f, page: String(p) });
+      if (topic) params.set('topic', topic);
       // Lets the backend's "for_you" blend (city-match component) and the
       // "nearby" filter actually match against the viewer's own location —
       // neither had ever received it before.
@@ -1637,12 +1646,34 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       setHasMore(items.length >= 15);
     } catch {}
     finally { setLoading(false); setLoadingMore(false); }
-  }, [currentUser]);
+  }, [currentUser, topic]);
 
   useEffect(() => {
     setPage(1);
     loadPosts(filter, 1, false);
   }, [filter, loadPosts]);
+
+  useEffect(() => {
+    let alive = true;
+    api.get('/feed/topics').then((r) => {
+      if (!alive) return;
+      const list = Array.isArray(r.data) ? r.data : [];
+      setTopics(list);
+      // First visit: someone logged in who follows no topic is asked once on this device.
+      let asked = false;
+      try { asked = localStorage.getItem('kentexa_topics_asked') === '1'; } catch { /* storage blocked */ }
+      if (isLoggedIn && list.length && !list.some((t) => t.following) && !asked) setAskTopics(true);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [isLoggedIn]);
+  const closeTopicPicker = (updated) => {
+    try { localStorage.setItem('kentexa_topics_asked', '1'); } catch { /* storage blocked */ }
+    if (Array.isArray(updated)) setTopics(updated);
+    setAskTopics(false);
+    if (updated) loadPosts(filter, 1, false);
+  };
+  const followedTopics = topics.filter((t) => t.following);
+  const topicChips = [...followedTopics, ...topics.filter((t) => !t.following)];
 
   const loadMoments = useCallback(() => {
     api.get('/feed/moments/stories')
@@ -1797,7 +1828,28 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
             <TourTrigger tourKey="buyer_home_orientation" style={{ padding:'4px 10px' }} />
           </span>
         </div>
+
+        {/* Social Home: topic chips (followed topics first). */}
+        {topicChips.length > 0 && !['products', 'services'].includes(filter) && (
+          <div data-testid="topic-chips" style={{ display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none', padding:'6px 10px 8px' }}>
+            {[{ key: '', label: 'Zote' }, ...topicChips].map((c) => {
+              const on = topic === c.key;
+              return (
+                <button key={c.key || 'all'} type="button" aria-pressed={on} data-testid={`chip-${c.key || 'all'}`}
+                  onClick={() => setTopic(c.key)}
+                  style={{ flexShrink:0, height:30, padding:'0 12px', borderRadius:15, cursor:'pointer', fontFamily:'inherit',
+                    fontSize:13, fontWeight:700, whiteSpace:'nowrap',
+                    border:`1px solid ${on ? INK_TX : LINE_BTN}`, background: on ? INK_TX : WH, color: on ? WH : INK_TX }}>
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
+      {askTopics && (
+        <TopicPicker topics={topics} initial={[]} onDone={closeTopicPicker} onLater={() => closeTopicPicker(null)} />
+      )}
 
 
       {/* Kazi (owner 2026-11-01): the office's parcels to send moved to Kazi, "Kinachohitaji wewe". */}
@@ -1882,7 +1934,8 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       )}
 
       {/* ── Trending bar ── */}
-      {(filter === 'for_you' || filter === 'trending') && (
+      {/* Social Home (owner 2026-11-02): the "most purchased" strip no longer opens Home. */}
+      {filter === 'trending' && (
         <TrendingBar trending={trending} onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
       )}
 

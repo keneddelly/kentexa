@@ -25,3 +25,12 @@ describe('phase D presentation (owner approved 2026-11-02)', () => {
     expect(POST_KINDS.map((k) => k.label)).toEqual(['Moment', 'Swali', 'Mjadala', 'Onyesha bidhaa', 'Ofa', 'Kura', 'Natafuta']);
   });
 });
+
+describe('Social Home topics', () => {
+  const { topicLabel } = require('./feedPresentation');
+  it('a topic shows its label from the server list, else the starting label', () => {
+    expect(topicLabel('kilimo', [{ key: 'kilimo', label: 'Kilimo na mifugo' }])).toBe('Kilimo na mifugo');
+    expect(topicLabel('usafiri')).toBe('Usafiri na mizigo');
+    expect(topicLabel('haipo')).toBe('');
+  });
+});

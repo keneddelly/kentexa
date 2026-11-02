@@ -133,6 +133,15 @@ export class BusinessFeedItem {
   @Column({ type: 'jsonb', nullable: true })
   media: FeedMediaItem[] | null;
 
+  // Social Home (2026-11-02): the topic the post is about (feed_topic.key); NULL for older posts.
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  topic: string | null;
+
+  // Social Home: a Moment a listing published by itself. It stays on the profile and in
+  // search, but not in Home's feeds (owner: Home must not look like an advert board).
+  @Column({ type: 'boolean', default: false })
+  autoListing: boolean;
+
   // Phase D: set when the author edits within the edit window; the card shows "imehaririwa".
   @Column({ type: 'timestamptz', nullable: true })
   editedAt: Date | null;

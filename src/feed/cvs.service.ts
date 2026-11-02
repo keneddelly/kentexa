@@ -896,7 +896,8 @@ export class CvsService {
       .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
       // Owner 2026-11-02: one post stayed on top of Home for ever. Only recent posts trend,
       // and a post this person has already seen leaves their trending bar, as in the feed.
-      .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`);
+      .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`)
+      .andWhere('f."autoListing" = false');
     if (userId) {
       base.andWhere(
         `NOT EXISTS (SELECT 1 FROM post_engagement tv WHERE tv."postId" = f.id AND tv."userId" = :trendViewer AND tv.type = 'view')`,
@@ -1239,6 +1240,54 @@ export class CvsService {
   // ── Gravity-decayed score — a post's rank fades smoothly with age instead
   // of camping at the top forever once it accumulates engagement. HN-style:
   // score / (ageHours + 2)^1.5.
+  /**
+   * Social Home ranking (owner 2026-11-02): conversation counts most. Comments 4, reposts 3,
+   * likes and shares 2, saves and purchases 1; a question, discussion or poll gets a lift.
+   * The +1 lets a new post with no activity yet still be seen (newest first among equals).
+   */
+  private talkDecayExpr(alias = 'f'): string {
+    const talk = `(${alias}."commentCount" * 4 + ${alias}."repostCount" * 3 + ${alias}."likeCount" * 2 + ${alias}."shareCount" * 2`
+      + ` + ${alias}."saveCount" + ${alias}."purchaseCount" + 1)`;
+    const format = `(CASE WHEN ${alias}.intent::text IN ('question', 'discussion', 'poll') THEN 1.2 ELSE 1 END)`;
+    return `${talk} * ${format} / POWER(EXTRACT(EPOCH FROM (NOW() - ${alias}."createdAt"))/3600.0 + 2, 1.5)`;
+  }
+
+  /**
+   * Social Home: conversations still going on in the last 7 days (questions, discussions,
+   * polls), the person's followed topics first, then the ones with the latest comments.
+   * Same visibility, hidden-profile and mute rules as the feed. At most 8.
+   */
+  private async liveConversations(userId: number | null | undefined, followedSellerIds: Set<number>, savedIds: (number | string)[]): Promise<any[]> {
+    const topics = userId ? await this.followedTopicKeys(userId) : [];
+    const qb = this.feedRepo.createQueryBuilder('f')
+      .leftJoin('f.business', 'b')
+      .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.reputationScore',
+        'b.followersCount', 'b.isVerified', 'b.isOfficialStore', 'b.storeWhatsApp', 'b.phone', 'b.role'])
+      .where('f.isActive = true')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 })
+      .andWhere(NOT_MUTED_BY_VIEWER('f'))
+      .andWhere('f."autoListing" = false')
+      .andWhere(`f.intent::text IN ('question', 'discussion', 'poll')`)
+      .andWhere(`f."createdAt" > NOW() - INTERVAL '7 days'`)
+      .addSelect(topics.length ? `CASE WHEN f.topic = ANY(:convTopics) THEN 1 ELSE 0 END` : '0', 'in_topic')
+      .addSelect(`(SELECT MAX(pc."createdAt") FROM public.post_comment pc WHERE pc."postId" = f.id)`, 'last_reply')
+      .orderBy('in_topic', 'DESC')
+      .addOrderBy('last_reply', 'DESC', 'NULLS LAST')
+      .addOrderBy('f.createdAt', 'DESC')
+      .take(8);
+    if (topics.length) qb.setParameter('convTopics', topics);
+    const rows = await qb.getMany().catch(() => []);
+    return rows.length ? this.presentRealItems(rows, followedSellerIds, savedIds) : [];
+  }
+
+  /** The topics this person follows (empty when none, or when topics are not set up yet). */
+  private async followedTopicKeys(userId: number): Promise<string[]> {
+    const rows = await this.feedRepo.query(
+      `SELECT "topicKey" FROM public.user_topic_follow WHERE "userId" = $1`, [userId]).catch(() => []);
+    return (rows || []).map((r: any) => String(r.topicKey));
+  }
+
   private cvsDecayExpr(alias = 'f'): string {
     return `${alias}."cvsScore" / POWER(EXTRACT(EPOCH FROM (NOW() - ${alias}."createdAt"))/3600.0 + 2, 1.5)`;
   }
@@ -1250,8 +1299,9 @@ export class CvsService {
     city?: string;
     page?: number;
     limit?: number;
+    topic?: string | null;
   }): Promise<{ items: any[]; total: number }> {
-    const { filter = 'for_you', userId, city, page = 1, limit = 15 } = params;
+    const { filter = 'for_you', userId, city, page = 1, limit = 15, topic } = params;
     const offset = (page - 1) * limit;
     const followedSellerIds = await this.getFollowedSellerIds(userId);
 
@@ -1276,7 +1326,11 @@ export class CvsService {
       .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
       .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
       .andWhere(NOT_MUTED_BY_VIEWER('f')) // phase F: identities this viewer muted
+      // Social Home (owner 2026-11-02): listings that posted themselves stay on profiles and in
+      // search; Home's feeds are for what people say.
+      .andWhere('f."autoListing" = false')
       .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
+    if (topic) qb.andWhere('f.topic = :feedTopic', { feedTopic: topic });
 
     // Once a user has genuinely viewed a post, it drops out of the
     // algorithmic feed for good — that's what actually fixes "one engaged
@@ -1372,20 +1426,27 @@ export class CvsService {
         break;
 
       default: {
-        // for_you: decayed CVS × city-match boost (15%) × follow boost (30%),
-        // ranked and paginated entirely in SQL — no candidate-window ceiling.
+        // for_you (Social Home, owner 2026-11-02): conversation first. A post rises with what
+        // people do around it (talk score) and falls with age; followed topics, followed
+        // accounts and the viewer's city lift it. Ranked and paginated entirely in SQL.
         const followedArr = [...followedSellerIds];
         const followBoost = followedArr.length
           ? `CASE WHEN f."businessId" = ANY(:followedIds) THEN 0.3 ELSE 0 END`
           : `0`;
+        const followedTopics = userId ? await this.followedTopicKeys(userId) : [];
+        const topicBoost = followedTopics.length
+          ? `CASE WHEN f.topic = ANY(:followedTopics) THEN 0.5 ELSE 0 END`
+          : `0`;
         const cityNeedle = city ? `%${city.split(',')[0].trim()}%` : null;
         qb.addSelect(
-          `(${this.cvsDecayExpr()}) * (1 + CASE WHEN :cityNeedle::text IS NOT NULL AND b."businessLocation" ILIKE :cityNeedle THEN 0.15 ELSE 0 END) * (1 + ${followBoost})`,
+          `(${this.talkDecayExpr()}) * (1 + CASE WHEN :cityNeedle::text IS NOT NULL AND b."businessLocation" ILIKE :cityNeedle THEN 0.15 ELSE 0 END) * (1 + ${followBoost}) * (1 + ${topicBoost})`,
           'rank_score',
         )
           .orderBy('rank_score', 'DESC')
+          .addOrderBy('f.createdAt', 'DESC')
           .setParameter('cityNeedle', cityNeedle);
         if (followedArr.length) qb.setParameter('followedIds', followedArr);
+        if (followedTopics.length) qb.setParameter('followedTopics', followedTopics);
         break;
       }
     }
@@ -1434,6 +1495,8 @@ export class CvsService {
         .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
         .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
         .andWhere(NOT_MUTED_BY_VIEWER('f')) // phase F: identities this viewer muted
+        .andWhere('f."autoListing" = false') // Social Home: no self-posted listings
+        .andWhere(topic ? 'f.topic = :feedTopic' : '1=1', topic ? { feedTopic: topic } : {})
         .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
         .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`)
         .andWhere(
@@ -1549,8 +1612,11 @@ export class CvsService {
     }
 
     // ── Fallback: mix classifieds + products + services when no feed posts ────
-    if (items.length === 0 && page === 1 && filter !== 'following') {
+    if (items.length === 0 && page === 1 && filter !== 'following' && !topic) {
       const virtualPosts: any[] = [];
+      // Social Home (owner 2026-11-02): when there is nothing new, the conversations still
+      // going on (questions, discussions, polls with recent replies) come before any listing.
+      const conversations = await this.liveConversations(userId, followedSellerIds, savedIds);
       // Per request: the listings among these that this viewer has already seen.
       const seenRecords = new WeakSet<object>();
 
@@ -1857,9 +1923,10 @@ export class CvsService {
       const seen = shuffle(virtualPosts.filter(isSeen));
       virtualPosts.splice(0, virtualPosts.length, ...fresh, ...seen);
 
+      const mixed = [...conversations, ...virtualPosts];
       return {
-        items: virtualPosts.slice(0, limit),
-        total: virtualPosts.length,
+        items: mixed.slice(0, limit),
+        total: mixed.length,
       };
     }
 

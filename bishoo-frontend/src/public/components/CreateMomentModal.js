@@ -91,6 +91,20 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   // Phase E: a poll's options (2 to 6) and how long it stays open.
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollDays,    setPollDays]    = useState(3);
+  // Social Home (owner approved 2026-11-02): every post made here is about a topic. The last
+  // one used is offered first; the list comes from the server (none loaded = not asked).
+  const [topicList,   setTopicList]   = useState([]);
+  const [topicKey,    setTopicKey]    = useState(() => {
+    if (isEdit) return '';
+    try { return localStorage.getItem('kentexa_last_topic') || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    if (isEdit) return undefined;
+    let alive = true;
+    api.get('/feed/topics').then((r) => { if (alive) setTopicList(Array.isArray(r?.data) ? r.data : []); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isEdit]);
+  const askTopic = !isEdit && kind !== 'looking_for' && topicList.length > 0;
   const [myItems,   setMyItems]   = useState([]);
   const [loadingItems, setLoadingItems] = useState(!isEdit);
   const [tagged,    setTagged]    = useState(null); // { type, id, title, price }
@@ -214,6 +228,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         if (new Set(opts.map((o) => o.toLowerCase())).size !== opts.length) { setError('Machaguo mawili yanafanana.'); return; }
       }
       if (kindInfo.needsItem && !tagged) { setError('Chagua bidhaa, tangazo au huduma unayoonyesha.'); return; }
+      if (askTopic && !topicList.some((tp) => tp.key === topicKey)) { setError('Chagua mada ya chapisho hili.'); return; }
     } else {
       if (!text) { setError(t('create_moment_modal.validate_describe')); return; }
       if (!category) { setError(t('create_moment_modal.validate_pick_category')); return; }
@@ -261,6 +276,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           // The price is the linked record's own, never typed here.
           price: kindInfo.needsItem && tagged?.price ? tagged.price : undefined,
           poll: kind === 'poll' ? { options: pollOptions.map((o) => o.trim()), durationDays: pollDays } : undefined,
+          topic: askTopic ? topicKey : undefined,
           visibility: audience,
           commerceProfileId: activeProfileId || undefined,
         });
@@ -350,6 +366,20 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               {caption.length} / {COMPOSER.text}
             </div>
           </div>
+
+          {/* Social Home: the topic of this post */}
+          {askTopic && (
+            <div>
+              <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:6 }}>Mada</div>
+              <div role="radiogroup" aria-label="Mada" style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {topicList.map((tp) => (
+                  <button key={tp.key} type="button" role="radio" aria-checked={topicKey === tp.key} data-testid={`post-topic-${tp.key}`}
+                    onClick={() => { setTopicKey(tp.key); try { localStorage.setItem('kentexa_last_topic', tp.key); } catch { /* storage blocked */ } }}
+                    style={pill(topicKey === tp.key)}>{tp.label}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Phase E: the poll's options and how long it stays open */}
           {kind === 'poll' && !isEdit && (

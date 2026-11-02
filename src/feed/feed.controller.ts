@@ -27,6 +27,7 @@ import { EngagementType } from './entities/post-engagement.entity';
 import { assertComposerText } from './publish-input';
 import { PollService, assertPollInput } from './poll.service';
 import { SocialSafetyService } from './social-safety.service';
+import { TopicsService } from './topics.service';
 
 @Controller('feed')
 export class FeedController {
@@ -37,6 +38,8 @@ export class FeedController {
     @Optional() private readonly polls?: PollService,
     // Phase F (report, mute). Optional for the same reason.
     @Optional() private readonly safety?: SocialSafetyService,
+    // Social Home: topics. Optional for the same reason.
+    @Optional() private readonly topics?: TopicsService,
   ) {}
 
   // ── Discovery (no auth required, but personalized when logged in) ────────
@@ -55,9 +58,11 @@ export class FeedController {
     @Query('page') page = '1',
     @Query('city') city?: string,
     @Request() req?,
+    @Query('topic') topic?: string,
   ) {
     const userId = req?.user?.id || null;
     return this.cvs.getFilteredFeed({
+      topic: typeof topic === 'string' && /^[a-z_]{2,40}$/.test(topic) ? topic : null,
       filter,
       userId,
       city,
@@ -103,6 +108,12 @@ export class FeedController {
   async publish(@Request() req, @Body() dto: any) {
     // Phase D: what a person types in the composer is at most 500 characters.
     assertComposerText(dto);
+    // Social Home: only internal listing code may mark a post automatic; the topic must exist.
+    if (dto && typeof dto === 'object') {
+      delete dto.autoListing;
+      if (this.topics) dto.topic = await this.topics.assertTopic(dto.topic);
+      else delete dto.topic;
+    }
     // Phase E: a poll is checked before the post is saved, and only a poll post carries one.
     const isPoll = dto?.intent === 'poll';
     if (isPoll && !this.polls) throw new BadRequestException('Kura haipatikani kwa sasa.');
@@ -231,6 +242,21 @@ export class FeedController {
   @UseGuards(JwtAuthGuard)
   getLikedIds(@Request() req) {
     return this.cvs.getLikedPostIds(req.user.id);
+  }
+
+  // ── Social Home: topics ("Mada") ─────────────────────────────────────────
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('topics')
+  listTopics(@Request() req?) {
+    if (!this.topics) return [];
+    return this.topics.list(req?.user?.id || null);
+  }
+
+  @Post('topics/follow')
+  @UseGuards(JwtAuthGuard)
+  followTopics(@Request() req, @Body('keys') keys: any) {
+    if (!this.topics) throw new BadRequestException('Mada hazipatikani kwa sasa.');
+    return this.topics.setFollowed(req.user.id, keys);
   }
 
   @Get('reposted/ids')

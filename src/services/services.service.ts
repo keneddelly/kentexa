@@ -206,6 +206,8 @@ export class ServicesService {
           imageUrl: saved.images?.[0],
           linkedEntityType: 'service',
           linkedEntityId: saved.id,
+          // Social Home (owner 2026-11-02): stays on the profile and in search, not in Home.
+          autoListing: true,
           category: saved.category || undefined,
           price: hasFixedPrice ? Number(saved.price) : undefined,
           commerceProfileId: commerceProfileId || undefined,

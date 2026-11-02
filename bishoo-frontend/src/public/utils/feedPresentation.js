@@ -75,3 +75,14 @@ export const canEditPost = (post, userId, now = Date.now()) => {
   const created = Date.parse(post.createdAt);
   return Number.isFinite(created) && now - created <= COMPOSER.editMinutes * 60 * 1000;
 };
+
+// ── Social Home (owner approved 2026-11-02): topics ("Mada") ─────────────────
+/** Labels of the starting topics; the server's /feed/topics list is the source of truth. */
+export const TOPIC_LABELS = Object.freeze({
+  biashara: 'Biashara', kilimo: 'Kilimo', usafiri: 'Usafiri na mizigo', teknolojia: 'Teknolojia',
+  mtaa: 'Mtaa wako', ajira: 'Ajira na ujuzi', michezo: 'Michezo', chakula: 'Chakula na hoteli',
+});
+export const topicLabel = (key, topics = []) =>
+  (Array.isArray(topics) && topics.find((t) => t.key === key)?.label) || TOPIC_LABELS[key] || '';
+/** First visit: the picker asks for at least this many topics. */
+export const MIN_TOPICS = 3;

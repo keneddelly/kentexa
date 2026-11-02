@@ -138,6 +138,8 @@ export class ClassifiedsService {
           imageUrl: saved.images?.[0],
           linkedEntityType: 'classified',
           linkedEntityId: saved.id,
+          // Social Home (owner 2026-11-02): stays on the profile and in search, not in Home.
+          autoListing: true,
           commerceProfileId: commerceProfileId || undefined,
           category: saved.category || undefined,
           price: Number(saved.flashSalePrice || saved.price) || undefined,
