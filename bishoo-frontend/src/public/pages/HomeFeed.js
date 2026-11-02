@@ -512,8 +512,18 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   );
 };
 
+/** The post page's time line: "10:20 · 2 Nov 2026" (owner 2026-11-02: a professional post page). */
+const MONTHS_SW = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ago', 'Sep', 'Okt', 'Nov', 'Des'];
+export const fullTime = (iso) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm} · ${d.getDate()} ${MONTHS_SW[d.getMonth()]} ${d.getFullYear()}`;
+};
+
 // ── Post card ─────────────────────────────────────────────────────────────────
-export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, repostedIds, onRepostToggle, activeProfileId, initialShowComments = false }) => {
+export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, repostedIds, onRepostToggle, activeProfileId, initialShowComments = false, detail = false }) => {
   const { t } = useTranslation();
   // Phase D: an edit by the author updates this card in place (the server answers with the post).
   const [post, setPost] = useState(postProp);
@@ -694,7 +704,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   };
 
   const openComments = () => {
-    setShowComments(s => !s);
+    // On the post's own page the comments always stay open (owner 2026-11-02).
+    setShowComments(s => (detail ? true : !s));
     // Track view
     Engagement.track(post.id, entityType, entityId, 'view', true, onNavigate);
   };
@@ -741,29 +752,44 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   }
 
   return (
-    <article ref={cardRef} data-testid="feed-post"
-      style={{ display:'flex', flexDirection:'column', padding:'12px 16px', backgroundColor:WH, borderBottom:`1px solid ${LINE_TX}` }}>
+    <article ref={cardRef} data-testid="feed-post" data-variant={detail ? 'detail' : 'feed'}
+      style={{ display:'flex', flexDirection:'column', padding: detail ? '14px 16px 0' : '12px 16px', backgroundColor:WH, borderBottom: detail ? 'none' : `1px solid ${LINE_TX}` }}>
       {post.repostedBy?.name && (
         <div data-testid="reposted-by" style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, fontWeight:700, color:MUTED_TX, margin:'0 0 6px 52px' }}>
           {icon('M17 2l4 4-4 4M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 01-3 3H3')}{post.repostedBy.name} amesambaza
         </div>
       )}
       <div style={{ display:'flex', gap:12 }}>
-      <button type="button" onClick={openProfile} aria-label={bizName}
+      {!detail && <button type="button" onClick={openProfile} aria-label={bizName}
         style={{ width:40, height:40, borderRadius:10, flexShrink:0, border:'none', padding:0, cursor:'pointer',
           overflow:'hidden', backgroundColor:INK_TX, display:'flex', alignItems:'center', justifyContent:'center' }}>
         {biz.logo
           ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display = 'none'; }} />
           : <span style={{ fontSize:16, fontWeight:800, color:WH }}>{bizName.charAt(0).toUpperCase()}</span>}
-      </button>
+      </button>}
 
-      <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:6 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:15, minWidth:0 }}>
+      <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap: detail ? 10 : 6 }}>
+        <div style={{ display:'flex', alignItems:'center', gap: detail ? 10 : 4, fontSize:15, minWidth:0 }}>
+          {detail && (
+            <button type="button" onClick={openProfile} aria-label={bizName} data-testid="detail-avatar"
+              style={{ width:48, height:48, borderRadius:12, flexShrink:0, border:'none', padding:0, cursor:'pointer',
+                overflow:'hidden', backgroundColor:INK_TX, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              {biz.logo
+                ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display = 'none'; }} />
+                : <span style={{ fontSize:18, fontWeight:800, color:WH }}>{bizName.charAt(0).toUpperCase()}</span>}
+            </button>
+          )}
+          <span style={{ display:'flex', flexDirection: detail ? 'column' : 'row', alignItems: detail ? 'flex-start' : 'center', gap: detail ? 0 : 4, minWidth:0 }}>
+          <span style={{ display:'flex', alignItems:'center', gap:4, minWidth:0 }}>
           <button type="button" onClick={openProfile}
-            style={{ background:'none', border:'none', padding:0, cursor:'pointer', fontSize:15, fontWeight:700, color:INK_TX,
+            style={{ background:'none', border:'none', padding:0, cursor:'pointer', fontSize: detail ? 16 : 15, fontWeight:700, color:INK_TX,
               overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:'inherit' }}>{bizName}</button>
           {biz.isVerified && <VerifiedTick />}
-          <span style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>· {kindLabel} · {ago(post.createdAt)}{post.editedAt ? ' · imehaririwa' : ''}</span>
+          </span>
+          <span style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontSize: detail ? 14 : 15 }}>
+            {detail ? kindLabel : `· ${kindLabel} · ${ago(post.createdAt)}${post.editedAt ? ' · imehaririwa' : ''}`}
+          </span>
+          </span>
           {bizId && !followed && !actorUnresolved && currentUser?.id !== bizId && (
             <button type="button" onClick={handleFollow}
               style={{ marginLeft:'auto', flexShrink:0, height:28, padding:'0 12px', borderRadius:14, border:`1px solid ${LINE_BTN}`,
@@ -795,7 +821,9 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           </button>
         )}
         {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
-        {postText && <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} />}
+        {postText && (detail
+          ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{postText}</div>
+          : <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} />)}
 
         {post.intent === 'poll' && /^\d+$/.test(String(post.id)) && (
           <PollBlock postId={post.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
@@ -845,7 +873,13 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           </div>
         )}
 
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingRight:24, color:MUTED_TX, fontSize:13 }}>
+        {detail && (
+          <div data-testid="detail-time" style={{ fontSize:14, color:MUTED_TX, paddingTop:4 }}>
+            {fullTime(post.createdAt)}{post.editedAt ? ' · imehaririwa' : ''}
+          </div>
+        )}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingRight: detail ? 4 : 24, color:MUTED_TX, fontSize:13,
+          ...(detail ? { borderTop:`1px solid ${LINE_TX}`, borderBottom:`1px solid ${LINE_TX}`, padding:'8px 4px' } : {}) }}>
           <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={actionTx}>
             {icon('M4 5h16v11H8l-4 4z')}{counts.comments > 0 && counts.comments}
           </button>
@@ -879,6 +913,9 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         </div>
         {shareMsg && <div style={{ fontSize:13, color:'#166534' }}>{shareMsg}</div>}
 
+        {detail && showComments && (
+          <div style={{ fontSize:16, fontWeight:800, color:INK_TX, paddingTop:4 }}>Maoni</div>
+        )}
         {showComments && (
           post.linkedEntityType && post.linkedEntityId ? (
             <CommerceCommentSection
