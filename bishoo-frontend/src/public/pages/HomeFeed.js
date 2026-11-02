@@ -1609,6 +1609,21 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         borderBottom:'1px solid #F1F5F9', paddingTop:'env(safe-area-inset-top, 0px)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'0 14px', height:50, boxSizing:'border-box' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          {/* Kazi (owner 2026-11-01): Profile left the bottom bar; it opens from your photo here. */}
+          {isLoggedIn && (
+            <button type="button" aria-label="Wasifu wangu" data-testid="home-profile" onClick={() => onNavigate('MyProfile')}
+              style={{ width:40, height:40, display:'flex', alignItems:'center', justifyContent:'center',
+                background:'none', border:'none', cursor:'pointer', padding:0 }}>
+              {(currentUser?.avatarUrl || currentUser?.logo)
+                ? <img src={currentUser.avatarUrl || currentUser.logo} alt=""
+                    style={{ width:30, height:30, borderRadius:'50%', objectFit:'cover' }} />
+                : <span style={{ width:30, height:30, borderRadius:'50%', backgroundColor:'#cfd9de',
+                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:DK }}>
+                    {(currentUser?.name || 'U').charAt(0).toUpperCase()}
+                  </span>}
+            </button>
+          )}
           <button onClick={() => onNavigate('Home')}
             style={{ display:'flex', alignItems:'center', gap:8, background:'none',
               border:'none', cursor:'pointer', padding:0 }}>
@@ -1629,6 +1644,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Xa</span>
             </div>
           </button>
+          </div>
           <div style={{ display:'flex', gap:2 }}>
             <button onClick={() => onNavigate('Search')}
               style={{ background:'none', border:'none', cursor:'pointer', padding:8 }}>
