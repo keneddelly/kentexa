@@ -8,6 +8,7 @@ const PREFIX_TO_SEGMENT = {
   ClassifiedDetail: 'classified',
   ServiceDetail: 'service',
   CommerceProfile: 'store',
+  PostDetail: 'post', // Home Feed phase C (2026-11-02): a post's share link
 };
 
 const SEGMENT_TO_PREFIX = Object.fromEntries(
@@ -42,7 +43,7 @@ export const pageToPath = (page, navParams) => {
 
 // pathname -> page, or null if it doesn't match a synced route.
 export const pathToPage = (pathname) => {
-  const match = String(pathname || '').match(/^\/(product|classified|service|store)\/(\d+)$/);
+  const match = String(pathname || '').match(/^\/(product|classified|service|store|post)\/(\d+)$/);
   if (!match) return null;
   const [, segment, id] = match;
   return `${SEGMENT_TO_PREFIX[segment]}-${id}`;

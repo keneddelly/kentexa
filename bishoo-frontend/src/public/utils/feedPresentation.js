@@ -14,3 +14,17 @@ export const momentRoleLine = (moment) => {
   if (moment?.business?.actorType === 'BUSINESS') return 'Biashara';
   return '';
 };
+
+const siteOrigin = () => (typeof window !== 'undefined' && /kentexa\.com$/.test(window.location.hostname)
+  ? window.location.origin : 'https://kentexa.com');
+
+/**
+ * Phase C (owner 2026-11-02): the link a share sends. A real post opens its own page
+ * (/post/:id); a listing shown in the feed without a post opens that listing's page.
+ */
+export const postShareUrl = (post, entityType, entityId) => {
+  if (/^\d+$/.test(String(post?.id ?? ''))) return `${siteOrigin()}/post/${post.id}`;
+  const seg = { product: 'product', service: 'service', new_service: 'service', classified: 'classified' }[entityType];
+  if (seg && /^\d+$/.test(String(entityId ?? ''))) return `${siteOrigin()}/${seg}/${entityId}`;
+  return siteOrigin();
+};

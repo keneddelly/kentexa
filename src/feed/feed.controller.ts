@@ -13,6 +13,7 @@ import {
   Request,
   UseGuards,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
@@ -103,7 +104,7 @@ export class FeedController {
     return this.svc.deletePost(req.user.id, id);
   }
 
-  // ── Engage (save / share / view / purchase / shipment) ───────────────────
+  // ── Engage (like / save / share / view / purchase / shipment) ───────────────────
   @Post(':id/engage')
   @UseGuards(JwtAuthGuard)
   engage(
@@ -111,6 +112,9 @@ export class FeedController {
     @Param('id', ParseIntPipe) id: number,
     @Body('type') type: EngagementType,
   ) {
+    if (!Object.values(EngagementType).includes(type)) {
+      throw new BadRequestException('Aina ya kitendo haijulikani.');
+    }
     return this.cvs.engage(req.user.id, id, type);
   }
 
@@ -171,5 +175,20 @@ export class FeedController {
   @UseGuards(JwtAuthGuard)
   getSavedItems(@Request() req) {
     return this.cvs.getMySavedItems(req.user.id);
+  }
+
+  // ── Phase C (2026-11-02): posts this person has hearted ───────────────────
+  @Get('liked/ids')
+  @UseGuards(JwtAuthGuard)
+  getLikedIds(@Request() req) {
+    return this.cvs.getLikedPostIds(req.user.id);
+  }
+
+  // ── Phase C: one post, for its own page and share links. Declared last so
+  // the named routes above (saved, trending, discover...) are matched first.
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':id')
+  getPost(@Param('id', ParseIntPipe) id: number, @Request() req?) {
+    return this.cvs.getPost(id, req?.user?.id || null);
   }
 }
