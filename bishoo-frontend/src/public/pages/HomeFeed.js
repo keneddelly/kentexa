@@ -14,6 +14,7 @@
 import ExpandableText from '../components/ExpandableText';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
+import PollBlock from '../components/PollBlock';
 import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -726,6 +727,10 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         )}
         {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
         {postText && <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} />}
+
+        {post.intent === 'poll' && /^\d+$/.test(String(post.id)) && (
+          <PollBlock postId={post.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
+        )}
 
         {photos.length > 1 && (
           <PostPhotos photos={photos} price={price} priceLabel={`TZS ${fmt(price)}`} title={post.title || bizName} />

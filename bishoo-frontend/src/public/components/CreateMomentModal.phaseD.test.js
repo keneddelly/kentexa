@@ -69,3 +69,20 @@ test('editing keeps the photos, changes the text and audience, and sends no new 
   await waitFor(() => expect(onEdited).toHaveBeenCalledWith(expect.objectContaining({ id: 9 })));
   expect(onClose).toHaveBeenCalled();
 });
+
+test('Kura: a question, 2 to 6 options and how long it stays open (phase E)', async () => {
+  await open();
+  fireEvent.click(screen.getByTestId('kind-poll'));
+  type('Tufungue Jumapili?');
+  fireEvent.change(screen.getByTestId('poll-option-0'), { target: { value: 'Ndiyo' } });
+  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  expect(screen.getByRole('alert')).toHaveTextContent('Jaza kila chaguo');
+  fireEvent.change(screen.getByTestId('poll-option-1'), { target: { value: 'Hapana' } });
+  fireEvent.click(screen.getByTestId('poll-add-option'));
+  fireEvent.change(screen.getByTestId('poll-option-2'), { target: { value: 'Nusu siku' } });
+  fireEvent.click(screen.getByTestId('poll-days-7'));
+  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({
+    intent: 'poll', title: 'Tufungue Jumapili?', poll: { options: ['Ndiyo', 'Hapana', 'Nusu siku'], durationDays: 7 },
+  }));
+});
