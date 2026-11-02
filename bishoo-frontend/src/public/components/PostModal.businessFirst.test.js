@@ -20,3 +20,12 @@ test('Business + listing retains the Business Classified operational destination
   fireEvent.click(screen.getByText('post_modal.casual_listing_title'));
   expect(onNavigate).toHaveBeenCalledWith('SellerClassifieds');
 });
+
+test('"+" offers "Fungua hoteli", which opens the business form as a hotel (owner 2026-11-02)', () => {
+  const onNavigate = jest.fn();
+  const onClose = jest.fn();
+  render(<PostModal activeProfile={{ type: 'personal' }} onNavigate={onNavigate} onClose={onClose} />);
+  fireEvent.click(screen.getByText('Fungua hoteli'));
+  expect(onNavigate).toHaveBeenCalledWith('BecomeBusiness', { category: 'food' });
+  expect(onClose).toHaveBeenCalled();
+});
