@@ -267,6 +267,13 @@ export class FeedController {
     return this.topics.list(req?.user?.id || null);
   }
 
+  // ── New profiles: the header's post count and topics for one profile ──
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('profile/:profileId/summary')
+  profileSummary(@Param('profileId', ParseIntPipe) profileId: number, @Request() req?) {
+    return this.cvs.getProfileSummary(profileId, req?.user?.id || null);
+  }
+
   // ── Social Home part 2: "Leo kwako" (only real activity; empty means no block) ──
   @Get('today')
   @UseGuards(JwtAuthGuard)
