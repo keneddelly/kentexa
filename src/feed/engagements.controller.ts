@@ -403,6 +403,10 @@ export class EngagementsController {
     if (!Object.values(EngagementType).includes(dto.type)) {
       throw new BadRequestException('Aina ya kitendo haijulikani.');
     }
+    // Phase F: a repost is of a real post (it reaches followers through that post).
+    if (dto.type === EngagementType.REPOST) {
+      throw new BadRequestException('Sambaza chapisho lenyewe, si tangazo.');
+    }
 
     // Like and save toggle on/off; a share is counted once and never undone
     // (phase C 2026-11-02); purchase/shipment unchanged.

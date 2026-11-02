@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 import { getB5BTestConnectionConfig, resetB5BTestSchema } from '../business/b5b-closure-test-db';
-import { VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
+import { VISIBLE_TO_VIEWER, NOT_MUTED_BY_VIEWER } from '../commerce-profiles/public-visibility';
 
 /**
  * Social Engagement phase A (owner 2026-11-01): a followers-only post is seen only by its
@@ -27,6 +27,7 @@ suite('feed post visibility: real PostgreSQL', () => {
     await client.query('CREATE TABLE public.commerce_profile (id int PRIMARY KEY, type text NOT NULL)');
     await client.query('CREATE TABLE public.commerce_profile_follow (id serial PRIMARY KEY, "followerId" int NOT NULL, "commerceProfileId" int NOT NULL)');
     await client.query('CREATE TABLE public.follow (id serial PRIMARY KEY, "followerId" int, "sellerId" int)');
+    await client.query('CREATE TABLE public.profile_mute (id serial PRIMARY KEY, "userId" int NOT NULL, "mutedProfileId" int, "mutedUserId" int)');
     // Owner 10 has a personal profile (100) and a business (200).
     await client.query("INSERT INTO public.commerce_profile VALUES (100, 'personal'), (200, 'business')");
     await client.query(`INSERT INTO public.business_feed_item VALUES
@@ -60,5 +61,17 @@ suite('feed post visibility: real PostgreSQL', () => {
 
   it('a legacy account follow counts for business and untagged posts, not personal ones', async () => {
     expect(await visibleTo(23)).toEqual([1, 2, 4, 5]);
+  });
+
+  it('phase F: a mute hides that identity from the person who muted only', async () => {
+    // 31 mutes the business profile 200; 32 mutes the legacy account 10 (posts without a profile).
+    await client.query('INSERT INTO public.profile_mute ("userId","mutedProfileId","mutedUserId") VALUES (31, 200, NULL), (32, NULL, 10)');
+    const notMuted = async (viewer: number) => {
+      const sql = `SELECT f.id FROM public.business_feed_item f WHERE ${NOT_MUTED_BY_VIEWER('f').replace(/:feedViewerId/g, '$1')} ORDER BY f.id`;
+      return (await client.query(sql, [viewer])).rows.map((r) => Number(r.id));
+    };
+    expect(await notMuted(31)).toEqual([3, 5]);
+    expect(await notMuted(32)).toEqual([1, 2, 3, 4]);
+    expect(await notMuted(99)).toEqual([1, 2, 3, 4, 5]);
   });
 });

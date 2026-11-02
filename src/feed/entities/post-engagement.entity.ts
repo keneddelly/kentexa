@@ -24,6 +24,7 @@ import { BusinessFeedItem } from '../../business/entities/business-feed-item.ent
 export enum EngagementType {
   SAVE = 'save', // weight 3 (bookmark: kept to find again)
   LIKE = 'like', // weight 1 (heart; phase C 2026-11-02, separate from save)
+  REPOST = 'repost', // weight 2 (phase F 2026-11-02: shared to the reposter's followers, no copy)
   COMMENT = 'comment', // weight 2
   SHARE = 'share', // weight 1
   VIEW = 'view', // weight 0.5
@@ -36,6 +37,7 @@ export const CVS_WEIGHTS: Record<EngagementType, number> = {
   [EngagementType.SHIPMENT]: 8,
   [EngagementType.SAVE]: 3,
   [EngagementType.LIKE]: 1,
+  [EngagementType.REPOST]: 2,
   [EngagementType.COMMENT]: 2,
   [EngagementType.SHARE]: 1,
   [EngagementType.VIEW]: 0.5,
