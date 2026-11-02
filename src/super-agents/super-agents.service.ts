@@ -10,6 +10,7 @@ import { OfficePriceService } from './office-price.service';
 import { ShipmentActivationService } from '../shipments/shipment-activation.service';
 import { customerCollectsSelf, withOfficePhone } from './office-sms';
 import { ShehenaTransportService } from './shehena-transport.service';
+import { ShehenaCodeService } from './shehena-code.service';
 import { checkChargedAmount, isDarEsSalaam } from './office-price';
 import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { COD_MESSAGES, codText1, isSameCity } from './cod-sms';
@@ -235,6 +236,8 @@ export class SuperAgentsService {
     // through it is confirmed and started by the same activation as the send form.
     @Optional() private shipmentActivation?: ShipmentActivationService,
     @Optional() private shehenaTransport?: ShehenaTransportService,
+    // Shehena hand-over code (owner approved 2026-11-02).
+    @Optional() private shehenaCodes?: ShehenaCodeService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -3556,6 +3559,10 @@ export class SuperAgentsService {
       );
     }
 
+    // One hand-over code for the whole shehena (owner approved 2026-11-02): the staff write
+    // it on the package, the receiving office gets it in its SMS, a KenteXa transporter types it.
+    const handoverCode = this.shehenaCodes ? await this.shehenaCodes.issue(shipmentId).catch(() => null) : null;
+
     if (carrier && this.shehenaTransport) {
       await this.shehenaTransport.link(shipmentId, carrier.id).catch((e) => console.warn('Shehena transport link failed:', e?.message));
       // The transporter sees it on its dashboard (in-app only: no KenteXa SMS spent).
@@ -3563,7 +3570,8 @@ export class SuperAgentsService {
       if (owner?.userId) {
         this.inAppNotif.notify({
           userId: Number(owner.userId), type: 'shipment_created' as any, title: 'Shehena mpya',
-          body: `${agent?.businessName || 'Ofisi'} imekupa vifurushi ${parcels.length} kwenda ${shipment.destinationCity}.`,
+          body: `${agent?.businessName || 'Ofisi'} imekupa vifurushi ${parcels.length} kwenda ${shipment.destinationCity}.` +
+            (handoverCode ? ' Ukipokea, andika namba ya shehena iliyo kwenye mzigo.' : ''),
           icon: '📦', actionPage: 'TransportProviderDashboard',
         }).catch(() => {});
       }
@@ -3607,6 +3615,7 @@ export class SuperAgentsService {
             `Mtumaji: ${smsSafeName(agent?.businessName)} (${agent?.phone || user.phone || ''})\n` +
             (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
             (dto.transportRef ? `Tiketi/Rejea: ${dto.transportRef}\n` : '') +
+            (handoverCode && lastMileAgent ? `Namba ya shehena: ${handoverCode} (andika ukipokea)\n` : '') +
             `\nVerified by Kentexa`,
         );
       } catch (e: any) {
@@ -3632,7 +3641,76 @@ export class SuperAgentsService {
       parcelsDispatched: parcels.length,
       agentNotifySent,
       transportProviderId: carrier?.id ?? null,
+      handoverCode,
     };
+  }
+
+  // ── Shehena hand-over code (owner approved 2026-11-02) ─────────────────────
+
+  /** The calling office: an active Super Agent in the caller's own role. */
+  private async activeOfficeFor(user: User, roleContext?: RoleContext): Promise<SuperAgent> {
+    if (!roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT || roleContext.userId !== user.id) {
+      throw new ForbiddenException('An active office role is required');
+    }
+    const office = await this.superAgentRepo.findOne({ where: { id: roleContext.profileId, userId: user.id, status: SuperAgentStatus.ACTIVE } });
+    if (!office || (office.workspaceId != null && office.workspaceId !== roleContext.workspaceId)) {
+      throw new ForbiddenException('An active office role is required');
+    }
+    return office;
+  }
+
+  /** Sending office: its dispatched shehena with their codes (to write on the package). */
+  async shehenaSent(user: User, roleContext?: RoleContext) {
+    const office = await this.activeOfficeFor(user, roleContext);
+    return this.shehenaCodes ? this.shehenaCodes.sentBy(office.id) : [];
+  }
+
+  /** Receiving office: shehena on the way to it. */
+  async shehenaIncoming(user: User, roleContext?: RoleContext) {
+    const office = await this.activeOfficeFor(user, roleContext);
+    return this.shehenaCodes ? this.shehenaCodes.incomingFor(office.id) : [];
+  }
+
+  /**
+   * Receiving office: the shehena code (or a reason) receives every parcel in it in one step,
+   * each by the normal arrival rule (custody receipt, the receiver's SMS).
+   */
+  async receiveShehena(user: User, bulkId: number, dto: { code?: string; reason?: string }, roleContext?: RoleContext) {
+    if (!this.shehenaCodes) throw new NotFoundException('Shehena haipatikani.');
+    const office = await this.activeOfficeFor(user, roleContext);
+    const check = await this.shehenaCodes.checkReceive(office.id, bulkId, dto || {});
+    const note = check.withCode
+      ? `Imefika ${office.city} kwenye shehena (namba imethibitishwa).`
+      : `Imefika ${office.city} kwenye shehena bila namba: ${check.reason}`;
+    let received = 0;
+    const skipped: string[] = [];
+    for (const trackingNumber of check.trackingNumbers) {
+      try {
+        await this.confirmShipmentArrived(user, trackingNumber, { note }, roleContext);
+        received++;
+      } catch {
+        skipped.push(trackingNumber);
+      }
+    }
+    if (received > 0 || !check.trackingNumbers.length) await this.shehenaCodes.markArrived(bulkId, check.reason);
+    return { id: bulkId, received, skipped, withCode: check.withCode };
+  }
+
+  /** Transporter on KenteXa: types the code to confirm it took the shehena. */
+  async transporterConfirmShehena(user: User, bulkId: number, code: string) {
+    if (!this.shehenaCodes) throw new NotFoundException('Shehena haipatikani.');
+    const result = await this.shehenaCodes.transporterConfirm(user.id, bulkId, code);
+    if (!result.replay) {
+      const parcels = await this.parcelRepo.find({ where: { bulkShipmentId: bulkId } as any }).catch(() => [] as Parcel[]);
+      for (const parcel of parcels) {
+        await this.trackingRepo.save(this.trackingRepo.create({
+          parcel, status: parcel.status, city: parcel.originCity || '',
+          note: `Usafiri ${result.carrierName} umepokea shehena (namba imethibitishwa).`,
+          updatedBy: result.carrierName, handlerPhone: null, handlerLocation: parcel.originCity || null, handlerType: 'system',
+        } as any)).catch(() => undefined);
+      }
+    }
+    return { id: result.id, confirmedAt: result.confirmedAt };
   }
 
   // Ownership check for bulk shipments, mirroring assertOwnsParcel — a

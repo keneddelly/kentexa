@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
+import { ShehenaConfirm } from './ShehenaHandover';
 
 /**
  * The transporter's view of the shehena offices loaded onto it (owner 2026-10-26):
@@ -35,6 +36,8 @@ export default function TransportShehenaList() {
             {s.toOffice ? ` · Kwenda: ${s.toOffice}${s.toPhone ? ` (${s.toPhone})` : ''}` : ''}
           </div>
           {s.ref && <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>Rejea: {s.ref}</div>}
+          {/* Shehena code (owner 2026-11-02): confirm taking it with the code on the package. */}
+          <ShehenaConfirm shehena={s} onConfirmed={(id, at) => setRows((prev) => prev.map((x) => (x.id === id ? { ...x, transportConfirmedAt: at } : x)))} />
         </div>
       ))}
     </div>

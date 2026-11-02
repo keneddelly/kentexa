@@ -505,6 +505,43 @@ export class SuperAgentsController {
     return this.service.shehenaForTransporter(req.user);
   }
 
+  // ── Shehena hand-over code (owner approved 2026-11-02) ──────────────────
+  // Sending office: its dispatched shehena with their codes (to write on the package).
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Get('shehena/sent')
+  shehenaSent(@Request() req, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.service.shehenaSent(req.user, roleContext);
+  }
+
+  // Receiving office: shehena on the way to it.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Get('shehena/incoming')
+  shehenaIncoming(@Request() req, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.service.shehenaIncoming(req.user, roleContext);
+  }
+
+  // Receiving office: the code (or a reason) receives every parcel in the shehena.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Post('shehena/:id/receive')
+  receiveShehena(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() body: { code?: string; reason?: string },
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.receiveShehena(req.user, Number(id), body, roleContext);
+  }
+
+  // Transporter on KenteXa: types the code to confirm it took the shehena.
+  @UseGuards(JwtAuthGuard)
+  @Post('shehena/as-transport/:id/confirm')
+  transporterConfirmShehena(@Request() req, @Param('id') id: string, @Body() body: { code?: string }) {
+    return this.service.transporterConfirmShehena(req.user, Number(id), String(body?.code ?? ''));
+  }
+
   // Dispatch a sealed bulk shipment with courier cost + receipt
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)

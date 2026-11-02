@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-02 (Shehena code):** the pin is now `MIGRATION_RUN_UPTO=1794400000000`. The next deploy
+runs `1794400000000-AddShehenaHandoverCode` itself (bulk_shipment: hand-over code, transport confirmed time, wrong tries, received-without-code reason). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-02 (Dar common places):** the pin is now `MIGRATION_RUN_UPTO=1794300000000`. The next deploy
 runs `1794300000000-AddDarCommonPlaces` itself (about 200 common Dar es Salaam places, e.g. Mwenge, Posta, Tabata Relini, added to the place search, each in its delivery zone). Check: `/version/migrations` shows `pending: []`, and the place search finds "Tabata Relini".
 
