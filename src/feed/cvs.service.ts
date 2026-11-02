@@ -1300,8 +1300,9 @@ export class CvsService {
     page?: number;
     limit?: number;
     topic?: string | null;
+    communityIds?: number[];
   }): Promise<{ items: any[]; total: number }> {
-    const { filter = 'for_you', userId, city, page = 1, limit = 15, topic } = params;
+    const { filter = 'for_you', userId, city, page = 1, limit = 15, topic, communityIds } = params;
     const offset = (page - 1) * limit;
     const followedSellerIds = await this.getFollowedSellerIds(userId);
 
@@ -1381,6 +1382,14 @@ export class CvsService {
       }
       // following fallback is handled after getManyAndCount below
 
+      // Social Home part 3: the Jumuiya tab: newest posts of the communities this person is in.
+      case 'communities': {
+        if (!userId || !communityIds || !communityIds.length) return { items: [], total: 0 };
+        qb.andWhere('f."communityId" IN (:...myCommunityIds)', { myCommunityIds: communityIds });
+        qb.orderBy('f.createdAt', 'DESC');
+        break;
+      }
+
       case 'nearby':
         if (city) {
           qb.andWhere('LOWER(b."businessLocation") LIKE LOWER(:city)', {
@@ -1452,6 +1461,7 @@ export class CvsService {
     }
 
     const isForYou = ![
+      'communities',
       'following',
       'nearby',
       'products',
@@ -1612,7 +1622,7 @@ export class CvsService {
     }
 
     // ── Fallback: mix classifieds + products + services when no feed posts ────
-    if (items.length === 0 && page === 1 && filter !== 'following' && !topic) {
+    if (items.length === 0 && page === 1 && filter !== 'following' && filter !== 'communities' && !topic) {
       const virtualPosts: any[] = [];
       // Social Home (owner 2026-11-02): when there is nothing new, the conversations still
       // going on (questions, discussions, polls with recent replies) come before any listing.
@@ -1935,6 +1945,27 @@ export class CvsService {
     return { items: presented, total };
   }
 
+  /** Social Home part 3: a community's posts, newest first, under the feed's visibility rules. */
+  async getCommunityPosts(communityId: number, viewerId: number | null, page = 1, kind: string | null = null): Promise<{ items: any[]; total: number }> {
+    const limit = 15;
+    const qb = this.feedRepo.createQueryBuilder('f')
+      .leftJoin('f.business', 'b')
+      .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.reputationScore',
+        'b.followersCount', 'b.isVerified', 'b.isOfficialStore', 'b.storeWhatsApp', 'b.phone', 'b.role'])
+      .where('f."communityId" = :cid', { cid: communityId })
+      .andWhere('f.isActive = true')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+      .andWhere(NOT_MUTED_BY_VIEWER('f'));
+    if (kind) qb.andWhere('f.intent::text = :ckind', { ckind: kind });
+    const [rows, total] = await qb.orderBy('f.createdAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+    const [followed, savedIds] = await Promise.all([
+      this.getFollowedSellerIds(viewerId),
+      viewerId ? this.getSavedPostIds(viewerId) : Promise.resolve([]),
+    ]);
+    return { items: await this.presentRealItems(rows, followed, savedIds), total };
+  }
+
   /** Phase F: account ids behind these profiles, for the personal profiles among them. */
   private async personalOwnersOf(profileIds: number[]): Promise<number[]> {
     if (!profileIds.length) return [];
@@ -2023,6 +2054,13 @@ export class CvsService {
       : [];
     const feedProfileMap = new Map(feedProfiles.map((p) => [p.id, p]));
 
+    // Social Home part 3: the community a post was made in, by name, for the card.
+    const communityIdsOnPage = [...new Set(items.map((f) => (f as any).communityId).filter((id): id is number => !!id))];
+    const communityRows: any[] = communityIdsOnPage.length
+      ? await this.feedRepo.query(`SELECT id, name, "joinPolicy" FROM public.community WHERE id = ANY($1)`, [communityIdsOnPage]).catch(() => [])
+      : [];
+    const communityMap = new Map<number, any>(communityRows.map((c: any) => [Number(c.id), { id: Number(c.id), name: c.name, joinPolicy: c.joinPolicy }]));
+
     return items.map((f) => {
         const rawBiz = (f as any).business;
         const profile = (f as any).commerceProfileId
@@ -2042,6 +2080,7 @@ export class CvsService {
           imageUrl: stripLegacyPriceOverlay(f.imageUrl),
           isSaved: savedIds.includes(f.id),
           business,
+          community: (f as any).communityId ? communityMap.get(Number((f as any).communityId)) || null : null,
         };
       });
   }

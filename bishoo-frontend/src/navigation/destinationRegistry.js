@@ -1,8 +1,8 @@
 export const DESTINATION_KIND = Object.freeze({ PUBLIC: 'public', ACCOUNT: 'account', OPERATIONAL: 'operational', ADMIN: 'admin' });
 
 const destination = (id, kind, roles = [], capabilities = []) => ({ id, page: id, kind, roles, capabilities });
-const PUBLIC_PAGES = ['Home','AboutUs','ContactUs','HowItWorks','Privacy','PrivacyPolicy','Terms','TermsAndConditions','FlashSales','PickupPoints','ClassifiedDetail','ServiceDetail','ProductDetail','PostDetail','VerifyProduct','RouteCoverageMap','Store','Stores','ClassifiedsPublic','PublicLogin','Register','Search','Discover','Cart','BecomeSeller','BecomeSellerInfo','BecomeAgent','BecomeSuperAgentInfo','BecomeBusiness','VerifyReceipt','PayInvoice','TrackParcel','Services','Listings'];
-const ACCOUNT_PAGES = ['Workspace','MyAdvertising','QuoteRequest','MyQuoteRequests','QuoteInbox','Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','MyClassifieds','CreateClassified',
+const PUBLIC_PAGES = ['Home','AboutUs','ContactUs','HowItWorks','Privacy','PrivacyPolicy','Terms','TermsAndConditions','FlashSales','PickupPoints','ClassifiedDetail','ServiceDetail','ProductDetail','PostDetail','Community','VerifyProduct','RouteCoverageMap','Store','Stores','ClassifiedsPublic','PublicLogin','Register','Search','Discover','Cart','BecomeSeller','BecomeSellerInfo','BecomeAgent','BecomeSuperAgentInfo','BecomeBusiness','VerifyReceipt','PayInvoice','TrackParcel','Services','Listings'];
+const ACCOUNT_PAGES = ['Workspace','CreateCommunity','MyAdvertising','QuoteRequest','MyQuoteRequests','QuoteInbox','Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','MyClassifieds','CreateClassified',
   // Hotel food ordering (owner 2026-10-27): the customer's orders, and the hotel's kitchen and
   // menu (the server checks that the caller owns that Business).
   'FoodOrder','HotelKitchen','HotelMenuManager'];
@@ -31,6 +31,7 @@ export const DESTINATIONS = Object.freeze(Object.fromEntries([
 
 const DYNAMIC_DESTINATIONS = [
   [/^PostDetail-\d+(-comments)?$/, 'PostDetail'],
+  [/^Community-\d+$/, 'Community'],
   [/^ProductDetail-/, 'ProductDetail'], [/^ClassifiedDetail-/, 'ClassifiedDetail'], [/^ServiceDetail-/, 'ServiceDetail'],
   [/^(CommerceProfile|Store|SellerStore)-/, 'CommerceProfile'], [/^Search-/, 'Search'], [/^Category-/, 'Search'], [/^Listings-/, 'Listings'],
   [/^Track(Parcel|Order)-/, 'TrackParcel'], [/^ConfirmDelivery-/, 'TrackParcel'], [/^PayInvoice-/, 'PayInvoice'], [/^VerifyReceipt-/, 'VerifyReceipt'],

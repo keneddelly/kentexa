@@ -22,6 +22,8 @@ import { PollService } from './poll.service';
 import { SocialSafetyService } from './social-safety.service';
 import { TopicsService } from './topics.service';
 import { TodayService } from './today.service';
+import { CommunitiesService } from './communities.service';
+import { CommunitiesController } from './communities.controller';
 import { CvsService } from './cvs.service';
 import { FeedController } from './feed.controller';
 import {
@@ -62,7 +64,7 @@ import { SearchModule } from '../search/search.module';
     ActivityModule,
     SearchModule,
   ],
-  controllers: [FeedController, EngagementsController, CommentsController],
+  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController],
   providers: [
     FeedService,
     CvsService,
@@ -70,6 +72,7 @@ import { SearchModule } from '../search/search.module';
     SocialSafetyService,
     TopicsService,
     TodayService,
+    CommunitiesService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,

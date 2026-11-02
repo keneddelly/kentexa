@@ -19,6 +19,8 @@ import { activeBusinessNameFor } from './context/businessGrouping';
 import { evaluateDestination } from './navigation/navigationPolicy';
 import HomeFeed           from './public/pages/HomeFeed';
 import PostDetail         from './public/pages/PostDetail';
+import CommunityPage      from './public/pages/CommunityPage';
+import CreateCommunity    from './public/pages/CreateCommunity';
 import Welcome            from './public/pages/Welcome';
 import MyProfile          from './public/pages/MyProfile';
 import RoleActivation     from './public/pages/RoleActivation';
@@ -221,6 +223,8 @@ function App() {
   const [showPostModal, setShowPostModal] = useState(false);
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [momentModalMode, setMomentModalMode] = useState('selling');
+  // Social Home part 3: the community the composer opens in (from a community page), or null.
+  const [momentCommunityId, setMomentCommunityId] = useState(null);
   const [momentRefreshKey, setMomentRefreshKey] = useState(0);
   // Single source of truth for every unread-inbox badge (bottom nav,
   // anywhere else that wants it) — GET /business/inbox/unread-count
@@ -671,9 +675,10 @@ function App() {
     // -- never persisted as its own authority, never used to derive access.
     activeBusinessName: activeBusinessNameFor(activeContext, roleOptions),
     capabilities: roleContext.capabilities, contextEpoch,
-    onOpenMoment: () => {
+    onOpenMoment: (_mode, opts) => {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }
       setMomentModalMode('selling');
+      setMomentCommunityId(opts?.communityId ?? null);
       setShowMomentModal(true);
     },
     momentRefreshKey,
@@ -763,6 +768,9 @@ function App() {
       return <ClassifiedDetail {...publicProps} classifiedId={Number(rawId)} openComments={suffix === 'comments'} />;
     }
     // Home Feed phase C: one post on its own page (share link /post/:id, notifications).
+    // Social Home part 3: a community page.
+    if (page.startsWith('Community-'))
+      return <CommunityPage {...publicProps} communityId={Number(page.split('Community-')[1])} />;
     if (page.startsWith('PostDetail-')) {
       const [rawId, suffix] = page.split('PostDetail-')[1].split('-');
       return <PostDetail {...publicProps} postId={Number(rawId)} openComments={suffix === 'comments'} />;
@@ -948,6 +956,7 @@ function App() {
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'MyBusinesses':      return requireLogin(<MyBusinesses {...publicProps} />);
       case 'Workspace':         return requireLogin(<Workspace {...publicProps} />);
+      case 'CreateCommunity':   return requireLogin(<CreateCommunity {...publicProps} />);
       case 'ConnectSelling':    return requireLogin(<ConnectSelling {...publicProps} />);
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
@@ -1117,6 +1126,7 @@ function App() {
           onOpenMoment={(mode) => {
             setShowPostModal(false);
             setMomentModalMode(mode);
+            setMomentCommunityId(null);
             setShowMomentModal(true);
           }}
         />
@@ -1125,6 +1135,7 @@ function App() {
         <CreateMomentModal
           currentUser={currentUser}
           initialMode={momentModalMode}
+          initialCommunityId={momentCommunityId}
           activeProfileId={momentActorProfileId(activeProfile) ?? null}
           activeProfile={activeProfile}
           onNavigate={handleNavigate}

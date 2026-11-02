@@ -18,10 +18,23 @@ export const NOT_FROM_HIDDEN_PROFILE = (alias: string) =>
  * personal followers-only posts. `viewerParam` is bound to the viewer's user id (0 = nobody).
  */
 export const VISIBLE_TO_VIEWER = (alias: string, viewerParam = 'feedViewerId') =>
-  `(${alias}.visibility = 'public' OR ${alias}."businessId" = :${viewerParam}`
+  `(${COMMUNITY_OPEN_TO_VIEWER(alias, viewerParam)} AND `
+  + `(${alias}.visibility = 'public' OR ${alias}."businessId" = :${viewerParam}`
   + ` OR EXISTS (SELECT 1 FROM public.commerce_profile_follow vf WHERE vf."followerId" = :${viewerParam} AND vf."commerceProfileId" = ${alias}."commerceProfileId")`
   + ` OR (EXISTS (SELECT 1 FROM public.follow lf WHERE lf."followerId" = :${viewerParam} AND lf."sellerId" = ${alias}."businessId")`
-  + ` AND (${alias}."commerceProfileId" IS NULL OR EXISTS (SELECT 1 FROM public.commerce_profile vp WHERE vp.id = ${alias}."commerceProfileId" AND vp.type = 'business'))))`;
+  + ` AND (${alias}."commerceProfileId" IS NULL OR EXISTS (SELECT 1 FROM public.commerce_profile vp WHERE vp.id = ${alias}."commerceProfileId" AND vp.type = 'business'))))` + ')';
+
+/**
+ * Social Home part 3 (owner approved 2026-11-02): a post made in a community is seen only while
+ * the community is active (not hidden by KenteXa); a "join by request" community's posts are
+ * seen by its active members only. The author always sees their own post. Home posts (no
+ * community) are unaffected. Part of VISIBLE_TO_VIEWER, so every read path applies it.
+ */
+export const COMMUNITY_OPEN_TO_VIEWER = (alias: string, viewerParam = 'feedViewerId') =>
+  `(${alias}."communityId" IS NULL OR ${alias}."businessId" = :${viewerParam}`
+  + ` OR EXISTS (SELECT 1 FROM public.community cv WHERE cv.id = ${alias}."communityId" AND cv.status = 'active'`
+  + ` AND (cv."joinPolicy" = 'open' OR EXISTS (SELECT 1 FROM public.community_member cmv WHERE cmv."communityId" = cv.id`
+  + ` AND cmv."userId" = :${viewerParam} AND cmv.status = 'active'))))`;
 
 /** Plain check for one post already loaded (same rule as VISIBLE_TO_VIEWER, for code paths). */
 export const isPublicPost = (post: { visibility?: string | null }) => !post.visibility || post.visibility === 'public';

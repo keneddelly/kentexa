@@ -116,6 +116,7 @@ export class FeedService {
       // callers only, that a listing published this Moment by itself.
       topic?: string | null;
       autoListing?: boolean;
+      communityId?: number | null;
       linkedEntityType?: string;
       linkedEntityId?: number;
       ctaLabel?: string;
@@ -239,6 +240,7 @@ export class FeedService {
         media: cleanMedia(dto.media),
         topic: dto.topic || null,
         autoListing: dto.autoListing === true,
+        communityId: dto.communityId || null,
         imageUrl: cleanMedia(dto.media)?.[0]?.url || dto.imageUrl || null,
         linkedEntityType: dto.linkedEntityType || null,
         linkedEntityId: dto.linkedEntityId || null,

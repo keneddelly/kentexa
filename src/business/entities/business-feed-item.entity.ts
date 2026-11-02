@@ -137,6 +137,10 @@ export class BusinessFeedItem {
   @Column({ type: 'varchar', length: 40, nullable: true })
   topic: string | null;
 
+  // Social Home part 3: the community (Jumuiya) the post was made in; NULL = Home.
+  @Column({ type: 'int', nullable: true })
+  communityId: number | null;
+
   // Social Home: a Moment a listing published by itself. It stays on the profile and in
   // search, but not in Home's feeds (owner: Home must not look like an advert board).
   @Column({ type: 'boolean', default: false })
