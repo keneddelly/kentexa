@@ -1,22 +1,27 @@
 /**
- * CreateMomentModal.js — Share a Moment ("I'm Selling") or post a
- * "Looking For" request. Any user, from anywhere in the app.
+ * CreateMomentModal.js — the composer (Home Feed phase D, owner approved 2026-11-02).
  *
- * Place at: src/public/components/CreateMomentModal.js
+ * Opened from the "+" sheet (create actions live only there) and, in edit mode, from a
+ * post's own edit button within 15 minutes of publishing.
  *
- * Lives at the App.js level (like PostModal) so the ➕ bottom-nav button
- * can open it regardless of which page the user is currently on — not
- * just from HomeFeed's story ring.
+ *  - Kinds: Moment, Swali, Mjadala, Onyesha bidhaa, Ofa, Natafuta ("Kura" comes in phase E).
+ *  - Up to 4 photos, each keeping its own width and height; 500 characters of text.
+ *  - Onyesha bidhaa and Ofa link one of the person's real products, listings or services;
+ *    the price comes from that record, never typed.
+ *  - Audience: Wote or Wanaofuata. The server decides who sees what.
+ *  - The posting identity is the server-resolved active context (shown, never chosen here).
  */
 import { actorLabelParts } from '../utils/publicActor';
 import React, { useState, useEffect, useRef } from 'react';
 import { saleIntent } from '../utils/saleIntent';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import { COMPOSER, POST_KINDS, postPhotos } from '../utils/feedPresentation';
 
 const B  = '#2563EB';
-const DK = '#0F172A';
-const GR = '#64748B';
+const DK = '#0F1419';
+const GR = '#536471';
+const LN = '#E6EBEF';
 const WH = '#FFFFFF';
 
 const getLookingForCategories = (t) => [
@@ -40,39 +45,66 @@ const routeTitle = (r, t) => {
   return t('create_moment_modal.my_route_fallback');
 };
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate }) => {
+const KIND_ICON = {
+  moment: 'M4 7h3l2-3h6l2 3h3v12H4zM12 17a4 4 0 100-8 4 4 0 000 8z',
+  question: 'M9 9a3 3 0 115 2c-1 .7-2 1.3-2 3M12 18h.01',
+  discussion: 'M4 5h11v8H8l-4 3zM15 9h5v8l-3-2h-6v-2',
+  showcase: 'M6 7h12l1 13H5zM9 7a3 3 0 016 0',
+  offer: 'M20 12l-8 8-9-9V3h8zM7.5 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
+  looking_for: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5',
+};
+const Icon = ({ d, color = 'currentColor', size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+);
+
+const PLACEHOLDER = {
+  moment: 'Nini kinaendelea leo?',
+  question: 'Uliza swali lako...',
+  discussion: 'Anzisha mjadala...',
+  showcase: 'Eleza bidhaa au huduma unayoonyesha...',
+  offer: 'Eleza ofa yako...',
+};
+
+/** Reads a picked photo's own width and height (null when the browser cannot tell). */
+const measure = (url) => new Promise((resolve) => {
+  if (typeof Image === 'undefined') { resolve({ width: null, height: null }); return; }
+  const img = new Image();
+  img.onload = () => resolve({ width: img.naturalWidth || null, height: img.naturalHeight || null });
+  img.onerror = () => resolve({ width: null, height: null });
+  img.src = url;
+});
+
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited }) => {
   const { t } = useTranslation();
+  const isEdit = !!editPost;
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
-  const [mode,      setMode]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'moment');
-  const [file,      setFile]      = useState(null);
-  const [preview,   setPreview]   = useState(null);
-  const [caption,   setCaption]   = useState('');
+  const [kind,      setKind]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'moment');
+  const mode = kind === 'looking_for' ? 'looking_for' : 'moment';
+  const kindInfo = POST_KINDS.find((k) => k.key === kind) || POST_KINDS[0];
+  // Photos: { file?, url?, preview, width, height }. An edit starts with the post's own photos.
+  const [photos,    setPhotos]    = useState(() => (isEdit ? postPhotos(editPost).map((p) => ({ ...p, preview: p.url })) : []));
+  const [caption,   setCaption]   = useState(isEdit ? (editPost.body || editPost.title || '') : '');
+  const [audience,  setAudience]  = useState(isEdit && editPost.visibility === 'followers' ? 'followers' : 'public');
   const [category,  setCategory]  = useState('');
   const [myItems,   setMyItems]   = useState([]);
-  const [loadingItems, setLoadingItems] = useState(true);
-  const [tagged,    setTagged]    = useState(null); // { type, id, title }
+  const [loadingItems, setLoadingItems] = useState(!isEdit);
+  const [tagged,    setTagged]    = useState(null); // { type, id, title, price }
   const [posting,   setPosting]   = useState(false);
   const [error,     setError]     = useState('');
   // A Moment that reads like a sale becomes a classified ad (owner 2026-10-26: new users
   // post sale items as Moments, so buyers never find them in search). The user can
   // still keep it a Moment with one tap; never blocked.
   const [keepMoment, setKeepMoment] = useState(false);
-  const intent = mode === 'moment' ? saleIntent(caption, { tagged: !!tagged && tagged.type !== 'business' }) : { sale: false, price: null };
+  const intent = !isEdit && kind === 'moment' ? saleIntent(caption, { tagged: !!tagged && tagged.type !== 'business' }) : { sale: false, price: null };
   const asAd = intent.sale && !keepMoment && !!onNavigate;
   const fileRef = useRef(null);
 
   useEffect(() => {
+    if (isEdit) return;
     const uid = currentUser?.id;
     if (!uid) { setLoadingItems(false); return; }
-    // Scoped to the ACTIVE profile when one is known — Kened's Personal
-    // profile must only ever see Kened's own classifieds here, never Bishoo
-    // Intelligence Systems' products just because they share an account,
-    // and vice versa when Bishoo is active. Falls back to the old
-    // account-wide endpoints only if activeProfileId is somehow unset
-    // (shouldn't happen for a logged-in user, but keeps this from breaking
-    // if it ever is). `/services/my` was also just a dead 404 before this —
-    // the real route is `/services/my/ads`, so service ads never actually
-    // loaded into this picker at all.
+    // Scoped to the ACTIVE profile when one is known: a personal profile only ever
+    // sees its own listings here, never the business's products, and vice versa.
     const productsCall = activeProfileId
       ? api.get(`/products/profile/${activeProfileId}`)
       : api.get(`/products/seller/${uid}`);
@@ -89,16 +121,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       api.get('/transport/routes'),
     ]).then(([cl, pr, sv, rt]) => {
       const items = [];
-      // Always available, for every profile type — a Moment tagged to a
-      // specific product/service/route only ever fit identities that HAVE
-      // one; a Super Agent hub has none of those (no products, no
-      // classifieds, no service ads, no transport routes), so "tag
-      // something" used to hard-block them from ever posting a Selling-
-      // mode Moment at all, even though sharing hub activity to build
-      // reputation is exactly what CLAUDE.md's Super Agent identity
-      // section calls for. Tagging the active profile itself covers that
-      // — and is just as useful for any other identity posting an update
-      // that isn't really about one listing (a new branch, a milestone).
+      // Tagging the active profile itself lets every identity (a hub has no products)
+      // post an update about itself.
       if (activeProfileId) {
         items.push({
           type: 'business',
@@ -109,17 +133,17 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       }
       if (cl.status === 'fulfilled') {
         (cl.value.data || []).forEach(c => items.push({
-          type: 'classified', id: c.id, title: c.title, image: c.images?.[0],
+          type: 'classified', id: c.id, title: c.title, image: c.images?.[0], price: Number(c.flashSalePrice || c.price) || null,
         }));
       }
       if (pr.status === 'fulfilled') {
         (pr.value.data || []).forEach(p => items.push({
-          type: 'product', id: p.id, title: p.name, image: p.images?.[0],
+          type: 'product', id: p.id, title: p.name, image: p.images?.[0], price: Number(p.displayPrice || p.basePrice) || null,
         }));
       }
       if (sv.status === 'fulfilled') {
         (sv.value.data?.ads || sv.value.data || []).forEach(s => items.push({
-          type: 'service', id: s.id, title: s.title, image: s.images?.[0],
+          type: 'service', id: s.id, title: s.title, image: s.images?.[0], price: Number(s.price) || null,
         }));
       }
       if (rt.status === 'fulfilled') {
@@ -129,50 +153,85 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       }
       setMyItems(items);
     }).finally(() => setLoadingItems(false));
-  }, [currentUser?.id, activeProfileId, activeProfile, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, activeProfileId, activeProfile, t, isEdit]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePickFile = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
-    setError('');
+  // Onyesha bidhaa and Ofa link a real thing that is sold: product, listing or service.
+  const linkable = kindInfo.needsItem ? myItems.filter((i) => ['product', 'classified', 'service'].includes(i.type)) : myItems;
+  const showLinks = !isEdit && (kind === 'moment' || kindInfo.needsItem);
+  useEffect(() => {
+    if (tagged && kindInfo.needsItem && !['product', 'classified', 'service'].includes(tagged.type)) setTagged(null);
+    if (tagged && !showLinks) setTagged(null);
+  }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePickFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    const room = COMPOSER.photos - photos.length;
+    if (room <= 0) { setError(`Picha zisizidi ${COMPOSER.photos}.`); return; }
+    const picked = await Promise.all(files.slice(0, room).map(async (file) => {
+      const preview = URL.createObjectURL(file);
+      return { file, preview, ...(await measure(preview)) };
+    }));
+    setPhotos((prev) => [...prev, ...picked].slice(0, COMPOSER.photos));
+    setError(files.length > room ? `Picha ${COMPOSER.photos} tu ndizo zimechukuliwa.` : '');
   };
+  const removePhoto = (i) => setPhotos((prev) => prev.filter((_, j) => j !== i));
 
   const actor = actorLabelParts(activeProfile, t);
-  const actorUnresolved = !activeProfileId;
+  const actorUnresolved = !isEdit && !activeProfileId;
+
+  /** Uploads the new photos (one call) and returns the full list in order. */
+  const uploadPhotos = async () => {
+    const fresh = photos.filter((p) => p.file);
+    let urls = [];
+    if (fresh.length) {
+      const form = new FormData();
+      fresh.forEach((p) => form.append('files', p.file));
+      const up = await api.post('/upload/images', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      urls = up.data?.urls || [];
+      if (urls.length < fresh.length) throw new Error(t('create_moment_modal.upload_failed'));
+    }
+    let k = 0;
+    return photos.map((p) => ({ url: p.file ? urls[k++] : p.url, width: p.width ?? null, height: p.height ?? null }));
+  };
 
   const handlePost = async () => {
     if (actorUnresolved) { setError(t('actor_label.unresolved')); return; }
+    const text = caption.trim();
     if (mode === 'moment') {
-      if (!file && !caption.trim()) { setError('Add a photo or write something to share.'); return; }
+      if (!photos.length && !text) { setError('Weka picha au andika kitu.'); return; }
+      if ((kind === 'question' || kind === 'discussion') && !text) { setError('Andika swali au mada ya mjadala.'); return; }
+      if (kindInfo.needsItem && !tagged) { setError('Chagua bidhaa, tangazo au huduma unayoonyesha.'); return; }
     } else {
-      if (!caption.trim()) { setError(t('create_moment_modal.validate_describe')); return; }
-      if (!category)        { setError(t('create_moment_modal.validate_pick_category')); return; }
+      if (!text) { setError(t('create_moment_modal.validate_describe')); return; }
+      if (!category) { setError(t('create_moment_modal.validate_pick_category')); return; }
     }
+    if (text.length > COMPOSER.text) { setError(`Maandishi yasizidi herufi ${COMPOSER.text}.`); return; }
     try {
       setPosting(true);
       setError('');
+      const media = await uploadPhotos();
 
-      let imageUrl = null;
-      if (file) {
-        const form = new FormData();
-        form.append('files', file);
-        const up = await api.post('/upload/images', form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
+      if (isEdit) {
+        const res = await api.patch(`/feed/${editPost.id}`, {
+          title: text || editPost.title,
+          body: text || null,
+          media,
+          visibility: audience,
         });
-        imageUrl = up.data?.urls?.[0] || null;
-        if (mode === 'moment' && file && !imageUrl) throw new Error(t('create_moment_modal.upload_failed'));
+        onEdited?.(res?.data);
+        onClose();
+        return;
       }
 
       if (asAd) {
-        // Straight to the classified form, filled with what they wrote and the photo.
-        const text = caption.trim();
+        // Straight to the classified form, filled with what they wrote and the photos.
         onNavigate('CreateClassified', { prefill: {
           title: text.split(/\n|[.!?]\s/)[0].slice(0, 80),
           description: text,
           price: intent.price || '',
-          images: imageUrl ? [imageUrl] : [],
+          images: media.map((m) => m.url),
         } });
         onClose();
         return;
@@ -181,21 +240,27 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       if (mode === 'moment') {
         await api.post('/feed/publish', {
           type: 'moment',
-          intent: 'update',
-          title: caption.trim() || tagged?.title || 'Moment',
-          body: caption.trim() || null,
-          imageUrl,
+          intent: kindInfo.intent,
+          title: text || tagged?.title || 'Moment',
+          body: text || null,
+          media,
+          imageUrl: media[0]?.url || null,
           linkedEntityType: tagged?.type || null,
           linkedEntityId: tagged?.id || null,
+          // The price is the linked record's own, never typed here.
+          price: kindInfo.needsItem && tagged?.price ? tagged.price : undefined,
+          visibility: audience,
           commerceProfileId: activeProfileId || undefined,
         });
       } else {
         await api.post('/feed/publish', {
           type: 'looking_for',
-          title: caption.trim(),
-          body: caption.trim(),
-          imageUrl,
+          title: text,
+          body: text,
+          media,
+          imageUrl: media[0]?.url || null,
           category,
+          visibility: audience,
           commerceProfileId: activeProfileId || undefined,
         });
       }
@@ -203,32 +268,37 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       onPosted?.();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.message || t('create_moment_modal.post_failed'));
+      setError(err?.response?.data?.message || err?.message || t('create_moment_modal.post_failed'));
     } finally {
       setPosting(false);
     }
   };
 
+  const pill = (on) => ({
+    padding: '6px 12px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 700,
+    border: `1px solid ${on ? DK : LN}`, background: WH, color: on ? DK : GR,
+  });
+
   return (
-    <div style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.75)',
+    <div style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)',
       zIndex:4500, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
-      <div style={{ width:'100%', maxWidth:480, backgroundColor:WH,
-        borderRadius:'20px 20px 0 0', maxHeight:'92vh', display:'flex',
+      <div style={{ width:'100%', maxWidth:520, backgroundColor:WH,
+        borderRadius:'20px 20px 0 0', maxHeight:'94vh', display:'flex',
         flexDirection:'column' }}>
 
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-          padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
-          <button onClick={onClose} style={{ background:'none', border:'none',
-            cursor:'pointer', fontSize:20, color:GR, padding:4 }}>×</button>
-          <div style={{ fontSize:15, fontWeight:800, color:DK }}>
-            {mode === 'moment' ? 'Create Moment' : t('create_moment_modal.title_looking_for')}
+          padding:'10px 12px', borderBottom:`1px solid ${LN}`, flexShrink:0 }}>
+          <button type="button" onClick={onClose} aria-label="Funga" style={{ background:'none', border:'none',
+            cursor:'pointer', fontSize:22, color:DK, padding:4, width:34 }}>×</button>
+          <div style={{ fontSize:16, fontWeight:800, color:DK }}>
+            {isEdit ? 'Hariri chapisho' : mode === 'moment' ? 'Chapisho jipya' : t('create_moment_modal.title_looking_for')}
           </div>
-          <div style={{ width:28 }} />
+          <div style={{ width:34 }} />
         </div>
 
-        {/* I2: the canonical actor this Moment will be published as (server-resolved). */}
-        {actor && (
-          <div style={{ margin: '10px 16px 0', padding: '8px 12px', borderRadius: 10, backgroundColor: '#F8FAFC', fontSize: 12, color: GR, flexShrink: 0 }}>
+        {/* I2: the canonical actor this post will be published as (server-resolved). */}
+        {actor && !isEdit && (
+          <div style={{ margin: '10px 16px 0', fontSize: 13, color: GR, flexShrink: 0 }}>
             {t('actor_label.posting_as')} <b style={{ color: DK }}>{actor.title}</b>{actor.subtitle ? ` · ${actor.subtitle}` : ''}
           </div>
         )}
@@ -238,150 +308,132 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           </div>
         )}
 
-        {/* Mode toggle */}
-        <div style={{ display:'flex', gap:8, padding:'12px 16px 0', flexShrink:0 }}>
-          <button onClick={() => { setMode('moment'); setError(''); }}
-            style={{ flex:1, padding:'10px 0', borderRadius:10, cursor:'pointer',
-              border: mode==='moment' ? `2px solid ${B}` : '1.5px solid #E2E8F0',
-              backgroundColor: mode==='moment' ? '#EFF6FF' : WH,
-              color: mode==='moment' ? B : GR, fontSize:13, fontWeight:800 }}>
-            Moment
-          </button>
-          <button onClick={() => { setMode('looking_for'); setError(''); }}
-            style={{ flex:1, padding:'10px 0', borderRadius:10, cursor:'pointer',
-              border: mode==='looking_for' ? '2px solid #7C3AED' : '1.5px solid #E2E8F0',
-              backgroundColor: mode==='looking_for' ? '#F5F3FF' : WH,
-              color: mode==='looking_for' ? '#7C3AED' : GR, fontSize:13, fontWeight:800 }}>
-            {t('create_moment_modal.toggle_looking_for')}
-          </button>
-        </div>
-
-        <div style={{ flex:1, overflowY:'auto', padding:16, minHeight:0 }}>
-          {/* Instagram-style Moment canvas: media stays inside a fixed viewport; browser gestures never resize the composer. */}
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePickFile} />
-          {preview ? (
-            <div onClick={() => fileRef.current?.click()}
-              style={{ width:'100%', aspectRatio:'1/1', borderRadius:14, overflow:'hidden',
-                cursor:'pointer', marginBottom:16, position:'relative', touchAction:'manipulation', background:'#0F172A' }}>
-              <img src={preview} alt="" draggable={false} style={{ width:'100%', height:'100%', objectFit:'contain', userSelect:'none', WebkitUserSelect:'none', touchAction:'none' }} />
-              <div style={{ position:'absolute', bottom:8, right:8, backgroundColor:'rgba(0,0,0,0.6)',
-                color:WH, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:100 }}>
-                {t('create_moment_modal.change_photo')}
-              </div>
+        <div style={{ flex:1, overflowY:'auto', padding:16, minHeight:0, display:'flex', flexDirection:'column', gap:14 }}>
+          {/* The type grid: what kind of post this is. Not offered when editing. */}
+          {!isEdit && (
+            <div role="radiogroup" aria-label="Aina ya chapisho" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:6 }}>
+              {POST_KINDS.map((k) => {
+                const on = kind === k.key;
+                return (
+                  <button key={k.key} type="button" role="radio" aria-checked={on} data-testid={`kind-${k.key}`}
+                    onClick={() => { setKind(k.key); setError(''); }}
+                    style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, padding:'8px 4px', borderRadius:12,
+                      border:`1px solid ${on ? B : LN}`, background: on ? '#EEF3FE' : WH, color: on ? B : DK,
+                      fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                    <Icon d={KIND_ICON[k.key]} />{k.label}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <button onClick={() => fileRef.current?.click()}
-              style={{ width:'100%', aspectRatio: mode==='moment' ? '1/1' : undefined,
-                minHeight: mode==='looking_for' ? 90 : undefined,
-                borderRadius:14, border:'2px dashed #CBD5E1', backgroundColor:'#F8FAFC',
-                display:'flex', flexDirection:'column', alignItems:'center',
-                justifyContent:'center', gap:8, cursor:'pointer', marginBottom:16,
-                padding: mode==='looking_for' ? '16px 0' : 0 }}>
-              <span style={{ fontSize: mode==='moment' ? 36 : 24 }}>📷</span>
-              <span style={{ fontSize:13, fontWeight:700, color:GR }}>
-                {mode==='moment' ? t('create_moment_modal.tap_add_photo') : t('create_moment_modal.add_photo_optional')}
-              </span>
-            </button>
           )}
 
-          {/* Caption / description */}
-          <textarea value={caption} onChange={e => setCaption(e.target.value)}
-            placeholder={mode==='moment'
-              ? t('create_moment_modal.placeholder_selling')
-              : t('create_moment_modal.placeholder_looking_for')}
-            maxLength={140}
-            style={{ width:'100%', minHeight:60, padding:'10px 12px', borderRadius:10,
-              border:'1px solid #E2E8F0', fontSize:13, resize:'vertical',
-              boxSizing:'border-box', fontFamily:'inherit', marginBottom:16, outline:'none' }} />
+          {/* Text, with the 500-character count */}
+          <div>
+            <textarea value={caption} onChange={e => setCaption(e.target.value.slice(0, COMPOSER.text))}
+              placeholder={mode === 'moment' ? (PLACEHOLDER[kind] || PLACEHOLDER.moment) : t('create_moment_modal.placeholder_looking_for')}
+              maxLength={COMPOSER.text} aria-label="Maandishi"
+              style={{ width:'100%', minHeight:96, padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
+                fontSize:16, lineHeight:1.45, resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none', color:DK }} />
+            <div data-testid="char-count" style={{ textAlign:'right', fontSize:12, color: caption.length >= COMPOSER.text ? '#B91C1C' : GR, fontVariantNumeric:'tabular-nums' }}>
+              {caption.length} / {COMPOSER.text}
+            </div>
+          </div>
+
+          {/* Up to 4 photos */}
+          <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handlePickFiles} data-testid="photo-input" />
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:6 }}>
+            {photos.map((p, i) => (
+              <div key={p.preview || p.url} data-testid="composer-photo" style={{ position:'relative', aspectRatio:'1 / 1', borderRadius:10, overflow:'hidden', background:'#F1F5F9' }}>
+                <img src={p.preview || p.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                <button type="button" onClick={() => removePhoto(i)} aria-label="Ondoa picha"
+                  style={{ position:'absolute', top:4, right:4, width:22, height:22, borderRadius:11, border:'none',
+                    background:'rgba(15,20,25,0.72)', color:WH, fontSize:14, lineHeight:'22px', cursor:'pointer', padding:0 }}>×</button>
+              </div>
+            ))}
+            {photos.length < COMPOSER.photos && (
+              <button type="button" onClick={() => fileRef.current?.click()} aria-label="Ongeza picha" data-testid="add-photo"
+                style={{ aspectRatio:'1 / 1', borderRadius:10, border:`1.5px dashed ${LN}`, background:WH, color:GR,
+                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, cursor:'pointer', fontFamily:'inherit', fontSize:11, fontWeight:700 }}>
+                <Icon d="M12 5v14M5 12h14" color={GR} />
+                {photos.length}/{COMPOSER.photos}
+              </button>
+            )}
+          </div>
 
           {mode === 'moment' ? (
-            <>
-              {/* Optional context link: a Moment is still a Moment, never a listing. */}
-              <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:4 }}>Link something (optional)</div>
-              <div style={{ fontSize:11, color:GR, marginBottom:8, lineHeight:1.45 }}>Connect this Moment to a product, classified, service, route or profile so viewers can continue — it does not create a listing.</div>
-              {loadingItems ? (
-                <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>{t('create_moment_modal.loading_items')}</div>
-              ) : myItems.length === 0 ? (
-                <div style={{ fontSize:12, color:GR, backgroundColor:'#F8FAFC',
-                  borderRadius:10, padding:14 }}>
-                  {t('create_moment_modal.no_items_msg')}
+            showLinks && (
+              <div>
+                <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4 }}>
+                  {kindInfo.needsItem ? 'Chagua bidhaa au huduma' : 'Unganisha kitu (si lazima)'}
                 </div>
-              ) : (
-                <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:220,
-                  overflowY:'auto' }}>
-                  {myItems.map((item, i) => {
-                    const prevType = myItems[i - 1]?.type;
-                    const showHeader = item.type !== prevType;
-                    const typeLabel = {
-                      business: t('create_moment_modal.type_label_business'),
-                      product: t('create_moment_modal.type_label_product'), classified: t('create_moment_modal.type_label_classified'),
-                      service: t('create_moment_modal.type_label_service'), route: t('create_moment_modal.type_label_route'),
-                    }[item.type];
-                    return (
-                      <React.Fragment key={`${item.type}-${item.id}`}>
-                        {showHeader && (
-                          <div style={{ fontSize:10, fontWeight:800, color:GR,
-                            textTransform:'uppercase', letterSpacing:0.4,
-                            marginTop: i > 0 ? 6 : 0 }}>
-                            {typeLabel}
+                <div style={{ fontSize:13, color:GR, marginBottom:8, lineHeight:1.45 }}>
+                  {kindInfo.needsItem
+                    ? 'Bei inatoka kwenye bidhaa yenyewe. Wanaoona wanaweza kuinunua au kuiomba.'
+                    : 'Unganisha na bidhaa, tangazo, huduma, njia au wasifu ili wanaoona waendelee. Haitengenezi tangazo.'}
+                </div>
+                {loadingItems ? (
+                  <div style={{ fontSize:13, color:GR, padding:'8px 0' }}>{t('create_moment_modal.loading_items')}</div>
+                ) : linkable.length === 0 ? (
+                  <div style={{ fontSize:13, color:GR, backgroundColor:'#F7F9FA', borderRadius:10, padding:12 }}>
+                    {kindInfo.needsItem ? 'Huna bidhaa, tangazo wala huduma bado.' : t('create_moment_modal.no_items_msg')}
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:6, maxHeight:220, overflowY:'auto' }}>
+                    {linkable.map((item) => {
+                      const on = tagged?.type === item.type && tagged?.id === item.id;
+                      const typeLabel = {
+                        business: t('create_moment_modal.type_label_business'),
+                        product: t('create_moment_modal.type_label_product'), classified: t('create_moment_modal.type_label_classified'),
+                        service: t('create_moment_modal.type_label_service'), route: t('create_moment_modal.type_label_route'),
+                      }[item.type];
+                      return (
+                        <button key={`${item.type}-${item.id}`} type="button" onClick={() => setTagged(on ? null : item)} aria-pressed={on}
+                          data-testid={`link-${item.type}-${item.id}`}
+                          style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:10,
+                            border:`1px solid ${on ? B : LN}`, backgroundColor: on ? '#EEF3FE' : WH, cursor:'pointer', textAlign:'left', fontFamily:'inherit' }}>
+                          <div style={{ width:32, height:32, borderRadius:8, backgroundColor:'#F1F5F9', flexShrink:0, overflow:'hidden' }}>
+                            {item.image && <img src={item.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />}
                           </div>
-                        )}
-                        <button onClick={() => setTagged(item)}
-                          style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px',
-                            borderRadius:10, border: tagged?.type===item.type && tagged?.id===item.id
-                              ? `2px solid ${B}` : '1px solid #E2E8F0',
-                            backgroundColor: tagged?.type===item.type && tagged?.id===item.id
-                              ? '#EFF6FF' : WH,
-                            cursor:'pointer', textAlign:'left' }}>
-                          <div style={{ width:32, height:32, borderRadius:8, backgroundColor:'#F1F5F9',
-                            flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center',
-                            justifyContent:'center', fontSize:14 }}>
-                            {item.image
-                              ? <img src={item.image} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                              : (item.type==='business'?'🏢':item.type==='product'?'🛍️':item.type==='service'?'🔧':item.type==='route'?'🚌':'🏷️')}
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:14, fontWeight:700, color:DK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.title}</div>
+                            <div style={{ fontSize:12, color:GR }}>{typeLabel}{item.price ? ` · TZS ${Number(item.price).toLocaleString('en-US')}` : ''}</div>
                           </div>
-                          <div style={{ fontSize:12, fontWeight:700, color:DK, flex:1,
-                            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                            {item.title}
-                          </div>
-                          {tagged?.type===item.type && tagged?.id===item.id && (
-                            <span style={{ color:B, fontWeight:800 }}>✓</span>
-                          )}
+                          {on && <Icon d="M5 12l5 5L20 7" color={B} />}
                         </button>
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )
           ) : (
-            <>
-              {/* Category picker for Looking For */}
-              <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:8 }}>
+            <div>
+              <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:8 }}>
                 {t('create_moment_modal.category_label')}
               </div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                 {LOOKING_FOR_CATEGORIES.map(cat => (
-                  <button key={cat} onClick={() => setCategory(cat)}
-                    style={{ padding:'7px 14px', borderRadius:100, cursor:'pointer',
-                      border: category===cat ? '2px solid #7C3AED' : '1px solid #E2E8F0',
-                      backgroundColor: category===cat ? '#F5F3FF' : WH,
-                      color: category===cat ? '#7C3AED' : GR,
-                      fontSize:12, fontWeight:700 }}>
-                    {cat}
-                  </button>
+                  <button key={cat} type="button" onClick={() => setCategory(cat)} style={pill(category === cat)}>{cat}</button>
                 ))}
               </div>
-              <div style={{ fontSize:11, color:GR, marginTop:12, lineHeight:1.5,
-                backgroundColor:'#F5F3FF', borderRadius:10, padding:12 }}>
+              <div style={{ fontSize:13, color:GR, marginTop:10, lineHeight:1.5 }}>
                 {t('create_moment_modal.looking_for_hint')}
               </div>
-            </>
+            </div>
           )}
 
-          {mode === 'moment' && intent.sale && onNavigate && (
+          {/* Audience: the server enforces it on every read */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, borderTop:`1px solid ${LN}`, paddingTop:12 }}>
+            <span style={{ fontSize:14, fontWeight:700, color:DK }}>Wanaoona</span>
+            <span role="radiogroup" aria-label="Wanaoona" style={{ display:'flex', gap:6 }}>
+              <button type="button" role="radio" aria-checked={audience === 'public'} data-testid="audience-public" onClick={() => setAudience('public')} style={pill(audience === 'public')}>Wote</button>
+              <button type="button" role="radio" aria-checked={audience === 'followers'} data-testid="audience-followers" onClick={() => setAudience('followers')} style={pill(audience === 'followers')}>Wanaofuata</button>
+            </span>
+          </div>
+
+          {kind === 'moment' && intent.sale && onNavigate && (
             <div data-testid="moment-sale-hint" role="status"
-              style={{ marginTop:12, padding:12, borderRadius:12, background:'#eff6ff', color:'#0f1419', fontSize:15, lineHeight:'20px' }}>
+              style={{ padding:12, borderRadius:12, background:'#eff6ff', color:'#0f1419', fontSize:15, lineHeight:'20px' }}>
               {keepMoment
                 ? <>Itawekwa kama Moment. <button type="button" onClick={() => setKeepMoment(false)}
                     style={{ background:'none', border:'none', padding:0, color:'#1d4ed8', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Ifanye tangazo</button></>
@@ -392,19 +444,22 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           )}
 
           {error && (
-            <div style={{ fontSize:12, color:'#DC2626', marginTop:10, fontWeight:600 }}>
+            <div role="alert" style={{ fontSize:13, color:'#B91C1C', fontWeight:600 }}>
               {error}
             </div>
           )}
         </div>
 
         <div style={{ flexShrink:0, padding:'12px 16px max(12px, env(safe-area-inset-bottom))',
-          borderTop:'1px solid #F1F5F9' }}>
-          <button onClick={handlePost} disabled={posting || actorUnresolved}
-            style={{ width:'100%', height:48, background: posting ? '#93C5FD' : '#0f1419',
+          borderTop:`1px solid ${LN}` }}>
+          <button type="button" onClick={handlePost} disabled={posting || actorUnresolved}
+            style={{ width:'100%', height:48, background: posting ? '#93C5FD' : DK,
               color:WH, border:'none', borderRadius:24,
               cursor: posting ? 'not-allowed' : 'pointer', fontSize:15, fontWeight:700, fontFamily:'inherit' }}>
-            {posting ? t('create_moment_modal.posting') : asAd ? 'Endelea kama tangazo' : mode==='moment' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
+            {posting ? t('create_moment_modal.posting')
+              : isEdit ? 'Hifadhi mabadiliko'
+              : asAd ? 'Endelea kama tangazo'
+              : mode === 'moment' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
           </button>
         </div>
       </div>

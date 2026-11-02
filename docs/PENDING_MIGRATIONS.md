@@ -1,5 +1,9 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-02 (phase D):** the pin is now `MIGRATION_RUN_UPTO=1793800000000`. The next deploy
+runs `1793800000000-AddPostMediaAndFormats` itself (up to 4 photos per post, edit time, Swali/Mjadala).
+Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-02:** the pin is now `MIGRATION_RUN_UPTO=1793700000000`. The next deploy runs
 `1793700000000-AddPostLikes` itself (Home Feed phase C: hearts separate from saves).
 Check: `Q "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='business_feed_item' AND column_name='likeCount'"` must print `1`,

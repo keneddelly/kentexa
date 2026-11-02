@@ -7,6 +7,7 @@ import {
   Get,
   Post,
   Delete,
+  Patch,
   Body,
   Param,
   Query,
@@ -22,6 +23,7 @@ import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { FeedService } from './feed.service';
 import { CvsService } from './cvs.service';
 import { EngagementType } from './entities/post-engagement.entity';
+import { assertComposerText } from './publish-input';
 
 @Controller('feed')
 export class FeedController {
@@ -92,9 +94,19 @@ export class FeedController {
   @Post('publish')
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   publish(@Request() req, @Body() dto: any) {
+    // Phase D: what a person types in the composer is at most 500 characters.
+    assertComposerText(dto);
     // I2B: the acting identity comes from the server-resolved active
     // context, never solely from a client-supplied commerceProfileId.
     return this.svc.publish(req.user.id, dto, req.roleContext);
+  }
+
+  // ── Phase D: the author edits within 15 minutes (text, photos, audience) ──
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  async editPost(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() dto: any) {
+    await this.svc.editPost(req.user.id, id, dto || {});
+    return this.cvs.getPost(id, req.user.id);
   }
 
   // ── Delete post ───────────────────────────────────────────────────────────
