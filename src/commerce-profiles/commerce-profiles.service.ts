@@ -311,6 +311,24 @@ export class CommerceProfilesService {
     );
   }
 
+  /** Home's "Biashara" tab (owner 2026-11-02): every public business, verified and most followed first. */
+  async businessDirectory(limit = 40, offset = 0): Promise<{ items: any[]; total: number }> {
+    const [rows, total] = await this.repo.findAndCount({
+      where: { type: CommerceProfileType.BUSINESS, status: CommerceProfileStatus.ACTIVE, hiddenFromPublic: false } as any,
+      order: { isVerified: 'DESC', followersCount: 'DESC', id: 'ASC' } as any,
+      take: Math.min(Math.max(limit, 1), 60),
+      skip: Math.max(offset, 0),
+    });
+    return {
+      total,
+      items: rows.map((p) => ({
+        id: p.id, ownerId: p.ownerId, displayName: p.displayName, username: p.username, photoUrl: p.photoUrl,
+        category: p.category, location: p.location, isVerified: p.isVerified, followersCount: p.followersCount,
+        rating: (p as any).rating ?? null, reviewsCount: (p as any).reviewsCount ?? 0,
+      })),
+    };
+  }
+
   async findForUserByType(
     ownerId: number,
     type: CommerceProfileType,
