@@ -3719,6 +3719,13 @@ export class OrdersService {
       };
     }
 
+    // Dar es Salaam is priced by zone (owner approved 2026-11-02). A buyer place KenteXa
+    // does not know is never guessed: the checkout asks the buyer to pick their area.
+    if (typeof this.bodaRateCard?.quote === 'function' && /dar/i.test(String(sellerCity || ''))) {
+      const q = await this.bodaRateCard!.quote(String((product as any).seller?.businessLocation || sellerCity), String(buyerAddress || '')).catch(() => null);
+      if (q && q.fromZone && !q.toZone) return { isSameCity: true, batchZone, methods: [], areaUnknown: true };
+    }
+
     const methods: any[] = fees.sameCity == null ? [] : [
       {
         key: 'boda',

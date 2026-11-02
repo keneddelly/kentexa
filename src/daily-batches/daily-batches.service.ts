@@ -11,7 +11,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { DailyBatch, BatchStatus } from './entities/daily-batch.entity';
 import { BatchParcel, BatchParcelStatus } from './entities/batch-parcel.entity';
 import { DeliveryZone } from './entities/delivery-zone.entity';
-import { DAR_BODA_ZONES, DEFAULT_DAR_BODA_MATRIX } from '../boda-rates/dar-boda-zones';
+import { DarRates, DAR_ROAD_LABELS, DAR_ZONES, darFee, darRatesFrom, darSteps, darZoneOf } from '../boda-rates/dar-boda-zones';
 import { Order } from '../orders/entities/order.entity';
 import { IntercityRoute } from '../super-agents/entities/intercity-route.entity';
 import { Product } from '../products/entities/products.entity';
@@ -28,68 +28,26 @@ import { formatWaybill } from '../shipments/waybill';
 export class DailyBatchesService {
   private readonly BATCH_FEE = 3000;
 
-  // Dar es Salaam zones and default fee matrix: the shared table in
-  // src/boda-rates/dar-boda-zones.ts (also used by the office price rule).
-  private readonly DAR_ZONES = DAR_BODA_ZONES;
-  private readonly DEFAULT_FEE_MATRIX = DEFAULT_DAR_BODA_MATRIX;
-
-  // Runtime matrix — loaded from DB on first use, falls back to defaults
-  private runtimeMatrix: Record<string, number> | null = null;
-
-  private detectZoneRank(address: string | null): number {
-    if (!address) return 1; // default to central
-    const lower = address.toLowerCase();
-    for (const zone of Object.values(this.DAR_ZONES)) {
-      if (zone.keywords.some((kw) => lower.includes(kw))) return zone.rank;
-    }
-    return 2; // default to inner if Dar but no specific match
+  // Dar es Salaam zones and fee rule: the shared table in src/boda-rates/dar-boda-zones.ts
+  // (owner approved 2026-11-02), the same one the office price rule, the send form and
+  // hotel food delivery use. Admin overrides: boda_rate_card rows of category 'dar_step'.
+  private async darRates(): Promise<DarRates> {
+    const rows = await this.productRepo.manager
+      .getRepository('BodaRateCard')
+      .find({ where: { category: 'dar_step', isActive: true } } as any)
+      .catch(() => []);
+    return darRatesFrom(rows as any[]);
   }
 
-  private detectZoneLabel(address: string | null): string {
-    if (!address) return 'Kariakoo / Ilala';
-    const lower = address.toLowerCase();
-    for (const zone of Object.values(this.DAR_ZONES)) {
-      if (zone.keywords.some((kw) => lower.includes(kw))) return zone.label;
-    }
-    return 'Dar es Salaam';
-  }
-
-  private async loadFeeMatrix(): Promise<Record<string, number>> {
-    if (this.runtimeMatrix) return this.runtimeMatrix;
-    try {
-      // Load overrides from DB — admin can update these via /boda-rates
-      // rateKey format: 'matrix_1_2' for central→inner
-      const dbRates = await this.productRepo.manager
-        .getRepository('BodaRateCard')
-        .find({ where: { category: 'matrix', isActive: true } } as any)
-        .catch(() => []);
-
-      if (dbRates && dbRates.length > 0) {
-        this.runtimeMatrix = { ...this.DEFAULT_FEE_MATRIX };
-        for (const r of dbRates as any[]) {
-          // Convert 'matrix_1_2' → '1-2'
-          const key = r.rateKey.replace('matrix_', '').replace('_', '-');
-          this.runtimeMatrix[key] = r.fee;
-        }
-      } else {
-        this.runtimeMatrix = { ...this.DEFAULT_FEE_MATRIX };
-      }
-    } catch {
-      this.runtimeMatrix = { ...this.DEFAULT_FEE_MATRIX };
-    }
-    return this.runtimeMatrix;
-  }
-
+  /** The Dar zone fee, or null when either place is not a known area (never guessed). */
   private async calculateBodaFee(
     sellerAddress: string | null,
     buyerAddress: string | null,
-  ): Promise<number> {
-    const matrix = await this.loadFeeMatrix();
-    const sellerRank = this.detectZoneRank(sellerAddress);
-    const buyerRank = this.detectZoneRank(buyerAddress);
-    const key = `${sellerRank}-${buyerRank}`;
-    return matrix[key] || 10000;
+    weightKg?: number | null,
+  ): Promise<number | null> {
+    return darFee(await this.darRates(), sellerAddress, buyerAddress, weightKg);
   }
+
   private readonly logger = new Logger(DailyBatchesService.name);
 
   constructor(
@@ -953,12 +911,14 @@ export class DailyBatchesService {
     }
 
     const bodaFee = await this.calculateBodaFee(sellerCity, buyerAddress);
-    const sellerZone = this.detectZoneLabel(sellerCity);
-    const buyerZone = this.detectZoneLabel(buyerAddress);
-    const sameZone =
-      this.detectZoneRank(sellerCity) === this.detectZoneRank(buyerAddress);
+    const sellerArea = darZoneOf(sellerCity);
+    const buyerArea = darZoneOf(buyerAddress);
+    const sellerZone = sellerArea?.label || 'Dar es Salaam';
+    const buyerZone = buyerArea?.label || 'Dar es Salaam';
+    const sameZone = !!sellerArea && !!buyerArea && sellerArea.key === buyerArea.key;
 
-    const methods: any[] = [
+    // A place the zone table does not know has no boda price (never guessed).
+    const methods: any[] = bodaFee == null ? [] : [
       {
         key: 'boda',
         label: 'Boda Boda',
@@ -1005,54 +965,23 @@ export class DailyBatchesService {
   // Returns KenteXa suggested boda fees per zone
   // Seller picks one of these when listing — shown to Dar buyers at checkout
   async getBodaFeeSuggestions(sellerAddress?: string) {
-    const sellerRank = this.detectZoneRank(sellerAddress || null);
-    const sellerLabel = this.detectZoneLabel(sellerAddress || null);
-
-    const zones = [
-      {
-        rank: 1,
-        label: 'Kariakoo / Ilala / Upanga',
-        note: 'Eneo la kati — dakika 5-15',
-      },
-      {
-        rank: 2,
-        label: 'Kinondoni / Sinza / Temeke',
-        note: 'Kati — dakika 15-30',
-      },
-      {
-        rank: 3,
-        label: 'Ubungo / Kimara / Mbagala',
-        note: 'Umbali wa kati — dakika 30-50',
-      },
-      {
-        rank: 4,
-        label: 'Bunju / Tegeta / Boko',
-        note: 'Mbali sana — dakika 60+',
-      },
-    ];
-
-    const matrix = await this.loadFeeMatrix();
-    const suggestions = zones
-      .map((z) => {
-        const key = `${sellerRank}-${z.rank}`;
-        const fee = matrix[key] || 10000;
-        return {
-          zone: z.label,
-          note: z.note,
-          maxFee: fee,
-          minFee: Math.max(1500, fee - 2000),
-          isSameZone: sellerRank === z.rank,
-        };
-      })
-      .sort((a, b) => a.maxFee - b.maxFee);
-
-    const maxFee = Math.max(...suggestions.map((s) => s.maxFee));
-
+    // Dar zones (owner approved 2026-11-02): the fee from the seller's area to each zone.
+    const from = darZoneOf(sellerAddress || null);
+    const rates = await this.darRates();
+    const suggestions = from
+      ? DAR_ZONES.map((z) => {
+          const steps = darSteps(from, z);
+          const fee = rates.steps[Math.min(steps, rates.steps.length - 1)];
+          return { zone: `${DAR_ROAD_LABELS[z.road]}: ${z.label}`, note: `Hatua ${steps}`, maxFee: fee, minFee: fee, isSameZone: z.key === from.key };
+        }).sort((a, b) => a.maxFee - b.maxFee)
+      : [];
     return {
       suggestions,
-      sellerZone: sellerLabel,
-      recommended: maxFee,
-      note: `Unatuma kutoka ${sellerLabel}. Chagua bei ya eneo la mbali zaidi la mnunuzi wako — mfumo utatumia bei halisi kulingana na anwani ya mnunuzi wakati wa kununua.`,
+      sellerZone: from ? from.label : null,
+      recommended: suggestions.length ? Math.max(...suggestions.map((x) => x.maxFee)) : null,
+      note: from
+        ? `Unatuma kutoka ${from.label}. Bei halisi inatokana na eneo la mnunuzi wakati wa kununua.`
+        : 'Hatukutambua eneo la duka lako. Andika jina la mtaa unaojulikana (mf. Kariakoo, Sinza).',
     };
   }
 

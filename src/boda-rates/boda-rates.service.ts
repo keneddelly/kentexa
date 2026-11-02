@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BodaRateCard } from './boda-rate-card.entity';
+import { darAreas, darFee, darRatesFrom, darSteps, darZoneOf, DAR_HEAVY_KG } from './dar-boda-zones';
 
 /**
  * BodaRatesService — calculates boda fee based on buyer address + item weight
@@ -14,6 +15,23 @@ export class BodaRatesService implements OnModuleInit {
   constructor(
     @InjectRepository(BodaRateCard) private rateRepo: Repository<BodaRateCard>,
   ) {}
+
+  // ── Dar es Salaam zones (owner approved 2026-11-02) ───────────────────────
+  /** The areas a customer can pick when KenteXa does not know a place, and the step prices. */
+  async darAreasWithPrices() {
+    const rates = darRatesFrom(await this.rateRepo.find({ where: { category: 'dar_step', isActive: true } }).catch(() => []));
+    return { areas: darAreas(), stepPrices: rates.steps, heavyKg: DAR_HEAVY_KG, heavyMultiplier: rates.heavyMultiplier };
+  }
+
+  /** The Dar zone fee between two places (null fee = a place KenteXa does not know). */
+  async darQuote(from: string, to: string, weightKg?: number) {
+    const rates = darRatesFrom(await this.rateRepo.find({ where: { category: 'dar_step', isActive: true } }).catch(() => []));
+    const a = darZoneOf(from); const b = darZoneOf(to);
+    return {
+      fee: darFee(rates, from, to, weightKg), fromZone: a?.key ?? null, toZone: b?.key ?? null,
+      steps: a && b ? darSteps(a, b) : null,
+    };
+  }
 
   // ── Seed default rates if none exist ────────────────────────────────────
   async onModuleInit() {

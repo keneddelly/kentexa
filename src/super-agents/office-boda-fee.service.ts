@@ -1,43 +1,39 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { BodaRateCard } from '../boda-rates/boda-rate-card.entity';
-import { DAR_BODA_ZONES, DEFAULT_DAR_BODA_MATRIX } from '../boda-rates/dar-boda-zones';
+import { DarRates, DEFAULT_DAR_RATES, darFee, darRatesFrom, darSteps, darZoneOf } from '../boda-rates/dar-boda-zones';
 
 /**
- * The Dar es Salaam boda boda fee for the office price rule (agent pickup or door
- * delivery from a Dar office). Zones and default matrix come from the shared table
- * (src/boda-rates/dar-boda-zones.ts, also used by checkout), with the admin overrides
- * from boda_rate_card. Reads that table only: no timed jobs.
+ * The Dar es Salaam delivery fee by zone (owner approved 2026-11-02), for every user:
+ * checkout, the send form, seller COD, hotel food delivery and the office price rule.
+ * Zones, steps and default prices: src/boda-rates/dar-boda-zones.ts. Admin overrides:
+ * boda_rate_card rows of category 'dar_step'. Reads that table only: no timed jobs.
+ *
+ * A place the zone table does not know gives null (never a guessed fee).
  */
-
-const FALLBACK_FEE = 10000;
-
-export function darZoneRank(address: string | null): number {
-  if (!address) return 1;
-  const lower = address.toLowerCase();
-  const zone = Object.values(DAR_BODA_ZONES).find((z) => z.keywords.some((kw) => lower.includes(kw)));
-  return zone ? zone.rank : 2;
-}
-
-/** Pure: the fee between two Dar addresses from a zone-to-zone matrix. */
-export function darBodaFee(matrix: Record<string, number>, fromAddress: string | null, toAddress: string | null): number {
-  return matrix[`${darZoneRank(fromAddress)}-${darZoneRank(toAddress)}`] || FALLBACK_FEE;
-}
-
 @Injectable()
 export class OfficeBodaFeeService {
   constructor(@InjectRepository(BodaRateCard) private readonly rateCards: Repository<BodaRateCard>) {}
 
-  /** Default matrix with the active admin overrides from boda_rate_card. */
-  async matrix(): Promise<Record<string, number>> {
-    const matrix = { ...DEFAULT_DAR_BODA_MATRIX };
-    const rows = await this.rateCards.find({ where: { category: 'matrix', isActive: true } }).catch(() => []);
-    for (const r of rows) matrix[r.rateKey.replace('matrix_', '').replace('_', '-')] = Number(r.fee);
-    return matrix;
+  /** The step prices and heavy multiplier, with the active admin overrides. */
+  async rates(): Promise<DarRates> {
+    const rows = await this.rateCards.find({ where: { category: In(['dar_step']), isActive: true } }).catch(() => []);
+    return rows.length ? darRatesFrom(rows) : DEFAULT_DAR_RATES;
   }
 
-  async feeBetween(fromAddress: string | null, toAddress: string | null): Promise<number> {
-    return darBodaFee(await this.matrix(), fromAddress, toAddress);
+  async feeBetween(fromAddress: string | null, toAddress: string | null, weightKg?: number | null): Promise<number | null> {
+    return darFee(await this.rates(), fromAddress, toAddress, weightKg);
+  }
+
+  /** For the forms: the fee and which zones were understood (null = the customer picks an area). */
+  async quote(fromAddress: string | null, toAddress: string | null, weightKg?: number | null) {
+    const from = darZoneOf(fromAddress); const to = darZoneOf(toAddress);
+    return {
+      fee: await this.feeBetween(fromAddress, toAddress, weightKg),
+      fromZone: from ? from.key : null,
+      toZone: to ? to.key : null,
+      steps: from && to ? darSteps(from, to) : null,
+    };
   }
 }

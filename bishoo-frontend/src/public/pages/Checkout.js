@@ -8,6 +8,7 @@ import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { DirectPaymentChoice, DirectPaymentSuccess, LipaPaymentStep } from '../components/DirectPayment';
 import { usePaymentMode } from '../../utils/paymentMode';
 import { Spinner } from '../components/Loading';
+import DarAreaPicker, { withDarArea } from '../components/DarAreaPicker';
 
 // Owner 2026-10-26: no emoji in the order flow; line icons and one spinner.
 const B = '#1d4ed8';
@@ -128,6 +129,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const [selectedMethod, setSelectedMethod]       = useState(null); // 'boda'|'kentexa_delivery'|'agent'
   const [detectingMethods, setDetectingMethods]   = useState(false);
   const [isSameCity, setIsSameCity]               = useState(false);
+  // Dar zones (owner 2026-11-02): a place KenteXa does not know is picked, never guessed.
+  const [areaUnknown, setAreaUnknown]             = useState(false);
   const DETECT_DELAY = 500; // ms after user stops typing
 
   // The backend's own intercity/same-city split for COD purposes is based
@@ -154,6 +157,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const detectDeliveryMethodsFor = (address) => {
     setSelectedMethod(null);
     setDeliveryMethods([]);
+    setAreaUnknown(false);
     if (detectDeliveryRef.current) clearTimeout(detectDeliveryRef.current);
     if (!address.trim() || address.trim().length < 3 || cart.length === 0) return;
     detectDeliveryRef.current = setTimeout(async () => {
@@ -164,11 +168,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         const res = await api.get(`/orders/delivery-methods?address=${encodeURIComponent(address)}&productId=${productId}`);
         setDeliveryMethods(res.data.methods || []);
         setIsSameCity(res.data.isSameCity || false);
+        setAreaUnknown(res.data.areaUnknown === true);
         // Auto-select first method
         if (res.data.methods?.length > 0) {
           setSelectedMethod(res.data.methods[0].key);
         }
-      } catch { setDeliveryMethods([]); }
+      } catch { setDeliveryMethods([]); setAreaUnknown(false); }
       finally { setDetectingMethods(false); }
     }, DETECT_DELAY);
   };
@@ -839,6 +844,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               style={inputStyle} />
           </div>
         </div>
+
+        {!isDigitalOnlyCart && !deliveryOptionsHidden && !detectingMethods && areaUnknown && (
+          <div style={{ marginBottom: 14 }}>
+            <DarAreaPicker placeText={form.deliveryAddress} onPick={(area) => handleAddressChange(withDarArea(area, form.deliveryAddress))} />
+          </div>
+        )}
 
         {/* Delivery Method Selector — shown when address is filled */}
         {!isDigitalOnlyCart && !deliveryOptionsHidden && (detectingMethods || deliveryMethods.length > 0) && (

@@ -6,12 +6,17 @@ import { findNearestOffice, NO_AGENT_NOW } from './nearest-office';
 import { TransportService } from './transport.service';
 import { JourneyComposerService } from './journey-composer.service';
 import { OfficePriceService } from '../super-agents/office-price.service';
+import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
+import { isDarEsSalaam } from '../Utils/delivery-zone-detector';
+import { darZoneOf } from '../boda-rates/dar-boda-zones';
 import { OfficePickupOffer, OfficeRateRow, officeChargeText, officeEtaLabel, officePickupFeeFor, officePickupTableReady, officeSameCityColumnReady, isSameCityTrip, pickOfficeRates } from './office-offers';
 
 export interface DiscoverServiceOffersDto {
   fromCity: string; toCity: string; weightKg: number;
   pickup: 'door' | 'point'; delivery: 'door' | 'collect';
   origin?: any; destination?: any;
+  /** Dar zones: an area the customer picked for a place KenteXa did not know (read before the place). */
+  originArea?: string; destinationArea?: string;
   providerId?: number;
   discoveryOnly?: boolean;
   /** Send form v2: the sender's declared value (TZS). Office offers need it (% of value). */
@@ -25,6 +30,10 @@ export interface LogisticsServiceOffer {
   serviceType: 'direct_delivery' | 'composed_intercity' | 'office';
   name: string; price: number | null; currency: 'TZS'; etaLabel: string;
   pricingMode?: 'instant' | 'quote_required';
+  /** Dar same-city: a place the zone table does not know (price null; the customer picks an area). */
+  areaUnknown?: boolean;
+  /** Which place KenteXa did not know, so the form asks only for that one. */
+  unknownPlaces?: ('origin' | 'destination')[];
   // For an intercity offer `price` is the transport fare only -- the same
   // number POST /transport/quotes freezes. Door pickup/delivery is never
   // inside it: 'separate' means an Agent covers that city and charges on top,
@@ -46,7 +55,37 @@ export class LogisticsServiceOfferService {
     @Optional() private readonly db?: DataSource,
     @Optional() private readonly locations?: LocationIntelligenceService,
     @Optional() private readonly officePrices?: OfficePriceService,
+    @Optional() private readonly darFees?: OfficeBodaFeeService,
   ) {}
+
+  /** A place as words the Dar zone table can read: the typed text, or the resolved place's names. */
+  private async placeWords(side: any): Promise<string | null> {
+    if (typeof side?.text === 'string' && side.text.trim()) return side.text.trim();
+    const place = side?.place;
+    if (!this.locations || typeof place?.providerKey !== 'string' || typeof place?.providerPlaceId !== 'string') return null;
+    const c: any = await this.locations.resolve({ providerKey: place.providerKey, providerPlaceId: place.providerPlaceId }).catch(() => null);
+    const words = [c?.displayLabel, c?.wardName, c?.districtName].filter((x) => typeof x === 'string' && x.trim()).join(', ');
+    return words || null;
+  }
+
+  /**
+   * Dar es Salaam same-city trips are priced by zone (owner approved 2026-11-02: zone price
+   * only; the agent's old flat fee is no longer used in Dar). undefined = not a Dar trip;
+   * null = a place the zone table does not know (the customer picks an area).
+   */
+  private async darZoneFee(city: string, dto: DiscoverServiceOffersDto, weight: number):
+    Promise<{ fee: number | null; unknown: ('origin' | 'destination')[] } | undefined> {
+    if (!this.darFees || !isDarEsSalaam(city)) return undefined;
+    const withArea = (area: unknown, words: string | null) =>
+      [typeof area === 'string' ? area.trim().slice(0, 60) : '', words || ''].filter(Boolean).join(' — ') || null;
+    const [from, to] = await Promise.all([this.placeWords(dto.origin), this.placeWords(dto.destination)]);
+    const fromText = withArea(dto.originArea, from); const toText = withArea(dto.destinationArea, to);
+    const unknown: ('origin' | 'destination')[] = [];
+    if (!darZoneOf(fromText)) unknown.push('origin');
+    if (!darZoneOf(toText)) unknown.push('destination');
+    const fee = unknown.length ? null : await this.darFees.feeBetween(fromText, toText, weight).catch(() => null);
+    return { fee, unknown };
+  }
 
   /**
    * Early check for "Mlango kwa mlango ndani ya mji" (KNOWN_FAULTS #24): is an
@@ -85,6 +124,9 @@ export class LogisticsServiceOfferService {
         // Same answer as the early check, in Swahili, with the nearest office.
         throw new BadRequestException({ statusCode: 400, error: 'Bad Request', ...NO_AGENT_NOW,
           nearestOffice: await this.nearestOffice(dto.fromCity, dto.origin).catch(() => null) });
+      }
+      if (offers.some(o => o.serviceType === 'direct_delivery' && o.areaUnknown)) {
+        throw new BadRequestException('Chagua eneo lako la Dar es Salaam kwanza, ili bei ya usafiri ijulikane.');
       }
       return this.journeys.selectDirectDelivery(userId, {
         origin: dto.origin, destination: dto.destination,
@@ -162,8 +204,11 @@ export class LogisticsServiceOfferService {
       const sameCityOffices = await this.officeOffers(dto).catch(() => [] as LogisticsServiceOffer[]);
       if (!directAgent) return sameCityOffices;
       const directPickupFee = dto.pickup === 'door' ? Number(directAgent.collectionFeeUrban ?? directAgent.deliveryFee ?? 0) : 0;
+      const dar = await this.darZoneFee(from, dto, weight);
       return [{
-        serviceType: 'direct_delivery', name: 'Direct Delivery', price: Math.max(directPickupFee, deliveryFee), currency: 'TZS',
+        serviceType: 'direct_delivery', name: 'Direct Delivery',
+        price: dar === undefined ? Math.max(directPickupFee, deliveryFee) : dar.fee, currency: 'TZS',
+        ...(dar && dar.unknown.length ? { areaUnknown: true, unknownPlaces: dar.unknown } : {}),
         etaLabel: directAgent.deliveryTime ?? 'Same day',
         firstAction: dto.pickup === 'door' && pickupAgents.length > 0
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: pickupAgents.map((a: any) => a.id) }

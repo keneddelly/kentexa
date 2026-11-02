@@ -112,14 +112,15 @@ export class OfficePriceService {
     if (!Number.isFinite(declaredValue) || declaredValue <= 0) throw new BadRequestException(OFFICE_PRICE_MESSAGES.badValue);
     const [rule, kgRate] = await Promise.all([this.ruleFor(office.id), this.kgRateFor(office, req.destinationCity)]);
 
-    // Dar es Salaam: an agent pickup / door delivery is the boda boda fee. Elsewhere it is
+    // Dar es Salaam: an agent pickup / door delivery is the Dar zone fee (null = an area
+    // the zone table does not know: the line shows as not included and the counter types it). Elsewhere it is
     // not part of this price (agent or van fees stay as they are today).
     const inDar = isDarEsSalaam(office.city);
     const officePlace = office.address || office.city;
     const deliveryBodaFee = inDar && req.servicePath === 'local_agent'
-      ? await this.boda.feeBetween(officePlace, req.deliveryAddress || null) : null;
+      ? await this.boda.feeBetween(officePlace, req.deliveryAddress || null, req.weightKg ?? null) : null;
     const pickupBodaFee = inDar && req.pickupAddress
-      ? await this.boda.feeBetween(req.pickupAddress, officePlace) : null;
+      ? await this.boda.feeBetween(req.pickupAddress, officePlace, req.weightKg ?? null) : null;
 
     // Same-city parcel in Dar (agent delivery from a Dar office): only the boda fee.
     const sameCityDar = inDar && req.servicePath === 'local_agent';

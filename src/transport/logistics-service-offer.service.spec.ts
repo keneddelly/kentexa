@@ -67,3 +67,46 @@ describe('LogisticsServiceOfferService.discover (intercity)', () => {
     expect(offers.map(o => o.pricingMode)).toEqual(['instant', 'quote_required']);
   });
 });
+
+// Owner approved 2026-11-02: Dar es Salaam same-city trips are priced by zone (zone price
+// only; the agent's old flat 1,000-1,500 fee is no longer used in Dar).
+describe('LogisticsServiceOfferService.discover (Dar es Salaam zones)', () => {
+  const { OfficeBodaFeeService } = require('../super-agents/office-boda-fee.service');
+  const agent = { id: 7, collectionFeeUrban: 1500, deliveryFee: 1000, hasBasePoint: true };
+  const make = (city = 'Dar es Salaam') => {
+    const agentsSvc = { getAvailableAgents: jest.fn().mockResolvedValue([agent]) };
+    const locations = { resolve: jest.fn(async () => ({ displayLabel: 'Mwenge', wardName: 'Mwenge', districtName: 'Kinondoni' })) };
+    const svc = new LogisticsServiceOfferService(agentsSvc as any, {} as any, {} as any, undefined, locations as any, undefined,
+      new OfficeBodaFeeService({ find: jest.fn(async () => []) } as any));
+    return { svc, city, locations };
+  };
+  const trip = (origin: any, destination: any, extra: any = {}) => ({
+    fromCity: 'Dar es Salaam', toCity: 'Dar es Salaam', weightKg: 2, pickup: 'door' as const, delivery: 'door' as const, origin, destination, ...extra,
+  });
+
+  it('Kariakoo to Sinza is the zone price, not the agent flat fee; a picked place is read too', async () => {
+    const { svc } = make();
+    const [direct] = await svc.discover(trip({ text: 'Kariakoo' }, { text: 'Sinza' }));
+    expect(direct).toEqual(expect.objectContaining({ serviceType: 'direct_delivery', price: 7000 }));
+    expect(direct.areaUnknown).toBeUndefined();
+    const [picked] = await svc.discover(trip({ text: 'Kariakoo' }, { place: { providerKey: 'tz_seed', providerPlaceId: 'w:1' } }));
+    expect(picked.price).toBe(7000); // Kariakoo -> Mwenge (Bagamoyo ring 2), read from the place's ward name
+  });
+
+  it('a heavy parcel pays double', async () => {
+    const { svc } = make();
+    const [direct] = await svc.discover(trip({ text: 'Kariakoo' }, { text: 'Sinza' }, { weightKg: 25 }));
+    expect(direct.price).toBe(14000);
+  });
+
+  it('an unknown place: no price, the form is told which place to ask for; a picked area fixes it', async () => {
+    const { svc } = make();
+    const [direct] = await svc.discover(trip({ text: 'Kariakoo' }, { text: 'Kwa Mtogole' }));
+    expect(direct).toEqual(expect.objectContaining({ price: null, areaUnknown: true, unknownPlaces: ['destination'] }));
+    await expect(svc.commit(1, { ...trip({ text: 'Kariakoo' }, { text: 'Kwa Mtogole' }), serviceType: 'direct_delivery' } as any))
+      .rejects.toThrow('Chagua eneo');
+    const [fixed] = await svc.discover(trip({ text: 'Kariakoo' }, { text: 'Kwa Mtogole' }, { destinationArea: 'Mwenge' }));
+    expect(fixed.price).toBe(7000);
+    expect(fixed.areaUnknown).toBeUndefined();
+  });
+});
