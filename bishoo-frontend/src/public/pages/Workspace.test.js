@@ -2,8 +2,10 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import Workspace from './Workspace';
 import { getMyBusinesses } from '../../api/business';
+import api from '../../api/api';
 
 jest.mock('../../api/business', () => ({ getMyBusinesses: jest.fn() }));
+jest.mock('../../api/api', () => ({ get: jest.fn() }));
 
 const role = (id, roleType, extra = {}) => ({ accountRoleId: id, roleType, status: 'active', switchable: true, businessId: null, ...extra });
 const roles = [
@@ -12,12 +14,13 @@ const roles = [
   role(3, 'agent', { status: 'pending' }),
 ];
 
-const setup = async (activeRoleId = 1, extraRoles = []) => {
+const setup = async (activeRoleId = 1, extraRoles = [], { roleType = 'buyer', answers = {}, inboxUnread = 0 } = {}) => {
   getMyBusinesses.mockResolvedValue([{ id: 10, legalName: 'Bishoo Electronics' }]);
+  api.get.mockImplementation(async (url) => ({ data: answers[url] ?? [] }));
   const onNavigate = jest.fn();
   const onSwitchAccountRole = jest.fn().mockResolvedValue(undefined);
   await act(async () => {
-    render(<Workspace isLoggedIn onNavigate={onNavigate} currentUser={{ name: 'Kened' }} activeContext={{ accountRoleId: activeRoleId }}
+    render(<Workspace isLoggedIn onNavigate={onNavigate} currentUser={{ name: 'Kened' }} activeContext={{ accountRoleId: activeRoleId, roleType }} inboxUnread={inboxUnread}
       roleOptions={[...roles, ...extraRoles]} onSwitchAccountRole={onSwitchAccountRole} onRefreshContext={jest.fn()} />);
   });
   return { onNavigate, onSwitchAccountRole };
@@ -61,4 +64,27 @@ test('a suspended business role shows its state and no tools', async () => {
   fireEvent.click(screen.getByRole('option', { name: /Bishoo Electronics/ }));
   expect(screen.getByTestId('role-state-9')).toHaveTextContent('Imesimamishwa');
   expect(screen.queryByTestId('tool-office.desk')).toBeNull();
+});
+
+test('Kinachohitaji wewe: the active seller\'s orders to send and Lipa to confirm, from the seller dashboard numbers', async () => {
+  const answers = { '/seller/dashboard': { stats: { needsShipping: 3 }, recentOrders: [
+    { paymentMethod: 'lipa_namba', paymentStatus: 'pending', status: 'preparing' },
+    { paymentMethod: 'lipa_namba', paymentStatus: 'paid', status: 'preparing' },
+  ] } };
+  const { onNavigate } = await setup(2, [], { roleType: 'seller', answers });
+  expect(await screen.findByTestId('attention-seller.toSend')).toHaveTextContent('3');
+  expect(screen.getByTestId('attention-seller.lipa')).toHaveTextContent('1');
+  fireEvent.click(screen.getByTestId('attention-seller.toSend'));
+  expect(onNavigate).toHaveBeenCalledWith('SellerOrders');
+});
+
+test('personal items: unread messages and deliveries to confirm; nothing shown when there is nothing', async () => {
+  await setup(1, [], { inboxUnread: 2, answers: { '/orders/my-orders': [{ status: 'delivered' }, { status: 'preparing' }] } });
+  expect(await screen.findByTestId('attention-me.inbox')).toHaveTextContent('2');
+  expect(await screen.findByTestId('attention-me.confirm')).toHaveTextContent('1');
+});
+
+test('no items, no section: nothing is invented', async () => {
+  await setup(1);
+  expect(screen.queryByTestId('attention')).toBeNull();
 });
