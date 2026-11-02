@@ -1,9 +1,7 @@
 // Home feed product trail: a 2×2 grid of 4 listing cards placed between feed posts.
 //
-// Slots: one slot after every 2 posts. Odd slots (after posts 2, 6, 10…) are the product
-// trail, even slots (after 4, 8, 12…) keep the older discovery rail with all its types.
-// The trail never sits at the start or end of the feed. The older rail keeps its own
-// rule for a thin feed (under 4 posts): one rail after the last post.
+// Slots (Social Home, owner approved 2026-11-02): one trail after post 8, then one after
+// every 16 more posts (24, 40, ...). No other product or discovery rail between posts.
 //
 // Rotation: listings come from all products + active classifieds, no approval step.
 // Consecutive trails never share an item, and a user's newest trail prefers items
@@ -17,7 +15,9 @@ export const TRAIL_SIZE = 4;
 export const SLOT_SOURCE = Object.freeze({ ORGANIC: 'organic', BOOST: 'boost' });
 // The older rail, unchanged: trending products, classifieds, services, stores, transport.
 export const DISCOVERY_RAIL_TYPES = ['product', 'classified', 'service', 'store', 'transport'];
-const THIN_FEED = 4;
+// Social Home: where the product rows go.
+export const FIRST_TRAIL_AFTER = 8;
+export const TRAIL_EVERY = 16;
 
 const SEEN_LIMIT = 200;
 const seenKey = (userKey) => `kentexa_trail_seen_${userKey || 'guest'}`;
@@ -28,15 +28,11 @@ const seenKey = (userKey) => `kentexa_trail_seen_${userKey || 'guest'}`;
  */
 export function slotAfterPost(index, postCount) {
   if (index < 0 || index >= postCount) return null;
-  if (index === postCount - 1) {
-    // No trail at the end; a thin feed still gets the older rail's one guaranteed slot.
-    return postCount < THIN_FEED ? { kind: 'discovery_rail', railType: DISCOVERY_RAIL_TYPES[0] } : null;
-  }
-  if ((index + 1) % POSTS_PER_SLOT !== 0) return null;
-  const slot = (index + 1) / POSTS_PER_SLOT; // 1, 2, 3…
-  if (slot % 2 === 1) return { kind: 'product_trail', trailIndex: (slot - 1) / 2 };
-  const railIndex = slot / 2 - 1;
-  return { kind: 'discovery_rail', railType: DISCOVERY_RAIL_TYPES[railIndex % DISCOVERY_RAIL_TYPES.length] };
+  // Social Home (owner approved 2026-11-02): Home is for conversation. One row of items comes
+  // after post 8, then one after every 16 more posts; the older discovery rails are gone.
+  if (index + 1 < FIRST_TRAIL_AFTER) return null;
+  if ((index + 1 - FIRST_TRAIL_AFTER) % TRAIL_EVERY !== 0) return null;
+  return { kind: 'product_trail', trailIndex: (index + 1 - FIRST_TRAIL_AFTER) / TRAIL_EVERY };
 }
 
 /** Products and active classifieds as one list of trail items. */

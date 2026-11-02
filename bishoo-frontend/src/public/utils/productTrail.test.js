@@ -12,37 +12,17 @@ const pool = (n) => buildTrailPool(
   [],
 );
 
-describe('insertion rule', () => {
-  test('a slot after every 2 posts: trail after 2, 6, 10…, the old rail after 4, 8, 12…', () => {
-    expect(positions(13, 'product_trail')).toEqual([2, 6, 10]);
-    expect(positions(13, 'discovery_rail')).toEqual([4, 8, 12]);
-    expect(slotsFor(13).filter(Boolean).map((s) => s.railType).filter(Boolean)).toEqual(['product', 'classified', 'service']);
+describe('insertion rule (Social Home, owner approved 2026-11-02)', () => {
+  test('one row of items after post 8, then after every 16 more posts; nothing else between posts', () => {
+    expect(positions(50, 'product_trail')).toEqual([8, 24, 40]);
+    expect(positions(50, 'discovery_rail')).toEqual([]);
+    expect(slotsFor(50).filter((s) => s?.kind === 'product_trail').map((s) => s.trailIndex)).toEqual([0, 1, 2]);
   });
 
-  test('the old rail keeps all its types in turn', () => {
-    expect(slotsFor(41).filter(Boolean).map((s) => s.railType).filter(Boolean))
-      .toEqual(['product', 'classified', 'service', 'store', 'transport', 'product', 'classified', 'service', 'store', 'transport']);
-  });
-
-  test('no trail at the start or after the last post of a short feed', () => {
+  test('a feed of fewer than 8 posts has no product row', () => {
     expect(slotsFor(0)).toEqual([]);
-    expect(positions(1, 'product_trail')).toEqual([]);
-    expect(positions(2, 'product_trail')).toEqual([]); // the only slot would be the end
-    expect(positions(3, 'product_trail')).toEqual([2]);
-    expect(positions(4, 'product_trail')).toEqual([2]);
-    expect(positions(4, 'discovery_rail')).toEqual([]); // after post 4 is the end of a 4-post feed
-    expect(slotAfterPost(0, 10)).toBeNull();
-  });
-
-  test('a thin feed (under 4 posts) still gets the old rail once, after its last post', () => {
-    expect(slotsFor(1)).toEqual([{ kind: 'discovery_rail', railType: 'product' }]);
-    expect(positions(2, 'discovery_rail')).toEqual([2]);
-    expect(positions(3, 'discovery_rail')).toEqual([3]);
-    expect(positions(3, 'product_trail')).toEqual([2]);
-  });
-
-  test('trails are numbered in order for the rotation', () => {
-    expect(slotsFor(11).filter((s) => s?.kind === 'product_trail').map((s) => s.trailIndex)).toEqual([0, 1, 2]);
+    expect(slotsFor(7).filter(Boolean)).toEqual([]);
+    expect(positions(8, 'product_trail')).toEqual([8]);
   });
 });
 

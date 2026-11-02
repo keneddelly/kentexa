@@ -112,6 +112,10 @@ export class FeedService {
       body?: string;
       imageUrl?: string;
       media?: { url: string; width?: number; height?: number }[];
+      // Social Home: the post's topic (checked by the controller) and, for internal
+      // callers only, that a listing published this Moment by itself.
+      topic?: string | null;
+      autoListing?: boolean;
       linkedEntityType?: string;
       linkedEntityId?: number;
       ctaLabel?: string;
@@ -233,6 +237,8 @@ export class FeedService {
         body: dto.body || null,
         // Phase D: several photos; imageUrl keeps the first for older app versions.
         media: cleanMedia(dto.media),
+        topic: dto.topic || null,
+        autoListing: dto.autoListing === true,
         imageUrl: cleanMedia(dto.media)?.[0]?.url || dto.imageUrl || null,
         linkedEntityType: dto.linkedEntityType || null,
         linkedEntityId: dto.linkedEntityId || null,
@@ -450,6 +456,7 @@ export class FeedService {
       .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
       .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 }) // followers-only posts: author and followers only
       .andWhere(NOT_MUTED_BY_VIEWER('f')) // phase F: identities this viewer muted
+      .andWhere('f."autoListing" = false') // Social Home: no self-posted listings in the Moments row
       .andWhere('f.isActive = true')
       .andWhere('f.createdAt > :since', { since })
       .orderBy('f.createdAt', 'DESC')
