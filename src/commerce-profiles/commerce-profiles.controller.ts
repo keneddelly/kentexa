@@ -86,6 +86,13 @@ export class CommerceProfilesController {
     return this.service.getOnboardingSuggestions(req.user.id, city);
   }
 
+  // Owner 2026-11-02: Home's "Biashara" tab lists every business on KenteXa (public ones:
+  // active, not hidden). Declared before ':id'.
+  @Get('directory/businesses')
+  businessDirectory(@Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.service.businessDirectory(Number(limit) || 40, Number(offset) || 0);
+  }
+
   @Get(':id')
   @UseGuards(OptionalJwtAuthGuard)
   async getById(@Request() req, @Param('id', ParseIntPipe) id: number) {

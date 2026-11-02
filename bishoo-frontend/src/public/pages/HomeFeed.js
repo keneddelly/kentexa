@@ -19,6 +19,7 @@ import PostSafetyMenu from '../components/PostSafetyMenu';
 import TopicPicker from '../components/TopicPicker';
 import LeoKwako from '../components/LeoKwako';
 import CommunitiesPanel from '../components/CommunitiesPanel';
+import KentexaDirectory, { DIRECTORY_KINDS } from '../components/KentexaDirectory';
 import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -70,8 +71,12 @@ const getFilters = t => [
   // Social Home part 3 (owner approved 2026-11-02): communities.
   { key:'communities', label:'Jumuiya' },
   { key:'nearby',     label:t('home_feed.filter_nearby')      },
-  { key:'products',   label:t('home_feed.filter_products')    },
-  { key:'services',   label:t('home_feed.filter_services')      },
+  // Owner 2026-11-02: the catalogue tabs show everything of their kind on KenteXa (not posts).
+  { key:'products',    label:'Bidhaa'    },
+  { key:'services',    label:'Huduma'    },
+  { key:'hotels',      label:'Hoteli'    },
+  { key:'classifieds', label:'Matangazo' },
+  { key:'businesses',  label:'Biashara'  },
 ];
 
 const getTypeMeta = t => ({
@@ -1696,8 +1701,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     finally { setLoading(false); setLoadingMore(false); }
   }, [currentUser, topic]);
 
+  const isDirectory = DIRECTORY_KINDS.includes(filter);
   useEffect(() => {
     setPage(1);
+    // A catalogue tab reads its own list (KentexaDirectory), not the feed.
+    if (DIRECTORY_KINDS.includes(filter)) return;
     loadPosts(filter, 1, false);
   }, [filter, loadPosts]);
 
@@ -1878,7 +1886,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         </div>
 
         {/* Social Home: topic chips (followed topics first). */}
-        {topicChips.length > 0 && !['products', 'services'].includes(filter) && (
+        {topicChips.length > 0 && !isDirectory && (
           <div data-testid="topic-chips" style={{ display:'flex', gap:6, overflowX:'auto', scrollbarWidth:'none', padding:'6px 10px 8px' }}>
             {[{ key: '', label: 'Zote' }, ...topicChips].map((c) => {
               const on = topic === c.key;
@@ -2024,7 +2032,9 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       )}
 
       {/* ── Feed posts ── */}
-      {loading ? (
+      {isDirectory ? (
+        <KentexaDirectory kind={filter} onNavigate={onNavigate} />
+      ) : loading ? (
         [1,2,3].map(i => (
           <div key={i} style={{ backgroundColor:WH, marginBottom:2,
             borderTop:'1px solid #F1F5F9' }}>

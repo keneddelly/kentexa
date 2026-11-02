@@ -265,6 +265,29 @@ export class FoodOrdersService {
   }
 
   /** For a business's public page: does it have a menu to open ("Menyu" button)? */
+  /** Home's "Hoteli" tab (owner 2026-11-02): active businesses with an open menu and items. */
+  async hotelsDirectory(): Promise<any[]> {
+    if (!(await this.isReady())) return [];
+    const rows = await this.db.query(
+      `SELECT b.id AS "businessId", COALESCE(b."tradingName", b."legalName") AS name, b.logo, b.address,
+              cp.id AS "commerceProfileId", cp."ownerId", cp."photoUrl", cp.location,
+              s."acceptingOrders",
+              (SELECT COUNT(*)::int FROM public.food_menu_item i WHERE i."businessId" = b.id AND i.active = true) AS items
+         FROM public.business b
+         JOIN public.food_menu_settings s ON s."businessId" = b.id AND s.enabled = true
+         LEFT JOIN public.commerce_profile cp ON cp."businessId" = b.id AND cp.type::text = 'business'
+        WHERE b.status::text = 'active'
+          AND (cp.id IS NULL OR cp."hiddenFromPublic" = false)
+          AND EXISTS (SELECT 1 FROM public.food_menu_item i WHERE i."businessId" = b.id AND i.active = true)
+        ORDER BY s."acceptingOrders" DESC, b.id DESC
+        LIMIT 60`);
+    return rows.map((r: any) => ({
+      businessId: Number(r.businessId), name: r.name, photoUrl: r.photoUrl || r.logo || null,
+      location: r.location || r.address || null, commerceProfileId: r.commerceProfileId ? Number(r.commerceProfileId) : null,
+      ownerId: r.ownerId ? Number(r.ownerId) : null, open: r.acceptingOrders === true, items: Number(r.items) || 0,
+    }));
+  }
+
   async menuForProfile(commerceProfileId: number) {
     if (!(await this.isReady())) return { businessId: null, hasMenu: false };
     const [row] = await this.db.query(

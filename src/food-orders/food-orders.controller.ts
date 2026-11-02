@@ -21,6 +21,13 @@ export class FoodOrdersController {
     return this.service.deliveryFee(businessId, to);
   }
 
+  // Owner 2026-11-02: Home's "Hoteli" tab - every hotel or restaurant with a live menu.
+  @Get('hotels')
+  @Header('Cache-Control', 'public, max-age=60')
+  hotels() {
+    return this.service.hotelsDirectory();
+  }
+
   @Get('profile/:commerceProfileId')
   @Header('Cache-Control', 'public, max-age=60')
   forProfile(@Param('commerceProfileId', ParseIntPipe) id: number) {
