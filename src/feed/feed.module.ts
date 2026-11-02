@@ -21,6 +21,7 @@ import { FeedService } from './feed.service';
 import { PollService } from './poll.service';
 import { SocialSafetyService } from './social-safety.service';
 import { TopicsService } from './topics.service';
+import { TodayService } from './today.service';
 import { CvsService } from './cvs.service';
 import { FeedController } from './feed.controller';
 import {
@@ -68,6 +69,7 @@ import { SearchModule } from '../search/search.module';
     PollService,
     SocialSafetyService,
     TopicsService,
+    TodayService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,

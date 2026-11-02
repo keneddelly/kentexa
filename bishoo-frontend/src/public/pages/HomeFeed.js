@@ -17,6 +17,7 @@ import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
 import PostSafetyMenu from '../components/PostSafetyMenu';
 import TopicPicker from '../components/TopicPicker';
+import LeoKwako from '../components/LeoKwako';
 import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -1934,6 +1935,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       )}
 
       {/* ── Trending bar ── */}
+      {/* Social Home part 2: "Leo kwako" opens For You (only real activity; empty = nothing). */}
+      {isLoggedIn && filter === 'for_you' && !topic && (
+        <LeoKwako onNavigate={onNavigate} refreshKey={momentRefreshKey} />
+      )}
+
       {/* Social Home (owner 2026-11-02): the "most purchased" strip no longer opens Home. */}
       {filter === 'trending' && (
         <TrendingBar trending={trending} onNavigate={onNavigate} isLoggedIn={isLoggedIn} />

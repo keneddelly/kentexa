@@ -28,6 +28,7 @@ import { assertComposerText } from './publish-input';
 import { PollService, assertPollInput } from './poll.service';
 import { SocialSafetyService } from './social-safety.service';
 import { TopicsService } from './topics.service';
+import { TodayService } from './today.service';
 
 @Controller('feed')
 export class FeedController {
@@ -40,6 +41,8 @@ export class FeedController {
     @Optional() private readonly safety?: SocialSafetyService,
     // Social Home: topics. Optional for the same reason.
     @Optional() private readonly topics?: TopicsService,
+    // Social Home part 2: "Leo kwako". Optional for the same reason.
+    @Optional() private readonly today?: TodayService,
   ) {}
 
   // ── Discovery (no auth required, but personalized when logged in) ────────
@@ -250,6 +253,14 @@ export class FeedController {
   listTopics(@Request() req?) {
     if (!this.topics) return [];
     return this.topics.list(req?.user?.id || null);
+  }
+
+  // ── Social Home part 2: "Leo kwako" (only real activity; empty means no block) ──
+  @Get('today')
+  @UseGuards(JwtAuthGuard)
+  getToday(@Request() req) {
+    if (!this.today) return [];
+    return this.today.forViewer(req.user.id);
   }
 
   @Post('topics/follow')
