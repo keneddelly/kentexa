@@ -1814,8 +1814,8 @@ export class CvsService {
   /** Phase F: account ids behind these profiles, for the personal profiles among them. */
   private async personalOwnersOf(profileIds: number[]): Promise<number[]> {
     if (!profileIds.length) return [];
-    const rows = await this.commerceProfileRepo.find({ where: { id: In(profileIds) } }).catch(() => []);
-    return [...new Set(rows.filter((p: any) => p.type === CommerceProfileType.PERSONAL && p.ownerId).map((p: any) => Number(p.ownerId)))];
+    const rows: CommerceProfile[] = await this.commerceProfileRepo.find({ where: { id: In(profileIds) } }).catch(() => [] as CommerceProfile[]);
+    return [...new Set(rows.filter((p) => p.type === CommerceProfileType.PERSONAL && p.ownerId).map((p) => Number(p.ownerId)))];
   }
 
   /** Phase F: "X amesambaza" on a post that reached the viewer through a followed person's repost. */
@@ -1830,8 +1830,10 @@ export class CvsService {
       .orderBy('e.id', 'DESC')
       .getRawMany().catch(() => []);
     if (!rows.length) return;
-    const profiles = await this.commerceProfileRepo.find({ where: { ownerId: In(reposterUserIds), type: CommerceProfileType.PERSONAL } as any }).catch(() => []);
-    const byOwner = new Map(profiles.map((p: any) => [Number(p.ownerId), p]));
+    const profiles: CommerceProfile[] = await this.commerceProfileRepo
+      .find({ where: { ownerId: In(reposterUserIds), type: CommerceProfileType.PERSONAL } as any })
+      .catch(() => [] as CommerceProfile[]);
+    const byOwner = new Map<number, CommerceProfile>(profiles.map((p) => [Number(p.ownerId), p]));
     const firstReposter = new Map<number, number>();
     for (const r of rows) if (!firstReposter.has(Number(r.postId))) firstReposter.set(Number(r.postId), Number(r.userId));
     for (const item of items) {
