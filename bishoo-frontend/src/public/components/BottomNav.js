@@ -193,7 +193,8 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
     );
     return (
       <>
-        <style>{`@media ${DESKTOP_QUERY} { body.kx-has-sidenav { padding-left: ${SIDEBAR_WIDTH}px; } }`}</style>
+        {/* A page's own bar pinned to the bottom (data-fixed-bar) starts after the side menu. */}
+        <style>{`@media ${DESKTOP_QUERY} { body.kx-has-sidenav { padding-left: ${SIDEBAR_WIDTH}px; } body.kx-has-sidenav [data-fixed-bar] { left: ${SIDEBAR_WIDTH}px !important; } }`}</style>
         <nav aria-label="Menyu kuu" data-testid="side-nav"
           style={{ position: 'fixed', top: 0, bottom: 0, left: 0, width: SIDEBAR_WIDTH, boxSizing: 'border-box', zIndex: 1000,
             background: '#fff', borderRight: '1px solid #eff3f4', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
