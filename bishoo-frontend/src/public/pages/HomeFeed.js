@@ -19,6 +19,7 @@ import PostSafetyMenu from '../components/PostSafetyMenu';
 import TopicPicker from '../components/TopicPicker';
 import LeoKwako from '../components/LeoKwako';
 import CommunitiesPanel from '../components/CommunitiesPanel';
+import SuggestedCommunities from '../components/SuggestedCommunities';
 import KentexaDirectory, { DIRECTORY_KINDS } from '../components/KentexaDirectory';
 import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
@@ -2135,6 +2136,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 )}
                 {railType && (
                   <DiscoveryRail type={railType} items={railItems} onNavigate={onNavigate} />
+                )}
+                {/* Owner 2026-11-02: a few communities to join inside For You (after post 3, or the last post of a short feed). */}
+                {filter === 'for_you' && i === Math.min(2, posts.length - 1) && (
+                  <SuggestedCommunities isLoggedIn={isLoggedIn} onNavigate={onNavigate} topic={topic} onSeeAll={() => setFilter('communities')} />
                 )}
                 {i === 0 && (filter === 'for_you' || filter === 'following') && (
                   <WhoToFollow isLoggedIn={isLoggedIn} onNavigate={onNavigate} city={currentUser?.city || currentUser?.businessLocation} />
