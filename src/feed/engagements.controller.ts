@@ -400,7 +400,12 @@ export class EngagementsController {
       return { toggled: true };
     }
 
-    // Everything else toggles on/off (save, share, purchase, shipment)
+    if (!Object.values(EngagementType).includes(dto.type)) {
+      throw new BadRequestException('Aina ya kitendo haijulikani.');
+    }
+
+    // Like and save toggle on/off; a share is counted once and never undone
+    // (phase C 2026-11-02); purchase/shipment unchanged.
     const existing = await this.engRepo.findOne({
       where: {
         userId,
@@ -410,6 +415,7 @@ export class EngagementsController {
       },
     });
 
+    if (existing && dto.type === EngagementType.SHARE) return { toggled: true };
     if (existing) {
       await this.engRepo.delete(existing.id);
       return { toggled: false };

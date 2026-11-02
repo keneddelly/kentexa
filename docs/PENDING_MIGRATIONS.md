@@ -1,5 +1,10 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-02:** the pin is now `MIGRATION_RUN_UPTO=1793700000000`. The next deploy runs
+`1793700000000-AddPostLikes` itself (Home Feed phase C: hearts separate from saves).
+Check: `Q "SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='business_feed_item' AND column_name='likeCount'"` must print `1`,
+and `/version/migrations` must show `pending: []`.
+
 **Update 2026-11-01:** `start:prod` now pins `MIGRATION_RUN_UPTO=1793600000000`, so the
 deploy after that change runs these four itself, in order, before the app starts (the same
 guarded runner). Nothing to run from the PC. To check afterwards, use the "Final check" below

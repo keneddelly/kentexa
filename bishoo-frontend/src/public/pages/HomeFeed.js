@@ -12,7 +12,7 @@
  *  Comments go to POST /comments (entity-based)
  */
 import ExpandableText from '../components/ExpandableText';
-import { photoAspect, momentRoleLine } from '../utils/feedPresentation';
+import { photoAspect, momentRoleLine, postShareUrl } from '../utils/feedPresentation';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -495,12 +495,14 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
 };
 
 // ── Post card ─────────────────────────────────────────────────────────────────
-const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, activeProfileId }) => {
+export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, activeProfileId, initialShowComments = false }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
   const TYPE_META = getTypeMeta(t);
-  const [saved,        setSaved]        = useState(savedIds?.includes(post.id));
-  const [showComments, setShowComments] = useState(false);
+  const [saved,        setSaved]        = useState(savedIds ? savedIds.includes(post.id) : !!post.isSaved);
+  // Phase C (owner 2026-11-02): the heart is a like; the bookmark is a save.
+  const [liked,        setLiked]        = useState(likedIds ? likedIds.includes(post.id) : !!post.isLiked);
+  const [showComments, setShowComments] = useState(initialShowComments);
   const [showContact,  setShowContact]  = useState(false);
   const [followed,     setFollowed]     = useState(!!post.business?.isFollowing);
   const [imgErr,       setImgErr]       = useState(false);
@@ -510,6 +512,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const [shareMsg,     setShareMsg]     = useState('');
   const [counts,       setCounts]       = useState({
     saves:    post.saveCount    || 0,
+    likes:    post.likeCount    || 0,
     comments: post.commentCount || 0,
     shares:   post.shareCount   || 0,
   });
@@ -549,7 +552,8 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
     : (TYPE_META[entityType] || TYPE_META[post.type] || TYPE_META.classified);
   const price   = post.price || post.data?.price || post.data?.basePrice || 0;
 
-  useEffect(() => { setSaved(savedIds?.includes(post.id)); }, [savedIds, post.id]);
+  useEffect(() => { if (savedIds) setSaved(savedIds.includes(post.id)); }, [savedIds, post.id]);
+  useEffect(() => { if (likedIds) setLiked(likedIds.includes(post.id)); }, [likedIds, post.id]);
   useEffect(() => { setFollowed(!!post.business?.isFollowing); }, [post.business?.isFollowing]);
 
   // ── Impression tracking — mark a post "seen" once it's actually been
@@ -595,16 +599,33 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
     }
   };
 
-  const handleShare = async () => {
-    await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
-    setCounts(c => ({ ...c, shares: c.shares + 1 }));
-    if (navigator.share) {
-      navigator.share({ title: post.title, url: window.location.href }).catch(() => {});
-    } else {
-      navigator.clipboard?.writeText(window.location.href).catch(() => {});
-      setShareMsg(t('home_feed.link_copied'));
-      setTimeout(() => setShareMsg(''), 2000);
+  const sharedOnce = useRef(false);
+  const handleLike = async () => {
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    const res = await Engagement.track(post.id, entityType, entityId, 'like', isLoggedIn, onNavigate);
+    if (res !== null) {
+      const toggled = res?.toggled ?? !liked;
+      setLiked(toggled);
+      setCounts(c => ({ ...c, likes: Math.max(0, c.likes + (toggled ? 1 : -1)) }));
+      onLikeToggle?.(post.id, toggled);
     }
+  };
+
+  // Phase C: share the post's own link; it is counted only once the share or the copy
+  // really happened (a cancelled share sheet counts nothing).
+  const handleShare = async () => {
+    const url = postShareUrl(post, entityType, entityId);
+    let done = false;
+    if (navigator.share) {
+      done = await navigator.share({ title: post.title || bizName, url }).then(() => true, () => false);
+    } else if (navigator.clipboard?.writeText) {
+      done = await navigator.clipboard.writeText(url).then(() => true, () => false);
+      if (done) { setShareMsg(t('home_feed.link_copied')); setTimeout(() => setShareMsg(''), 2000); }
+    }
+    if (!done || !isLoggedIn) return;
+    const res = await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
+    // The server counts one share per person; this card adds it once.
+    if (res?.toggled && !sharedOnce.current) { sharedOnce.current = true; setCounts(c => ({ ...c, shares: c.shares + 1 })); }
   };
 
   const handleFollow = async () => {
@@ -729,12 +750,15 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
           <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={actionTx}>
             {icon('M4 5h16v11H8l-4 4z')}{counts.comments > 0 && counts.comments}
           </button>
-          <button type="button" onClick={handleSave} aria-label="Penda" aria-pressed={saved} style={{ ...actionTx, color: saved ? '#e11d48' : MUTED_TX }}>
-            {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', saved ? '#e11d48' : null)}
-            {counts.saves > 0 && counts.saves}
+          <button type="button" onClick={handleLike} aria-label="Penda" aria-pressed={liked} data-testid="post-like" style={{ ...actionTx, color: liked ? '#e11d48' : MUTED_TX }}>
+            {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', liked ? '#e11d48' : null)}
+            {counts.likes > 0 && counts.likes}
           </button>
-          <button type="button" onClick={handleShare} aria-label="Shiriki" style={actionTx}>
+          <button type="button" onClick={handleShare} aria-label="Shiriki" data-testid="post-share" style={actionTx}>
             {icon('M4 12v8h16v-8M16 6l-4-4-4 4M12 2v13')}{counts.shares > 0 && counts.shares}
+          </button>
+          <button type="button" onClick={handleSave} aria-label="Hifadhi" aria-pressed={saved} data-testid="post-save" style={{ ...actionTx, color: saved ? B : MUTED_TX }}>
+            {icon('M6 3h12v18l-6-4-6 4z', saved ? B : null)}
           </button>
           {entityId && (
             <button type="button" onClick={goToDetail} aria-label="Fungua" style={actionTx}>
@@ -1076,7 +1100,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
 
   // The modal is mounted from the story rail, not the main PostCard, so it
   // must hydrate the persisted engagement state explicitly. Without this,
-  // every reopen started at false even though /feed/saved/ids still contained
+  // every reopen started at false even though /feed/liked/ids still contained
   // the Moment — the heart appeared to "disappear" after a successful like.
   useEffect(() => { setSaved(initiallyLiked); }, [initiallyLiked, moment.momentId]);
   const bizName = biz.storeName || biz.name || t('home_feed.store_fallback');
@@ -1096,7 +1120,8 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
 
   const handleSave = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
-    const res = await Engagement.track(moment.momentId, 'moment', moment.momentId, 'save', isLoggedIn, onNavigate);
+    // Phase C: the heart on a Moment is a like, the same as on its feed card.
+    const res = await Engagement.track(moment.momentId, 'moment', moment.momentId, 'like', isLoggedIn, onNavigate);
     if (res !== null) {
       const toggled = res.toggled ?? !saved;
       setSaved(toggled);
@@ -1466,6 +1491,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const [discover,    setDiscover]    = useState(null);
   const [trending,    setTrending]    = useState(null);
   const [savedIds,    setSavedIds]    = useState([]);
+  const [likedIds,    setLikedIds]    = useState([]);
   const [unread,      setUnread]      = useState(0);
   const [moments,     setMoments]     = useState([]);
   const [viewingMoment,    setViewingMoment]    = useState(null);
@@ -1521,11 +1547,13 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       api.get('/feed/trending'),
       isLoggedIn ? api.get('/notifications/unread-count') : Promise.resolve({ data:0 }),
       isLoggedIn ? api.get('/feed/saved/ids')             : Promise.resolve({ data:[] }),
-    ]).then(([d, t, n, s]) => {
+      isLoggedIn ? api.get('/feed/liked/ids')             : Promise.resolve({ data:[] }),
+    ]).then(([d, t, n, s, l]) => {
       if (d.status==='fulfilled') setDiscover(d.value.data);
       if (t.status==='fulfilled') setTrending(t.value.data);
       if (n.status==='fulfilled') setUnread(n.value.data?.count || n.value.data || 0);
       if (s.status==='fulfilled') setSavedIds(s.value.data || []);
+      if (l.status==='fulfilled') setLikedIds(Array.isArray(l.value.data) ? l.value.data : []);
     });
     loadMoments();
   }, [isLoggedIn, loadMoments]);
@@ -1735,8 +1763,8 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           isLoggedIn={isLoggedIn}
           currentUser={currentUser}
           activeProfileId={activeProfileId}
-          initiallyLiked={savedIds.includes(viewingMoment.momentId)}
-          onLikeToggle={(id, liked) => setSavedIds(prev => liked
+          initiallyLiked={likedIds.includes(viewingMoment.momentId)}
+          onLikeToggle={(id, liked) => setLikedIds(prev => liked
             ? (prev.includes(id) ? prev : [...prev, id])
             : prev.filter(x => x !== id))}
         />
@@ -1859,6 +1887,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                     activeProfileId={activeProfileId}
                     onSaveToggle={(id, saved) => setSavedIds(prev =>
                       saved ? [...prev, id] : prev.filter(x => x !== id)
+                    )}
+                    likedIds={likedIds}
+                    onLikeToggle={(id, liked) => setLikedIds(prev =>
+                      liked ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter(x => x !== id)
                     )} />
                 )}
                 {trail && (

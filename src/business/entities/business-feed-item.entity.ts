@@ -195,6 +195,10 @@ export class BusinessFeedItem {
   @Column({ type: 'int', default: 0 })
   saveCount: number;
 
+  // Phase C (2026-11-02): hearts, counted apart from saves.
+  @Column({ type: 'int', default: 0 })
+  likeCount: number;
+
   @Column({ type: 'int', default: 0 })
   commentCount: number;
 

@@ -113,10 +113,19 @@ export class CvsService {
       return { toggled: true, newCvs: 0 };
     }
 
-    // Others toggle (save/share/etc)
+    // Phase C (2026-11-02): the heart, the bookmark and a share act only on a post the
+    // person may see (a followers-only post answers "not found" to anyone else).
+    await this.assertCanSeePost(postId, userId);
+
     const existing = await this.engageRepo.findOne({
       where: { userId, postId, type },
     });
+    // A share is a fact that happened: it is counted once per person and never undone
+    // by sharing again (it used to toggle, so a second share removed the first).
+    if (type === EngagementType.SHARE && existing) {
+      return { toggled: true, newCvs: await this.recalculate(postId) };
+    }
+    // Like and save toggle (heart on/off, bookmark on/off); purchase/shipment unchanged.
     if (existing) {
       await this.engageRepo.delete(existing.id);
     } else {
@@ -129,8 +138,8 @@ export class CvsService {
     const toggled = !existing;
 
     // Notify the post owner on a brand-new save (not on unsave)
-    if (toggled && type === EngagementType.SAVE) {
-      this.notifyOwnerOfPost(userId, postId, 'save').catch(() => {});
+    if (toggled && (type === EngagementType.SAVE || type === EngagementType.LIKE)) {
+      this.notifyOwnerOfPost(userId, postId, type === EngagementType.LIKE ? 'like' : 'save').catch(() => {});
     }
 
     // Layer 1 activity trail — a genuine new SAVE/SHARE only, never an
@@ -140,11 +149,16 @@ export class CvsService {
     // view would just be noise at any real traffic volume. COMMENT is
     // covered by addComment()'s own event; PURCHASE/SHIPMENT are commerce
     // facts already in the Order event trail.
-    if (toggled && (type === EngagementType.SAVE || type === EngagementType.SHARE)) {
+    const EVENT_FOR: Partial<Record<EngagementType, string>> = {
+      [EngagementType.SAVE]: 'MOMENT_SAVED',
+      [EngagementType.SHARE]: 'MOMENT_SHARED',
+      [EngagementType.LIKE]: 'MOMENT_LIKED',
+    };
+    if (toggled && EVENT_FOR[type]) {
       const post = await this.feedRepo.findOne({ where: { id: postId } });
       if (post) {
         this.activityEvents.record({
-          eventType: type === EngagementType.SAVE ? 'MOMENT_SAVED' : 'MOMENT_SHARED',
+          eventType: EVENT_FOR[type] as string,
           category: ActivityCategory.CONTENT,
           actorId: userId,
           businessId: post.businessId,
@@ -370,7 +384,7 @@ export class CvsService {
   private async notifyOwnerOfPost(
     actorId: number,
     postId: number,
-    kind: 'save' | 'comment' | 'offer',
+    kind: 'save' | 'like' | 'comment' | 'offer',
     commentBody?: string,
     actorCommerceProfileId?: number | null,
   ): Promise<void> {
@@ -391,17 +405,15 @@ export class CvsService {
     // owner's profiles this post actually belongs to.
     const ownerCommerceProfileId = (post as any).commerceProfileId || undefined;
 
-    if (kind === 'save') {
+    // Phase C (2026-11-02): a like or a save opens the post itself (PostDetail-{id}).
+    if (kind === 'like' || kind === 'save') {
       await this.notifService.notify({
         userId: post.businessId,
-        type: 'save',
-        title: '❤️ New save',
-        body: `${actorName} saved "${postTitle}"`,
-        icon: '❤️',
-        actionPage: 'CommerceProfile',
-        // "-feed-{postId}" lands on the Posts/Feed tab and scrolls to/
-        // highlights this exact post (see CommerceProfile.js pageParam parsing).
-        actionParam: `${post.businessId}-feed-${postId}`,
+        type: kind,
+        title: kind === 'like' ? 'Amependa chapisho lako' : 'Amehifadhi chapisho lako',
+        body: `${actorName}: "${postTitle}"`,
+        actionPage: 'PostDetail',
+        actionParam: String(postId),
         actionCommerceProfileId: ownerCommerceProfileId,
       });
     } else if (kind === 'offer') {
@@ -410,13 +422,10 @@ export class CvsService {
       await this.notifService.notify({
         userId: post.businessId,
         type: 'offer',
-        title: '🙋 Someone has what you\u2019re looking for',
-        body: `${actorName} has an item matching "${postTitle}"`,
-        icon: '🙋',
-        actionPage: 'CommerceProfile',
-        // "-feed-{postId}" lands on the Posts/Feed tab and scrolls to/
-        // highlights this exact post (see CommerceProfile.js pageParam parsing).
-        actionParam: `${post.businessId}-feed-${postId}`,
+        title: 'Kuna mwenye unachotafuta',
+        body: `${actorName} ana bidhaa inayolingana na "${postTitle}"`,
+        actionPage: 'PostDetail',
+        actionParam: `${postId}-comments`,
         actionCommerceProfileId: ownerCommerceProfileId,
       });
     } else {
@@ -426,13 +435,11 @@ export class CvsService {
       await this.notifService.notify({
         userId: post.businessId,
         type: 'comment',
-        title: '💬 New comment',
+        title: 'Maoni mapya',
         body: `${actorName}: "${preview}"`,
-        icon: '💬',
-        actionPage: 'CommerceProfile',
-        // "-feed-{postId}" lands on the Posts/Feed tab and scrolls to/
-        // highlights this exact post (see CommerceProfile.js pageParam parsing).
-        actionParam: `${post.businessId}-feed-${postId}`,
+        // Phase C: opens the post page with its comments.
+        actionPage: 'PostDetail',
+        actionParam: `${postId}-comments`,
         actionCommerceProfileId: ownerCommerceProfileId,
       });
     }
@@ -490,6 +497,7 @@ export class CvsService {
     let cvs = 0;
     const updateData: any = {
       saveCount: 0,
+      likeCount: 0,
       commentCount: 0,
       shareCount: 0,
       purchaseCount: 0,
@@ -505,6 +513,7 @@ export class CvsService {
 
       const fieldMap: Record<EngagementType, string> = {
         [EngagementType.SAVE]: 'saveCount',
+        [EngagementType.LIKE]: 'likeCount',
         [EngagementType.COMMENT]: 'commentCount',
         [EngagementType.SHARE]: 'shareCount',
         [EngagementType.VIEW]: 'viewCount',
@@ -521,8 +530,17 @@ export class CvsService {
 
   // ── Get user's saved post IDs (real posts + virtual entities) ────────────
   async getSavedPostIds(userId: number): Promise<(number | string)[]> {
+    return this.engagedPostIds(userId, EngagementType.SAVE);
+  }
+
+  /** Phase C: the posts this person has hearted (same id shape as saved ids). */
+  async getLikedPostIds(userId: number): Promise<(number | string)[]> {
+    return this.engagedPostIds(userId, EngagementType.LIKE);
+  }
+
+  private async engagedPostIds(userId: number, type: EngagementType): Promise<(number | string)[]> {
     const rows = await this.engageRepo.find({
-      where: { userId, type: EngagementType.SAVE },
+      where: { userId, type },
     });
     const prefixMap: Record<string, string> = {
       classified: 'cls',
@@ -730,12 +748,12 @@ export class CvsService {
   private async getEntityCounts(
     entityType: string,
     entityIds: number[],
-  ): Promise<Map<number, { saves: number; comments: number }>> {
-    const map = new Map<number, { saves: number; comments: number }>();
-    entityIds.forEach((id) => map.set(id, { saves: 0, comments: 0 }));
+  ): Promise<Map<number, { saves: number; likes: number; comments: number }>> {
+    const map = new Map<number, { saves: number; likes: number; comments: number }>();
+    entityIds.forEach((id) => map.set(id, { saves: 0, likes: 0, comments: 0 }));
     if (!entityIds.length) return map;
 
-    const [saveRows, commentRows] = await Promise.all([
+    const [saveRows, commentRows, likeRows] = await Promise.all([
       this.engageRepo
         .createQueryBuilder('e')
         .select('e.entityId', 'entityId')
@@ -756,11 +774,25 @@ export class CvsService {
         .groupBy('c.entityId')
         .getRawMany()
         .catch(() => []),
+      this.engageRepo
+        .createQueryBuilder('e')
+        .select('e.entityId', 'entityId')
+        .addSelect('COUNT(*)', 'count')
+        .where('e.entityType = :entityType', { entityType })
+        .andWhere('e.entityId IN (:...ids)', { ids: entityIds })
+        .andWhere('e.type = :type', { type: EngagementType.LIKE })
+        .groupBy('e.entityId')
+        .getRawMany()
+        .catch(() => []),
     ]);
 
     saveRows.forEach((r: any) => {
       const e = map.get(Number(r.entityId));
       if (e) e.saves = Number(r.count);
+    });
+    likeRows.forEach((r: any) => {
+      const e = map.get(Number(r.entityId));
+      if (e) e.likes = Number(r.count);
     });
     commentRows.forEach((r: any) => {
       const e = map.get(Number(r.entityId));
@@ -1416,6 +1448,7 @@ export class CvsService {
             createdAt: c.createdAt,
             cvsScore: 0,
             saveCount: counts.get(c.id)?.saves || 0,
+            likeCount: counts.get(c.id)?.likes || 0,
             commentCount: counts.get(c.id)?.comments || 0,
             shareCount: 0,
             purchaseCount: 0,
@@ -1527,6 +1560,7 @@ export class CvsService {
             createdAt: c.createdAt,
             cvsScore: 0,
             saveCount: clsCounts.get(c.id)?.saves || 0,
+            likeCount: clsCounts.get(c.id)?.likes || 0,
             commentCount: clsCounts.get(c.id)?.comments || 0,
             shareCount: 0,
             purchaseCount: 0,
@@ -1574,6 +1608,7 @@ export class CvsService {
             createdAt: (p as any).createdAt,
             cvsScore: 0,
             saveCount: prdCounts.get(p.id)?.saves || 0,
+            likeCount: prdCounts.get(p.id)?.likes || 0,
             commentCount: prdCounts.get(p.id)?.comments || 0,
             shareCount: 0,
             purchaseCount: 0,
@@ -1618,6 +1653,7 @@ export class CvsService {
             createdAt: (s as any).createdAt,
             cvsScore: 0,
             saveCount: svcCounts.get(s.id)?.saves || 0,
+            likeCount: svcCounts.get(s.id)?.likes || 0,
             commentCount: svcCounts.get(s.id)?.comments || 0,
             shareCount: 0,
             purchaseCount: 0,
@@ -1744,6 +1780,46 @@ export class CvsService {
       };
     }
 
+    return {
+      items: await this.presentRealItems(items, followedSellerIds, savedIds),
+      total,
+    };
+  }
+
+  /**
+   * Phase C (2026-11-02): one post for its own page (PostDetail, share links,
+   * notifications). Same rules as the feed: active, not from a hidden profile, and
+   * visible to this viewer (a followers-only post answers "not found" to others).
+   * Expired posts still open from a link; they only leave the feed.
+   */
+  async getPost(postId: number, viewerId?: number | null): Promise<any> {
+    const post = await this.feedRepo
+      .createQueryBuilder('f')
+      .leftJoin('f.business', 'b')
+      .addSelect([
+        'b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.reputationScore',
+        'b.followersCount', 'b.isVerified', 'b.isOfficialStore', 'b.storeWhatsApp', 'b.phone', 'b.role',
+      ])
+      .where('f.id = :postId', { postId })
+      .andWhere('f.isActive = true')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+      .getOne();
+    if (!post) throw new NotFoundException('Chapisho halipatikani.');
+    const [followed, savedIds, likedIds] = await Promise.all([
+      this.getFollowedSellerIds(viewerId),
+      viewerId ? this.getSavedPostIds(viewerId) : Promise.resolve([]),
+      viewerId ? this.getLikedPostIds(viewerId) : Promise.resolve([]),
+    ]);
+    const [item] = await this.presentRealItems([post], followed, savedIds);
+    return { ...item, isLiked: likedIds.includes(post.id) };
+  }
+
+  private async presentRealItems(
+    items: any[],
+    followedSellerIds: Set<number>,
+    savedIds: (number | string)[],
+  ): Promise<any[]> {
     // Resolve which CommerceProfile each real feed item was actually posted
     // as, so the card shows THAT business/agent/etc.'s own name/photo/
     // followers — not always the owning account's personal identity. This
@@ -1766,8 +1842,7 @@ export class CvsService {
       : [];
     const feedProfileMap = new Map(feedProfiles.map((p) => [p.id, p]));
 
-    return {
-      items: items.map((f) => {
+    return items.map((f) => {
         const rawBiz = (f as any).business;
         const profile = (f as any).commerceProfileId
           ? feedProfileMap.get((f as any).commerceProfileId)
@@ -1787,8 +1862,6 @@ export class CvsService {
           isSaved: savedIds.includes(f.id),
           business,
         };
-      }),
-      total,
-    };
+      });
   }
 }

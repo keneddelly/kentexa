@@ -18,6 +18,7 @@ import { homeForRole } from './navigation/navigationRegistry';
 import { activeBusinessNameFor } from './context/businessGrouping';
 import { evaluateDestination } from './navigation/navigationPolicy';
 import HomeFeed           from './public/pages/HomeFeed';
+import PostDetail         from './public/pages/PostDetail';
 import Welcome            from './public/pages/Welcome';
 import MyProfile          from './public/pages/MyProfile';
 import RoleActivation     from './public/pages/RoleActivation';
@@ -760,6 +761,11 @@ function App() {
     if (page.startsWith('ClassifiedDetail-')) {
       const [rawId, suffix] = page.split('ClassifiedDetail-')[1].split('-');
       return <ClassifiedDetail {...publicProps} classifiedId={Number(rawId)} openComments={suffix === 'comments'} />;
+    }
+    // Home Feed phase C: one post on its own page (share link /post/:id, notifications).
+    if (page.startsWith('PostDetail-')) {
+      const [rawId, suffix] = page.split('PostDetail-')[1].split('-');
+      return <PostDetail {...publicProps} postId={Number(rawId)} openComments={suffix === 'comments'} />;
     }
     if (page.startsWith('ProductDetail-')) {
       const [rawId, suffix] = page.split('ProductDetail-')[1].split('-');
