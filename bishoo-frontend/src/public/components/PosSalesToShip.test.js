@@ -48,3 +48,11 @@ test('POS view of Maagizo: every POS sale with how it was paid and where it went
   fireEvent.click(screen.getByTestId('pos-sale-ship-31'));
   expect(onNavigate).toHaveBeenCalledWith('SellerShipment', expect.objectContaining({ saleId: 31 }));
 });
+
+test('counts the waiting POS sales for the "Za kutuma" tab even while hidden', async () => {
+  api.get.mockResolvedValue({ data: [sale, { ...sale, id: 40 }] });
+  const onCount = jest.fn();
+  await act(async () => { render(<PosSalesToShip onNavigate={jest.fn()} visible={false} onCount={onCount} />); });
+  expect(onCount).toHaveBeenCalledWith(2);
+  expect(screen.queryByTestId('pos-to-ship')).toBeNull();
+});
