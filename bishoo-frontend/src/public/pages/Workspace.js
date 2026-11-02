@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import api from '../../api/api';
 import { getMyBusinesses } from '../../api/business';
+import { personalAttention, roleAttention } from '../../context/workspaceAttention';
 import {
   buildWorkspaces, initialWorkspaceKey, startOptionsFor, readRecentTools, rememberTool, usableRecent,
   ROLE_STATE, STATE_TEXT,
@@ -27,7 +29,7 @@ const Chevron = () => <Icon d="M9 6l6 6-6 6" color="#8b98a5" size={16} />;
 const pill = { height: 40, padding: '0 16px', borderRadius: 20, border: '1px solid #cfd9de', background: '#fff',
   color: INK, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center' };
 
-export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeContext, roleOptions, onSwitchAccountRole, onRefreshContext }) {
+export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeContext, activeProfileId, roleOptions, onSwitchAccountRole, onRefreshContext, inboxUnread }) {
   const [businesses, setBusinesses] = useState(null); // null = loading
   const [error, setError] = useState('');
   const [selectedKey, setSelectedKey] = useState(null);
@@ -41,6 +43,20 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
     if (typeof onRefreshContext === 'function') Promise.resolve(onRefreshContext()).catch(() => {});
     getMyBusinesses().then(setBusinesses).catch(() => { setBusinesses([]); setError('Biashara zako hazikupakia. Jaribu tena.'); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Kinachohitaji wewe (phase 2): the active role's items and the account's own, from the
+  // endpoints the tools already use. Read again when the active role changes.
+  const [roleItems, setRoleItems] = useState([]);
+  const [personalItems, setPersonalItems] = useState([]);
+  const activeRoleType = activeContext?.roleType || null;
+  useEffect(() => {
+    if (!isLoggedIn) return undefined;
+    let live = true;
+    roleAttention(api, activeRoleType, { params: activeProfileId ? { commerceProfileId: activeProfileId } : null })
+      .then((items) => { if (live) setRoleItems(items); });
+    personalAttention(api, { inboxUnread }).then((items) => { if (live) setPersonalItems(items); });
+    return () => { live = false; };
+  }, [isLoggedIn, activeRoleType, activeContext?.accountRoleId, activeProfileId, inboxUnread]);
 
   const activeRoleId = activeContext?.accountRoleId ?? null;
   const workspaces = useMemo(() => buildWorkspaces(roleOptions || [], businesses || [], activeRoleId),
@@ -105,6 +121,25 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
       </section>
     ) : stateCard(role)
   );
+
+  const attentionList = (items) => items.length > 0 && (
+    <section aria-label="Kinachohitaji wewe" data-testid="attention" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 18, fontWeight: 800 }}>Kinachohitaji wewe</span>
+      {items.map((i) => (
+        <button key={i.key} type="button" data-testid={`attention-${i.key}`} onClick={() => onNavigate(i.destination)}
+          style={{ minHeight: 56, display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', border: `1px solid ${LINE}`,
+            borderRadius: 14, background: '#fff', textAlign: 'left', fontFamily: 'inherit', color: INK, cursor: 'pointer' }}>
+          <span style={{ minWidth: 32, height: 32, borderRadius: 16, padding: '0 8px', boxSizing: 'border-box',
+            background: i.tone === 'amber' ? '#fef3c7' : '#eff6ff', color: i.tone === 'amber' ? '#92400e' : BLUE,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800 }}>{i.count}</span>
+          <span style={{ flexGrow: 1, fontSize: 15, fontWeight: 700 }}>{i.label}</span>
+          <Chevron />
+        </button>
+      ))}
+    </section>
+  );
+  // The active role's items sit in the workspace that holds that role.
+  const holdsActiveRole = (w) => w && w.roles.some((r) => r.isActive);
 
   const startOptions = startOptionsFor(roleOptions || []);
   const loading = businesses === null;
@@ -178,6 +213,7 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
 
         {!loading && current && current.kind === 'business' && (
           <div data-testid="business-workspace" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {holdsActiveRole(current) && attentionList(roleItems)}
             {current.roles.length === 0 && (
               <div style={{ border: `1px dashed #cfd9de`, borderRadius: 16, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 15, lineHeight: 1.45 }}>Biashara hii bado haina kazi kwenye KenteXa. Anza kuuza, kutoa huduma au usafiri.</span>
@@ -196,6 +232,7 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
 
         {!loading && current && current.kind === 'personal' && (
           <div data-testid="personal-workspace" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {attentionList([...(holdsActiveRole(current) ? roleItems : []), ...personalItems])}
             {current.roles.map(roleBlock)}
             <section aria-label="Binafsi" style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 18, fontWeight: 800, paddingBottom: 4 }}>Binafsi</span>
