@@ -24,15 +24,16 @@ export const shipPrefillFor = (s) => ({
   items: (s.items || []).map((i) => ({ name: i.productName, qty: i.quantity, price: Number(i.unitPrice), weight: 0, productId: i.productId, classifiedId: null, source: 'product' })),
 });
 
-export default function PosSalesToShip({ onNavigate, refreshKey = 0 }) {
+export default function PosSalesToShip({ onNavigate, refreshKey = 0, visible = true, onCount }) {
   const [rows, setRows] = useState([]);
   useEffect(() => {
     let alive = true;
-    Promise.resolve(api.get('/sales/to-ship')).then((r) => { if (alive) setRows(Array.isArray(r?.data) ? r.data : []); }).catch(() => { if (alive) setRows([]); });
+    Promise.resolve(api.get('/sales/to-ship')).then((r) => { if (alive) { const list = (Array.isArray(r?.data) ? r.data : []).filter((x) => x && x.receiptNumber); setRows(list); onCount?.(list.length); } })
+      .catch(() => { if (alive) { setRows([]); onCount?.(0); } });
     return () => { alive = false; };
-  }, [refreshKey]);
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!rows.length) return null;
+  if (!rows.length || !visible) return null;
   return (
     <section data-testid="pos-to-ship" style={{ maxWidth: 720, margin: '0 auto', padding: '12px 16px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: MUTED, letterSpacing: '0.04em' }}>KUTOKA POS · INASUBIRI KUTUMWA ({rows.length})</div>

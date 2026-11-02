@@ -220,7 +220,9 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   const [confirmLoading, setConfirmLoading] = useState({});
   const [message, setMessage]             = useState('');
   const [tab, setTab]                     = useState(null); // null: the first tab with work in it
-  const [kind, setKind]                   = useState('all'); // all | market | mine
+  const [kind, setKind]                   = useState('all'); // all | market | mine | pos
+  // POS sales waiting to be sent (COD or "Itatumwa"): they count in "Za kutuma" (owner 2026-11-02).
+  const [posWaiting, setPosWaiting]       = useState(0);
   const [openId, setOpenId]               = useState(highlightOrderId ? Number(highlightOrderId) : null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalStep, setModalStep]         = useState('method');
@@ -437,6 +439,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   };
 
   const counts = TABS.reduce((m, tb) => ({ ...m, [tb.key]: orders.filter((o) => tabOf(o) === tb.key).length }), {});
+  if (kind !== 'pos') counts.send = (counts.send || 0) + posWaiting;
   const shownTab = tab || (counts.send ? 'send' : counts.way ? 'way' : counts.done ? 'done' : 'send');
   const list = orders
     .filter((o) => tabOf(o) === shownTab)
@@ -603,7 +606,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
               </button>
             } />
           {/* POS sales waiting to be sent (owner approved 2026-11-02). */}
-          {shownTab === 'send' && kind !== 'pos' && <PosSalesToShip onNavigate={onNavigate} />}
+          <PosSalesToShip onNavigate={onNavigate} visible={shownTab === 'send' && kind !== 'pos'} onCount={setPosWaiting} />
           <nav role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, maxWidth: 720, margin: '0 auto' }}>
             {TABS.map((tb) => {
               const on = shownTab === tb.key;
@@ -628,6 +631,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
             {notices}
             {/* Owner 2026-11-02: every POS sale is seen in Maagizo too. */}
             {kind === 'pos' ? <PosSalesList onNavigate={onNavigate} /> : loading ? <PageLoading label="Inapakia maagizo" /> : list.length === 0 ? (
+              shownTab === 'send' && posWaiting > 0 ? null :
               <div style={{ padding: '48px 24px', textAlign: 'center', color: MUTED, fontSize: 15 }}>
                 {shownTab === 'send' ? 'Hakuna agizo la kutuma sasa.' : shownTab === 'way' ? 'Hakuna agizo njiani.' : shownTab === 'done' ? 'Bado hakuna agizo lililofika.' : 'Hakuna agizo lenye tatizo.'}
               </div>
