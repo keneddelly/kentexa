@@ -663,13 +663,13 @@ export class BusinessController {
       targetType?: 'seller' | 'super_agent' | 'transport_provider' | 'agent';
       targetId?: number;
       commerceProfileId?: number;
-      contextType?: 'product' | 'classified' | 'service';
+      contextType?: 'product' | 'classified' | 'service' | 'moment';
       contextId?: number;
     },
   ) {
     const context =
-      body.contextType && body.contextId
-        ? { type: body.contextType, id: body.contextId }
+      body.contextType && body.contextId && ['product', 'classified', 'service', 'moment'].includes(body.contextType)
+        ? { type: body.contextType, id: Number(body.contextId) }
         : null;
 
     if (body.targetType && body.targetType !== 'seller') {

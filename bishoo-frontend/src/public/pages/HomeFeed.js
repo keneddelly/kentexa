@@ -97,6 +97,15 @@ const Engagement = {
   },
 };
 
+// Phase C (2026-11-02): the chat keeps what it started from. A real post is the context
+// ('moment'); a listing shown in the feed without a post is that listing. The server checks
+// both belong to the seller and that the person may see them, else the chat opens untagged.
+export const messageContextFor = (post, kind) => {
+  if (/^\d+$/.test(String(post?.id ?? ''))) return { contextType: 'moment', contextId: Number(post.id) };
+  const id = post?.entityId || post?.linkedEntityId;
+  return id && /^\d+$/.test(String(id)) ? { contextType: kind, contextId: Number(id) } : {};
+};
+
 // ── Contact modal ─────────────────────────────────────────────────────────────
 const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
@@ -123,7 +132,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
         </div>
         <div style={{ fontSize:12, color:GR, marginBottom:20 }}>{t('home_feed.about_label', { title })}</div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <button onClick={() => { if (isActorUnresolved(biz)) return; onNavigate(isLoggedIn ? `MessageSeller-${biz.id}` : 'PublicLogin', actorProfileParams(biz)); onClose(); }}
+          <button data-testid="contact-inbox" onClick={() => { if (isActorUnresolved(biz)) return; onNavigate(isLoggedIn ? `MessageSeller-${biz.id}` : 'PublicLogin', { ...actorProfileParams(biz), ...messageContextFor(post, kind) }); onClose(); }}
             style={{ display:'flex', alignItems:'center', gap:14, padding:'16px',
               backgroundColor:'#EFF6FF', borderRadius:14, border:'none', cursor:'pointer',
               textAlign:'left', width:'100%' }}>

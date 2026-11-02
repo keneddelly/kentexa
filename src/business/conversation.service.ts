@@ -13,6 +13,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, LessThan } from 'typeorm';
+import { BusinessFeedItem } from './entities/business-feed-item.entity';
+import { NOT_FROM_HIDDEN_PROFILE, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
 import {
   Conversation,
   ConversationStatus,
@@ -48,7 +50,8 @@ import { AccountRole, AccountRoleStatus, AccountRoleType, RoleProfileType } from
 import { RoleContext } from '../role-context/role-context.types';
 
 export interface ConversationContext {
-  type: 'product' | 'classified' | 'service';
+  // 'moment': a feed post (Home Feed phase C, 2026-11-02) - Contact on a post keeps which post started the chat.
+  type: 'product' | 'classified' | 'service' | 'moment';
   id: number;
 }
 
@@ -385,8 +388,25 @@ export class ConversationService {
   private async resolveContext(
     sellerId: number,
     context?: ConversationContext | null,
+    viewerId?: number | null,
   ): Promise<{ type: string; id: number; title: string; image: string | null; price: number } | null> {
     if (!context?.type || !context?.id) return null;
+    if (context.type === 'moment') {
+      // The post must be this seller's own, active, not from a hidden profile, and one the
+      // person messaging may see (a followers-only post is never revealed through a chat tag).
+      const m = await this.convoRepo.manager
+        .createQueryBuilder(BusinessFeedItem, 'f')
+        .where('f.id = :id', { id: context.id })
+        .andWhere('f."businessId" = :sellerId', { sellerId })
+        .andWhere('f."isActive" = true')
+        .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+        .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+        .getOne()
+        .catch(() => null);
+      if (!m) return null;
+      const text = String(m.title || m.body || '').trim();
+      return { type: 'moment', id: m.id, title: text.slice(0, 120) || 'Chapisho', image: m.imageUrl || null, price: Number((m as any).price || 0) };
+    }
     if (context.type === 'product') {
       const p = await this.productRepo.findOne({
         where: { id: context.id, seller: { id: sellerId } },
@@ -1216,7 +1236,7 @@ export class ConversationService {
     // listing messaged about; a resolution failure (deleted/not-owned
     // listing) never blocks opening the conversation itself, only skips
     // the tag.
-    const resolved = await this.resolveContext(sellerId, context);
+    const resolved = await this.resolveContext(sellerId, context, buyer.id);
     if (resolved) {
       await this.convoRepo.update(convo.id, {
         linkedContextType: resolved.type as any,
@@ -1238,7 +1258,7 @@ export class ConversationService {
         buyer.id,
         convo.id,
         {
-          content: `${resolved.type === 'service' ? 'Huduma' : resolved.type === 'classified' ? 'Tangazo' : 'Bidhaa'}: ${resolved.title}${resolved.price ? ` — TZS ${resolved.price.toLocaleString()}` : ''}`,
+          content: `${resolved.type === 'service' ? 'Huduma' : resolved.type === 'classified' ? 'Tangazo' : resolved.type === 'moment' ? 'Chapisho' : 'Bidhaa'}: ${resolved.title}${resolved.price ? ` — TZS ${resolved.price.toLocaleString()}` : ''}`,
           type: MessageType.PRODUCT,
           metadata: {
             contextType: resolved.type,

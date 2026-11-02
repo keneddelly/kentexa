@@ -65,4 +65,12 @@ describe('BusinessController.startConversationAsBuyer -- API contract branching'
     await controller.startConversationAsBuyer(req as any, { targetType: 'agent', targetId: 103, contextType: 'service', contextId: 9 } as any);
     expect(conversationService.getOrCreateOperationalConversationAsBuyer).toHaveBeenCalledWith(req.user, 'agent', 103, { type: 'service', id: 9 });
   });
+
+  it('a post can start a chat (moment context); an unknown context type is dropped, never forwarded', async () => {
+    const { controller, conversationService } = build();
+    await controller.startConversationAsBuyer(req as any, { sellerId: 2, contextType: 'moment', contextId: '7' } as any);
+    expect(conversationService.getOrCreateConversationAsBuyer).toHaveBeenCalledWith(req.user, 2, undefined, { type: 'moment', id: 7 });
+    await controller.startConversationAsBuyer(req as any, { sellerId: 2, contextType: 'order', contextId: 7 } as any);
+    expect(conversationService.getOrCreateConversationAsBuyer).toHaveBeenLastCalledWith(req.user, 2, undefined, null);
+  });
 });
