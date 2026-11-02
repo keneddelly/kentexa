@@ -19,6 +19,7 @@ import { Order } from '../orders/entities/order.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FeedService } from './feed.service';
 import { PollService } from './poll.service';
+import { SocialSafetyService } from './social-safety.service';
 import { CvsService } from './cvs.service';
 import { FeedController } from './feed.controller';
 import {
@@ -64,6 +65,7 @@ import { SearchModule } from '../search/search.module';
     FeedService,
     CvsService,
     PollService,
+    SocialSafetyService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,

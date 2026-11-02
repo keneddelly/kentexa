@@ -63,3 +63,22 @@ test('a post that does not load says so; nothing is guessed', async () => {
   fireEvent.click(screen.getByText('Nenda Mwanzo'));
   expect(onNavigate).toHaveBeenCalledWith('Home');
 });
+
+test('phase F: repost on a post for everyone, "X amesambaza", and the ··· menu for someone else\'s post', async () => {
+  api.get.mockResolvedValue({ data: { ...post, businessId: 3, visibility: 'public', repostCount: 4, repostedBy: { name: 'Neema Mushi' } } });
+  api.post.mockResolvedValue({ data: { toggled: true } });
+  await open();
+  expect(screen.getByTestId('reposted-by')).toHaveTextContent('Neema Mushi amesambaza');
+  await act(async () => { fireEvent.click(screen.getByTestId('post-repost')); });
+  expect(api.post).toHaveBeenCalledWith('/feed/7/engage', { type: 'repost' });
+  expect(screen.getByTestId('post-repost')).toHaveTextContent('5');
+  fireEvent.click(screen.getByTestId('post-more'));
+  expect(screen.getByTestId('post-menu')).toBeInTheDocument();
+});
+
+test('phase F: a followers-only post has no repost; the author gets no ··· menu', async () => {
+  api.get.mockResolvedValue({ data: { ...post, businessId: 1, visibility: 'followers' } });
+  await open();
+  expect(screen.queryByTestId('post-repost')).toBeNull();
+  expect(screen.queryByTestId('post-more')).toBeNull();
+});

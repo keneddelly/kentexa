@@ -15,6 +15,7 @@ import ExpandableText from '../components/ExpandableText';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
+import PostSafetyMenu from '../components/PostSafetyMenu';
 import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
@@ -507,12 +508,16 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
 };
 
 // ── Post card ─────────────────────────────────────────────────────────────────
-export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, activeProfileId, initialShowComments = false }) => {
+export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, repostedIds, onRepostToggle, activeProfileId, initialShowComments = false }) => {
   const { t } = useTranslation();
   // Phase D: an edit by the author updates this card in place (the server answers with the post).
   const [post, setPost] = useState(postProp);
   useEffect(() => { setPost(postProp); }, [postProp]);
   const [editing, setEditing] = useState(false);
+  // Phase F: repost, the ··· menu (mute, report), and a card hidden after a mute.
+  const [reposted, setReposted] = useState(repostedIds ? repostedIds.includes(postProp.id) : false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [mutedNow, setMutedNow] = useState(false);
   const ago = getAgo(t);
   const TYPE_META = getTypeMeta(t);
   const [saved,        setSaved]        = useState(savedIds ? savedIds.includes(post.id) : !!post.isSaved);
@@ -529,6 +534,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const [counts,       setCounts]       = useState({
     saves:    post.saveCount    || 0,
     likes:    post.likeCount    || 0,
+    reposts:  post.repostCount  || 0,
     comments: post.commentCount || 0,
     shares:   post.shareCount   || 0,
   });
@@ -573,6 +579,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
 
   useEffect(() => { if (savedIds) setSaved(savedIds.includes(post.id)); }, [savedIds, post.id]);
   useEffect(() => { if (likedIds) setLiked(likedIds.includes(post.id)); }, [likedIds, post.id]);
+  useEffect(() => { if (repostedIds) setReposted(repostedIds.includes(post.id)); }, [repostedIds, post.id]);
   useEffect(() => { setFollowed(!!post.business?.isFollowing); }, [post.business?.isFollowing]);
 
   // ── Impression tracking — mark a post "seen" once it's actually been
@@ -625,6 +632,18 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   };
 
   const sharedOnce = useRef(false);
+  const isRealPost = /^\d+$/.test(String(post.id ?? ''));
+  const canRepost = isRealPost && (!post.visibility || post.visibility === 'public');
+  const handleRepost = async () => {
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    const res = await Engagement.track(post.id, entityType, entityId, 'repost', isLoggedIn, onNavigate);
+    if (res !== null && res !== undefined) {
+      const toggled = res?.toggled ?? !reposted;
+      setReposted(toggled);
+      setCounts(c => ({ ...c, reposts: Math.max(0, c.reposts + (toggled ? 1 : -1)) }));
+      onRepostToggle?.(post.id, toggled);
+    }
+  };
   const handleLike = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     const res = await Engagement.track(post.id, entityType, entityId, 'like', isLoggedIn, onNavigate);
@@ -699,10 +718,30 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
     <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || MUTED_TX} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
   );
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
+  const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
+
+  // Phase F: after a mute the card steps aside, with a way to undo it.
+  if (mutedNow) {
+    return (
+      <div data-testid="muted-note" style={{ padding:'12px 16px', borderBottom:`1px solid ${LINE_TX}`, fontSize:14, color:MUTED_TX, background:WH }}>
+        Umemnyamazisha {bizName}. Machapisho yao hayataonekana kwako.{' '}
+        <button type="button" onClick={async () => {
+          try { const target = biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : { accountId: bizId };
+            const r = await api.post('/feed/mute', target); if (r?.data?.muted === false) setMutedNow(false); } catch { /* stays muted */ }
+        }} style={{ background:'none', border:'none', padding:0, color:B, fontWeight:700, cursor:'pointer', fontSize:14, fontFamily:'inherit' }}>Tendua</button>
+      </div>
+    );
+  }
 
   return (
     <article ref={cardRef} data-testid="feed-post"
-      style={{ display:'flex', gap:12, padding:'12px 16px', backgroundColor:WH, borderBottom:`1px solid ${LINE_TX}` }}>
+      style={{ display:'flex', flexDirection:'column', padding:'12px 16px', backgroundColor:WH, borderBottom:`1px solid ${LINE_TX}` }}>
+      {post.repostedBy?.name && (
+        <div data-testid="reposted-by" style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, fontWeight:700, color:MUTED_TX, margin:'0 0 6px 52px' }}>
+          {icon('M17 2l4 4-4 4M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 01-3 3H3')}{post.repostedBy.name} amesambaza
+        </div>
+      )}
+      <div style={{ display:'flex', gap:12 }}>
       <button type="button" onClick={openProfile} aria-label={bizName}
         style={{ width:40, height:40, borderRadius:10, flexShrink:0, border:'none', padding:0, cursor:'pointer',
           overflow:'hidden', backgroundColor:INK_TX, display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -723,6 +762,13 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               style={{ marginLeft:'auto', flexShrink:0, height:28, padding:'0 12px', borderRadius:14, border:`1px solid ${LINE_BTN}`,
                 background:WH, color:INK_TX, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
               {t('home_feed.follow_button')}
+            </button>
+          )}
+          {isLoggedIn && isRealPost && !isOwnPost && (
+            <button type="button" aria-label="Chaguo zaidi" data-testid="post-more" onClick={() => setShowMenu(true)}
+              style={{ marginLeft: (bizId && !followed && !actorUnresolved && currentUser?.id !== bizId) ? 4 : 'auto', flexShrink:0, width:28, height:28,
+                border:'none', background:'none', color:MUTED_TX, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill={MUTED_TX} aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
             </button>
           )}
         </div>
@@ -786,6 +832,13 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={actionTx}>
             {icon('M4 5h16v11H8l-4 4z')}{counts.comments > 0 && counts.comments}
           </button>
+          {canRepost && (
+            <button type="button" onClick={handleRepost} aria-label="Sambaza" aria-pressed={reposted} data-testid="post-repost"
+              style={{ ...actionTx, color: reposted ? '#00a676' : MUTED_TX }}>
+              {icon('M17 2l4 4-4 4M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 01-3 3H3')}
+              {counts.reposts > 0 && counts.reposts}
+            </button>
+          )}
           <button type="button" onClick={handleLike} aria-label="Penda" aria-pressed={liked} data-testid="post-like" style={{ ...actionTx, color: liked ? '#e11d48' : MUTED_TX }}>
             {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', liked ? '#e11d48' : null)}
             {counts.likes > 0 && counts.likes}
@@ -828,10 +881,14 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           )
         )}
       </div>
+      </div>
 
       {showContact && (
         <ContactModal post={post} onClose={() => setShowContact(false)}
           onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
+      )}
+      {showMenu && (
+        <PostSafetyMenu postId={post.id} biz={biz} bizName={bizName} onClose={() => setShowMenu(false)} onMuted={() => setMutedNow(true)} />
       )}
       {editing && (
         <CreateMomentModal editPost={post} currentUser={currentUser} onNavigate={onNavigate}
@@ -1541,6 +1598,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const [trending,    setTrending]    = useState(null);
   const [savedIds,    setSavedIds]    = useState([]);
   const [likedIds,    setLikedIds]    = useState([]);
+  const [repostedIds, setRepostedIds] = useState([]);
   const [unread,      setUnread]      = useState(0);
   const [moments,     setMoments]     = useState([]);
   const [viewingMoment,    setViewingMoment]    = useState(null);
@@ -1597,12 +1655,14 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       isLoggedIn ? api.get('/notifications/unread-count') : Promise.resolve({ data:0 }),
       isLoggedIn ? api.get('/feed/saved/ids')             : Promise.resolve({ data:[] }),
       isLoggedIn ? api.get('/feed/liked/ids')             : Promise.resolve({ data:[] }),
-    ]).then(([d, t, n, s, l]) => {
+      isLoggedIn ? api.get('/feed/reposted/ids')          : Promise.resolve({ data:[] }),
+    ]).then(([d, t, n, s, l, r]) => {
       if (d.status==='fulfilled') setDiscover(d.value.data);
       if (t.status==='fulfilled') setTrending(t.value.data);
       if (n.status==='fulfilled') setUnread(n.value.data?.count || n.value.data || 0);
       if (s.status==='fulfilled') setSavedIds(s.value.data || []);
       if (l.status==='fulfilled') setLikedIds(Array.isArray(l.value.data) ? l.value.data : []);
+      if (r.status==='fulfilled') setRepostedIds(Array.isArray(r.value.data) ? r.value.data : []);
     });
     loadMoments();
   }, [isLoggedIn, loadMoments]);
@@ -1940,6 +2000,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                     likedIds={likedIds}
                     onLikeToggle={(id, liked) => setLikedIds(prev =>
                       liked ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter(x => x !== id)
+                    )}
+                    repostedIds={repostedIds}
+                    onRepostToggle={(id, on) => setRepostedIds(prev =>
+                      on ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter(x => x !== id)
                     )} />
                 )}
                 {trail && (

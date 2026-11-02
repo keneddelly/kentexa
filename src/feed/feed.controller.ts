@@ -26,6 +26,7 @@ import { CvsService } from './cvs.service';
 import { EngagementType } from './entities/post-engagement.entity';
 import { assertComposerText } from './publish-input';
 import { PollService, assertPollInput } from './poll.service';
+import { SocialSafetyService } from './social-safety.service';
 
 @Controller('feed')
 export class FeedController {
@@ -34,6 +35,8 @@ export class FeedController {
     private readonly cvs: CvsService,
     // Phase E (Kura). Optional so hand-built test controllers keep constructing.
     @Optional() private readonly polls?: PollService,
+    // Phase F (report, mute). Optional for the same reason.
+    @Optional() private readonly safety?: SocialSafetyService,
   ) {}
 
   // ── Discovery (no auth required, but personalized when logged in) ────────
@@ -228,6 +231,34 @@ export class FeedController {
   @UseGuards(JwtAuthGuard)
   getLikedIds(@Request() req) {
     return this.cvs.getLikedPostIds(req.user.id);
+  }
+
+  @Get('reposted/ids')
+  @UseGuards(JwtAuthGuard)
+  getRepostedIds(@Request() req) {
+    return this.cvs.getRepostedPostIds(req.user.id);
+  }
+
+  // ── Phase F: repost goes through /feed/:id/engage (type 'repost'); report and mute here ──
+  @Post(':id/report')
+  @UseGuards(JwtAuthGuard)
+  reportPost(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() body: any) {
+    if (!this.safety) throw new BadRequestException('Huduma hii haipatikani kwa sasa.');
+    return this.safety.report(id, req.user.id, body?.reason, body?.note);
+  }
+
+  @Post('mute')
+  @UseGuards(JwtAuthGuard)
+  toggleMute(@Request() req, @Body() body: any) {
+    if (!this.safety) throw new BadRequestException('Huduma hii haipatikani kwa sasa.');
+    return this.safety.toggleMute(req.user.id, body || {});
+  }
+
+  @Get('mute/status')
+  @UseGuards(JwtAuthGuard)
+  muteStatus(@Request() req, @Query('commerceProfileId') commerceProfileId?: string, @Query('accountId') accountId?: string) {
+    if (!this.safety) throw new BadRequestException('Huduma hii haipatikani kwa sasa.');
+    return this.safety.muteStatus(req.user.id, { commerceProfileId, accountId });
   }
 
   // ── Phase C: one post, for its own page and share links. Declared last so

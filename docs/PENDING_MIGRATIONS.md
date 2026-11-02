@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-02 (phase F):** the pin is now `MIGRATION_RUN_UPTO=1794000000000`. The next deploy
+runs `1794000000000-AddRepostReportMute` itself (repost count, reports, mutes). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-02 (phase E):** the pin is now `MIGRATION_RUN_UPTO=1793900000000`. The next deploy
 runs `1793900000000-AddPostPolls` itself (Kura: three new tables). Check: `/version/migrations` shows `pending: []`.
 

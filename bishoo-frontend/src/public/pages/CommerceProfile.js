@@ -318,6 +318,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [followError, setFollowError] = useState('');
   const [following,  setFollowing]  = useState(false);
   const [isFollowedBy, setIsFollowedBy] = useState(false);
+  // Phase F (owner approved 2026-11-02): undo a mute from the muted profile's own page.
+  const [mutedProfile, setMutedProfile] = useState(false);
 
   // Step 1 — resolve exactly which profile this page is for.
   useEffect(() => {
@@ -483,6 +485,22 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     setOpenPostId(highlightPostId);
   }, [feed, tab, highlightPostId]);
 
+
+  useEffect(() => {
+    setMutedProfile(false);
+    if (!isLoggedIn || isOwnProfile || !activeProfile?.id) return undefined;
+    let alive = true;
+    api.get('/feed/mute/status', { params: { commerceProfileId: activeProfile.id } })
+      .then((r) => { if (alive) setMutedProfile(!!r.data?.muted); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isLoggedIn, isOwnProfile, activeProfile?.id]);
+  const handleUnmute = async () => {
+    try {
+      const r = await api.post('/feed/mute', { commerceProfileId: activeProfile.id });
+      setMutedProfile(!!r.data?.muted);
+    } catch { /* stays as it is */ }
+  };
 
   const handleFollow = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -706,6 +724,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 <button type="button" data-testid="profile-food-menu" onClick={() => onNavigate(`HotelMenu-${foodMenuBusinessId}`)}
                   style={{ ...pillOutline, backgroundColor: '#1d4ed8', color: WH, borderColor: '#1d4ed8' }}>
                   Menyu
+                </button>
+              )}
+              {mutedProfile && (
+                <button type="button" data-testid="profile-unmute" onClick={handleUnmute} style={pillOutline}>
+                  Ondoa kunyamazisha
                 </button>
               )}
               <button onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
