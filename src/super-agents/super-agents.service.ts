@@ -4474,7 +4474,9 @@ export class SuperAgentsService {
       return Math.round(fee);
     }
     if (this.bodaFees && isDarEsSalaam(dto.destinationCity)) {
-      return this.bodaFees.feeBetween(sellerProfile?.address || dto.originCity || null, dto.deliveryAddress || null);
+      // Dar zone fee; an area the zone table does not know is typed by the seller (never guessed).
+      const zoneFee = await this.bodaFees.feeBetween(sellerProfile?.address || dto.originCity || null, dto.deliveryAddress || null);
+      if (zoneFee != null) return zoneFee;
     }
     throw new BadRequestException(COD_MESSAGES.bodaFeeRequired);
   }

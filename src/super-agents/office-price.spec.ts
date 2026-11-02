@@ -4,8 +4,7 @@ import {
   quoteOfficePrice, roundUpTo100, checkChargedAmount, breakdownReceiptLines, isDarEsSalaam,
 } from './office-price';
 import { OfficePriceService } from './office-price.service';
-import { OfficeBodaFeeService, darBodaFee } from './office-boda-fee.service';
-import { DEFAULT_DAR_BODA_MATRIX } from '../boda-rates/dar-boda-zones';
+import { OfficeBodaFeeService } from './office-boda-fee.service';
 import { SuperAgentsService } from './super-agents.service';
 import { SuperAgentStatus } from './entities/super-agent.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
@@ -160,7 +159,7 @@ describe('OfficePriceService', () => {
   it('Dar office, agent delivery: the delivery line is the boda fee (office → recipient); van / intercity are not included', async () => {
     const { service, boda } = setup();
     const agent = await service.previewMine(me, ctx, { declaredValue: 100000, servicePath: 'local_agent', deliveryAddress: 'Sinza, Kinondoni' });
-    expect(boda.feeBetween).toHaveBeenCalledWith('Kariakoo, Ilala', 'Sinza, Kinondoni');
+    expect(boda.feeBetween).toHaveBeenCalledWith('Kariakoo, Ilala', 'Sinza, Kinondoni', null);
     expect(agent.delivery).toEqual({ status: 'charged', amount: 6000, source: 'boda' });
     expect(agent.pickup.status).toBe('not_included'); // the sender brought it to the counter
     // Same-city in Dar: only the boda fee, no 10% and no 5,000 minimum.
@@ -230,23 +229,18 @@ describe('walk-in: a fee different from the office price needs a reason', () => 
   });
 });
 
-describe('OfficeBodaFeeService: Dar boda fee from boda_rate_card only', () => {
-  it('zone-to-zone default matrix, unknown Dar address = inner zone', () => {
-    expect(darBodaFee(DEFAULT_DAR_BODA_MATRIX, 'Kariakoo, Ilala', 'Sinza, Kinondoni')).toBe(6000);
-    expect(darBodaFee(DEFAULT_DAR_BODA_MATRIX, 'Bunju B', 'Kariakoo')).toBe(14000);
-    expect(darBodaFee(DEFAULT_DAR_BODA_MATRIX, 'Somewhere', 'Sinza')).toBe(4000);
+describe('OfficeBodaFeeService: Dar zone fee (owner approved 2026-11-02)', () => {
+  it('zone steps with the approved prices; an unknown place is null, never guessed', async () => {
+    const svc = new OfficeBodaFeeService({ find: jest.fn(async () => []) } as any);
+    expect(await svc.feeBetween('Kariakoo, Ilala', 'Sinza, Kinondoni')).toBe(7000);
+    expect(await svc.feeBetween('Bunju B', 'Kariakoo')).toBe(14000);
+    expect(await svc.feeBetween('Somewhere', 'Sinza')).toBeNull();
   });
 
-  it('active admin overrides replace the default for that pair only', async () => {
-    const find = jest.fn(async () => [{ rateKey: 'matrix_1_2', fee: 7500 }]);
+  it('active admin step prices replace the default', async () => {
+    const find = jest.fn(async () => [{ rateKey: 'dar_step_2', fee: 7500 }]);
     const svc = new OfficeBodaFeeService({ find } as any);
     expect(await svc.feeBetween('Kariakoo', 'Sinza')).toBe(7500);
-    expect(await svc.feeBetween('Sinza', 'Kariakoo')).toBe(5000);
-    expect(find).toHaveBeenCalledWith({ where: { category: 'matrix', isActive: true } });
-  });
-
-  it('a failed read falls back to the default matrix', async () => {
-    const svc = new OfficeBodaFeeService({ find: jest.fn(() => Promise.reject(new Error('down'))) } as any);
-    expect(await svc.feeBetween('Kariakoo', 'Sinza')).toBe(6000);
+    expect(await svc.feeBetween('Kariakoo', 'Magomeni')).toBe(5000);
   });
 });

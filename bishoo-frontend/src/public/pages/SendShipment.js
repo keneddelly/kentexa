@@ -27,6 +27,7 @@ import PickupPinFields from '../components/PickupPinFields';
 import NoAgentOfficeCard from '../components/NoAgentOfficeCard';
 import InviteCarrier from '../components/InviteCarrier';
 import { landmarkOk } from '../../utils/phoneLocation';
+import DarAreaPicker from '../components/DarAreaPicker';
 
 const BLUE = '#1d4ed8';
 const INK = '#0f172a';
@@ -196,6 +197,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [destination, setDestination] = useState(navParams?.destination || '');
   const [originResolved, setOriginResolved] = useState(null);
   const [destinationResolved, setDestinationResolved] = useState(null);
+  // Dar zones (owner 2026-11-02): an area picked for a place KenteXa did not know (never guessed).
+  const [originArea, setOriginArea] = useState('');
+  const [destinationArea, setDestinationArea] = useState('');
+  useEffect(() => { setOriginArea(''); }, [originResolved, origin]);
+  useEffect(() => { setDestinationArea(''); }, [destinationResolved, destination]);
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [forSomeoneElse, setForSomeoneElse] = useState(false);
@@ -235,7 +241,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
 
   const requestState = {
     itemDescription, weightKg, pieces, declaredValue: digits(declaredValue), cargoType,
-    origin, destination, originResolved, destinationResolved,
+    origin, destination, originResolved, destinationResolved, originArea, destinationArea,
     receiverName, receiverPhone,
     senderName: forSomeoneElse ? senderName : (currentUser?.name || senderName),
     senderPhone: forSomeoneElse ? senderPhone : (currentUser?.phone || senderPhone),
@@ -257,6 +263,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         origin: side(originResolved, origin), destination: side(destinationResolved, destination),
         providerId: navParams?.transportProviderId ? Number(navParams.transportProviderId) : undefined,
         declaredValue: Number(digits(declaredValue)) || undefined,
+        originArea: originArea || undefined, destinationArea: destinationArea || undefined,
         // An office that collects only near itself needs the sender's pin.
         pickupPoint: pickupOption === 'door' && pickupPin ? { latitude: pickupPin.latitude, longitude: pickupPin.longitude } : undefined,
       });
@@ -291,7 +298,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     } finally {
       setSearching(false);
     }
-  }, [fromCity, toCity, weightKg, declaredValue, pickupPin, pickupOption, deliveryOption, originResolved, destinationResolved, origin, destination, sameCity, navParams?.transportProviderId]);
+  }, [fromCity, toCity, weightKg, declaredValue, pickupPin, pickupOption, deliveryOption, originResolved, destinationResolved, origin, destination, sameCity, navParams?.transportProviderId, originArea, destinationArea]);
+
+  // A picked Dar area asks the engine again, now with a place it knows.
+  useEffect(() => { if (originArea || destinationArea) findOffers(); }, [originArea, destinationArea]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choose = (offer) => setSelected(offer);
 
@@ -301,7 +311,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     && receiverName.trim() && digits(receiverPhone).length >= 9
     && (!forSomeoneElse || (senderName.trim() && digits(senderPhone).length >= 9));
   const step3Ok = pickupOption !== 'door' || landmarkOk(pickupLandmark);
-  const step4Ok = Boolean(selected);
+  const step4Ok = Boolean(selected) && !(isDirectDelivery(selected) && directOffer?.areaUnknown);
 
   // Known prices only: the fare (or the agent's fee for same city). An agent's fee for
   // a door leg of an intercity trip is paid to the agent and shown as such, never guessed.
@@ -644,12 +654,17 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             {!searching && sameCity && searchReason === 'available' && directOffer && (
               <>
                 <h1 style={{ ...h1, fontSize: 22 }}>Mlango kwa mlango</h1>
+                {directOffer.areaUnknown && (directOffer.unknownPlaces || ['destination']).map((side) => (
+                  <DarAreaPicker key={side} title={side === 'origin' ? 'Unatuma kutoka wapi?' : 'Mpokeaji yuko wapi?'}
+                    placeText={side === 'origin' ? origin : destination}
+                    onPick={side === 'origin' ? setOriginArea : setDestinationArea} />
+                ))}
                 <button type="button" role="radio" aria-checked={isDirectDelivery(selected)} onClick={() => setSelected({ direct: true })}
                   data-testid="direct-option" style={{ ...card, border: isDirectDelivery(selected) ? `2px solid ${BLUE}` : `1px solid ${FIELD}`,
                     display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'left', fontFamily: 'inherit', color: INK, cursor: 'pointer', width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                     <div style={{ fontSize: 16, fontWeight: 700 }}>Wakala wa karibu</div>
-                    <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{directOffer.price != null ? tzs(directOffer.price) : 'Bei: wakala'}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>{directOffer.price != null ? tzs(directOffer.price) : directOffer.areaUnknown ? 'Chagua eneo' : 'Bei: wakala'}</div>
                   </div>
                   <div style={{ fontSize: 13, color: '#334155' }}>Anachukua kwako na kumfikishia mpokeaji mlangoni</div>
                   <div style={{ fontSize: 13, color: GREY }}>{etaText(directOffer.etaLabel) || 'Leo hii'}</div>

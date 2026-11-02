@@ -29,6 +29,7 @@ import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { serviceOfferCommitBody, shipmentBody } from '../../api/shipmentRequests';
 import { officeOffers } from './SendShipment';
 import InviteCarrier from '../components/InviteCarrier';
+import DarAreaPicker from '../components/DarAreaPicker';
 
 const BLUE = '#1d4ed8';
 const INK = '#0f172a';
@@ -83,7 +84,8 @@ export function matchSavedPlace(candidates, { wardName, districtName, regionName
 export function sellerOffers(list, { inCity, cod }) {
   const all = Array.isArray(list) ? list : [];
   const direct = all.find((o) => o?.serviceType === 'direct_delivery');
-  const agent = direct ? [{ direct: true, key: 'direct', providerName: 'Wakala wa karibu', servicePrice: direct.price ?? null }] : [];
+  const agent = direct ? [{ direct: true, key: 'direct', providerName: 'Wakala wa karibu', servicePrice: direct.price ?? null,
+    areaUnknown: direct.areaUnknown === true, unknownPlaces: direct.unknownPlaces || [] }] : [];
   if (cod) return inCity ? agent : [];
   // A seller is a customer too: offices and agents only, never a transporter directly
   // (owner 2026-10-26); the office books the transport and keeps its fare.
@@ -161,6 +163,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const [offers, setOffers] = useState([]);
   const [finding, setFinding] = useState(false);
   const [chosen, setChosen] = useState(null);
+  // Dar zones (owner 2026-11-02): an area picked for a place KenteXa did not know (never guessed).
+  const [shopArea, setShopArea] = useState('');
+  const [destArea, setDestArea] = useState('');
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -222,6 +227,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     origin: shop?.label || sellerCity, originResolved: shop ? { placeRef: shop.placeRef, regionName: shop.regionName } : null,
     destination: placeLabel(place) || destCity,
     destinationResolved: place.placeRef ? { placeRef: place.placeRef, regionName: place.regionName || destCity } : null,
+    originArea: shopArea, destinationArea: destArea,
     receiverName: name.trim(), receiverPhone: phone.trim(),
     pickupOption: inCity ? 'door' : 'station', deliveryOption: inCity ? 'door' : 'station',
     pickupLandmark: inCity ? shop?.label : undefined, pickupPin: inCity ? shop?.point || null : null,
@@ -229,7 +235,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const needShop = inCity && !shop;
 
   // Step 4: ask the engine. Runs again when what it depends on changes.
-  const findKey = step === 4 && !needShop ? [sellerCity, destCity, shop?.placeRef?.providerPlaceId, place.placeRef?.providerPlaceId, address, weight, goods, cod].join('|') : '';
+  const findKey = step === 4 && !needShop ? [sellerCity, destCity, shop?.placeRef?.providerPlaceId, place.placeRef?.providerPlaceId, address, weight, goods, cod, shopArea, destArea].join('|') : '';
+  useEffect(() => { setDestArea(''); }, [place.placeRef?.providerPlaceId, address]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setShopArea(''); }, [shop?.placeRef?.providerPlaceId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!findKey) return undefined;
     let live = true;
@@ -240,6 +248,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
       origin: shop ? { place: shop.placeRef } : { text: sellerCity },
       destination: place.placeRef ? { place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId } } : { text: address || destCity },
       declaredValue: goods || undefined,
+      originArea: shopArea || undefined, destinationArea: destArea || undefined,
       pickupPoint: inCity && shop?.point ? shop.point : undefined,
     }).then((r) => {
       if (!live) return;
@@ -277,7 +286,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     2: Boolean(name.trim() && digits(phone).length >= 9 && placeLabel(place)),
     3: payMode === 'paid' || (cod && inCity && fee != null && Boolean(useLastPickup || pickupRef)
       && (fromSale || (Number(digits(paidPart)) || 0) < goods)),
-    4: Boolean(chosen) && !finding,
+    4: Boolean(chosen) && !finding && !(chosen?.direct && chosen.areaUnknown),
   };
 
   const send = async () => {
@@ -581,9 +590,16 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
             ) : (
               <div role="radiogroup" aria-label="Usafiri" data-testid="delivery-choice" style={{ marginBottom: 2 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: GREY, marginBottom: 6 }}>Usafiri {offers.length > 1 ? '(KenteXa imechagua wa bei nafuu; unaweza kubadilisha)' : ''}</div>
+                {offers.filter((o) => o.direct && o.areaUnknown).flatMap((o) => o.unknownPlaces.length ? o.unknownPlaces : ['destination']).map((side) => (
+                  <div key={side} style={{ marginBottom: 10 }}>
+                    <DarAreaPicker title={side === 'origin' ? 'Duka lako liko eneo gani?' : `${name || 'Mteja'} yuko eneo gani?`}
+                      placeText={side === 'origin' ? (shop?.label || '') : (placeLabel(place) || address)}
+                      onPick={side === 'origin' ? setShopArea : setDestArea} />
+                  </div>
+                ))}
                 {offers.map((o) => (
                   <Choice key={o.key} testId={`offer-${o.key}`} selected={chosen?.key === o.key} onClick={() => setChosen(o)}
-                    title={`${o.providerName}${cod && o.direct && fee != null ? ` · ${tzs(fee)}` : o.servicePrice != null ? ` · ${tzs(o.servicePrice)}` : ''}`}
+                    title={`${o.providerName}${cod && o.direct && fee != null ? ` · ${tzs(fee)}` : o.servicePrice != null ? ` · ${tzs(o.servicePrice)}` : o.direct && o.areaUnknown ? ' · chagua eneo' : ''}`}
                     hint={o.direct ? `Anachukua dukani kwako na kumfikishia ${name || 'mteja'} mlangoni`
                       : `Peleka mzigo ${o.officeAddress || o.officeCity || 'ofisini'}; ofisi inaupeleka ${destCity}`} />
                 ))}

@@ -15,6 +15,7 @@ import BackBar from '../components/BackBar';
 import { PageLoading } from '../components/Loading';
 import { LineIcon } from '../components/LineIcon';
 import PlaceSearchField, { placeLabel } from '../components/PlaceSearchField';
+import DarAreaPicker, { withDarArea } from '../components/DarAreaPicker';
 import { tzs, foodPaymentOptions, PAY_LABEL, DELIVERY_PAY, MODE_LABEL, FOOD_COLORS as C } from '../../utils/food';
 
 const cartKey = (id) => `kentexa_food_cart_${id}`;
@@ -49,7 +50,10 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
   const [phone, setPhone] = useState('');         // empty = the account's phone
   const [fee, setFee] = useState({ state: 'idle', value: null }); // idle | loading | ok | none
 
-  const areaText = placeLabel(area);
+  // Dar zones (owner 2026-11-02): a place KenteXa does not know is picked from the area list.
+  const [darArea, setDarArea] = useState('');
+  useEffect(() => { setDarArea(''); }, [area]);
+  const areaText = darArea ? withDarArea(darArea, placeLabel(area)) : placeLabel(area);
   useEffect(() => {
     if (mode !== 'delivery' || areaText.trim().length < 3) { setFee({ state: 'idle', value: null }); return undefined; }
     let alive = true;
@@ -202,6 +206,9 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
                   {fee.state === 'ok' ? `Usafiri: ${tzs(fee.value)}` : fee.state === 'loading' ? 'Tunaangalia bei ya usafiri' : fee.state === 'none'
                     ? 'Hatuwezi kuleta mahali hapa kwa sasa. Chagua kuchukua.' : 'Chagua mtaa uone bei ya usafiri.'}
                 </span>
+                {fee.state === 'none' && !darArea && placeLabel(area).trim().length >= 3 && (
+                  <DarAreaPicker placeText={placeLabel(area)} onPick={setDarArea} />
+                )}
                 {settings.deliveryFrom && <span style={{ fontSize: 13, color: C.muted }}>Wakala anachukua chakula {settings.deliveryFrom}. Bei ya usafiri inawekwa na KenteXa.</span>}
               </div>
             ) : (

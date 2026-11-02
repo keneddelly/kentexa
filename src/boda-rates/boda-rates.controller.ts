@@ -27,6 +27,18 @@ export class BodaRatesController {
     return this.service.calculateFee(address, Number(weightKg) || 0);
   }
 
+  // Public — Dar es Salaam areas to pick from, with the step prices (owner 2026-11-02)
+  @Get('dar-areas')
+  darAreas() {
+    return this.service.darAreasWithPrices();
+  }
+
+  // Public — the Dar zone fee between two places (fee null = an unknown place)
+  @Get('dar-fee')
+  darFee(@Query('from') from: string, @Query('to') to: string, @Query('weightKg') weightKg?: string) {
+    return this.service.darQuote(String(from || ''), String(to || ''), Number(weightKg) || undefined);
+  }
+
   // Public — rate card summary
   @Get('summary')
   getSummary() {

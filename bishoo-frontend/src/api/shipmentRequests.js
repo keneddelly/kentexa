@@ -194,6 +194,9 @@ export const serviceOfferCommitBody = (state, selected, direct, now = new Date()
   delivery: state.deliveryOption === 'door' ? 'door' : 'collect',
   origin: journeySide(state.originResolved, state.origin),
   destination: journeySide(state.destinationResolved, state.destination),
+  // Dar zones (owner 2026-11-02): an area the customer picked for a place KenteXa did not know.
+  originArea: state.originArea || undefined,
+  destinationArea: state.destinationArea || undefined,
   serviceType: direct ? 'direct_delivery' : 'composed_intercity',
   providerId: direct ? undefined : positiveNumber(selected?.providerId),
   routeId: direct ? undefined : positiveNumber(selected?.routeId),
