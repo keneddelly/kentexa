@@ -9,19 +9,19 @@ import { useTranslation } from 'react-i18next';
 import api     from '../../api/api';
 
 const getCategories = (t) => [
-  { value: '',              icon: '🔍', label: t('services_page.cat_all')         },
-  { value: 'ufundi',        icon: '🔧', label: t('services_page.cat_ufundi_short')       },
-  { value: 'usafi',         icon: '🧹', label: t('services_page.cat_usafi_short')        },
-  { value: 'elimu',         icon: '📚', label: t('services_page.cat_elimu_short')        },
-  { value: 'upishi',        icon: '👨‍🍳', label: t('services_page.cat_upishi_short')      },
-  { value: 'usafirishaji',  icon: '🚗', label: t('services_page.cat_usafirishaji_short') },
-  { value: 'afya',          icon: '🏥', label: t('services_page.cat_afya_short')         },
-  { value: 'ubunifu',       icon: '🎨', label: t('services_page.cat_ubunifu_short')      },
-  { value: 'matengenezo',   icon: '🔨', label: t('services_page.cat_matengenezo_short')  },
-  { value: 'biashara',      icon: '💼', label: t('services_page.cat_biashara_short')     },
-  { value: 'kilimo',        icon: '🌱', label: t('services_page.cat_kilimo_short')       },
-  { value: 'nyumbani',      icon: '🏠', label: t('services_page.cat_nyumbani_short')     },
-  { value: 'mengineyo',     icon: '📋', label: t('services_page.cat_mengineyo')    },
+  { value: '',              label: t('services_page.cat_all')         },
+  { value: 'ufundi',        label: t('services_page.cat_ufundi_short')       },
+  { value: 'usafi',         label: t('services_page.cat_usafi_short')        },
+  { value: 'elimu',         label: t('services_page.cat_elimu_short')        },
+  { value: 'upishi',        label: t('services_page.cat_upishi_short')      },
+  { value: 'usafirishaji',  label: t('services_page.cat_usafirishaji_short') },
+  { value: 'afya',          label: t('services_page.cat_afya_short')         },
+  { value: 'ubunifu',       label: t('services_page.cat_ubunifu_short')      },
+  { value: 'matengenezo',   label: t('services_page.cat_matengenezo_short')  },
+  { value: 'biashara',      label: t('services_page.cat_biashara_short')     },
+  { value: 'kilimo',        label: t('services_page.cat_kilimo_short')       },
+  { value: 'nyumbani',      label: t('services_page.cat_nyumbani_short')     },
+  { value: 'mengineyo',     label: t('services_page.cat_mengineyo')    },
 ];
 
 const getPriceLabels = (t) => ({
@@ -35,9 +35,8 @@ const getPriceLabels = (t) => ({
 const fmt = n => Number(n||0).toLocaleString();
 
 const StarRating = ({ rating, size = 13 }) => (
-  <span style={{ color: '#f59e0b', fontSize: size }}>
-    {'★'.repeat(Math.round(rating))}{'☆'.repeat(5 - Math.round(rating))}
-    <span style={{ color: '#94a3b8', marginLeft: 3 }}>{Number(rating).toFixed(1)}</span>
+  <span style={{ fontSize: size, color: '#536471' }}>
+    <b style={{ color: '#0f1419' }}>{Number(rating).toFixed(1)}</b> / 5
   </span>
 );
 
@@ -60,8 +59,8 @@ const ServiceCard = ({ ad, onClick }) => {
         ? <img src={ad.images[0]} alt={ad.title}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onError={e => e.target.style.display = 'none'} />
-        : <span style={{ fontSize: 52 }}>
-            {CATEGORIES.find(c => c.value === ad.category)?.icon || '🔧'}
+        : <span style={{ fontSize: 14, fontWeight: 700, color: '#536471' }}>
+            {CATEGORIES.find(c => c.value === ad.category)?.label || ''}
           </span>
       }
       {/* Available now badge */}
@@ -145,13 +144,13 @@ const ServiceCard = ({ ad, onClick }) => {
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight:800, color: '#1d4ed8' }}>
+        <div style={{ fontSize: 15, fontWeight:800, color: '#0f1419' }}>
           {ad.priceType === 'negotiate' || ad.priceType === 'free_quote'
             ? <span style={{ fontSize: 13, color: '#64748b' }}>{PRICE_LABELS[ad.priceType]}</span>
             : <>TZS {fmt(ad.price)}<span style={{ fontSize: 11, color: '#94a3b8' }}>{PRICE_LABELS[ad.priceType]}</span></>
           }
         </div>
-        <span style={{ fontSize: 11, color: '#94a3b8' }}>📍 {ad.coverageCity}</span>
+        <span style={{ fontSize: 12, color: '#536471' }}>{ad.coverageCity}</span>
       </div>
     </div>
   </div>
@@ -205,22 +204,21 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       </div>
 
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg,#1e1b4b 0%,#1d4ed8 60%,#0891b2 100%)',
-        padding: 'clamp(32px,5vw,56px) 16px' }}>
-        <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 'clamp(24px,5vw,42px)', fontWeight:800, color: '#fff',
-            margin: '0 0 12px', letterSpacing: -0.5 }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #eff3f4',
+        padding: '20px 16px' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+          <h1 style={{ fontSize: 26, fontWeight:800, color: '#0f1419',
+            margin: '0 0 8px', lineHeight: 1.2 }}>
             {t('services_page.hero_title_line1')}<br/>{t('services_page.hero_title_line2')}
           </h1>
-          <p style={{ fontSize: 'clamp(13px,2vw,16px)', color: 'rgba(255,255,255,0.75)',
-            margin: '0 0 28px' }}>
+          <p style={{ fontSize: 15, color: '#536471',
+            margin: '0 0 16px' }}>
             {t('services_page.hero_desc')}
           </p>
 
           {/* Search bar */}
-          <div style={{ display: 'flex', backgroundColor: '#fff', borderRadius: 14,
-            overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
-            <span style={{ padding: '14px 16px', fontSize: 20 }}>🔍</span>
+          <div style={{ display: 'flex', backgroundColor: '#f7f9f9', borderRadius: 24,
+            overflow: 'hidden', border: '1px solid #eff3f4', paddingLeft: 14 }}>
             <input value={query} onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchAds()}
               placeholder={t('services_page.search_placeholder')}
@@ -232,7 +230,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 padding: '14px 12px', borderLeft: '1px solid #f1f5f9',
                 fontFamily: 'inherit' }} />
             <button onClick={fetchAds}
-              style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+              style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none',
                 padding: '14px 20px', cursor: 'pointer', fontSize: 14,
                 fontWeight: 700, whiteSpace: 'nowrap' }}>
               {t('services_page.search_button')}
@@ -240,15 +238,14 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
 
           {/* Quick filters */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap',
-            justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6,
-              backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff',
+              backgroundColor: '#f7f9f9', color: '#0f1419',
               padding: '6px 14px', borderRadius: 100, cursor: 'pointer',
               fontSize: 12, fontWeight: 700 }}>
               <input type="checkbox" checked={available}
                 onChange={e => setAvailable(e.target.checked)}
-                style={{ accentColor: '#60a5fa' }} />
+                style={{ accentColor: '#0f1419' }} />
               {t('services_page.available_now_filter')}
             </label>
           </div>
@@ -265,10 +262,10 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               style={{ display: 'flex', alignItems: 'center', gap: 6,
                 padding: '8px 16px', borderRadius: 100, border: 'none',
                 cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 700,
-                backgroundColor: category === c.value ? '#1d4ed8' : '#f1f5f9',
+                backgroundColor: category === c.value ? '#0f1419' : '#f1f5f9',
                 color: category === c.value ? '#fff' : '#475569',
                 transition: 'all 0.15s' }}>
-              <span>{c.icon}</span> {c.label}
+              {c.label}
             </button>
           ))}
         </div>
@@ -286,7 +283,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
           {isLoggedIn && (
             <button onClick={() => onNavigate('PostService')}
-              style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+              style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none',
                 borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
                 fontSize: 13, fontWeight: 700 }}>
               {t('services_page.post_service_button')}
@@ -302,7 +299,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               {t('services_page.transport_verified_banner')}
             </span>
             <button onClick={() => onNavigate('TransportProviderDashboard')}
-              style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+              style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none',
                 borderRadius: 8, padding: '7px 14px', cursor: 'pointer',
                 fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', marginLeft: 12 }}>
               {t('services_page.today_trips_button')}
@@ -328,7 +325,6 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         ) : ads.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>🔍</div>
             <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
               {t('services_page.no_services_title')}
             </div>
@@ -337,7 +333,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             </div>
             {isLoggedIn && (
               <button onClick={() => onNavigate('PostService')}
-                style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+                style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none',
                   borderRadius: 12, padding: '12px 28px', cursor: 'pointer',
                   fontSize: 14, fontWeight: 700 }}>
                 {t('services_page.be_first_button')}

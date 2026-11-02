@@ -11,27 +11,26 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
-const B  = '#2563EB';
-const DK = '#0F172A';
-const GR = '#64748B';
+const DK = '#0f1419';
+const GR = '#536471';
 const WH = '#FFFFFF';
 const fmt = n => Number(n||0).toLocaleString();
 
 const getTypeMeta = (t) => ({
-  product:    { label: t('wishlist.type_products'),    icon: '📦', detailPage: 'ProductDetail' },
-  classified: { label: t('wishlist.type_listings'),    icon: '🏷️', detailPage: 'ClassifiedDetail' },
-  service:    { label: t('wishlist.type_services'),    icon: '🔧', detailPage: 'ServiceDetail' },
-  route:      { label: t('wishlist.type_routes'),      icon: '🚌', detailPage: null },
-  moment:     { label: t('wishlist.type_moments'),     icon: '📸', detailPage: null },
+  product:    { label: t('wishlist.type_products'),    detailPage: 'ProductDetail' },
+  classified: { label: t('wishlist.type_listings'),    detailPage: 'ClassifiedDetail' },
+  service:    { label: t('wishlist.type_services'),    detailPage: 'ServiceDetail' },
+  route:      { label: t('wishlist.type_routes'),      detailPage: null },
+  moment:     { label: t('wishlist.type_moments'),     detailPage: null },
 });
 
 const getFilters = (t) => [
   { key: 'all',        label: t('wishlist.filter_all') },
-  { key: 'product',     label: `📦 ${t('wishlist.type_products')}` },
-  { key: 'classified',  label: `🏷️ ${t('wishlist.type_listings')}` },
-  { key: 'service',     label: `🔧 ${t('wishlist.type_services')}` },
-  { key: 'moment',      label: `📸 ${t('wishlist.type_moments')}` },
-  { key: 'route',       label: `🚌 ${t('wishlist.type_routes')}` },
+  { key: 'product',     label: t('wishlist.type_products') },
+  { key: 'classified',  label: t('wishlist.type_listings') },
+  { key: 'service',     label: t('wishlist.type_services') },
+  { key: 'moment',      label: t('wishlist.type_moments') },
+  { key: 'route',       label: t('wishlist.type_routes') },
 ];
 
 const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
@@ -102,7 +101,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
   const counts = items.reduce((acc, i) => { acc[i.type] = (acc[i.type]||0)+1; return acc; }, {});
 
   return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#F8FAFC' }}>
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:WH }}>
 
       {/* Header */}
       <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
@@ -121,9 +120,9 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
           {FILTERS.filter(f => f.key === 'all' || counts[f.key] > 0).map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
               style={{ flexShrink:0, padding:'7px 14px', borderRadius:100, cursor:'pointer',
-                border: filter===f.key ? `1.5px solid ${B}` : '1.5px solid #E2E8F0',
-                backgroundColor: filter===f.key ? '#EFF6FF' : WH,
-                color: filter===f.key ? B : GR, fontSize:12, fontWeight:700, whiteSpace:'nowrap' }}>
+                border: filter===f.key ? `1px solid ${DK}` : '1px solid #cfd9de',
+                backgroundColor: filter===f.key ? DK : WH,
+                color: filter===f.key ? WH : DK, fontSize:13, fontWeight:700, whiteSpace:'nowrap', fontFamily:'inherit' }}>
               {f.label}{f.key !== 'all' && counts[f.key] ? ` (${counts[f.key]})` : ''}
             </button>
           ))}
@@ -134,24 +133,19 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
 
         {loading ? (
-          <div style={{ textAlign:'center', padding:60, color:GR }}>
-            <div style={{ fontSize:40, marginBottom:12 }}>❤️</div>
-            <div>{t('wishlist.loading')}</div>
-          </div>
+          <div style={{ textAlign:'center', padding:60, color:GR }}>{t('wishlist.loading')}</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign:'center', padding:80, backgroundColor:WH,
-            borderRadius:20, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize:64, marginBottom:16 }}>🤍</div>
+          <div style={{ textAlign:'center', padding:'56px 24px', backgroundColor:WH }}>
             <div style={{ fontSize:18, fontWeight:800, color:DK, marginBottom:8 }}>
               {items.length === 0 ? t('wishlist.nothing_saved') : t('wishlist.no_saved_type', { type: TYPE_META[filter]?.label.toLowerCase() || '' })}
             </div>
             <div style={{ fontSize:13, color:GR, marginBottom:24 }}>
               {t('wishlist.save_hint')}
             </div>
-            <button onClick={() => onNavigate('Stores')}
-              style={{ backgroundColor:B, color:WH, border:'none',
-                borderRadius:12, padding:'12px 28px', cursor:'pointer',
-                fontSize:14, fontWeight:700 }}>
+            <button onClick={() => onNavigate('Search')}
+              style={{ backgroundColor:DK, color:WH, border:'none',
+                borderRadius:22, height:44, padding:'0 22px', cursor:'pointer',
+                fontSize:15, fontWeight:700, fontFamily:'inherit' }}>
               {t('wishlist.discover_button')}
             </button>
           </div>
@@ -162,8 +156,8 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
               const meta = TYPE_META[item.type] || {};
               const key = `${item.type}-${item.id}`;
               return (
-                <div key={key} style={{ backgroundColor:WH, borderRadius:16,
-                  boxShadow:'0 2px 8px rgba(0,0,0,0.06)', overflow:'hidden', position:'relative' }}>
+                <div key={key} style={{ backgroundColor:WH, borderRadius:14,
+                  border:'1px solid #eff3f4', overflow:'hidden', position:'relative' }}>
 
                   <button onClick={() => handleRemove(item)} disabled={removing === key}
                     style={{ position:'absolute', top:8, right:8, zIndex:10,
@@ -171,7 +165,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
                       borderRadius:'50%', width:26, height:26, cursor:'pointer',
                       display:'flex', alignItems:'center', justifyContent:'center',
                       fontSize:13 }}>
-                    {removing === key ? '⏳' : '✕'}
+                    {removing === key ? '…' : '×'}
                   </button>
 
                   <div onClick={() => goTo(item)}
@@ -182,13 +176,13 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
                       ? <img src={item.image} alt={item.title}
                           style={{ width:'100%', height:'100%', objectFit:'cover' }}
                           onError={e => e.target.style.display='none'} />
-                      : <span style={{ fontSize:36 }}>{meta.icon || '📦'}</span>}
+                      : <span style={{ fontSize:13, fontWeight:700, color:GR }}>{meta.label}</span>}
                   </div>
 
                   <div style={{ padding:12 }}>
                     <div style={{ fontSize:9, fontWeight:800, color:GR, textTransform:'uppercase',
                       letterSpacing:0.4, marginBottom:4 }}>
-                      {meta.icon} {meta.label}
+                      {meta.label}
                     </div>
                     <div onClick={() => goTo(item)} style={{ fontSize:13, fontWeight:700, color:DK,
                       marginBottom:6, overflow:'hidden', textOverflow:'ellipsis',
@@ -196,7 +190,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
                       {item.title}
                     </div>
                     {item.price != null && (
-                      <div style={{ fontSize:14, fontWeight:800, color:B, marginBottom:4 }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4 }}>
                         TZS {fmt(item.price)}
                       </div>
                     )}

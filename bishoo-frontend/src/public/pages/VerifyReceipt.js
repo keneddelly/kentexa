@@ -1,340 +1,125 @@
+/**
+ * VerifyReceipt.js — "Hakiki risiti", rebuilt in the new look (owner 2026-11-02: "rebuild
+ * the other pages left in the new way"). A customer types a receipt number; the server
+ * says whether it is a real KenteXa receipt (GET /invoices/verify/:number). Valid: the
+ * amount and the facts as rows, and the PDF. Not valid: the server's reason. No emoji,
+ * no gradients; same server call and texts as before.
+ */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
+const INK = '#0f1419';
+const MUTED = '#536471';
+const LINE = '#eff3f4';
+const GREEN = '#05603a';
+const RED = '#b42318';
+
 const VerifyReceipt = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
-  const dateLocale = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-GB';
-  const [receiptNumber, setReceiptNumber] = useState('');
+  const dateLocale = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' }[i18n?.language] || 'en-GB';
+  const [number, setNumber] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [searched, setSearched] = useState(false);
 
-  const handleVerify = async () => {
-    if (!receiptNumber.trim()) {
-      setError(t('verify_receipt.receipt_number_required'));
-      return;
-    }
+  const verify = async (e) => {
+    e?.preventDefault?.();
+    if (!number.trim()) { setError(t('verify_receipt.receipt_number_required')); return; }
+    setLoading(true); setError(''); setResult(null);
     try {
-      setLoading(true);
-      setError('');
-      setResult(null);
-      setSearched(true);
-      const res = await api.get(`/invoices/verify/${receiptNumber.trim()}`);
+      const res = await api.get(`/invoices/verify/${number.trim()}`);
       setResult(res.data);
-    } catch (err) {
-      setError(t('verify_receipt.verify_failed'));
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError(t('verify_receipt.verify_failed')); } finally { setLoading(false); }
   };
+  const again = () => { setResult(null); setNumber(''); setError(''); };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') handleVerify();
-  };
+  const pill = (dark) => ({ height: 46, padding: '0 18px', borderRadius: 23, border: dark ? 'none' : '1px solid #cfd9de', background: dark ? INK : '#fff',
+    color: dark ? '#fff' : INK, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' });
+  const valid = result && result.valid;
+  const rows = valid ? [
+    [t('verify_receipt.receipt_number_label'), result.receiptNumber],
+    [t('verify_receipt.label_invoice_number'), result.invoiceNumber],
+    [t('verify_receipt.label_order_id'), result.orderId != null ? `#${result.orderId}` : null],
+    [t('verify_receipt.label_payment_method'), result.paymentMethod || t('verify_receipt.not_available')],
+    [t('verify_receipt.label_paid_on'), result.paidAt
+      ? new Date(result.paidAt).toLocaleString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+      : t('verify_receipt.not_available')],
+  ].filter(([, v]) => v) : [];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', background: '#fff', color: INK }}>
       <BackBar onBack={() => onNavigate('back')} top={0} />
-
-      {/* Hero */}
-      <div style={{
-        background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 50%, #667eea 100%)',
-        padding: '60px 32px',
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        <div style={{ position: 'absolute', top: '-60px', left: '-60px', width: '200px', height: '200px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.08)' }} />
-        <div style={{ position: 'absolute', bottom: '-80px', right: '-40px', width: '280px', height: '280px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.06)' }} />
-
-        <div style={{ position: 'relative' }}>
-          <div style={{
-            width: '72px', height: '72px',
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            borderRadius: '20px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '36px', margin: '0 auto 20px',
-            border: '2px solid rgba(255,255,255,0.3)',
-          }}>
-            🔍
-          </div>
-          <h1 style={{ fontSize: '40px', fontWeight:'800', color: '#fff', margin: '0 0 12px' }}>
-            {t('verify_receipt.hero_title')}
-          </h1>
-          <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.9)', marginBottom: '36px', maxWidth: '500px', margin: '0 auto 36px' }}>
-            {t('verify_receipt.hero_desc')}
-          </p>
-
-          {/* Search Box */}
-          <div style={{ maxWidth: '560px', margin: '0 auto', display: 'flex', gap: '12px' }}>
-            <input
-              type="text"
-              placeholder={t('verify_receipt.search_placeholder')}
-              value={receiptNumber}
-              onChange={e => setReceiptNumber(e.target.value.toUpperCase())}
-              onKeyPress={handleKeyPress}
-              style={{
-                flex: 1, padding: '16px 20px',
-                borderRadius: '12px', border: 'none',
-                fontSize: '15px', outline: 'none',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                letterSpacing: '1px',
-              }}
-            />
-            <button
-              onClick={handleVerify}
-              disabled={loading}
-              style={{
-                backgroundColor: '#fff',
-                color: '#16a34a',
-                border: 'none', padding: '16px 28px',
-                borderRadius: '12px', cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: '15px', fontWeight: '800',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {loading ? '⏳' : t('verify_receipt.verify_button')}
-            </button>
-          </div>
-
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginTop: '12px' }}>
-            {t('verify_receipt.format_hint')}
-          </p>
-        </div>
-      </div>
-
-      <div style={{ padding: '40px 32px', maxWidth: '800px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-
-        {error && (
-          <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '14px 16px', borderRadius: '10px', marginBottom: '24px', fontSize: '14px', fontWeight: '600' }}>
-            ❌ {error}
-          </div>
+      <main style={{ maxWidth: 560, margin: '0 auto', padding: '16px 16px 48px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {!result && (
+          <>
+            <h1 style={{ margin: '4px 0 0', fontSize: 26, fontWeight: 800, lineHeight: 1.2 }}>{t('verify_receipt.hero_title')}</h1>
+            <p style={{ margin: 0, fontSize: 15, color: MUTED, lineHeight: 1.45 }}>{t('verify_receipt.hero_desc')}</p>
+            <form onSubmit={verify} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input data-testid="receipt-number" value={number} onChange={(e) => setNumber(e.target.value)} aria-label={t('verify_receipt.search_placeholder')}
+                placeholder={t('verify_receipt.search_placeholder')}
+                style={{ border: '1px solid #cfd9de', borderRadius: 8, padding: '12px 14px', fontSize: 17, fontFamily: 'inherit', color: INK, letterSpacing: '0.04em' }} />
+              <span style={{ fontSize: 13, color: MUTED }}>{t('verify_receipt.format_hint')}</span>
+              {error && <p role="alert" style={{ margin: 0, color: RED, fontSize: 14 }}>{error}</p>}
+              <button type="submit" data-testid="receipt-verify" disabled={loading} style={{ ...pill(true), opacity: loading ? 0.6 : 1 }}>
+                {loading ? t('verify_receipt.verifying') : t('verify_receipt.verify_button')}
+              </button>
+            </form>
+            <section style={{ borderTop: `1px solid ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>{t('verify_receipt.where_to_find_title')}</h2>
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} style={{ display: 'flex', gap: 12 }}>
+                  <span style={{ width: 26, height: 26, borderRadius: 13, background: '#f7f9f9', fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{n}</span>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <b style={{ fontSize: 15 }}>{t(`verify_receipt.step${n}_title`)}</b>
+                    <span style={{ fontSize: 14, color: MUTED }}>{t(`verify_receipt.step${n}_desc`)}</span>
+                  </span>
+                </div>
+              ))}
+            </section>
+          </>
         )}
 
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-            <p style={{ color: '#64748b', fontSize: '15px' }}>{t('verify_receipt.verifying')}</p>
-          </div>
-        )}
-
-        {!loading && result && result.valid && (
-          <div>
-            <div style={{
-              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-              borderRadius: '16px', padding: '28px',
-              textAlign: 'center', marginBottom: '24px',
-              boxShadow: '0 8px 24px rgba(67,233,123,0.3)',
-            }}>
-              <div style={{ fontSize: '56px', marginBottom: '12px' }}>✅</div>
-              <h2 style={{ fontSize: '26px', fontWeight:'800', color: '#fff', margin: '0 0 8px' }}>
-                {t('verify_receipt.verified_title')}
-              </h2>
-              <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.9)', margin: 0 }}>
-                {t('verify_receipt.verified_desc')}
-              </p>
+        {valid && (
+          <section data-testid="receipt-valid" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill={GREEN} /><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" strokeWidth="2.4" fill="none" strokeLinecap="round" /></svg>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>{t('verify_receipt.verified_title')}</h1>
             </div>
-
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', paddingBottom: '24px', borderBottom: '2px dashed #e2e8f0' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '22px' }}>⚡</span>
-                    <span style={{ fontSize: '20px', fontWeight:'800', color: '#7c3aed', letterSpacing: '1px' }}>KENTEXA</span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>{t('verify_receipt.company_tagline')}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>{t('verify_receipt.receipt_number_label')}</div>
-                  <div style={{ fontSize: '16px', fontWeight:'800', color: '#7c3aed', letterSpacing: '1px' }}>
-                    {result.receiptNumber}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                {[
-                  { label: t('verify_receipt.label_invoice_number'), value: result.invoiceNumber, icon: '📄' },
-                  { label: t('verify_receipt.label_order_id'), value: `#${result.orderId}`, icon: '🛒' },
-                  { label: t('verify_receipt.label_payment_method'), value: result.paymentMethod || t('verify_receipt.not_available'), icon: '💳' },
-                  { label: t('verify_receipt.label_paid_on'), value: result.paidAt ? new Date(result.paidAt).toLocaleString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('verify_receipt.not_available'), icon: '📅' },
-                ].map(item => (
-                  <div key={item.label} style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
-                      {item.icon} {item.label}
-                    </div>
-                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>
-                      {item.value}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: '14px', padding: '20px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <div>
-                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>{t('verify_receipt.amount_paid_label')}</div>
-                  <div style={{ fontSize: '32px', fontWeight:'800', color: '#fff' }}>
-                    TZS {Number(result.amount).toLocaleString()}
-                  </div>
-                </div>
-                <div style={{
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  borderRadius: '12px', padding: '12px 20px',
-                  color: '#fff', fontSize: '14px', fontWeight: '800',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                }}>
-                  {t('verify_receipt.paid_badge')}
-                </div>
-              </div>
+            <p style={{ margin: 0, fontSize: 15, color: MUTED }}>{t('verify_receipt.verified_desc')}</p>
+            <div style={{ border: `1px solid ${LINE}`, borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 13, color: MUTED }}>{t('verify_receipt.amount_paid_label')}</span>
+              <span style={{ fontSize: 30, fontWeight: 800 }}>TZS {Number(result.amount || 0).toLocaleString('en-US')}</span>
+              <span style={{ alignSelf: 'flex-start', marginTop: 4, padding: '4px 10px', borderRadius: 14, background: '#ecfdf3', color: GREEN, fontSize: 13, fontWeight: 700 }}>{t('verify_receipt.paid_badge')}</span>
             </div>
-
-            <div style={{
-              backgroundColor: '#fff', borderRadius: '16px', padding: '20px',
-              boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-              display: 'flex', alignItems: 'center', gap: '16px',
-            }}>
-              <div style={{
-                width: '52px', height: '52px', flexShrink: 0,
-                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                borderRadius: '14px', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: '24px',
-              }}>
-                🛡️
-              </div>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '4px' }}>
-                  {t('verify_receipt.verified_by_title')}
-                </div>
-                <div style={{ fontSize: '13px', color: '#64748b' }}>
-                  {t('verify_receipt.verified_by_desc')}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ textAlign: 'center', marginTop: '20px' }}>
-              <a
-                href={`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/invoices/receipt/${result.receiptNumber}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-block',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: '#fff', textDecoration: 'none',
-                  padding: '14px 32px', borderRadius: '12px',
-                  fontSize: '15px', fontWeight: '800',
-                  boxShadow: '0 4px 16px rgba(102,126,234,0.4)',
-                }}
-              >
-                {t('verify_receipt.download_pdf_button')}
-              </a>
-            </div>
-          </div>
-        )}
-
-        {!loading && searched && result && !result.valid && (
-          <div style={{
-            backgroundColor: '#fff', borderRadius: '16px', padding: '48px',
-            textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-          }}>
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>❌</div>
-            <h2 style={{ fontSize: '22px', fontWeight:'800', color: '#dc2626', marginBottom: '8px' }}>
-              {t('verify_receipt.not_valid_title')}
-            </h2>
-            <p style={{ color: '#64748b', fontSize: '15px', marginBottom: '24px' }}>
-              {result.message || t('verify_receipt.not_valid_default_message')}
-            </p>
-            <div style={{ backgroundColor: '#fef2f2', borderRadius: '12px', padding: '16px', marginBottom: '24px', fontSize: '14px', color: '#991b1b' }}>
-              {t('verify_receipt.error_contact_note')}
-            </div>
-            <button
-              onClick={() => { setReceiptNumber(''); setResult(null); setSearched(false); }}
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: '#fff', border: 'none', padding: '12px 28px',
-                borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '700',
-              }}
-            >
-              {t('verify_receipt.try_again_button')}
-            </button>
-          </div>
-        )}
-
-        {!searched && !loading && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-            {[
-              { icon: '🔒', title: t('verify_receipt.card1_title'), desc: t('verify_receipt.card1_desc'), color: '#667eea' },
-              { icon: '⚡', title: t('verify_receipt.card2_title'), desc: t('verify_receipt.card2_desc'), color: '#f7971e' },
-              { icon: '📄', title: t('verify_receipt.card3_title'), desc: t('verify_receipt.card3_desc'), color: '#43e97b' },
-              { icon: '🛡️', title: t('verify_receipt.card4_title'), desc: t('verify_receipt.card4_desc'), color: '#f093fb' },
-            ].map(card => (
-              <div key={card.title} style={{
-                backgroundColor: '#fff', borderRadius: '14px', padding: '24px',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                borderTop: `4px solid ${card.color}`,
-              }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px' }}>{card.icon}</div>
-                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px' }}>{card.title}</h3>
-                <p style={{ fontSize: '13px', color: '#64748b', margin: 0, lineHeight: '1.6' }}>{card.desc}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!searched && (
-          <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: '24px' }}>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b', margin: '0 0 20px' }}>
-              {t('verify_receipt.where_to_find_title')}
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {[
-                { step: '1', title: t('verify_receipt.step1_title'), desc: t('verify_receipt.step1_desc') },
-                { step: '2', title: t('verify_receipt.step2_title'), desc: t('verify_receipt.step2_desc') },
-                { step: '3', title: t('verify_receipt.step3_title'), desc: t('verify_receipt.step3_desc') },
-                { step: '4', title: t('verify_receipt.step4_title'), desc: t('verify_receipt.step4_desc') },
-              ].map(item => (
-                <div key={item.step} style={{ display: 'flex', gap: '14px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                  <div style={{
-                    width: '36px', height: '36px', flexShrink: 0,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: '10px', display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', fontSize: '16px', fontWeight:'800', color: '#fff',
-                  }}>
-                    {item.step}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>{item.title}</div>
-                    <div style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5' }}>{item.desc}</div>
-                  </div>
+            <div>
+              {rows.map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '11px 0', borderBottom: `1px solid ${LINE}`, fontSize: 15 }}>
+                  <span style={{ color: MUTED }}>{k}</span><span style={{ fontWeight: 600, textAlign: 'right', overflowWrap: 'anywhere' }}>{v}</span>
                 </div>
               ))}
             </div>
-          </div>
+            <p style={{ margin: 0, fontSize: 13, color: MUTED }}>{t('verify_receipt.verified_by_desc')}</p>
+            <a href={`${process.env.REACT_APP_API_URL || ''}/invoices/receipt/${result.receiptNumber}/pdf`} target="_blank" rel="noreferrer" style={pill(true)}>
+              {t('verify_receipt.download_pdf_button')}
+            </a>
+            <button type="button" onClick={again} style={pill(false)}>{t('verify_receipt.verify_another_button')}</button>
+          </section>
         )}
 
-        {searched && result && (
-          <div style={{ textAlign: 'center', marginTop: '24px' }}>
-            <button
-              onClick={() => { setReceiptNumber(''); setResult(null); setSearched(false); setError(''); }}
-              style={{
-                backgroundColor: '#f1f5f9', color: '#64748b',
-                border: 'none', padding: '12px 28px', borderRadius: '10px',
-                cursor: 'pointer', fontSize: '14px', fontWeight: '700',
-              }}
-            >
-              {t('verify_receipt.verify_another_button')}
-            </button>
-          </div>
+        {result && !result.valid && (
+          <section data-testid="receipt-invalid" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill={RED} /><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" /></svg>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>{t('verify_receipt.not_valid_title')}</h1>
+            </div>
+            <p style={{ margin: 0, fontSize: 15 }}>{result.message || t('verify_receipt.not_valid_default_message')}</p>
+            <p style={{ margin: 0, fontSize: 14, color: MUTED }}>{t('verify_receipt.error_contact_note')}</p>
+            <button type="button" onClick={again} style={pill(true)}>{t('verify_receipt.try_again_button')}</button>
+          </section>
         )}
-
-      </div>
+      </main>
     </div>
   );
 };
