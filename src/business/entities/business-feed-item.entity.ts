@@ -39,6 +39,16 @@ export enum MomentIntent {
   REQUEST = 'request',
   ANNOUNCEMENT = 'announcement',
   ACHIEVEMENT = 'achievement',
+  // Home Feed phase D (2026-11-02): post formats. Answers use the normal comment thread.
+  QUESTION = 'question',
+  DISCUSSION = 'discussion',
+}
+
+/** Phase D: one photo of a post, with its own size so the card keeps its shape. */
+export interface FeedMediaItem {
+  url: string;
+  width?: number | null;
+  height?: number | null;
 }
 
 // What the frontend actually branches on for the Moment's action button —
@@ -115,6 +125,15 @@ export class BusinessFeedItem {
 
   @Column({ type: 'varchar', nullable: true })
   imageUrl: string | null;
+
+  // Phase D: up to 4 photos. imageUrl keeps the first one for older app versions;
+  // NULL on every post made before phase D (the card then uses imageUrl alone).
+  @Column({ type: 'jsonb', nullable: true })
+  media: FeedMediaItem[] | null;
+
+  // Phase D: set when the author edits within the edit window; the card shows "imehaririwa".
+  @Column({ type: 'timestamptz', nullable: true })
+  editedAt: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
   linkedEntityType: string | null;

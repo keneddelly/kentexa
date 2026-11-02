@@ -2,7 +2,7 @@
  * FeedService — Commerce feed with CVS algorithm
  * Place at: src/feed/feed.service.ts
  */
-import { Injectable, Logger, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { RoleContext } from '../role-context/role-context.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, Brackets } from 'typeorm';
@@ -13,7 +13,7 @@ import {
   MomentStatus,
   MomentVisibility,
 } from '../business/entities/business-feed-item.entity';
-import { assertPublishInput } from './publish-input';
+import { assertPublishInput, assertComposerText, assertMedia, cleanMedia, COMPOSER_LIMITS } from './publish-input';
 import {
   PostEngagement,
   EngagementType,
@@ -111,6 +111,7 @@ export class FeedService {
       title: string;
       body?: string;
       imageUrl?: string;
+      media?: { url: string; width?: number; height?: number }[];
       linkedEntityType?: string;
       linkedEntityId?: number;
       ctaLabel?: string;
@@ -230,7 +231,9 @@ export class FeedService {
         type: dto.type as any,
         title: dto.title,
         body: dto.body || null,
-        imageUrl: dto.imageUrl || null,
+        // Phase D: several photos; imageUrl keeps the first for older app versions.
+        media: cleanMedia(dto.media),
+        imageUrl: cleanMedia(dto.media)?.[0]?.url || dto.imageUrl || null,
         linkedEntityType: dto.linkedEntityType || null,
         linkedEntityId: dto.linkedEntityId || null,
         ctaLabel: dto.ctaLabel || null,
@@ -1156,6 +1159,66 @@ export class FeedService {
       ...f,
       imageUrl: stripLegacyPriceOverlay(f.imageUrl),
     })) as BusinessFeedItem[];
+  }
+
+  /**
+   * Phase D (owner approved 2026-11-02): the author edits a post within 15 minutes of
+   * publishing. Text, photos and audience only; type, links, price and identity stay as
+   * published. The MOMENT_CREATED event is never rewritten; the edit records its own event.
+   */
+  async editPost(
+    userId: number,
+    postId: number,
+    dto: { title?: string; body?: string | null; media?: any[] | null; visibility?: string },
+    now: Date = new Date(),
+  ): Promise<BusinessFeedItem> {
+    const post = await this.feedRepo.findOne({ where: { id: postId, businessId: userId, isActive: true } });
+    if (!post) throw new NotFoundException('Chapisho halipatikani.');
+    const ageMs = now.getTime() - new Date(post.createdAt).getTime();
+    if (ageMs > COMPOSER_LIMITS.editMinutes * 60 * 1000) {
+      throw new ForbiddenException(`Chapisho linaweza kuhaririwa ndani ya dakika ${COMPOSER_LIMITS.editMinutes} tu.`);
+    }
+    assertComposerText(dto);
+    assertMedia(dto.media);
+    if (dto.visibility !== undefined && ![MomentVisibility.PUBLIC, MomentVisibility.FOLLOWERS].includes(dto.visibility as any)) {
+      throw new BadRequestException('Chagua "Wote" au "Wanaofuata".');
+    }
+    const changes: Partial<BusinessFeedItem> = {};
+    if (typeof dto.title === 'string') {
+      if (!dto.title.trim()) throw new BadRequestException('Andika kitu kwenye chapisho.');
+      changes.title = dto.title;
+    }
+    if (dto.body !== undefined) changes.body = dto.body || null;
+    if (dto.media !== undefined) {
+      changes.media = cleanMedia(dto.media);
+      changes.imageUrl = changes.media?.[0]?.url || null;
+    }
+    if (dto.visibility !== undefined) changes.visibility = dto.visibility as MomentVisibility;
+    const fields = Object.keys(changes);
+    if (!fields.length) return post;
+    changes.editedAt = now;
+    await this.feedRepo.update(post.id, changes as any);
+    const saved = { ...post, ...changes } as BusinessFeedItem;
+
+    // Search follows the edit: a post made followers-only leaves search.
+    if (!saved.visibility || saved.visibility === MomentVisibility.PUBLIC) {
+      this.searchIndex.upsert('moment', saved.id,
+        [saved.title, saved.body, saved.category, saved.locationLabel, saved.intent].filter(Boolean).join(' \n ')).catch(() => {});
+    } else {
+      this.searchIndex.remove('moment', saved.id).catch(() => {});
+    }
+    this.activityEvents.record({
+      eventType: 'MOMENT_EDITED',
+      category: ActivityCategory.CONTENT,
+      actorId: userId,
+      actorProfileId: post.commerceProfileId,
+      actorProfileType: null,
+      businessId: userId,
+      targetType: 'moment',
+      targetId: post.id,
+      metadata: { fields },
+    });
+    return saved;
   }
 
   async deletePost(sellerId: number, postId: number): Promise<void> {

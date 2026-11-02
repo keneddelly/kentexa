@@ -12,7 +12,9 @@
  *  Comments go to POST /comments (entity-based)
  */
 import ExpandableText from '../components/ExpandableText';
-import { photoAspect, momentRoleLine, postShareUrl } from '../utils/feedPresentation';
+import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost } from '../utils/feedPresentation';
+import PostPhotos from '../components/PostPhotos';
+import CreateMomentModal from '../components/CreateMomentModal';
 import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -504,8 +506,12 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
 };
 
 // ── Post card ─────────────────────────────────────────────────────────────────
-export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, activeProfileId, initialShowComments = false }) => {
+export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, activeProfileId, initialShowComments = false }) => {
   const { t } = useTranslation();
+  // Phase D: an edit by the author updates this card in place (the server answers with the post).
+  const [post, setPost] = useState(postProp);
+  useEffect(() => { setPost(postProp); }, [postProp]);
+  const [editing, setEditing] = useState(false);
   const ago = getAgo(t);
   const TYPE_META = getTypeMeta(t);
   const [saved,        setSaved]        = useState(savedIds ? savedIds.includes(post.id) : !!post.isSaved);
@@ -544,7 +550,10 @@ export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, 
   // I2B: a Moment whose actor the server could not resolve (never stamped) must not
   // navigate to a guessed profile -- a bare owner id lands on the owner's Personal profile.
   const actorUnresolved = isActorUnresolved(biz);
-  const image   = (!imgErr && (post.imageUrl || post.data?.images?.[0])) || null;
+  const photos  = postPhotos(post);
+  const image   = photos.length > 1 ? null : ((!imgErr && (post.imageUrl || post.data?.images?.[0])) || null);
+  const tag     = formatTag(post.intent);
+  const mayEdit = canEditPost(post, currentUser?.id);
   // One text per post: a Moment repeats its caption as title and body; a listing has a
   // name (headline) and a description. "Moment" is only the empty-caption placeholder.
   const rawTitle = (post.title || '').trim();
@@ -701,7 +710,7 @@ export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, 
             style={{ background:'none', border:'none', padding:0, cursor:'pointer', fontSize:15, fontWeight:700, color:INK_TX,
               overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:'inherit' }}>{bizName}</button>
           {biz.isVerified && <VerifiedTick />}
-          <span style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>· {kindLabel} · {ago(post.createdAt)}</span>
+          <span style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>· {kindLabel} · {ago(post.createdAt)}{post.editedAt ? ' · imehaririwa' : ''}</span>
           {bizId && !followed && !actorUnresolved && currentUser?.id !== bizId && (
             <button type="button" onClick={handleFollow}
               style={{ marginLeft:'auto', flexShrink:0, height:28, padding:'0 12px', borderRadius:14, border:`1px solid ${LINE_BTN}`,
@@ -712,13 +721,20 @@ export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, 
         </div>
         {biz.businessLocation && <div style={{ fontSize:13, color:MUTED_TX, marginTop:-4 }}>{biz.businessLocation}</div>}
 
+        {tag && (
+          <span data-testid="post-tag" style={{ alignSelf:'flex-start', fontSize:12, fontWeight:700, color:B, background:'#EEF3FE', padding:'2px 8px', borderRadius:10 }}>{tag}</span>
+        )}
         {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
-        {postText && <ExpandableText text={postText} lines={image ? 3 : 6} />}
+        {postText && <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} />}
+
+        {photos.length > 1 && (
+          <PostPhotos photos={photos} price={price} priceLabel={`TZS ${fmt(price)}`} title={post.title || bizName} />
+        )}
 
         {image && (
           <button type="button" onClick={goToDetail} aria-label={post.title || bizName}
             style={{ position:'relative', padding:0, border:`1px solid ${LINE_TX}`, borderRadius:16, overflow:'hidden', cursor:'pointer', background:'#f7f9f9',
-              aspectRatio: photoAspect(imgRatio) }}>
+              aspectRatio: photoAspect(imgRatio || (photos[0]?.width && photos[0]?.height ? photos[0].width / photos[0].height : null)) }}>
             <img src={image} alt="" data-testid="post-photo"
               style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
               onLoad={(e) => { const { naturalWidth: w, naturalHeight: h } = e.currentTarget; if (w && h) setImgRatio(w / h); }}
@@ -737,7 +753,7 @@ export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, 
               {(productName || rawTitle) && (
                 <div style={{ fontSize:15, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{productName || rawTitle}</div>
               )}
-              {price > 0 && !image && (
+              {price > 0 && !image && photos.length < 2 && (
                 <div style={{ fontSize:15, color: post.isFlashSale ? '#b91c1c' : INK_TX }}>
                   TZS {fmt(price)}{post.isNegotiable && !isProduct ? <span style={{ color:MUTED_TX }}> · {t('home_feed.negotiable_price')}</span> : null}
                 </div>
@@ -769,6 +785,11 @@ export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, 
           <button type="button" onClick={handleSave} aria-label="Hifadhi" aria-pressed={saved} data-testid="post-save" style={{ ...actionTx, color: saved ? B : MUTED_TX }}>
             {icon('M6 3h12v18l-6-4-6 4z', saved ? B : null)}
           </button>
+          {mayEdit && (
+            <button type="button" onClick={() => setEditing(true)} aria-label="Hariri" data-testid="post-edit" style={actionTx}>
+              {icon('M4 20h4L19 9l-4-4L4 16zM14 6l4 4')}
+            </button>
+          )}
           {entityId && (
             <button type="button" onClick={goToDetail} aria-label="Fungua" style={actionTx}>
               {icon('M14 4h6v6M20 4l-9 9M19 14v6H4V5h6')}
@@ -800,6 +821,11 @@ export const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, 
       {showContact && (
         <ContactModal post={post} onClose={() => setShowContact(false)}
           onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
+      )}
+      {editing && (
+        <CreateMomentModal editPost={post} currentUser={currentUser} onNavigate={onNavigate}
+          onClose={() => setEditing(false)}
+          onEdited={(updated) => { if (updated && updated.id) setPost((p) => ({ ...p, ...updated })); }} />
       )}
     </article>
   );
