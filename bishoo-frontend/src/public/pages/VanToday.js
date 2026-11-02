@@ -261,7 +261,7 @@ const VanToday = ({ onNavigate }) => {
       </div>
 
       {/* Bottom action buttons */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', padding: '12px 16px', display: 'flex', gap: 10 }}>
+      <div data-fixed-bar style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', padding: '12px 16px', display: 'flex', gap: 10 }}>
         <button onClick={() => onNavigate('BatchHandoff')}
           style={{ flex: 2, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 12, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
           {t('van_today.assign_order_button')}
