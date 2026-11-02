@@ -184,7 +184,7 @@ export class Conversation {
   // can show a chip without an extra lookup per conversation, and so it
   // still displays correctly even if the listing is later deleted/sold.
   @Column({ type: 'varchar', nullable: true })
-  linkedContextType: 'product' | 'classified' | 'service' | null;
+  linkedContextType: 'product' | 'classified' | 'service' | 'moment' | null;
 
   @Column({ type: 'int', nullable: true })
   linkedContextId: number | null;
