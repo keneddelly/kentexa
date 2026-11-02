@@ -53,6 +53,16 @@ import { moderateCommentBody } from './comment-moderation';
 import { AiService } from '../ai/ai.service';
 import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
 
+/** A new order each call (Fisher-Yates); used only to rotate posts already seen. */
+const shuffle = <T>(list: T[]): T[] => {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 @Injectable()
 export class CvsService {
   private readonly logger = new Logger(CvsService.name);
@@ -744,6 +754,36 @@ export class CvsService {
     return new Set(ids);
   }
 
+  /**
+   * Owner 2026-11-02 ("classified moments keep showing each time even you have already seen
+   * them"): of the listings read, the ones this person has not seen come first, newest first;
+   * the seen ones fill the rest. Seen = a view of the listing itself, or of a post linked to it.
+   * Marks the seen ones in `seenRecords` for the final order. No viewer: unchanged order.
+   */
+  private async freshFirst<T extends { id: number }>(
+    userId: number | null | undefined,
+    entityType: 'classified' | 'product' | 'service',
+    seenRecords: WeakSet<object>,
+    list: T[],
+    count: number,
+  ): Promise<T[]> {
+    if (!userId || !list.length) return list.slice(0, count);
+    const ids = list.map((x) => x.id);
+    const rows: Array<{ id: number }> = await this.engageRepo.query(
+      `SELECT DISTINCT COALESCE(pe."entityId", lf."linkedEntityId") AS id
+         FROM public.post_engagement pe
+         LEFT JOIN public.business_feed_item lf ON lf.id = pe."postId"
+        WHERE pe."userId" = $1 AND pe.type = 'view'
+          AND ((pe."entityType" = $2 AND pe."entityId" = ANY($3))
+            OR (lf."linkedEntityType" = $2 AND lf."linkedEntityId" = ANY($3)))`,
+      [userId, entityType, ids],
+    ).catch(() => []);
+    const seen = new Set(rows.map((r) => Number(r.id)));
+    const picked = [...list.filter((x) => !seen.has(x.id)), ...list.filter((x) => seen.has(x.id))].slice(0, count);
+    picked.forEach((x) => { if (seen.has(x.id)) seenRecords.add(x as unknown as object); });
+    return picked;
+  }
+
   // ── Real save/comment counts for a batch of virtual entities ─────────────
   private async getEntityCounts(
     entityType: string,
@@ -837,7 +877,16 @@ export class CvsService {
       ])
       .where('f.isActive = true')
       .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
-      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }); // followers-only posts: author and followers only
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
+      // Owner 2026-11-02: one post stayed on top of Home for ever. Only recent posts trend,
+      // and a post this person has already seen leaves their trending bar, as in the feed.
+      .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`);
+    if (userId) {
+      base.andWhere(
+        `NOT EXISTS (SELECT 1 FROM post_engagement tv WHERE tv."postId" = f.id AND tv."userId" = :trendViewer AND tv.type = 'view')`,
+        { trendViewer: userId },
+      );
+    }
 
     let [topPurchased, fastestGrowing, topBusinesses, topServices, topRoutes] =
       (await Promise.all([
@@ -1476,6 +1525,8 @@ export class CvsService {
     // ── Fallback: mix classifieds + products + services when no feed posts ────
     if (items.length === 0 && page === 1 && filter !== 'following') {
       const virtualPosts: any[] = [];
+      // Per request: the listings among these that this viewer has already seen.
+      const seenRecords = new WeakSet<object>();
 
       // Helper to map seller to business shape — the caller passes the
       // ENTITY's own commerceProfileId (product/classified/service each
@@ -1530,10 +1581,12 @@ export class CvsService {
           clsQb.andWhere('LOWER(c.location) LIKE LOWER(:city)', {
             city: `%${city}%`,
           });
-        const classifieds = await clsQb
+        // Owner 2026-11-02: listings already seen kept coming back at the top. More are read,
+        // then the ones this person has not seen come first.
+        const classifieds = await this.freshFirst(userId, 'classified', seenRecords, await clsQb
           .orderBy('c.createdAt', 'DESC')
-          .take(8)
-          .getMany();
+          .take(24)
+          .getMany(), 8);
         const clsCounts = await this.getEntityCounts(
           'classified',
           classifieds.map((c) => c.id),
@@ -1581,8 +1634,9 @@ export class CvsService {
           .andWhere('p."isAvailable" = true')
           .andWhere('p.stock > 0')
           .orderBy('p.createdAt', 'DESC')
-          .take(6)
-          .getMany();
+          .take(18)
+          .getMany()
+          .then((list) => this.freshFirst(userId, 'product', seenRecords, list, 6));
         const prdCounts = await this.getEntityCounts(
           'product',
           products.map((p) => p.id),
@@ -1626,8 +1680,9 @@ export class CvsService {
           .leftJoinAndSelect('s.provider', 'u')
           .where("s.status = 'active'").andWhere(PUBLIC_SERVICE_AD('s'))
           .orderBy('s.rating', 'DESC')
-          .take(4)
-          .getMany();
+          .take(12)
+          .getMany()
+          .then((list) => this.freshFirst(userId, 'service', seenRecords, list, 4));
         const svcCounts = await this.getEntityCounts(
           'service',
           services.map((s) => s.id),
@@ -1768,11 +1823,13 @@ export class CvsService {
         });
       }
 
-      // Shuffle mix: alternate classifieds, products, services
-      virtualPosts.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
+      // Newest first among what this person has not seen; what they have seen goes after,
+      // in a different order each time, so the top never stays the same post.
+      const isSeen = (v: any) => !!v.data && typeof v.data === 'object' && seenRecords.has(v.data);
+      const fresh = virtualPosts.filter((v) => !isSeen(v))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const seen = shuffle(virtualPosts.filter(isSeen));
+      virtualPosts.splice(0, virtualPosts.length, ...fresh, ...seen);
 
       return {
         items: virtualPosts.slice(0, limit),

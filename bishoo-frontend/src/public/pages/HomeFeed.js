@@ -586,7 +586,13 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
     let timer = null;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        // A tall card (photos, long text) may never be 60% on a small screen; it also counts
+        // as seen once it fills half the screen (owner 2026-11-02: seen posts kept returning).
+        const viewportH = (typeof window !== 'undefined' && window.innerHeight) || 0;
+        const seenEnough = entry.isIntersecting && (entry.intersectionRatio >= 0.6
+          || (viewportH > 0 && entry.intersectionRect && entry.intersectionRect.height >= viewportH * 0.5));
+        if (seenEnough) {
+          if (timer) return;
           timer = setTimeout(() => {
             if (!hasTrackedView.current) {
               hasTrackedView.current = true;
@@ -599,7 +605,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           timer = null;
         }
       },
-      { threshold: 0.6 },
+      { threshold: [0, 0.25, 0.5, 0.6, 0.8, 1] },
     );
     observer.observe(el);
     return () => { if (timer) clearTimeout(timer); observer.disconnect(); };
@@ -1104,6 +1110,9 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
 // ── Trending bar ──────────────────────────────────────────────────────────────
 const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
+  // Owner 2026-11-02: the same trending post sat on top of Home every time. Each visit shows
+  // a different one of the top three (the server already drops posts this person has seen).
+  const [turn] = useState(() => Math.floor(Math.random() * 3));
   if (!trending) return null;
   const items = [
     { icon:'', label:t('home_feed.most_purchased_today'), posts: trending.topPurchased   },
@@ -1121,7 +1130,7 @@ const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
       </div>
       <div style={{ display:'flex', gap:10, overflowX:'auto',
         padding:'0 14px', scrollbarWidth:'none' }}>
-        {items.map((item, i) => item.posts.slice(0,1).map(p => (
+        {items.map((item, i) => [item.posts.slice(0, 3)[turn % Math.min(3, item.posts.length)]].map(p => (
           <TrendingCard key={i} icon={item.icon} label={item.label} p={p}
             onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
         )))}
