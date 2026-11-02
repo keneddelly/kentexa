@@ -1,4 +1,5 @@
 import { DIRECT_PAYMENT_MESSAGES, isDirectPaymentOrder } from '../orders/direct-payment';
+import { UNSTAMPED_FOR } from '../commerce-profiles/legacy-rows';
 import {
   Injectable,
   NotFoundException,
@@ -193,7 +194,7 @@ export class PayoutsService {
     if (part) qb.andWhere(part.clause, part.params);
     if (commerceProfileId) {
       qb.andWhere(
-        '(order."commerceProfileId" = :cpid OR order."commerceProfileId" IS NULL)',
+        `(order."commerceProfileId" = :cpid OR ${UNSTAMPED_FOR('order', 'cpid')})`,
         { cpid: commerceProfileId },
       );
     }

@@ -596,8 +596,10 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         // A tall card (photos, long text) may never be 60% on a small screen; it also counts
         // as seen once it fills half the screen (owner 2026-11-02: seen posts kept returning).
         const viewportH = (typeof window !== 'undefined' && window.innerHeight) || 0;
-        const seenEnough = entry.isIntersecting && (entry.intersectionRatio >= 0.6
-          || (viewportH > 0 && entry.intersectionRect && entry.intersectionRect.height >= viewportH * 0.5));
+        // Owner 2026-11-02 (again): the top post came back after scrolling past it quickly. Half
+        // of the card, or a third of the screen, for half a second counts as seen.
+        const seenEnough = entry.isIntersecting && (entry.intersectionRatio >= 0.5
+          || (viewportH > 0 && entry.intersectionRect && entry.intersectionRect.height >= viewportH * 0.35));
         if (seenEnough) {
           if (timer) return;
           timer = setTimeout(() => {
@@ -606,7 +608,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               Engagement.track(post.id, entityType, entityId, 'view', isLoggedIn, onNavigate);
             }
             observer.disconnect();
-          }, 800);
+          }, 500);
         } else if (timer) {
           clearTimeout(timer);
           timer = null;

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { UNSTAMPED_FOR } from '../commerce-profiles/legacy-rows';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, MoreThan, LessThanOrEqual } from 'typeorm';
 import { v2 as cloudinary } from 'cloudinary';
@@ -444,7 +445,7 @@ export class ProductsService {
 
     if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
       qb.andWhere(
-        '(p."commerceProfileId" = :commerceProfileId OR (p."commerceProfileId" IS NULL AND p."sellerId" = :ownerId))',
+        `(p."commerceProfileId" = :commerceProfileId OR (${UNSTAMPED_FOR('p', 'commerceProfileId')} AND p."sellerId" = :ownerId))`,
         { commerceProfileId, ownerId: profile.ownerId },
       );
     } else {
@@ -490,7 +491,7 @@ export class ProductsService {
     }
     if (commerceProfileId) {
       qb.andWhere(
-        '(p."commerceProfileId" = :cpid OR p."commerceProfileId" IS NULL)',
+        `(p."commerceProfileId" = :cpid OR ${UNSTAMPED_FOR('p', 'cpid')})`,
         { cpid: commerceProfileId },
       );
     }
