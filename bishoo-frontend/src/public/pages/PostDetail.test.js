@@ -15,6 +15,8 @@ beforeAll(() => {
   global.IntersectionObserver = class { observe() {} disconnect() {} };
 });
 beforeEach(() => { api.get.mockReset(); api.post.mockReset(); });
+// The post page also opens its comments: they answer an empty list.
+const answerPost = (p) => api.get.mockImplementation(async (url) => ({ data: url === '/feed/7' ? p : [] }));
 
 const open = async (props = {}) => {
   const onNavigate = jest.fn();
@@ -23,7 +25,7 @@ const open = async (props = {}) => {
 };
 
 test('shows the post the server returns, with its likes and its save', async () => {
-  api.get.mockResolvedValue({ data: post });
+  answerPost(post);
   await open();
   expect(api.get).toHaveBeenCalledWith('/feed/7');
   expect(screen.getByTestId('post-like')).toHaveTextContent('2');
@@ -32,7 +34,7 @@ test('shows the post the server returns, with its likes and its save', async () 
 });
 
 test('the heart is a like, not a save', async () => {
-  api.get.mockResolvedValue({ data: post });
+  answerPost(post);
   api.post.mockResolvedValue({ data: { toggled: true } });
   await open();
   await act(async () => { fireEvent.click(screen.getByTestId('post-like')); });
@@ -42,7 +44,7 @@ test('the heart is a like, not a save', async () => {
 });
 
 test('a share is counted only after the link was really shared', async () => {
-  api.get.mockResolvedValue({ data: post });
+  answerPost(post);
   api.post.mockResolvedValue({ data: { toggled: true } });
   const share = jest.fn().mockRejectedValueOnce(new Error('cancelled')).mockResolvedValueOnce(undefined);
   Object.defineProperty(navigator, 'share', { value: share, configurable: true });
@@ -65,7 +67,7 @@ test('a post that does not load says so; nothing is guessed', async () => {
 });
 
 test('phase F: repost on a post for everyone, "X amesambaza", and the ··· menu for someone else\'s post', async () => {
-  api.get.mockResolvedValue({ data: { ...post, businessId: 3, visibility: 'public', repostCount: 4, repostedBy: { name: 'Neema Mushi' } } });
+  answerPost({ ...post, businessId: 3, visibility: 'public', repostCount: 4, repostedBy: { name: 'Neema Mushi' } });
   api.post.mockResolvedValue({ data: { toggled: true } });
   await open();
   expect(screen.getByTestId('reposted-by')).toHaveTextContent('Neema Mushi amesambaza');
@@ -77,8 +79,19 @@ test('phase F: repost on a post for everyone, "X amesambaza", and the ··· men
 });
 
 test('phase F: a followers-only post has no repost; the author gets no ··· menu', async () => {
-  api.get.mockResolvedValue({ data: { ...post, businessId: 1, visibility: 'followers' } });
+  answerPost({ ...post, businessId: 1, visibility: 'followers' });
   await open();
   expect(screen.queryByTestId('post-repost')).toBeNull();
   expect(screen.queryByTestId('post-more')).toBeNull();
+});
+
+test('the post page is a full page, not a feed row: big author block, full text, its date, comments open', async () => {
+  answerPost({ ...post, body: 'Mzigo mpya umefika leo. '.repeat(20), createdAt: '2026-11-02T07:20:00Z' });
+  await open();
+  expect(screen.getByTestId('feed-post')).toHaveAttribute('data-variant', 'detail');
+  expect(screen.getByTestId('detail-avatar')).toBeInTheDocument();
+  expect(screen.getByTestId('detail-text')).toHaveTextContent('Mzigo mpya umefika leo.');
+  expect(screen.queryByTestId('read-more')).toBeNull();
+  expect(screen.getByTestId('detail-time')).toHaveTextContent(/\d{2}:\d{2} · 2 Nov 2026/);
+  expect(screen.getAllByText('Maoni').length).toBeGreaterThan(0);
 });
