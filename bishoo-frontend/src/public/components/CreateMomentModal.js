@@ -76,16 +76,17 @@ const measure = (url) => new Promise((resolve) => {
   img.src = url;
 });
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited, initialCommunityId = null }) => {
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited, initialCommunityId = null, initialKind = null, initialText = '' }) => {
   const { t } = useTranslation();
   const isEdit = !!editPost;
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
-  const [kind,      setKind]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'moment');
+  // The welcome's first post (owner 2026-11-02) can open on a kind with a ready start.
+  const [kind,      setKind]      = useState(initialMode === 'looking_for' ? 'looking_for' : (initialKind || 'moment'));
   const mode = kind === 'looking_for' ? 'looking_for' : 'moment';
   const kindInfo = POST_KINDS.find((k) => k.key === kind) || POST_KINDS[0];
   // Photos: { file?, url?, preview, width, height }. An edit starts with the post's own photos.
   const [photos,    setPhotos]    = useState(() => (isEdit ? postPhotos(editPost).map((p) => ({ ...p, preview: p.url })) : []));
-  const [caption,   setCaption]   = useState(isEdit ? (editPost.body || editPost.title || '') : '');
+  const [caption,   setCaption]   = useState(isEdit ? (editPost.body || editPost.title || '') : (initialText || ''));
   const [audience,  setAudience]  = useState(isEdit && editPost.visibility === 'followers' ? 'followers' : 'public');
   const [category,  setCategory]  = useState('');
   // Phase E: a poll's options (2 to 6) and how long it stays open.

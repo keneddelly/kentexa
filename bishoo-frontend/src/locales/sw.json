@@ -6055,6 +6055,15 @@
     "resend": "Tuma namba tena",
     "change_number": "Badilisha namba",
     "resend_failed": "Imeshindikana kutuma tena.",
-    "code_label": "Namba ya uthibitisho"
+    "code_label": "Namba ya uthibitisho",
+    "photo_title": "Weka picha yako",
+    "photo_desc": "Watu wanakuamini zaidi wakiona sura yako. Unaweza kuweka baadaye.",
+    "photo_choose": "Chagua picha",
+    "photo_change": "Badilisha picha",
+    "photo_uploading": "Inapakia...",
+    "photo_save": "Endelea",
+    "photo_saving": "Inahifadhi...",
+    "photo_skip": "Ruka kwa sasa",
+    "photo_failed": "Picha haikupakiwa. Jaribu tena."
   }
 }

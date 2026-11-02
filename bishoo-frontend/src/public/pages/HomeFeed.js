@@ -18,6 +18,7 @@ import PollBlock from '../components/PollBlock';
 import PostSafetyMenu from '../components/PostSafetyMenu';
 import TopicPicker from '../components/TopicPicker';
 import LeoKwako from '../components/LeoKwako';
+import NewcomerNudge from '../components/NewcomerNudge';
 import CommunitiesPanel from '../components/CommunitiesPanel';
 import SuggestedCommunities from '../components/SuggestedCommunities';
 import KentexaDirectory, { DIRECTORY_KINDS } from '../components/KentexaDirectory';
@@ -1998,7 +1999,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
 
       {/* Social Home part 2: "Leo kwako" opens For You (only real activity; empty = nothing). */}
       {isLoggedIn && filter === 'for_you' && !topic && (
-        <LeoKwako onNavigate={onNavigate} refreshKey={momentRefreshKey} />
+        <>
+          {/* The welcome keeps asking (owner 2026-11-02): photo, then the first post. */}
+          <NewcomerNudge currentUser={currentUser} activeProfileId={activeProfileId} onNavigate={onNavigate} onOpenMoment={onOpenMoment} refreshKey={momentRefreshKey} />
+          <LeoKwako onNavigate={onNavigate} refreshKey={momentRefreshKey} />
+        </>
       )}
 
       {/* Social Home (owner 2026-11-02): the "most purchased" strip no longer opens Home. */}

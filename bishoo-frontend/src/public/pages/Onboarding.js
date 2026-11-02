@@ -1,110 +1,263 @@
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
+/**
+ * Onboarding.js — "Karibu KenteXa", the welcome after signup (owner approved 2026-11-02,
+ * sketch "New Login and Signup"; owner: "onboarding remember to include our new style
+ * social engagement like jumuiya"). Five short steps in the new look:
+ *   1 Mahali    the person's town (local talk, communities and businesses);
+ *   2 Mada      at least 3 topics (POST /feed/topics/follow; Home will not ask again);
+ *   3 Jumuiya   join communities in those topics (skipped by itself when there are none);
+ *   4 Fuata     follow businesses and people (/profiles/onboarding/suggestions);
+ *   5 Chapisho  the first post: a strong ask that can be skipped (owner's choice):
+ *               Salamu / Swali open the composer with a ready start, Bidhaa and Huduma
+ *               open their forms; "Baadaye" goes to Home, which keeps asking.
+ * Finishing marks onboardingCompleted (and the town); a place the person was going before
+ * signup (kentexa_after_login) is respected. Only real records are shown.
+ */
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
+import { AUTH } from '../components/AuthShell';
+import { firstPostStart } from '../../utils/firstPost';
 
-const CITIES = ['Dar es Salaam','Mwanza','Arusha','Mbeya','Dodoma','Tanga','Morogoro','Zanzibar','Kigoma','Shinyanga','Tabora','Iringa','Mtwara','Lindi','Musoma','Bukoba','Sumbawanga','Songea','Kahama','Moshi','Geita','Singida'];
-const button = { border: 'none', borderRadius: 12, padding: '14px 18px', fontSize: 16, fontWeight: 800, cursor: 'pointer', background: '#2563eb', color: '#fff', minHeight: 48 };
+const CITIES = ['Dar es Salaam', 'Mwanza', 'Arusha', 'Dodoma', 'Mbeya', 'Morogoro', 'Tanga', 'Zanzibar', 'Kigoma', 'Shinyanga', 'Tabora', 'Iringa',
+  'Mtwara', 'Lindi', 'Musoma', 'Bukoba', 'Sumbawanga', 'Songea', 'Kahama', 'Moshi', 'Geita', 'Singida'];
+const STEPS = ['city', 'topics', 'communities', 'follow', 'post'];
+export const MIN_TOPICS = 3;
+const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
-const Onboarding = ({ onNavigate, currentUser, onUserUpdated }) => {
-  const { t } = useTranslation();
-  const [step, setStep] = useState(1);
+const chip = (on) => ({ padding: '8px 14px', borderRadius: 999, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+  border: `1px solid ${on ? AUTH.INK : AUTH.LINE}`, background: on ? AUTH.INK : '#fff', color: on ? '#fff' : AUTH.INK });
+const pill = (dark = true, small = false) => ({ height: small ? 32 : 46, padding: small ? '0 14px' : '0 18px', borderRadius: 999, fontWeight: 700,
+  fontSize: small ? 13 : 16, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, width: small ? 'auto' : '100%',
+  border: dark ? 'none' : `1px solid ${small ? AUTH.INK : AUTH.LINE}`, background: dark ? AUTH.INK : '#fff', color: dark ? '#fff' : AUTH.INK });
+const row = { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #eff3f4' };
+
+const Onboarding = ({ onNavigate, currentUser, onUserUpdated, onOpenMoment }) => {
+  const [step, setStep] = useState('city');
   const [city, setCity] = useState(currentUser?.city || '');
-  const [profiles, setProfiles] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [pending, setPending] = useState(null);
+  const [allCities, setAllCities] = useState(false);
+  const [topics, setTopics] = useState([]);
+  const [chosen, setChosen] = useState([]);
+  const [communities, setCommunities] = useState(null);
+  const [profiles, setProfiles] = useState(null);
+  const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
-  const [reload, setReload] = useState(0);
+
+  const index = STEPS.indexOf(step);
+  const go = (next) => { setError(''); setStep(next); };
 
   useEffect(() => {
-    if (step !== 2) return;
-    let cancelled = false;
-    setLoading(true); setError('');
-    api.get('/profiles/onboarding/suggestions', { params: { city } })
-      .then(res => { if (!cancelled) setProfiles(res.data || []); })
-      .catch(() => { if (!cancelled) setError(t('onboarding.suggestions_error')); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [step, city, reload, t]);
+    let alive = true;
+    api.get('/feed/topics').then((r) => {
+      if (!alive) return;
+      const list = Array.isArray(r?.data) ? r.data : [];
+      setTopics(list);
+      setChosen((cur) => (cur.length ? cur : list.filter((t) => t.following).map((t) => t.key)));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
-  const follow = async profile => {
-    if (pending !== null) return;
-    setPending(profile.id); setError('');
+  // Communities in the chosen topics, biggest first (the server's order), not joined yet.
+  useEffect(() => {
+    if (step !== 'communities') return undefined;
+    let alive = true;
+    setCommunities(null);
+    api.get('/communities').then((r) => {
+      if (!alive) return;
+      const list = (Array.isArray(r?.data) ? r.data : []).filter((c) => !c.myStatus && (!chosen.length || chosen.includes(c.topicKey))).slice(0, 8);
+      setCommunities(list);
+      if (!list.length) setStep('follow');
+    }).catch(() => { if (alive) setStep('follow'); });
+    return () => { alive = false; };
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (step !== 'follow') return undefined;
+    let alive = true;
+    setProfiles(null);
+    api.get('/profiles/onboarding/suggestions', { params: { city } })
+      .then((r) => { if (alive) setProfiles(Array.isArray(r?.data) ? r.data : []); })
+      .catch(() => { if (alive) setProfiles([]); });
+    return () => { alive = false; };
+  }, [step, city]);
+
+  const saveTopics = async () => {
+    if (chosen.length < MIN_TOPICS) return;
+    setBusy('topics'); setError('');
     try {
-      const res = await api.post(`/profiles/${profile.id}/follow`);
-      setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, isFollowing: !!res.data.following } : p));
-    } catch { setError(t('onboarding.follow_error')); }
-    finally { setPending(null); }
+      await api.post('/feed/topics/follow', { keys: chosen });
+      try { localStorage.setItem('kentexa_topics_asked', '1'); } catch { /* storage blocked */ }
+      go('communities');
+    } catch (err) { setError(err?.response?.data?.message || 'Mada hazikuhifadhiwa. Jaribu tena.'); } finally { setBusy(null); }
   };
 
-  const finish = async () => {
-    if (saving || pending !== null) return;
-    setSaving(true); setError('');
+  const join = async (c) => {
+    setBusy(`c${c.id}`); setError('');
+    try {
+      const r = await api.post(`/communities/${c.id}/join`);
+      setCommunities((list) => list.map((x) => (x.id === c.id ? { ...x, ...r.data } : x)));
+    } catch (err) { setError(err?.response?.data?.message || 'Imeshindikana kujiunga. Jaribu tena.'); } finally { setBusy(null); }
+  };
+
+  const follow = async (p) => {
+    setBusy(`p${p.id}`); setError('');
+    try {
+      const r = await api.post(`/profiles/${p.id}/follow`);
+      setProfiles((list) => list.map((x) => (x.id === p.id ? { ...x, isFollowing: !!r.data?.following } : x)));
+    } catch { setError('Imeshindikana kufuata. Jaribu tena.'); } finally { setBusy(null); }
+  };
+
+  /** Marks the welcome done; then does what the person chose (or goes where they were going). */
+  const finish = async (then) => {
+    setBusy('finish'); setError('');
     try {
       const res = await api.patch(`/users/${currentUser.id}`, { onboardingCompleted: true, ...(city ? { city } : {}) });
       onUserUpdated?.({ ...currentUser, ...res.data, onboardingCompleted: true });
-      const intended = localStorage.getItem('kentexa_after_login');
-      if (intended) localStorage.removeItem('kentexa_after_login');
-      onNavigate(intended || 'Home');
-    } catch { setError(t('onboarding.finish_error')); }
-    finally { setSaving(false); }
+      let intended = null;
+      try { intended = localStorage.getItem('kentexa_after_login'); if (intended) localStorage.removeItem('kentexa_after_login'); } catch { /* storage blocked */ }
+      if (then) then(); else onNavigate(intended || 'Home');
+    } catch { setError('Imeshindikana kumaliza. Jaribu tena.'); } finally { setBusy(null); }
   };
 
+  const firstPost = (choice) => finish(() => {
+    if (choice === 'hello') { onNavigate('Home'); onOpenMoment?.('moment', { kind: 'moment', text: firstPostStart(currentUser, city) }); }
+    else if (choice === 'question') { onNavigate('Home'); onOpenMoment?.('moment', { kind: 'question', text: '' }); }
+    else if (choice === 'product') onNavigate('CreateClassified');
+    else if (choice === 'service') onNavigate('PostService');
+  });
+
+  const cities = useMemo(() => (allCities ? CITIES : CITIES.slice(0, 6)), [allCities]);
+  const title = (h, p) => (
+    <>
+      <h1 style={{ margin: '4px 0 0', fontSize: 26, fontWeight: 800, color: AUTH.INK, lineHeight: 1.15 }}>{h}</h1>
+      {p && <p style={{ margin: 0, fontSize: 15, color: AUTH.MUTED, lineHeight: 1.45 }}>{p}</p>}
+    </>
+  );
+
   return (
-    <main style={{ minHeight: '100vh', background: '#f8fafc', fontFamily:'inherit', color: '#0f172a' }}>
-      <div style={{ height: 4, background: '#dbeafe' }}>
-        <div style={{ height: '100%', width: `${step * 50}%`, background: '#2563eb' }} />
-      </div>
-      <div style={{ maxWidth: 480, padding: '24px 20px', margin: 'auto' }}>
-        <p style={{ fontSize: 14, color: '#64748b' }}>{t('onboarding.step_indicator', { step, total: 2 })}</p>
-        {step === 1 ? (
+    <main style={{ minHeight: '100vh', background: '#fff', color: AUTH.INK, display: 'flex', justifyContent: 'center', boxSizing: 'border-box',
+      padding: 'max(16px, env(safe-area-inset-top)) 16px 24px' }}>
+      <div data-testid={`welcome-${step}`} style={{ width: '100%', maxWidth: 440, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div aria-label={`Hatua ${index + 1} kati ya ${STEPS.length}`} style={{ display: 'flex', gap: 4 }}>
+          {STEPS.map((s, i) => <span key={s} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= index ? '#1d9bf0' : '#eff3f4' }} />)}
+        </div>
+
+        {step === 'city' && (
           <>
-            <h1 style={{ fontSize: 26 }}>{t('onboarding.greeting', { name: currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : '' })}</h1>
-            <p style={{ fontSize: 16, lineHeight: 1.6 }}>{t('onboarding.local_city_desc')}</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {CITIES.map(value => (
-                <button key={value} type="button" onClick={() => setCity(value)} aria-pressed={city === value}
-                  style={{ ...button, background: city === value ? '#eff6ff' : '#fff', color: city === value ? '#2563eb' : '#0f172a', border: `2px solid ${city === value ? '#2563eb' : '#e2e8f0'}`, textAlign: 'left' }}>
-                  {value}
-                </button>
-              ))}
+            {title(`Karibu${currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : ''}. Uko mji gani?`, 'Tunakuonyesha mazungumzo, jumuiya na biashara za karibu nawe.')}
+            <div role="radiogroup" aria-label="Mji" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {cities.map((c) => <button key={c} type="button" role="radio" aria-checked={city === c} onClick={() => setCity(c)} style={chip(city === c)}>{c}</button>)}
+              {!allCities && <button type="button" onClick={() => setAllCities(true)} style={chip(false)}>Zaidi</button>}
             </div>
-            <button type="button" disabled={!city} onClick={() => setStep(2)} style={{ ...button, width: '100%', marginTop: 24, opacity: city ? 1 : 0.5 }}>{t('onboarding.continue_button')}</button>
-            <button type="button" onClick={() => { setCity(''); setStep(2); }} style={{ ...button, width: '100%', marginTop: 8, background: 'transparent', color: '#64748b' }}>{t('onboarding.skip_for_now')}</button>
+            <div style={{ flex: 1 }} />
+            <button type="button" data-testid="welcome-next" disabled={!city} onClick={() => go('topics')} style={{ ...pill(), opacity: city ? 1 : 0.5 }}>Endelea</button>
+            <button type="button" onClick={() => { setCity(''); go('topics'); }} style={pill(false)}>Ruka</button>
           </>
-        ) : (
+        )}
+
+        {step === 'topics' && (
           <>
-            <h1 style={{ fontSize: 26 }}>{t('onboarding.curated_title')}</h1>
-            <p style={{ fontSize: 16, lineHeight: 1.6 }}>{t('onboarding.curated_desc')}</p>
-            <button type="button" onClick={() => setStep(1)} disabled={pending !== null || saving} style={{ ...button, background: 'transparent', color: '#2563eb', paddingLeft: 0 }}>{city || t('onboarding.choose_city')} · {t('onboarding.change_city')}</button>
-            {loading && <p role="status">{t('onboarding.loading_sellers')}</p>}
-            {!loading && profiles.map(profile => (
-              <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid #dbeafe', borderRadius: 14, padding: 14, marginBottom: 12 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', overflow: 'hidden', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight:800, color: '#2563eb' }}>
-                  {profile.photoUrl ? <img src={profile.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile.displayName?.charAt(0)}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, overflowWrap: 'anywhere' }}>{profile.displayName}</div>
-                  <div style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
-                    {profile.isOfficialPlatformProfile ? t('onboarding.official_page') : profile.location || `@${profile.username}`}
-                  </div>
-                  {profile.isLocalSuggestion && <div style={{ fontSize: 14, color: '#2563eb', marginTop: 4 }}>{t('onboarding.in_your_city')}</div>}
-                </div>
-                <button type="button" disabled={pending !== null || saving} onClick={() => follow(profile)}
-                  style={{ ...button, padding: '12px', background: profile.isFollowing ? '#eff6ff' : '#2563eb', color: profile.isFollowing ? '#2563eb' : '#fff', opacity: pending !== null ? 0.6 : 1 }}>
-                  {pending === profile.id ? '…' : t(profile.isFollowing ? 'onboarding.following_button' : 'onboarding.follow_button')}
-                </button>
-              </div>
-            ))}
-            {!loading && !profiles.some(p => p.isLocalSuggestion) && <p style={{ fontSize: 14, color: '#64748b' }}>{t('onboarding.no_local_business')}</p>}
-            {error && <div role="alert" style={{ color: '#b91c1c', fontSize: 16 }}>{error}<button type="button" onClick={() => setReload(n => n + 1)} style={{ ...button, margin: 8, background: '#fff', color: '#2563eb' }}>{t('onboarding.retry')}</button></div>}
-            <button type="button" onClick={finish} disabled={saving || pending !== null} style={{ ...button, width: '100%', marginTop: 24 }}>
-              {t(saving ? 'onboarding.saving_button' : 'onboarding.finish_button')}
+            {title('Unapenda kuzungumzia nini?', `Chagua angalau ${MIN_TOPICS}. Mwanzo utaanza na mazungumzo haya.`)}
+            <div role="group" aria-label="Mada" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {topics.map((t) => {
+                const on = chosen.includes(t.key);
+                return (
+                  <button key={t.key} type="button" aria-pressed={on} data-testid={`welcome-topic-${t.key}`} style={chip(on)}
+                    onClick={() => setChosen((cur) => (on ? cur.filter((k) => k !== t.key) : [...cur, t.key]))}>{t.label}</button>
+                );
+              })}
+            </div>
+            <div style={{ flex: 1 }} />
+            <button type="button" data-testid="welcome-next" disabled={chosen.length < MIN_TOPICS || busy === 'topics'} onClick={saveTopics}
+              style={{ ...pill(), opacity: chosen.length < MIN_TOPICS ? 0.5 : 1 }}>
+              {chosen.length < MIN_TOPICS ? `Chagua ${MIN_TOPICS - chosen.length} zaidi` : `Endelea (${chosen.length})`}
             </button>
           </>
         )}
+
+        {step === 'communities' && (
+          <>
+            {title('Jiunge na jumuiya', 'Za mada ulizochagua, kubwa kwanza. Unaweza kuondoka wakati wowote.')}
+            {communities === null ? <p style={{ color: AUTH.MUTED }}>Inapakia...</p> : (
+              <div>
+                {communities.map((c) => {
+                  const joined = c.myStatus === 'active'; const pending = c.myStatus === 'pending';
+                  return (
+                    <div key={c.id} style={row} data-testid={`welcome-community-${c.id}`}>
+                      <span style={{ width: 40, height: 40, borderRadius: 10, background: AUTH.INK, color: '#fff', fontWeight: 800, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{initials(c.name)}</span>
+                      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                        <b style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</b>
+                        <small style={{ fontSize: 13, color: AUTH.MUTED }}>Wanachama {Number(c.memberCount || 0).toLocaleString('en-US')}{c.joinPolicy === 'request' ? ' · Kwa ombi' : ''}</small>
+                      </span>
+                      <button type="button" data-testid={`welcome-join-${c.id}`} disabled={joined || pending || busy === `c${c.id}`} onClick={() => join(c)} style={pill(!(joined || pending), true)}>
+                        {joined ? 'Umejiunga' : pending ? 'Ombi limetumwa' : c.joinPolicy === 'request' ? 'Omba' : 'Jiunge'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ flex: 1 }} />
+            <button type="button" data-testid="welcome-next" onClick={() => go('follow')} style={pill()}>Endelea</button>
+          </>
+        )}
+
+        {step === 'follow' && (
+          <>
+            {title('Fuata biashara na watu', 'Wa karibu nawe na wanaozungumzia mada zako.')}
+            {profiles === null ? <p style={{ color: AUTH.MUTED }}>Inapakia...</p> : profiles.length === 0 ? (
+              <p style={{ color: AUTH.MUTED, fontSize: 15 }}>Bado hakuna wa kupendekeza{city ? ` ${city}` : ''}. Utawapata Mwanzo.</p>
+            ) : (
+              <div>
+                {profiles.map((p) => (
+                  <div key={p.id} style={row} data-testid={`welcome-profile-${p.id}`}>
+                    <span style={{ width: 40, height: 40, borderRadius: p.type === 'personal' ? '50%' : 10, overflow: 'hidden', background: AUTH.INK, color: '#fff', fontWeight: 800, fontSize: 13,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {p.photoUrl ? <img src={p.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(p.displayName)}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                      <b style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.displayName}</b>
+                      <small style={{ fontSize: 13, color: AUTH.MUTED }}>
+                        {p.isOfficialPlatformProfile ? 'Ukurasa rasmi wa KenteXa' : [p.location, p.isLocalSuggestion ? 'karibu nawe' : null].filter(Boolean).join(' · ') || (p.username ? `@${p.username}` : '')}
+                      </small>
+                    </span>
+                    <button type="button" data-testid={`welcome-follow-${p.id}`} disabled={busy === `p${p.id}`} onClick={() => follow(p)} style={pill(!p.isFollowing, true)}>
+                      {p.isFollowing ? 'Unafuata' : 'Fuata'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ flex: 1 }} />
+            <button type="button" data-testid="welcome-next" onClick={() => go('post')} style={pill()}>Endelea</button>
+          </>
+        )}
+
+        {step === 'post' && (
+          <>
+            {title('Chapisho lako la kwanza', 'Wajulishe watu uko KenteXa. Chagua unachotaka kuanza nacho.')}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                ['hello', 'Salamu', 'Jitambulishe kwa wote'],
+                ['question', 'Swali', 'Uliza jambo lolote'],
+                ['product', 'Bidhaa', 'Weka kitu unachouza'],
+                ['service', 'Huduma', 'Tangaza unachofanya'],
+              ].map(([key, name, hint]) => (
+                <button key={key} type="button" data-testid={`welcome-post-${key}`} disabled={busy === 'finish'} onClick={() => firstPost(key)}
+                  style={{ textAlign: 'left', border: `1px solid ${AUTH.LINE}`, borderRadius: 14, padding: 14, background: '#fff', cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', flexDirection: 'column', gap: 4, minHeight: 84 }}>
+                  <b style={{ fontSize: 16, color: AUTH.INK }}>{name}</b>
+                  <span style={{ fontSize: 13, color: AUTH.MUTED }}>{hint}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{ flex: 1 }} />
+            <button type="button" data-testid="welcome-later" disabled={busy === 'finish'} onClick={() => finish(null)} style={pill(false)}>Baadaye</button>
+          </>
+        )}
+
+        {error && <p role="alert" style={{ margin: 0, fontSize: 14, color: AUTH.RED }}>{error}</p>}
       </div>
     </main>
   );
 };
+
 export default Onboarding;
