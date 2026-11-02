@@ -103,6 +103,21 @@ export class CommunitiesService {
     return rows.map((c: any) => this.present(c, c.myStatusRaw ? { role: c.myRoleRaw, status: c.myStatusRaw } : null));
   }
 
+  /**
+   * New profiles part 2: the open communities the owner of a PERSONAL profile is in. A
+   * business profile shows none, and "join by request" communities are never listed.
+   */
+  async listForProfile(commerceProfileId: number): Promise<any[]> {
+    const [p] = await this.dataSource.query(
+      `SELECT "ownerId", type::text AS type FROM public.commerce_profile WHERE id = $1`, [commerceProfileId]);
+    if (!p || p.type !== 'personal') return [];
+    const rows = await this.dataSource.query(
+      `SELECT c.* FROM public.community c JOIN public.community_member m ON m."communityId" = c.id
+        WHERE m."userId" = $1 AND m.status = 'active' AND c.status = 'active' AND c."joinPolicy" = 'open'
+        ORDER BY c."memberCount" DESC LIMIT 30`, [p.ownerId]);
+    return rows.map((c: any) => this.present(c, null));
+  }
+
   /** Ids of the communities this person is an active member of (for the Jumuiya tab). */
   async myCommunityIds(userId: number): Promise<number[]> {
     const rows = await this.dataSource.query(

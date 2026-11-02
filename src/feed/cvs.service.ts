@@ -1967,6 +1967,37 @@ export class CvsService {
     return { postCount: Number(postCount) || 0, topics: topicRows.map((r: any) => String(r.topic)) };
   }
 
+  /**
+   * New profiles part 2 (owner approved 2026-11-02): "Majibu" - the replies this profile wrote on
+   * posts, newest first. A reply made as this profile, or (for a personal profile) an older
+   * reply by its owner that carries no profile. Only on posts the viewer may see.
+   */
+  async getProfileReplies(commerceProfileId: number, viewerId: number | null): Promise<any[]> {
+    const [profile] = await this.feedRepo.query(
+      `SELECT id, "ownerId", type::text AS type FROM public.commerce_profile WHERE id = $1`, [commerceProfileId]).catch(() => []);
+    if (!profile) return [];
+    const legacy = profile.type === 'personal';
+    const rows = await this.feedRepo.createQueryBuilder('f')
+      .innerJoin('post_comment', 'pc', 'pc."postId" = f.id')
+      .select(['pc.id AS id', 'pc.body AS body', 'pc."createdAt" AS "createdAt"', 'f.id AS "postId"', 'f.title AS "postTitle"', 'f.body AS "postBody"'])
+      .where('pc."isDeleted" = false')
+      .andWhere(`pc.type::text <> 'ai_summary'`)
+      .andWhere(legacy
+        ? '(pc."commerceProfileId" = :rpid OR (pc."commerceProfileId" IS NULL AND pc."authorId" = :rowner))'
+        : 'pc."commerceProfileId" = :rpid', { rpid: commerceProfileId, rowner: profile.ownerId })
+      .andWhere('f.isActive = true')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+      .orderBy('pc."createdAt"', 'DESC')
+      .limit(30)
+      .getRawMany().catch(() => [] as any[]);
+    const snippet = (t: unknown) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    return rows.map((r: any) => ({
+      id: Number(r.id), body: r.body, createdAt: r.createdAt,
+      post: { id: Number(r.postId), text: snippet(r.postBody || r.postTitle) },
+    }));
+  }
+
   /** Social Home part 3: a community's posts, newest first, under the feed's visibility rules. */
   async getCommunityPosts(communityId: number, viewerId: number | null, page = 1, kind: string | null = null): Promise<{ items: any[]; total: number }> {
     const limit = 15;

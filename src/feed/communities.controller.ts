@@ -14,8 +14,10 @@ export class CommunitiesController {
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
-  list(@Request() req, @Query('mine') mine?: string, @Query('topic') topic?: string) {
+  list(@Request() req, @Query('mine') mine?: string, @Query('topic') topic?: string, @Query('profile') profile?: string) {
     const viewer = req?.user?.id || null;
+    // New profiles part 2: the open communities shown on a person's profile.
+    if (profile && /^\d+$/.test(profile)) return this.communities.listForProfile(Number(profile));
     if (mine === '1' && !viewer) return [];
     return this.communities.list(viewer, {
       mine: mine === '1',
