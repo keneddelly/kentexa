@@ -1,148 +1,161 @@
-import React from 'react';
+/**
+ * Welcome.js — the page a visitor sees before logging in, rebuilt (owner approved
+ * 2026-11-02, sketch "New Landing Page"): it shows the live KenteXa a visitor would join,
+ * not a long explainer.
+ *   top        wordmark + "Ingia"; headline; "Fungua akaunti" / "Ingia"
+ *   talk now   up to 3 real public posts (conversations first) from GET /feed
+ *   topics     the topics (GET /feed/topics)
+ *   communities the biggest open communities (GET /communities)
+ *   can do     four short tiles; then "Fungua akaunti, ni bure"
+ * A block with nothing real to show is hidden. Tapping a post, a reply or a community asks
+ * the visitor to open an account. Campaign links keep their own headline and button
+ * (utils/campaignIntent: welcome.intent.<intent>.*).
+ */
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import api from '../../api/api';
 import LanguageSwitcher from '../components/LanguageSwitcher';
-import HomeQuickActions from '../components/HomeQuickActions';
-import LandingEducation from '../components/landing/LandingEducation';
 import { getIntent } from '../../utils/campaignIntent';
+import { topicLabel } from '../utils/feedPresentation';
 
-// The auth-first entry screen — App.js's `case 'Home':` renders this instead
-// of HomeFeed for a logged-out visitor. Pure routing into the existing
-// PublicLogin.js/Register.js pages, no auth logic of its own.
-//
-// Landing Localization L1 (§6, §13): this is Kentexa's actual public landing
-// page today, so it's where the language selector and campaign-intent-aware
-// hero copy belong — not HomeFeed.js, which only ever renders for an
-// authenticated visitor now. Intent customizes COPY only (via translation
-// keys, never a hardcoded per-language sentence); it does not change either
-// button's destination — both still go to Register/PublicLogin regardless
-// of intent, since the intent-specific *destination* is realized once,
-// post-auth, in App.js's handleLoginSuccess (see utils/campaignIntent.js).
-//
-// Landing Localization L2: the hero above the fold is unchanged in spirit
-// (same primary/secondary buttons, same destinations) but now sits inside
-// its own full-height section, with LandingEducation.js's product-education
-// body scrolling in below it — the full "what is Kentexa, what can I do,
-// how does it work, what do I do after signup" story the L2 mission asked
-// for, without turning intent into a fork into separate landing pages (see
-// LandingEducation.js's own header comment for how intent is scoped there).
+const INK = '#0f1419';
+const MUTED = '#536471';
+const LINE = '#eff3f4';
+const BLUE = '#1d9bf0';
+const CONVERSATION = ['question', 'discussion', 'poll'];
+const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+const ago = (d) => {
+  const m = Math.max(1, Math.round((Date.now() - new Date(d).getTime()) / 60000));
+  if (!Number.isFinite(m)) return '';
+  if (m < 60) return `dk ${m}`;
+  if (m < 1440) return `saa ${Math.round(m / 60)}`;
+  return `siku ${Math.round(m / 1440)}`;
+};
+
+/** Up to 3 real public posts, conversations first; listings never (the server keeps them out of Home). */
+export const pickTalk = (items) => {
+  const list = (Array.isArray(items) ? items : []).filter((p) => p && (String(p.body || p.title || '').trim()));
+  return [...list.filter((p) => CONVERSATION.includes(p.intent)), ...list.filter((p) => !CONVERSATION.includes(p.intent))].slice(0, 3);
+};
+
 const Welcome = ({ onNavigate }) => {
   const { t } = useTranslation();
-  // Non-destructive read — Welcome may render this hero many times before
-  // the visitor acts, and the intent must still be there for Register/Login
-  // and for the post-auth redirect afterwards, so nothing here consumes it.
   const intent = getIntent();
-  const headlineKey    = intent ? `welcome.intent.${intent}.headline`    : 'welcome.headline';
+  const headlineKey = intent ? `welcome.intent.${intent}.headline` : 'welcome.headline';
   const subheadlineKey = intent ? `welcome.intent.${intent}.subheadline` : 'welcome.subheadline';
-  const ctaKey          = intent ? `welcome.intent.${intent}.cta`         : 'welcome.create_account_button';
+  const ctaKey = intent ? `welcome.intent.${intent}.cta` : 'welcome.create_account_button';
 
-  const btnPrimary = {
-    width: '100%', padding: 15,
-    background: 'linear-gradient(135deg,#1d4ed8,#2563eb)',
-    color: '#fff', border: 'none', borderRadius: 12,
-    fontSize: 15, fontWeight: 800, cursor: 'pointer',
-    boxShadow: '0 4px 14px rgba(29,78,216,0.35)',
-  };
+  const [talk, setTalk] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [communities, setCommunities] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    const read = (p, set, pick) => Promise.resolve(p).then((r) => { if (alive) set(pick(r?.data)); }).catch(() => {});
+    read(api.get('/feed', { params: { filter: 'for_you', page: 1 } }), setTalk, (d) => pickTalk(d?.items || d));
+    read(api.get('/feed/topics'), setTopics, (d) => (Array.isArray(d) ? d : []));
+    read(api.get('/communities'), setCommunities, (d) => (Array.isArray(d) ? d.filter((c) => c.joinPolicy !== 'request').slice(0, 3) : []));
+    return () => { alive = false; };
+  }, []);
 
-  const btnSecondary = {
-    width: '100%', padding: 15,
-    backgroundColor: '#fff', color: '#1d4ed8',
-    border: '2px solid #dbeafe', borderRadius: 12,
-    fontSize: 15, fontWeight: 800, cursor: 'pointer',
-  };
-
-  const scrollToHowItWorks = () => {
-    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const join = () => onNavigate('Register');
+  const section = { padding: '18px 16px', borderBottom: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 12 };
+  const h2 = { margin: 0, fontSize: 19, fontWeight: 800, color: INK };
+  const pill = (dark) => ({ width: '100%', height: 46, borderRadius: 23, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+    border: dark ? 'none' : '1px solid #cfd9de', background: dark ? INK : '#fff', color: dark ? '#fff' : INK });
+  const tiles = [['talk', 'talk_desc'], ['trade', 'trade_desc'], ['ship', 'ship_desc'], ['business', 'business_desc']];
 
   return (
-    <div style={{ backgroundColor: '#f0f4ff', fontFamily: 'inherit' }}>
+    <div style={{ background: '#fff', minHeight: '100vh', color: INK }}>
+      <div style={{ maxWidth: 600, margin: '0 auto', borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}`, minHeight: '100vh' }}>
+        <header style={{ position: 'sticky', top: 0, zIndex: 5, background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(10px)',
+          padding: 'max(10px, env(safe-area-inset-top)) 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${LINE}` }}>
+          <span style={{ fontFamily: 'Manrope, -apple-system, sans-serif', fontSize: 22, fontWeight: 900 }}>Kente<span style={{ color: '#1d4ed8' }}>X</span>a</span>
+          <button type="button" data-testid="welcome-login-top" onClick={() => onNavigate('PublicLogin')}
+            style={{ border: 'none', background: 'none', fontSize: 15, fontWeight: 700, color: INK, cursor: 'pointer', fontFamily: 'inherit' }}>{t('welcome.log_in_button')}</button>
+        </header>
 
-      <div style={{ maxWidth: 630, margin: '0 auto', padding: '16px', paddingTop: 'max(16px, env(safe-area-inset-top, 0px))' }}>
-        <HomeQuickActions onNavigate={onNavigate} />
-      </div>
+        <section style={section}>
+          <h1 style={{ margin: '6px 0 0', fontSize: 30, fontWeight: 800, lineHeight: 1.15, textWrap: 'balance' }}>{t(headlineKey)}</h1>
+          <p style={{ margin: 0, fontSize: 16, color: MUTED, lineHeight: 1.45 }}>{t(subheadlineKey)}</p>
+          <button type="button" data-testid="welcome-register" onClick={join} style={pill(true)}>{t(ctaKey)}</button>
+          <button type="button" onClick={() => onNavigate('PublicLogin')} style={pill(false)}>{t('welcome.log_in_button')}</button>
+        </section>
 
-      {/* Hero — its own full-height screen, exactly as before L2 (same
-          buttons, same destinations); only addition is the secondary
-          "See how Kentexa works" discovery action below the primary pair.
-          L2.1: the language selector is scoped to THIS hero box
-          (position:relative + the selector's own position:absolute) rather
-          than position:fixed over the whole page. Fixed positioning kept it
-          glued to the viewport corner for the entire scroll, so it visibly
-          overlapped multiple LandingEducation section headings underneath —
-          confirmed in real-browser mobile screenshots. Absolute-within-hero
-          keeps it visible the instant the page loads (still top priority,
-          still trivially reachable) but it scrolls away WITH the hero,
-          before any education content is on screen, so it can never
-          overlap anything below. LanguageSwitcher.js's own logic
-          (i18n.changeLanguage + kentexa_lang persistence + the
-          languageChanged html-lang listener in i18n.js) is completely
-          untouched by this — only this wrapper's positioning changed. */}
-      <div style={{ position: 'relative', minHeight: '100vh', display: 'flex',
-        flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        padding: '24px 16px', paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))',
-        paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
-
-        <div style={{ position: 'absolute', top: 'max(16px, env(safe-area-inset-top))', right: 16, zIndex: 10 }}>
-          <LanguageSwitcher variant="dropdown" />
-        </div>
-
-        <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', gap: 28 }}>
-
-          {/* Logo + icon badge — same treatment used across Navbar/Sidebar/PublicLogin */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-            <div style={{ width: 64, height: 64, backgroundColor: '#1d4ed8', borderRadius: 18,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 20px rgba(29,78,216,0.4)' }}>
-              <svg width="36" height="36" viewBox="0 0 22 22" fill="none">
-                <path d="M2 2 L7 8 L11 5 L11 20 L5 14 Z" fill="white"/>
-                <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#60a5fa"/>
-                <circle cx="7.5" cy="9.5" r="1" fill="#0f172a"/>
-                <circle cx="14.5" cy="9.5" r="1" fill="#0f172a"/>
-              </svg>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
-              <span style={{ fontSize: 34, fontWeight: 900, color: '#0f172a', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-              <span style={{ fontSize: 34, fontWeight: 900, color: '#1d4ed8', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
-            </div>
-          </div>
-
-          {/* Pitch */}
-          <div style={{ textAlign: 'center' }}>
-            <h1 style={{ fontSize: 20, fontWeight:800, color: '#0f172a', margin: '0 0 8px', lineHeight: 1.3 }}>
-              {t(headlineKey)}
-            </h1>
-            <p style={{ fontSize: 14, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
-              {t(subheadlineKey)}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button onClick={() => onNavigate('Register')} style={btnPrimary}>
-              {t(ctaKey)}
+        {talk.length > 0 && (
+          <section style={section} data-testid="welcome-talk">
+            <h2 style={h2}>{t('welcome.landing.talk_now')}</h2>
+            {talk.map((p) => {
+              const who = p.business?.storeName || p.business?.name || 'KenteXa';
+              const topic = topicLabel(p.topic, topics);
+              return (
+                <button key={p.id} type="button" onClick={join} data-testid={`welcome-post-${p.id}`}
+                  style={{ display: 'flex', gap: 10, textAlign: 'left', border: 'none', borderBottom: `1px solid ${LINE}`, background: 'none', padding: '6px 0 10px', cursor: 'pointer', fontFamily: 'inherit', color: INK }}>
+                  <span style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: INK, color: '#fff', fontWeight: 800, fontSize: 13, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {p.business?.logo || p.business?.avatarUrl ? <img src={p.business.logo || p.business.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials(who)}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 14 }}><b>{who}</b><span style={{ color: MUTED }}>{topic ? ` · ${topic}` : ''}{p.createdAt ? ` · ${ago(p.createdAt)}` : ''}</span></span>
+                    <span style={{ fontSize: 15, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>{String(p.body || p.title).trim()}</span>
+                    {Number(p.commentCount) > 0 && <span style={{ fontSize: 13, color: MUTED }}>{t('welcome.landing.replies', { n: Number(p.commentCount) })}</span>}
+                  </span>
+                </button>
+              );
+            })}
+            <button type="button" onClick={join} style={{ alignSelf: 'flex-start', border: 'none', background: 'none', padding: 0, color: BLUE, fontWeight: 600, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {t('welcome.landing.join_to_reply')}
             </button>
-            <button onClick={() => onNavigate('PublicLogin')} style={btnSecondary}>
-              {t('welcome.log_in_button')}
-            </button>
-          </div>
+          </section>
+        )}
 
-          {/* L2 §2: secondary discovery action — scrolls into the education
-              body below rather than navigating anywhere, so a curious
-              (not-yet-ready-to-sign-up) visitor has somewhere to go. */}
-          <button onClick={scrollToHowItWorks}
-            style={{ background: 'none', border: 'none', color: '#1d4ed8', fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', padding: '4px 0' }}>
-            {t('welcome.discover_more_button')}
-          </button>
+        {topics.length > 0 && (
+          <section style={section} data-testid="welcome-topics">
+            <h2 style={h2}>{t('welcome.landing.topics')}</h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {topics.map((tp) => (
+                <button key={tp.key} type="button" onClick={join}
+                  style={{ border: '1px solid #cfd9de', borderRadius: 999, padding: '7px 13px', background: '#fff', fontSize: 14, fontWeight: 700, color: INK, cursor: 'pointer', fontFamily: 'inherit' }}>{tp.label}</button>
+              ))}
+            </div>
+          </section>
+        )}
 
-          <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
-            {t('welcome.made_in_tanzania')}
+        {communities.length > 0 && (
+          <section style={section} data-testid="welcome-communities">
+            <h2 style={h2}>{t('welcome.landing.communities')}</h2>
+            {communities.map((c) => (
+              <button key={c.id} type="button" onClick={join}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, border: 'none', background: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: INK }}>
+                <span style={{ width: 40, height: 40, borderRadius: 10, background: INK, color: '#fff', fontWeight: 800, fontSize: 13, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initials(c.name)}</span>
+                <span style={{ display: 'flex', flexDirection: 'column' }}>
+                  <b style={{ fontSize: 15 }}>{c.name}</b>
+                  <span style={{ fontSize: 13, color: MUTED }}>{t('welcome.landing.members', { n: Number(c.memberCount || 0).toLocaleString('en-US') })}</span>
+                </span>
+              </button>
+            ))}
+          </section>
+        )}
+
+        <section style={section}>
+          <h2 style={h2}>{t('welcome.landing.can_do')}</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {tiles.map(([k, d]) => (
+              <div key={k} style={{ border: `1px solid ${LINE}`, borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <b style={{ fontSize: 15 }}>{t(`welcome.landing.${k}`)}</b>
+                <span style={{ fontSize: 13, color: MUTED }}>{t(`welcome.landing.${d}`)}</span>
+              </div>
+            ))}
           </div>
-        </div>
+        </section>
+
+        <section style={{ ...section, borderBottom: 'none', paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
+          <button type="button" onClick={join} style={pill(true)}>{t('welcome.landing.final')}</button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 13, color: MUTED }}>
+            <span>{t('welcome.made_in_tanzania')}</span>
+            <LanguageSwitcher variant="dropdown" />
+          </div>
+        </section>
       </div>
-
-      <LandingEducation intent={intent} onNavigate={onNavigate} />
     </div>
   );
 };

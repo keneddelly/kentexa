@@ -2956,11 +2956,11 @@
     "link_copied": "Lien copié !"
   },
   "welcome": {
-    "headline": "Kentexa — la manière intelligente d'acheter, vendre et se connecter",
-    "subheadline": "Un seul endroit pour les produits, services, entreprises et livraisons partout en Tanzanie — pensé pour vous ressembler.",
+    "headline": "Conversations, commerce et livraison en Tanzanie, au même endroit.",
+    "subheadline": "Posez des questions, rejoignez des communautés, achetez et vendez près de chez vous, envoyez des colis partout.",
     "create_account_button": "Créer un compte",
     "log_in_button": "Se connecter",
-    "made_in_tanzania": "🇹🇿 Fabriqué en Tanzanie",
+    "made_in_tanzania": "Fabriqué en Tanzanie",
     "intent": {
       "service": {
         "headline": "Proposez votre service sur Kentexa",
@@ -2984,7 +2984,25 @@
       "recommended": "Recommandé",
       "hint": "Vous pouvez changer à tout moment"
     },
-    "discover_more_button": "Découvrez comment Kentexa fonctionne ↓"
+    "discover_more_button": "Découvrez comment Kentexa fonctionne ↓",
+    "landing": {
+      "talk_now": "Les discussions du moment",
+      "join_to_reply": "Créez un compte pour répondre",
+      "topics": "Sujets",
+      "communities": "Communautés populaires",
+      "members": "{{n}} membres",
+      "can_do": "Ce que vous pouvez faire",
+      "talk": "Discuter",
+      "talk_desc": "Questions, débats et sondages",
+      "trade": "Acheter et vendre",
+      "trade_desc": "Produits, services, annonces",
+      "ship": "Envoyer des colis",
+      "ship_desc": "Bureaux et livreurs vous donnent un prix",
+      "business": "Ouvrir une entreprise",
+      "business_desc": "Boutique, hôtel, bureau, caisse",
+      "final": "Créez un compte, c’est gratuit",
+      "replies": "{{n}} réponses"
+    }
   },
   "landing": {
     "what_is": {

@@ -2968,11 +2968,11 @@
     "link_copied": "Link copied!"
   },
   "welcome": {
-    "headline": "Kentexa — the AI-powered way to buy, sell and connect",
-    "subheadline": "One place for products, services, businesses and delivery across Tanzania — built to feel like it's yours.",
-    "create_account_button": "Create Account",
+    "headline": "Conversations, business and delivery in Tanzania, in one place.",
+    "subheadline": "Ask and answer, join communities, buy and sell near you, send parcels anywhere.",
+    "create_account_button": "Create account",
     "log_in_button": "Log In",
-    "made_in_tanzania": "🇹🇿 Made in Tanzania",
+    "made_in_tanzania": "Made in Tanzania",
     "intent": {
       "service": {
         "headline": "Offer Your Service on Kentexa",
@@ -2996,7 +2996,25 @@
       "recommended": "Recommended",
       "hint": "You can change this anytime"
     },
-    "discover_more_button": "See how Kentexa works ↓"
+    "discover_more_button": "See how Kentexa works ↓",
+    "landing": {
+      "talk_now": "Talked about now",
+      "join_to_reply": "Create an account to reply",
+      "topics": "Topics",
+      "communities": "Popular communities",
+      "members": "{{n}} members",
+      "can_do": "What you can do",
+      "talk": "Talk",
+      "talk_desc": "Questions, discussions and polls",
+      "trade": "Buy and sell",
+      "trade_desc": "Products, services, classifieds",
+      "ship": "Send parcels",
+      "ship_desc": "Offices and riders give you a price",
+      "business": "Open a business",
+      "business_desc": "Shop, hotel, office, POS",
+      "final": "Create an account, it is free",
+      "replies": "{{n}} replies"
+    }
   },
   "landing": {
     "what_is": {

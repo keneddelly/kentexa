@@ -8,6 +8,7 @@ import { setIntent } from '../../utils/campaignIntent';
 // mocking t() to the identity function makes that assertable directly.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key) => key }) }));
 jest.mock('../components/LanguageSwitcher', () => () => <div data-testid="language-switcher" />);
+jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(() => Promise.resolve({ data: [] })) } }));
 
 describe('Welcome — landing language + campaign intent', () => {
   beforeEach(() => { sessionStorage.clear(); });
@@ -50,7 +51,7 @@ describe('Welcome — landing language + campaign intent', () => {
     render(<Welcome onNavigate={onNavigate} />);
     fireEvent.click(screen.getByText('welcome.intent.seller.cta'));
     expect(onNavigate).toHaveBeenCalledWith('Register');
-    fireEvent.click(screen.getByText('welcome.log_in_button'));
+    fireEvent.click(screen.getAllByText('welcome.log_in_button')[0]);
     expect(onNavigate).toHaveBeenCalledWith('PublicLogin');
   });
 
@@ -61,27 +62,43 @@ describe('Welcome — landing language + campaign intent', () => {
   });
 });
 
-describe('Welcome — L2 product education composition', () => {
-  beforeEach(() => { sessionStorage.clear(); });
+describe('Welcome — the new landing (owner approved 2026-11-02): the live KenteXa a visitor would join', () => {
+  const api = require('../../api/api').default;
+  const { act } = require('@testing-library/react');
+  beforeEach(() => { sessionStorage.clear(); api.get.mockReset(); });
+  const answer = (map) => api.get.mockImplementation(async (url) => ({ data: map[url] ?? [] }));
 
-  test('secondary "see how Kentexa works" discovery action is present alongside the hero CTAs', () => {
-    render(<Welcome onNavigate={jest.fn()} />);
-    expect(screen.getByText('welcome.discover_more_button')).toBeInTheDocument();
+  test('real public talk (conversations first), topics and open communities; a tap asks to open an account', async () => {
+    answer({
+      '/feed': { items: [
+        { id: 1, body: 'Habari za leo kutoka duka letu', intent: 'update', business: { storeName: 'Bishoo' } },
+        { id: 2, body: 'Bei ya mchele Kariakoo imepanda, mnapata wapi?', intent: 'question', topic: 'biashara', commentCount: 14, business: { name: 'Asha Juma' } },
+        { id: 3, title: '', body: '' },
+      ] },
+      '/feed/topics': [{ key: 'biashara', label: 'Biashara' }, { key: 'kilimo', label: 'Kilimo' }],
+      '/communities': [{ id: 5, name: 'Wafanyabiashara Dar', memberCount: 1240, joinPolicy: 'open' }, { id: 6, name: 'Siri', joinPolicy: 'request' }],
+    });
+    const onNavigate = jest.fn();
+    await act(async () => { render(<Welcome onNavigate={onNavigate} />); });
+    expect(api.get).toHaveBeenCalledWith('/feed', { params: { filter: 'for_you', page: 1 } });
+    const talk = screen.getByTestId('welcome-talk');
+    expect(talk.querySelectorAll('[data-testid^="welcome-post-"]')[0]).toHaveTextContent('Bei ya mchele'); // the question comes first
+    expect(screen.queryByTestId('welcome-post-3')).toBeNull(); // nothing to show, not shown
+    expect(screen.getByTestId('welcome-post-2')).toHaveTextContent('Biashara');
+    expect(screen.getByTestId('welcome-topics')).toHaveTextContent('Kilimo');
+    expect(screen.getByTestId('welcome-communities')).toHaveTextContent('Wafanyabiashara Dar');
+    expect(screen.getByTestId('welcome-communities')).not.toHaveTextContent('Siri');
+    fireEvent.click(screen.getByTestId('welcome-post-2'));
+    expect(onNavigate).toHaveBeenCalledWith('Register');
   });
 
-  test('the full product-education body (LandingEducation) mounts under the hero', () => {
-    render(<Welcome onNavigate={jest.fn()} />);
-    // A handful of section headings across the education body, proving
-    // Welcome.js actually composes LandingEducation rather than just
-    // importing it unused.
-    expect(screen.getByText('landing.what_is.heading')).toBeInTheDocument();
-    expect(screen.getByText('landing.how_it_works.heading')).toBeInTheDocument();
-    expect(screen.getByText('landing.after_signup.heading')).toBeInTheDocument();
-    expect(screen.getByText('landing.trust.heading')).toBeInTheDocument();
-  });
-
-  test('language selector still renders alongside the larger page (L1 behavior not regressed by L2)', () => {
-    render(<Welcome onNavigate={jest.fn()} />);
+  test('nothing real yet: those blocks are hidden; the page still offers an account and the language choice', async () => {
+    answer({});
+    await act(async () => { render(<Welcome onNavigate={jest.fn()} />); });
+    expect(screen.queryByTestId('welcome-talk')).toBeNull();
+    expect(screen.queryByTestId('welcome-topics')).toBeNull();
+    expect(screen.queryByTestId('welcome-communities')).toBeNull();
+    expect(screen.getByText('welcome.landing.final')).toBeInTheDocument();
     expect(screen.getByTestId('language-switcher')).toBeInTheDocument();
   });
 });
