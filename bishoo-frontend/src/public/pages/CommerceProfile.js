@@ -188,16 +188,18 @@ const tabs = (profileType, isOwn, t) => {
 };
 const tabsInner = (profileType, isOwn, t) => {
   if (profileType === 'business') {
+    // New profiles part 3 (owner approved 2026-11-02): Machapisho, Bidhaa or Huduma (only what
+    // the business offers), Maoni, Kuhusu.
     const base = [
-      { key:'posts',         label:t('commerce_profile.tab_products') },
-      { key:'services_pub',  label:t('commerce_profile.tab_services') },
+      { key:'posts',         label:'Bidhaa' },
+      { key:'services_pub',  label:'Huduma' },
       { key:'feed',          label:t('commerce_profile.tab_posts') },
     ];
     // New profiles (owner approved 2026-11-02): Orders and Analytics live in Kazi, not on the
     // public page; the owner sees "Hii ni biashara yako - Fungua Kazi" instead.
     base.push(
-      { key:'about',   label:t('commerce_profile.tab_about') },
-      { key:'reviews', label:t('commerce_profile.tab_reviews') },
+      { key:'reviews', label:'Maoni' },
+      { key:'about',   label:'Kuhusu' },
     );
     return base;
   }
@@ -441,7 +443,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       // specific profile, so fetching it for a personal/agent/hub/etc.
       // profile would bleed that same person's store products into a
       // profile that has nothing to do with selling products.
-      activeProfile.type === 'business' ? api.get(`/products/seller/${uid}`) : Promise.resolve({data:[]}),
+      // Owner 2026-11-02 (two businesses on one account were mixed): this profile's products only.
+      activeProfile.type === 'business' ? api.get(`/products/profile/${activeProfile.id}`) : Promise.resolve({data:[]}),
       isLoggedIn ? api.get('/feed/saved/ids').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
     ]).then(([p,r,f,o,s,a,cl,pr,saved]) => {
       if (p.status==='fulfilled') setProfile(p.value.data);
@@ -576,7 +579,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
 
   const score     = rep?.score || profile?.reputationScore || 0;
   const tier      = getTier(score);
-  const profileTabs = tabs(activeProfile.type, isOwnProfile, t);
+  // New profiles part 3: a business shows Bidhaa only when it has products or listings, and
+  // Huduma only when it offers services (the owner always sees both, to add the first one).
+  const profileTabs = tabs(activeProfile.type, isOwnProfile, t).filter((x) => {
+    if (activeProfile.type !== 'business' || isOwnProfile) return true;
+    if (x.key === 'posts') return products.length > 0 || classifieds.length > 0;
+    if (x.key === 'services_pub') return providerServices.length > 0;
+    return true;
+  });
 
   // `profile` comes from GET /seller/public/:uid — a SELLER/business-shaped
   // payload (storeDescription, businessLocation, storeWhatsApp, isOfficialStore,
@@ -787,6 +797,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             {(displayHandle || activeProfile.category) && (
               <div style={{ fontSize:15, color:MUTED, lineHeight:'20px', marginTop:2 }}>
                 {[displayHandle, activeProfile.category].filter(Boolean).join(' · ')}
+              </div>
+            )}
+            {/* New profiles part 3: the business's record, only from real reviews and orders. */}
+            {isBusinessProfile && (ratingCount > 0 || Number(profile?.completedOrders) > 0) && (
+              <div data-testid="business-record" style={{ fontSize:14, color:MUTED, marginTop:4, display:'flex', flexWrap:'wrap', gap:'2px 6px', alignItems:'center' }}>
+                {ratingCount > 0 && (
+                  <span><b style={{ color:'#b45309' }}>{ratingNum.toFixed(1)}</b> kutoka maoni {fmt(ratingCount)}</span>
+                )}
+                {ratingCount > 0 && Number(profile?.completedOrders) > 0 && <span aria-hidden="true">·</span>}
+                {Number(profile?.completedOrders) > 0 && <span>oda {fmt(profile.completedOrders)} zimekamilika</span>}
               </div>
             )}
           </div>

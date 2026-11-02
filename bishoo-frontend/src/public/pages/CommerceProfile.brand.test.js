@@ -103,3 +103,23 @@ test('new profiles part 2: a person\'s replies (with the post they answer) and t
   c.click();
   expect(onNavigate).toHaveBeenCalledWith('Community-3');
 });
+
+test('new profiles part 3: a business shows its real record, its own products, and only the tabs it has', async () => {
+  const p = { id: 77, ownerId: 48, type: 'business', displayName: 'ABC Hotel', followersCount: 5, followingCount: 0, rating: 4.8, reviewsCount: 63 };
+  api.get.mockImplementation((url) => {
+    if (url === '/profiles/77') return Promise.resolve({ data: p });
+    if (url === '/seller/public/48') return Promise.resolve({ data: { completedOrders: 410 } });
+    if (url === '/products/profile/77') return Promise.resolve({ data: [] });
+    return Promise.resolve({ data: [] });
+  });
+  render(<CommerceProfile pageParam="48" commerceProfileId={77} currentUser={{ id: 99 }} isLoggedIn onNavigate={jest.fn()} />);
+  const rec = await screen.findByTestId('business-record');
+  expect(rec).toHaveTextContent('4.8 kutoka maoni 63');
+  expect(api.get).toHaveBeenCalledWith('/products/profile/77');
+  expect(api.get).not.toHaveBeenCalledWith('/products/seller/48');
+  // No products, listings or services: a visitor sees Machapisho, Maoni, Kuhusu only.
+  const labels = screen.getAllByRole('button').map((b) => b.textContent);
+  expect(labels).toContain('Maoni');
+  expect(labels).not.toContain('Bidhaa');
+  expect(labels).not.toContain('Huduma');
+});
