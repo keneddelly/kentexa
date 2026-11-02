@@ -2747,11 +2747,11 @@
     "link_copied": "Kiungo kimenakiliwa!"
   },
   "welcome": {
-    "headline": "Kentexa — njia ya kisasa ya kununua, kuuza na kuunganika",
-    "subheadline": "Mahali pamoja pa bidhaa, huduma, biashara na usafirishaji Tanzania nzima — imejengwa ikuhisi ni yako.",
-    "create_account_button": "Fungua Akaunti",
+    "headline": "Mazungumzo, biashara na usafiri wa Tanzania, mahali pamoja.",
+    "subheadline": "Uliza na ujibu, jiunge na jumuiya, nunua na uza karibu nawe, tuma mzigo popote.",
+    "create_account_button": "Fungua akaunti",
     "log_in_button": "Ingia",
-    "made_in_tanzania": "🇹🇿 Imetengenezwa Tanzania",
+    "made_in_tanzania": "Imetengenezwa Tanzania",
     "intent": {
       "service": {
         "headline": "Tangaza Huduma Yako kwenye Kentexa",
@@ -2775,7 +2775,25 @@
       "recommended": "Inayopendekezwa",
       "hint": "Unaweza kubadilisha lugha wakati wowote"
     },
-    "discover_more_button": "Angalia jinsi Kentexa inavyofanya kazi ↓"
+    "discover_more_button": "Angalia jinsi Kentexa inavyofanya kazi ↓",
+    "landing": {
+      "talk_now": "Yanayozungumzwa sasa",
+      "join_to_reply": "Fungua akaunti ujibu",
+      "topics": "Mada",
+      "communities": "Jumuiya maarufu",
+      "members": "Wanachama {{n}}",
+      "can_do": "Unachoweza kufanya",
+      "talk": "Zungumza",
+      "talk_desc": "Maswali, mijadala na kura",
+      "trade": "Nunua na uza",
+      "trade_desc": "Bidhaa, huduma, matangazo",
+      "ship": "Tuma mzigo",
+      "ship_desc": "Ofisi na mawakala wanakupa bei",
+      "business": "Fungua biashara",
+      "business_desc": "Duka, hoteli, ofisi, POS",
+      "final": "Fungua akaunti, ni bure",
+      "replies": "Majibu {{n}}"
+    }
   },
   "landing": {
     "what_is": {
