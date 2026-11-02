@@ -20,6 +20,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import { getMyBusinesses, getBusinessWorkspaces, getBusinessCapabilityApplications } from '../../api/business';
+import { isFoodBusiness } from '../../context/workspaceModel';
 import { tilesForWorkspace, TILE_STATE, capabilityCtaState, CTA_STATE, CTA_CAPABILITIES, ctaDestination } from '../../context/capabilityTiles';
 import { resolveBusinessEntry, BUSINESS_ENTRY } from '../../context/businessEntry';
 import BusinessContextMismatch from '../components/BusinessContextMismatch';
@@ -152,7 +153,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
 
         {/* Hotel food ordering (owner 2026-10-27): a food business runs its kitchen and menu from here.
             Capability-based: only businesses in the food category see it. */}
-        {business?.id && String(business.category || '').toLowerCase() === 'food' && (
+        {business?.id && isFoodBusiness(business.category) && (
           <div data-testid="business-hotel-card" style={{ backgroundColor: WH, borderRadius: 16, padding: 16, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <strong style={{ fontSize: 16, color: '#0f1419' }}>Hoteli: oda za chakula</strong>
             <span style={{ fontSize: 14, color: GR, lineHeight: 1.4 }}>Wateja wanaagiza kutoka menyu yako au QR ya meza; jikoni mnaona oda papo hapo.</span>

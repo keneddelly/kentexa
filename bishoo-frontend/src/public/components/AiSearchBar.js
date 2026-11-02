@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { theme } from '../Theme';
 
-export default function AiSearchBar({ onNavigate }) {
+export default function AiSearchBar({ onNavigate, compact = false }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,8 +43,9 @@ export default function AiSearchBar({ onNavigate }) {
         gap: 8,
         backgroundColor: theme.white,
         borderRadius: 999,
-        padding: '10px 8px 10px 16px',
-        boxShadow: theme.shadow,
+        // compact (Home top bar, owner 2026-11-02 "small like TikTok"): a slimmer pill.
+        padding: compact ? '4px 4px 4px 14px' : '10px 8px 10px 16px',
+        boxShadow: compact ? 'none' : theme.shadow,
         border: `1px solid ${theme.border}`,
       }}
     >
@@ -72,7 +73,7 @@ export default function AiSearchBar({ onNavigate }) {
           color: theme.white,
           fontSize: 13,
           fontWeight: 700,
-          padding: '8px 16px',
+          padding: compact ? '6px 14px' : '8px 16px',
           borderRadius: 999,
           cursor: loading ? 'wait' : 'pointer',
           opacity: loading || !query.trim() ? 0.7 : 1,
