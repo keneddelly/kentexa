@@ -50,7 +50,8 @@ test('personal profile: visitors see the Listings tab right after Moments; a lis
   const labels = screen.getAllByRole('button').map(b => b.textContent);
   const iMoments = labels.indexOf('Machapisho'); // owner 2026-11-02: Moments tab is now Machapisho
   expect(iMoments).toBeGreaterThan(-1);
-  expect(labels[iMoments + 1]).toBe('commerce_profile.tab_listings');
+  // New profiles part 2: Machapisho, Majibu, Jumuiya, then the person's listings.
+  expect(labels.slice(iMoments + 1, iMoments + 4)).toEqual(['Majibu', 'Jumuiya', 'commerce_profile.tab_listings']);
   img.click();
   expect(onNavigate).toHaveBeenCalledWith('ClassifiedDetail-31');
 });
@@ -78,4 +79,27 @@ test('new profiles: the owner of a business is sent to Kazi; no Orders or Analyt
   expect(screen.queryByText('commerce_profile.tab_analytics')).toBeNull();
   kazi.click();
   expect(onNavigate).toHaveBeenCalledWith('Workspace');
+});
+
+test('new profiles part 2: a person\'s replies (with the post they answer) and their open communities', async () => {
+  const p = { id: 76, ownerId: 47, type: 'personal', displayName: 'Juma', followersCount: 0, followingCount: 0 };
+  const onNavigate = jest.fn();
+  api.get.mockImplementation((url, cfg) => {
+    if (url === '/profiles/for-user/47') return Promise.resolve({ data: [p] });
+    if (url === '/profiles/76') return Promise.resolve({ data: p });
+    if (url === '/feed/profile/76/replies') return Promise.resolve({ data: [{ id: 5, body: 'WhatsApp status bado inaongoza', post: { id: 12, text: 'Mnapata wateja wapi?' } }] });
+    if (url === '/communities' && cfg?.params?.profile === 76) return Promise.resolve({ data: [{ id: 3, name: 'Wafanyabiashara Kariakoo', topicKey: 'biashara', memberCount: 1240 }] });
+    return Promise.resolve({ data: [] });
+  });
+  render(<CommerceProfile pageParam="47" currentUser={{ id: 99 }} isLoggedIn onNavigate={onNavigate} />);
+  (await screen.findByText('Majibu')).click();
+  const reply = await screen.findByTestId('reply-5');
+  expect(reply).toHaveTextContent('Akijibu: Mnapata wateja wapi?');
+  reply.click();
+  expect(onNavigate).toHaveBeenCalledWith('PostDetail-12-comments');
+  screen.getByText('Jumuiya').click();
+  const c = await screen.findByTestId('profile-community-3');
+  expect(c).toHaveTextContent('Wafanyabiashara Kariakoo');
+  c.click();
+  expect(onNavigate).toHaveBeenCalledWith('Community-3');
 });

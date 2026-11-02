@@ -238,8 +238,13 @@ const tabsInner = (profileType, isOwn, t) => {
   // plus Reputation, plus the same moments/updates feed every other type
   // now gets. "Profiles" (Also on Kentexa) is always-visible below the
   // header, not a tab, so it isn't listed here.
-  const base = [];
-  // A person's listings are public (owner 2026-10-26): visitors see them too, right after Moments.
+  // New profiles part 2 (owner approved 2026-11-02): after Machapisho come the person's
+  // replies and the open communities they are in.
+  const base = [
+    { key:'replies', label:'Majibu' },
+    { key:'communities', label:'Jumuiya' },
+  ];
+  // A person's listings are public (owner 2026-10-26): visitors see them too, after the talk.
   base.push({ key:'posts', label:t('commerce_profile.tab_listings') });
   base.push({ key:'feed', label:t('commerce_profile.tab_posts') });
   base.push({ key:'about', label:t('commerce_profile.tab_about') });
@@ -320,6 +325,21 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [mutedProfile, setMutedProfile] = useState(false);
   // New profiles: post count and the topics this profile talks about (from its real posts).
   const [talk, setTalk] = useState(null);
+  // New profiles part 2: Majibu and Jumuiya, read when their tab opens.
+  const [replies, setReplies] = useState(null);
+  const [profileCommunities, setProfileCommunities] = useState(null);
+  useEffect(() => { setReplies(null); setProfileCommunities(null); }, [activeProfile?.id]);
+  useEffect(() => {
+    if (!activeProfile?.id) return undefined;
+    let alive = true;
+    if (tab === 'replies' && replies === null) {
+      api.get(`/feed/profile/${activeProfile.id}/replies`).then((r) => { if (alive) setReplies(Array.isArray(r.data) ? r.data : []); }).catch(() => { if (alive) setReplies([]); });
+    }
+    if (tab === 'communities' && profileCommunities === null) {
+      api.get('/communities', { params: { profile: activeProfile.id } }).then((r) => { if (alive) setProfileCommunities(Array.isArray(r.data) ? r.data : []); }).catch(() => { if (alive) setProfileCommunities([]); });
+    }
+    return () => { alive = false; };
+  }, [tab, activeProfile?.id, replies, profileCommunities]);
   useEffect(() => {
     setTalk(null);
     if (!activeProfile?.id) return undefined;
@@ -1681,6 +1701,42 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             owner's account-wide history. The tier card that used to live
             alone under 'reputation' opens this tab too, condensed, so nothing
             from the old single-tab view is lost, just relocated. */}
+        {/* New profiles part 2: the replies this person wrote, each with the post it answers. */}
+        {tab==='replies' && (
+          <div data-testid="profile-replies">
+            {replies === null ? (
+              <div style={{ padding:20, color:MUTED, fontSize:15 }}>Inapakia...</div>
+            ) : replies.length === 0 ? (
+              <div style={{ padding:24, color:MUTED, fontSize:15, textAlign:'center' }}>Bado hakuna majibu.</div>
+            ) : replies.map((r) => (
+              <button key={r.id} type="button" data-testid={`reply-${r.id}`} onClick={() => onNavigate(`PostDetail-${r.post.id}-comments`)}
+                style={{ display:'flex', flexDirection:'column', gap:6, width:'100%', textAlign:'left', padding:'12px 16px', border:'none',
+                  borderBottom:`1px solid ${LINE}`, background:WH, cursor:'pointer', fontFamily:'inherit' }}>
+                <span style={{ fontSize:13, color:MUTED, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', width:'100%' }}>Akijibu: {r.post.text}</span>
+                <span style={{ fontSize:15, color:INK, lineHeight:'20px', overflowWrap:'anywhere' }}>{r.body}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* New profiles part 2: the open communities this person is in. */}
+        {tab==='communities' && (
+          <div data-testid="profile-communities">
+            {profileCommunities === null ? (
+              <div style={{ padding:20, color:MUTED, fontSize:15 }}>Inapakia...</div>
+            ) : profileCommunities.length === 0 ? (
+              <div style={{ padding:24, color:MUTED, fontSize:15, textAlign:'center' }}>Hayumo kwenye jumuiya yoyote iliyo wazi.</div>
+            ) : profileCommunities.map((c) => (
+              <button key={c.id} type="button" data-testid={`profile-community-${c.id}`} onClick={() => onNavigate(`Community-${c.id}`)}
+                style={{ display:'flex', flexDirection:'column', gap:2, width:'100%', textAlign:'left', padding:'12px 16px', border:'none',
+                  borderBottom:`1px solid ${LINE}`, background:WH, cursor:'pointer', fontFamily:'inherit' }}>
+                <span style={{ fontSize:15, fontWeight:700, color:INK }}>{c.name}</span>
+                <span style={{ fontSize:13, color:MUTED }}>{topicLabel(c.topicKey)} · Wanachama {fmt(c.memberCount || 0)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {tab==='reviews' && (
           <div>
             <div style={{ background:`linear-gradient(135deg,${tier.color},#1d4ed8)`,

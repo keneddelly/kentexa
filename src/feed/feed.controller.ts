@@ -274,6 +274,13 @@ export class FeedController {
     return this.cvs.getProfileSummary(profileId, req?.user?.id || null);
   }
 
+  // ── New profiles part 2: "Majibu" (replies written as this profile) ──
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get('profile/:profileId/replies')
+  profileReplies(@Param('profileId', ParseIntPipe) profileId: number, @Request() req?) {
+    return this.cvs.getProfileReplies(profileId, req?.user?.id || null);
+  }
+
   // ── Social Home part 2: "Leo kwako" (only real activity; empty means no block) ──
   @Get('today')
   @UseGuards(JwtAuthGuard)
