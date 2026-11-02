@@ -110,3 +110,35 @@ describe('LogisticsServiceOfferService.discover (Dar es Salaam zones)', () => {
     expect(fixed.areaUnknown).toBeUndefined();
   });
 });
+
+// Owner 2026-11-02: "I sent from Tabata Relini to Mabibo Hostel, put my pin at Kigamboni,
+// nothing changed". The fare names its places; a pin in another zone is reported.
+describe('LogisticsServiceOfferService.discover (Dar fare places and the GPS pin)', () => {
+  const { OfficeBodaFeeService } = require('../super-agents/office-boda-fee.service');
+  const agent = { id: 7, collectionFeeUrban: 1500, deliveryFee: 1000, hasBasePoint: true };
+  const make = (nearest: any[]) => {
+    const db = { query: jest.fn(async (sql: string) => (sql.includes('FROM public.tz_ward w') ? nearest : [])) };
+    return new LogisticsServiceOfferService({ getAvailableAgents: jest.fn().mockResolvedValue([agent]) } as any, {} as any, {} as any,
+      db as any, undefined, undefined, new OfficeBodaFeeService({ find: jest.fn(async () => []) } as any));
+  };
+  const trip = (extra: any = {}) => ({ fromCity: 'Dar es Salaam', toCity: 'Dar es Salaam', weightKg: 2, pickup: 'door' as const, delivery: 'door' as const,
+    origin: { text: 'Tabata Relini' }, destination: { text: 'Mabibo Hostel' }, ...extra });
+
+  it('says which places the fare is from and to', async () => {
+    const [direct] = await make([]).discover(trip());
+    expect(direct).toEqual(expect.objectContaining({ price: 7000, fromPlace: 'Tabata Relini', toPlace: 'Mabibo Hostel', pinPlace: null }));
+  });
+
+  it('a pin near Kigamboni while "Kutoka" is Tabata Relini: reported; a pin in the same zone or far from any ward: not', async () => {
+    const at = { latitude: -6.9, longitude: 39.31 };
+    expect((await make([{ name: 'Kigamboni', km: 0.9 }]).discover(trip({ pickupPoint: at })))[0].pinPlace).toBe('Kigamboni');
+    expect((await make([{ name: 'Tabata', km: 0.4 }]).discover(trip({ pickupPoint: at })))[0].pinPlace).toBeNull();
+    expect((await make([{ name: 'Kigamboni', km: 12 }]).discover(trip({ pickupPoint: at })))[0].pinPlace).toBeNull();
+  });
+
+  it('choosing the pin place (originArea) prices from there', async () => {
+    const [direct] = await make([{ name: 'Kigamboni', km: 0.9 }]).discover(trip({ pickupPoint: { latitude: -6.9, longitude: 39.31 }, originArea: 'Kigamboni' }));
+    expect(direct).toEqual(expect.objectContaining({ fromPlace: 'Kigamboni', pinPlace: null }));
+    expect(direct.price).toBe(7000); // Kigamboni ring 1 -> Morogoro ring 1 = 2 steps
+  });
+});

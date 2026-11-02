@@ -4,7 +4,9 @@ import { getPhonePosition, LANDMARK_MAX, WEAK_ACCURACY_M } from '../../utils/pho
 
 // Door pickup (NEXT_STEPS.md section 18, step 1): "Tumia mahali nilipo" — strongly
 // asked for, not required until the map exists — and a required landmark note.
-export default function PickupPinFields({ pin, onPin, landmark, onLandmark, getPosition = getPhonePosition }) {
+// With placeName (owner 2026-11-02: "I put my pin at Kigamboni, nothing changed"): the pin is
+// the phone's own position, so it is offered only as "I am at <place> now" and is optional.
+export default function PickupPinFields({ pin, onPin, landmark, onLandmark, placeName = '', getPosition = getPhonePosition }) {
   const { t } = useTranslation();
   const [state, setState] = useState('idle'); // idle | locating | error
   const [errorCode, setErrorCode] = useState(null);
@@ -23,7 +25,7 @@ export default function PickupPinFields({ pin, onPin, landmark, onLandmark, getP
   const box = { borderRadius: 12, padding: 12, marginBottom: 16, background: '#F8FAFC', border: '1px solid #E2E8F0' };
   return (
     <div style={box} data-testid="pickup-pin-fields">
-      <div style={{ fontSize: 12, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>{t('pickup_pin.title')}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>{placeName ? `Uko ${placeName} sasa hivi?` : t('pickup_pin.title')}</div>
 
       {pin ? (
         <div style={{ fontSize: 13, color: '#166534', fontWeight: 700 }}>
@@ -47,12 +49,14 @@ export default function PickupPinFields({ pin, onPin, landmark, onLandmark, getP
           <button type="button" onClick={locate} disabled={state === 'locating'}
             style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', background: '#2563EB',
               color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', opacity: state === 'locating' ? 0.7 : 1 }}>
-            {state === 'locating' ? t('pickup_pin.locating') : t('pickup_pin.use_location')}
+            {state === 'locating' ? t('pickup_pin.locating') : placeName ? 'Ndiyo, tumia mahali nilipo' : t('pickup_pin.use_location')}
           </button>
           {state === 'error' && (
             <div role="alert" style={{ fontSize: 12, color: '#B91C1C', marginTop: 6 }}>{t(`pickup_pin.error_${errorCode}`)}</div>
           )}
-          <div style={{ fontSize: 12, color: '#B45309', marginTop: 8 }}>{t('pickup_pin.ask')}</div>
+          <div style={{ fontSize: 12, color: placeName ? '#64748B' : '#B45309', marginTop: 8 }}>
+            {placeName ? `Si lazima. Weka pin tu kama uko ${placeName} sasa; bei inatokana na ${placeName}.` : t('pickup_pin.ask')}
+          </div>
         </>
       )}
 
