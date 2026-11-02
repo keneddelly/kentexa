@@ -10,13 +10,8 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import BackBar from '../components/BackBar';
+import { ApplyPage, ErrorText, Note, pillStyle } from '../components/ApplyKit';
 import { getMyBusinesses, applyForBusinessCapability } from '../../api/business';
-
-const B  = '#2563EB';
-const DK = '#0F172A';
-const GR = '#64748B';
-const WH = '#FFFFFF';
 
 const BecomeBusinessServiceProvider = ({ businessId, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
@@ -48,54 +43,22 @@ const BecomeBusinessServiceProvider = ({ businessId, onNavigate, isLoggedIn }) =
     } finally { setSubmitting(false); }
   };
 
+  const back = () => onNavigate(`BusinessHome-${businessId}`);
+  if (done) {
+    return (
+      <ApplyPage onBack={back} backTitle={t('apply_service_provider.page_title')} title={t('apply_service_provider.success_title')}>
+        <Note tone="green">{t('apply_service_provider.success_desc')}</Note>
+        <button type="button" onClick={back} style={pillStyle()}>{t('apply_service_provider.back_to_business')}</button>
+      </ApplyPage>
+    );
+  }
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily:'inherit' }}>
-      <BackBar onBack={() => onNavigate(`BusinessHome-${businessId}`)} title={t('apply_service_provider.page_title')} top={0} />
-
-      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
-        {!done ? (
-          <div style={{ backgroundColor: WH, borderRadius: 16, padding: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🧰</div>
-            <h2 style={{ fontSize: 18, fontWeight:800, color: DK, marginBottom: 8 }}>
-              {t('apply_service_provider.hero_title', { business: businessName || t('apply_service_provider.page_title') })}
-            </h2>
-            <p style={{ fontSize: 13, color: GR, marginBottom: 20 }}>
-              {t('apply_service_provider.hero_subtitle')}
-            </p>
-
-            {error && (
-              <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: 10,
-                padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
-                {error}
-              </div>
-            )}
-
-            <button onClick={handleSubmit} disabled={submitting}
-              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
-                borderRadius: 12, padding: '14px 0', cursor: submitting ? 'not-allowed' : 'pointer',
-                fontSize: 15, fontWeight: 800 }}>
-              {submitting ? t('apply_service_provider.submitting_button') : t('apply_service_provider.submit_button')}
-            </button>
-          </div>
-        ) : (
-          <div style={{ backgroundColor: WH, borderRadius: 16, padding: 24,
-            boxShadow: '0 2px 10px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-            <h2 style={{ fontSize: 18, fontWeight:800, color: DK, marginBottom: 8 }}>
-              {t('apply_service_provider.success_title')}
-            </h2>
-            <p style={{ fontSize: 13, color: GR, marginBottom: 20 }}>
-              {t('apply_service_provider.success_desc')}
-            </p>
-            <button onClick={() => onNavigate(`BusinessHome-${businessId}`)}
-              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
-                borderRadius: 12, padding: '12px 0', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-              {t('apply_service_provider.back_to_business')}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <ApplyPage onBack={back} backTitle={t('apply_service_provider.page_title')} title={t('apply_service_provider.hero_title', { business: businessName || t('apply_service_provider.page_title') })} desc={t('apply_service_provider.hero_subtitle')}>
+      <ErrorText>{error}</ErrorText>
+      <button type="button" onClick={handleSubmit} disabled={submitting} style={pillStyle(true, submitting)}>
+        {submitting ? t('apply_service_provider.submitting_button') : t('apply_service_provider.submit_button')}
+      </button>
+    </ApplyPage>
   );
 };
 

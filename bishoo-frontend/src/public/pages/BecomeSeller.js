@@ -16,13 +16,13 @@ import useIdentityRefresh from '../../utils/useIdentityRefresh';
 // An existing request shows its status here instead of the form.
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
-  border: '2px solid #e2e8f0', fontSize: 14,
+  border: '1px solid #cfd9de', fontSize: 14,
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
-const card = { backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 };
+const card = { backgroundColor: '#fff', borderRadius: 14, padding: 16, border: '1px solid #eff3f4', marginBottom: 16 };
 const label = { display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 };
-const primary = (on) => ({ width: '100%', marginTop: 16, background: on ? 'linear-gradient(135deg,#667eea,#764ba2)' : '#a5b4fc',
-  color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: on ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 800 });
+const primary = (on) => ({ width: '100%', marginTop: 16, background: '#0f1419', opacity: on ? 1 : 0.5, fontFamily: 'inherit',
+  color: '#fff', border: 'none', height: 48, borderRadius: 24, cursor: on ? 'pointer' : 'not-allowed', fontSize: 16, fontWeight: 700 });
 
 // Same keys Stores.js's category filter chips already read/expect —
 // picking one here is what actually makes a new seller show up under a
@@ -160,17 +160,17 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff', fontFamily: 'inherit' }}>
       <BackBar onBack={() => (screen === 'papers' ? setScreen('main') : onNavigate('back'))} title={t('become_seller.page_title')} top={0} />
 
-      <div style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', padding: '22px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight:800, color: '#fff', marginBottom: 6 }}>{t('become_seller.hero_title')}</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>{t('become_seller.hero_desc')}</div>
+      <div style={{ padding: '16px 16px 4px', maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f1419', margin: '0 0 6px', lineHeight: 1.2 }}>{t('become_seller.hero_title')}</h1>
+        <p style={{ fontSize: 15, color: '#536471', lineHeight: 1.45, margin: 0 }}>{t('become_seller.hero_desc')}</p>
       </div>
 
       <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 140 }}>
         {checking || !identityStatus ? (
-          <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>⏳</div>
+          <div style={{ ...card, textAlign: 'center', color: '#536471' }}>Inapakia...</div>
 
         ) : existing && existing.status ? statusCard()
 
