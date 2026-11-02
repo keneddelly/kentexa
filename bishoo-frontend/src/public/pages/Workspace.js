@@ -141,6 +141,12 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
   // The active role's items sit in the workspace that holds that role.
   const holdsActiveRole = (w) => w && w.roles.some((r) => r.isActive);
 
+  // Business: the active role's items when this business holds it. Binafsi: the account's own
+  // items, plus the active role's when that role is personal (an agent).
+  const attentionNow = !current ? [] : current.kind === 'business'
+    ? (holdsActiveRole(current) ? roleItems : [])
+    : [...(holdsActiveRole(current) ? roleItems : []), ...personalItems];
+
   const startOptions = startOptionsFor(roleOptions || []);
   const loading = businesses === null;
 
@@ -148,7 +154,7 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
     <div style={{ minHeight: '100vh', background: '#fff', color: INK, paddingBottom: 90,
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}>
       <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#fff', borderBottom: `1px solid ${LINE}` }}>
-        <div style={{ maxWidth: 960, margin: '0 auto', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 16px' }}>
+        <div style={{ maxWidth: 1180, margin: '0 auto', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 16px' }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Kazi</h1>
           <button type="button" aria-label="Wasifu wangu" onClick={() => onNavigate('MyProfile')}
             style={{ width: 44, height: 44, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -159,7 +165,10 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
         </div>
       </div>
 
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 16, boxSizing: 'border-box' }}>
+      {/* Phase 3: on a computer, two columns -- who you are and what needs you on the left,
+          the tools on the right. On a phone the columns stack (flex-wrap). */}
+      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '14px 16px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 24, boxSizing: 'border-box' }}>
+      <div data-testid="workspace-side" style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {error && <div role="alert" style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 12, padding: '10px 14px', fontSize: 14 }}>{error}</div>}
 
         {/* The workspace switcher: Binafsi and each business. Choosing one shows its tools;
@@ -209,11 +218,13 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
           </div>
         )}
 
+        {attentionList(attentionNow)}
+      </div>
+      <div data-testid="workspace-main" style={{ flex: '999 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {loading && <div role="status" style={{ color: MUTED, fontSize: 15, padding: '24px 0' }}>Inapakia kazi zako…</div>}
 
         {!loading && current && current.kind === 'business' && (
           <div data-testid="business-workspace" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {holdsActiveRole(current) && attentionList(roleItems)}
             {current.roles.length === 0 && (
               <div style={{ border: `1px dashed #cfd9de`, borderRadius: 16, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 15, lineHeight: 1.45 }}>Biashara hii bado haina kazi kwenye KenteXa. Anza kuuza, kutoa huduma au usafiri.</span>
@@ -222,6 +233,11 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
               </div>
             )}
             {current.roles.map(roleBlock)}
+            <button type="button" data-testid="business-today" onClick={() => onNavigate(`BusinessDashboard-${current.businessId}`)}
+              style={{ minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '0 14px',
+                border: `1px solid ${LINE}`, borderRadius: 14, background: '#fff', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, color: INK, cursor: 'pointer' }}>
+              <span>Leo: wateja, oda na wafuasi</span><Chevron />
+            </button>
             <button type="button" onClick={() => onNavigate(`BusinessHome-${current.businessId}`)}
               style={{ minHeight: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '0 14px',
                 border: `1px solid ${LINE}`, borderRadius: 14, background: '#fff', fontFamily: 'inherit', fontSize: 15, fontWeight: 700, color: INK, cursor: 'pointer' }}>
@@ -232,7 +248,6 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
 
         {!loading && current && current.kind === 'personal' && (
           <div data-testid="personal-workspace" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {attentionList([...(holdsActiveRole(current) ? roleItems : []), ...personalItems])}
             {current.roles.map(roleBlock)}
             <section aria-label="Binafsi" style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ fontSize: 18, fontWeight: 800, paddingBottom: 4 }}>Binafsi</span>
@@ -265,6 +280,7 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

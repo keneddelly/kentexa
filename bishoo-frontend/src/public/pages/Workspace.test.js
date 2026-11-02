@@ -88,3 +88,9 @@ test('no items, no section: nothing is invented', async () => {
   await setup(1);
   expect(screen.queryByTestId('attention')).toBeNull();
 });
+
+test('each business keeps its daily summary ("Leo") as a tool', async () => {
+  const { onNavigate } = await setup(2, [], { roleType: 'seller' });
+  fireEvent.click(screen.getByTestId('business-today'));
+  expect(onNavigate).toHaveBeenCalledWith('BusinessDashboard-10');
+});

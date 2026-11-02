@@ -11,7 +11,7 @@
  * account hub where you switch profiles) stay constant across every type.
  */
 import { personalOperationalText } from '../utils/publicActor';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { itemsForRole } from '../../navigation/navigationRegistry';
 import { isAppleMobile } from '../utils/isAppleMobile';
@@ -83,6 +83,23 @@ const CAPABILITY_LABEL_BY_ROLE = {
   service_provider: 'profile_switcher.type_service',
 };
 
+// Kazi phase 3 (owner 2026-11-01): on a computer the same five places sit in a left side menu,
+// not a bottom bar; the page moves right to make room (body class, see the <style> below).
+export const DESKTOP_QUERY = '(min-width: 1024px)';
+export const SIDEBAR_WIDTH = 248;
+const useWideScreen = () => {
+  const query = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(DESKTOP_QUERY).matches;
+  const [wide, setWide] = useState(query);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mq = window.matchMedia(DESKTOP_QUERY);
+    const onChange = () => setWide(mq.matches);
+    if (mq.addEventListener) mq.addEventListener('change', onChange); else if (mq.addListener) mq.addListener(onChange);
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', onChange); else if (mq.removeListener) mq.removeListener(onChange); };
+  }, []);
+  return wide;
+};
+
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
   activeProfile, activeContext, activeBusinessName, onOpenSwitcher, myProfiles, inboxUnread }) => {
   const { t } = useTranslation();
@@ -136,6 +153,80 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
   // where most people are most of the time. Sits just above the tab row
   // so it never competes with the 5 fixed tap targets below it.
   const showPill = isLoggedIn && activeProfile && (myProfiles?.length || 0) > 1;
+  const wide = useWideScreen();
+  // The page leaves room for the side menu only while the side menu is shown.
+  useEffect(() => {
+    if (!wide || typeof document === 'undefined') return undefined;
+    document.body.classList.add('kx-has-sidenav');
+    return () => document.body.classList.remove('kx-has-sidenav');
+  }, [wide]);
+
+  const go = (tab) => {
+    if (tab.key === '__POST__') {
+      if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+      onPostClick?.();
+    } else if (tab.key === 'MyProfile') {
+      onNavigate(isLoggedIn ? 'MyProfile' : 'PublicLogin');
+    } else if (tab.key === 'Activity') {
+      onNavigate(isLoggedIn ? 'Activity' : 'PublicLogin');
+    } else {
+      onNavigate(tab.key);
+    }
+  };
+
+  if (wide) {
+    const sideItem = (key, label, icon, active, onClick, badge) => (
+      <button key={key} type="button" onClick={onClick} aria-current={active ? 'page' : undefined}
+        data-tour={key === 'Workspace' ? 'bottomnav-workspace' : undefined}
+        style={{ height: 52, display: 'flex', alignItems: 'center', gap: 16, padding: '0 14px', border: 'none',
+          borderRadius: 26, background: active ? '#eff3f4' : 'none', cursor: 'pointer', fontFamily: 'inherit',
+          fontSize: 18, fontWeight: active ? 800 : 500, color: INK, position: 'relative', textAlign: 'left' }}>
+        {icon}
+        <span>{label}</span>
+        {badge > 0 && (
+          <span style={{ marginLeft: 'auto', minWidth: 22, height: 22, padding: '0 6px', borderRadius: 11, boxSizing: 'border-box',
+            background: '#ff3040', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+      </button>
+    );
+    return (
+      <>
+        <style>{`@media ${DESKTOP_QUERY} { body.kx-has-sidenav { padding-left: ${SIDEBAR_WIDTH}px; } }`}</style>
+        <nav aria-label="Menyu kuu" data-testid="side-nav"
+          style={{ position: 'fixed', top: 0, bottom: 0, left: 0, width: SIDEBAR_WIDTH, boxSizing: 'border-box', zIndex: 1000,
+            background: '#fff', borderRight: '1px solid #eff3f4', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <button type="button" onClick={() => onNavigate('Home')} aria-label="KenteXa, mwanzo"
+            style={{ border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', padding: '6px 14px 14px',
+              fontSize: 24, fontWeight: 800, letterSpacing: -0.5, color: INK, fontFamily: 'inherit' }}>
+            Kente<span style={{ color: '#1d4ed8' }}>Xa</span>
+          </button>
+          {tabs.map((tab) => sideItem(tab.key, tab.key === '__POST__' ? 'Tengeneza' : tab.label,
+            tab.icon(currentPage === tab.key), currentPage === tab.key, () => go(tab), tab.key === 'SellerInbox' ? inboxUnread : 0))}
+          {isLoggedIn && sideItem('MyProfile', t('nav.profile'), (
+            (currentUser?.avatarUrl || currentUser?.logo)
+              ? <img src={currentUser.avatarUrl || currentUser.logo} alt="" style={{ width: 27, height: 27, borderRadius: '50%', objectFit: 'cover' }} />
+              : <span style={{ width: 27, height: 27, borderRadius: '50%', background: '#cfd9de', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                  {(currentUser?.name || 'U').charAt(0).toUpperCase()}
+                </span>
+          ), currentPage === 'MyProfile', () => onNavigate('MyProfile'))}
+          {showPill && (
+            <button type="button" onClick={onOpenSwitcher}
+              style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', border: '1px solid #cfd9de',
+                borderRadius: 16, background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: INK }}>
+              <span style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexGrow: 1 }}>
+                {activeBusinessName
+                  ? `${activeBusinessName} · ${t(CAPABILITY_LABEL_BY_ROLE[activeContext?.roleType] || 'profile_switcher.type_business')}`
+                  : personalOperationalText(activeProfile, t)}
+              </span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
+          )}
+        </nav>
+      </>
+    );
+  }
 
   return (
     <>
@@ -197,18 +288,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
               data-tour={tab.key === 'Workspace' ? 'bottomnav-workspace' : tab.key === 'MyProfile' ? 'bottomnav-profile' : undefined}
               aria-label={isPost ? 'Tengeneza' : tab.label || undefined}
               aria-current={isActive ? 'page' : undefined}
-              onClick={() => {
-                if (isPost) {
-                  if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
-                  onPostClick?.();
-                } else if (tab.key === 'MyProfile') {
-                  onNavigate(isLoggedIn ? 'MyProfile' : 'PublicLogin');
-                } else if (tab.key === 'Activity') {
-                  onNavigate(isLoggedIn ? 'Activity' : 'PublicLogin');
-                } else {
-                  onNavigate(tab.key);
-                }
-              }}
+              onClick={() => go(tab)}
               style={{
                 flex:            1,
                 border:          'none',
