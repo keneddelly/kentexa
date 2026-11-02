@@ -38,7 +38,7 @@ import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 import { SearchIndexService } from '../search/search-index.service';
-import { NOT_FROM_HIDDEN_PROFILE, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
+import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
 
 export type FeedFilter =
   | 'for_you'
@@ -449,6 +449,7 @@ export class FeedService {
       .where('f.type IN (:...types)', { types: ['moment', 'looking_for'] })
       .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
       .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 }) // followers-only posts: author and followers only
+      .andWhere(NOT_MUTED_BY_VIEWER('f')) // phase F: identities this viewer muted
       .andWhere('f.isActive = true')
       .andWhere('f.createdAt > :since', { since })
       .orderBy('f.createdAt', 'DESC')

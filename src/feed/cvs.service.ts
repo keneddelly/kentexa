@@ -48,7 +48,7 @@ import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
-import { NOT_FROM_HIDDEN_PROFILE, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
+import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
 import { moderateCommentBody } from './comment-moderation';
 import { AiService } from '../ai/ai.service';
 import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
@@ -116,6 +116,14 @@ export class CvsService {
     // Phase C (2026-11-02): the heart, the bookmark and a share act only on a post the
     // person may see (a followers-only post answers "not found" to anyone else).
     await this.assertCanSeePost(postId, userId);
+    // Phase F: only a post for everyone (Wote) can be reposted; reposting a followers-only
+    // post would show it outside its audience.
+    if (type === EngagementType.REPOST) {
+      const target = await this.feedRepo.findOne({ where: { id: postId } });
+      if (target && target.visibility && target.visibility !== 'public') {
+        throw new BadRequestException('Chapisho la wanaofuata tu haliwezi kusambazwa.');
+      }
+    }
 
     const existing = await this.engageRepo.findOne({
       where: { userId, postId, type },
@@ -153,6 +161,7 @@ export class CvsService {
       [EngagementType.SAVE]: 'MOMENT_SAVED',
       [EngagementType.SHARE]: 'MOMENT_SHARED',
       [EngagementType.LIKE]: 'MOMENT_LIKED',
+      [EngagementType.REPOST]: 'MOMENT_REPOSTED',
     };
     if (toggled && EVENT_FOR[type]) {
       const post = await this.feedRepo.findOne({ where: { id: postId } });
@@ -498,6 +507,7 @@ export class CvsService {
     const updateData: any = {
       saveCount: 0,
       likeCount: 0,
+      repostCount: 0,
       commentCount: 0,
       shareCount: 0,
       purchaseCount: 0,
@@ -514,6 +524,7 @@ export class CvsService {
       const fieldMap: Record<EngagementType, string> = {
         [EngagementType.SAVE]: 'saveCount',
         [EngagementType.LIKE]: 'likeCount',
+        [EngagementType.REPOST]: 'repostCount',
         [EngagementType.COMMENT]: 'commentCount',
         [EngagementType.SHARE]: 'shareCount',
         [EngagementType.VIEW]: 'viewCount',
@@ -531,6 +542,11 @@ export class CvsService {
   // ── Get user's saved post IDs (real posts + virtual entities) ────────────
   async getSavedPostIds(userId: number): Promise<(number | string)[]> {
     return this.engagedPostIds(userId, EngagementType.SAVE);
+  }
+
+  /** Phase F: the posts this person has reposted. */
+  async getRepostedPostIds(userId: number): Promise<(number | string)[]> {
+    return this.engagedPostIds(userId, EngagementType.REPOST);
   }
 
   /** Phase C: the posts this person has hearted (same id shape as saved ids). */
@@ -1210,6 +1226,7 @@ export class CvsService {
       .where('f.isActive = true')
       .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
       .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
+      .andWhere(NOT_MUTED_BY_VIEWER('f')) // phase F: identities this viewer muted
       .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
 
     // Once a user has genuinely viewed a post, it drops out of the
@@ -1224,6 +1241,7 @@ export class CvsService {
       );
     }
 
+    let reposterUserIds: number[] = [];
     switch (filter) {
       case 'following': {
         if (!userId) {
@@ -1239,6 +1257,9 @@ export class CvsService {
         if (businessScopedIds.length === 0 && profileScopedIds.length === 0) {
           return { items: [], total: 0 };
         }
+        // Phase F (owner approved 2026-11-02): a repost is the person's own act, so it reaches
+        // the followers of that person's personal profile (never of their business).
+        reposterUserIds = await this.personalOwnersOf(profileScopedIds);
         qb.andWhere(new Brackets((sub) => {
           if (businessScopedIds.length > 0) {
             sub.orWhere(`(f."businessId" IN (:...followBusinessIds) AND (f."commerceProfileId" IS NULL OR EXISTS (SELECT 1 FROM public.commerce_profile fp WHERE fp.id = f."commerceProfileId" AND fp.type = 'business')))`,
@@ -1246,6 +1267,10 @@ export class CvsService {
           }
           if (profileScopedIds.length > 0) {
             sub.orWhere('f."commerceProfileId" IN (:...followProfileIds)', { followProfileIds: profileScopedIds });
+          }
+          if (reposterUserIds.length > 0) {
+            sub.orWhere(`(f.visibility = 'public' AND EXISTS (SELECT 1 FROM post_engagement rp WHERE rp."postId" = f.id AND rp.type = 'repost' AND rp."userId" IN (:...reposterUserIds)))`,
+              { reposterUserIds });
           }
         }));
         qb.orderBy('f.createdAt', 'DESC');
@@ -1359,6 +1384,7 @@ export class CvsService {
         .where('f.isActive = true')
         .andWhere(NOT_FROM_HIDDEN_PROFILE('f')) // training offices etc. never in public feeds
         .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: userId || 0 }) // followers-only posts: author and followers only
+        .andWhere(NOT_MUTED_BY_VIEWER('f')) // phase F: identities this viewer muted
         .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
         .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`)
         .andWhere(
@@ -1780,10 +1806,39 @@ export class CvsService {
       };
     }
 
-    return {
-      items: await this.presentRealItems(items, followedSellerIds, savedIds),
-      total,
-    };
+    const presented = await this.presentRealItems(items, followedSellerIds, savedIds);
+    if (reposterUserIds.length) await this.attachRepostedBy(presented, reposterUserIds);
+    return { items: presented, total };
+  }
+
+  /** Phase F: account ids behind these profiles, for the personal profiles among them. */
+  private async personalOwnersOf(profileIds: number[]): Promise<number[]> {
+    if (!profileIds.length) return [];
+    const rows = await this.commerceProfileRepo.find({ where: { id: In(profileIds) } }).catch(() => []);
+    return [...new Set(rows.filter((p: any) => p.type === CommerceProfileType.PERSONAL && p.ownerId).map((p: any) => Number(p.ownerId)))];
+  }
+
+  /** Phase F: "X amesambaza" on a post that reached the viewer through a followed person's repost. */
+  private async attachRepostedBy(items: any[], reposterUserIds: number[]): Promise<void> {
+    const ids = items.map((i) => i.id).filter((id) => typeof id === 'number');
+    if (!ids.length) return;
+    const rows = await this.engageRepo.createQueryBuilder('e')
+      .select('e."postId"', 'postId').addSelect('e."userId"', 'userId')
+      .where('e."postId" IN (:...ids)', { ids })
+      .andWhere('e.type = :t', { t: EngagementType.REPOST })
+      .andWhere('e."userId" IN (:...reposterUserIds)', { reposterUserIds })
+      .orderBy('e.id', 'DESC')
+      .getRawMany().catch(() => []);
+    if (!rows.length) return;
+    const profiles = await this.commerceProfileRepo.find({ where: { ownerId: In(reposterUserIds), type: CommerceProfileType.PERSONAL } as any }).catch(() => []);
+    const byOwner = new Map(profiles.map((p: any) => [Number(p.ownerId), p]));
+    const firstReposter = new Map<number, number>();
+    for (const r of rows) if (!firstReposter.has(Number(r.postId))) firstReposter.set(Number(r.postId), Number(r.userId));
+    for (const item of items) {
+      const uid = firstReposter.get(item.id);
+      const p = uid ? byOwner.get(uid) : null;
+      if (p) item.repostedBy = { commerceProfileId: p.id, name: p.displayName };
+    }
   }
 
   /**

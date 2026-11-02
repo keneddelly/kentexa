@@ -220,6 +220,10 @@ export class BusinessFeedItem {
   @Column({ type: 'int', default: 0 })
   likeCount: number;
 
+  // Phase F (2026-11-02): reposts, counted from post_engagement like the others.
+  @Column({ type: 'int', default: 0 })
+  repostCount: number;
+
   @Column({ type: 'int', default: 0 })
   commentCount: number;
 

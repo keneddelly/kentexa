@@ -25,3 +25,13 @@ export const VISIBLE_TO_VIEWER = (alias: string, viewerParam = 'feedViewerId') =
 
 /** Plain check for one post already loaded (same rule as VISIBLE_TO_VIEWER, for code paths). */
 export const isPublicPost = (post: { visibility?: string | null }) => !post.visibility || post.visibility === 'public';
+
+/**
+ * Phase F (owner approved 2026-11-02): the viewer muted this post's identity. A mute names the
+ * commerce profile, or the account for a post made without one. Mutes only change what the
+ * person who muted sees; nobody else's feed changes. `viewerParam` is the viewer's user id.
+ */
+export const NOT_MUTED_BY_VIEWER = (alias: string, viewerParam = 'feedViewerId') =>
+  `NOT EXISTS (SELECT 1 FROM public.profile_mute pm WHERE pm."userId" = :${viewerParam}`
+  + ` AND (pm."mutedProfileId" = ${alias}."commerceProfileId"`
+  + ` OR (${alias}."commerceProfileId" IS NULL AND pm."mutedUserId" = ${alias}."businessId")))`;
