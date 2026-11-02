@@ -108,7 +108,6 @@ import SellerClassifieds from './public/pages/SellerClassifieds';
 import SellerOrders from './public/pages/SellerOrders';
 import SellerInvoices from './public/pages/SellerInvoices';
 import SellerShipping from './public/pages/SellerShipping';
-import PayInvoice from './public/pages/PayInvoice';
 import Dashboard from './admin/pages/Dashboard';
 import Products from './admin/pages/Products';
 import Classifieds from './admin/pages/Classifieds';
@@ -863,8 +862,10 @@ function App() {
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))
       return requireLogin(<BatchHandoff {...publicProps} orderId={page.split('BatchHandoff-')[1]} />);
+    // PayInvoice is hidden for now (owner 2026-11-02): it pays through KenteXa, and KenteXa
+    // never holds money. Old links land on the buyer's orders (or Home for a visitor).
     if (page.startsWith('PayInvoice-'))
-      return <PayInvoice {...publicProps} prefilledOrderId={page.split('PayInvoice-')[1]} />;
+      return isLoggedIn ? <MyOrders {...publicProps} /> : <Welcome {...publicProps} />;
     if (page.startsWith('VerifyReceipt-'))
       return <VerifyReceipt {...publicProps} initialReceipt={page.split('VerifyReceipt-')[1]} />;
     if (page.startsWith('SellerInbox-')) {
@@ -949,7 +950,7 @@ function App() {
       case 'BecomeAgent':       return <BecomeAgent {...publicProps} />;
       case 'BecomeSuperAgentInfo': return <BecomeSuperAgentInfo {...publicProps} />;
       case 'VerifyReceipt':     return <VerifyReceipt {...publicProps} />;
-      case 'PayInvoice':        return <PayInvoice {...publicProps} />;
+      case 'PayInvoice':        return isLoggedIn ? <MyOrders {...publicProps} /> : <Welcome {...publicProps} />; // hidden for now
 
       case 'MyOrders':          return requireLogin(<MyOrders {...publicProps} />);
       case 'EditPublicProfile': return requireLogin(<EditPublicProfile {...publicProps} commerceProfileId={navParams?.commerceProfileId} />);
