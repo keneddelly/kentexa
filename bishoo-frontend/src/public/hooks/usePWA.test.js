@@ -65,3 +65,20 @@ test('installed event hides an outstanding suggestion and prevents its timer fro
     jest.useRealTimers();
   }
 });
+
+test('a computer gets the install button once Chrome offers it (owner 2026-11-03)', () => {
+  const originalAgent = navigator.userAgent;
+  Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11) Chrome/103' });
+  try {
+    const { result, unmount } = renderHook(() => usePWA());
+    expect(result.current.canInstall).toBe(false);
+    const offer = new Event('beforeinstallprompt');
+    offer.prompt = jest.fn(); offer.userChoice = Promise.resolve({ outcome: 'accepted' });
+    act(() => { window.dispatchEvent(offer); });
+    expect(result.current.canInstall).toBe(true);
+    expect(result.current.hasPrompt).toBe(true);
+    unmount();
+  } finally {
+    Object.defineProperty(navigator, 'userAgent', { configurable: true, value: originalAgent });
+  }
+});

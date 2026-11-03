@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { workAppPage } from './utils/posApp';
 import { usePWA, InstallBanner, InstallGuide, subscribeToPush, disablePushNotifications } from './public/hooks/usePWA';
 import api from './api/api';
 import { CartProvider } from './context/CartContext';
@@ -219,7 +220,7 @@ function App() {
     if (authStatus === 'authenticated' && posOfflineBoot && navigator.onLine !== false) setPosOfflineBoot(false);
   }, [authStatus, posOfflineBoot]);
   const { showInstallPrompt, showGuide, handleInstall, handleDismiss, closeGuide,
-    canInstall, environment } = usePWA();
+    canInstall, hasPrompt, environment } = usePWA();
   const [showPostModal, setShowPostModal] = useState(false);
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [momentModalMode, setMomentModalMode] = useState('selling');
@@ -279,7 +280,8 @@ function App() {
       // A hotel's menu link or the QR on its table/room (/menu/:businessId?meza=4), owner 2026-10-27.
       const menu = parseMenuPath(window.location.pathname, window.location.search);
       if (menu) return menu.page;
-      if (/^\/pos\/?$/.test(window.location.pathname)) return 'POS';
+      // The installed work apps (/pos the till, /ofisi the ofisi desk) open straight there.
+      if (workAppPage(window.location.pathname)) return workAppPage(window.location.pathname);
       // A seller's invitation to a transporter or an office (components/InviteCarrier.js).
       const join = params.get('join');
       if (join === 'transport') return 'BecomeTransportProvider';
@@ -419,7 +421,7 @@ function App() {
     const menu = parseMenuPath(window.location.pathname, window.location.search);
     if (activeContext?.roleType && menu) { setNavParams(menu.navParams); setPage(menu.page); return; }
     // The installed till (/pos) stays on the till.
-    if (activeContext?.roleType && /^\/pos\/?$/.test(window.location.pathname)) { setPage('POS'); return; }
+    if (activeContext?.roleType && workAppPage(window.location.pathname)) { setPage(workAppPage(window.location.pathname)); return; }
     if (activeContext?.roleType) setPage(
       receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
         ? `BuyerParcelAction-${receive}`
@@ -541,7 +543,7 @@ function App() {
             // Logged in from a hotel's menu (or its table QR): back to that menu, same table.
             const menu = parseMenuPath(window.location.pathname, window.location.search);
             if (menu) { setNavParams(menu.navParams); setPage(menu.page); return; }
-            if (/^\/pos\/?$/.test(window.location.pathname)) { setPage('POS'); return; }
+            if (workAppPage(window.location.pathname)) { setPage(workAppPage(window.location.pathname)); return; }
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
               : sellerCheckout && SELLER_TOKEN.test(sellerCheckout)
@@ -665,7 +667,7 @@ function App() {
 
   const publicProps = {
     onNavigate: handleNavigate, isLoggedIn, onLogout: handleLogout, userRole, currentUser,
-    canInstallKentexa: canInstall, onInstallKentexa: handleInstall,
+    canInstallKentexa: canInstall, onInstallKentexa: handleInstall, installEnv: environment, installReady: hasPrompt,
     onUserUpdated: handleUserUpdated,
     activeProfile, activeProfileId: activeProfile?.id,
     activeContext, availableRoles: roleContext.availableRoles,
