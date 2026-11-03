@@ -16,6 +16,7 @@
  */
 import { enterPosApp } from '../../utils/posApp';
 import WorkAppInstall from '../components/WorkAppInstall';
+import { savePosTeam } from '../../utils/posTeam';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import BackBar from '../components/BackBar';
 import PosToday from '../components/PosToday';
@@ -112,7 +113,20 @@ export const stockStop = (p, inCart) => {
 const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineBoot = false, canInstallKentexa, onInstallKentexa, installEnv, installReady, posTeam = null }) => {
   const session = useMemo(() => loadSession(), []);
   // A cashier selling for a business she was invited to (owner 2026-11-03): that business's name.
-  const shopName = posTeam?.businessName || activeContext?.displayName || currentUser?.storeName || currentUser?.name || session?.shopName || 'Duka';
+  // A cashier's till reads the business's products from the profile the server says holds them
+  // (owner 2026-11-03: "the invited user do not see products"); a till saved on this phone is refreshed.
+  const [team, setTeam] = useState(posTeam);
+  const productProfileId = posTeam ? team?.commerceProfileId : activeProfileId;
+  useEffect(() => {
+    if (!posTeam?.sellerId || offlineBoot) return undefined;
+    let live = true;
+    Promise.resolve(api.get('/team-invitations/workplaces')).then((r) => {
+      const fresh = (Array.isArray(r?.data) ? r.data : []).find((w) => Number(w.sellerId) === Number(posTeam.sellerId));
+      if (live && fresh) { savePosTeam(fresh); setTeam(fresh); }
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [posTeam?.sellerId, offlineBoot]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shopName = team?.businessName || activeContext?.displayName || currentUser?.storeName || currentUser?.name || session?.shopName || 'Duka';
   // "Badilisha mhudumu" (owner 2026-11-03): the cashier on duty, switched by PIN, also offline.
   const [cashiers, setCashiers] = useState(() => loadCashiers());
   const [onDuty, setOnDuty] = useState(() => loadOnDuty());
@@ -199,7 +213,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     (async () => {
       if (online && !offlineBoot) {
         try {
-          const r = await api.get('/products/my/products', { params: activeProfileId ? { commerceProfileId: activeProfileId } : {} });
+          const r = await api.get('/products/my/products', { params: productProfileId ? { commerceProfileId: productProfileId } : {} });
           const list = tillProducts(r.data);
           if (!alive) return;
           setProducts(list);
@@ -221,13 +235,13 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     listParked().then(setParked).catch(() => {});
     if (!isAppleMobile()) searchRef.current?.focus();
     return () => { alive = false; };
-  }, [activeProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [productProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stock sold online or changed on Bidhaa reaches the till: every 2 minutes and when the window is back in front.
   useEffect(() => {
     if (!online || offlineBoot) return undefined;
     let alive = true;
-    const refresh = () => Promise.resolve(api.get('/products/my/products', { params: activeProfileId ? { commerceProfileId: activeProfileId } : {} }))
+    const refresh = () => Promise.resolve(api.get('/products/my/products', { params: productProfileId ? { commerceProfileId: productProfileId } : {} }))
       .then((r) => {
         if (!alive || !Array.isArray(r?.data)) return;
         const list = tillProducts(r.data);
@@ -238,7 +252,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     const onFocus = () => refresh();
     window.addEventListener('focus', onFocus);
     return () => { alive = false; clearInterval(timer); window.removeEventListener('focus', onFocus); };
-  }, [online, offlineBoot, activeProfileId]);
+  }, [online, offlineBoot, productProfileId]);
 
   // Today's total (online) and sending waiting sales when the internet is back.
   useEffect(() => {
@@ -446,7 +460,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       {showToday && <PosToday cashierUserId={onDuty?.userId} cashierName={cashier} onClose={() => { setShowToday(false); Promise.resolve(api.get('/sales/dashboard')).then((r) => setToday(r?.data?.today?.total ?? null)).catch(() => {}); }} />}
 
       <header className="pos-no-print" style={{ background: '#fff', borderBottom: `1px solid ${LINE}`, padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        {posTeam && <span data-testid="pos-team" style={{ fontSize: 13, fontWeight: 800 }}>Unauzia {posTeam.businessName}</span>}
+        {posTeam && <span data-testid="pos-team" style={{ fontSize: 13, fontWeight: 800 }}>Unauzia {team?.businessName || posTeam.businessName}</span>}
         <span data-testid="pos-network" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: online && !offlineBoot ? GREEN : AMBER }}>
           <span style={{ width: 8, height: 8, borderRadius: 4, background: online && !offlineBoot ? GREEN : AMBER }} />
           {online && !offlineBoot ? 'Mtandao upo' : 'Hakuna mtandao: mauzo yanahifadhiwa kwenye kompyuta hii'}
