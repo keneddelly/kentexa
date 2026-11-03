@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import { paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { SmsService } from '../sms/sms.service';
@@ -86,6 +87,7 @@ export class PickupOfferSmsService {
                    AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = a.id)
              -- Seller partner agents first, for a few minutes (they already had their own SMS).
              AND ${partnerGateSql('a."userId"')}
+             AND ${paidUpGateSql('a."userId"')}
            ORDER BY (a."baseLatitude" IS NULL) ASC, ${PICKUP_TO_BASE_DISTANCE_SQL} ASC NULLS LAST, COALESCE(a.rating, 0) DESC, a.id ASC
            LIMIT $2`, [task.id, room]);
         const reference = customerParcelNumber({

@@ -72,15 +72,18 @@ export const ROLE_TOOLS = Object.freeze({
     tool('seller.analytics', 'Takwimu', 'SellerAnalytics', ICON.chart),
     tool('seller.wallet', 'Pesa', 'SellerWallet', ICON.wallet),
     tool('seller.store', 'Duka', 'StoreSettings', ICON.store),
+    tool('seller.fee', 'Ada ya KenteXa', 'KentexaFee', ICON.invoice, { as: 'seller' }),
   ],
   super_agent: [
     tool('office.desk', 'POKEA na TUMA', 'SuperAgentDashboard', ICON.office),
     tool('office.quotes', 'Maombi ya bei', 'QuoteInbox', ICON.chat),
     tool('office.settings', 'Mipangilio ya ofisi', 'SuperAgentSettings', ICON.gear),
+    tool('office.fee', 'Ada ya KenteXa', 'KentexaFee', ICON.invoice, { as: 'office' }),
   ],
   agent: [
     tool('agent.jobs', 'Kazi za wakala', 'AgentDashboard', ICON.bike),
     tool('agent.earnings', 'Mapato yangu', 'AgentEarnings', ICON.wallet),
+    tool('agent.fee', 'Ada ya KenteXa', 'KentexaFee', ICON.invoice, { as: 'agent' }),
   ],
   transport_provider: [
     tool('transport.trips', 'Safari na mizigo', 'TransportProviderDashboard', ICON.truck),

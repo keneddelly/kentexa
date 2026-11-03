@@ -72,50 +72,6 @@ import { Classified, ClassifiedStatus } from '../classifieds/entities/classified
 import { CodCalculationService } from '../cod/cod-calculation.service';
 import { Brand } from '../brands/entities/brand.entity';
 
-const CATEGORY_COMMISSION: Record<string, number> = {
-  electronics: 10,
-  fashion: 12,
-  vehicles: 5,
-  food: 10,
-  home_garden: 10,
-  health_beauty: 10,
-  baby_kids: 10,
-  sports: 10,
-  agriculture: 8,
-  security: 8,
-  books: 10,
-  arts: 10,
-  general: 10,
-  property: 0,
-  services: 0,
-  pets: 10,
-  construction: 8,
-  industrial: 8,
-  // ── 2026-08-28 category expansion ──
-  appliances: 10,
-  musical_instruments: 10,
-  flowers: 10,
-  jobs: 0, // a job posting has no sale value to take commission from
-  energy: 8,
-  tools_hardware: 10,
-  weddings_events: 10,
-  water_sanitation: 8,
-  office_supplies: 10,
-  collectibles: 10,
-  tickets_vouchers: 10,
-  free_giveaway: 0, // nothing is being sold
-  // ── Digital goods ──
-  ebooks: 10,
-  software: 10,
-  online_courses: 10,
-  digital_services: 0,
-  music_media: 10,
-  digital_general: 10,
-};
-
-const getCommissionRate = (category: string): number =>
-  CATEGORY_COMMISSION[category] ?? 10;
-
 import { ParcelCollectionsService } from '../parcel-collections/parcel-collections.service';
 import { SmsService } from '../sms/sms.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
@@ -140,18 +96,14 @@ import { parseOrderIdParam } from '../common/utils/order-id.util';
 import { ensureOrderParcel, ensureOrderParcelWithin } from './order-parcel';
 import { LIPA_PROOF_REF, signedLipaProofUrl } from './lipa-proof';
 
-const calcCommission = (baseAmount: number, category: string) => {
-  const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
-  const rate = getCommissionRate(category);
-  // KenteXa earns:
-  //   1. Category % of product price (marketplace commission)
-  //   2. TZS 1,000 flat tracking fee (same as offline — covers SMS + system cost)
-  // Shipping fee goes entirely to the Super Agent — KenteXa does not take a cut of it
-  const categoryFee = parseFloat(((baseAmount * rate) / 100).toFixed(2));
-  const platformFee = parseFloat((categoryFee + TRACKING_FEE).toFixed(2));
-  // Seller receives full product price minus the marketplace commission
-  // Shipping fee is handled separately — paid directly to Super Agent
-  const sellerAmount = parseFloat((baseAmount - categoryFee).toFixed(2));
+// Ada ya KenteXa (owner approved 2026-11-03): a marketplace order pays 2% of the product
+// price, nothing else (no TZS 1,000 tracking fee, no category %). The seller is billed by
+// KentexaFeeService once the order is done; these numbers are what the order shows.
+export const MARKETPLACE_FEE_RATE = 2;
+const calcCommission = (baseAmount: number, _category: string) => {
+  const rate = MARKETPLACE_FEE_RATE;
+  const platformFee = parseFloat(((baseAmount * rate) / 100).toFixed(2));
+  const sellerAmount = parseFloat((baseAmount - platformFee).toFixed(2));
   return { rate, platformFee, sellerAmount };
 };
 

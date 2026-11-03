@@ -1,4 +1,5 @@
 import { PARTNER_JOB_MESSAGE, partnerGateSql, sellerPartnerTableReady } from '../partner-invitations/seller-agent-partner-gate';
+import { PAID_UP_FIRST_MESSAGE, feeStandingReady, paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
   Logger, NotFoundException, Optional,
@@ -261,6 +262,12 @@ export class PickupTasksService {
           FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId"
           JOIN public.shipment s ON s.id = p."shipmentId" WHERE t.id = $1`, [taskId, userId]);
         if (!gate[0]?.ok) throw new ConflictException(PARTNER_JOB_MESSAGE);
+      }
+      // Paid-up agents first, for a few minutes (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts).
+      if (feeStandingReady() && paidUpGateSql('$2::int') !== 'TRUE') {
+        const gate: any[] = await em.query(`SELECT ${paidUpGateSql('$2::int')} AS ok
+          FROM public.parcel_pickup_task t WHERE t.id = $1`, [taskId, userId]);
+        if (!gate[0]?.ok) throw new ConflictException(PAID_UP_FIRST_MESSAGE);
       }
       await em.query(`UPDATE public.parcel_pickup_task SET status='claimed',
         "agentProfileId"=$1,"claimedAt"=now(),"updatedAt"=now() WHERE id=$2`, [role.profileId, taskId]);
@@ -815,6 +822,8 @@ export class PickupTasksService {
           AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_RELEASED'
                 AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = $2)
           AND ${partnerGate}
+          -- Paid-up agents first (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts).
+          AND ${paidUpGateSql(String(Number(userId)))}
         ORDER BY t."createdAt" ASC LIMIT 50`,
       partnerGate === 'TRUE' ? [normalizeCity(agent.city), agent.id] : [normalizeCity(agent.city), agent.id, userId],
     );

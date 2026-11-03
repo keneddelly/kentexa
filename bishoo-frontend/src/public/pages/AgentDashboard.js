@@ -19,6 +19,7 @@ import { LineIcon } from '../components/LineIcon';
 import { PageLoading } from '../components/Loading';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import KentexaFeeLine from '../components/KentexaFeeLine';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import ShipmentPickupQueue from '../components/ShipmentPickupQueue';
@@ -518,6 +519,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
             {tab === 'earnings' && (
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* Ada ya KenteXa (owner approved 2026-11-03): 10% of a delivery fee after 20 free. */}
+                <KentexaFeeLine as="agent" onNavigate={onNavigate} />
                 <section data-testid="agent-earnings" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <span style={{ fontSize: 13, color: MUTED }}>Ada za kufikisha mizigo</span>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>

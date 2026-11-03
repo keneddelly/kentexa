@@ -10,6 +10,9 @@ import { buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whats
 import LipaPaymentReview from '../components/LipaPaymentReview';
 import { PageLoading, Spinner } from '../components/Loading';
 import PosSalesToShip, { PosSalesList } from '../components/PosSalesToShip';
+import KentexaFeeLine from '../components/KentexaFeeLine';
+
+const MARKETPLACE_FEE_RATE = 2;
 
 // Shipping methods with their requirements
 const getShippingMethods = (t) => [
@@ -554,8 +557,8 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           {fact('Bidhaa', money(o.baseAmount || (Number(o.totalAmount) - Number(o.deliveryFeeAmount || 0))))}
           {Number(o.deliveryFeeAmount) > 0 && fact('Usafiri', money(o.deliveryFeeAmount))}
           {fact('Jumla', money(o.totalAmount))}
-          {!isDirectPaymentOrder(o) && !isManualOrder(o) && fact('Ada ya KenteXa', `-${money(o.platformFeeAmount)}`)}
-          {!isDirectPaymentOrder(o) && !isManualOrder(o) && fact('Utapokea', money(o.sellerAmount))}
+          {/* Ada ya KenteXa (2026-11-03): a marketplace order pays 2% of the product price, billed once it is done. */}
+          {o.source === 'online' && fact('Ada ya KenteXa (2%)', money(Math.round(Number(o.baseAmount || 0) * MARKETPLACE_FEE_RATE / 100)))}
         </section>
 
         <section style={{ padding: '0 16px 8px' }}>
@@ -605,6 +608,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 <Svg d={P.plus} color="#fff" sw={2.4} size={16} />Uza
               </button>
             } />
+          {/* Ada ya KenteXa (owner approved 2026-11-03): 2% of a marketplace order; POS and own sales free. */}
+          <div style={{ maxWidth: 720, margin: '0 auto', padding: '8px 16px 0', boxSizing: 'border-box' }}>
+            <KentexaFeeLine as="seller" onNavigate={onNavigate} />
+          </div>
           {/* POS sales waiting to be sent (owner approved 2026-11-02). */}
           <PosSalesToShip onNavigate={onNavigate} visible={shownTab === 'send' && kind !== 'pos'} onCount={setPosWaiting} />
           <nav role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, maxWidth: 720, margin: '0 auto' }}>

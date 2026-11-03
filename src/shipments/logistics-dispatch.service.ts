@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import { PICKUP_TO_BASE_DISTANCE_SQL } from './pickup-pin';
 import { DataSource } from 'typeorm';
 import { partnerGateSql } from '../partner-invitations/seller-agent-partner-gate';
@@ -23,6 +24,8 @@ export class LogisticsDispatchService {
               AND e."targetType"='parcel_pickup_task' AND e."targetId"=t.id AND e."actorProfileId"=a.id)
         -- Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
         AND ${partnerGateSql('a."userId"')}
+        -- Paid-up agents first (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts).
+        AND ${paidUpGateSql('a."userId"')}
       -- Section 18 (b): nearest agents first (base point to the pickup pin/place), then rating;
       -- agents without a base point (or a pickup with no point) come after.
       ORDER BY (a."baseLatitude" IS NULL) ASC, "distanceM" ASC NULLS LAST, (a."isOnline" IS TRUE) DESC, COALESCE(a.rating,0) DESC, a.id ASC LIMIT 10

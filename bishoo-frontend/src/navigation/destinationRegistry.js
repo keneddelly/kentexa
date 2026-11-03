@@ -5,14 +5,16 @@ const PUBLIC_PAGES = ['Home','AboutUs','ContactUs','HowItWorks','Privacy','Priva
 const ACCOUNT_PAGES = ['Workspace','CreateCommunity','MyAdvertising','QuoteRequest','MyQuoteRequests','QuoteInbox','Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','MyClassifieds','CreateClassified',
   // Hotel food ordering (owner 2026-10-27): the customer's orders, and the hotel's kitchen and
   // menu (the server checks that the caller owns that Business).
-  'FoodOrder','HotelKitchen','HotelMenuManager'];
+  'FoodOrder','HotelKitchen','HotelMenuManager',
+  // Ada ya KenteXa (2026-11-03): the account's own fee page (the server checks which account).
+  'KentexaFee'];
 const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','SellerWallet','StoreSettings','SellerProducts','MyBrands','POS','SellerClassifieds','SellerOrders','SellerShipping','SellerInvoices','SellerShipment','SellerWarrantyClaims','SellerAnalytics','SellerTeam'];
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
 const TRANSPORT_PAGES = ['TransportProviderDashboard','TransportProviderSettings'];
 const ADMIN_PAGES = ['Profile','Dashboard','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin',
   // In the admin menu but missing here, so a click went back to the Dashboard (2026-10-24).
-  'Businesses','AdminShipments','AdminDispatchReminders','AdminAdvertisers'];
+  'Businesses','AdminShipments','AdminDispatchReminders','AdminAdvertisers','AdminKentexaFees'];
 
 export const DESTINATIONS = Object.freeze(Object.fromEntries([
   ...PUBLIC_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.PUBLIC)]),
@@ -40,6 +42,7 @@ const DYNAMIC_DESTINATIONS = [
   [/^SellerInbox-/, 'SellerInbox'], [/^SellerOrders-/, 'SellerOrders'], [/^SellerPayouts-/, 'SellerPayouts'], [/^SellerWarrantyClaims-/, 'SellerWarrantyClaims'],
   [/^EditProduct-/, 'SellerProducts'], [/^EditClassified-/, 'SellerClassifieds'], [/^BuyerParcelAction-/, 'MyOrders'], [/^BatchHandoff-/, 'BatchHandoff'],
   [/^BusinessHome-/, 'BusinessHome'],
+  [/^KentexaFee-(office|agent|seller)$/, 'KentexaFee'],
   [/^HotelMenu-\d+$/, 'HotelMenu'], [/^FoodOrder-\d+$/, 'FoodOrder'], [/^HotelKitchen-\d+$/, 'HotelKitchen'],
   // I2 correction: the I2C/I2D/B6C Business routes App.js already handles. Each
   // pattern is anchored and numeric (and, for capabilities, limited to the two

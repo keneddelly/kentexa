@@ -48,6 +48,7 @@ import { parseMenuPath }  from './utils/food';
 import { loadSession as loadPosSession } from './utils/posOffline';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
+import KentexaFee        from './public/pages/KentexaFee';
 import SellerPayouts     from './public/pages/SellerPayouts';
 import SellerWallet      from './public/pages/SellerWallet';
 import TransportProviderSettings from './public/pages/TransportProviderSettings';
@@ -152,6 +153,7 @@ import QuoteRequest from './public/pages/QuoteRequest';
 import MyQuoteRequests from './public/pages/MyQuoteRequests';
 import QuoteInbox from './public/pages/QuoteInbox';
 import AdminAdvertisers from './admin/pages/AdminAdvertisers';
+import AdminKentexaFees from './admin/pages/AdminKentexaFees';
 import { rememberReferral } from './utils/referralLink';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
@@ -852,6 +854,9 @@ function App() {
     if (page.startsWith('HotelMenu-'))
       return <HotelMenu {...publicProps} businessId={Number(page.split('HotelMenu-')[1])}
         placeType={navParams?.placeType} placeNumber={navParams?.placeNumber} />;
+    // Ada ya KenteXa (2026-11-03): a fee notification opens KentexaFee-office|agent|seller.
+    if (/^KentexaFee-(office|agent|seller)$/.test(page))
+      return requireLogin(<KentexaFee {...publicProps} as={page.split('KentexaFee-')[1]} />);
     if (page.startsWith('HotelKitchen-'))
       return requireLogin(<HotelKitchen {...publicProps} businessId={Number(page.split('HotelKitchen-')[1])} />);
     if (page.startsWith('FoodOrder-'))
@@ -945,6 +950,7 @@ function App() {
       case 'BecomeSellerInfo':  return <BecomeSellerInfo {...publicProps} />;
       case 'SellerCustomers':   return requireVerifiedSeller(<SellerCustomers {...publicProps} />);
       case 'AgentEarnings':     return requireLogin(<AgentEarnings {...publicProps} />);
+      case 'KentexaFee':        return requireLogin(<KentexaFee {...publicProps} navParams={navParams} />);
       case 'SellerPayouts':     return requireVerifiedSeller(<SellerPayouts {...publicProps} />);
       case 'SellerWallet':      return requireVerifiedSeller(<SellerWallet {...publicProps} />);
       case 'BecomeAgent':       return <BecomeAgent {...publicProps} />;
@@ -996,6 +1002,7 @@ function App() {
       case 'AdminShipments': return requireAdmin(<AdminShipments activePage={page} {...adminProps} />);
       case 'AdminDispatchReminders': return requireAdmin(<AdminDispatchReminders activePage={page} {...adminProps} />);
       case 'AdminAdvertisers': return requireAdmin(<AdminAdvertisers activePage={page} {...adminProps} />);
+      case 'AdminKentexaFees': return requireAdmin(<AdminKentexaFees activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return activeContext?.roleType === 'admin'

@@ -35,6 +35,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import { LineIcon } from '../components/LineIcon';
 import api from '../../api/api';
+import KentexaFeeLine from '../components/KentexaFeeLine';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
@@ -1372,14 +1373,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         SMS kwa mtumaji haikutumwa — tuma tena: Historia → Risiti → SMS tena
                       </div>
                     )}
-                    {walkResult.billing && (
-                      <div style={{ fontSize: 12, color: walkResult.billing.isFreeOrder ? '#16a34a' : '#64748b',
-                        marginBottom: 20 }}>
-                        {walkResult.billing.isFreeOrder
-                          ? 'Agizo la bure — halikutozwa ada'
-                          : `Ada ya Kentexa TZS ${Number(walkResult.billing.platformFeeCharged).toLocaleString()} imeongezwa kwenye deni lako`}
-                      </div>
-                    )}
                     {/* Release C, claim code option (a): shown ONCE, only here, only while this
                         screen holds it in memory (never stored), and printed on this first receipt. */}
                     {walkResult.shipmentClaim?.receiptSecret && (
@@ -2091,52 +2084,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               </div>
             )}
 
-            {/* Founding-pilot free orders + real billing balance */}
-            {dashData?.agent?.billing && (
-              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14,
-                border: dashData.agent.billing.billingBlocked ? '2px solid #dc2626' : 'none' }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                  Faida ya ofisi mwanzilishi
-                </div>
-                {[
-                  ['Agizo la bure lililotolewa', dashData.agent.billing.freeOrdersGranted],
-                  ['Agizo la bure lililotumika', dashData.agent.billing.freeOrdersUsed],
-                  ['Yamebaki bure', dashData.agent.billing.freeOrdersRemaining],
-                  ['Maagizo yaliyolipiwa', dashData.agent.billing.paidOrders],
-                  ['Ada kwa kila agizo', `TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}`],
-                ].map(([l, v]) => (
-                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
-                    padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
-                    <span style={{ color: '#64748b' }}>{l}</span>
-                    <span style={{ fontWeight: 800, color: '#1e293b' }}>{v}</span>
-                  </div>
-                ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between',
-                  padding: '10px 0 0', fontSize: 14 }}>
-                  <span style={{ color: '#64748b', fontWeight: 700 }}>Deni lililobaki</span>
-                  <span style={{ fontWeight:800,
-                    color: dashData.agent.billing.billingBlocked ? '#dc2626' : '#1e293b' }}>
-                    TZS {Number(dashData.agent.billing.outstandingBalance).toLocaleString()}
-                    {' '}/ {Number(dashData.agent.billing.billingThreshold).toLocaleString()}
-                  </span>
-                </div>
-                {dashData.agent.billing.billingBlocked && (
-                  <div style={{ marginTop: 10, backgroundColor: '#fef2f2', borderRadius: 8,
-                    padding: '10px 12px', fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>
-                    Huduma imesimamishwa hadi deni lilipwe. Wasiliana na Kentexa kulipa deni lako.
-                  </div>
-                )}
-                {!dashData.agent.billing.billingBlocked && (
-                  <div style={{ marginTop: 10, backgroundColor: '#f0fdf4', borderRadius: 8,
-                    padding: '10px 12px', fontSize: 12, color: '#166534' }}>
-                    {dashData.agent.billing.freeOrdersRemaining > 0
-                      ? `ℹ Umebaki na maagizo ${dashData.agent.billing.freeOrdersRemaining} ya bure. Baada ya kumaliza, kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`
-                      : `ℹ Umeshamaliza maagizo yako 50 ya bure. Sasa kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Ada ya KenteXa (owner approved 2026-11-03): 10% of the shipping fee after 20 free
+                parcels; the counter never stops for an unpaid fee. Replaces the old TZS 1,000 box. */}
+            <div style={{ marginBottom: 14 }}><KentexaFeeLine as="office" onNavigate={onNavigate} /></div>
 
             {/* Online orders pending payout */}
             {parcels.filter(p => p.source === 'online' && !p.agentPaidOut && p.status === 'delivered').length > 0 && (
