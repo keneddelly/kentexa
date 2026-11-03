@@ -13,6 +13,7 @@ import { BusinessModule } from '../business/business.module';
 import { SmsModule } from '../sms/sms.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PosDayService } from './pos-day.service';
+import { PosStockService } from './pos-stock.service';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { PosDayService } from './pos-day.service';
     NotificationsModule,
   ],
   controllers: [SalesController],
-  providers: [SalesService, PosDayService],
-  exports: [SalesService, PosDayService],
+  providers: [SalesService, PosDayService, PosStockService],
+  exports: [SalesService, PosDayService, PosStockService],
 })
 export class SalesModule {}

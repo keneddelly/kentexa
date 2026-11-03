@@ -4,6 +4,7 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import type { SellerScope } from '../business/seller-scope.service';
 import { POS_DAY_TEXT, SaleRow, drawer, saleCash, sumByMethod } from './pos-day';
+import { PosStockService } from './pos-stock.service';
 
 /**
  * POS part 2 (owner approved 2026-11-03, design "KenteXa POS ya kisasa", board "Zamu"):
@@ -27,6 +28,7 @@ export class PosDayService {
   constructor(
     private readonly db: DataSource,
     @Optional() private readonly notifications?: InAppNotificationService,
+    @Optional() private readonly stock?: PosStockService,
   ) {}
 
   async tablesReady(): Promise<boolean> {
@@ -118,8 +120,9 @@ export class PosDayService {
     const cashSales = Math.round(sales.reduce((sum, s) => sum + saleCash(s), 0) * 100) / 100;
     const [ex] = await this.db.query(`SELECT COALESCE(SUM(amount), 0) AS cash FROM public.pos_expense
       WHERE "shiftId" = $1::int AND "paidFrom" = 'cash'`, [sh.id]);
-    // Debts paid in cash arrive with POS part 3 (Madeni); none are recorded before it.
-    return { cashSales, cashDebtPayments: 0, cashExpenses: Number(ex?.cash) || 0 };
+    // POS part 3: customer debts paid in cash come in; cash paid to suppliers goes out.
+    const debt = this.stock ? await this.stock.shiftCash(sellerId, userId, sh.openedAt).catch(() => ({ debtIn: 0, supplierOut: 0 })) : { debtIn: 0, supplierOut: 0 };
+    return { cashSales, cashDebtPayments: debt.debtIn, cashExpenses: (Number(ex?.cash) || 0) + debt.supplierOut };
   }
 
   async openShift(sellerId: number, userId: number, openingFloat: unknown, scope?: SellerScope) {

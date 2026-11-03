@@ -16,6 +16,7 @@ import type { RoleContext } from '../role-context/role-context.types';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { SalesService } from './sales.service';
 import { PosDayService } from './pos-day.service';
+import { PosStockService } from './pos-stock.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 
 // I2G: every sale route derives the acting workspace from the authenticated RoleContext.
@@ -26,6 +27,7 @@ export class SalesController {
     private service: SalesService,
     private sellerScope: SellerScopeService,
     private posDay: PosDayService,
+    private posStock: PosStockService,
   ) {}
 
   // ── POS part 2 (owner approved 2026-11-03): Leo, Matumizi, Zamu. Declared before ':id'. ──
@@ -57,6 +59,43 @@ export class SalesController {
   async posCloseShift(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
     const { sellerId, scope } = await this.till(req, ctx);
     return this.posDay.closeShift(sellerId, req.user.id, body || {}, scope);
+  }
+
+  // ── POS part 3 (owner approved 2026-11-03): Stoo and Madeni. ──
+  @Get('pos/stock')
+  async posStockView(@Request() req, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId } = await this.till(req, ctx);
+    return this.posStock.stock(sellerId);
+  }
+
+  @Post('pos/stock/receive')
+  async posReceive(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posStock.receive(sellerId, req.user.id, body || {}, scope);
+  }
+
+  @Post('pos/stock/count')
+  async posCount(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId } = await this.till(req, ctx);
+    return this.posStock.count(sellerId, req.user.id, body || {});
+  }
+
+  @Get('pos/debts')
+  async posDebts(@Request() req, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posStock.debts(sellerId, scope);
+  }
+
+  @Post('pos/debts/customer')
+  async posPayCustomer(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posStock.payCustomer(sellerId, req.user.id, body || {}, scope);
+  }
+
+  @Post('pos/debts/supplier')
+  async posPaySupplier(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posStock.paySupplier(sellerId, req.user.id, body || {}, scope);
   }
 
   @Get('pos/shifts')

@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-03 (POS part 3):** the pin is now `MIGRATION_RUN_UPTO=1794900000000`. The next deploy
+runs `1794900000000-AddPosStockAndDebts` itself (pos_supplier, pos_stock_receipt, pos_debt_payment). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-03 (POS part 2):** the pin is now `MIGRATION_RUN_UPTO=1794800000000`. The next deploy
 runs `1794800000000-AddPosShiftsAndExpenses` itself (pos_shift: cashier shifts with starting cash and the counted drawer; pos_expense: shop expenses). Check: `/version/migrations` shows `pending: []`.
 
