@@ -109,7 +109,6 @@ import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
 import SellerOrders from './public/pages/SellerOrders';
 import SellerInvoices from './public/pages/SellerInvoices';
-import SellerShipping from './public/pages/SellerShipping';
 import Dashboard from './admin/pages/Dashboard';
 import Products from './admin/pages/Products';
 import Classifieds from './admin/pages/Classifieds';
@@ -1013,7 +1012,8 @@ function App() {
       }
       case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} listingMode="business" />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
-      case 'SellerShipping':    return requireVerifiedSeller(<SellerShipping {...publicProps} />);
+      // Hidden (2026-11-03): an escrow-era page ("KenteXa holds the money"), linked from nowhere; old links open Maagizo.
+      case 'SellerShipping':    return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       case 'SendShipment':      return requireLogin(<SendShipment {...publicProps} navParams={navParams} />);
       case 'MyShipments':       return requireLogin(<MyShipments {...publicProps} />);
       case 'SellerInvoices':    return requireVerifiedSeller(<SellerInvoices {...publicProps} preSelected={navParams?.preSelected} />);

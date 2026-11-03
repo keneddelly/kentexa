@@ -78,11 +78,10 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
     const eta = result.estimatedArrival ? new Date(result.estimatedArrival) : null;
     const cutoff = result.cutoffTime ? new Date(result.cutoffTime) : null;
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
         <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('batch_handoff.page_title')} top={0} />
         <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', marginTop: 20 }}>
-            <div style={{ fontSize: 56, marginBottom: 12 }}>{isAlready ? '✅' : '🎉'}</div>
+          <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, textAlign: 'center', outline: '1px solid #eff3f4', marginTop: 20 }}>
             <h2 style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 6 }}>
               {isAlready ? t('batch_handoff.already_scheduled_title') : t('batch_handoff.success_title')}
             </h2>
@@ -117,7 +116,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
 
             <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
               <button onClick={() => onNavigate('DispatcherManifest')}
-                style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
+                style={{ width: '100%', background: '#0f1419', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
                 {t('batch_handoff.view_manifest_button')}
               </button>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -126,7 +125,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
                   {t('batch_handoff.another_button')}
                 </button>
                 <button onClick={() => onNavigate('SellerOrders')}
-                  style={{ flex: 2, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                  style={{ flex: 2, background: '#0f1419', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                   {t('batch_handoff.my_orders_button')}
                 </button>
               </div>
@@ -138,22 +137,22 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('batch_handoff.page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 
         {/* Info banner */}
-        <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', borderRadius: 16, padding: 18, marginBottom: 16, color: '#fff' }}>
-          <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4 }}>{t('batch_handoff.info_banner_title')}</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
+        <div style={{ background: '#fff', border: '1px solid #eff3f4', borderRadius: 16, padding: 16, marginBottom: 16, color: '#0f1419' }}>
+          <div style={{ fontSize: 15, fontWeight: 800, marginBottom: 4 }}>{t('batch_handoff.info_banner_title')}</div>
+          <div style={{ fontSize: 14, color: '#536471', lineHeight: 1.5 }}>
             {t('batch_handoff.info_banner_desc')}
           </div>
         </div>
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-            <span>❌ {error}</span>
+            <span>{error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
@@ -163,13 +162,11 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <button onClick={() => setMode('assign')}
               style={{ backgroundColor: '#fff', border: '2px solid #e2e8f0', borderRadius: 16, padding: 20, cursor: 'pointer', textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📦</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{t('batch_handoff.mode_kentexa_title')}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{t('batch_handoff.mode_kentexa_desc')}</div>
             </button>
             <button onClick={() => setMode('offline')}
               style={{ backgroundColor: '#fff', border: '2px solid #e2e8f0', borderRadius: 16, padding: 20, cursor: 'pointer', textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>💵</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{t('batch_handoff.mode_offline_title')}</div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{t('batch_handoff.mode_offline_desc')}</div>
             </button>
@@ -178,7 +175,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
 
         {/* Assign existing order */}
         {(mode === 'assign') && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4' }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>{t('batch_handoff.assign_section_title')}</h2>
             <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>{t('batch_handoff.order_number_label')}</label>
             <input
@@ -198,7 +195,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
                 </button>
               )}
               <button onClick={handleAssignOrder} disabled={loading}
-                style={{ flex: 2, background: loading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
+                style={{ flex: 2, background: loading ? '#93c5fd' : '#0f1419', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
                 {loading ? t('batch_handoff.assigning_button') : t('batch_handoff.assign_button')}
               </button>
             </div>
@@ -207,7 +204,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
 
         {/* Offline order */}
         {mode === 'offline' && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4' }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>{t('batch_handoff.offline_section_title')}</h2>
 
             {[
@@ -237,7 +234,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
                 {t('batch_handoff.back')}
               </button>
               <button onClick={handleOfflineOrder} disabled={loading}
-                style={{ flex: 2, background: loading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
+                style={{ flex: 2, background: loading ? '#93c5fd' : '#0f1419', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
                 {loading ? t('batch_handoff.creating_button') : t('batch_handoff.create_button')}
               </button>
             </div>

@@ -15,7 +15,7 @@ const TZ_CITIES = [
   'Kilosa','Njombe','Kasulu','Mpanda','Masasi','Korogwe','Moshi',
 ];
 
-// ── Category → subcategory → spec fields structure ───────────────────────────
+// ── Category  subcategory  spec fields structure ───────────────────────────
 // Fetched from GET /categories (src/categories/categories.data.ts on the
 // backend — the single source of truth now; this used to be its own
 // independent 124-line hardcoded list, one of five that all disagreed with
@@ -696,20 +696,20 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('back')} title={`${t('seller_products.title')}`} top={0} />
-      <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '20px 16px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+      {/* New look (owner 2026-11-03): a light header; the BackBar above is the only back. */}
+      <div style={{ padding: '16px 16px 4px', borderBottom: '1px solid #eff3f4' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 10, paddingBottom: 12 }}>
           <div>
-            <button onClick={() => onNavigate('SellerDashboard')} style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, marginBottom: 10 }}>{t('seller_products.back')}</button>
-            <h1 style={{ fontSize: 20, fontWeight:800, color: '#fff', margin: '0 0 4px', fontFamily:'inherit' }}>{t('seller_products.title')}</h1>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('seller_products.products_in_store', { count: products.length })}</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f1419', margin: '0 0 4px', fontFamily: 'inherit' }}>{t('seller_products.title')}</h1>
+            <p style={{ fontSize: 15, color: '#536471', margin: 0 }}>{t('seller_products.products_in_store', { count: products.length })}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => onNavigate('POS')} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+            <button onClick={() => onNavigate('POS')} style={{ background: '#fff', color: '#0f1419', border: '1px solid #cfd9de', height: 40, padding: '0 18px', borderRadius: 20, cursor: 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }}>
               {`${t('seller_products.open_pos')}`}
             </button>
-            <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: '#fff', color: '#1d4ed8', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+            <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: '#0f1419', color: '#fff', border: 'none', height: 40, padding: '0 18px', borderRadius: 20, cursor: 'pointer', fontSize: 15, fontWeight: 700, fontFamily: 'inherit' }}>
               {`+ ${t('seller_products.add')}`}
             </button>
           </div>
@@ -723,11 +723,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
           {[
-            { label: t('seller_products.total'), value: products.length, bg: '#ede9fe', color: '#7c3aed', icon: 'box' },
-            { label: t('seller_products.available'), value: products.filter(p => p.isZipo).length, bg: '#dcfce7', color: '#16a34a', icon: 'check' },
-            { label: t('seller_products.hidden'), value: products.filter(p => !p.isZipo).length, bg: '#fee2e2', color: '#dc2626', icon: 'cross' },
+            { label: t('seller_products.total'), value: products.length, color: '#0f1419', icon: 'box' },
+            { label: t('seller_products.available'), value: products.filter(p => p.isZipo).length, color: '#05603a', icon: 'check' },
+            { label: t('seller_products.hidden'), value: products.filter(p => !p.isZipo).length, color: '#b42318', icon: 'cross' },
           ].map(s => (
-            <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '16px 12px', textAlign: 'center' }}>
+            <div key={s.label} style={{ backgroundColor: '#fff', border: '1px solid #eff3f4', borderRadius: 16, padding: '14px 12px', textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={22} color={s.color} /></div>
               <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
@@ -738,11 +738,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>{t('seller_products.loading')}</div>
         ) : products.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, outline: '1px solid #eff3f4' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><LineIcon name="box" size={48} color="#94a3b8" /></div>
             <h3 style={{ color: '#1e293b', marginBottom: 8 }}>{t('seller_products.no_products')}</h3>
             <p style={{ color: '#64748b', marginBottom: 24 }}>{t('seller_products.no_products_desc')}</p>
-            <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>{`+ ${t('seller_products.add_first')}`}</button>
+            <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>{`+ ${t('seller_products.add_first')}`}</button>
           </div>
         ) : (
           // Instagram-style 3-column grid — same visual pattern as the
@@ -798,7 +798,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 {menuForProductId === product.id && (
                   <div onClick={(e) => e.stopPropagation()}
                     style={{ position: 'absolute', top: 26, right: 2, backgroundColor: '#fff', borderRadius: 10,
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 10, minWidth: 130, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+                      outline: '1px solid #eff3f4', zIndex: 10, minWidth: 130, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
                     <div onClick={() => { setMenuForProductId(null); handleEdit(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
                       {`${t('seller_products.edit')}`}
@@ -837,7 +837,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       {/* ── ADD/EDIT MODAL ── */}
       {showForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 2000 }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 560, maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -8px 32px rgba(0,0,0,0.2)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 560, maxHeight: '92vh', display: 'flex', flexDirection: 'column', outline: '1px solid #eff3f4' }}>
           <div style={{ padding: '20px 16px 0', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 18px', fontFamily:'inherit' }}>
@@ -867,9 +867,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   onClick={() => handleProductTypeChange('digital')}
                   style={{
                     flex: 1, padding: '10px 12px', borderRadius: 8, cursor: editProduct ? 'default' : 'pointer', fontSize: 13, fontWeight: 700,
-                    border: form.productType === 'digital' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+                    border: form.productType === 'digital' ? '2px solid #0f1419' : '1px solid #e2e8f0',
                     backgroundColor: form.productType === 'digital' ? '#faf5ff' : '#fff',
-                    color: form.productType === 'digital' ? '#7c3aed' : '#64748b',
+                    color: form.productType === 'digital' ? '#0f1419' : '#64748b',
                   }}>
                   {`${t('seller_products.product_type_digital')}`}
                 </button>
@@ -893,7 +893,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               {imagePreviews.length < mediaRules.maxImages && (
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
                   <input type="file" accept="image/*" multiple disabled={uploading || saving} onChange={handleImageUpload} style={{ display: 'none' }} id="productImages" />
-                  <label htmlFor="productImages" style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  <label htmlFor="productImages" style={{ background: '#0f1419', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? `${t('seller_products.uploading')}` : `${t('seller_products.choose_images')}`}
                   </label>
                   <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
@@ -916,7 +916,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <label style={labelStyle}>
                   {t('seller_products.category')} *
                   {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_products.category_detecting')}</span>}
-                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>{t('seller_products.category_suggested')}</span>}
+                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#0f1419', fontWeight: 700 }}>{t('seller_products.category_suggested')}</span>}
                 </label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {visibleCategories.map(([key, cat]) => (
@@ -952,7 +952,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   <input type="text" value={brandQuery} onChange={e => setBrandQuery(e.target.value)}
                     placeholder={t('seller_products.brand_search_placeholder')} style={inputStyle} />
                   {brandResults.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, zIndex: 20, maxHeight: 200, overflowY: 'auto' }}>
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', borderRadius: 10, outline: '1px solid #eff3f4', marginTop: 4, zIndex: 20, maxHeight: 200, overflowY: 'auto' }}>
                       {brandResults.map(b => (
                         <div key={b.id} onClick={() => { setSelectedBrand(b); setForm(f => ({ ...f, brandId: b.id })); setBrandResults([]); setBrandQuery(''); }}
                           style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 13, fontWeight: 600 }}>
@@ -987,7 +987,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   <input type="text" value={officialProductQuery} onChange={e => setOfficialProductQuery(e.target.value)}
                     placeholder={t('seller_products.official_product_search_placeholder')} style={inputStyle} />
                   {officialProductResults.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, zIndex: 20, maxHeight: 200, overflowY: 'auto' }}>
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', borderRadius: 10, outline: '1px solid #eff3f4', marginTop: 4, zIndex: 20, maxHeight: 200, overflowY: 'auto' }}>
                       {officialProductResults.map(p => (
                         <div key={p.id} onClick={() => { setSelectedOfficialProduct(p); setForm(f => ({ ...f, officialProductId: p.id })); setOfficialProductResults([]); setOfficialProductQuery(''); }}
                           style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 13, fontWeight: 600 }}>
@@ -1014,8 +1014,8 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <button type="button" onClick={generateDescription}
                   disabled={descGenerating || !form.name || !form.images.length}
                   title={!form.images.length ? t('seller_products.ai_description_needs_photo') : ''}
-                  style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', background: 'none',
-                    border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
+                  style={{ fontSize: 11, fontWeight: 800, color: '#0f1419', background: 'none',
+                    border: '1px solid #cfd9de', borderRadius: 8, padding: '4px 10px',
                     cursor: (descGenerating || !form.name || !form.images.length) ? 'not-allowed' : 'pointer',
                     opacity: (!form.name || !form.images.length) ? 0.5 : 1 }}>
                   {descGenerating ? `${t('seller_products.ai_description_generating')}` : `${t('seller_products.ai_description_button')}`}
@@ -1138,7 +1138,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               <div>
                 <label style={labelStyle}>{t('seller_products.stock')} {form.productType === 'physical' && '*'}</label>
                 {form.productType === 'digital' ? (
-                  <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#7c3aed', fontWeight: 700 }}>
+                  <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#0f1419', fontWeight: 700 }}>
                     {t('seller_products.unlimited_digital')}
                   </div>
                 ) : (
@@ -1153,14 +1153,14 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`${t('seller_products.digital_file_section')}`}</div>
 
                 {editProduct ? (
-                  <div style={{ fontSize: 12, color: '#7c3aed', backgroundColor: '#fff', borderRadius: 8, padding: 10, border: '1px solid #e9d5ff' }}>
+                  <div style={{ fontSize: 12, color: '#0f1419', backgroundColor: '#fff', borderRadius: 8, padding: 10, border: '1px solid #e9d5ff' }}>
                     {`${t('seller_products.digital_file_locked')}`}
                   </div>
                 ) : (
                   <>
                     <input type="file" accept=".pdf,.epub,.zip" id="digitalFile" style={{ display: 'none' }}
                       onChange={e => handleDigitalFileUpload(e.target.files?.[0])} />
-                    <label htmlFor="digitalFile" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', color: '#fff', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                    <label htmlFor="digitalFile" style={{ display: 'inline-block', background: '#0f1419', color: '#fff', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                       {uploadingDigitalFile ? `${t('seller_products.uploading')}` : `${t('seller_products.choose_digital_file')}`}
                     </label>
                     {form.digitalFile && (
@@ -1313,7 +1313,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             borderTop: '1px solid #f1f5f9', backgroundColor: '#fff' }}>
               <button onClick={cancelForm} disabled={saving} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_products.cancel')}</button>
               <button onClick={handleSubmit} disabled={uploading || uploadingDigitalFile || saving}
-                style={{ flex: 2, background: (uploading || saving) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: (uploading || saving) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
+                style={{ flex: 2, background: (uploading || saving) ? '#93c5fd' : '#0f1419', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: (uploading || saving) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
                 {saving ? t('listing_validation.saving') : uploading ? t('seller_products.please_wait') : editProduct ? `${t('seller_products.update')}` : `+ ${t('seller_products.add_product')}`}
               </button>
           </div>
@@ -1373,7 +1373,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <input type="file" accept="image/*" multiple onChange={handleVariantImageUpload} style={{ marginBottom: 16, fontSize: 12 }} disabled={variantUploading} />
 
             <button onClick={handleCreateVariant} disabled={variantSaving || variantUploading}
-              style={{ width: '100%', padding: 14, background: variantSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
+              style={{ width: '100%', padding: 14, background: variantSaving ? '#93c5fd' : '#0f1419', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {variantSaving ? t('seller_products.please_wait') : `+ ${t('seller_products.create_variant_button')}`}
             </button>
           </div>
@@ -1460,7 +1460,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             />
 
             <button onClick={handleRegisterSerials} disabled={serialsSaving || !serialsInput.trim()}
-              style={{ width: '100%', padding: 14, background: serialsSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
+              style={{ width: '100%', padding: 14, background: serialsSaving ? '#93c5fd' : '#0f1419', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
               {serialsSaving ? t('seller_products.please_wait') : `+ ${t('seller_products.register_serials_button')}`}
             </button>
           </div>
