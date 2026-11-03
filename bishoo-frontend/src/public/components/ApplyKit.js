@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import BackBar from './BackBar';
+import { BOTTOM_NAV_CLEARANCE } from './BottomNav';
 
 export const K = Object.freeze({ INK: '#0f1419', MUTED: '#536471', LINE: '#eff3f4', EDGE: '#cfd9de', BLUE: '#1d9bf0', RED: '#b42318', GREEN: '#05603a' });
 
@@ -20,7 +21,9 @@ export function ApplyPage({ title, desc, onBack, backTitle, children }) {
   return (
     <div style={{ minHeight: '100vh', background: '#fff', color: K.INK }}>
       <BackBar onBack={onBack} title={backTitle} top={0} />
-      <main style={{ maxWidth: 600, margin: '0 auto', padding: '8px 16px 48px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* The bottom bar must never cover the last button (owner 2026-11-03: "Fungua hoteli: the
+          create button is hidden behind the bottom nav"). */}
+      <main style={{ maxWidth: 600, margin: '0 auto', padding: '8px 16px 0', paddingBottom: BOTTOM_NAV_CLEARANCE, display: 'flex', flexDirection: 'column', gap: 18, boxSizing: 'border-box' }}>
         {(title || desc) && (
           <header style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 8 }}>
             {title && <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, lineHeight: 1.2, textWrap: 'balance' }}>{title}</h1>}

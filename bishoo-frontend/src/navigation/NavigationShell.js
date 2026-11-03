@@ -32,12 +32,20 @@ export const resolveBrowserEntry = (requestedPage, browserState, context) => {
     : { ...decision, allowed: false, reason: decision.allowed ? 'STALE_HISTORY' : decision.reason, page: homeForRole(context.roleType) };
 };
 
+/** True when the requested page is the one right behind us in the history. */
+export const shouldStepBack = (history, requestedPage) => {
+  const last = Array.isArray(history) && history.length ? history[history.length - 1] : null;
+  return Boolean(last && last.page === requestedPage);
+};
+
 const useNavigationShell = ({
   page, setPage, navParams, setNavParams, navHistory, setNavHistory,
   isAuthenticated, activeContext, capabilities, contextEpoch, syncUrl, onUnavailable,
 }) => {
   const pageRef = useRef(page);
   useEffect(() => { pageRef.current = page; }, [page]);
+  const historyRef = useRef(navHistory || []);
+  historyRef.current = navHistory || [];
 
   const context = {
     isAuthenticated,
@@ -84,6 +92,14 @@ const useNavigationShell = ({
       onUnavailable?.(decision);
       setNavHistory([]);
       commit(decision.page, null, 'replace');
+      return decision;
+    }
+    // Going to the page we just came from is a step back, not a new step (owner 2026-11-03:
+    // "in Services the back arrow does not go back, it turns around on Services"). Without
+    // this, A -> B -> (B's own back button opens A) -> back -> B -> A ... loops forever.
+    if (pageRef.current !== requestedPage && shouldStepBack(historyRef.current, requestedPage)) {
+      setNavHistory((history) => history.slice(0, -1));
+      commit(requestedPage, params);
       return decision;
     }
     if (pageRef.current !== requestedPage && requestedPage !== 'PublicLogin') {
