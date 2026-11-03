@@ -30,3 +30,15 @@ test('the ofisi desk lives at /ofisi with its own KenteXa Ofisi app (owner 2026-
   expect(window.location.pathname).toBe('/');
   link.remove();
 });
+
+test('the iPhone icon, name and colour follow the open work app (owner 2026-11-03, logo option B)', () => {
+  const { enterWorkApp } = require('./posApp');
+  const tags = [['link', { rel: 'apple-touch-icon', href: '/logo512.png' }], ['meta', { name: 'apple-mobile-web-app-title', content: 'Kentexa' }], ['meta', { name: 'theme-color', content: '#1d4ed8' }]]
+    .map(([tag, attrs]) => { const el = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); document.head.appendChild(el); return el; });
+  window.history.replaceState(null, '', '/');
+  const leave = enterWorkApp('pos');
+  expect(tags.map((el) => el.getAttribute(el.tagName === 'LINK' ? 'href' : 'content'))).toEqual(['/icon-pos-512.png', 'KenteXa POS', '#0f1419']);
+  leave();
+  expect(tags.map((el) => el.getAttribute(el.tagName === 'LINK' ? 'href' : 'content'))).toEqual(['/logo512.png', 'Kentexa', '#1d4ed8']);
+  tags.forEach((el) => el.remove());
+});

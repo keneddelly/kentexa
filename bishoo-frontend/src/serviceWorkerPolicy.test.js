@@ -123,3 +123,12 @@ test('every app (KenteXa, POS, Ofisi) uses the PNG logo, never an SVG icon (owne
     expect(manifest.icons.filter((i) => i.purpose === 'any').map((i) => i.sizes)).toEqual(['192x192', '512x512']);
   }
 });
+
+test('POS and Ofisi have their own logos: black POS, green OFISI (owner 2026-11-03, option B)', () => {
+  const publicDir = path.join(process.cwd(), 'public');
+  for (const [file, key, color] of [['manifest-pos.json', 'pos', '#0f1419'], ['manifest-ofisi.json', 'ofisi', '#05603a']]) {
+    const manifest = JSON.parse(fs.readFileSync(path.join(publicDir, file), 'utf8'));
+    expect(manifest.icons.every((i) => i.src.startsWith(`/icon-${key}`))).toBe(true);
+    expect(manifest.theme_color).toBe(color);
+  }
+});

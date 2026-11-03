@@ -61,6 +61,7 @@ export default function WorkAppInstall({ kind, env, ready, canInstall = true, on
       style={{ margin: '10px 16px 0', padding: '12px 14px', borderRadius: 16, border: `1px solid ${EDGE}`, background: '#fff', color: INK,
         display: 'flex', flexDirection: 'column', gap: 8, ...style }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <img src={app.icon} alt="" width="44" height="44" style={{ borderRadius: 10, flexShrink: 0 }} />
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <b style={{ fontSize: 15 }}>Weka {app.name} kwenye {where}</b>
           <div style={{ fontSize: 13, color: MUTED }}>Fungua kwa kubofya mara moja, bila kutafuta.</div>
