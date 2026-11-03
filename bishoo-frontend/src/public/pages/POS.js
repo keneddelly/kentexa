@@ -17,6 +17,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import BackBar from '../components/BackBar';
 import PosToday from '../components/PosToday';
+import PosStock from '../components/PosStock';
+import PosDebts from '../components/PosDebts';
 import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
@@ -119,6 +121,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
   const [showParked, setShowParked] = useState(false);
   const [today, setToday] = useState(null);
   const [showToday, setShowToday] = useState(false);
+  const [panel, setPanel] = useState(null); // 'stock' | 'debts'
   const [history, setHistory] = useState(null);
   const syncing = useRef(false);
   const searchRef = useRef(null);
@@ -162,6 +165,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
           const list = (r.data || []).filter((p) => p.isActive && p.availableInStore !== false).map((p) => ({
             id: p.id, name: p.name, sku: p.sku || null, barcode: p.barcode || null, category: p.category || p.subcategory || null,
             price: Number(p.displayPrice || 0), stock: Number(p.stock || 0), image: (p.images && p.images[0]) || p.image || null,
+            costPrice: p.costPrice != null ? Number(p.costPrice) : null,
           }));
           if (!alive) return;
           setProducts(list);
@@ -358,6 +362,19 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       </div>
       {/* Opened without internet the till runs on its own, outside the app's providers. */}
       {!offlineBoot && <FeatureTour tourKey="pos_first_sale" autoStart />}
+      {panel === 'stock' && (
+        <PosStock products={products} onClose={() => setPanel(null)}
+          onStockChanged={(changes) => setProducts((prev) => {
+            const next = prev.map((p) => {
+              const c = changes.find((x) => x.productId === p.id);
+              if (!c) return p;
+              return { ...p, stock: c.stock != null ? c.stock : Number(p.stock || 0) + Number(c.delta || 0) };
+            });
+            saveCatalog(next).catch(() => {});
+            return next;
+          })} />
+      )}
+      {panel === 'debts' && <PosDebts shopName={shopName} onClose={() => setPanel(null)} />}
       {showToday && <PosToday onClose={() => { setShowToday(false); Promise.resolve(api.get('/sales/dashboard')).then((r) => setToday(r?.data?.today?.total ?? null)).catch(() => {}); }} />}
 
       <header className="pos-no-print" style={{ background: '#fff', borderBottom: `1px solid ${LINE}`, padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -377,7 +394,9 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
           <button type="button" data-testid="pos-today-open" style={pill} onClick={() => setShowToday(true)}>Leo{today != null ? ` · ${tzs(today)}` : ''} · Zamu</button>
         ) : today != null && <span style={{ ...pill, cursor: 'default' }}>Leo · {tzs(today)}</span>}
         {online && !offlineBoot && <button type="button" style={pill} onClick={openHistory}>Historia</button>}
-        {online && !offlineBoot && <button type="button" style={pill} onClick={() => onNavigate('SellerProducts')}>Stoo</button>}
+        {/* POS part 3 (owner 2026-11-03): Stoo and Madeni open beside the till. */}
+        {online && !offlineBoot && <button type="button" data-testid="pos-stock-open" style={pill} onClick={() => setPanel('stock')}>Stoo</button>}
+        {online && !offlineBoot && <button type="button" data-testid="pos-debts-open" style={pill} onClick={() => setPanel('debts')}>Madeni</button>}
         {canInstallKentexa && <button type="button" style={{ ...pill, borderColor: BLUE, color: BLUE }} onClick={onInstallKentexa}>Weka kwenye kompyuta</button>}
       </header>
 
