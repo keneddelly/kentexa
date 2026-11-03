@@ -114,3 +114,12 @@ test('the till (/pos) is the one page kept for offline: network first, the copy 
   handlers.fetch(other);
   expect(other.respondWith).not.toHaveBeenCalled();
 });
+
+test('every app (KenteXa, POS, Ofisi) uses the PNG logo, never an SVG icon (owner 2026-11-03: the real logo)', () => {
+  const publicDir = path.join(process.cwd(), 'public');
+  for (const file of ['manifest.json', 'manifest-pos.json', 'manifest-ofisi.json']) {
+    const manifest = JSON.parse(fs.readFileSync(path.join(publicDir, file), 'utf8'));
+    expect(manifest.icons.every((i) => i.type === 'image/png' && fs.existsSync(path.join(publicDir, i.src)))).toBe(true);
+    expect(manifest.icons.filter((i) => i.purpose === 'any').map((i) => i.sizes)).toEqual(['192x192', '512x512']);
+  }
+});
