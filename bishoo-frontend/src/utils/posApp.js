@@ -7,8 +7,9 @@
  * the address and the main manifest back.
  */
 export const WORK_APPS = {
-  pos: { path: '/pos', manifest: '/manifest-pos.json', page: 'POS', name: 'KenteXa POS' },
-  ofisi: { path: '/ofisi', manifest: '/manifest-ofisi.json', page: 'SuperAgentDashboard', name: 'KenteXa Ofisi' },
+  // Each app its own colour and word under the KenteXa fox (owner 2026-11-03, logo option B).
+  pos: { path: '/pos', manifest: '/manifest-pos.json', page: 'POS', name: 'KenteXa POS', icon: '/icon-pos-512.png', color: '#0f1419' },
+  ofisi: { path: '/ofisi', manifest: '/manifest-ofisi.json', page: 'SuperAgentDashboard', name: 'KenteXa Ofisi', icon: '/icon-ofisi-512.png', color: '#05603a' },
 };
 export const POS_PATH = WORK_APPS.pos.path;
 
@@ -27,7 +28,13 @@ export function enterWorkApp(kind) {
   const moved = window.location.pathname !== app.path;
   try { if (moved) window.history.replaceState(window.history.state, '', `${app.path}${window.location.hash}`); } catch (_) { /* address bar stays */ }
   if (link) link.setAttribute('href', app.manifest);
+  // iPhone "Add to Home Screen" reads these tags, not the manifest: the app's own icon and name.
+  const swaps = [['link[rel="apple-touch-icon"]', 'href', app.icon], ['meta[name="apple-mobile-web-app-title"]', 'content', app.name],
+    ['meta[name="theme-color"]', 'content', app.color]]
+    .map(([sel, attr, value]) => { const el = document.querySelector(sel); if (!el) return null; const was = el.getAttribute(attr); el.setAttribute(attr, value); return () => el.setAttribute(attr, was); })
+    .filter(Boolean);
   return () => {
+    swaps.forEach((undo) => undo());
     if (link && before) link.setAttribute('href', before);
     try { if (moved && window.location.pathname === app.path) window.history.replaceState(window.history.state, '', '/'); } catch (_) { /* ignore */ }
   };

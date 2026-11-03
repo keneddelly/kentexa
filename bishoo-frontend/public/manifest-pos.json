@@ -4,25 +4,25 @@
   "description": "Till ya duka: inauza hata bila mtandao.",
   "icons": [
     {
-      "src": "/logo192.png",
+      "src": "/icon-pos-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo512.png",
+      "src": "/icon-pos-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable-192.png",
+      "src": "/icon-pos-maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-maskable-512.png",
+      "src": "/icon-pos-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -33,7 +33,7 @@
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#0f1419",
-  "background_color": "#ffffff",
+  "background_color": "#0f1419",
   "scope": "/",
   "lang": "en",
   "categories": [
