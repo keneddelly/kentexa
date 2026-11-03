@@ -45,7 +45,7 @@ export default function TeamInvite({ token, isLoggedIn, onNavigate }) {
     const r = await Promise.resolve(api.get('/team-invitations/workplaces')).catch(() => null);
     const place = (r?.data || []).find((w) => Number(w.commerceProfileId) === Number(view?.commerceProfileId)) || (r?.data || [])[0];
     if (place) savePosTeam(place);
-    onNavigate('POS', place ? { posTeam: place } : null);
+    onNavigate('TeamPOS', place ? { posTeam: place } : null);
   };
 
   const shell = (children) => (

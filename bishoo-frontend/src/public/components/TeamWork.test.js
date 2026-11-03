@@ -12,7 +12,7 @@ test('Kazi shows waiting invitations and "POS ya X" for the businesses I work fo
   const onNavigate = jest.fn();
   render(<TeamWork onNavigate={onNavigate} />);
   fireEvent.click(await screen.findByTestId('team-pos-9'));
-  expect(onNavigate).toHaveBeenCalledWith('POS', { posTeam: expect.objectContaining({ sellerId: 9 }) });
+  expect(onNavigate).toHaveBeenCalledWith('TeamPOS', { posTeam: expect.objectContaining({ sellerId: 9 }) });
   fireEvent.click(screen.getByTestId('team-invite-open-tok1234567890abcd'));
   expect(onNavigate).toHaveBeenCalledWith('TeamInvite-tok1234567890abcd');
 });
