@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-03 (POS part 2):** the pin is now `MIGRATION_RUN_UPTO=1794800000000`. The next deploy
+runs `1794800000000-AddPosShiftsAndExpenses` itself (pos_shift: cashier shifts with starting cash and the counted drawer; pos_expense: shop expenses). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-03 (shop place kept):** the pin is now `MIGRATION_RUN_UPTO=1794700000000`. The next deploy
 runs `1794700000000-AddSellerPickupPlace` itself (seller_pickup_place: the seller's shop place per city, so the send form stops asking "Duka lako" every time). Check: `/version/migrations` shows `pending: []`.
 
