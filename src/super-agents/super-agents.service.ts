@@ -2232,7 +2232,7 @@ export class SuperAgentsService {
               referenceLine,
               departureLine,
               arrivalLine,
-              `Njia: ${parcel.originCity} - ${parcel.destinationCity}`,
+              // (no "Njia:" line: the sentence above already says from where to where; SMS cost 2026-11-03)
               destHubLine,
               destHubAddressLine,
               destHubPhoneLine,
