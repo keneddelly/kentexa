@@ -16,6 +16,7 @@
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import BackBar from '../components/BackBar';
+import PosToday from '../components/PosToday';
 import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
@@ -117,6 +118,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
   const [parked, setParked] = useState([]);
   const [showParked, setShowParked] = useState(false);
   const [today, setToday] = useState(null);
+  const [showToday, setShowToday] = useState(false);
   const [history, setHistory] = useState(null);
   const syncing = useRef(false);
   const searchRef = useRef(null);
@@ -356,6 +358,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       </div>
       {/* Opened without internet the till runs on its own, outside the app's providers. */}
       {!offlineBoot && <FeatureTour tourKey="pos_first_sale" autoStart />}
+      {showToday && <PosToday onClose={() => { setShowToday(false); Promise.resolve(api.get('/sales/dashboard')).then((r) => setToday(r?.data?.today?.total ?? null)).catch(() => {}); }} />}
 
       <header className="pos-no-print" style={{ background: '#fff', borderBottom: `1px solid ${LINE}`, padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <span data-testid="pos-network" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: online && !offlineBoot ? GREEN : AMBER }}>
@@ -369,7 +372,10 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
         )}
         {queue.failed.length > 0 && <span style={{ fontSize: 13, color: RED, fontWeight: 700 }}>Mauzo {queue.failed.length} yamekataliwa (angalia chini)</span>}
         <span style={{ flex: 1 }} />
-        {today != null && <span style={{ ...pill, cursor: 'default' }}>Leo · {tzs(today)}</span>}
+        {/* POS part 2 (owner 2026-11-03): "Leo" opens the day, expenses and the shift. */}
+        {online && !offlineBoot ? (
+          <button type="button" data-testid="pos-today-open" style={pill} onClick={() => setShowToday(true)}>Leo{today != null ? ` · ${tzs(today)}` : ''} · Zamu</button>
+        ) : today != null && <span style={{ ...pill, cursor: 'default' }}>Leo · {tzs(today)}</span>}
         {online && !offlineBoot && <button type="button" style={pill} onClick={openHistory}>Historia</button>}
         {online && !offlineBoot && <button type="button" style={pill} onClick={() => onNavigate('SellerProducts')}>Stoo</button>}
         {canInstallKentexa && <button type="button" style={{ ...pill, borderColor: BLUE, color: BLUE }} onClick={onInstallKentexa}>Weka kwenye kompyuta</button>}

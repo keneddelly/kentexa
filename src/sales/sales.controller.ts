@@ -15,6 +15,7 @@ import { CurrentRoleContext } from '../role-context/current-role-context.decorat
 import type { RoleContext } from '../role-context/role-context.types';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { SalesService } from './sales.service';
+import { PosDayService } from './pos-day.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 
 // I2G: every sale route derives the acting workspace from the authenticated RoleContext.
@@ -24,7 +25,45 @@ export class SalesController {
   constructor(
     private service: SalesService,
     private sellerScope: SellerScopeService,
+    private posDay: PosDayService,
   ) {}
+
+  // ── POS part 2 (owner approved 2026-11-03): Leo, Matumizi, Zamu. Declared before ':id'. ──
+  private async till(req: any, ctx: RoleContext, perm: 'canOperatePOS' | 'canViewRevenue' = 'canOperatePOS') {
+    const sellerId = await this.sellerScope.resolve(req.user, perm);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, ctx);
+    return { sellerId, scope };
+  }
+
+  @Get('pos/today')
+  async posToday(@Request() req, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posDay.today(sellerId, req.user.id, scope);
+  }
+
+  @Post('pos/expenses')
+  async posExpense(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posDay.addExpense(sellerId, req.user.id, body || {}, scope);
+  }
+
+  @Post('pos/shifts/open')
+  async posOpenShift(@Request() req, @Body('openingFloat') openingFloat: unknown, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posDay.openShift(sellerId, req.user.id, openingFloat, scope);
+  }
+
+  @Post('pos/shifts/close')
+  async posCloseShift(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx);
+    return this.posDay.closeShift(sellerId, req.user.id, body || {}, scope);
+  }
+
+  @Get('pos/shifts')
+  async posShifts(@Request() req, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId, scope } = await this.till(req, ctx, 'canViewRevenue');
+    return this.posDay.shifts(sellerId, scope);
+  }
 
   @Post()
   async create(@Request() req, @Body() dto: CreateSaleDto, @CurrentRoleContext() ctx: RoleContext) {

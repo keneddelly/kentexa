@@ -11,6 +11,8 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { BusinessModule } from '../business/business.module';
 import { SmsModule } from '../sms/sms.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { PosDayService } from './pos-day.service';
 
 @Module({
   imports: [
@@ -19,9 +21,10 @@ import { SmsModule } from '../sms/sms.module';
     InvoicesModule,
     BusinessModule,
     SmsModule,
+    NotificationsModule,
   ],
   controllers: [SalesController],
-  providers: [SalesService],
-  exports: [SalesService],
+  providers: [SalesService, PosDayService],
+  exports: [SalesService, PosDayService],
 })
 export class SalesModule {}
