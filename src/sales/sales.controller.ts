@@ -17,6 +17,7 @@ import { SellerScopeService } from '../business/seller-scope.service';
 import { SalesService } from './sales.service';
 import { PosDayService } from './pos-day.service';
 import { PosStockService } from './pos-stock.service';
+import { PosCashierService } from './pos-cashier.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 
 // I2G: every sale route derives the acting workspace from the authenticated RoleContext.
@@ -28,6 +29,7 @@ export class SalesController {
     private sellerScope: SellerScopeService,
     private posDay: PosDayService,
     private posStock: PosStockService,
+    private posCashiers: PosCashierService,
   ) {}
 
   // ── POS part 2 (owner approved 2026-11-03): Leo, Matumizi, Zamu. Declared before ':id'. ──
@@ -40,25 +42,25 @@ export class SalesController {
   @Get('pos/today')
   async posToday(@Request() req, @CurrentRoleContext() ctx: RoleContext) {
     const { sellerId, scope } = await this.till(req, ctx);
-    return this.posDay.today(sellerId, req.user.id, scope);
+    return this.posDay.today(sellerId, await this.posCashiers.onDuty(sellerId, req.user.id, req.query?.cashierUserId), scope);
   }
 
   @Post('pos/expenses')
   async posExpense(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
     const { sellerId, scope } = await this.till(req, ctx);
-    return this.posDay.addExpense(sellerId, req.user.id, body || {}, scope);
+    return this.posDay.addExpense(sellerId, await this.posCashiers.onDuty(sellerId, req.user.id, body?.cashierUserId), body || {}, scope);
   }
 
   @Post('pos/shifts/open')
-  async posOpenShift(@Request() req, @Body('openingFloat') openingFloat: unknown, @CurrentRoleContext() ctx: RoleContext) {
+  async posOpenShift(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
     const { sellerId, scope } = await this.till(req, ctx);
-    return this.posDay.openShift(sellerId, req.user.id, openingFloat, scope);
+    return this.posDay.openShift(sellerId, await this.posCashiers.onDuty(sellerId, req.user.id, body?.cashierUserId), body?.openingFloat, scope);
   }
 
   @Post('pos/shifts/close')
   async posCloseShift(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
     const { sellerId, scope } = await this.till(req, ctx);
-    return this.posDay.closeShift(sellerId, req.user.id, body || {}, scope);
+    return this.posDay.closeShift(sellerId, await this.posCashiers.onDuty(sellerId, req.user.id, body?.cashierUserId), body || {}, scope);
   }
 
   // ── POS part 3 (owner approved 2026-11-03): Stoo and Madeni. ──
@@ -89,13 +91,13 @@ export class SalesController {
   @Post('pos/debts/customer')
   async posPayCustomer(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
     const { sellerId, scope } = await this.till(req, ctx);
-    return this.posStock.payCustomer(sellerId, req.user.id, body || {}, scope);
+    return this.posStock.payCustomer(sellerId, await this.posCashiers.onDuty(sellerId, req.user.id, body?.cashierUserId), body || {}, scope);
   }
 
   @Post('pos/debts/supplier')
   async posPaySupplier(@Request() req, @Body() body: any, @CurrentRoleContext() ctx: RoleContext) {
     const { sellerId, scope } = await this.till(req, ctx);
-    return this.posStock.paySupplier(sellerId, req.user.id, body || {}, scope);
+    return this.posStock.paySupplier(sellerId, await this.posCashiers.onDuty(sellerId, req.user.id, body?.cashierUserId), body || {}, scope);
   }
 
   @Get('pos/shifts')
@@ -108,7 +110,24 @@ export class SalesController {
   async create(@Request() req, @Body() dto: CreateSaleDto, @CurrentRoleContext() ctx: RoleContext) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canOperatePOS');
     const scope = await this.sellerScope.resolveScope(sellerId, req.user, ctx);
-    return this.service.createSale(sellerId, req.user.id, dto, scope);
+    const cashier = await this.posCashiers.onDuty(sellerId, req.user.id, dto.cashierUserId);
+    const sale = await this.service.createSale(sellerId, req.user.id, dto, scope);
+    await this.posCashiers.stamp(Number((sale as any).id), cashier === req.user.id && dto.cashierUserId == null ? null : cashier);
+    return sale;
+  }
+
+  // ── "Badilisha mhudumu" (owner approved 2026-11-03): the shop's cashiers and their PINs. ──
+  @Get('pos/cashiers')
+  async posCashierList(@Request() req, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId } = await this.till(req, ctx);
+    return this.posCashiers.list(sellerId);
+  }
+
+  @Post('pos/cashiers/:userId/pin')
+  async posSetPin(@Request() req, @Param('userId', ParseIntPipe) userId: number, @Body('pin') pin: unknown, @CurrentRoleContext() ctx: RoleContext) {
+    const { sellerId } = await this.till(req, ctx);
+    const canManage = await this.sellerScope.resolve(req.user, 'canManageTeam').then((id) => id === sellerId).catch(() => false);
+    return this.posCashiers.setPin(sellerId, req.user.id, canManage, userId, pin);
   }
 
   @Get()

@@ -101,4 +101,9 @@ export class CreateSaleDto {
   @IsOptional()
   @IsBoolean()
   credit?: boolean;
+
+  // "Badilisha mhudumu" (owner 2026-11-03): the cashier on duty at the till (checked by the server).
+  @IsOptional()
+  @IsInt()
+  cashierUserId?: number;
 }

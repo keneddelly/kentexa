@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-03 (POS cashier PIN):** the pin is now `MIGRATION_RUN_UPTO=1795000000000`. The next deploy
+runs `1795000000000-AddPosCashierPin` itself (pos_cashier_pin: each cashier's 4-digit PIN, stored as a salted hash; sale."cashierUserId": who served the sale). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-03 (POS part 3):** the pin is now `MIGRATION_RUN_UPTO=1794900000000`. The next deploy
 runs `1794900000000-AddPosStockAndDebts` itself (pos_supplier, pos_stock_receipt, pos_debt_payment). Check: `/version/migrations` shows `pending: []`.
 

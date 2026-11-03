@@ -30,7 +30,8 @@ const Row = ({ label, value, strong, tone }) => (
   </div>
 );
 
-export default function PosToday({ onClose }) {
+export default function PosToday({ onClose, cashierUserId, cashierName }) {
+  const who = cashierUserId ? { cashierUserId } : {};
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,9 +44,9 @@ export default function PosToday({ onClose }) {
   const [closed, setClosed] = useState(null);
 
   const load = useCallback(() => {
-    Promise.resolve(api.get('/sales/pos/today')).then((r) => setData(r?.data || null))
+    Promise.resolve(api.get('/sales/pos/today', cashierUserId ? { params: { cashierUserId } } : undefined)).then((r) => setData(r?.data || null))
       .catch((e) => setError(e?.response?.data?.message || 'Haikupakia. Jaribu tena.'));
-  }, []);
+  }, [cashierUserId]);
   useEffect(() => { load(); }, [load]);
 
   const run = async (fn) => {
@@ -53,12 +54,12 @@ export default function PosToday({ onClose }) {
     try { await fn(); load(); } catch (e) { setError(e?.response?.data?.message || 'Imeshindikana. Jaribu tena.'); } finally { setBusy(false); }
   };
   const addExpense = () => run(async () => {
-    await api.post('/sales/pos/expenses', { amount: Number(digits(expAmount)), reason: expReason.trim() });
+    await api.post('/sales/pos/expenses', { amount: Number(digits(expAmount)), reason: expReason.trim(), ...who });
     setExpAmount(''); setExpReason(''); setAddingExp(false);
   });
-  const openShift = () => run(async () => { await api.post('/sales/pos/shifts/open', { openingFloat: Number(digits(float) || 0) }); setFloat(''); setClosed(null); });
+  const openShift = () => run(async () => { await api.post('/sales/pos/shifts/open', { openingFloat: Number(digits(float) || 0), ...who }); setFloat(''); setClosed(null); });
   const closeShift = () => run(async () => {
-    const r = await api.post('/sales/pos/shifts/close', { countedCash: Number(digits(counted)), note: note.trim() || undefined });
+    const r = await api.post('/sales/pos/shifts/close', { countedCash: Number(digits(counted)), note: note.trim() || undefined, ...who });
     setClosed(r?.data || null); setCounted(''); setNote('');
   });
 
@@ -114,7 +115,7 @@ export default function PosToday({ onClose }) {
 
             {data.ready && (
               <section data-testid="pos-shift" style={{ borderTop: `1px solid ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Zamu yako</h3>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Zamu ya {cashierName || 'mhudumu'}</h3>
                 {closed && (
                   <div data-testid="pos-shift-closed" style={{ background: closed.difference === 0 ? '#ecfdf3' : '#fffbeb', borderRadius: 12, padding: 12, fontSize: 15 }}>
                     Zamu imefungwa. Droo: {tzs(closed.expected)}, umehesabu {tzs(closed.counted)}. <b>{diffText(closed.difference)}</b>. Ripoti imetumwa kwa mmiliki.
@@ -151,6 +152,13 @@ export default function PosToday({ onClose }) {
                     </button>
                   </>
                 )}
+              </section>
+            )}
+
+            {data.byCashier?.length > 1 && (
+              <section data-testid="pos-by-cashier" style={{ borderTop: `1px solid ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Kwa mhudumu</h3>
+                {data.byCashier.map((c) => <Row key={c.userId} label={`${c.name} · risiti ${c.receipts}`} value={tzs(c.total)} />)}
               </section>
             )}
 

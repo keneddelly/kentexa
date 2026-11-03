@@ -5,6 +5,7 @@ import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import type { SellerScope } from '../business/seller-scope.service';
 import { POS_DAY_TEXT, SaleRow, drawer, saleCash, sumByMethod } from './pos-day';
 import { PosStockService } from './pos-stock.service';
+import { PosCashierService } from './pos-cashier.service';
 
 /**
  * POS part 2 (owner approved 2026-11-03, design "KenteXa POS ya kisasa", board "Zamu"):
@@ -29,7 +30,13 @@ export class PosDayService {
     private readonly db: DataSource,
     @Optional() private readonly notifications?: InAppNotificationService,
     @Optional() private readonly stock?: PosStockService,
+    @Optional() private readonly cashiers?: PosCashierService,
   ) {}
+
+  /** The column that says which cashier made a sale: the one on duty when known (after migration 1795000000000). */
+  private async cashierCol(): Promise<string> {
+    return this.cashiers && (await this.cashiers.tablesReady()) ? 'COALESCE(s."cashierUserId", s."createdByUserId")' : 's."createdByUserId"';
+  }
 
   async tablesReady(): Promise<boolean> {
     if (!this.ready && Date.now() - this.checkedAt > 60_000) {
@@ -77,6 +84,16 @@ export class PosDayService {
          WHERE i."saleId" = ANY($1::int[]) GROUP BY i."productName" ORDER BY qty DESC, name ASC LIMIT 5`, [ids]))
         .map((r: any) => ({ name: r.name, qty: Number(r.qty) }));
     }
+    // Per cashier (owner 2026-11-03: several cashiers on one till).
+    let byCashier: Array<{ userId: number; name: string; total: number; receipts: number }> = [];
+    if (ids.length) {
+      const col = await this.cashierCol();
+      byCashier = (await this.db.query(`
+        SELECT ${col} AS "userId", COALESCE(u.name, u.phone) AS name, SUM(s.total) AS total, COUNT(*)::int AS receipts
+          FROM public.sale s LEFT JOIN public."user" u ON u.id = ${col}
+         WHERE s.id = ANY($1::int[]) GROUP BY 1, 2 ORDER BY total DESC`, [ids]))
+        .map((r: any) => ({ userId: Number(r.userId), name: r.name || 'Mhudumu', total: Math.round(Number(r.total)), receipts: Number(r.receipts) }));
+    }
     const ready = await this.tablesReady();
     let expenses: any[] = [];
     let shift: any = null;
@@ -96,6 +113,7 @@ export class PosDayService {
       byMethod: sumByMethod(sales),
       profit,
       top,
+      byCashier,
       expenses,
       expensesTotal: expenses.reduce((s, e) => s + e.amount, 0),
       shift,
@@ -115,8 +133,9 @@ export class PosDayService {
   }
 
   private async shiftParts(sellerId: number, userId: number, sh: any, scope?: SellerScope) {
+    const col = await this.cashierCol();
     const sales = await this.salesOf(sellerId, scope,
-      `AND s."createdByUserId" = $2::int AND COALESCE(s."soldAt", s."createdAt") >= $3::timestamptz`, [userId, sh.openedAt]);
+      `AND ${col} = $2::int AND COALESCE(s."soldAt", s."createdAt") >= $3::timestamptz`, [userId, sh.openedAt]);
     const cashSales = Math.round(sales.reduce((sum, s) => sum + saleCash(s), 0) * 100) / 100;
     const [ex] = await this.db.query(`SELECT COALESCE(SUM(amount), 0) AS cash FROM public.pos_expense
       WHERE "shiftId" = $1::int AND "paidFrom" = 'cash'`, [sh.id]);
