@@ -49,7 +49,6 @@ import { loadSession as loadPosSession } from './utils/posOffline';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import KentexaFee        from './public/pages/KentexaFee';
-import SellerPayouts     from './public/pages/SellerPayouts';
 import TransportProviderSettings from './public/pages/TransportProviderSettings';
 import SellerAnalytics            from './public/pages/SellerAnalytics'; // eslint-disable-line
 import BecomeTransportProvider    from './public/pages/BecomeTransportProvider'; // eslint-disable-line
@@ -833,8 +832,9 @@ function App() {
       return requireLogin(<MyOrders {...publicProps} highlightOrderId={Number(page.split('MyOrders-')[1])} />);
     if (page.startsWith('SellerOrders-'))
       return requireLogin(<SellerOrders {...publicProps} highlightOrderId={Number(page.split('SellerOrders-')[1])} />);
+    // Malipo hidden (owner 2026-11-03): KenteXa never holds money; an old link opens Maagizo.
     if (page.startsWith('SellerPayouts-'))
-      return requireLogin(<SellerPayouts {...publicProps} highlightOrderId={Number(page.split('SellerPayouts-')[1])} />);
+      return requireLogin(<SellerOrders {...publicProps} />);
     // Tracking must work without an account — the recipient of a parcel
     // often isn't the buyer and may not be logged in at all.
     if (page.startsWith('TrackParcel-'))
@@ -950,7 +950,7 @@ function App() {
       case 'SellerCustomers':   return requireVerifiedSeller(<SellerCustomers {...publicProps} />);
       case 'AgentEarnings':     return requireLogin(<AgentEarnings {...publicProps} />);
       case 'KentexaFee':        return requireLogin(<KentexaFee {...publicProps} navParams={navParams} />);
-      case 'SellerPayouts':     return requireVerifiedSeller(<SellerPayouts {...publicProps} />);
+      case 'SellerPayouts':     return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       // Hidden (owner 2026-11-03): KenteXa never holds the seller's money; an old link opens Maagizo.
       case 'SellerWallet':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       case 'BecomeAgent':       return <BecomeAgent {...publicProps} />;

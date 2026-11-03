@@ -906,9 +906,6 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.finance_payments_title')}
               </div>
-              <Row icon="card" label={t('my_profile.my_payments_label')}
-                value={t('my_profile.payments_count', { count: payments.length })}
-                onAction={() => onNavigate('SellerPayouts')} />
               <Row icon="doc" label={t('my_profile.invoices_label')}
                 value={t('my_profile.invoices_count', { count: invoices.length })}
                 onAction={() => onNavigate('SellerInvoices')} />
@@ -925,10 +922,6 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <Row icon="money" label={t('my_profile.agent_earnings_label')}
                   value={agentData ? `TZS ${fmt(agentData.totalEarnings)}` : '—'}
                   onAction={() => onNavigate('AgentEarnings')} />
-              )}
-              {isBusinessOwner && (
-                <Row icon="chart" label={t('my_profile.payout_overview_label')}
-                  onAction={() => onNavigate('SellerPayouts')} />
               )}
             </SCard>
 

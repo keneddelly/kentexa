@@ -106,7 +106,6 @@ const RoleActions = ({ role, onNavigate }) => {
       {icon:'chart',label:t('commerce_profile.action_analytics'),  page:'SellerAnalytics',  bg:'#f5f3ff', color:'#7c3aed'},
       {icon:'megaphone',label:t('commerce_profile.action_listing'),    page:'CommerceProfile',  bg:'#fff7ed', color:'#ea580c'},
       {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
-      {icon:'card',label:t('commerce_profile.action_payments'),     page:'SellerPayouts',    bg:'#fef9c3', color:'#ca8a04'},
     ],
     agent: [
       {icon:'moto',label:t('commerce_profile.action_my_jobs'), page:'AgentDashboard',   bg:'#fdf2f8', color:'#a21caf'},
