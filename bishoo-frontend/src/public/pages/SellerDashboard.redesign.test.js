@@ -57,7 +57,8 @@ test('a new, unverified seller: the verify card, first steps, and locked tools t
   render(<SellerDashboard onNavigate={jest.fn()} isLoggedIn activeProfile={{ displayName: 'Asha Mwinyi' }} />);
   expect(await screen.findByTestId('verify-card')).toHaveTextContent('Thibitisha biashara yako');
   expect(screen.getByTestId('dash-start')).toHaveTextContent('Weka tangazo la kwanza');
-  expect(screen.getByTestId('menu-SellerWallet')).toHaveTextContent('Thibitisha');
+  expect(screen.getByTestId('menu-SellerAnalytics')).toHaveTextContent('Thibitisha');
+  expect(screen.queryByTestId('menu-SellerWallet')).toBeNull(); // hidden: KenteXa never holds money
 });
 
 test('the week chart only ever shows paid money, one bar per day, today last', () => {

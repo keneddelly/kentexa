@@ -14,7 +14,7 @@ import { createSubmissionLock, emptyLocation, locationFromText, normalizeListing
 // brief window before that fetch resolves.
 const DEFAULT_MEDIA_RULES = { minImages: 2, recommendedImages: 6, maxImages: 10, guidanceText: 'Clear photos from multiple angles help buyers trust your listing.' };
 const FALLBACK_CATEGORIES = {
-  general: { label: 'General', icon: '📦', mediaRules: DEFAULT_MEDIA_RULES, subcategories: { other: { label: 'Other', attributes: [
+  general: { label: 'General', icon: '', mediaRules: DEFAULT_MEDIA_RULES, subcategories: { other: { label: 'Other', attributes: [
     { key: 'brand', label: 'Brand', type: 'text' }, { key: 'model', label: 'Model', type: 'text' },
     { key: 'condition', label: 'Condition', type: 'select', allowedValues: ['New', 'Used', 'Refurbished'] },
     { key: 'color', label: 'Color', type: 'multiselect' },
@@ -377,26 +377,26 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   }[status] || { backgroundColor: '#f1f5f9', color: '#64748b' });
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingBottom: 90 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff', paddingBottom: 90 }}>
       <BackBar onBack={() => onNavigate('back')} title={t('seller_classifieds.page_title')} />
       {/* createOnly is an immediate-create destination, not the manage
           dashboard — its own modal below is the entire view, so the list,
           stats and their banners (which would otherwise render duplicate
           error/message text alongside the modal's own) stay hidden. */}
       {!createOnly && (<>
-      <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', padding: '20px 16px' }}>
+      <div style={{ background: '#fff', padding: '12px 16px 4px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
             <div style={{ display: 'flex', gap: 8, marginBottom: '10px', flexWrap: 'wrap' }}>
-              <button onClick={() => onNavigate('SellerDashboard')} style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>{t('seller_classifieds.back_dashboard')}</button>
+              <button onClick={() => onNavigate('SellerDashboard')} style={{ backgroundColor: '#fff', color: '#0f1419', border: '1px solid #cfd9de', padding: '6px 14px', borderRadius: 999, cursor: 'pointer', fontSize: '13px', fontWeight: '700', fontFamily: 'inherit' }}>{t('seller_classifieds.back_dashboard')}</button>
               {/* Reachable regardless of seller-application status — any
                   listing owner can invoice a buyer on their own classified,
                   independent of the (still legitimately gated) full
                   business dashboard this button used to be the only door to. */}
-              <button onClick={() => onNavigate('SellerInvoices')} style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>{t('seller_classifieds.invoices_button')}</button>
+              <button onClick={() => onNavigate('SellerInvoices')} style={{ backgroundColor: '#fff', color: '#0f1419', border: '1px solid #cfd9de', padding: '6px 14px', borderRadius: 999, cursor: 'pointer', fontSize: '13px', fontWeight: '700', fontFamily: 'inherit' }}>{t('seller_classifieds.invoices_button')}</button>
             </div>
-            <h1 style={{ fontSize: '20px', fontWeight:'800', color: '#fff', margin: '0 0 4px', fontFamily:'inherit' }}>{t('seller_classifieds.page_title')}</h1>
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', margin: 0 }}>{t('seller_classifieds.listings_count', { count: classifieds.length })}</p>
+            <h1 style={{ fontSize: '24px', fontWeight:'800', color: '#0f1419', margin: '0 0 4px', fontFamily:'inherit' }}>{t('seller_classifieds.page_title')}</h1>
+            <p style={{ fontSize: '14px', color: '#536471', margin: 0 }}>{t('seller_classifieds.listings_count', { count: classifieds.length })}</p>
           </div>
           <button onClick={() => {
               if (!userPhone) {
@@ -406,19 +406,18 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 return;
               }
               resetForm(); setShowForm(true);
-            }} style={{ background: '#fff', color: '#e91e63', border: 'none', padding: '10px 18px', borderRadius: '12px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}>{t('seller_classifieds.post_button')}</button>
+            }} style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 999, cursor: 'pointer', fontSize: '14px', fontWeight: '800', fontFamily: 'inherit' }}>{t('seller_classifieds.post_button')}</button>
         </div>
       </div>
 
       <div style={{ padding: '14px 16px 32px', maxWidth: '1100px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
-        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', fontWeight: '600', display: 'flex', justifyContent: 'space-between' }}><span>✅ {message}</span><button onClick={() => setMessage('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', display: 'flex', justifyContent: 'space-between' }}><span>❌ {error}</span><button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
+        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', fontWeight: '600', display: 'flex', justifyContent: 'space-between' }}><span> {message}</span><button onClick={() => setMessage('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', display: 'flex', justifyContent: 'space-between' }}><span> {error}</span><button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
 
         {/* Phone number warning */}
         {!userPhone && (
           <div style={{ backgroundColor: '#fef9c3', border: '2px solid #fcd34d', borderRadius: 12, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 24, flexShrink: 0 }}>📞</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>{t('seller_classifieds.phone_warning_title')}</div>
               <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>{t('seller_classifieds.phone_warning_desc')}</div>
@@ -432,23 +431,22 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 18 }}>
           {[
-            { label: t('seller_classifieds.stat_total'), value: classifieds.length, gradient: 'linear-gradient(135deg,#f093fb,#f5576c)', icon: '📋' },
-            { label: t('seller_classifieds.stat_active'), value: classifieds.filter(c => c.status === 'active').length, gradient: 'linear-gradient(135deg,#43e97b,#38f9d7)', icon: '✅' },
-            { label: t('seller_classifieds.stat_sold'), value: classifieds.filter(c => c.status === 'sold').length, gradient: 'linear-gradient(135deg,#667eea,#764ba2)', icon: '🏷️' },
+            { label: t('seller_classifieds.stat_total'), value: classifieds.length },
+            { label: t('seller_classifieds.stat_active'), value: classifieds.filter(c => c.status === 'active').length },
+            { label: t('seller_classifieds.stat_sold'), value: classifieds.filter(c => c.status === 'sold').length },
           ].map(s => (
-            <div key={s.label} style={{ background: s.gradient, borderRadius: 12, padding: '14px 8px', color: '#fff', textAlign: 'center' }}>
-              <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
+            <div key={s.label} style={{ background: '#fff', border: '1px solid #eff3f4', borderRadius: 12, padding: '14px 8px', color: '#0f1419', textAlign: 'center' }}>
               <div style={{ fontSize: 20, fontWeight:800 }}>{s.value}</div>
-              <div style={{ fontSize: 11, opacity: 0.9 }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: '#536471' }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}><div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div><p>{t('seller_classifieds.loading')}</p></div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}><div style={{ fontSize: 48, marginBottom: 16 }}></div><p>{t('seller_classifieds.loading')}</p></div>
         ) : classifieds.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>📋</div>
+          <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, outline: '1px solid #eff3f4' }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}></div>
             <h3 style={{ color: '#1e293b', marginBottom: 8 }}>{t('seller_classifieds.no_listings_title')}</h3>
             <p style={{ color: '#64748b', marginBottom: 24 }}>{t('seller_classifieds.no_listings_desc')}</p>
             <button onClick={() => {
@@ -459,19 +457,19 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                   return;
                 }
                 resetForm(); setShowForm(true);
-              }} style={{ background: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>{t('seller_classifieds.post_first_listing')}</button>
+              }} style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>{t('seller_classifieds.post_first_listing')}</button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
             {classifieds.map(item => (
-              <div key={item.id} style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9' }}>
+              <div key={item.id} style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', outline: '1px solid #eff3f4', border: '1px solid #f1f5f9' }}>
                 <div style={{ height: 180, backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
-                  {item.images?.[0] ? <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 48 }}>📋</span>}
+                  {item.images?.[0] ? <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 48 }}></span>}
                   <span style={{ position: 'absolute', top: 10, right: 10, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10, ...statusColor(item.status) }}>{item.status?.toUpperCase()}</span>
                 </div>
                 <div style={{ padding: 16 }}>
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#0f1419', color: '#fff' }}>
                       {CATEGORIES[item.category]?.icon} {item.category?.replace(/_/g,' ')}
                     </span>
                     {item.subcategory && (
@@ -490,16 +488,16 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                    <span style={{ fontSize: 17, fontWeight:800, color: '#e91e63' }}>TZS {Number(item.price).toLocaleString()}</span>
+                    <span style={{ fontSize: 17, fontWeight:800, color: '#0f1419' }}>TZS {Number(item.price).toLocaleString()}</span>
                     {item.isNegotiable && <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{t('seller_classifieds.negotiable_badge')}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)} style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: 8, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>{t('seller_classifieds.view_button')}</button>
+                    <button onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)} style={{ flex: 1, backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', padding: 8, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>{t('seller_classifieds.view_button')}</button>
                     {item.status === 'active' && <>
                       <button onClick={() => handleEdit(item)} style={{ flex: 1, backgroundColor: '#dbeafe', color: '#2563eb', border: 'none', padding: 8, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>{t('seller_classifieds.edit_button')}</button>
                       <button onClick={() => handleMarkSold(item.id)} style={{ flex: 1, backgroundColor: '#dcfce7', color: '#16a34a', border: 'none', padding: 8, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>{t('seller_classifieds.sold_button')}</button>
                     </>}
-                    <button onClick={() => handleDelete(item.id)} style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>🗑</button>
+                    <button onClick={() => handleDelete(item.id)} style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}></button>
                   </div>
                 </div>
               </div>
@@ -512,7 +510,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       {/* ── POST/EDIT MODAL ── */}
       {showForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 2000 }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 560, maxHeight: '92vh', display: 'flex', flexDirection: 'column', boxShadow: '0 -8px 32px rgba(0,0,0,0.2)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 560, maxHeight: '92vh', display: 'flex', flexDirection: 'column', outline: '1px solid #eff3f4' }}>
           <div style={{ padding: '20px 16px 0', overflowY: 'auto', flex: 1, minHeight: 0 }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 18px' }}>
@@ -541,7 +539,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               {imagePreviews.length < mediaRules.maxImages && (
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
                   <input type="file" accept="image/*" multiple disabled={uploading || saving} onChange={handleImageUpload} style={{ display: 'none' }} id="classifiedImages" />
-                  <label htmlFor="classifiedImages" style={{ background: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  <label htmlFor="classifiedImages" style={{ background: '#0f1419', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? t('seller_classifieds.uploading') : t('seller_classifieds.choose_photos')}
                   </label>
                   <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
@@ -564,7 +562,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 <label style={labelStyle}>
                   {t('seller_classifieds.category_label')} *
                   {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_classifieds.category_detecting')}</span>}
-                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>✨ {t('seller_classifieds.category_suggested')}</span>}
+                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#0f1419', fontWeight: 700 }}> {t('seller_classifieds.category_suggested')}</span>}
                 </label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {Object.entries(CATEGORIES).map(([key, cat]) => (
@@ -590,11 +588,11 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 <button type="button" onClick={generateDescription}
                   disabled={descGenerating || !form.title || !form.images.length}
                   title={!form.images.length ? t('seller_classifieds.ai_description_needs_photo') : ''}
-                  style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', background: 'none',
+                  style={{ fontSize: 11, fontWeight: 800, color: '#0f1419', background: 'none',
                     border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
                     cursor: (descGenerating || !form.title || !form.images.length) ? 'not-allowed' : 'pointer',
                     opacity: (!form.title || !form.images.length) ? 0.5 : 1 }}>
-                  {descGenerating ? `⏳ ${t('seller_classifieds.ai_description_generating')}` : `✨ ${t('seller_classifieds.ai_description_button')}`}
+                  {descGenerating ? ` ${t('seller_classifieds.ai_description_generating')}` : ` ${t('seller_classifieds.ai_description_button')}`}
                 </button>
               </div>
               <textarea placeholder={t('seller_classifieds.description_placeholder')} value={form.description}
@@ -762,7 +760,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                           {[
                             { label: t('seller_classifieds.price_low'),   value: priceSuggestion.low,  color: '#16a34a' },
                             { label: t('seller_classifieds.price_fair'), value: priceSuggestion.fair, color: '#1d4ed8' },
-                            { label: t('seller_classifieds.price_high'),     value: priceSuggestion.high, color: '#7c3aed' },
+                            { label: t('seller_classifieds.price_high'),     value: priceSuggestion.high, color: '#0f1419' },
                           ].map(r => (
                             <button key={r.label} onClick={() => setForm(f => ({ ...f, price: String(r.value) }))}
                               style={{ flex: 1, backgroundColor: '#fff', border: `1px solid ${r.color}`,
@@ -789,7 +787,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                     }}
                   />
                   {form.location && (
-                    <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>✅ {form.location}</div>
+                    <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}> {form.location}</div>
                   )}
               </div>
             </div>
@@ -816,7 +814,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
             borderTop: '1px solid #f1f5f9', backgroundColor: '#fff' }}>
               <button onClick={cancelForm} disabled={saving} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_classifieds.cancel_button')}</button>
               <button onClick={handleSubmit} disabled={uploading || saving}
-                style={{ flex: 2, background: (uploading || saving) ? '#f48fb1' : 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: (uploading || saving) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
+                style={{ flex: 2, background: (uploading || saving) ? '#f48fb1' : '#0f1419', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: (uploading || saving) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
                 {saving ? t('listing_validation.saving') : uploading ? t('seller_classifieds.please_wait') : editItem ? t('seller_classifieds.update_listing_button') : t('seller_classifieds.post_listing_button')}
               </button>
           </div>

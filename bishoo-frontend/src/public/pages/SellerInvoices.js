@@ -186,7 +186,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
     pending:   { bg: '#fef9c3', color: '#ca8a04' },
     sent:      { bg: '#dbeafe', color: '#2563eb' },
     paid:      { bg: '#dcfce7', color: '#16a34a' },
-    shipping:  { bg: '#ffedd5', color: '#ea580c' },
+    shipping:  { bg: '#ffedd5', color: '#0f1419' },
     delivered: { bg: '#d1fae5', color: '#065f46' },
     cancelled: { bg: '#fee2e2', color: '#dc2626' },
   }[status] || { bg: '#f1f5f9', color: '#64748b' });
@@ -202,20 +202,20 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
   };
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('seller_invoices.page_title')} top={0} />
       <div style={{ textAlign: 'center', padding: '60px 16px', color: '#64748b' }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>{t('seller_invoices.loading_invoices')}
+        <div style={{ fontSize: 36, marginBottom: 12 }}></div>{t('seller_invoices.loading_invoices')}
       </div>
     </div>
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: 'inherit' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('seller_invoices.page_title')} top={0}
         right={
           <button onClick={openManualModal}
-            style={{ background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
+            style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
             {t('seller_invoices.create_button')}
           </button>
         }
@@ -225,7 +225,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-            <span>❌ {error}</span>
+            <span> {error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
@@ -238,7 +238,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
 
         {/* ── Tracking number card — shown after shipping method is set ─────── */}
         {lastTracking && (
-          <div style={{ backgroundColor: '#fff', border: '2px solid #1d4ed8', borderRadius: 14, padding: 18, marginBottom: 16, boxShadow: '0 4px 16px rgba(29,78,216,0.12)' }}>
+          <div style={{ backgroundColor: '#fff', border: '2px solid #1d4ed8', borderRadius: 14, padding: 18, marginBottom: 16, outline: '1px solid #eff3f4' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>
               {t('seller_invoices.tracking_issued_title')}
             </div>
@@ -269,11 +269,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
 
         {/* Manual Invoice Result */}
         {manualResult && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 4px 24px rgba(0,0,0,0.1)', marginBottom: 16, border: '2px solid #7c3aed', textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, outline: '1px solid #eff3f4', marginBottom: 16, border: '2px solid #7c3aed', textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}></div>
             <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', marginBottom: 6 }}>{t('seller_invoices.invoice_created_title')}</h2>
             <p style={{ color: '#64748b', marginBottom: 16, fontSize: 13 }}>{t('seller_invoices.invoice_created_desc')}</p>
-            <div style={{ background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: '#0f1419', borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>{t('seller_invoices.invoice_number_label')}</div>
               <div style={{ fontSize: 22, fontWeight:800, color: '#fff', fontFamily: 'monospace', letterSpacing: 1 }}>{manualResult.invoiceNumber}</div>
             </div>
@@ -292,7 +292,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { navigator.clipboard.writeText(manualResult.invoiceNumber); setSuccess(t('seller_invoices.copied')); }}
-                style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: 11, borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>{t('seller_invoices.copy_button')}</button>
+                style={{ flex: 1, backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', padding: 11, borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>{t('seller_invoices.copy_button')}</button>
               <button onClick={() => setManualResult(null)}
                 style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 11, borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>{t('seller_invoices.done_button')}</button>
             </div>
@@ -300,13 +300,13 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
         )}
 
         {/* Invoice Requests */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4' }}>
           <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>{t('seller_invoices.all_invoices_title')}</h2>
           <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>{t('seller_invoices.all_invoices_desc')}</p>
 
           {requests.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>🧾</div>
+              <div style={{ fontSize: 32, marginBottom: 10 }}></div>
               <p style={{ fontSize: 13 }}>{t('seller_invoices.no_invoices')}</p>
             </div>
           ) : requests.map(req => {
@@ -328,12 +328,12 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {req.classifiedTitle || req.invoiceDescription || t('seller_invoices.manual_invoice_fallback')}
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>👤 {parsedName} · 📞 {parsedPhone}</div>
-                    {req.invoiceNumber && <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700, marginTop: 2 }}>{req.invoiceNumber}</div>}
+                    <div style={{ fontSize: 12, color: '#64748b' }}> {parsedName} ·  {parsedPhone}</div>
+                    {req.invoiceNumber && <div style={{ fontSize: 11, color: '#0f1419', fontWeight: 700, marginTop: 2 }}>{req.invoiceNumber}</div>}
                     {/* Show tracking number if order was created */}
                     {trackingNum && (
                       <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 800, marginTop: 3 }}>
-                        📦 {trackingNum}
+                         {trackingNum}
                         <button onClick={() => onNavigate(`TrackParcel-${trackingNum}`)}
                           style={{ marginLeft: 8, fontSize: 10, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
                           {t('seller_invoices.track_link')}
@@ -355,14 +355,14 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 {/* ── PAID — needs shipping ── */}
                 {needsShipping && (
                   <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid #fed7aa' }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#ea580c', marginBottom: 6 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#0f1419', marginBottom: 6 }}>
                       {t('seller_invoices.paid_needs_shipping_title')}
                     </div>
                     <div style={{ fontSize: 12, color: '#9a3412', marginBottom: 10 }}>
                       {t('seller_invoices.paid_needs_shipping_desc', { amount: `TZS ${Number(req.amount).toLocaleString()}` })}
                     </div>
                     <button onClick={() => { setShippingInvoice(req); setShippingMethod(''); setShippingNote(''); }}
-                      style={{ width: '100%', background: 'linear-gradient(135deg,#ea580c,#f97316)', color: '#fff', border: 'none', padding: '10px', borderRadius: 8, cursor: 'pointer', fontWeight: 800, fontSize: 13 }}>
+                      style={{ width: '100%', background: '#0f1419', color: '#fff', border: 'none', padding: '10px', borderRadius: 8, cursor: 'pointer', fontWeight: 800, fontSize: 13 }}>
                       {t('seller_invoices.set_shipping_button')}
                     </button>
                   </div>
@@ -418,22 +418,22 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                           backgroundColor: form.isCod ? '#eff6ff' : '#f8fafc', border: `1px solid ${form.isCod ? '#2563eb' : '#e2e8f0'}` }}>
                         <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${form.isCod ? '#2563eb' : '#94a3b8'}`,
                           backgroundColor: form.isCod ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {form.isCod && <span style={{ color: '#fff', fontSize: 10 }}>✓</span>}
+                          {form.isCod && <span style={{ color: '#fff', fontSize: 10 }}></span>}
                         </div>
-                        <div style={{ fontSize: 12, color: form.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}>🚚 {t('seller_invoices.cod_toggle')}</div>
+                        <div style={{ fontSize: 12, color: form.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}> {t('seller_invoices.cod_toggle')}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => { setShowForm(null); setForm({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3, shippingAmount: '', isCod: false }); }}
                           style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('seller_invoices.cancel_button')}</button>
                         <button onClick={() => handleCreateInvoice(req.id)} disabled={creating}
-                          style={{ flex: 2, background: creating ? '#a5b4fc' : 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: creating ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
-                          {creating ? '⏳' : t('seller_invoices.send_invoice_button')}
+                          style={{ flex: 2, background: creating ? '#8b98a5' : '#0f1419', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: creating ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
+                          {creating ? '' : t('seller_invoices.send_invoice_button')}
                         </button>
                       </div>
                     </div>
                   ) : (
                     <button onClick={() => { setShowForm(req.id); setForm({ amount: String(req.listingPrice || ''), invoiceDescription: req.classifiedTitle || '', sellerNotes: '', dueDays: 3, shippingAmount: '', isCod: false }); }}
-                      style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                       {t('seller_invoices.create_send_invoice_button')}
                     </button>
                   )
@@ -443,7 +443,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 {isPaid && req.invoiceNumber && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <a href={`${API_URL}/invoices/number/${req.invoiceNumber}/pdf`} target="_blank" rel="noreferrer"
-                      style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#ede9fe', color: '#7c3aed', textDecoration: 'none', padding: '8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
+                      style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', textDecoration: 'none', padding: '8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
                       {t('seller_invoices.invoice_pdf')}
                     </a>
                     {trackingNum && (
@@ -479,7 +479,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
 
             {error && (
               <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13 }}>
-                ❌ {error} <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', float: 'right' }}>×</button>
+                 {error} <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', float: 'right' }}>×</button>
               </div>
             )}
 
@@ -488,42 +488,42 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 {[
                   {
                     key:   'agent',
-                    icon:  '🤝',
+                    icon:  '',
                     title: t('seller_invoices.method_agent'),
                     desc:  t('seller_invoices.method_agent_desc'),
                     color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe',
                   },
                   {
                     key:   'bus',
-                    icon:  '🚌',
+                    icon:  '',
                     title: t('seller_invoices.method_bus'),
                     desc:  t('seller_invoices.method_bus_desc'),
-                    color: '#ea580c', bg: '#fff7ed', border: '#fed7aa',
+                    color: '#0f1419', bg: '#fff7ed', border: '#fed7aa',
                   },
                   {
                     key:   'courier',
-                    icon:  '📬',
+                    icon:  '',
                     title: t('seller_invoices.method_courier'),
                     desc:  t('seller_invoices.method_courier_desc'),
                     color: '#16a34a', bg: '#f0fdf4', border: '#86efac',
                   },
                   {
                     key:   'boda',
-                    icon:  '🏍️',
+                    icon:  '',
                     title: t('seller_invoices.method_boda'),
                     desc:  t('seller_invoices.method_boda_desc'),
-                    color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe',
+                    color: '#0f1419', bg: '#f7f9f9', border: '#cfd9de',
                   },
                   {
                     key:   'direct',
-                    icon:  '🚗',
+                    icon:  '',
                     title: t('seller_invoices.method_direct'),
                     desc:  t('seller_invoices.method_direct_desc'),
                     color: '#64748b', bg: '#f8fafc', border: '#e2e8f0',
                   },
                   {
                     key:   'buyer_pickup',
-                    icon:  '🏠',
+                    icon:  '',
                     title: t('seller_invoices.method_buyer_pickup'),
                     desc:  t('seller_invoices.method_buyer_pickup_desc'),
                     color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc',
@@ -537,7 +537,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                       <div style={{ fontSize: 14, fontWeight: 800, color: shippingMethod === opt.key ? opt.color : '#1e293b', marginBottom: 4 }}>{opt.title}</div>
                       <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>{opt.desc}</div>
                     </div>
-                    {shippingMethod === opt.key && <span style={{ fontSize: 18, color: opt.color, marginLeft: 'auto', flexShrink: 0 }}>✅</span>}
+                    {shippingMethod === opt.key && <span style={{ fontSize: 18, color: opt.color, marginLeft: 'auto', flexShrink: 0 }}></span>}
                   </div>
                 </div>
               ))}
@@ -548,7 +548,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
               {/* Bus details — shown when bus selected */}
               {shippingMethod === 'bus' && (
                 <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', marginBottom: 8 }}>{t('seller_invoices.bus_details_title')}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0f1419', marginBottom: 8 }}>{t('seller_invoices.bus_details_title')}</div>
                   <input placeholder={t('seller_invoices.bus_company_placeholder')}
                     value={shippingNote.busCompany || ''}
                     onChange={e => setShippingNote(p => typeof p === 'object' ? {...p, busCompany: e.target.value} : { busCompany: e.target.value })}
@@ -585,7 +585,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
               <button onClick={() => setShippingInvoice(null)}
                 style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>{t('seller_invoices.ghairi_button')}</button>
               <button onClick={handleSubmitShipping} disabled={submittingShipping || !shippingMethod}
-                style={{ flex: 2, background: !shippingMethod ? '#e2e8f0' : 'linear-gradient(135deg,#ea580c,#f97316)', color: !shippingMethod ? '#94a3b8' : '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: !shippingMethod ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 14 }}>
+                style={{ flex: 2, background: !shippingMethod ? '#e2e8f0' : '#0f1419', color: !shippingMethod ? '#94a3b8' : '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: !shippingMethod ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 14 }}>
                 {submittingShipping ? t('seller_invoices.creating_order') : t('seller_invoices.confirm_get_tracking')}
               </button>
             </div>
@@ -610,7 +610,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 <input placeholder={t('seller_invoices.search_listings_placeholder')} value={classifiedSearch} onChange={e => setClassifiedSearch(e.target.value)}
                   style={{ ...inputStyle, flex: 1 }} />
                 <button onClick={() => onNavigate('SellerClassifieds')}
-                  style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{t('seller_invoices.new_button')}</button>
+                  style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{t('seller_invoices.new_button')}</button>
               </div>
               {loadingClassifieds ? (
                 <div style={{ textAlign: 'center', padding: 16, color: '#64748b', fontSize: 13 }}>{t('seller_invoices.loading')}</div>
@@ -620,23 +620,23 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
                   {filteredClassifieds.map(c => (
                     <div key={c.id} onClick={() => handleSelectClassified(c)}
-                      style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: selectedClassified?.id === c.id ? '#ede9fe' : '#fff', borderBottom: '1px solid #f1f5f9' }}>
+                      style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: selectedClassified?.id === c.id ? '#f7f9f9' : '#fff', borderBottom: '1px solid #f1f5f9' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{c.title}</div>
                         <div style={{ fontSize: 11, color: '#64748b' }}>{c.category} · {c.status}</div>
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#7c3aed', flexShrink: 0, marginLeft: 10 }}>TZS {Number(c.price).toLocaleString()}</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#0f1419', flexShrink: 0, marginLeft: 10 }}>TZS {Number(c.price).toLocaleString()}</div>
                     </div>
                   ))}
                 </div>
               )}
               {selectedClassified && (
-                <div style={{ backgroundColor: '#ede9fe', borderRadius: 8, padding: '10px 12px', marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ backgroundColor: '#f7f9f9', borderRadius: 8, padding: '10px 12px', marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#7c3aed' }}>✅ {selectedClassified.title}</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#0f1419' }}> {selectedClassified.title}</div>
                     <div style={{ fontSize: 11, color: '#64748b' }}>TZS {Number(selectedClassified.price).toLocaleString()}</div>
                   </div>
-                  <button onClick={() => setSelectedClassified(null)} style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 18 }}>×</button>
+                  <button onClick={() => setSelectedClassified(null)} style={{ background: 'none', border: 'none', color: '#0f1419', cursor: 'pointer', fontSize: 18 }}>×</button>
                 </div>
               )}
             </div>
@@ -696,9 +696,9 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                   backgroundColor: manualForm.isCod ? '#eff6ff' : '#f8fafc', border: `1px solid ${manualForm.isCod ? '#2563eb' : '#e2e8f0'}` }}>
                 <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${manualForm.isCod ? '#2563eb' : '#94a3b8'}`,
                   backgroundColor: manualForm.isCod ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {manualForm.isCod && <span style={{ color: '#fff', fontSize: 10 }}>✓</span>}
+                  {manualForm.isCod && <span style={{ color: '#fff', fontSize: 10 }}></span>}
                 </div>
-                <div style={{ fontSize: 12, color: manualForm.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}>🚚 {t('seller_invoices.cod_toggle')}</div>
+                <div style={{ fontSize: 12, color: manualForm.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}> {t('seller_invoices.cod_toggle')}</div>
               </div>
               <textarea placeholder={t('seller_invoices.notes_placeholder')} value={manualForm.notes}
                 onChange={e => setManualForm({ ...manualForm, notes: e.target.value })} rows={2}
@@ -709,7 +709,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
               <button onClick={() => setShowManual(false)}
                 style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>{t('seller_invoices.ghairi_button')}</button>
               <button onClick={handleCreateManualInvoice} disabled={creatingManual}
-                style={{ flex: 2, background: creatingManual ? '#a5b4fc' : 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: creatingManual ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 14 }}>
+                style={{ flex: 2, background: creatingManual ? '#8b98a5' : '#0f1419', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: creatingManual ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 14 }}>
                 {creatingManual ? t('seller_invoices.generating') : t('seller_invoices.generate_invoice_button')}
               </button>
             </div>

@@ -31,12 +31,12 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
   return (
     <div onClick={() => onOpen(customer)}
       style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
-        marginBottom: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        marginBottom: 10, outline: '1px solid #eff3f4',
         cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14 }}>
 
       {/* Avatar */}
       <div style={{ width: 48, height: 48, borderRadius: '50%',
-        background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+        background: '#0f1419',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 20, fontWeight:800, color: '#fff', flexShrink: 0 }}>
         {initial}
@@ -62,10 +62,10 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
           <div style={{ fontSize: 11, color: '#94a3b8' }}>
-            📦 <strong style={{ color: '#1e293b' }}>{customer.totalOrders}</strong> {t('seller_customers.orders_unit')}
+             <strong style={{ color: '#1e293b' }}>{customer.totalOrders}</strong> {t('seller_customers.orders_unit')}
           </div>
           <div style={{ fontSize: 11, color: '#94a3b8' }}>
-            💰 <strong style={{ color: '#16a34a' }}>TZS {fmt(customer.totalSpent)}</strong>
+             <strong style={{ color: '#16a34a' }}>TZS {fmt(customer.totalSpent)}</strong>
           </div>
         </div>
       </div>
@@ -75,7 +75,7 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
         style={{ background: 'none', border: '1px solid #e2e8f0',
           borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
           fontSize: 16, flexShrink: 0 }}>
-        💬
+        
       </button>
     </div>
   );
@@ -164,7 +164,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
   // yet simply sees an empty list, not a "Sellers Only" wall.
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
       <BackBar title={t('seller_customers.title')} onBack={() => onNavigate('back')} />
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 80px' }}>
@@ -176,7 +176,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
             {[
               { label: t('seller_customers.stat_total_customers'),  value: stats.totalCustomers,  color: '#1d4ed8', bg: '#eff6ff' },
               { label: t('seller_customers.stat_new_this_month'),  value: stats.newThisMonth,    color: '#16a34a', bg: '#f0fdf4' },
-              { label: t('seller_customers.stat_total_revenue'),  value: `TZS ${fmt(stats.totalRevenue)}`, color: '#7c3aed', bg: '#f5f3ff' },
+              { label: t('seller_customers.stat_total_revenue'),  value: `TZS ${fmt(stats.totalRevenue)}`, color: '#0f1419', bg: '#f7f9f9' },
             ].map(s => (
               <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12,
                 padding: '12px 10px', textAlign: 'center' }}>
@@ -193,7 +193,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 12 }}>
-          <span style={{ position: 'absolute', left: 12, top: 11, fontSize: 16 }}>🔍</span>
+          <span style={{ position: 'absolute', left: 12, top: 11, fontSize: 16 }}></span>
           <input type="text" placeholder={t('seller_customers.search_placeholder')}
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ ...inp, paddingLeft: 36, marginBottom: 0 }} />
@@ -238,10 +238,10 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
               {[
-                { label: t('seller_customers.template_new_products'), msg: 'Habari! 🎉 Tuna bidhaa mpya zinazokungoja! Tembelea dukani letu na uone bei nzuri. Asante kwa kutuamini! 🙏' },
-                { label: t('seller_customers.template_discount'), msg: 'Habari! 💰 PUNGUZO KUBWA leo tu! Bidhaa zetu zimepunguzwa bei. Haraka uagize kabla hazijaikwa! Piga simu au ujumbe.' },
-                { label: t('seller_customers.template_thanks'), msg: 'Habari! Tunakushukuru kwa ununuzi wako wa hivi karibuni. 🙏 Tunatumai utarudi tena. Una swali lolote, tuko hapa!' },
-                { label: t('seller_customers.template_delivered'), msg: 'Habari! 📦 Bidhaa yako imetolewa! Tafadhali thibitisha kupokea. Asante kwa kutumia huduma zetu.' },
+                { label: t('seller_customers.template_new_products'), msg: 'Habari!  Tuna bidhaa mpya zinazokungoja! Tembelea dukani letu na uone bei nzuri. Asante kwa kutuamini! ' },
+                { label: t('seller_customers.template_discount'), msg: 'Habari!  PUNGUZO KUBWA leo tu! Bidhaa zetu zimepunguzwa bei. Haraka uagize kabla hazijaikwa! Piga simu au ujumbe.' },
+                { label: t('seller_customers.template_thanks'), msg: 'Habari! Tunakushukuru kwa ununuzi wako wa hivi karibuni.  Tunatumai utarudi tena. Una swali lolote, tuko hapa!' },
+                { label: t('seller_customers.template_delivered'), msg: 'Habari!  Bidhaa yako imetolewa! Tafadhali thibitisha kupokea. Asante kwa kutumia huduma zetu.' },
               ].map(tmpl => (
                 <button key={tmpl.label}
                   onClick={() => { bulkMsgRef.current && (bulkMsgRef.current.value = tmpl.msg); setBulkMsg(tmpl.msg); }}
@@ -281,7 +281,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
                     style={{ padding: '6px 12px', backgroundColor: '#25D366', color: '#fff',
                       borderRadius: 8, textDecoration: 'none', fontSize: 11,
                       fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    📲 {c.name.split(' ')[0]}
+                     {c.name.split(' ')[0]}
                   </a>
                 );
               })}
@@ -302,7 +302,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
         {/* Add form */}
         {adding && (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
-            marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            marginBottom: 16, outline: '1px solid #eff3f4' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>
               {t('seller_customers.new_customer_title')}
             </div>
@@ -358,7 +358,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('seller_customers.loading')}</div>
         ) : data.customers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>👥</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}></div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
               {t('seller_customers.no_customers_yet')}
             </div>
@@ -393,7 +393,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
                 <div style={{ fontSize: 18, fontWeight:800 }}>{selected.name}</div>
                 <button onClick={() => setSelected(null)}
                   style={{ background: 'none', border: 'none', fontSize: 22,
-                    cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+                    cursor: 'pointer', color: '#94a3b8' }}></button>
               </div>
 
               {/* Customer info */}
@@ -419,7 +419,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
               {selected.notes && (
                 <div style={{ backgroundColor: '#fef3c7', borderRadius: 12,
                   padding: 12, marginBottom: 16, fontSize: 13, color: '#92400e' }}>
-                  📝 {selected.notes}
+                   {selected.notes}
                 </div>
               )}
 
