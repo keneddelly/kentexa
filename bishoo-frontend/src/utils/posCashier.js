@@ -24,7 +24,7 @@ const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart
 /** SHA-256(salt + pin) as the server makes it. */
 export async function hashPin(salt, pin) {
   const data = new TextEncoder().encode(`${salt}${pin}`);
-  const subtle = (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) || (globalThis.crypto && globalThis.crypto.subtle);
+  const subtle = (typeof window !== 'undefined' && window.crypto && window.crypto.subtle);
   if (!subtle) return null;
   return hex(await subtle.digest('SHA-256', data));
 }
