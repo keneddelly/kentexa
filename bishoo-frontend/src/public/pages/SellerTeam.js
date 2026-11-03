@@ -115,7 +115,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
       <BackBar onBack={() => onNavigate('back')} title={t('seller_team.page_title')} top={0} />
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
         <div style={{ textAlign:'center', color:'#94a3b8' }}>
-          <div style={{ fontSize:40, marginBottom:12 }}>👥</div>
+          <div style={{ fontSize:40, marginBottom:12 }}></div>
           <div>{t('seller_team.no_active_profile')}</div>
         </div>
       </div>
@@ -132,18 +132,17 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
 
         {/* Hero card */}
-        <div style={{ background:'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
-          borderRadius:20, padding:'24px 28px', marginBottom:20, color:'#fff' }}>
-          <div style={{ fontSize:18, fontWeight:800, marginBottom:6 }}>
+        <div style={{ background:'#fff', padding:'8px 0 4px', marginBottom:16, color:'#0f1419' }}>
+          <div style={{ fontSize:24, fontWeight:800, marginBottom:6 }}>
             {t('seller_team.hero_title')}
           </div>
-          <div style={{ fontSize:13, color:'rgba(255,255,255,0.75)', marginBottom:20, lineHeight:1.6 }}>
+          <div style={{ fontSize:15, color:'#536471', marginBottom:16, lineHeight:1.45 }}>
             {t('seller_team.hero_desc')}
           </div>
           <button onClick={() => setShowInvite(true)}
-            style={{ backgroundColor:'#fff', color:'#1d4ed8', border:'none',
-              borderRadius:10, padding:'10px 22px', cursor:'pointer',
-              fontSize:14, fontWeight:800 }}>
+            style={{ backgroundColor:'#0f1419', color:'#fff', border:'none',
+              borderRadius:999, padding:'10px 22px', cursor:'pointer',
+              fontSize:15, fontWeight:800, fontFamily:'inherit' }}>
             {t('seller_team.add_member_button')}
           </button>
         </div>
@@ -151,7 +150,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
         {/* Invite form */}
         {showInvite && (
           <div style={{ backgroundColor:'#fff', borderRadius:16, padding:24,
-            marginBottom:20, boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>
+            marginBottom:20, outline: '1px solid #eff3f4' }}>
             <div style={{ fontSize:16, fontWeight:800, color:'#1e293b', marginBottom:16 }}>
               {t('seller_team.invite_form_title')}
             </div>
@@ -230,7 +229,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
                 {t('seller_team.close_button')}
               </button>
               <button onClick={handleInvite} disabled={saving}
-                style={{ flex:2, background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                style={{ flex:2, background:'#0f1419',
                   color:'#fff', border:'none', borderRadius:10, padding:'12px 0',
                   cursor:saving?'not-allowed':'pointer', fontSize:14, fontWeight:800 }}>
                 {saving ? t('seller_team.sending') : t('seller_team.add_member_confirm')}
@@ -244,8 +243,8 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
           <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}>{t('seller_team.loading_team')}</div>
         ) : members.length === 0 ? (
           <div style={{ textAlign:'center', padding:60, backgroundColor:'#fff',
-            borderRadius:16, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize:48, marginBottom:12 }}>👥</div>
+            borderRadius:16, outline: '1px solid #eff3f4' }}>
+            <div style={{ fontSize:48, marginBottom:12 }}></div>
             <div style={{ fontSize:16, fontWeight:800, color:'#1e293b', marginBottom:6 }}>
               {t('seller_team.team_empty_title')}
             </div>
@@ -266,16 +265,16 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
           return (
             <div key={m.id} style={{ backgroundColor:'#fff', borderRadius:14,
               padding:20, marginBottom:12,
-              boxShadow:'0 2px 8px rgba(0,0,0,0.06)',
+              outline: '1px solid #eff3f4',
               opacity: m.isActive ? 1 : 0.6 }}>
               <div style={{ display:'flex', justifyContent:'space-between',
                 alignItems:'flex-start', marginBottom:12 }}>
                 <div style={{ display:'flex', gap:14, alignItems:'center' }}>
                   <div style={{ width:48, height:48, borderRadius:12, flexShrink:0,
-                    background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                    background:'#0f1419',
                     display:'flex', alignItems:'center', justifyContent:'center',
                     fontSize:20, color:'#fff' }}>
-                    {m.user?.name?.charAt(0)?.toUpperCase() || '👤'}
+                    {m.user?.name?.charAt(0)?.toUpperCase() || ''}
                   </div>
                   <div>
                     <div style={{ fontSize:15, fontWeight:800, color:'#1e293b' }}>
@@ -316,7 +315,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
                     <span key={p} style={{ fontSize:11, fontWeight:700,
                       backgroundColor:'#eff6ff', color:'#1d4ed8',
                       padding:'3px 10px', borderRadius:100 }}>
-                      ✓ {p}
+                       {p}
                     </span>
                   ))}
                 </div>
@@ -327,7 +326,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
 
         {/* Role guide */}
         <div style={{ backgroundColor:'#fff', borderRadius:14, padding:20, marginTop:8,
-          boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+          outline: '1px solid #eff3f4' }}>
           <div style={{ fontSize:13, fontWeight:800, color:'#1e293b', marginBottom:14 }}>
             {t('seller_team.role_guide_title')}
           </div>
