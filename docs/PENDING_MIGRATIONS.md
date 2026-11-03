@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-03 (team invitations):** the pin is now `MIGRATION_RUN_UPTO=1795100000000`. The next deploy
+runs `1795100000000-AddTeamInvitation` itself (team_invitation: invitations a person accepts with Kubali; and a one-time copy of active Timu members into business_team_member, which the POS and seller tools read). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-03 (POS cashier PIN):** the pin is now `MIGRATION_RUN_UPTO=1795000000000`. The next deploy
 runs `1795000000000-AddPosCashierPin` itself (pos_cashier_pin: each cashier's 4-digit PIN, stored as a salted hash; sale."cashierUserId": who served the sale). Check: `/version/migrations` shows `pending: []`.
 

@@ -1051,7 +1051,9 @@ export class CommerceProfilesService {
     if (dto.role !== undefined) member.role = dto.role;
     if (dto.permissions !== undefined) member.permissions = dto.permissions;
     if (dto.isActive !== undefined) member.isActive = dto.isActive;
-    return this.memberRepo.save(member);
+    const saved = await this.memberRepo.save(member);
+    await this.syncSellerTeam(saved);
+    return saved;
   }
 
   async removeMember(commerceProfileId: number, memberId: number): Promise<void> {
@@ -1061,6 +1063,32 @@ export class CommerceProfilesService {
     if (!member) throw new NotFoundException('Team member not found');
     member.isActive = false;
     await this.memberRepo.save(member);
+    await this.syncSellerTeam(member);
+  }
+
+  /**
+   * Timu (this profile team) and the seller team the POS and seller tools check must say the same
+   * thing (owner 2026-11-03). The owner of the profile is the seller. Switching someone off here
+   * switches them off there too, unless they are still active on another profile of the same owner.
+   */
+  private async syncSellerTeam(member: CommerceProfileMember): Promise<void> {
+    const q = (sql: string, params: unknown[]) => this.memberRepo.manager.query(sql, params);
+    const [cp] = await q(`SELECT "ownerId" FROM public.commerce_profile WHERE id = $1::int`, [member.commerceProfileId]);
+    if (!cp || Number(cp.ownerId) === Number(member.userId)) return;
+    const perms = JSON.stringify(member.permissions || {});
+    if (member.isActive) {
+      const [row] = await q(`UPDATE public.business_team_member SET role = $3::varchar, permissions = $4::jsonb, "isActive" = true, "updatedAt" = now()
+        WHERE seller_id = $1::int AND user_id = $2::int RETURNING id`, [cp.ownerId, member.userId, member.role, perms]);
+      if (!row) {
+        await q(`INSERT INTO public.business_team_member (seller_id, user_id, role, permissions, "isActive", "joinedAt", "createdAt", "updatedAt")
+          VALUES ($1::int, $2::int, $3::varchar, $4::jsonb, true, now(), now(), now())`, [cp.ownerId, member.userId, member.role, perms]);
+      }
+      return;
+    }
+    const [other] = await q(`SELECT 1 AS ok FROM public.commerce_profile_member m JOIN public.commerce_profile p ON p.id = m."commerceProfileId"
+      WHERE p."ownerId" = $1::int AND m."userId" = $2::int AND m."isActive" = true AND m.id <> $3::int`, [cp.ownerId, member.userId, member.id]);
+    if (other?.ok) return;
+    await q(`UPDATE public.business_team_member SET "isActive" = false, "updatedAt" = now() WHERE seller_id = $1::int AND user_id = $2::int`, [cp.ownerId, member.userId]);
   }
 
   async updatePublicFields(

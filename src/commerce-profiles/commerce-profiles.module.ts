@@ -21,6 +21,7 @@ import { AiModule } from '../ai/ai.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ActivityModule } from '../activity/activity.module';
 import { OperationalWorkspace } from '../business/entities/operational-workspace.entity';
+import { TeamInvitationsModule } from '../team-invitations/team-invitations.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { OperationalWorkspace } from '../business/entities/operational-workspace
     AiModule,
     NotificationsModule,
     ActivityModule,
+    TeamInvitationsModule,
   ],
   controllers: [CommerceProfilesController],
   providers: [

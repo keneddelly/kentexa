@@ -42,6 +42,30 @@ const inp = {
   boxSizing:'border-box', outline:'none', fontFamily:'inherit',
 };
 
+const waPhone = (phone) => {
+  let d = String(phone || '').replace(/\D/g, '');
+  if (d.startsWith('0')) d = `255${d.slice(1)}`;
+  return d.length >= 11 ? d : null;
+};
+
+/** Send the invitation from the owner's own WhatsApp or SMS (owner 2026-11-03: never KenteXa SMS). */
+export const InviteShare = ({ inv }) => {
+  const [copied, setCopied] = useState(false);
+  const text = encodeURIComponent(inv.message || inv.link || '');
+  const wa = waPhone(inv.phone);
+  const btn = { height: 36, padding: '0 14px', borderRadius: 18, border: '1px solid #cfd9de', background: '#fff', color: '#0f1419',
+    fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' };
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {wa && <a href={`https://wa.me/${wa}?text=${text}`} target="_blank" rel="noreferrer" style={btn}>Tuma kwa WhatsApp</a>}
+      <a href={`sms:${String(inv.phone || '').replace(/\D/g, '')}?body=${text}`} style={btn}>Tuma kwa SMS</a>
+      <button type="button" style={btn} onClick={() => Promise.resolve(navigator.clipboard?.writeText(inv.link)).then(() => setCopied(true)).catch(() => {})}>
+        {copied ? 'Link imenakiliwa' : 'Nakili link'}
+      </button>
+    </div>
+  );
+};
+
 const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
   const { t } = useTranslation();
   const ROLES = getRoles(t);
@@ -51,9 +75,12 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
   const [showInvite, setShowInvite] = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState('');
+  // Owner approved 2026-11-03: an invitation the person accepts (Kubali), shown here until they answer.
+  const [invites,    setInvites]    = useState([]);
+  const [sent,       setSent]       = useState(null);
 
   const [form, setForm] = useState({
-    phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales },
+    name: '', phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales },
   });
 
   // Team management is generalized to whichever profile is currently
@@ -70,6 +97,13 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
       setMembers(res.data || []);
     } catch { setMembers([]); }
     finally { setLoading(false); }
+    Promise.resolve(api.get(`/profiles/${activeProfileId}/members/invitations`))
+      .then((r) => setInvites(Array.isArray(r?.data) ? r.data : [])).catch(() => setInvites([]));
+  };
+
+  const cancelInvite = async (id) => {
+    try { await api.delete(`/profiles/${activeProfileId}/members/invitations/${id}`); } catch { /* list below shows the truth */ }
+    fetchMembers();
   };
 
   useEffect(() => { fetchMembers(); }, [activeProfileId]); // eslint-disable-line
@@ -83,12 +117,14 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
   };
 
   const handleInvite = async () => {
+    if (!form.name.trim()) return setError('Andika jina la mfanyakazi.');
     if (!form.phone.trim()) return setError(t('seller_team.phone_required'));
     try {
       setSaving(true); setError('');
-      await api.post(`/profiles/${activeProfileId}/members/invite`, form);
+      const res = await api.post(`/profiles/${activeProfileId}/members/invite`, form);
+      setSent(res?.data || null);
       setShowInvite(false);
-      setForm({ phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales } });
+      setForm({ name: '', phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales } });
       fetchMembers();
     } catch (e) {
       setError(e.response?.data?.message || t('seller_team.invite_failed'));
@@ -161,6 +197,13 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
                 {error}
               </div>
             )}
+
+            {/* Name */}
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#64748b', marginBottom:6 }}>Jina</label>
+              <input style={inp} type="text" value={form.name} placeholder="Mfano: Asha Juma" data-testid="team-invite-name"
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
 
             {/* Phone */}
             <div style={{ marginBottom:14 }}>
@@ -238,10 +281,43 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
           </div>
         )}
 
+        {/* Just invited: send the link from the owner's own phone. */}
+        {sent && (
+          <div data-testid="team-invite-sent" style={{ background:'#fff', borderRadius:16, padding:16, marginBottom:16, outline:'1px solid #eff3f4', display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{ fontSize:16, fontWeight:800, color:'#0f1419' }}>Mwaliko kwa {sent.name} umeandaliwa</div>
+            <div style={{ fontSize:14, color:'#536471', lineHeight:1.45 }}>
+              {sent.hasAccount
+                ? `${sent.name} ana KenteXa: ameuona mwaliko kwenye arifa zake. Unaweza pia kumtumia link.`
+                : `${sent.name} bado hana KenteXa. Mtumie link hii; atajisajili kwa namba hii kisha atakubali.`}
+            </div>
+            <InviteShare inv={sent} />
+            <button type="button" onClick={() => setSent(null)} style={{ alignSelf:'flex-start', background:'none', border:'none', color:'#536471', cursor:'pointer', fontSize:14, padding:0, fontFamily:'inherit' }}>Funga</button>
+          </div>
+        )}
+
+        {/* Waiting for Kubali */}
+        {invites.length > 0 && (
+          <div data-testid="team-invites-pending" style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#536471', marginBottom:8 }}>Wamealikwa, wanasubiriwa kukubali</div>
+            {invites.map(inv => (
+              <div key={inv.id} style={{ background:'#fff', borderRadius:14, padding:14, marginBottom:10, outline:'1px solid #eff3f4', display:'flex', flexDirection:'column', gap:10 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', gap:10 }}>
+                  <div>
+                    <div style={{ fontSize:15, fontWeight:800, color:'#0f1419' }}>{inv.name}</div>
+                    <div style={{ fontSize:13, color:'#536471' }}>{inv.phone} · {inv.roleLabel} · Amealikwa</div>
+                  </div>
+                  <button type="button" onClick={() => cancelInvite(inv.id)} style={{ background:'none', border:'none', color:'#b42318', cursor:'pointer', fontSize:14, fontWeight:700, fontFamily:'inherit' }}>Futa</button>
+                </div>
+                <InviteShare inv={inv} />
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Members list */}
         {loading ? (
           <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}>{t('seller_team.loading_team')}</div>
-        ) : members.length === 0 ? (
+        ) : members.length === 0 && invites.length === 0 ? (
           <div style={{ textAlign:'center', padding:60, backgroundColor:'#fff',
             borderRadius:16, outline: '1px solid #eff3f4' }}>
             <div style={{ fontSize:48, marginBottom:12 }}></div>

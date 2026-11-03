@@ -41,6 +41,8 @@ import ConfirmDelivery    from './public/pages/ConfirmDelivery';
 import SellerCheckout     from './public/pages/SellerCheckout';
 import PartnerInvite      from './public/pages/PartnerInvite';
 import SellerAgentInvite  from './public/pages/SellerAgentInvite';
+import TeamInvite from './public/pages/TeamInvite';
+import { loadPosTeam, OWN_TILL_ROLES } from './utils/posTeam';
 import HotelMenu          from './public/pages/HotelMenu';
 import FoodOrder          from './public/pages/FoodOrder';
 import HotelKitchen       from './public/pages/HotelKitchen';
@@ -187,6 +189,7 @@ if ('serviceWorker' in navigator) {
 }
 
 /** The installed till's address (owner 2026-10-27). */
+const TEAM_INVITE_TOKEN = /^[A-Za-z0-9_-]{16,48}$/;
 const isPosPath = () => { try { return /^\/pos\/?$/.test(window.location.pathname); } catch { return false; } };
 
 function App() {
@@ -275,6 +278,9 @@ function App() {
       // A seller's invitation to their delivery person to be their partner agent: public page.
       const agentInvite = params.get('agentInvite');
       if (agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)) return `SellerAgentInvite-${agentInvite}`;
+      // A business's invitation to join its team (owner 2026-11-03): public page, Kubali after login.
+      const teamInvite = params.get('teamInvite');
+      if (teamInvite && /^[A-Za-z0-9_-]{16,48}$/.test(teamInvite)) return `TeamInvite-${teamInvite}`;
       if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
       if (track) return `TrackParcel-${track}`;
       // A hotel's menu link or the QR on its table/room (/menu/:businessId?meza=4), owner 2026-10-27.
@@ -431,6 +437,8 @@ function App() {
             ? `PartnerInvite-${partnerInvite}`
             : agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)
               ? `SellerAgentInvite-${agentInvite}`
+            : TEAM_INVITE_TOKEN.test(params.get('teamInvite') || '')
+              ? `TeamInvite-${params.get('teamInvite')}`
             : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
               ? 'Activity' : homeForRole(activeContext.roleType));
   }, [contextEpoch, activeContext?.roleType]);
@@ -552,6 +560,8 @@ function App() {
                   ? `PartnerInvite-${partnerInvite}`
                   : agentInvite && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(agentInvite)
                     ? `SellerAgentInvite-${agentInvite}`
+                  : TEAM_INVITE_TOKEN.test(params.get('teamInvite') || '')
+                    ? `TeamInvite-${params.get('teamInvite')}`
                   : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
                     ? 'Activity' : (intentDestination || 'Home'));
           } else {
@@ -870,6 +880,8 @@ function App() {
       return requireLogin(<HotelKitchen {...publicProps} businessId={Number(page.split('HotelKitchen-')[1])} />);
     if (page.startsWith('FoodOrder-'))
       return requireLogin(<FoodOrder {...publicProps} orderId={Number(page.split('FoodOrder-')[1])} />);
+    if (page.startsWith('TeamInvite-'))
+      return <TeamInvite token={page.slice('TeamInvite-'.length)} isLoggedIn={isLoggedIn} onNavigate={publicProps.onNavigate} />;
     if (page.startsWith('SellerAgentInvite-'))
       return <SellerAgentInvite token={page.slice('SellerAgentInvite-'.length)} isLoggedIn={isLoggedIn} onNavigate={publicProps.onNavigate} />;
     if (page.startsWith('BuyerParcelAction-'))
@@ -988,7 +1000,13 @@ function App() {
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
       case 'BrandDashboard':    return requireLogin(<BrandDashboard {...publicProps} />);
       case 'BrandCatalog':      return requireLogin(<BrandCatalog {...publicProps} />);
-      case 'POS':               return requireVerifiedSeller(<POS {...publicProps} />);
+      case 'POS': {
+        // A cashier invited by a business (owner 2026-11-03) sells on THAT business's till: the
+        // owner's verification covers the shop; the server checks her canOperatePOS on every call.
+        const posTeam = navParams?.posTeam || (!OWN_TILL_ROLES.includes(activeContext?.roleType) ? loadPosTeam() : null);
+        if (posTeam) return requireLogin(<POS {...publicProps} posTeam={posTeam} activeProfileId={posTeam.commerceProfileId || undefined} />);
+        return requireVerifiedSeller(<POS {...publicProps} />);
+      }
       case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} listingMode="business" />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       case 'SellerShipping':    return requireVerifiedSeller(<SellerShipping {...publicProps} />);

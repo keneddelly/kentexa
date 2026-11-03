@@ -164,6 +164,21 @@ export class SellerScopeService {
     throw new ForbiddenException({ code: 'SELLER_SCOPE_PERMISSION_DENIED', message });
   }
 
+  /**
+   * The first of several permissions that lets the caller act (e.g. the till's product list:
+   * canManageProducts OR canOperatePOS, owner 2026-11-03 "a cashier can use the POS").
+   */
+  async resolveAny(user: User, permissions: SellerPermission[]): Promise<number> {
+    let last: unknown = null;
+    for (const permission of permissions) {
+      try { return await this.resolve(user, permission); } catch (e) {
+        if (e instanceof NoTeamMembershipException) throw e;
+        last = e;
+      }
+    }
+    throw last;
+  }
+
   /** The business inbox: the same as resolve(), plus a service provider's own inbox. */
   resolveForInbox(user: User, permission?: SellerPermission): Promise<number> {
     return this.resolve(user, permission, OWNS_THEIR_OWN_INBOX);

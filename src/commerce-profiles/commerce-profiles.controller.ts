@@ -21,6 +21,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { CommerceProfilesService } from './commerce-profiles.service';
 import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.service';
 import { CommerceProfileScopeService } from './commerce-profile-scope.service';
+import { TeamInvitationsService } from '../team-invitations/team-invitations.service';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
@@ -32,6 +33,7 @@ export class CommerceProfilesController {
     private service: CommerceProfilesService,
     private backfill: CommerceProfilesBackfillService,
     private scope: CommerceProfileScopeService,
+    private invitations: TeamInvitationsService,
   ) {}
 
   // Public — the future `/@username` route resolves through this.
@@ -216,10 +218,29 @@ export class CommerceProfilesController {
   async inviteMember(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { phone: string; role: string; permissions: Record<string, boolean> },
+    @Body() dto: { name?: string; phone: string; role: string; permissions: Record<string, boolean> },
   ) {
     await this.scope.requireAuthorized(req.user.id, id, 'canManageTeam');
-    return this.service.inviteMember(id, dto);
+    // Owner approved 2026-11-03: an invitation the person accepts, never an instant add.
+    return this.invitations.create(id, req.user, dto);
+  }
+
+  @Get(':id/members/invitations')
+  @UseGuards(JwtAuthGuard)
+  async memberInvitations(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    await this.scope.requireAuthorized(req.user.id, id, 'canManageTeam');
+    return this.invitations.forProfile(id);
+  }
+
+  @Delete(':id/members/invitations/:invitationId')
+  @UseGuards(JwtAuthGuard)
+  async cancelInvitation(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('invitationId', ParseIntPipe) invitationId: number,
+  ) {
+    await this.scope.requireAuthorized(req.user.id, id, 'canManageTeam');
+    return this.invitations.cancel(id, invitationId);
   }
 
   @Patch(':id/members/:memberId')
