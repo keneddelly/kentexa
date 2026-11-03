@@ -20,7 +20,7 @@ test('the invited cashier sees the business and taps Kubali, then opens its POS 
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/team-invitations/abcdefghijklmnop/accept'));
   expect(await screen.findByText('Umejiunga na BiS kama mhudumu wa mauzo.')).toBeInTheDocument();
   fireEvent.click(screen.getByTestId('team-invite-open-pos'));
-  await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('POS', { posTeam: expect.objectContaining({ sellerId: 9 }) }));
+  await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('TeamPOS', { posTeam: expect.objectContaining({ sellerId: 9 }) }));
   expect(JSON.parse(localStorage.getItem('kx_pos_team'))).toMatchObject({ sellerId: 9, businessName: 'BiS' });
 });
 

@@ -1000,6 +1000,10 @@ function App() {
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
       case 'BrandDashboard':    return requireLogin(<BrandDashboard {...publicProps} />);
       case 'BrandCatalog':      return requireLogin(<BrandCatalog {...publicProps} />);
+      case 'TeamPOS': {
+        const team = navParams?.posTeam || loadPosTeam();
+        return team ? requireLogin(<POS {...publicProps} posTeam={team} activeProfileId={team.commerceProfileId || undefined} />) : requireLogin(<Workspace {...publicProps} />);
+      }
       case 'POS': {
         // A cashier invited by a business (owner 2026-11-03) sells on THAT business's till: the
         // owner's verification covers the shop; the server checks her canOperatePOS on every call.

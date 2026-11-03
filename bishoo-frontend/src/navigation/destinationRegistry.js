@@ -7,7 +7,10 @@ const ACCOUNT_PAGES = ['Workspace','CreateCommunity','MyAdvertising','QuoteReque
   // menu (the server checks that the caller owns that Business).
   'FoodOrder','HotelKitchen','HotelMenuManager',
   // Ada ya KenteXa (2026-11-03): the account's own fee page (the server checks which account).
-  'KentexaFee'];
+  'KentexaFee',
+  // A cashier's till for the business she was invited to (2026-11-03): any signed-in account; the
+  // server checks her canOperatePOS on that business for every call.
+  'TeamPOS'];
 const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','SellerWallet','StoreSettings','SellerProducts','MyBrands','POS','SellerClassifieds','SellerOrders','SellerShipping','SellerInvoices','SellerShipment','SellerWarrantyClaims','SellerAnalytics','SellerTeam'];
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
@@ -58,6 +61,8 @@ const DYNAMIC_DESTINATIONS = [
   [/^PartnerInvite-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'PartnerInvite'],
   // A seller's partner-agent invitation (?agentInvite=<signed token>): public; accepting needs login.
   [/^SellerAgentInvite-[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 'SellerAgentInvite'],
+  // A business's invitation to join its team (?teamInvite=<token>, 2026-11-03): public; Kubali needs login.
+  [/^TeamInvite-[A-Za-z0-9_-]{16,48}$/, 'TeamInvite'],
 ];
 
 // Destinations that exist ONLY as dynamic routes: their bare names are not
@@ -68,6 +73,7 @@ const DYNAMIC_ONLY_DESTINATIONS = Object.freeze({
   SellerCheckout: destination('SellerCheckout', DESTINATION_KIND.PUBLIC),
   PartnerInvite: destination('PartnerInvite', DESTINATION_KIND.PUBLIC),
   SellerAgentInvite: destination('SellerAgentInvite', DESTINATION_KIND.PUBLIC),
+  TeamInvite: destination('TeamInvite', DESTINATION_KIND.PUBLIC),
   HotelMenu: destination('HotelMenu', DESTINATION_KIND.PUBLIC),
 });
 

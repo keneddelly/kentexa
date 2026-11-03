@@ -55,7 +55,7 @@ export default function TeamWork({ onNavigate }) {
           </span>
           {w.permissions?.canOperatePOS && (
             <button type="button" data-testid={`team-pos-${w.sellerId}`} style={pill(true)}
-              onClick={() => { savePosTeam(w); onNavigate('POS', { posTeam: w }); }}>POS ya {w.businessName || 'duka'}</button>
+              onClick={() => { savePosTeam(w); onNavigate('TeamPOS', { posTeam: w }); }}>POS ya {w.businessName || 'duka'}</button>
           )}
         </div>
       ))}
