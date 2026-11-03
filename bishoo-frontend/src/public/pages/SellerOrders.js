@@ -442,7 +442,9 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   };
 
   const counts = TABS.reduce((m, tb) => ({ ...m, [tb.key]: orders.filter((o) => tabOf(o) === tb.key).length }), {});
-  if (kind !== 'pos') counts.send = (counts.send || 0) + posWaiting;
+  // POS sales to send count in "Za kutuma" for Zote and Mauzo yangu (a POS sale is the seller's own).
+  const posShown = kind === 'all' || kind === 'mine' ? posWaiting : 0;
+  counts.send = (counts.send || 0) + posShown;
   const shownTab = tab || (counts.send ? 'send' : counts.way ? 'way' : counts.done ? 'done' : 'send');
   const list = orders
     .filter((o) => tabOf(o) === shownTab)
@@ -608,12 +610,6 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 <Svg d={P.plus} color="#fff" sw={2.4} size={16} />Uza
               </button>
             } />
-          {/* Ada ya KenteXa (owner approved 2026-11-03): 2% of a marketplace order; POS and own sales free. */}
-          <div style={{ maxWidth: 720, margin: '0 auto', padding: '8px 16px 0', boxSizing: 'border-box' }}>
-            <KentexaFeeLine as="seller" onNavigate={onNavigate} />
-          </div>
-          {/* POS sales waiting to be sent (owner approved 2026-11-02). */}
-          <PosSalesToShip onNavigate={onNavigate} visible={shownTab === 'send' && kind !== 'pos'} onCount={setPosWaiting} />
           <nav role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, maxWidth: 720, margin: '0 auto' }}>
             {TABS.map((tb) => {
               const on = shownTab === tb.key;
@@ -636,9 +632,13 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
               ))}
             </div>
             {notices}
+            {/* POS sales to send (owner 2026-11-03): ordinary rows at the top of "Za kutuma", under the tabs. */}
+            {kind !== 'pos' && kind !== 'market' && (
+              <PosSalesToShip onNavigate={onNavigate} visible={shownTab === 'send'} onCount={setPosWaiting} />
+            )}
             {/* Owner 2026-11-02: every POS sale is seen in Maagizo too. */}
             {kind === 'pos' ? <PosSalesList onNavigate={onNavigate} /> : loading ? <PageLoading label="Inapakia maagizo" /> : list.length === 0 ? (
-              shownTab === 'send' && posWaiting > 0 ? null :
+              shownTab === 'send' && posShown > 0 ? null :
               <div style={{ padding: '48px 24px', textAlign: 'center', color: MUTED, fontSize: 15 }}>
                 {shownTab === 'send' ? 'Hakuna agizo la kutuma sasa.' : shownTab === 'way' ? 'Hakuna agizo njiani.' : shownTab === 'done' ? 'Bado hakuna agizo lililofika.' : 'Hakuna agizo lenye tatizo.'}
               </div>
@@ -677,6 +677,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 })}
               </ul>
             )}
+            {/* Ada ya KenteXa (owner approved 2026-11-03): 2% of a marketplace order; POS and own sales free. */}
+            <div style={{ padding: '16px 16px 24px' }}>
+              <KentexaFeeLine as="seller" onNavigate={onNavigate} />
+            </div>
           </div>
         </>
       )}

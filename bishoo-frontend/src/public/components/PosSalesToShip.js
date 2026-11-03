@@ -1,5 +1,5 @@
 /**
- * PosSalesToShip.js — POS sales waiting to be sent, at the top of the seller's orders
+ * PosSalesToShip.js — POS sales waiting to be sent, as rows inside the seller's "Za kutuma"
  * (owner approved 2026-11-02: "the POS orders that need shipping are not seen on seller
  * orders"; choice "COD + marked Itatumwa"). Every pay-on-delivery sale and every sale
  * marked "Itatumwa kwa mteja" with no shipment yet; "Tuma" opens the send form already
@@ -15,6 +15,8 @@ import api from '../../api/api';
 const INK = '#0f1419';
 const MUTED = '#536471';
 const LINE = '#e6ebef';
+const ROW_LINE = '#eff3f4';
+const itemsLine = (s) => (s.items || []).map((i) => `${i.productName}${Number(i.quantity) > 1 ? ` x${i.quantity}` : ''}`).join(', ') || 'Mauzo ya POS';
 const tzs = (n) => `TZS ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 const when = (d) => (d ? new Date(d).toLocaleString('sw-TZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
@@ -34,27 +36,36 @@ export default function PosSalesToShip({ onNavigate, refreshKey = 0, visible = t
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!rows.length || !visible) return null;
+  // Owner 2026-11-03: POS sales to send sit inside "Za kutuma" as ordinary order rows (same look,
+  // same list), not a separate block above the tabs.
   return (
-    <section data-testid="pos-to-ship" style={{ maxWidth: 720, margin: '0 auto', padding: '12px 16px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: MUTED, letterSpacing: '0.04em' }}>KUTOKA POS · INASUBIRI KUTUMWA ({rows.length})</div>
+    <ul data-testid="pos-to-ship" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
       {rows.map((s) => (
-        <div key={s.id} data-testid={`pos-to-ship-${s.id}`}
-          style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <strong style={{ fontSize: 15, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {s.customerName || 'Mteja'}{s.customerPhone ? ` · ${s.customerPhone}` : ''}
-            </strong>
-            <span style={{ fontSize: 13, color: MUTED }}>
-              {s.receiptNumber} · {tzs(s.total)} · {s.isCod ? `Atalipa akipokea ${tzs(s.balanceDue)}` : 'Imelipwa'} · {when(s.createdAt)}
-            </span>
-          </div>
+        <li key={s.id} data-testid={`pos-to-ship-${s.id}`}>
           <button type="button" data-testid={`pos-ship-${s.id}`} onClick={() => onNavigate('SellerShipment', shipPrefillFor(s))}
-            style={{ flexShrink: 0, height: 36, padding: '0 16px', borderRadius: 18, border: 'none', background: INK, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Tuma
+            style={{ display: 'flex', gap: 12, width: '100%', padding: '12px 16px', border: 'none', borderBottom: `1px solid ${ROW_LINE}`,
+              background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: INK }}>
+            <span style={{ width: 48, height: 48, borderRadius: 10, background: ROW_LINE, flexShrink: 0 }} />
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <strong style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemsLine(s)}</strong>
+                <strong style={{ fontSize: 15, flexShrink: 0 }}>{tzs(s.total)}</strong>
+              </span>
+              <span style={{ fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {[s.customerName || 'Mteja', s.customerPhone, s.receiptNumber, when(s.createdAt)].filter(Boolean).join(' · ')}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: '1px solid #cfd9de', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>POS</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: s.isCod ? '#92400e' : '#166534', background: s.isCod ? '#fffbeb' : '#ecfdf3', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>
+                  {s.isCod ? `Atalipa akipokea ${tzs(s.balanceDue)}` : 'Imelipwa'}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8' }}>Itume</span>
+              </span>
+            </span>
           </button>
-        </div>
+        </li>
       ))}
-    </section>
+    </ul>
   );
 }
 
