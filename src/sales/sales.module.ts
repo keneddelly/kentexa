@@ -14,6 +14,7 @@ import { SmsModule } from '../sms/sms.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PosDayService } from './pos-day.service';
 import { PosStockService } from './pos-stock.service';
+import { PosCashierService } from './pos-cashier.service';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { PosStockService } from './pos-stock.service';
     NotificationsModule,
   ],
   controllers: [SalesController],
-  providers: [SalesService, PosDayService, PosStockService],
-  exports: [SalesService, PosDayService, PosStockService],
+  providers: [SalesService, PosDayService, PosStockService, PosCashierService],
+  exports: [SalesService, PosDayService, PosStockService, PosCashierService],
 })
 export class SalesModule {}

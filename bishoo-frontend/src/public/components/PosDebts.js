@@ -35,7 +35,7 @@ export const waPhone = (phone) => {
   return d.length >= 11 ? d : null;
 };
 
-export default function PosDebts({ onClose, shopName }) {
+export default function PosDebts({ onClose, shopName, cashierUserId }) {
   const [tab, setTab] = useState('customers');
   const [data, setData] = useState(null);
   const [open, setOpen] = useState(null);
@@ -52,7 +52,8 @@ export default function PosDebts({ onClose, shopName }) {
   const pay = async (kind, target) => {
     setBusy(true); setError(''); setDone('');
     try {
-      const body = kind === 'customer' ? { customerKey: target.key, amount: Number(digits(amount)), method } : { supplierId: target.id, amount: Number(digits(amount)), method };
+      const who = cashierUserId ? { cashierUserId } : {};
+      const body = kind === 'customer' ? { customerKey: target.key, amount: Number(digits(amount)), method, ...who } : { supplierId: target.id, amount: Number(digits(amount)), method, ...who };
       const r = await api.post(`/sales/pos/debts/${kind}`, body);
       setDone(`Malipo ya ${tzs(r?.data?.paid)} yamepokelewa.${r?.data?.left > 0 ? ` Limebaki ${tzs(r.data.left)}.` : ' Deni limekwisha.'}`);
       setOpen(null); setAmount(''); load();

@@ -17,6 +17,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import BackBar from '../components/BackBar';
 import PosToday from '../components/PosToday';
+import PosCashierSwitch from '../components/PosCashierSwitch';
+import { loadCashiers, loadOnDuty, saveCashiers, saveOnDuty } from '../../utils/posCashier';
 import PosStock from '../components/PosStock';
 import PosDebts from '../components/PosDebts';
 import api from '../../api/api';
@@ -94,7 +96,12 @@ const input = { height: 46, border: `1px solid ${BORDER}`, borderRadius: 12, pad
 const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineBoot = false, canInstallKentexa, onInstallKentexa }) => {
   const session = useMemo(() => loadSession(), []);
   const shopName = activeContext?.displayName || currentUser?.storeName || currentUser?.name || session?.shopName || 'Duka';
-  const cashier = currentUser?.name || session?.cashier || '';
+  // "Badilisha mhudumu" (owner 2026-11-03): the cashier on duty, switched by PIN, also offline.
+  const [cashiers, setCashiers] = useState(() => loadCashiers());
+  const [onDuty, setOnDuty] = useState(() => loadOnDuty());
+  const [showSwitch, setShowSwitch] = useState(false);
+  const [shiftWarn, setShiftWarn] = useState(false);
+  const cashier = onDuty?.name || currentUser?.name || session?.cashier || '';
   const [online, setOnline] = useState(() => !offlineBoot && (typeof navigator === 'undefined' || navigator.onLine !== false));
   const [products, setProducts] = useState([]);
   const [catalogAt, setCatalogAt] = useState(null);
@@ -122,6 +129,18 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
   const [today, setToday] = useState(null);
   const [showToday, setShowToday] = useState(false);
   const [panel, setPanel] = useState(null); // 'stock' | 'debts'
+  const refreshCashiers = useCallback(() => Promise.resolve(api.get('/sales/pos/cashiers')).then((r) => {
+    const list = Array.isArray(r?.data?.cashiers) ? r.data.cashiers : [];
+    setCashiers(list); saveCashiers(activeContext?.userId ?? null, list);
+  }).catch(() => {}), [activeContext?.userId]);
+  useEffect(() => { if (online && !offlineBoot) refreshCashiers(); }, [online, offlineBoot, refreshCashiers]);
+  const pickCashier = (c) => { setOnDuty(c); saveOnDuty(c); setShowSwitch(false); setShiftWarn(false); };
+  const openSwitch = () => {
+    setShowSwitch(true); setShiftWarn(false);
+    if (!online || offlineBoot) return;
+    Promise.resolve(api.get('/sales/pos/today', { params: onDuty?.userId ? { cashierUserId: onDuty.userId } : {} }))
+      .then((r) => setShiftWarn(Boolean(r?.data?.shift))).catch(() => {});
+  };
   const [history, setHistory] = useState(null);
   const syncing = useRef(false);
   const searchRef = useRef(null);
@@ -295,6 +314,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       ...(payments.length ? { payments } : {}),
       ...(credit ? { credit: true } : {}), ...(cod ? { isCod: true } : {}), ...(toShip && !cod ? { toShip: true } : {}),
       customerName: customer.name.trim() || undefined, customerPhone: customer.phone.trim() || undefined,
+      ...(onDuty?.userId ? { cashierUserId: onDuty.userId } : {}),
     };
     const local = {
       shopName, cashier, items: cart, total, payments, change: totals.change,
@@ -374,8 +394,14 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
             return next;
           })} />
       )}
-      {panel === 'debts' && <PosDebts shopName={shopName} onClose={() => setPanel(null)} />}
-      {showToday && <PosToday onClose={() => { setShowToday(false); Promise.resolve(api.get('/sales/dashboard')).then((r) => setToday(r?.data?.today?.total ?? null)).catch(() => {}); }} />}
+      {panel === 'debts' && <PosDebts shopName={shopName} cashierUserId={onDuty?.userId} onClose={() => setPanel(null)} />}
+      {showSwitch && (
+        <PosCashierSwitch cashiers={cashiers} current={onDuty || (currentUser ? { userId: activeContext?.userId, name: currentUser.name } : null)}
+          online={online && !offlineBoot} openShiftWarning={shiftWarn}
+          onCloseShiftFirst={() => { setShowSwitch(false); setShowToday(true); }}
+          onPick={pickCashier} onClose={() => setShowSwitch(false)} onPinSet={refreshCashiers} />
+      )}
+      {showToday && <PosToday cashierUserId={onDuty?.userId} cashierName={cashier} onClose={() => { setShowToday(false); Promise.resolve(api.get('/sales/dashboard')).then((r) => setToday(r?.data?.today?.total ?? null)).catch(() => {}); }} />}
 
       <header className="pos-no-print" style={{ background: '#fff', borderBottom: `1px solid ${LINE}`, padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <span data-testid="pos-network" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: online && !offlineBoot ? GREEN : AMBER }}>
@@ -389,6 +415,9 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
         )}
         {queue.failed.length > 0 && <span style={{ fontSize: 13, color: RED, fontWeight: 700 }}>Mauzo {queue.failed.length} yamekataliwa (angalia chini)</span>}
         <span style={{ flex: 1 }} />
+        <button type="button" data-testid="pos-on-duty" style={pill} onClick={openSwitch}>
+          Mhudumu: {cashier || 'chagua'} · Badilisha
+        </button>
         {/* POS part 2 (owner 2026-11-03): "Leo" opens the day, expenses and the shift. */}
         {online && !offlineBoot ? (
           <button type="button" data-testid="pos-today-open" style={pill} onClick={() => setShowToday(true)}>Leo{today != null ? ` · ${tzs(today)}` : ''} · Zamu</button>
