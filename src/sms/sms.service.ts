@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { smsParts, smsReady } from './sms-text';
 import { randomInt } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { captureTrainingSms } from '../super-agents/training-mode';
@@ -57,7 +58,10 @@ export class SmsService {
   }
 
   // ── Send SMS ──────────────────────────────────────────────────────────
-  async sendSms(phone: string, message: string, sensitive = false): Promise<boolean> {
+  async sendSms(phone: string, rawMessage: string, sensitive = false): Promise<boolean> {
+    // Cost (owner 2026-11-03): plain characters and no blank lines, so a message stays in
+    // the 160-character mode and uses as few parts (TZS 22 each) as possible. Words unchanged.
+    const message = smsReady(rawMessage);
     // Training office (ofisi ya mafunzo): never a real SMS. The text is recorded
     // and shown on screen as "SMS ingetumwa"; the flow continues as if sent.
     if (captureTrainingSms(this.formatPhone(phone), message)) {
@@ -69,7 +73,7 @@ export class SmsService {
     if (this.rehearsalPhone && formatted !== this.rehearsalPhone) return false;
 
     // Keep credentials out of application logs in every environment.
-    this.logger.log(`[SMS] To: ${formatted} | ${sensitive ? '[sensitive message omitted]' : message}`);
+    this.logger.log(`[SMS] To: ${formatted} | parts ${smsParts(message)} | ${sensitive ? '[sensitive message omitted]' : message}`);
 
     try {
       const result = await this.sms.send({
@@ -113,7 +117,7 @@ export class SmsService {
 
   // ── Send welcome SMS ──────────────────────────────────────────────────
   async sendWelcome(phone: string, name: string): Promise<void> {
-    const message = `Welcome to KenteXa, ${name}! 🎉 Tanzania's #1 marketplace. Buy, sell and pay securely. Start shopping now!`;
+    const message = `Welcome to KenteXa, ${name}! Tanzania's #1 marketplace. Buy, sell and pay securely. Start shopping now!`;
     await this.sendSms(phone, message);
   }
 
