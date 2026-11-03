@@ -109,9 +109,10 @@ export const stockStop = (p, inCart) => {
   return '';
 };
 
-const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineBoot = false, canInstallKentexa, onInstallKentexa, installEnv, installReady }) => {
+const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineBoot = false, canInstallKentexa, onInstallKentexa, installEnv, installReady, posTeam = null }) => {
   const session = useMemo(() => loadSession(), []);
-  const shopName = activeContext?.displayName || currentUser?.storeName || currentUser?.name || session?.shopName || 'Duka';
+  // A cashier selling for a business she was invited to (owner 2026-11-03): that business's name.
+  const shopName = posTeam?.businessName || activeContext?.displayName || currentUser?.storeName || currentUser?.name || session?.shopName || 'Duka';
   // "Badilisha mhudumu" (owner 2026-11-03): the cashier on duty, switched by PIN, also offline.
   const [cashiers, setCashiers] = useState(() => loadCashiers());
   const [onDuty, setOnDuty] = useState(() => loadOnDuty());
@@ -445,6 +446,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       {showToday && <PosToday cashierUserId={onDuty?.userId} cashierName={cashier} onClose={() => { setShowToday(false); Promise.resolve(api.get('/sales/dashboard')).then((r) => setToday(r?.data?.today?.total ?? null)).catch(() => {}); }} />}
 
       <header className="pos-no-print" style={{ background: '#fff', borderBottom: `1px solid ${LINE}`, padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        {posTeam && <span data-testid="pos-team" style={{ fontSize: 13, fontWeight: 800 }}>Unauzia {posTeam.businessName}</span>}
         <span data-testid="pos-network" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: online && !offlineBoot ? GREEN : AMBER }}>
           <span style={{ width: 8, height: 8, borderRadius: 4, background: online && !offlineBoot ? GREEN : AMBER }} />
           {online && !offlineBoot ? 'Mtandao upo' : 'Hakuna mtandao: mauzo yanahifadhiwa kwenye kompyuta hii'}

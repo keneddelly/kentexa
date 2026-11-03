@@ -465,6 +465,9 @@ export class ProductsService {
   // it keeps the old account-wide behavior for any caller that doesn't
   // send it yet (profile-architecture-audit-2026-08 Stage 6).
   async findMyProducts(user: User, commerceProfileId?: number, scope?: SellerScope) {
+    // A team member (cashier) working for the owner has no Business context of their own: the
+    // owner's verified profile filter below decides, like assertResourceInBusinessScope's delegated rule.
+    if (scope && scope.delegated && scope.workspaceId == null) scope = undefined;
     const qb = this.repo
       .createQueryBuilder('p')
       .where('p."sellerId" = :sid', { sid: user.id })

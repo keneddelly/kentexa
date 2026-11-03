@@ -28,7 +28,7 @@ describe('hidden profiles (training offices)', () => {
   it('the profile page answers "not found" to the public', async () => {
     const s: any = service();
     s.findById = jest.fn(async () => hidden);
-    const c = new CommerceProfilesController(s, {} as any, {} as any);
+    const c = new CommerceProfilesController(s, {} as any, {} as any, {} as any);
     await expect(c.getById({ user: null }, 4)).rejects.toBeInstanceOf(NotFoundException);
   });
 

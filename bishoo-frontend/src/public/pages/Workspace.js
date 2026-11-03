@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
+import TeamWork from '../components/TeamWork';
 import { getMyBusinesses } from '../../api/business';
 import { personalAttention, roleAttention } from '../../context/workspaceAttention';
 import {
@@ -170,6 +171,9 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
       <div style={{ maxWidth: 1180, margin: '0 auto', padding: '14px 16px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 24, boxSizing: 'border-box' }}>
       <div data-testid="workspace-side" style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {error && <div role="alert" style={{ background: '#fef2f2', color: '#b91c1c', borderRadius: 12, padding: '10px 14px', fontSize: 14 }}>{error}</div>}
+
+        {/* Invitations to a business's team and the businesses I work for (owner 2026-11-03). */}
+        <TeamWork onNavigate={onNavigate} />
 
         {/* The workspace switcher: Binafsi and each business. Choosing one shows its tools;
             the active role on the server changes only when a tool of another role is opened. */}

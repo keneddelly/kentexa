@@ -146,6 +146,9 @@ export class SalesService {
 
       let subtotal = 0;
       const items: SaleItem[] = [];
+      // A team member (cashier) sells for the owner's business: the sale belongs to the business
+      // the products belong to, so the owner sees it in that business (owner 2026-11-03).
+      const productWorkspaces = new Set<number | null>();
       for (const line of dto.items) {
         const product = await productRepo.findOne({
           where: { id: line.productId },
@@ -157,6 +160,7 @@ export class SalesService {
         }
         // I2G: same-owner Business A can never sell Business B's product (and a legacy Seller never a Business's).
         assertResourceInBusinessScope(scope, (product as any).workspaceId);
+        productWorkspaces.add((product as any).workspaceId ?? null);
         if (dto.channel === SaleChannel.LOCAL_POS && !product.availableInStore) {
           throw new BadRequestException(`"${product.name}" is not available for local shop sale`);
         }
@@ -213,8 +217,11 @@ export class SalesService {
       const sale = saleRepo.create({
         sellerId,
         // I2G creation authority: the acting Business workspace from the authenticated RoleContext
-        // (never the payload); NULL for legacy/Personal/delegated contexts.
-        workspaceId: ownershipFlag('ORDER_WORKSPACE_STAMP') ? (scope?.workspaceId ?? null) : null,
+        // (never the payload); NULL for legacy/Personal contexts. A delegated team member's sale takes
+        // the one workspace its products belong to (server data, never the payload).
+        workspaceId: ownershipFlag('ORDER_WORKSPACE_STAMP')
+          ? (scope?.workspaceId ?? (scope?.delegated && productWorkspaces.size === 1 ? [...productWorkspaces][0] : null))
+          : null,
         channel: dto.channel,
         receiptNumber,
         customerId: dto.customerId || null,

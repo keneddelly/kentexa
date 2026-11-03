@@ -21,7 +21,7 @@ describe('waiting (pending) business profiles', () => {
     s.isFollowedBy = jest.fn(async () => false);
     s.getCanonicalFollowersCount = jest.fn(async () => 0);
     s.getFollowingCount = jest.fn(async () => 0);
-    return { s, c: new CommerceProfilesController(s, {} as any, {} as any) };
+    return { s, c: new CommerceProfilesController(s, {} as any, {} as any, {} as any) };
   };
 
   it('a logged-out visitor gets "not found" by link and by username, and does not see it in the person\'s profiles', async () => {

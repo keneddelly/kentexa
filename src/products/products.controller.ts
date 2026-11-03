@@ -151,9 +151,9 @@ export class ProductsController {
     @CurrentRoleContext() roleContext: RoleContext,
     @Query('commerceProfileId') commerceProfileId?: string,
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.sellerScope.resolveAny(
       req.user,
-      'canManageProducts',
+      ['canManageProducts', 'canOperatePOS'], // a cashier's till reads the products too (owner 2026-11-03)
     );
     const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.findMyProducts(
@@ -174,9 +174,9 @@ export class ProductsController {
     @Query('barcode') barcode?: string,
     @Query('sku') sku?: string,
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.sellerScope.resolveAny(
       req.user,
-      'canManageProducts',
+      ['canManageProducts', 'canOperatePOS'], // a cashier's till reads the products too (owner 2026-11-03)
     );
     return this.service.findBySkuOrBarcode(sellerId, { sku, barcode });
   }

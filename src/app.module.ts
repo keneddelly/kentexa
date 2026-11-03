@@ -46,6 +46,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { BodaRatesModule } from './boda-rates/boda-rates.module';
 import { KentexaFeeModule } from './kentexa-fee/kentexa-fee.module';
+import { TeamInvitationsModule } from './team-invitations/team-invitations.module';
 import { ContactModule } from './contact/contact.module';
 import { ServiceProvidersModule } from './service-providers/service-providers.module';
 import { EarlyAccessModule } from './early-access/early-access.module';
@@ -141,6 +142,7 @@ export const allowDevelopmentSchemaSync =
     WarrantyModule,
     BodaRatesModule,
     KentexaFeeModule,
+    TeamInvitationsModule,
     ContactModule,
     ServiceProvidersModule,
     EarlyAccessModule,
