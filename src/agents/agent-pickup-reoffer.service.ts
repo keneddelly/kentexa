@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import { DataSource } from 'typeorm';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { PICKUP_TO_BASE_DISTANCE_SQL } from '../shipments/pickup-pin';
@@ -45,6 +46,8 @@ export class AgentPickupReofferService {
                         OR (e."eventType" = $3 AND e."createdAt" > now() - make_interval(hours => $4::int))))
            -- Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
            AND ${partnerGateSql('a."userId"')}
+           -- Paid-up agents first (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts).
+           AND ${paidUpGateSql('a."userId"')}
          ORDER BY "distanceM" ASC, t."createdAt" ASC
          LIMIT $5`, [agentId, REOFFER_RADIUS_M, PICKUP_REOFFERED_EVENT, REOFFER_QUIET_HOURS, REOFFER_MAX_JOBS]);
       for (const r of rows) {

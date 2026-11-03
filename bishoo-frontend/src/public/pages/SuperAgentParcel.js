@@ -67,10 +67,6 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
   const [routeInfo, setRouteInfo] = useState(null);
   const [error, setError]       = useState('');
   const [result, setResult]     = useState(null);
-  const [feePaid, setFeePaid]   = useState(false);
-  const [payingFee, setPayingFee] = useState(false);
-  const [feePhone, setFeePhone] = useState('');
-  const [feeError, setFeeError] = useState('');
   const [agentCity, setAgentCity] = useState('');
 
   React.useEffect(() => {
@@ -117,31 +113,6 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
       setError(err?.response?.data?.message || t('super_agent_parcel.create_failed'));
     } finally { setLoading(false); }
   };
-  const handlePayFee = async () => {
-    if (!feePhone.trim()) { setFeeError(t('super_agent_parcel.fee_phone_required')); return; }
-    try {
-      setPayingFee(true); setFeeError('');
-      const res = await api.post('/payments/invoice/pay', {
-        orderId:  result.orderId,
-        phone:    feePhone.trim(),
-        provider: 'selcom',
-        amount:   1000,
-        purpose:  'platform_tracking_fee',
-      });
-      // Poll/mock confirm — in production this comes via M-Pesa callback
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setFeePaid(true);
-        } catch { setFeeError(t('super_agent_parcel.fee_payment_failed_confirm')); }
-        setPayingFee(false);
-      }, 3000);
-    } catch (err) {
-      setFeeError(err?.response?.data?.message || t('super_agent_parcel.fee_init_failed'));
-      setPayingFee(false);
-    }
-  };
-
   const handleNew = () => {
     setResult(null);
     setForm({
@@ -159,61 +130,8 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_parcel.success_page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-        {/* Step 1: Pay TZS 1,000 platform tracking fee */}
-        {!feePaid ? (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>📱</div>
-              <h3 style={{ fontSize: 17, fontWeight:800, color: '#1e293b', margin: '0 0 6px' }}>
-                {t('super_agent_parcel.pay_tracking_fee_title')}
-              </h3>
-              <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-                {t('super_agent_parcel.pay_tracking_fee_desc')}
-              </p>
-            </div>
-
-            {/* What buyer gets */}
-            <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 8 }}>{t('super_agent_parcel.what_you_get_label')}</div>
-              {[
-                t('super_agent_parcel.benefit_tracking_number'),
-                t('super_agent_parcel.benefit_sms_sender'),
-                t('super_agent_parcel.benefit_sms_recipient'),
-                t('super_agent_parcel.benefit_status_updates'),
-              ].map(item => (
-                <div key={item} style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>{item}</div>
-              ))}
-            </div>
-
-            <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#92400e', fontWeight: 700, textAlign: 'center' }}>
-              {t('super_agent_parcel.tracking_fee_label')}
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
-                {t('super_agent_parcel.mpesa_number_label')}
-              </label>
-              <input type="tel" placeholder="255712345678"
-                value={feePhone} onChange={e => setFeePhone(e.target.value)}
-                style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
-            </div>
-
-            {feeError && (
-              <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: 12 }}>
-                ❌ {feeError}
-              </div>
-            )}
-
-            <button onClick={handlePayFee} disabled={payingFee}
-              style={{ width: '100%', background: payingFee ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#15803d)',
-                color: '#fff', border: 'none', padding: 14, borderRadius: 12,
-                cursor: payingFee ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight:800 }}>
-              {payingFee ? t('super_agent_parcel.processing_mpesa') : t('super_agent_parcel.pay_now_button')}
-            </button>
-          </div>
-        ) : (
+        {/* Ada ya KenteXa (2026-11-03): no payment step here; tracking works at once. */}
           <>
-            {/* Step 2: Fee paid — show tracking number */}
             <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', borderRadius: 20, padding: 28, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
               <div style={{ fontSize: 52, marginBottom: 12 }}>✅</div>
               <h2 style={{ fontSize: 20, fontWeight:800, margin: '0 0 6px' }}>{t('super_agent_parcel.parcel_registered_title')}</h2>
@@ -265,7 +183,6 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           </button>
         </div>
           </>
-        )}
       </div>
     </div>
   );

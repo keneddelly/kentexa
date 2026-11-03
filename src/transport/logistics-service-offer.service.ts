@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { officesInArrears, paidUpFirst } from '../kentexa-fee/paid-up-gate';
 import { DataSource } from 'typeorm';
 import { AgentsService } from '../agents/agents.service';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
@@ -461,7 +462,11 @@ export class LogisticsServiceOfferService {
         },
       });
     }
-    return out.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity)).slice(0, 10);
+    const cheapestFirst = out.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+    // Paid-up offices first (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts); every office still listed in its group.
+    const idOf = (o: LogisticsServiceOffer) => Number((o as any).fulfillment?.officeOption?.officeId);
+    const arrears = await officesInArrears(this.db, cheapestFirst.map(idOf)).catch(() => new Set<number>());
+    return paidUpFirst(cheapestFirst, idOf, arrears).slice(0, 10);
   }
 
   /** The sender chose an office: re-price it now (never the client's numbers) and compose the journey. */

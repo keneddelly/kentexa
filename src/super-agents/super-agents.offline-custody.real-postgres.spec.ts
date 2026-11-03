@@ -75,7 +75,7 @@ const config = getB5BTestConnectionConfig();
       if (entity === SuperAgent) return {
         find: async () => [],
         findOne: async () => ({ ...hub, freeOrdersUsed: (await manager.query('SELECT "freeOrdersUsed" FROM public.super_agent WHERE id=12'))[0].freeOrdersUsed }),
-        update: async (id: number, value: any) => manager.query('UPDATE public.super_agent SET "freeOrdersUsed"=$1,"totalParcelsHandled"=$2 WHERE id=$3', [value.freeOrdersUsed, value.totalParcelsHandled, id]),
+        update: async (id: number, value: any) => manager.query('UPDATE public.super_agent SET "freeOrdersUsed"=COALESCE($1::int,"freeOrdersUsed"),"totalParcelsHandled"=$2 WHERE id=$3', [value.freeOrdersUsed, value.totalParcelsHandled, id]),
       };
       if (entity === ParcelCustodyEvent) return { insert: async (value: any) => manager.query(`
         INSERT INTO public.parcel_custody_event ("parcelId","eventKind","operationKey","toCustodianType","toCustodianId","actorSource","actorUserId","actorAccountRoleId","actorRoleType","actorWorkspaceId","hubId")

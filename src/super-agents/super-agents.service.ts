@@ -797,7 +797,6 @@ export class SuperAgentsService {
         if (!currentAgent || currentAgent.status !== SuperAgentStatus.ACTIVE) {
           throw new ForbiddenException('Receiving hub is no longer active');
         }
-        this.assertNotBillingBlocked(currentAgent);
     // 1. Create a minimal order record — for tracking purposes only
     //    No seller, no product, no escrow. source = 'offline_intercity'
     const order = this.orderRepo.create({
@@ -888,11 +887,11 @@ export class SuperAgentsService {
     // 3b. Founding-pilot free-order check — computed once per created
     // parcel, never re-run on a retry of an already-succeeded request, so
     // a duplicate/replayed submission can't consume the allowance twice.
-    const isFreeOrder = currentAgent.freeOrdersUsed < currentAgent.freeOrdersGranted;
-    const feePerOrder =
-      Number(currentAgent.platformFeePerOrder) || SUPER_AGENT_PLATFORM_FEE;
-    const platformFeeCharged = isFreeOrder ? 0 : feePerOrder;
-    const platformFeeWaived = isFreeOrder ? feePerOrder : 0;
+    // Ada ya KenteXa (owner approved 2026-11-03): the counter no longer charges a flat
+    // TZS 1,000 here. KentexaFeeService charges 10% of the shipping fee from the records
+    // (min 200, cap 5,000, after the free parcels), and the counter never refuses a parcel.
+    const platformFeeCharged = 0;
+    const platformFeeWaived = 0;
 
     // 4. Create parcel
     const parcel = this.parcelRepo.create({
@@ -945,21 +944,12 @@ export class SuperAgentsService {
     // walk-in flow) permanently undercounted both on the admin dashboard,
     // since this is the only write site for this specific event.
     await manager.getRepository(SuperAgent).update(superAgent.id, {
-      freeOrdersUsed: isFreeOrder
-        ? currentAgent.freeOrdersUsed + 1
-        : currentAgent.freeOrdersUsed,
       totalPlatformFeesCharged:
         Number(currentAgent.totalPlatformFeesCharged) + platformFeeCharged,
       totalPlatformFeesWaived:
         Number(currentAgent.totalPlatformFeesWaived) + platformFeeWaived,
       totalEarnings: Number(currentAgent.totalEarnings) + agentEarnings,
       totalParcelsHandled: currentAgent.totalParcelsHandled + 1,
-      paidOrders: isFreeOrder
-        ? currentAgent.paidOrders
-        : currentAgent.paidOrders + 1,
-      outstandingBalance: isFreeOrder
-        ? Number(currentAgent.outstandingBalance)
-        : Number(currentAgent.outstandingBalance) + platformFeeCharged,
     });
 
     // Custody evidence and the public tracking history commit together.
@@ -1056,9 +1046,7 @@ export class SuperAgentsService {
         superAgentCity: superAgent.city, status: 'paid', paidAt: invoice.paidAt,
         verifiedByKentexa: true,
       },
-      billing: { isFreeOrder, platformFeeCharged, platformFeeWaived,
-        outstandingBalance: Number(superAgent.outstandingBalance) +
-          (isFreeOrder ? 0 : platformFeeCharged) },
+      billing: null, // Ada ya KenteXa is shown on its own card (kentexa-fee)
     };
     await manager.getRepository(Order).update(savedOrder.id, { offlineReceiptSnapshot: receipt });
 
@@ -2304,26 +2292,6 @@ export class SuperAgentsService {
       );
     }
     return agent;
-  }
-
-  // Billing gate — blocks new order registration once an account's
-  // outstandingBalance reaches their billingThreshold (per-account columns,
-  // default 10,000 — never a hardcoded id/name check). Shared by SuperAgent
-  // and SellerProfile, which carry the identical billing column shape. Must
-  // be called at the top of every endpoint that creates a new billable
-  // parcel.
-  private assertNotBillingBlocked(account: {
-    outstandingBalance: number;
-    billingThreshold: number;
-  }) {
-    const balance = Number(account.outstandingBalance);
-    const threshold = Number(account.billingThreshold);
-    if (balance >= threshold) {
-      throw new ForbiddenException(
-        `Huduma imesimamishwa: deni la TZS ${balance.toLocaleString()} limefikia kiwango cha juu (TZS ${threshold.toLocaleString()}). ` +
-          `Tafadhali lipa deni lako ili kuendelea kutumia huduma.`,
-      );
-    }
   }
 
   // Re-open a walk-in receipt after the desk screen was closed or reloaded.
@@ -4784,7 +4752,6 @@ export class SuperAgentsService {
     // I2G: the billing SellerProfile is resolved from the EXACT acting context (its own role's
     // SellerProfile), never by a user-only lookup (a user can own several SellerProfiles).
     const sellerProfile = await this.resolveBillingSellerProfile(seller, scope);
-    if (sellerProfile) this.assertNotBillingBlocked(sellerProfile);
 
     // Business identity first, never the raw personal account name — a
     // seller acting in a seller-only flow should never show as their
@@ -4806,14 +4773,10 @@ export class SuperAgentsService {
     // createOfflineIntercityOrder(): computed once per created parcel,
     // never re-run on a retry. No SellerProfile (e.g. admin acting) means
     // no billing at all — not free, not charged, simply not applicable.
-    const isFreeOrder = sellerProfile
-      ? sellerProfile.freeOrdersUsed < sellerProfile.freeOrdersGranted
-      : true;
-    const feePerOrder = sellerProfile
-      ? Number(sellerProfile.platformFeePerOrder) || SUPER_AGENT_PLATFORM_FEE
-      : 0;
-    const platformFeeCharged = sellerProfile && !isFreeOrder ? feePerOrder : 0;
-    const platformFeeWaived = sellerProfile && isFreeOrder ? feePerOrder : 0;
+    // Ada ya KenteXa (owner approved 2026-11-03): a seller's own sale is free; the ofisi
+    // that ships it pays (KentexaFeeService), so nothing is charged to the seller here.
+    const platformFeeCharged = 0;
+    const platformFeeWaived = 0;
 
     // Thamani ya Mzigo for this flow — a linked completed Sale's own
     // recorded subtotal (the actual POS transaction, before discount) beats
@@ -5181,21 +5144,6 @@ export class SuperAgentsService {
         .catch(() => {});
     }
 
-    // Aggregate the free-order/fee counters onto the seller's own profile —
-    // same tracked-then-real-balance principle as SuperAgent's counter flow.
-    if (sellerProfile) {
-      await this.sellerProfileRepo.update(sellerProfile.id, {
-        freeOrdersUsed: isFreeOrder
-          ? sellerProfile.freeOrdersUsed + 1
-          : sellerProfile.freeOrdersUsed,
-        paidOrders: isFreeOrder
-          ? sellerProfile.paidOrders
-          : sellerProfile.paidOrders + 1,
-        outstandingBalance: isFreeOrder
-          ? Number(sellerProfile.outstandingBalance)
-          : Number(sellerProfile.outstandingBalance) + platformFeeCharged,
-      });
-    }
 
     // No SMS here — this used to fire a receiver notification immediately
     // on creation, before the parcel had even been physically handed to
@@ -5225,16 +5173,7 @@ export class SuperAgentsService {
       isCod: isCodSale,
       codUpfrontAmount: isCodSale ? codUpfrontAmount : null,
       codRemainingBalance: isCodSale ? codRemainingBalance : null,
-      billing: sellerProfile
-        ? {
-            isFreeOrder,
-            platformFeeCharged,
-            platformFeeWaived,
-            outstandingBalance:
-              Number(sellerProfile.outstandingBalance) +
-              (isFreeOrder ? 0 : platformFeeCharged),
-          }
-        : null,
+      billing: null, // a seller's own sale is free (Ada ya KenteXa, 2026-11-03)
       receipt: {
         receiptNumber,
         amount: orderAmount,

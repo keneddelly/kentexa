@@ -385,9 +385,6 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
             <div>{chosen?.own ? 'Tuma mzigo kwa njia yako na umpe mteja namba hii ya kufuatilia.'
               : chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
               : `Peleka mzigo ${chosen?.officeAddress || chosen?.officeCity || 'ofisini'} (${chosen?.providerName || 'ofisi'}).`}</div>
-            {result.billing && !result.billing.isFreeOrder && (
-              <div style={{ color: GREY }}>Ada ya KenteXa {tzs(result.billing.platformFeeCharged)} imeongezwa kwenye deni lako.</div>
-            )}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 16px 24px', background: WHITE, borderTop: `1px solid ${LINE}` }}>
