@@ -56,6 +56,24 @@ test('personal profile: visitors see the Listings tab right after Moments; a lis
   expect(onNavigate).toHaveBeenCalledWith('ClassifiedDetail-31');
 });
 
+test('owner 2026-11-03: tapping a post on a profile opens the post page (Home look), not the old Announcement sheet', async () => {
+  const p = { id: 73, ownerId: 45, type: 'business', displayName: 'BiS', businessName: 'BiS' };
+  const onNavigate = jest.fn();
+  api.get.mockImplementation(url => {
+    if (url === '/profiles/for-user/45') return Promise.resolve({ data: [p] });
+    if (url === '/profiles/73') return Promise.resolve({ data: p });
+    if (url.startsWith('/feed/business/')) return Promise.resolve({ data: [
+      { id: 21, title: 'Je! Wewe ulijua hii ni kamera ya ulinzi?', body: 'Je! Wewe ulijua hii ni kamera ya ulinzi?', createdAt: new Date().toISOString() },
+    ] });
+    return Promise.resolve({ data: [] });
+  });
+  render(<CommerceProfile pageParam="45" currentUser={{ id: 99 }} isLoggedIn onNavigate={onNavigate} />);
+  const text = await screen.findByText('Je! Wewe ulijua hii ni kamera ya ulinzi?');
+  text.closest('article').click();
+  expect(onNavigate).toHaveBeenCalledWith('PostDetail-21');
+  expect(screen.queryByText('Announcement')).toBeNull();
+});
+
 test('new profiles: post count and the topics it talks about, from its real posts (owner approved 2026-11-02)', async () => {
   const p = { id: 74, ownerId: 46, type: 'personal', displayName: 'Neema', followersCount: 3, followingCount: 2 };
   api.get.mockImplementation(url => {
