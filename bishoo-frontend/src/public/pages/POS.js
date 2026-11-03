@@ -94,6 +94,20 @@ const pill = { height: 40, padding: '0 14px', borderRadius: 20, border: `1px sol
   fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 };
 const input = { height: 46, border: `1px solid ${BORDER}`, borderRadius: 12, padding: '0 12px', fontSize: 16, fontFamily: 'inherit', boxSizing: 'border-box' };
 
+/** The till's product list: the same shared stock count the shop's Bidhaa page shows. */
+export const tillProducts = (rows) => (rows || []).filter((p) => p.isActive && p.availableInStore !== false).map((p) => ({
+  id: p.id, name: p.name, sku: p.sku || null, barcode: p.barcode || null, category: p.category || p.subcategory || null,
+  price: Number(p.displayPrice || 0), stock: Number(p.stock || 0), image: (p.images && p.images[0]) || p.image || null,
+  costPrice: p.costPrice != null ? Number(p.costPrice) : null,
+}));
+/** Owner 2026-11-03: an item that is out of stock (or would go below zero) cannot be added. */
+export const stockStop = (p, inCart) => {
+  const stock = Number(p.stock || 0);
+  if (stock <= 0) return `"${p.name}" imeisha. Ongeza idadi kwenye Stoo kwanza.`;
+  if (inCart >= stock) return `"${p.name}": zimebaki ${stock} tu.`;
+  return '';
+};
+
 const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineBoot = false, canInstallKentexa, onInstallKentexa }) => {
   const session = useMemo(() => loadSession(), []);
   const shopName = activeContext?.displayName || currentUser?.storeName || currentUser?.name || session?.shopName || 'Duka';
@@ -184,11 +198,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       if (online && !offlineBoot) {
         try {
           const r = await api.get('/products/my/products', { params: activeProfileId ? { commerceProfileId: activeProfileId } : {} });
-          const list = (r.data || []).filter((p) => p.isActive && p.availableInStore !== false).map((p) => ({
-            id: p.id, name: p.name, sku: p.sku || null, barcode: p.barcode || null, category: p.category || p.subcategory || null,
-            price: Number(p.displayPrice || 0), stock: Number(p.stock || 0), image: (p.images && p.images[0]) || p.image || null,
-            costPrice: p.costPrice != null ? Number(p.costPrice) : null,
-          }));
+          const list = tillProducts(r.data);
           if (!alive) return;
           setProducts(list);
           setCatalogAt(new Date().toISOString());
@@ -210,6 +220,23 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     if (!isAppleMobile()) searchRef.current?.focus();
     return () => { alive = false; };
   }, [activeProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Stock sold online or changed on Bidhaa reaches the till: every 2 minutes and when the window is back in front.
+  useEffect(() => {
+    if (!online || offlineBoot) return undefined;
+    let alive = true;
+    const refresh = () => Promise.resolve(api.get('/products/my/products', { params: activeProfileId ? { commerceProfileId: activeProfileId } : {} }))
+      .then((r) => {
+        if (!alive || !Array.isArray(r?.data)) return;
+        const list = tillProducts(r.data);
+        setProducts(list); setCatalogAt(new Date().toISOString()); saveCatalog(list).catch(() => {});
+        setCart((prev) => prev.map((l) => { const p = list.find((x) => x.id === l.productId); return p ? { ...l, stock: p.stock } : l; }));
+      }).catch(() => {});
+    const timer = setInterval(refresh, 120000);
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; clearInterval(timer); window.removeEventListener('focus', onFocus); };
+  }, [online, offlineBoot, activeProfileId]);
 
   // Today's total (online) and sending waiting sales when the internet is back.
   useEffect(() => {
@@ -236,6 +263,9 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
   }, [products, query, cat]);
 
   const addToCart = (p) => {
+    const stop = stockStop(p, cart.find((i) => i.productId === p.id)?.quantity || 0);
+    if (stop) { setError(stop); setQuery(''); return; }
+    setError('');
     setCart((prev) => {
       const ex = prev.find((i) => i.productId === p.id);
       if (ex) return prev.map((i) => (i.productId === p.id ? { ...i, quantity: i.quantity + 1 } : i));
@@ -244,7 +274,14 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     setQuery('');
     if (!isAppleMobile()) searchRef.current?.focus();
   };
-  const setQty = (id, q) => setCart((prev) => (q <= 0 ? prev.filter((i) => i.productId !== id) : prev.map((i) => (i.productId === id ? { ...i, quantity: q } : i))));
+  const setQty = (id, q) => {
+    const line = cart.find((i) => i.productId === id);
+    if (line && q > line.quantity) {
+      const stop = stockStop({ name: line.name, stock: line.stock }, q - 1);
+      if (stop) { setError(stop); return; }
+    }
+    setCart((prev) => (q <= 0 ? prev.filter((i) => i.productId !== id) : prev.map((i) => (i.productId === id ? { ...i, quantity: q } : i))));
+  };
 
   // A scanner types the code and presses Enter.
   const onSearchKey = async (e) => {
@@ -471,9 +508,9 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
             {(!online || offlineBoot) && catalogAt && <span style={{ fontSize: 12, color: MUTED }}>Bidhaa na idadi kama zilivyokuwa {new Date(catalogAt).toLocaleString('sw-TZ')}</span>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
               {shown.map((p, i) => (
-                <button key={p.id} type="button" data-testid={`pos-product-${p.id}`} onClick={() => addToCart(p)}
+                <button key={p.id} type="button" data-testid={`pos-product-${p.id}`} onClick={() => addToCart(p)} aria-disabled={p.stock <= 0}
                   style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 16, padding: 10, display: 'flex', flexDirection: 'column', gap: 6, textAlign: 'left',
-                    cursor: 'pointer', fontFamily: 'inherit', color: INK, minHeight: 132 }}>
+                    cursor: p.stock <= 0 ? 'not-allowed' : 'pointer', opacity: p.stock <= 0 ? 0.5 : 1, fontFamily: 'inherit', color: INK, minHeight: 132 }}>
                   {p.image
                     ? <img src={p.image} alt="" style={{ height: 56, width: '100%', objectFit: 'cover', borderRadius: 10 }} />
                     : <span style={{ height: 56, borderRadius: 10, background: TINTS[i % TINTS.length] }} />}

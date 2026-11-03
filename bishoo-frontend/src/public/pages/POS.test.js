@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import api from '../../api/api';
-import POS, { payTotals, receiptText } from './POS';
+import POS, { payTotals, receiptText, stockStop } from './POS';
 import { listQueue, enqueueSale, __resetPosOfflineForTests, saveCatalog, saveSession } from '../../utils/posOffline';
 
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
@@ -117,4 +117,20 @@ test('Weka kando keeps the cart aside and brings it back', async () => {
   fireEvent.click(screen.getByTestId('pos-parked'));
   fireEvent.click(await screen.findByText(/Mteja · vitu 1/));
   await waitFor(() => expect(screen.getByTestId('pos-total')).toHaveTextContent('TZS 3,200'));
+});
+
+test('out of stock cannot be sold; quantity stops at the stock left (owner 2026-11-03)', async () => {
+  expect(stockStop({ name: 'Bulb', stock: 0 }, 0)).toBe('"Bulb" imeisha. Ongeza idadi kwenye Stoo kwanza.');
+  expect(stockStop({ name: 'Bulb', stock: 2 }, 2)).toBe('"Bulb": zimebaki 2 tu.');
+  expect(stockStop({ name: 'Bulb', stock: 2 }, 1)).toBe('');
+  api.get.mockImplementation((url) => Promise.resolve(url === '/products/my/products'
+    ? { data: [...PRODUCTS, { id: 3, name: 'Nondo', displayPrice: 20000, stock: 0, isActive: true, availableInStore: true }] } : { data: { today: { total: 0 } } }));
+  render(<POS onNavigate={jest.fn()} activeContext={CTX} currentUser={{ name: 'Asha' }} />);
+  fireEvent.click(await screen.findByTestId('pos-product-3'));
+  expect(screen.getByRole('alert')).toHaveTextContent('"Nondo" imeisha');
+  fireEvent.click(screen.getByTestId('pos-product-2'));
+  fireEvent.click(screen.getByTestId('pos-product-2'));
+  fireEvent.click(screen.getByTestId('pos-product-2'));
+  expect(screen.getByRole('alert')).toHaveTextContent('"Maji 1.5L": zimebaki 2 tu.');
+  expect(screen.getByTestId('pos-total')).toHaveTextContent('TZS 2,000');
 });
