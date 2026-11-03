@@ -24,13 +24,13 @@ import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import api from '../../api/api';
 
 const TYPES = ['bus', 'truck', 'van'];
-const inp = { width: '100%', padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' };
+const inp = { width: '100%', padding: '12px 14px', borderRadius: 10, border: '1px solid #cfd9de', fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' };
 const label = { display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 };
-const card = { backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 14 };
-const chip = (on) => ({ flex: 1, padding: '12px 8px', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-  border: on ? '2px solid #1d4ed8' : '2px solid #e2e8f0', backgroundColor: on ? '#eff6ff' : '#fff', color: on ? '#1d4ed8' : '#1e293b' });
-const primary = (on) => ({ width: '100%', padding: 14, border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 800,
-  background: on ? 'linear-gradient(135deg,#1d4ed8,#2563eb)' : '#94a3b8', color: '#fff', cursor: on ? 'pointer' : 'not-allowed' });
+const card = { backgroundColor: '#fff', borderRadius: 14, padding: 16, border: '1px solid #eff3f4', marginBottom: 14 };
+const chip = (on) => ({ flex: 1, padding: '11px 8px', borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+  border: on ? '1px solid #0f1419' : '1px solid #cfd9de', backgroundColor: on ? '#0f1419' : '#fff', color: on ? '#fff' : '#0f1419' });
+const primary = (on) => ({ width: '100%', height: 48, border: 'none', borderRadius: 24, fontSize: 16, fontWeight: 700, fontFamily: 'inherit',
+  background: '#0f1419', color: '#fff', opacity: on ? 1 : 0.5, cursor: on ? 'pointer' : 'not-allowed' });
 
 const TRANSPORT_ROLE = WORK_ROLES.find((r) => r.key === 'transport');
 
@@ -172,7 +172,7 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn = true, currentUser, a
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('become_transport_provider.page_title')} top={0} />
       <div style={{ flex: 1, padding: '16px 16px 140px', maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {body}

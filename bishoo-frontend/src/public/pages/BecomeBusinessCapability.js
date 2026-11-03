@@ -8,10 +8,9 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import BackBar from '../components/BackBar';
+import { ApplyPage, ErrorText, Field, Note, inputStyle, pillStyle } from '../components/ApplyKit';
 import { getMyBusinesses, applyForBusinessCapability, connectSelling } from '../../api/business';
 
-const B = '#2563EB', DK = '#0F172A', GR = '#64748B', WH = '#FFFFFF';
 const TRANSPORT_TYPES = ['bus', 'courier', 'van', 'truck', 'boda'];
 
 export const applyErrorKey = (e) => {
@@ -56,44 +55,29 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
     } finally { setSubmitting(false); }
   };
 
+  const back = () => onNavigate(`BusinessHome-${businessId}`);
+  if (done) {
+    return (
+      <ApplyPage onBack={back} backTitle={t('apply_capability.page_title')} title={t('apply_capability.success_title')}>
+        <Note tone="green">{t('apply_capability.success_desc')}</Note>
+        <button type="button" onClick={back} style={pillStyle()}>{t('apply_capability.back_to_business')}</button>
+      </ApplyPage>
+    );
+  }
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', fontFamily:'inherit' }}>
-      <BackBar onBack={() => onNavigate(`BusinessHome-${businessId}`)} title={t('apply_capability.page_title')} top={0} />
-      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
-        {!done ? (
-          <div style={{ backgroundColor: WH, borderRadius: 16, padding: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
-            <h2 style={{ fontSize: 18, fontWeight:800, color: DK, marginBottom: 8 }}>
-              {t(`apply_capability.hero_title_${code}`, { business: businessName })}
-            </h2>
-            <p style={{ fontSize: 13, color: GR, marginBottom: 20 }}>{t(`apply_capability.hero_subtitle_${code}`)}</p>
-            {code === 'transport' && (
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: DK, marginBottom: 16 }}>
-                {t('apply_capability.transport_type_label')}
-                <select value={type} onChange={(e) => setType(e.target.value)}
-                  style={{ display: 'block', width: '100%', marginTop: 6, padding: 10, borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14 }}>
-                  {TRANSPORT_TYPES.map((v) => <option key={v} value={v}>{t(`apply_capability.type_${v}`)}</option>)}
-                </select>
-              </label>
-            )}
-            {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>{error}</div>}
-            <button onClick={handleSubmit} disabled={submitting}
-              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none', borderRadius: 12, padding: '14px 0', cursor: submitting ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800 }}>
-              {submitting ? t('apply_capability.submitting_button') : t('apply_capability.submit_button')}
-            </button>
-          </div>
-        ) : (
-          <div style={{ backgroundColor: WH, borderRadius: 16, padding: 24, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-            <h2 style={{ fontSize: 18, fontWeight:800, color: DK, marginBottom: 8 }}>{t('apply_capability.success_title')}</h2>
-            <p style={{ fontSize: 13, color: GR, marginBottom: 20 }}>{t('apply_capability.success_desc')}</p>
-            <button onClick={() => onNavigate(`BusinessHome-${businessId}`)}
-              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none', borderRadius: 12, padding: '12px 0', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-              {t('apply_capability.back_to_business')}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    <ApplyPage onBack={back} backTitle={t('apply_capability.page_title')} title={t(`apply_capability.hero_title_${code}`, { business: businessName })} desc={t(`apply_capability.hero_subtitle_${code}`)}>
+      {code === 'transport' && (
+        <Field label={t('apply_capability.transport_type_label')}>
+          <select value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>
+            {TRANSPORT_TYPES.map((v) => <option key={v} value={v}>{t(`apply_capability.type_${v}`)}</option>)}
+          </select>
+        </Field>
+      )}
+      <ErrorText>{error}</ErrorText>
+      <button type="button" onClick={handleSubmit} disabled={submitting} style={pillStyle(true, submitting)}>
+        {submitting ? t('apply_capability.submitting_button') : t('apply_capability.submit_button')}
+      </button>
+    </ApplyPage>
   );
 };
 

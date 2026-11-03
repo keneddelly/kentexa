@@ -17,11 +17,11 @@ import { pickAccountPlace } from '../../utils/accountPlace';
 //   - asked: place, base point (GPS), vehicle, maximum weight.
 // The server re-checks everything; this only guides.
 export const VEHICLES = ['boda', 'bajaji', 'bicycle', 'car', 'van', 'truck', 'foot'];
-const card = { background: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' };
-const input = { width: '100%', padding: '12px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 16, boxSizing: 'border-box', fontFamily: 'inherit' };
-const heading = { fontSize: 14, fontWeight:800, margin: '16px 0 8px', color: '#1e293b' };
-const primary = (on) => ({ width: '100%', padding: 14, border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 800,
-  background: on ? 'linear-gradient(135deg,#f7971e,#ffd200)' : '#e2e8f0', color: on ? '#1e293b' : '#94a3b8', cursor: on ? 'pointer' : 'not-allowed' });
+const card = { background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #eff3f4' };
+const input = { width: '100%', padding: '11px 12px', borderRadius: 8, border: '1px solid #cfd9de', fontSize: 16, boxSizing: 'border-box', fontFamily: 'inherit', color: '#0f1419' };
+const heading = { fontSize: 15, fontWeight:800, margin: '16px 0 8px', color: '#0f1419' };
+const primary = (on) => ({ width: '100%', height: 48, border: 'none', borderRadius: 24, fontSize: 16, fontWeight: 700, fontFamily: 'inherit',
+  background: '#0f1419', color: '#fff', opacity: on ? 1 : 0.5, cursor: on ? 'pointer' : 'not-allowed' });
 
 export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition = getPhonePosition }) {
   const { t } = useTranslation();
