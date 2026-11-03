@@ -32,6 +32,6 @@ test('unavailable or wrong-role notification does not redirect to a dashboard', 
     ? Promise.reject(new Error('not in current audience'))
     : Promise.resolve({ data: { items: [] } }));
   const { findByRole } = render(<Activity onNavigate={onNavigate} isLoggedIn contextEpoch={1} />);
-  expect(await findByRole('alert')).toHaveTextContent(/another Kentexa role/i);
+  expect(await findByRole('alert')).toHaveTextContent(/kazi nyingine ya akaunti yako/i);
   expect(onNavigate).not.toHaveBeenCalled();
 });
