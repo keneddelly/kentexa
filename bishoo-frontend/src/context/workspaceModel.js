@@ -70,7 +70,7 @@ export const ROLE_TOOLS = Object.freeze({
     tool('seller.send', 'Tuma mzigo', 'SellerShipment', ICON.truck),
     tool('seller.team', 'Timu', 'SellerTeam', ICON.team),
     tool('seller.analytics', 'Takwimu', 'SellerAnalytics', ICON.chart),
-    tool('seller.wallet', 'Pesa', 'SellerWallet', ICON.wallet),
+    // 'Pesa' (SellerWallet) hidden 2026-11-03: KenteXa never holds the seller's money.
     tool('seller.store', 'Duka', 'StoreSettings', ICON.store),
     tool('seller.fee', 'Ada ya KenteXa', 'KentexaFee', ICON.invoice, { as: 'seller' }),
   ],

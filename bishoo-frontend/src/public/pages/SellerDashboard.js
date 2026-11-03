@@ -177,7 +177,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onOpenMoment, currentUser, ac
     ] },
     { title: 'Pesa na takwimu', rows: [
       { icon: I.money, label: 'Malipo', page: 'SellerPayouts', locked: !verified },
-      { icon: I.wallet, label: 'Pochi', page: 'SellerWallet', locked: !verified },
+      // "Pochi" (SellerWallet) hidden (owner 2026-11-03): KenteXa never holds the seller's money.
       { icon: I.chart, label: 'Takwimu', page: 'SellerAnalytics', locked: !verified },
     ] },
     { title: 'Biashara', rows: [
