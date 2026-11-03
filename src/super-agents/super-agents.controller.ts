@@ -794,6 +794,13 @@ export class SuperAgentsController {
     return { pickup: await this.service.getLastCodPickup(req.user, city || 'Dar es Salaam') };
   }
 
+  // The seller set the shop place on the send form: kept so it is not asked again (2026-11-03).
+  @UseGuards(JwtAuthGuard)
+  @Post('shipments/pickup-place')
+  async setSellerPickupPlace(@Request() req, @Body() body: any) {
+    return this.service.setSellerPickupPlace(req.user, body || {});
+  }
+
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post('shipments')
   async createSellerShipment(

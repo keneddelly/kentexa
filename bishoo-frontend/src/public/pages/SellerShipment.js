@@ -206,11 +206,21 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const useLastPickup = Boolean(lastPickup) && !changePickup;
   const pickupRef = pickupLoc?.placeRef?.providerKey && pickupLoc?.placeRef?.providerPlaceId ? pickupLoc.placeRef : null;
   // The seller's shop: where the journey starts (remembered, or picked once).
-  const shop = useLastPickup && lastPickup.placeRef
-    ? { label: lastPickup.label, placeRef: lastPickup.placeRef, regionName: lastPickup.city || sellerCity, point: lastPickup.point }
+  const shop = useLastPickup
+    ? { label: lastPickup.label, placeRef: lastPickup.placeRef || null, regionName: lastPickup.city || sellerCity, point: lastPickup.point }
     : pickupRef ? { label: pickupText, placeRef: pickupRef, regionName: pickupLoc.regionName || sellerCity,
       point: Number.isFinite(Number(pickupLoc.latitude)) && pickupLoc.latitude != null ? { latitude: Number(pickupLoc.latitude), longitude: Number(pickupLoc.longitude) } : null }
       : null;
+
+  // The shop place picked once is kept on the server for this city (owner 2026-11-03:
+  // "it asks 'Duka lako' every time even when already set") and offered every time after.
+  const pickShop = (loc) => {
+    setPickupLoc(loc || null);
+    const ref = loc?.placeRef;
+    if (!ref?.providerKey || !ref?.providerPlaceId) return;
+    Promise.resolve(api.post('/super-agents/shipments/pickup-place', { providerKey: ref.providerKey, providerPlaceId: ref.providerPlaceId, city: sellerCity }))
+      .then((r) => { if (r?.data?.pickup) { setLastPickup(r.data.pickup); setChangePickup(false); } }).catch(() => {});
+  };
 
   // The boda fee KenteXa would set (Dar rate card); the seller may change it.
   useEffect(() => {
@@ -224,7 +234,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const description = items.map((i) => `${i.name}${Number(i.qty) > 1 ? ` x${i.qty}` : ''}`).join(', ');
   const requestState = {
     itemDescription: description, weightKg: weight || 1, pieces: 1, declaredValue: goods, cargoType: 'kawaida',
-    origin: shop?.label || sellerCity, originResolved: shop ? { placeRef: shop.placeRef, regionName: shop.regionName } : null,
+    origin: shop?.label || sellerCity, originResolved: shop?.placeRef ? { placeRef: shop.placeRef, regionName: shop.regionName } : null,
     destination: placeLabel(place) || destCity,
     destinationResolved: place.placeRef ? { placeRef: place.placeRef, regionName: place.regionName || destCity } : null,
     originArea: shopArea, destinationArea: destArea,
@@ -542,7 +552,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                   <div><span style={label}>Duka lako (boda atachukua hapa)</span>
                     <IntelligentLocationInput label="Duka lako" value={pickupText}
                       onTextChange={(text) => { setPickupText(text); if (!text) setPickupLoc(null); }}
-                      onResolved={(loc) => setPickupLoc(loc || null)} /></div>
+                      onResolved={pickShop} /></div>
                 )}
                 {!fromSale && (
                   <div><label htmlFor="paid-part" style={label}>Amelipa sehemu? <span style={{ color: GREY, fontWeight: 400 }}>(hiari)</span></label>
@@ -560,14 +570,23 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
               <Row left="Bidhaa" right={items.map((i) => `${i.name} × ${i.qty}`).join(', ')} />
               <Row left="Kwa" right={`${name} · ${placeLabel(place)}`} />
               <Row left="Malipo" right={cod ? 'Atalipa akipokea' : 'Ameshalipa'} />
+              {inCity && shop && (
+                <div data-testid="shop-place" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 14 }}>
+                  <span style={{ color: GREY }}>Inachukuliwa</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ fontWeight: 700, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{shop.label}</span>
+                    <button type="button" onClick={() => { setChangePickup(true); setPickupLoc(null); setPickupText(''); }} style={{ ...linkBtn, fontSize: 14 }}>Badilisha</button>
+                  </span>
+                </div>
+              )}
             </div>
             {needShop ? (
               <div style={{ ...card, marginBottom: 12 }}>
                 <span style={label}>Duka lako (mzigo unachukuliwa hapa)</span>
                 <IntelligentLocationInput label="Duka lako" value={pickupText}
                   onTextChange={(text) => { setPickupText(text); if (!text) setPickupLoc(null); }}
-                  onResolved={(loc) => setPickupLoc(loc || null)} />
-                <div style={{ fontSize: 12, color: GREY, marginTop: 6 }}>Inaulizwa mara moja tu; KenteXa itakumbuka.</div>
+                  onResolved={pickShop} />
+                <div style={{ fontSize: 12, color: GREY, marginTop: 6 }}>Inaulizwa mara moja tu; KenteXa itakumbuka mahali hapa.</div>
               </div>
             ) : finding ? (
               <div data-testid="delivery-finding" style={{ ...card, marginBottom: 12, fontSize: 15, color: GREY }}>KenteXa inatafuta usafiri…</div>

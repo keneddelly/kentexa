@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-03 (shop place kept):** the pin is now `MIGRATION_RUN_UPTO=1794700000000`. The next deploy
+runs `1794700000000-AddSellerPickupPlace` itself (seller_pickup_place: the seller's shop place per city, so the send form stops asking "Duka lako" every time). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-03 (Ada ya KenteXa):** the pin is now `MIGRATION_RUN_UPTO=1794600000000`. The next deploy
 runs `1794600000000-AddKentexaFee` itself (fee settings, fee rows, payments, standing, reminders; old seller-shipment debts are copied into `kentexa_fee_cleared` and set to 0, as approved). Check: `/version/migrations` shows `pending: []`.
 

@@ -38,4 +38,11 @@ describe('the seller\'s shop place for COD boda pickups is asked once', () => {
         placeRef: { providerKey: 'tz_seed', providerPlaceId: 'ward:6' }, point: { latitude: -6.82, longitude: 39.28 } });
     await expect(build([]).getLastCodPickup(seller, 'Dar es Salaam')).resolves.toBeNull();
   });
+
+  it('owner 2026-11-03: the shop place the seller set is used first (kept per city), never asked again', async () => {
+    const svc: any = Object.create(SuperAgentsService.prototype);
+    svc.dataSource = { query: jest.fn(async (sql: string) => (sql.includes('seller_pickup_place') ? [{ ...kariakoo, label: 'Sinza, Ubungo, Dar es Salaam' }] : [])) };
+    svc.locationIntelligence = { resolve: jest.fn() };
+    await expect(svc.getLastCodPickup(seller, 'Dar es Salaam')).resolves.toMatchObject({ label: 'Sinza, Ubungo, Dar es Salaam' });
+  });
 });
