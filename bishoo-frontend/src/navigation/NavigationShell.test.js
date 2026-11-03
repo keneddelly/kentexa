@@ -33,3 +33,11 @@ test('browser Back and Forward reject stale operational entries but keep public 
   expect(resolveBrowserEntry('ProductDetail-42', { contextEpoch: 1, accountRoleId: 38 }, transport))
     .toMatchObject({ allowed: true, page: 'ProductDetail-42' });
 });
+
+test('owner 2026-11-03: opening the page we just came from is a step back (no back-arrow loops)', () => {
+  const { shouldStepBack } = require('./NavigationShell');
+  const history = [historyEntryFor({ page: 'Home', contextEpoch: 1, accountRoleId: 1 }), historyEntryFor({ page: 'Services', contextEpoch: 1, accountRoleId: 1 })];
+  expect(shouldStepBack(history, 'Services')).toBe(true);
+  expect(shouldStepBack(history, 'Home')).toBe(false);
+  expect(shouldStepBack([], 'Home')).toBe(false);
+});

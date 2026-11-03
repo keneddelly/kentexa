@@ -114,6 +114,11 @@ export const PERSONAL_TOOLS = Object.freeze([
   tool('me.send', 'Tuma mzigo', 'SendShipment', ICON.truck),
   tool('me.classifieds', 'Matangazo yangu', 'MyClassifieds', ICON.tag),
   tool('me.businesses', 'Biashara zangu', 'MyBusinesses', ICON.store),
+  // Moved from Wasifu wangu (owner 2026-11-03: one place, no duplicate tabs).
+  tool('me.track', 'Fuatilia mzigo', 'TrackParcel', ICON.route),
+  tool('me.quotes', 'Maombi yangu ya bei', 'MyQuoteRequests', ICON.chat),
+  tool('me.wishlist', 'Nilivyohifadhi', 'Wishlist', ICON.tag),
+  tool('me.warranties', 'Dhamana zangu', 'MyWarranties', ICON.shield),
 ]);
 
 /** "Fanya kazi na KenteXa": the existing application pages for a role not held yet. */

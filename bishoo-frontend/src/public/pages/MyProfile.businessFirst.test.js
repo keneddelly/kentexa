@@ -20,25 +20,21 @@ beforeEach(() => {
   });
 });
 
-test('Personal identity and Businesses are primary, grouped once across capabilities', async () => {
+test('owner 2026-11-03: Wasifu wangu keeps the person; work tools and businesses live only in Kazi (no duplicate tabs)', async () => {
   const onNavigate = jest.fn();
   const roleOptions = [
     { accountRoleId: 26, roleType: 'buyer', type: 'personal', displayName: 'Kened', businessId: null },
     { accountRoleId: 38, roleType: 'seller', type: 'business', businessId: 2, businessName: 'BiS' },
-    { accountRoleId: 45, roleType: 'transport_provider', type: 'transport_provider', businessId: 2, businessName: 'BiS' },
-    { accountRoleId: 50, roleType: 'seller', type: 'business', businessId: 5, businessName: 'Second Co' },
   ];
-  render(<MyProfile isLoggedIn currentUser={{ name: 'Kened', phone: '0700' }} userRole="buyer"
-    availableRoles={[{ roleType: 'buyer', status: 'active' }]} roleOptions={roleOptions}
+  render(<MyProfile isLoggedIn currentUser={{ name: 'Kened', phone: '0700' }} userRole="seller"
+    availableRoles={[{ roleType: 'seller', status: 'active' }]} roleOptions={roleOptions}
     onNavigate={onNavigate} onLogout={jest.fn()} />);
   expect(screen.getByText('Kened')).toBeInTheDocument();
-  await waitFor(() => expect(screen.getByText('BiS')).toBeInTheDocument());
-  expect(screen.getByText('Second Co')).toBeInTheDocument();
-  expect(screen.getAllByText('BiS')).toHaveLength(1);
-  expect(screen.getByText('business_home.tile_commerce · active · business_home.tile_transport · active')).toBeInTheDocument();
-  expect(screen.queryByText('my_profile.role_buyer')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByText('my_profile.my_classifieds'));
-  expect(onNavigate).toHaveBeenCalledWith('MyClassifieds');
+  expect(screen.queryByText('my_profile.seller_center_label')).not.toBeInTheDocument();
+  expect(screen.queryByText('my_profile.nav_commerce')).not.toBeInTheDocument();
+  expect(screen.queryByText('my_profile.nav_businesses')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('profile-open-kazi'));
+  expect(onNavigate).toHaveBeenCalledWith('Workspace');
 });
 
 test('an advertiser sees "Kiungo changu na kamisheni" on the profile menu and it opens their page', async () => {

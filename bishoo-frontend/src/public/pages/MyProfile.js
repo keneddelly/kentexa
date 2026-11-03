@@ -13,11 +13,9 @@ import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import LanguageSwitcher, { LANGUAGES } from '../components/LanguageSwitcher';
 import { homeForRole } from '../../navigation/navigationRegistry';
 import { getMyBusinesses } from '../../api/business';
-import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
 import { enablePushNotifications, disablePushNotifications, getPushNotificationState } from '../hooks/usePWA';
 import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
-import WorkWithKentexa from '../components/WorkWithKentexa';
 import { LineIcon, LINE_ICONS } from '../components/LineIcon';
 
 const B   = '#2563EB';
@@ -248,8 +246,6 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const score = rep?.score || profile?.reputationScore || 0;
   const tier  = getTier(score);
   const roles = availableRoles.filter(r => r.status === 'active').map(r => r.roleType);
-  const groupedProfiles = groupProfilesForSwitcher(roleOptions);
-  const capabilityGroups = new Map(groupedProfiles.businesses.map(group => [Number(group.businessId), group.capabilities]));
 
   // "Businesses Zangu" is store/products/services/analytics — only means
   // anything if you actually run a store. "Finance" is payouts/invoices/
@@ -257,16 +253,11 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   // or agent). Neither applied to a plain buyer, who saw them anyway with
   // zero content that worked for them.
   const isBusinessOwner = role === 'seller';
-  const isPaidRole      = ['seller','agent'].includes(role);
 
   const NAV = [
     { key:'identity',      icon:'person', label:t('my_profile.nav_identity') },
     // An advertiser's page sits at the top level, not buried inside a section.
     isAdvertiser && { key:'advertising', icon:'megaphone', label:'Kiungo changu na kamisheni', go:'MyAdvertising' },
-    { key:'businesses',    icon:'office', label:t('my_profile.nav_businesses') },
-    { key:'commerce',      icon:'box', label:t('my_profile.nav_commerce') },
-    { key:'logistics',     icon:'truck', label:t('my_profile.nav_logistics') },
-    isPaidRole && { key:'finance', icon:'money', label:t('my_profile.nav_finance') },
     { key:'reputation',    icon:'star', label:t('my_profile.nav_reputation') },
     { key:'communication', icon:'chat', label:t('my_profile.nav_communication'), badge: unread },
     { key:'settings',      icon:'gear', label:t('my_profile.nav_settings') },
@@ -363,152 +354,22 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         </div>
       )}
 
-      {!section && (
-        <div style={{ padding:'14px 14px 0', maxWidth:760, margin:'0 auto' }}>
-          <SCard style={{ marginBottom:0 }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:12 }}>
-              <div>
-                <div style={{ fontSize:14, fontWeight:800, color:DK }}>{t('my_profile.nav_businesses')}</div>
-                <div style={{ fontSize:11, color:GR }}>{businesses.length ? t('my_profile.businesses_summary') : t('my_businesses.empty_title')}</div>
-              </div>
-              <button onClick={() => onNavigate('MyBusinesses')} style={{ border:'none', borderRadius:9, padding:'8px 11px', background:'#EFF6FF', color:B, fontWeight:800, cursor:'pointer' }}>
-                {businesses.length ? t('my_profile.view_all') : t('my_businesses.create_button')}
-              </button>
-            </div>
-            {businesses.map(business => {
-              const capabilities = capabilityGroups.get(Number(business.id)) || [];
-              return (
-                <button key={business.id} onClick={() => onNavigate(`BusinessHome-${business.id}`)}
-                  style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'11px 0', border:'none', borderTop:'1px solid #F1F5F9', background:'none', cursor:'pointer', textAlign:'left' }}>
-                  <LineIcon name="office" size={22} />
-                  <span style={{ flex:1, minWidth:0 }}>
-                    <span style={{ display:'block', fontSize:13, fontWeight:800, color:DK }}>{business.tradingName || business.legalName}</span>
-                    <span style={{ display:'block', fontSize:11, color:GR, marginTop:2 }}>
-                      {capabilities.length
-                        ? capabilities.map(item => `${t(capabilityLabelKeyFor(item))} · ${item.status || 'active'}`).join(' · ')
-                        : t('my_profile.no_active_capabilities')}
-                    </span>
-                  </span>
-                  <span style={{ color:'#CBD5E1' }}>›</span>
-                </button>
-              );
-            })}
-            <button onClick={() => onNavigate('MyClassifieds')} style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'12px 0 2px', border:'none', borderTop:'1px solid #F1F5F9', background:'none', cursor:'pointer', textAlign:'left' }}>
-              <LineIcon name="tag" size={20} />
-              <span style={{ flex:1, fontSize:13, fontWeight:800, color:DK }}>{t('my_profile.my_classifieds')}</span>
-              <span style={{ color:'#CBD5E1' }}>›</span>
-            </button>
-          </SCard>
-        </div>
-      )}
-
-      {/* ── Quick Actions (role-specific, list-home only) ── */}
-      {!section && (() => {
-        const actions = [];
-        // Selling is universal now (see SellerDashboard.js) -- every account
-        // gets a Seller Center tile here regardless of role/verification,
-        // not just accounts already promoted to role='seller'. That role
-        // gate was the exact same "verification as permission" bug already
-        // fixed on the dashboard itself; this is the other place it lived.
-        if (role === 'seller') actions.push({
-          icon:'store', label:t('my_profile.seller_center_label'),
-          value: sellerStats?.stats?.needsShipping > 0 ? String(sellerStats.stats.needsShipping) : t('my_profile.manage_sales_sub'),
-          sub: sellerStats?.stats?.needsShipping > 0 ? t('my_profile.tap_to_view') : t('my_profile.sell_on_kentexa_sub'),
-          color:B, bg:'#EFF6FF',
-          onAction:()=>onNavigate('SellerDashboard'),
-        });
-        if (role === 'seller') {
-          actions.push({
-            icon:'money', label:t('my_profile.revenue_label'),
-            value: sellerStats?.stats?.totalRevenue != null ? `TZS ${fmt(sellerStats.stats.totalRevenue)}` : '—',
-            sub:t('my_profile.recent_orders_sub'), color:'#16A34A', bg:'#F0FDF4',
-            onAction:()=>onNavigate('SellerAnalytics'),
-          });
-        }
-        // These three are gated on the ACTIVE profile's type, not the
-        // account-wide `roles` list — an account approved as both Agent and
-        // Super Agent must not show both dashboards' tiles at once just
-        // because it holds both roles. `roles.includes(...)` here used to
-        // mean "this account has ever been approved for X," so a multi-role
-        // account permanently accumulated every role's tile regardless of
-        // which identity was actually active — the exact bug the profile-
-        // switching spec calls out ("Business Dashboard and Agent Dashboard
-        // must never appear together"). Seller Center/Revenue above stay
-        // account-wide by original deliberate design (selling capability
-        // isn't tied to a single profile the way Agent/Super Agent/Transport
-        // Provider dashboards are); Admin Panel below stays role-based since
-        // admin isn't a CommerceProfile type you switch into at all.
-        if (role === 'agent') {
-          actions.push({
-            icon:'moto', label:t('my_profile.my_jobs_label'),
-            value:'View', sub:t('my_profile.available_near_you'), color:'#A21CAF', bg:'#FDF2F8',
-            onAction:()=>onNavigate('AgentDashboard'),
-          });
-          actions.push({
-            icon:'money', label:t('my_profile.pending_payout_label'),
-            value: agentData?.pendingEarnings != null ? `TZS ${fmt(agentData.pendingEarnings)}` : '—',
-            sub:t('my_profile.earnings_sub'), color:'#16A34A', bg:'#F0FDF4',
-            onAction:()=>onNavigate('AgentEarnings'),
-          });
-        }
-        if (role === 'super_agent') {
-          actions.push({
-            icon:'box', label:t('my_profile.hub_parcels_label'),
-            value:'View', sub: saData?.city || t('my_profile.your_hub_fallback'), color:'#7C3AED', bg:'#F5F3FF',
-            onAction:()=>onNavigate('SuperAgentDashboard'),
-          });
-        }
-        if (role === 'transport_provider') {
-          actions.push({
-            icon:'bus', label:t('my_profile.todays_routes_label'),
-            value:'View', sub:t('my_profile.assignments_sub'), color:'#D97706', bg:'#FEF3C7',
-            onAction:()=>onNavigate('TransportProviderDashboard'),
-          });
-        }
-        // The old Navbar.js hamburger menu (which had a "Admin Panel"
-        // entry) was removed when the app moved to the CommerceProfile-
-        // driven bottom nav — nothing replaced it, leaving admin/manager
-        // accounts with no way to reach the admin pages (Dashboard,
-        // Products, Users, Orders, etc. — still fully wired in App.js's
-        // renderPage(), just orphaned from the UI). This is that entry point.
-        if (role === 'admin' || role === 'manager') {
-          actions.push({
-            icon:'shield', label:t('my_profile.admin_panel_label'),
-            value:'Open', sub:t('my_profile.admin_panel_sub'), color:'#7C3AED', bg:'#F5F3FF',
-            onAction:()=>onNavigate('Dashboard'),
-          });
-        }
-        actions.push({
-          icon:'chat', label:t('my_profile.messages_label'),
-          value: unread > 0 ? String(unread) : '—',
-          sub: unread > 0 ? t('my_profile.new_sub') : t('my_profile.all_read_sub'), color: unread>0?'#EF4444':GR,
-          bg: unread>0?'#FEF2F2':'#F8FAFC',
-          onAction:()=>onNavigate('Activity'),
-        });
-
-        return (
-          <div style={{ padding:'14px 14px 0', maxWidth:760, margin:'0 auto' }}>
-            <div style={{ display:'grid',
-              gridTemplateColumns:`repeat(${Math.min(actions.length,3)},1fr)`, gap:10 }}>
-              {actions.map((a,i) => (
-                <button key={i} onClick={a.onAction}
-                  style={{ backgroundColor:WH, border:'1px solid #eff3f4', borderRadius:16,
-                    padding:'12px', cursor:'pointer', textAlign:'left', fontFamily:'inherit', minWidth:0 }}>
-                  <div style={{ marginBottom:6 }}><LineIcon name={a.icon} size={20} /></div>
-                  <div style={{ fontSize:17, fontWeight:800, color:'#0f1419', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.value}</div>
-                  <div style={{ fontSize:13, color:'#536471', marginTop:2 }}>{a.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
-
       {/* ── Menu (vertical, Instagram-Settings style — list-home only) ── */}
       {!section && (
         <div style={{ padding:'14px 14px 20px', maxWidth:760,
           margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
-          <WorkWithKentexa onNavigate={onNavigate} onSwitchAccountRole={onSwitchAccountRole} availableRoles={availableRoles} identityStatus={identityStatus} />
+          {/* Owner 2026-11-03: one place for work. Every tool (orders, shop, office, agent, POS,
+              businesses, "Fanya kazi na KenteXa") lives in Kazi; Wasifu wangu keeps only the person. */}
+          <button type="button" data-testid="profile-open-kazi" onClick={() => onNavigate('Workspace')}
+            style={{ width:'100%', display:'flex', alignItems:'center', gap:14, padding:'14px 16px', marginBottom:12, minHeight:56,
+              background:WH, border:'1px solid #eff3f4', borderRadius:16, cursor:'pointer', textAlign:'left', fontFamily:'inherit' }}>
+            <span style={{ width:26, display:'flex', justifyContent:'center', flexShrink:0 }}><LineIcon name="box" size={22} /></span>
+            <span style={{ flex:1, display:'flex', flexDirection:'column' }}>
+              <span style={{ fontSize:15, fontWeight:700, color:'#0f1419' }}>Kazi</span>
+              <span style={{ fontSize:13, color:'#536471' }}>Oda, duka, POS, ofisi, biashara zako na kuanza kazi mpya</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GR} strokeWidth="2" style={{ flexShrink:0 }}><polyline points="9,18 15,12 9,6"/></svg>
+          </button>
           <div style={{ backgroundColor:WH, borderRadius:16,
             border:'1px solid #eff3f4', overflow:'hidden', padding:'0 16px' }}>
             {NAV.map((n,i) => (
