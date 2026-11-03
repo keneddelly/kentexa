@@ -180,7 +180,14 @@ export class TeamInvitationsService {
         LEFT JOIN LATERAL (
           SELECT p.id, p."displayName" FROM public.commerce_profile p
            WHERE p."ownerId" = t.seller_id
-           ORDER BY EXISTS (SELECT 1 FROM public.commerce_profile_member m WHERE m."commerceProfileId" = p.id AND m."userId" = t.user_id AND m."isActive" = true) DESC, p.id
+           -- The till sells the profile that holds the shop's products (the owner may have invited from
+           -- another profile of theirs), then the one she was invited to (owner 2026-11-03).
+           -- Counted like the till's own product filter: stamped to this profile, or unstamped when this is
+           -- one of the account's original profiles (legacy-rows.ts LEGACY_ROWS_FOR).
+           ORDER BY (SELECT count(*) FROM public.product pr WHERE pr."sellerId" = t.seller_id AND pr."isActive" = true
+               AND (pr."commerceProfileId" = p.id OR (pr."commerceProfileId" IS NULL AND NOT (p.type::text = 'business' AND EXISTS (
+                 SELECT 1 FROM public.commerce_profile o WHERE o."ownerId" = p."ownerId" AND o.type::text = 'business' AND o.id < p.id))))) DESC,
+             EXISTS (SELECT 1 FROM public.commerce_profile_member m WHERE m."commerceProfileId" = p.id AND m."userId" = t.user_id AND m."isActive" = true) DESC, p.id
            LIMIT 1) cp ON true
        WHERE t.user_id = $1::int AND t."isActive" = true AND t.seller_id <> $1::int
        ORDER BY t."joinedAt" DESC NULLS LAST`, [userId]);

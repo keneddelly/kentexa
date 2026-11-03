@@ -134,3 +134,13 @@ test('out of stock cannot be sold; quantity stops at the stock left (owner 2026-
   expect(screen.getByRole('alert')).toHaveTextContent('"Maji 1.5L": zimebaki 2 tu.');
   expect(screen.getByTestId('pos-total')).toHaveTextContent('TZS 2,000');
 });
+
+test("a cashier's till reads the products of the profile the server names (owner 2026-11-03)", async () => {
+  api.get.mockImplementation((url) => Promise.resolve(url === '/team-invitations/workplaces'
+    ? { data: [{ sellerId: 9, commerceProfileId: 3, businessName: 'BiS' }] }
+    : url === '/products/my/products' ? { data: PRODUCTS } : { data: { today: { total: 0 } } }));
+  render(<POS onNavigate={jest.fn()} activeContext={CTX} currentUser={{ name: 'Dativa' }} posTeam={{ sellerId: 9, commerceProfileId: 8, businessName: 'Bishoo' }} />);
+  await waitFor(() => expect(api.get).toHaveBeenCalledWith('/products/my/products', { params: { commerceProfileId: 3 } }));
+  expect(await screen.findByText('Unauzia BiS')).toBeInTheDocument();
+  expect(await screen.findByTestId('pos-product-1')).toBeInTheDocument();
+});
