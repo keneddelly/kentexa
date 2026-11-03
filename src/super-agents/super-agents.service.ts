@@ -4554,15 +4554,43 @@ export class SuperAgentsService {
     }
     const phone = typeof seller.phone === 'string' ? seller.phone.trim() : '';
     if (!phone) throw new BadRequestException(COD_MESSAGES.sellerPhoneRequired);
-    return {
-      phone,
-      snapshot: {
-        city: dto.originCity, label: place.displayLabel,
-        latitude: place.latitude ?? null, longitude: place.longitude ?? null,
-        region: place.regionName ?? null, district: place.districtName ?? null,
-        providerKey: place.providerKey, providerPlaceId: ref.providerPlaceId, resolutionMethod: place.resolutionMethod,
-      },
+    const snapshot = {
+      city: dto.originCity, label: place.displayLabel,
+      latitude: place.latitude ?? null, longitude: place.longitude ?? null,
+      region: place.regionName ?? null, district: place.districtName ?? null,
+      providerKey: place.providerKey, providerPlaceId: ref.providerPlaceId, resolutionMethod: place.resolutionMethod,
     };
+    await this.keepSellerPickupPlace(seller.id, snapshot);
+    return { phone, snapshot };
+  }
+
+  /** Keeps the seller's shop place for this city (asked once, owner 2026-11-03). Never fails a send. */
+  private async keepSellerPickupPlace(userId: number, snap: Record<string, any>) {
+    await this.dataSource.query(
+      `INSERT INTO public.seller_pickup_place ("userId", city, label, "providerKey", "providerPlaceId", latitude, longitude, region, district, "resolutionMethod", "updatedAt")
+       VALUES ($1::int, $2::varchar, $3::varchar, $4::varchar, $5::varchar, $6::float8, $7::float8, $8::varchar, $9::varchar, $10::varchar, now())
+       ON CONFLICT ("userId", city) DO UPDATE SET label = EXCLUDED.label, "providerKey" = EXCLUDED."providerKey",
+         "providerPlaceId" = EXCLUDED."providerPlaceId", latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
+         region = EXCLUDED.region, district = EXCLUDED.district, "resolutionMethod" = EXCLUDED."resolutionMethod", "updatedAt" = now()`,
+      [userId, String(snap.city || '').slice(0, 80), String(snap.label || '').slice(0, 200), snap.providerKey ?? null, snap.providerPlaceId ?? null,
+        snap.latitude ?? null, snap.longitude ?? null, snap.region ?? null, snap.district ?? null, snap.resolutionMethod ?? null],
+    ).catch(() => undefined);
+  }
+
+  /** The seller picked the shop place on the send form: resolved on the server, then kept for this city. */
+  async setSellerPickupPlace(seller: User, body: { providerKey?: string; providerPlaceId?: string; city?: string }) {
+    if (!body?.providerKey || !body?.providerPlaceId) throw new BadRequestException(COD_MESSAGES.pickupPlaceRequired);
+    const place = await this.locationIntelligence
+      .resolve({ providerKey: String(body.providerKey), providerPlaceId: String(body.providerPlaceId) })
+      .catch(() => null);
+    if (!place) throw new BadRequestException(COD_MESSAGES.pickupPlaceRequired);
+    const city = String(body.city || place.regionName || 'Dar es Salaam');
+    await this.keepSellerPickupPlace(seller.id, {
+      city, label: place.displayLabel, latitude: place.latitude ?? null, longitude: place.longitude ?? null,
+      region: place.regionName ?? null, district: place.districtName ?? null,
+      providerKey: place.providerKey, providerPlaceId: String(body.providerPlaceId), resolutionMethod: place.resolutionMethod,
+    });
+    return { pickup: await this.getLastCodPickup(seller, city) };
   }
 
   /**
@@ -4595,6 +4623,12 @@ export class SuperAgentsService {
 
   /** The shop place of this seller's last pay-on-delivery boda pickup in this city, or null. */
   private async lastCodPickupSnapshot(sellerUserId: number, city: string): Promise<Record<string, unknown> | null> {
+    // The shop place the seller set (kept per city, owner 2026-11-03), then the last COD pickup.
+    const saved: any[] = await this.dataSource.query(
+      `SELECT city, label, "providerKey", "providerPlaceId", latitude, longitude, region, district, "resolutionMethod"
+         FROM public.seller_pickup_place WHERE "userId" = $1::int ORDER BY "updatedAt" DESC`, [sellerUserId]).catch(() => []);
+    const mine = saved.find((r) => isSameCity(String(r.city || r.region || ''), city));
+    if (mine) return { ...mine };
     const rows: any[] = await this.dataSource.query(
       `SELECT "originSnapshot" AS snap FROM public.parcel_pickup_task
         WHERE "requestedByUserId" = $1 AND "servicePath" = 'direct_delivery'
