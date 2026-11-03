@@ -8,6 +8,7 @@ import CommerceCommentSection from '../components/CommerceCommentSection';
 import { PageLoading } from '../components/Loading';
 import { useTranslation } from 'react-i18next';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
+import { classifiedLink } from '../utils/shareLinks';
 
 /**
  * ClassifiedDetail — one listing (owner 2026-10-26 redesign, same look as the
@@ -128,7 +129,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   // title/image.
   const handleShare = () => {
     if (!classified) return;
-    const url = `${api.defaults.baseURL}/share/classified/${classified.id}`;
+    const url = classifiedLink(classified.id, classified.title);
     if (navigator.share) {
       navigator.share({ title: classified.title, url }).catch(() => {});
     } else {
@@ -360,7 +361,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                     {contactInfo?.sellerPhone && listingWhatsAppHref({ phone: contactInfo.sellerPhone }) && (
                       <a href={listingWhatsAppHref({
                         phone: contactInfo.sellerPhone, kind: 'classified', title: classified.title, price: classified.price,
-                        url: listingUrl('classified', classified.id), shopName: sellerName,
+                        url: listingUrl('classified', classified.id, undefined, classified.title), shopName: sellerName,
                       })} target="_blank" rel="noreferrer"
                         style={{ ...contactBtn, backgroundColor:'#25D366', color:WH, border:'none' }}>
                         WhatsApp

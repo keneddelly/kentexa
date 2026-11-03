@@ -43,7 +43,8 @@ export const pageToPath = (page, navParams) => {
 
 // pathname -> page, or null if it doesn't match a synced route.
 export const pathToPage = (pathname) => {
-  const match = String(pathname || '').match(/^\/(product|classified|service|store|post)\/(\d+)$/);
+  // A readable name may follow the number (/product/42-simu-samsung, owner 2026-11-03).
+  const match = String(pathname || '').match(/^\/(product|classified|service|store|post)\/(\d+)(?:-[a-z0-9-]*)?\/?$/i);
   if (!match) return null;
   const [, segment, id] = match;
   return `${SEGMENT_TO_PREFIX[segment]}-${id}`;

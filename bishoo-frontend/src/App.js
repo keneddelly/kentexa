@@ -247,6 +247,14 @@ function App() {
     try {
       // A registration link (?ref=...) is kept until the visitor registers.
       rememberReferral(window.location.search);
+      // ?go=/product/42-simu (owner 2026-11-03): the share server's fallback when it could not
+      // build the page; the address becomes the real one and opens like a direct visit.
+      try {
+        const go = new URLSearchParams(window.location.search).get('go');
+        if (go && /^\/(?:(?:product|classified|service|store|post)\/\d+(?:-[a-z0-9-]*)?|@[a-z0-9_]{2,40})$/i.test(go)) {
+          window.history.replaceState(window.history.state, '', go);
+        }
+      } catch { /* keep the address as it is */ }
       const params = new URLSearchParams(window.location.search);
       const track   = params.get('track');
       const receive = params.get('receive');

@@ -1,4 +1,6 @@
-import { Controller, Get, Param, Req, Res } from '@nestjs/common';
+import { Controller, Get, Optional, Param, Req, Res } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { injectMeta, parseRef, slugify } from './share-html';
 import type { Request, Response } from 'express';
 import { ProductsService } from '../products/products.service';
 import { ClassifiedsService } from '../classifieds/classifieds.service';
@@ -67,7 +69,96 @@ export class ShareController {
     private sellerService: SellerService,
     private transportService: TransportService,
     private commerceProfilesService: CommerceProfilesService,
+    @Optional() private readonly db?: DataSource,
   ) {}
+
+  // ── Professional links (owner 2026-11-03) ──────────────────────────────
+  // kentexa.com/product/42-simu-samsung, /classified/.., /service/.., /post/88 and /@handle
+  // are rewritten by the website host to these routes. Every visitor (person or WhatsApp /
+  // Facebook) gets the app's own page with the title, picture and price filled in, and the
+  // address stays on kentexa.com. If the app page cannot be read, the visitor is sent to the
+  // app with ?go=<path>, which opens the same page.
+  private indexCache: { html: string; at: number } | null = null;
+
+  private async appIndex(): Promise<string | null> {
+    if (this.indexCache && Date.now() - this.indexCache.at < 5 * 60_000) return this.indexCache.html;
+    try {
+      const res = await fetch(`${FRONTEND_URL}/index.html`, { headers: { 'user-agent': 'KenteXa-share' } });
+      if (!res.ok) return this.indexCache?.html ?? null;
+      const html = await res.text();
+      if (!/<head[\s>]/i.test(html)) return this.indexCache?.html ?? null;
+      this.indexCache = { html, at: Date.now() };
+      return html;
+    } catch {
+      return this.indexCache?.html ?? null;
+    }
+  }
+
+  @Get('html/:type/:ref')
+  async html(@Param('type') type: string, @Param('ref') ref: string, @Res() res: Response) {
+    const payload = await this.pagePayload(type, ref);
+    if (!payload) return res.redirect(302, FRONTEND_URL);
+    const index = await this.appIndex();
+    if (!index) return res.redirect(302, `${FRONTEND_URL}/?go=${encodeURIComponent(payload.path)}`);
+    res.set('Cache-Control', 'public, max-age=60');
+    res.type('html').send(injectMeta(index, { ...payload, url: `${FRONTEND_URL}${payload.path}`, fallbackImage: SITE_FALLBACK.image }));
+  }
+
+  /** The page's title, description, picture and its own kentexa.com path. Null = not a link we know. */
+  private async pagePayload(type: string, ref: string): Promise<SharePayload | null> {
+    if (type === 'u') {
+      const handle = String(ref || '').replace(/^@/, '').toLowerCase();
+      if (!/^[a-z0-9_]{2,40}$/.test(handle)) return null;
+      const [p] = this.db ? await this.db.query(
+        `SELECT "displayName", bio, "photoUrl", "coverImage", location FROM public.commerce_profile
+          WHERE lower(username) = $1::varchar AND "hiddenFromPublic" = false LIMIT 1`, [handle]).catch(() => []) : [];
+      const path = `/@${handle}`;
+      if (!p) return { ...SITE_FALLBACK, path };
+      return {
+        title: `${p.displayName} (@${handle}) | KenteXa`,
+        description: [p.bio, p.location].filter(Boolean).join(' · ') || `${p.displayName} kwenye KenteXa`,
+        image: absoluteImage(p.photoUrl || p.coverImage), path,
+      };
+    }
+    const id = parseRef(ref);
+    if (!id) return null;
+    const owner = `COALESCE(cp."displayName", u.name)`;
+    const tzs = (n: unknown) => (Number(n) > 0 ? `TZS ${Math.round(Number(n)).toLocaleString('en-US')}` : '');
+    const first = (imgs: unknown) => (Array.isArray(imgs) ? imgs[0] : String(imgs || '').split(',')[0]) || null;
+    const q = async (sql: string) => (this.db ? (await this.db.query(sql, [id]).catch(() => []))[0] : null);
+    if (type === 'product') {
+      const r = await q(`SELECT x.name AS title, x.description, x."basePrice" AS price, x.images, ${owner} AS owner
+        FROM public.product x LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId" LEFT JOIN public."user" u ON u.id = x."sellerId"
+        WHERE x.id = $1::int`);
+      const path = `/product/${id}${r ? `-${slugify(r.title)}` : ''}`;
+      return r ? { title: [r.title, tzs(r.price)].filter(Boolean).join(' · '), description: [r.owner, r.description].filter(Boolean).join(' · '), image: absoluteImage(first(r.images)), path } : { ...SITE_FALLBACK, path };
+    }
+    if (type === 'classified') {
+      const r = await q(`SELECT x.title, x.description, x.price, x.images, ${owner} AS owner
+        FROM public.classified x LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId" LEFT JOIN public."user" u ON u.id = x."sellerId"
+        WHERE x.id = $1::int`);
+      const path = `/classified/${id}${r ? `-${slugify(r.title)}` : ''}`;
+      return r ? { title: [r.title, tzs(r.price)].filter(Boolean).join(' · '), description: [r.owner, r.description].filter(Boolean).join(' · '), image: absoluteImage(first(r.images)), path } : { ...SITE_FALLBACK, path };
+    }
+    if (type === 'service') {
+      const r = await q(`SELECT x.title, x.description, x.price, x.images, ${owner} AS owner
+        FROM public.service_ad x LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId" LEFT JOIN public."user" u ON u.id = x."providerId"
+        WHERE x.id = $1::int`);
+      const path = `/service/${id}${r ? `-${slugify(r.title)}` : ''}`;
+      return r ? { title: [r.title, tzs(r.price)].filter(Boolean).join(' · '), description: [r.owner, r.description].filter(Boolean).join(' · '), image: absoluteImage(first(r.images)), path } : { ...SITE_FALLBACK, path };
+    }
+    if (type === 'post') {
+      const r = await q(`SELECT x.title, x.body, x."imageUrl", x.media, ${owner} AS owner
+        FROM public.business_feed_item x LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId" LEFT JOIN public."user" u ON u.id = x."businessId"
+        WHERE x.id = $1::int AND x."isActive" = true`);
+      const path = `/post/${id}`;
+      if (!r) return { ...SITE_FALLBACK, path };
+      const media = Array.isArray(r.media) ? r.media : [];
+      const text = String(r.body || r.title || '').trim();
+      return { title: `${r.owner || 'KenteXa'} kwenye KenteXa`, description: text, image: absoluteImage(r.imageUrl || media[0]?.url), path };
+    }
+    return null;
+  }
 
   @Get(':type/:id')
   async share(

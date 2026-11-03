@@ -1,3 +1,4 @@
+import { slugify } from './shareLinks';
 // WhatsApp from a KenteXa listing (owner 2026-10-25): the seller must see WHICH
 // listing the customer means and that they came from KenteXa. Every contact
 // button builds its message here: the item, its price, and its KenteXa link.
@@ -14,12 +15,14 @@ export function waNumber(raw) {
 }
 
 /** The listing's public KenteXa page, e.g. https://kentexa.com/product/42. */
-export function listingUrl(kind, id, origin) {
+export function listingUrl(kind, id, origin, title) {
   const seg = SEGMENT[kind];
   if (!seg || id == null || !/^\d+$/.test(String(id))) return null;
   const base = origin || (typeof window !== 'undefined' && /kentexa\.com$/.test(window.location.hostname)
     ? window.location.origin : 'https://kentexa.com');
-  return `${base}/${seg}/${id}`;
+  // A readable name after the number (owner 2026-11-03: professional links); stores use @handle elsewhere.
+  const slug = seg === 'store' ? '' : slugify(title);
+  return `${base}/${seg}/${id}${slug ? `-${slug}` : ''}`;
 }
 
 const tzs = (n) => {

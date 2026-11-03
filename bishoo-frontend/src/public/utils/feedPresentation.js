@@ -1,3 +1,4 @@
+import { slugify } from './shareLinks';
 // Home Feed Phase B presentation helpers (owner 2026-11-01). Pure: no data, no authority.
 
 /** A photo's frame: its own width/height, kept between portrait 4:5 and wide 16:9 (Phase B). */
@@ -25,7 +26,10 @@ const siteOrigin = () => (typeof window !== 'undefined' && /kentexa\.com$/.test(
 export const postShareUrl = (post, entityType, entityId) => {
   if (/^\d+$/.test(String(post?.id ?? ''))) return `${siteOrigin()}/post/${post.id}`;
   const seg = { product: 'product', service: 'service', new_service: 'service', classified: 'classified' }[entityType];
-  if (seg && /^\d+$/.test(String(entityId ?? ''))) return `${siteOrigin()}/${seg}/${entityId}`;
+  if (seg && /^\d+$/.test(String(entityId ?? ''))) {
+    const slug = slugify(post?.title);
+    return `${siteOrigin()}/${seg}/${entityId}${slug ? `-${slug}` : ''}`;
+  }
   return siteOrigin();
 };
 

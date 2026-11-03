@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import { profileLink } from '../utils/shareLinks';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import LanguageSwitcher, { LANGUAGES } from '../components/LanguageSwitcher';
 import { homeForRole } from '../../navigation/navigationRegistry';
@@ -603,7 +604,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
               <div style={{ display:'flex', gap:20, alignItems:'center' }}>
                 <QRDisplay
-                  value={`${window.location.origin}/?page=CommerceProfile-${profile?.id}`}
+                  value={profileLink(personalProfile?.username, profile?.id, personalProfile?.id)}
                   size={100} />
                 <div>
                   <div style={{ fontSize:12, color:GR, lineHeight:1.6, marginBottom:10 }}>
@@ -1222,7 +1223,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             </div>
             <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
               <QRDisplay
-                value={`${window.location.origin}/?page=CommerceProfile-${profile?.id}`}
+                value={profileLink(personalProfile?.username, profile?.id, personalProfile?.id)}
                 size={200} />
             </div>
             <div style={{ fontSize:13, fontWeight:800, color:B,

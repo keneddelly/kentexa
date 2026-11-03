@@ -18,6 +18,7 @@ import { commenterIdentity } from '../utils/publicActor';
 
 import ProfileConnections from '../components/ProfileConnections';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
+import { postLink, profileLink } from '../utils/shareLinks';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -674,7 +675,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // provider's own public record instead of the generic seller one, since
   // this account's business-seller fields wouldn't accurately describe them.
   const handleShare = () => {
-    const url = `${api.defaults.baseURL}/share/${isTransportProfile ? 'transport' : 'store'}/${activeProfile.ownerId}`;
+    const url = profileLink(activeProfile.username, activeProfile.ownerId, activeProfile.id);
     if (navigator.share) {
       navigator.share({ title: displayName || 'KenteXa', url }).catch(() => {});
     } else {
@@ -1930,7 +1931,7 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId, ini
     try {
       setSharing(true);
       await api.post(`/feed/${f.id}/engage`, { type: 'share' }).catch(() => {});
-      const url = window.location.href;
+      const url = postLink(f.id);
       if (navigator.share) await navigator.share({ title: f.title, url }).catch(() => {});
       else await navigator.clipboard?.writeText(url);
     } finally {

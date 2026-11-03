@@ -18,3 +18,13 @@ describe('post links (Home Feed phase C, 2026-11-02)', () => {
     expect(postShareUrl({ id: 'svc-2' }, 'new_service', 2)).toBe('https://kentexa.com/service/2');
   });
 });
+
+describe('readable links (owner 2026-11-03)', () => {
+  it('a number followed by a name opens the same page', () => {
+    const { pathToPage } = require('./urlSync');
+    expect(pathToPage('/product/42-simu-samsung-a15')).toBe('ProductDetail-42');
+    expect(pathToPage('/classified/7-saa-ya-ukutani/')).toBe('ClassifiedDetail-7');
+    expect(pathToPage('/product/42')).toBe('ProductDetail-42');
+    expect(pathToPage('/product/abc')).toBeNull();
+  });
+});
