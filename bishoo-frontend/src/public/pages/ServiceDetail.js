@@ -13,6 +13,7 @@ import ReputationBadge from '../components/ReputationBadge';
 import WishlistHeart from '../components/WishlistHeart';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
+import { serviceLink } from '../utils/shareLinks';
 
 const B = '#1d4ed8';
 const DK = '#0f1419';
@@ -123,7 +124,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
   const isOwner = isLoggedIn && currentUser?.id === ad.provider?.id;
 
   const share = () => {
-    const url = `${api.defaults?.baseURL || ''}/share/service/${ad.id}`;
+    const url = serviceLink(ad.id, ad.title);
     if (navigator.share) navigator.share({ title: ad.title, url }).catch(() => {});
     else { navigator.clipboard?.writeText(url).catch(() => {}); setShareMsg(t('share.link_copied')); setTimeout(() => setShareMsg(''), 3000); }
   };

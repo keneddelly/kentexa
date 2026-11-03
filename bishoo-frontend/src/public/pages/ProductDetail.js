@@ -7,6 +7,7 @@ import WishlistHeart from '../components/WishlistHeart';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import { Spinner, PageLoading } from '../components/Loading';
 import { useTranslation } from 'react-i18next';
+import { productLink } from '../utils/shareLinks';
 
 /**
  * ProductDetail — one shop product (owner 2026-10-26 redesign): photo, price and
@@ -182,7 +183,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   // response can carry the right og:title/og:image for this specific product.
   const handleShare = () => {
     if (!product) return;
-    const url = `${api.defaults.baseURL}/share/product/${product.id}`;
+    const url = productLink(product.id, product.name);
     if (navigator.share) {
       navigator.share({ title: product.name, url }).catch(() => {});
     } else {

@@ -133,7 +133,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
   const waHref = listingWhatsAppHref({
     phone: biz.storeWhatsApp || biz.phone, kind, title,
     price: post.price || post.data?.price || post.data?.basePrice,
-    url: listingUrl(kind, post.entityId || post.linkedEntityId), shopName: biz.storeName || biz.name,
+    url: listingUrl(kind, post.entityId || post.linkedEntityId, undefined, post.title), shopName: biz.storeName || biz.name,
   });
 
   return (
