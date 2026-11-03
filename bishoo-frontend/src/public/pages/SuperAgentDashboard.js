@@ -54,6 +54,8 @@ import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/OfficePricePreview';
 import RouteRangePanel from '../components/RouteRangePanel';
 import OfficePrices from '../components/OfficePrices';
+import WorkAppInstall from '../components/WorkAppInstall';
+import { enterWorkApp } from '../../utils/posApp';
 import { ShehenaIncoming, ShehenaSent } from '../components/ShehenaHandover';
 
 const pendingWalkInRequests = new Map();
@@ -191,7 +193,7 @@ const PCard = ({ p, actions = [] }) => (
 const OFFICE_SCREEN_TITLE = { pokea: 'POKEA', tuma: 'TUMA', menu: 'Menyu', historia: 'Historia', mapato: 'Mapato', bei: 'Bei zangu', van: 'Van', washirika: 'Washirika' };
 const MENU_PAGES = ['historia', 'mapato', 'bei', 'van', 'washirika'];
 
-const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
+const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKentexa, onInstallKentexa, installEnv, installReady }) => {
   const { t } = useTranslation();
 
   // ── Core state ────────────────────────────────────────────────────────────
@@ -212,6 +214,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [error, setError]               = useState('');
   const [identityStatus, setIdentityStatus] = useState(null);
   useIdentityRefresh(setIdentityStatus, true);
+  // One tap to the desk (owner 2026-11-03): the open desk lives at /ofisi and offers the "KenteXa Ofisi" app.
+  useEffect(() => (profileStatus === 'active' ? enterWorkApp('ofisi') : undefined), [profileStatus]);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [referralData, setReferralData] = useState(null);
   const [refLinkCopied, setRefLinkCopied] = useState(false);
@@ -996,6 +1000,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           }} />
         )}
 
+        {activeTab === 'home' && (
+          <WorkAppInstall kind="ofisi" env={installEnv} ready={installReady} canInstall={canInstallKentexa} onInstall={onInstallKentexa} style={{ margin: '0 0 12px' }} />
+        )}
         {/* ── Mwanzo: the two jobs ── */}
         {activeTab === 'home' && (
           <OfficeHome officeName={profile?.businessName} city={profile?.city}

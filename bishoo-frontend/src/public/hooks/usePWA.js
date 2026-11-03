@@ -107,7 +107,9 @@ export const detectInstallEnvironment = (nav = navigator, win = window) => {
   const mobile = ios || /Android/i.test(ua);
   const safari = ios && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(ua);
   const standalone = Boolean(nav.standalone) || Boolean(win.matchMedia?.('(display-mode: standalone)').matches);
-  return { ios, mobile, safari, standalone };
+  // Browsers inside WhatsApp, Instagram, Facebook... cannot install: the page must be opened in Chrome or Safari.
+  const inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)/i.test(ua);
+  return { ios, mobile, safari, standalone, inApp };
 };
 
 const DISMISS_KEY = 'kx_pwa_dismissed';
@@ -123,8 +125,9 @@ export const usePWA = () => {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
 
+  // Computers too (owner 2026-11-03): Chrome offers the install on a computer as well, so it is always listened for.
   useEffect(() => {
-    if (!environment.mobile || isInstalled) return;
+    if (isInstalled) return;
     const onPrompt = (event) => {
       event.preventDefault();
       setDeferredPrompt(event);
@@ -139,7 +142,7 @@ export const usePWA = () => {
     window.addEventListener('appinstalled', onInstalled);
     // Show only after the user has had time to browse; App limits this
     // suggestion to Home and keeps registration, login and role flows clear.
-    const timer = dismissedRecently() ? null : window.setTimeout(() => setShowInstallPrompt(true), 20000);
+    const timer = !environment.mobile || dismissedRecently() ? null : window.setTimeout(() => setShowInstallPrompt(true), 20000);
     return () => {
       window.removeEventListener('beforeinstallprompt', onPrompt);
       window.removeEventListener('appinstalled', onInstalled);
@@ -148,10 +151,10 @@ export const usePWA = () => {
   }, [environment.mobile, isInstalled]);
 
   const handleInstall = async () => {
-    if (isInstalled || !environment.mobile) return;
+    if (isInstalled) return;
     setShowInstallPrompt(false);
     if (!deferredPrompt) {
-      setShowGuide(true);
+      if (environment.mobile) setShowGuide(true);
       return;
     }
     try {
@@ -169,8 +172,8 @@ export const usePWA = () => {
   };
 
   return { showInstallPrompt, showGuide, handleInstall, handleDismiss,
-    closeGuide: () => setShowGuide(false), isInstalled, canInstall: environment.mobile && !isInstalled,
-    environment };
+    closeGuide: () => setShowGuide(false), isInstalled, canInstall: !isInstalled && (environment.mobile || Boolean(deferredPrompt)),
+    hasPrompt: Boolean(deferredPrompt), environment };
 };
 
 export const InstallBanner = ({ onInstall, onDismiss }) => {

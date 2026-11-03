@@ -15,6 +15,7 @@
  * The same stock serves the KenteXa shop online and this till.
  */
 import { enterPosApp } from '../../utils/posApp';
+import WorkAppInstall from '../components/WorkAppInstall';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import BackBar from '../components/BackBar';
 import PosToday from '../components/PosToday';
@@ -108,7 +109,7 @@ export const stockStop = (p, inCart) => {
   return '';
 };
 
-const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineBoot = false, canInstallKentexa, onInstallKentexa }) => {
+const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineBoot = false, canInstallKentexa, onInstallKentexa, installEnv, installReady }) => {
   const session = useMemo(() => loadSession(), []);
   const shopName = activeContext?.displayName || currentUser?.storeName || currentUser?.name || session?.shopName || 'Duka';
   // "Badilisha mhudumu" (owner 2026-11-03): the cashier on duty, switched by PIN, also offline.
@@ -466,8 +467,8 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
         {/* POS part 3 (owner 2026-11-03): Stoo and Madeni open beside the till. */}
         {online && !offlineBoot && <button type="button" data-testid="pos-stock-open" style={pill} onClick={() => setPanel('stock')}>Stoo</button>}
         {online && !offlineBoot && <button type="button" data-testid="pos-debts-open" style={pill} onClick={() => setPanel('debts')}>Madeni</button>}
-        {canInstallKentexa && <button type="button" style={{ ...pill, borderColor: BLUE, color: BLUE }} onClick={onInstallKentexa}>Weka POS kwenye kompyuta</button>}
       </header>
+      {!offlineBoot && <div className="pos-no-print"><WorkAppInstall kind="pos" env={installEnv} ready={installReady} canInstall={canInstallKentexa} onInstall={onInstallKentexa} /></div>}
 
       {(error || notice) && (
         <div className="pos-no-print" role={error ? 'alert' : 'status'} style={{ margin: '10px 16px 0', padding: '10px 14px', borderRadius: 12, fontSize: 14,
