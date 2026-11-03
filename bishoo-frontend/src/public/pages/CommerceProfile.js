@@ -12,13 +12,11 @@ import { useTranslation } from 'react-i18next';
 import ExpandableText from '../components/ExpandableText';
 import { trackProfileView } from '../hooks/useAnalytics';
 import ProfileCompletion from '../components/ProfileCompletion';
-import CommerceCommentSection from '../components/CommerceCommentSection';
 import api             from '../../api/api';
-import { commenterIdentity } from '../utils/publicActor';
 
 import ProfileConnections from '../components/ProfileConnections';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
-import { postLink, profileLink } from '../utils/shareLinks';
+import { profileLink } from '../utils/shareLinks';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -299,11 +297,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [profile,    setProfile]    = useState(null);
   const [rep,        setRep]        = useState(null);
   const [feed,       setFeed]       = useState([]);
-  const [savedPostIds, setSavedPostIds] = useState([]);
   // Instagram-style profile grid: tapping a thumbnail opens the full post
   // (image/caption/comments/CTA — everything FeedPost already rendered
   // inline) in an overlay instead of losing that content to a thumbnail.
-  const [openPostId, setOpenPostId] = useState(null);
   const [orders,     setOrders]     = useState([]);
   const [services,   setServices]   = useState([]);
   const [classifieds,setClassifieds]= useState([]);
@@ -445,8 +441,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       // profile that has nothing to do with selling products.
       // Owner 2026-11-02 (two businesses on one account were mixed): this profile's products only.
       activeProfile.type === 'business' ? api.get(`/products/profile/${activeProfile.id}`) : Promise.resolve({data:[]}),
-      isLoggedIn ? api.get('/feed/saved/ids').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
-    ]).then(([p,r,f,o,s,a,cl,pr,saved]) => {
+    ]).then(([p,r,f,o,s,a,cl,pr]) => {
       if (p.status==='fulfilled') setProfile(p.value.data);
       if (r.status==='fulfilled') setRep(r.value.data);
       if (f.status==='fulfilled') setFeed(f.value.data || []);
@@ -455,7 +450,6 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       if (a.status==='fulfilled') setAgentData(a.value.data);
       if (cl.status==='fulfilled') setClassifieds(cl.value.data || []);
       if (pr.status==='fulfilled') setProducts(pr.value.data || []);
-      if (saved.status==='fulfilled') setSavedPostIds(saved.value.data || []);
     }).finally(() => setLoading(false));
 
     setPublicAgentData(null); setPublicHubData(null); setPublicTransportData(null);
@@ -511,10 +505,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // tab is now a thumbnail grid, so "scroll to it" doesn't show much;
   // opening it directly in the post overlay actually lands the viewer on
   // what the notification was about.
+  // Owner 2026-11-03: a post opens its own page, in the same look as Home (not the old
+  // "Announcement" sheet).
   useEffect(() => {
-    if (!highlightPostId || tab !== 'feed' || !feed.length) return;
-    setOpenPostId(highlightPostId);
-  }, [feed, tab, highlightPostId]);
+    if (!highlightPostId || tab !== 'feed' || !feed.some((f) => f.id === highlightPostId)) return;
+    onNavigate(`PostDetail-${highlightPostId}`);
+  }, [feed, tab, highlightPostId]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   useEffect(() => {
@@ -1051,7 +1047,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       : [title !== 'Moment' ? title : '', body].filter(Boolean).join('\n');
                     return (
                       <article key={f.id} ref={highlightPostId === f.id ? highlightPostRef : null}
-                        onClick={() => setOpenPostId(f.id)}
+                        onClick={() => onNavigate(`PostDetail-${f.id}`)}
                         style={{ display:'flex', gap:12, padding:'12px 16px', borderBottom:`1px solid ${LINE}`, cursor:'pointer',
                           backgroundColor: highlightPostId === f.id ? '#eff6ff' : WH }}>
                         <div style={{ width:40, height:40, borderRadius:10, overflow:'hidden', backgroundColor:INK, color:WH,
@@ -1092,36 +1088,6 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           </div>
         )}
 
-        {/* Post overlay — opened from a grid tile tap, or a deep-linked
-            notification (see the highlightPostId effect above). */}
-        {openPostId != null && (() => {
-          const openPost = feed.find(f => f.id === openPostId);
-          if (!openPost) return null;
-          return (
-            <div onClick={() => setOpenPostId(null)}
-              style={{ position:'fixed', inset:0, backgroundColor:'rgba(15,23,42,0.6)',
-                zIndex:4000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
-              <div onClick={e => e.stopPropagation()}
-                style={{ backgroundColor:WH, borderRadius:'20px 20px 0 0', width:'100%',
-                  maxWidth:480, maxHeight:'88vh', overflowY:'auto', padding:'8px 16px 16px',
-                  boxSizing:'border-box' }}>
-                <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                  <button onClick={() => setOpenPostId(null)}
-                    style={{ background:'none', border:'none', cursor:'pointer', fontSize:24,
-                      color:GR, padding:4 }}>×</button>
-                </div>
-                <FeedPost f={openPost} onNavigate={onNavigate}
-                  isLoggedIn={isLoggedIn} currentUser={currentUser}
-                  activeProfileId={viewerActiveProfileId}
-                  initiallyLiked={savedPostIds.includes(openPost.id)}
-                  onDeleted={(postId) => {
-                    setFeed(prev => prev.filter(item => item.id !== postId));
-                    setOpenPostId(null);
-                  }} />
-              </div>
-            </div>
-          );
-        })()}
 
         {/* Orders */}
         {tab==='orders' && (
@@ -1820,235 +1786,5 @@ const Empty = ({ icon, text, action, onAction }) => (
     )}
   </div>
 );
-
-// ── Flat comment thread for a feed post that ISN'T tagged to a real
-// product/classified/service — e.g. a plain announcement or "Looking For".
-// Tagged posts reuse CommerceCommentSection instead (see FeedPost below).
-const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
-  const { t } = useTranslation();
-  const [comments, setComments] = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [body,     setBody]     = useState('');
-  const [sending,  setSending]  = useState(false);
-  const [error,    setError]    = useState('');
-
-  useEffect(() => {
-    api.get(`/feed/${postId}/comments`)
-      .then(r => setComments(r.data || []))
-      .catch(() => setComments([]))
-      .finally(() => setLoading(false));
-  }, [postId]);
-
-  const handleSend = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
-    if (!body.trim()) return;
-    try {
-      setSending(true);
-      setError('');
-      const res = await api.post(`/feed/${postId}/comments`, { body: body.trim(), commerceProfileId: activeProfileId || undefined });
-      setComments(prev => [...prev, { ...res.data, replies: [] }]);
-      setBody('');
-    } catch (err) {
-      setError(err?.response?.data?.message || t('commerce_profile.post_error'));
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div style={{ marginTop:12, borderTop:'1px solid #F1F5F9', paddingTop:12 }}>
-      {loading ? (
-        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.loading_ellipsis')}</div>
-      ) : comments.length === 0 ? (
-        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.no_comments_yet')}</div>
-      ) : comments.map(c => {
-        const { name: commenterName, photo: commenterPhoto } = commenterIdentity(c);
-        return (
-        <div key={c.id} style={{ display:'flex', gap:8, marginBottom:10 }}>
-          <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
-            backgroundColor:B, display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:11, color:WH, fontWeight:800, overflow:'hidden' }}>
-            {commenterPhoto
-              ? <img src={commenterPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : (commenterName || 'U').charAt(0).toUpperCase()}
-          </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:12, fontWeight:800, color:DK }}>
-              {commenterName || t('commerce_profile.user_fallback')}
-            </div>
-            <div style={{ fontSize:12, color:DK, lineHeight:1.4 }}>{c.body}</div>
-          </div>
-        </div>
-        );
-      })}
-      {error && (
-        <div style={{ fontSize:11, color:'#DC2626', marginBottom:8, fontWeight:600 }}>{error}</div>
-      )}
-      <div style={{ display:'flex', gap:8 }}>
-        <input value={body} onChange={e => setBody(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleSend()}
-          placeholder={t('commerce_profile.write_comment_placeholder')}
-          style={{ flex:1, padding:'8px 12px', borderRadius:10, border:'1px solid #E2E8F0',
-            fontSize:12, outline:'none', fontFamily:'inherit' }} />
-        <button onClick={handleSend} disabled={sending || !body.trim()}
-          style={{ backgroundColor:B, color:WH, border:'none', borderRadius:10,
-            padding:'0 16px', cursor:'pointer', fontSize:12, fontWeight:700 }}>
-          {sending ? t('commerce_profile.sending_ellipsis') : t('commerce_profile.send_button')}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId, initiallyLiked = false, onDeleted }) => {
-  const { t } = useTranslation();
-  const [showComments, setShowComments] = useState(false);
-  const [liked, setLiked] = useState(initiallyLiked);
-  const [likeCount, setLikeCount] = useState(Number(f.saveCount || 0));
-  const [sharing, setSharing] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const isTagged = !!(f.linkedEntityType && f.linkedEntityId);
-  const isOwner = !!currentUser?.id && Number(currentUser.id) === Number(f.businessId);
-
-  const requireLogin = () => {
-    if (isLoggedIn) return true;
-    onNavigate('PublicLogin');
-    return false;
-  };
-
-  const handleLike = async () => {
-    if (!requireLogin()) return;
-    try {
-      const res = await api.post(`/feed/${f.id}/engage`, { type: 'save' });
-      const next = res.data?.toggled ?? !liked;
-      setLiked(next);
-      setLikeCount(n => Math.max(0, n + (next ? 1 : -1)));
-    } catch {}
-  };
-
-  const handleShare = async () => {
-    if (!requireLogin() || sharing) return;
-    try {
-      setSharing(true);
-      await api.post(`/feed/${f.id}/engage`, { type: 'share' }).catch(() => {});
-      const url = postLink(f.id);
-      if (navigator.share) await navigator.share({ title: f.title, url }).catch(() => {});
-      else await navigator.clipboard?.writeText(url);
-    } finally {
-      setSharing(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!isOwner || deleting) return;
-    if (!window.confirm('Delete this post?')) return;
-    try {
-      setDeleting(true);
-      await api.delete(`/feed/${f.id}`);
-      onDeleted?.(f.id);
-    } catch {
-      setDeleting(false);
-    }
-  };
-
-  // Was completely unclickable — tapping the photo/title did nothing except
-  // the explicit comment/CTA buttons. Tagged posts (product/service/
-  // classified) have a real detail page to land on; a plain untagged
-  // announcement has nothing to navigate to, so it correctly stays inert.
-  const goToDetail = () => {
-    if (!isTagged) return;
-    if (f.linkedEntityType === 'product') onNavigate(`ProductDetail-${f.linkedEntityId}`);
-    else if (f.linkedEntityType === 'service') onNavigate(`ServiceDetail-${f.linkedEntityId}`);
-    else onNavigate(`ClassifiedDetail-${f.linkedEntityId}`);
-  };
-
-  return (
-    <div style={{ backgroundColor:WH, borderRadius:14, padding:16,
-      marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-      <div style={{ display:'flex', justifyContent:'space-between',
-        marginBottom:8 }}>
-        <span style={{ fontSize:10, fontWeight:800, color:B,
-          backgroundColor:'#eff6ff', padding:'2px 10px', borderRadius:100 }}>
-          {f.type==='new_product'?t('commerce_profile.type_new_product'):
-           f.type==='discount'?t('commerce_profile.type_discount'):
-           f.type==='restock'?t('commerce_profile.type_restock'):t('commerce_profile.type_announcement')}
-        </span>
-        <span style={{ fontSize:10, color:'#94a3b8' }}>
-          {new Date(f.createdAt).toLocaleDateString('en-GB')}
-        </span>
-      </div>
-      <div onClick={goToDetail}
-        style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4,
-          cursor: isTagged ? 'pointer' : 'default' }}>{f.title}</div>
-      {f.body && <div style={{ fontSize:12, color:'#475569', lineHeight:1.5 }}>{f.body}</div>}
-      {f.imageUrl && (
-        // maxHeight was 200 — aggressively cropped any portrait photo (the
-        // common case for a phone-camera product shot) since objectFit:cover
-        // forces that height regardless of the image's real aspect ratio.
-        // Matches HomeFeed.js's own feed-image treatment (maxHeight:420) so
-        // the same photo doesn't get cropped differently in the two places
-        // it appears.
-        <img src={f.imageUrl} alt="" onClick={goToDetail} style={{ width:'100%', borderRadius:10,
-          marginTop:10, maxHeight:420, objectFit:'cover',
-          cursor: isTagged ? 'pointer' : 'default' }} />
-      )}
-      {(likeCount > 0 || (f.commentCount||0) > 0) && (
-        <div style={{ fontSize:12, fontWeight:700, color:DK, marginTop:10 }}>
-          {likeCount > 0 && t('commerce_profile.liked_count', { count: likeCount.toLocaleString() })}
-          {likeCount > 0 && (f.commentCount||0) > 0 && '  ·  '}
-          {(f.commentCount||0) > 0 && t('commerce_profile.comment_count', { count: Number(f.commentCount) })}
-        </div>
-      )}
-      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8,
-        borderTop:'1px solid #F1F5F9', borderBottom:'1px solid #F1F5F9', padding:'6px 0' }}>
-        <button onClick={handleLike}
-          style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
-            color: liked ? '#DC2626' : GR, fontSize:13, fontWeight:800 }}>
-          <LineIcon name="heart" size={16} color={liked ? '#dc2626' : 'currentColor'} /> Like
-        </button>
-        <button onClick={() => setShowComments(s => !s)}
-          style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
-            color: showComments ? B : GR, fontSize:13, fontWeight:800 }}>
-          Comment
-        </button>
-        <button onClick={handleShare} disabled={sharing}
-          style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
-            color:GR, fontSize:13, fontWeight:800, opacity:sharing ? 0.6 : 1 }}>
-          Share
-        </button>
-        {isOwner && (
-          <button onClick={handleDelete} disabled={deleting}
-            style={{ background:'none', border:'none', cursor:'pointer', padding:'8px 8px',
-              color:'#DC2626', fontSize:13, fontWeight:800, opacity:deleting ? 0.6 : 1 }}>
-            Delete
-          </button>
-        )}
-      </div>
-      {f.ctaLabel && f.linkedEntityId && (
-        <button onClick={() => onNavigate(`ClassifiedDetail-${f.linkedEntityId}`)}
-          style={{ marginTop:10, backgroundColor:B, color:WH,
-            border:'none', borderRadius:8, padding:'8px 18px',
-            cursor:'pointer', fontSize:12, fontWeight:700 }}>
-          {f.ctaLabel}
-        </button>
-      )}
-      {showComments && (
-        isTagged ? (
-          <div style={{ marginTop:12, borderTop:'1px solid #F1F5F9', paddingTop:12,
-            marginLeft:-16, marginRight:-16, marginBottom:-16 }}>
-            <CommerceCommentSection
-              entityType={f.linkedEntityType} entityId={f.linkedEntityId}
-              entityTitle={f.title} sellerId={f.businessId}
-              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate}
-              activeProfileId={activeProfileId} />
-          </div>
-        ) : (
-          <PostThread postId={f.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate}
-            activeProfileId={activeProfileId} />
-        )
-      )}
-    </div>
-  );
-};
 
 export default CommerceProfile;
