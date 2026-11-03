@@ -14,6 +14,7 @@
  * app on the desktop, /pos opens even without internet (public/service-worker.js).
  * The same stock serves the KenteXa shop online and this till.
  */
+import { enterPosApp } from '../../utils/posApp';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import BackBar from '../components/BackBar';
 import PosToday from '../components/PosToday';
@@ -133,6 +134,8 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
     const list = Array.isArray(r?.data?.cashiers) ? r.data.cashiers : [];
     setCashiers(list); saveCashiers(activeContext?.userId ?? null, list);
   }).catch(() => {}), [activeContext?.userId]);
+  // One click to the till (owner 2026-11-03): address /pos and the "KenteXa POS" install.
+  useEffect(() => enterPosApp(), []);
   useEffect(() => { if (online && !offlineBoot) refreshCashiers(); }, [online, offlineBoot, refreshCashiers]);
   const pickCashier = (c) => { setOnDuty(c); saveOnDuty(c); setShowSwitch(false); setShiftWarn(false); };
   const openSwitch = () => {
@@ -426,7 +429,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
         {/* POS part 3 (owner 2026-11-03): Stoo and Madeni open beside the till. */}
         {online && !offlineBoot && <button type="button" data-testid="pos-stock-open" style={pill} onClick={() => setPanel('stock')}>Stoo</button>}
         {online && !offlineBoot && <button type="button" data-testid="pos-debts-open" style={pill} onClick={() => setPanel('debts')}>Madeni</button>}
-        {canInstallKentexa && <button type="button" style={{ ...pill, borderColor: BLUE, color: BLUE }} onClick={onInstallKentexa}>Weka kwenye kompyuta</button>}
+        {canInstallKentexa && <button type="button" style={{ ...pill, borderColor: BLUE, color: BLUE }} onClick={onInstallKentexa}>Weka POS kwenye kompyuta</button>}
       </header>
 
       {(error || notice) && (
