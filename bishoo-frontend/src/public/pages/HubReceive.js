@@ -9,10 +9,10 @@ import { isAppleMobile } from '../utils/isAppleMobile';
  * from sellers physically arriving with their goods.
  *
  * Workflow:
- * 1. Seller arrives with parcel → gives Super Agent tracking number
+ * 1. Seller arrives with parcel  gives Super Agent tracking number
  * 2. Super Agent types/scans tracking number here
  * 3. System looks up the parcel in today's batch
- * 4. Super Agent confirms receipt → status changes to 'at_hub'
+ * 4. Super Agent confirms receipt  status changes to 'at_hub'
  * 5. Parcel is ready for van loading
  */
 
@@ -115,24 +115,24 @@ const HubReceive = ({ onNavigate }) => {
     ?.filter(p => p.status === 'at_hub')?.length || 0;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('DispatcherManifest')} title={t('hub_receive.page_title')} top={0} />
 
       {/* Status banner */}
       {todaySummary?.batch && (
-        <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '12px 16px' }}>
+        <div style={{ background: '#fff', borderBottom: '1px solid #eff3f4', padding: '12px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: 640, margin: '0 auto' }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
+            <div style={{ fontSize: 14, color: '#536471' }}>
               {t('hub_receive.batch_today_label', { count: todaySummary.totalParcels })}
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight:800, color: '#fbbf24' }}>{awaitingCount}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{t('hub_receive.awaiting_label')}</div>
+                <div style={{ fontSize: 18, fontWeight:800, color: '#92400e' }}>{awaitingCount}</div>
+                <div style={{ fontSize: 12, color: '#536471' }}>{t('hub_receive.awaiting_label')}</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight:800, color: '#4ade80' }}>{atHubCount}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{t('hub_receive.at_hub_label')}</div>
+                <div style={{ fontSize: 18, fontWeight:800, color: '#05603a' }}>{atHubCount}</div>
+                <div style={{ fontSize: 12, color: '#536471' }}>{t('hub_receive.at_hub_label')}</div>
               </div>
             </div>
           </div>
@@ -142,7 +142,7 @@ const HubReceive = ({ onNavigate }) => {
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 
         {/* Search box */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, outline: '1px solid #eff3f4', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
             {t('hub_receive.search_box_title')}
           </div>
@@ -159,14 +159,14 @@ const HubReceive = ({ onNavigate }) => {
               onBlur={e => e.target.style.border = '2px solid #e2e8f0'}
             />
             <button onClick={handleSearch} disabled={searching}
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '13px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-              {searching ? '⏳' : '🔍'}
+              style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '13px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
+              {searching ? 'Inatafuta…' : 'Tafuta'}
             </button>
           </div>
 
           {error && (
             <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginTop: 10, fontSize: 13 }}>
-              ❌ {error}
+              {error}
             </div>
           )}
           {success && (
@@ -178,7 +178,7 @@ const HubReceive = ({ onNavigate }) => {
 
         {/* Parcel found — confirm receipt */}
         {parcel && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16, border: '2px solid #1d4ed8' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, outline: '1px solid #eff3f4', marginBottom: 16, border: '2px solid #1d4ed8' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 14 }}>
               {t('hub_receive.parcel_found_title')}
             </div>
@@ -210,7 +210,7 @@ const HubReceive = ({ onNavigate }) => {
               </div>
             ) : (
               <button onClick={handleReceive} disabled={receiving}
-                style={{ width: '100%', background: receiving ? '#93c5fd' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: receiving ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginTop: 16, boxShadow: '0 4px 14px rgba(22,163,74,0.3)' }}>
+                style={{ width: '100%', background: receiving ? '#93c5fd' : '#0f1419', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: receiving ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginTop: 16, outline: '1px solid #eff3f4' }}>
                 {receiving ? t('hub_receive.receiving_button') : t('hub_receive.receive_button')}
               </button>
             )}
@@ -224,7 +224,7 @@ const HubReceive = ({ onNavigate }) => {
 
         {/* Today's awaiting parcels */}
         {todaySummary?.zones && awaitingCount > 0 && !parcel && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4', marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
               {t('hub_receive.awaiting_parcels_title', { count: awaitingCount })}
             </div>
@@ -251,7 +251,7 @@ const HubReceive = ({ onNavigate }) => {
 
         {/* Recently received */}
         {recentlyReceived.length > 0 && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
               {t('hub_receive.recently_received_title', { count: recentlyReceived.length })}
             </div>
@@ -269,12 +269,11 @@ const HubReceive = ({ onNavigate }) => {
 
         {/* No batch */}
         {!todaySummary?.batch && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, textAlign: 'center', outline: '1px solid #eff3f4' }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('hub_receive.no_batch_title')}</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{t('hub_receive.no_batch_desc')}</div>
             <button onClick={() => onNavigate('DispatcherManifest')}
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
+              style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
               {t('hub_receive.view_manifest_button')}
             </button>
           </div>

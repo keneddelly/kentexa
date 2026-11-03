@@ -10,7 +10,7 @@ import api from '../../api/api';
  * Used by Kariakoo Super Agent (dispatcher) on his phone via kentexa.com
  *
  * Shows today's batch manifest grouped by zone in route order:
- * Kariakoo Hub → Mbagala → Mbezi → Bunju
+ * Kariakoo Hub  Mbagala  Mbezi  Bunju
  *
  * Actions:
  * - Mark van departed (with driver info)
@@ -32,7 +32,7 @@ const PARCEL_STATUS_COLOR = {
   awaiting_handover: { bg: '#fef9c3', color: '#ca8a04' },
   at_hub:            { bg: '#dbeafe', color: '#2563eb' },
   on_van:            { bg: '#e0f2fe', color: '#0284c7' },
-  at_zone:           { bg: '#ede9fe', color: '#7c3aed' },
+  at_zone:           { bg: '#f7f9f9', color: '#0f1419' },
   out_for_delivery:  { bg: '#dcfce7', color: '#16a34a' },
   delivered:         { bg: '#f0fdf4', color: '#15803d' },
   returned:          { bg: '#fee2e2', color: '#dc2626' },
@@ -149,7 +149,7 @@ const DispatcherManifest = ({ onNavigate }) => {
   const hasLeft   = batch && ['departed', 'in_progress', 'completed'].includes(batch.status);
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title={t('dispatcher_manifest.page_title')} top={0} />
       <div style={{ textAlign: 'center', padding: '60px 16px', color: '#64748b' }}>
         <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Spinner size={28} color="#94a3b8" /></div>
@@ -159,7 +159,7 @@ const DispatcherManifest = ({ onNavigate }) => {
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
       <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title={t('dispatcher_manifest.page_title')} top={0}
         right={<button onClick={() => onNavigate('HubReceive')} style={{ background:'none', border:'none', color:'#f59e0b', fontWeight:800, fontSize:13, cursor:'pointer' }}>{t('dispatcher_manifest.receive_button')}</button>}
       />
@@ -187,7 +187,7 @@ const DispatcherManifest = ({ onNavigate }) => {
 
         {/* No batch today */}
         {!batch && !error && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', outline: '1px solid #eff3f4' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="box" size={40} color="#94a3b8" /></div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('dispatcher_manifest.no_batch_title')}</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>
@@ -214,11 +214,11 @@ const DispatcherManifest = ({ onNavigate }) => {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => onNavigate('BatchHandoff')}
-                style={{ flex: 2, background: 'linear-gradient(135deg,#16a34a,#22c55e)', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
+                style={{ flex: 2, background: '#0f1419', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
                 {t('dispatcher_manifest.manual_order_button')}
               </button>
               <button onClick={fetchManifest}
-                style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                style={{ flex: 1, background: '#0f1419', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
                 {t('dispatcher_manifest.refresh_button')}
               </button>
             </div>
@@ -228,7 +228,7 @@ const DispatcherManifest = ({ onNavigate }) => {
         {batch && (
           <>
             {/* Batch Status Card */}
-            <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+            <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4', marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('dispatcher_manifest.batch_today_label')}</div>
@@ -290,8 +290,8 @@ const DispatcherManifest = ({ onNavigate }) => {
                 </span>
                 {zones.sort((a,b) => a.routeOrder - b.routeOrder).map(zone => (
                   <React.Fragment key={zone.zoneId}>
-                    <span style={{ color: '#94a3b8', fontSize: 16 }}>→</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', padding: '4px 10px', backgroundColor: '#ede9fe', borderRadius: 20 }}>
+                    <span style={{ color: '#94a3b8', fontSize: 16 }}></span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0f1419', padding: '4px 10px', backgroundColor: '#f7f9f9', borderRadius: 20 }}>
                       {zone.zoneName} ({zone.parcels.length})
                     </span>
                   </React.Fragment>
@@ -301,7 +301,7 @@ const DispatcherManifest = ({ onNavigate }) => {
               {/* Main action button */}
               {canDepart && totalParcels > 0 && (
                 <button onClick={() => setShowDepartModal(true)}
-                  style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 800, boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
+                  style={{ width: '100%', background: '#0f1419', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 800, outline: '1px solid #eff3f4' }}>
                   {t('dispatcher_manifest.depart_button', { count: totalParcels })}
                 </button>
               )}
@@ -329,13 +329,13 @@ const DispatcherManifest = ({ onNavigate }) => {
               const zoneArrived = zone.parcels.some(p => ['at_zone','out_for_delivery','delivered'].includes(p.status));
 
               return (
-                <div key={zone.zoneId} style={{ backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                <div key={zone.zoneId} style={{ backgroundColor: '#fff', borderRadius: 16, marginBottom: 12, outline: '1px solid #eff3f4', overflow: 'hidden' }}>
 
                   {/* Zone header */}
                   <button
                     onClick={() => setExpandedZone(isExpanded ? null : zone.zoneId)}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: allDelivered ? 'linear-gradient(135deg,#16a34a,#22c55e)' : 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight:800, fontSize: 14, flexShrink: 0 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: allDelivered ? '#0f1419' : '#0f1419', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight:800, fontSize: 14, flexShrink: 0 }}>
                       {zIdx + 1}
                     </div>
                     <div style={{ flex: 1 }}>
@@ -359,7 +359,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                   {hasLeft && !zoneArrived && (
                     <div style={{ padding: '0 16px 14px' }}>
                       <button onClick={() => handleZoneArrival(zone.zoneId)}
-                        style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                        style={{ width: '100%', background: '#0f1419', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                         {t('dispatcher_manifest.zone_arrived_button', { zone: zone.zoneName })}
                       </button>
                     </div>
@@ -409,7 +409,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                             )}
                             {['at_zone','out_for_delivery'].includes(parcel.status) && (
                               <button onClick={() => setConfirmParcel(parcel)}
-                                style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#22c55e)', color: '#fff', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                                style={{ flex: 1, background: '#0f1419', color: '#fff', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                 {t('dispatcher_manifest.confirm_delivery_button')}
                               </button>
                             )}
@@ -470,7 +470,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                 {t('dispatcher_manifest.cancel_button')}
               </button>
               <button onClick={handleDepart} disabled={departing}
-                style={{ flex: 2, background: departing ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: departing ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 14 }}>
+                style={{ flex: 2, background: departing ? '#93c5fd' : '#0f1419', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: departing ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 14 }}>
                 {departing ? t('dispatcher_manifest.sending_button') : t('dispatcher_manifest.depart_with_parcels_button', { count: totalParcels })}
               </button>
             </div>
@@ -503,7 +503,7 @@ const DispatcherManifest = ({ onNavigate }) => {
                 {t('dispatcher_manifest.cancel_button')}
               </button>
               <button onClick={() => handleParcelDelivered(confirmParcel.parcelId)}
-                style={{ flex: 2, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
+                style={{ flex: 2, background: '#0f1419', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
                 {t('dispatcher_manifest.delivered_button')}
               </button>
             </div>

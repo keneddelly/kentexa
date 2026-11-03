@@ -127,7 +127,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
   const statusColor = (status) => ({
     pending_payment:  '#f59e0b',
     paid:             '#3b82f6',
-    preparing:        '#8b5cf6',
+    preparing:        '#0f1419',
     in_transit:       '#f97316',
     ready_for_pickup: '#06b6d4',
     delivered:        '#10b981',
@@ -148,7 +148,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
         <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px' }}>
           <button onClick={() => onNavigate('back')} style={{ background:'none', border:'none', cursor:'pointer',
             display:'flex', alignItems:'center', gap:8, padding:0 }}>
@@ -163,7 +163,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
   if (error && !order) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
         <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px' }}>
           <button onClick={() => onNavigate('back')} style={{ background:'none', border:'none', cursor:'pointer',
             display:'flex', alignItems:'center', gap:8, padding:0 }}>
@@ -191,7 +191,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
   const API_URL = API_BASE_URL;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
 
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid #eff3f4', padding: '12px 16px 16px' }}>
@@ -230,14 +230,17 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
         {/* Action message */}
         {/* Seller rating — shown after buyer confirms delivery */}
         {showRating && !ratingSubmitted && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', marginBottom: 16, border: '2px solid #fde68a' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, outline: '1px solid #eff3f4', marginBottom: 16, border: '2px solid #fde68a' }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>{t('order_tracking.rate_seller_title')}</h3>
             <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 14px' }}>{t('order_tracking.rate_seller_desc')}</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
               {[1,2,3,4,5].map(star => (
-                <button key={star} onClick={() => setSellerRating(star)}
-                  style={{ fontSize: 28, background: 'none', border: 'none', cursor: 'pointer', opacity: star <= sellerRating ? 1 : 0.3 }}>
-                  ⭐
+                <button key={star} type="button" aria-label={`Nyota ${star}`} onClick={() => setSellerRating(star)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.5 1.3 6.6L12 17.2l-5.9 3.3 1.3-6.6-4.9-4.5 6.6-.8z"
+                      fill={star <= sellerRating ? '#f59e0b' : 'none'} stroke={star <= sellerRating ? '#f59e0b' : '#cfd9de'} strokeWidth="1.5" strokeLinejoin="round" />
+                  </svg>
                 </button>
               ))}
             </div>
@@ -246,7 +249,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
               rows={2} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', marginBottom: 10, resize: 'vertical' }} />
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={handleSubmitRating} disabled={sellerRating === 0}
-                style={{ flex: 1, background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '10px', borderRadius: 8, cursor: sellerRating === 0 ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
+                style={{ flex: 1, background: '#0f1419', color: '#1e293b', border: 'none', padding: '10px', borderRadius: 8, cursor: sellerRating === 0 ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
                 {t('order_tracking.submit_rating_button')}
               </button>
               <button onClick={() => setShowRating(false)}
@@ -287,7 +290,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
               style={{ marginTop: 12, backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '0 18px', height: 44, borderRadius: 22, cursor: 'pointer', fontSize: 14, fontWeight: 700, fontFamily: 'inherit' }}>
               {t('order_tracking.view_live_tracking')}
             </button>
-            {/* Buyer → Seller WhatsApp — same info a tap away, no need to call */}
+            {/* Buyer  Seller WhatsApp — same info a tap away, no need to call */}
             <a
               href={buildBuyerInquiryMessage(order.seller?.storeWhatsApp || order.seller?.phone, {
                 trackingNumber:  order.trackingNumber,
@@ -311,7 +314,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
           codAmount={order.paymentMethod === 'cod' && !order.codBalanceCollected ? Number(order.codRemainingBalance) || 0 : 0} />
 
         {/* Tracking Timeline */}
-        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, outline: '1px solid #eff3f4', marginBottom: 16 }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 24px' }}>{t('order_tracking.order_tracking_title')}</h2>
           <div style={{ position: 'relative' }}>
             <div style={{ position: 'absolute', left: 15, top: 16, bottom: 16, width: 2, background: '#eff3f4' }} />
@@ -339,7 +342,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
         {/* Shipping proof — show when shipped */}
         {order?.shippingProductImage && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4', marginBottom: 16 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('order_tracking.shipping_proof_title')}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
@@ -358,7 +361,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
         {/* Buyer action — Confirm or Dispute */}
         {canConfirmOrDispute && order.status !== 'disputed' && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4', marginBottom: 16 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px' }}>{t('order_tracking.received_question_title')}</h3>
             <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 14px' }}>
               {t('order_tracking.received_question_desc')}
@@ -367,7 +370,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             {!showDispute ? (
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={handleConfirm} disabled={actionLoading}
-                  style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '12px', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
+                  style={{ flex: 1, background: '#0f1419', color: '#fff', border: 'none', padding: '12px', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
                   {actionLoading ? <Spinner size={18} color="#fff" /> : t('order_tracking.confirm_received_button')}
                 </button>
                 <button onClick={() => setShowDispute(true)}
@@ -419,7 +422,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
         {/* Order Details */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, outline: '1px solid #eff3f4' }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('order_tracking.product_title')}</h3>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <div style={{ width: 48, height: 48, borderRadius: 8, backgroundColor: '#f1f5f9', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -433,7 +436,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, outline: '1px solid #eff3f4' }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('order_tracking.delivery_title')}</h3>
             {[
               { label: t('order_tracking.deliver_to_label'), value: order?.recipientName || order?.buyer?.name || '—' },
@@ -454,7 +457,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
         {/* Cash on Delivery breakdown */}
         {order?.paymentMethod === 'cod' && !isDirectPaymentOrder(order) && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16, border: '2px solid #fde68a' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, outline: '1px solid #eff3f4', marginBottom: 16, border: '2px solid #fde68a' }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: '#92400e', margin: '0 0 12px' }}>{t('order_tracking.cod_title')}</h3>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
               <span style={{ color: '#64748b' }}>{t('order_tracking.cod_total_label')}</span>
@@ -479,7 +482,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
         {/* Invoice */}
         {invoice && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, outline: '1px solid #eff3f4', marginBottom: 16 }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('order_tracking.invoice_title')}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
               {[
@@ -496,12 +499,12 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             {invoice.invoiceNumber && (
               <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <a href={`${API_URL}/invoices/number/${invoice.invoiceNumber}/pdf`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: 'inline-block', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  style={{ display: 'inline-block', background: '#0f1419', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                   {t('order_tracking.download_invoice')}
                 </a>
                 {invoice.receiptNumber && (
                   <a href={`${API_URL}/invoices/receipt/${invoice.receiptNumber}/pdf`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-block', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                    style={{ display: 'inline-block', background: '#0f1419', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                     {t('order_tracking.download_receipt')}
                   </a>
                 )}
@@ -513,8 +516,8 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
         {/* Actions */}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => onNavigate(ordersPage)} style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.all_orders_button')}</button>
-          {!sellerView && <button onClick={() => onNavigate('Stores')} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.shop_more_button')}</button>}
-          <button onClick={fetchOrderData} style={{ backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.refresh_button')}</button>
+          {!sellerView && <button onClick={() => onNavigate('Stores')} style={{ background: '#0f1419', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.shop_more_button')}</button>}
+          <button onClick={fetchOrderData} style={{ backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('order_tracking.refresh_button')}</button>
         </div>
       </div>
       <div style={{ height: 90 }} />

@@ -294,7 +294,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#fff' }}>
         <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px' }}>
           <button onClick={() => onNavigate('Home')} style={{ background:'none', border:'none', cursor:'pointer',
             display:'flex', alignItems:'center', gap:8, padding:0 }}>
@@ -308,7 +308,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
       <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
         position:'sticky', top:0, zIndex:100 }}>
         <button onClick={() => onNavigate('Home')} style={{ background:'none', border:'none', cursor:'pointer',
@@ -352,7 +352,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
           ].map(stat => (
             <div key={stat.label} style={{
               backgroundColor: '#fff', borderRadius: '10px', padding: '16px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              outline: '1px solid #eff3f4',
               borderTop: `3px solid ${stat.color}`, textAlign: 'center',
             }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}><LineIcon name={stat.icon} size={20} color={stat.color} /></div>
@@ -376,7 +376,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                 cursor: 'pointer', fontSize: '14px', fontWeight: '700',
                 backgroundColor: activeTab === tab.key ? '#6366f1' : '#fff',
                 color: activeTab === tab.key ? '#fff' : '#64748b',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                outline: '1px solid #eff3f4',
                 display: 'flex', alignItems: 'center', gap: '8px',
               }}
             >
@@ -410,7 +410,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                     cursor: 'pointer', fontSize: '13px', fontWeight: '600',
                     backgroundColor: filter === status ? '#6366f1' : '#fff',
                     color: filter === status ? '#fff' : '#64748b',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    outline: '1px solid #eff3f4',
                   }}
                 >
                   {label}
@@ -419,7 +419,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
             </div>
 
             {filteredOrders.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '12px', outline: '1px solid #eff3f4' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}><LineIcon name="cart" size={44} color="#94a3b8" /></div>
                 <h3 style={{ color: '#0f172a', marginBottom: '8px' }}>{t('my_orders.no_orders')}</h3>
                 <p style={{ color: '#64748b', marginBottom: '24px' }}>{t('my_orders.no_orders_desc')}</p>
@@ -517,7 +517,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           </div>
                         )}
                         {order.seller && (
-                          <div style={{ fontSize: '12px', color: '#7c3aed', marginTop: '4px' }}>
+                          <div style={{ fontSize: '12px', color: '#0f1419', marginTop: '4px' }}>
                             {t('my_orders.seller_label', { name: order.seller?.storeName || order.seller?.businessName || order.seller?.name || '—' })}
                           </div>
                         )}
@@ -588,7 +588,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         );
                       }
                       return (
-                        <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ background: '#0f1419', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                           <div style={{ fontSize: '13px', color: '#fff' }}>
                             {isCodOrder ? t('my_orders.cod_deposit_notice', { amount: codUpfront.toLocaleString() }) : t('my_orders.payment_not_completed')}
                           </div>
@@ -604,14 +604,14 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
                     {/* Download — paid digital product orders */}
                     {order.product?.productType === 'digital' && order.paymentStatus === 'paid' && (
-                      <div style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ background: '#0f1419', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ fontSize: '13px', color: '#fff' }}>
                           {t('my_orders.digital_file_ready')}
                         </div>
                         <button
                           onClick={() => handleDownload(order)}
                           disabled={downloadingOrderId === order.id}
-                          style={{ backgroundColor: '#fff', color: '#7c3aed', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: downloadingOrderId === order.id ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '800', whiteSpace: 'nowrap' }}
+                          style={{ backgroundColor: '#fff', color: '#0f1419', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: downloadingOrderId === order.id ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '800', whiteSpace: 'nowrap' }}
                         >
                           {downloadingOrderId === order.id ? t('my_orders.downloading') : t('my_orders.download_file')}
                         </button>
@@ -638,7 +638,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       )}
                       <button
                         onClick={() => onNavigate(`TrackParcel-KTX-ORD-${order.id}`)}
-                        style={{ backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                        style={{ backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                       >
                         {t('my_orders.track_button')}
                       </button>
@@ -716,7 +716,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         {activeTab === 'invoices' && (
           <div>
             {classifiedInvoices.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '12px', outline: '1px solid #eff3f4' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="receipt" size={40} color="#1d4ed8" /></div>
                 <h3 style={{ color: '#0f172a', marginBottom: '8px' }}>{t('my_orders.no_invoices')}</h3>
                 <p style={{ color: '#64748b', marginBottom: '24px' }}>
@@ -743,7 +743,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                   return (
                   <div key={inv.id} style={{
                     backgroundColor: '#fff', borderRadius: '12px', padding: '24px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9',
+                    outline: '1px solid #eff3f4', border: '1px solid #f1f5f9',
                   }}>
                     {/* Invoice Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
@@ -940,7 +940,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             )}
                             <button onClick={() => onNavigate(`TrackParcel-${inv.shipment.trackingNumber}`)}
                               style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '9px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                              {t('my_orders.track_shipment_button')} →
+                              {t('my_orders.track_shipment_button')} 
                             </button>
                           </div>
                         )}
@@ -948,7 +948,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         {inv.invoiceNumber && (
                           <div style={{ display: 'flex', gap: 8 }}>
                             <a href={`${API_URL}/invoices/number/${inv.invoiceNumber}/pdf`} target="_blank" rel="noreferrer"
-                              style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#ede9fe', color: '#7c3aed', textDecoration: 'none', padding: '9px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                              style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', textDecoration: 'none', padding: '9px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                               {t('my_orders.download_invoice_button')}
                             </a>
                           </div>
@@ -967,7 +967,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
       {/* ══════════════════════════ PAY NOW MODAL ══════════════════════════ */}
       {payModalOrder && (
         <div onClick={closePayModal} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 2000 }}>
-          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: '#fff', borderRadius: 20, padding: '24px 20px', textAlign: 'center', width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: '#fff', borderRadius: 20, padding: '24px 20px', textAlign: 'center', width: '100%', maxWidth: 420, outline: '1px solid #eff3f4', maxHeight: '90vh', overflowY: 'auto' }}>
 
             {payMode !== 'agent' ? (
               <>
@@ -1006,7 +1006,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button onClick={() => setPayMode(null)} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('my_orders.cancel')}</button>
                           <button onClick={handlePayOnline} disabled={paying || !payerPhone.trim()}
-                            style={{ flex: 2, background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
+                            style={{ flex: 2, background: paying || !payerPhone.trim() ? '#e2e8f0' : '#0f1419', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
                             {paying ? <Spinner size={16} color="currentColor" /> : t('my_orders.pay_amount_button', { amount: modalDueNow.toLocaleString() })}
                           </button>
                         </div>
@@ -1066,7 +1066,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                   <button onClick={() => setPayMode(null)} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('my_orders.back_button')}</button>
-                  <button onClick={closePayModal} style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('my_orders.done_button')}</button>
+                  <button onClick={closePayModal} style={{ flex: 1, background: '#0f1419', color: '#fff', border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>{t('my_orders.done_button')}</button>
                 </div>
               </>
             )}
