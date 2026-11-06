@@ -56,6 +56,7 @@ import { InstagramOAuthState } from './entities/instagram-oauth-state.entity';
 import { InstagramOAuthService } from './instagram-oauth.service';
 import { InstagramOAuthController } from './instagram-oauth.controller';
 import { InstagramOAuthCallbackController } from './instagram-oauth-callback.controller';
+import { InstagramMessagingService } from './instagram-messaging.service';
 
 @Module({
   imports: [
@@ -127,6 +128,7 @@ import { InstagramOAuthCallbackController } from './instagram-oauth-callback.con
     InstagramTokenCryptoService,
     InstagramBusinessConnectionService,
     InstagramOAuthService,
+    InstagramMessagingService,
   ],
   exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService, InstagramTokenCryptoService, InstagramBusinessConnectionService],
 })
