@@ -956,6 +956,10 @@ export class ConversationService {
     // already resolved its own, different, trusted owner).
     callerWorkspaceHint?: WorkspaceHint,
   ): Promise<Conversation> {
+    // Resolve the CRM channel before matching so external threads never reuse Kentexa chats.
+    const customer = await this.customerRepo.findOne({ where: { id: customerId, sellerId }, relations: { seller: true } });
+    if (!customer) throw new NotFoundException('Customer not found');
+    const conversationChannel = customer.channel || 'kentexa';
     // Never trust a client-supplied commerceProfileId blindly — must
     // actually belong to this seller, same authorization posture as
     // FeedService.publish()/ClassifiedsService.create(). An id that
@@ -999,22 +1003,9 @@ export class ConversationService {
           : null)
       : ownerWorkspaceOverride;
 
-    // Communication canonicality fix: lookup, insert, and the 23505-
-    // recovery re-fetch below all key on the SAME (sellerId, customerId,
-    // commerceProfileId, ownerWorkspaceType, ownerWorkspaceId) tuple that
-    // migration AddConversationOperationalOwnerUniqueness's four partial
-    // indexes now enforce -- a Seller conversation and a Super Agent
-    // conversation for the very same (sellerId, customerId) pair are
-    // different rows because ownerWorkspaceType/Id differ, never collapsed
-    // just because both belong to the same underlying User.
-    //
-    // Was missing commerceProfileId here — the entity's own comment already
-    // documents the intent ("must land in two conversations that each show
-    // the correct identity"), but this lookup ignored it, so a buyer
-    // messaging the seller's personal profile and, separately, their
-    // business profile got silently merged into whichever conversation was
-    // already OPEN: messages meant for one identity showed up under the
-    // other's inbox.
+    // Conversation identity includes channel as well as seller/customer,
+    // commerce profile, and owning workspace. This keeps Instagram and
+    // Kentexa threads distinct for the same customer and seller.
     let convo = await this.convoRepo.findOne({
       where: {
         sellerId,
