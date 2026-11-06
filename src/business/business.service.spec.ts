@@ -102,6 +102,7 @@ describe('BusinessService.create() -- Business-First Stage 1 workspace bootstrap
     expect(membership).toBeTruthy();
     const assignment = await assignmentRepo().findOne({ where: { businessMembershipId: membership!.id, workspaceId: workspace!.id } });
     expect(assignment).toBeTruthy();
+    expect(assignment?.permissions).toEqual({ canManageIntegrations: true });
   });
 
   // Business Capability Activation Stage B1 (§2/§3/§19 of the mission):

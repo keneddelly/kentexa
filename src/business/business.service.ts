@@ -478,7 +478,9 @@ export class BusinessService {
           businessMembershipId: membership.id,
           workspaceId: workspace.id,
           status: WorkspaceAssignmentStatus.ACTIVE,
-          permissions: {},
+          // The Business owner controls channel integrations for this Business.
+          // Staff and managers receive no implicit grant; their permissions remain explicit.
+          permissions: { canManageIntegrations: true },
         }),
       );
 
