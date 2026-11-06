@@ -68,19 +68,19 @@ export enum ConversationClassificationStatus {
 //   - ownerWorkspaceType resolved + no commerceProfileId
 //   - ownerWorkspaceType NULL (legacy/personal) + specific commerceProfileId
 //   - ownerWorkspaceType NULL (legacy/personal) + no commerceProfileId
-@Index('idx_conversation_unique_workspace_with_profile', ['sellerId', 'customerId', 'ownerWorkspaceType', 'ownerWorkspaceId', 'commerceProfileId'], {
+@Index('idx_conversation_unique_workspace_with_profile', ['sellerId', 'customerId', 'channel', 'ownerWorkspaceType', 'ownerWorkspaceId', 'commerceProfileId'], {
   unique: true,
   where: '"ownerWorkspaceType" IS NOT NULL AND "commerceProfileId" IS NOT NULL',
 })
-@Index('idx_conversation_unique_workspace_no_profile', ['sellerId', 'customerId', 'ownerWorkspaceType', 'ownerWorkspaceId'], {
+@Index('idx_conversation_unique_workspace_no_profile', ['sellerId', 'customerId', 'channel', 'ownerWorkspaceType', 'ownerWorkspaceId'], {
   unique: true,
   where: '"ownerWorkspaceType" IS NOT NULL AND "commerceProfileId" IS NULL',
 })
-@Index('idx_conversation_unique_legacy_with_profile', ['sellerId', 'customerId', 'commerceProfileId'], {
+@Index('idx_conversation_unique_legacy_with_profile', ['sellerId', 'customerId', 'channel', 'commerceProfileId'], {
   unique: true,
   where: '"ownerWorkspaceType" IS NULL AND "commerceProfileId" IS NOT NULL',
 })
-@Index('idx_conversation_unique_legacy_no_profile', ['sellerId', 'customerId'], {
+@Index('idx_conversation_unique_legacy_no_profile', ['sellerId', 'customerId', 'channel'], {
   unique: true,
   where: '"ownerWorkspaceType" IS NULL AND "commerceProfileId" IS NULL',
 })
