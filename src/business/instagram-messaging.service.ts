@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { InstagramBusinessConnection, InstagramBusinessConnectionStatus } from './entities/instagram-business-connection.entity';
 import { InstagramBusinessContact } from './entities/instagram-business-contact.entity';
 import { Conversation } from './entities/conversation.entity';
-import { ConversationMessage, MessageSenderType, MessageType } from './entities/conversation-message.entity';
+import { ConversationMessage, MessageSenderType } from './entities/conversation-message.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
 import { ConfigService } from '@nestjs/config';
@@ -18,14 +18,13 @@ export class InstagramMessagingService {
   constructor(
     @InjectRepository(InstagramBusinessConnection) private readonly connections: Repository<InstagramBusinessConnection>,
     @InjectRepository(InstagramBusinessContact) private readonly contacts: Repository<InstagramBusinessContact>,
-    @InjectRepository(Conversation) private readonly conversations: Repository<Conversation>,
     @InjectRepository(ConversationMessage) private readonly messages: Repository<ConversationMessage>,
     @InjectRepository(SellerProfile) private readonly sellers: Repository<SellerProfile>,
     private readonly crypto: InstagramTokenCryptoService,
     private readonly config: ConfigService,
   ) {}
 
-  async deliverText(conversation: Conversation, senderId: number, text: string): Promise<string> {
+  async deliverText(conversation: Conversation, text: string): Promise<string> {
     const content = String(text || '').trim();
     if (!content) throw new BadRequestException('Message text is required.');
     if (content.length > 1000) throw new BadRequestException('Instagram text messages are limited to 1,000 characters.');
