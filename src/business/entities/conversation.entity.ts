@@ -64,6 +64,7 @@ export enum ConversationClassificationStatus {
 // folds ownerWorkspaceType/ownerWorkspaceId into uniqueness; the NULL case
 // is byte-for-byte the original two-index shape, so legacy/personal rows
 // are entirely unaffected by this change:
+//   - each communication channel is an independent conversation identity
 //   - ownerWorkspaceType resolved + specific commerceProfileId
 //   - ownerWorkspaceType resolved + no commerceProfileId
 //   - ownerWorkspaceType NULL (legacy/personal) + specific commerceProfileId
