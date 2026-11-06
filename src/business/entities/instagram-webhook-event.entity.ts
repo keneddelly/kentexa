@@ -29,13 +29,16 @@ export class InstagramWebhookEvent {
   payload: Record<string, unknown>;
 
   @Column({ type: 'varchar', length: 24, default: 'received' })
-  processingStatus: 'received' | 'processed' | 'failed';
+  processingStatus: 'received' | 'processing' | 'processed' | 'failed';
 
   @Column({ type: 'int', default: 0 })
   processingAttempts: number;
 
   @Column({ type: 'text', nullable: true })
   processingError: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  processingStartedAt: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
   processingStartedAt: Date | null;
