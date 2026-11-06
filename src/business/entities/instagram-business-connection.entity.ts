@@ -18,6 +18,9 @@ export class InstagramBusinessConnection {
   @Column({ name: 'instagram_user_id', type: 'varchar', length: 100 })
   instagramUserId: string;
 
+  @Column({ name: 'business_id', type: 'varchar', length: 100, nullable: true })
+  businessId: string | null;
+
   @Column({ name: 'instagram_username', type: 'varchar', length: 150, nullable: true })
   instagramUsername: string | null;
 
