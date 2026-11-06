@@ -67,6 +67,9 @@ export class InstagramBusinessConnection {
   @Column({ type: 'timestamp', nullable: true })
   lastVerifiedAt: Date | null;
 
+  @Column({ type: 'boolean', default: false })
+  webhookSubscribed: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
