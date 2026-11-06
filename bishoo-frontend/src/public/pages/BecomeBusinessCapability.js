@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import { ApplyPage, ErrorText, Field, Note, inputStyle, pillStyle } from '../components/ApplyKit';
 import { getMyBusinesses, applyForBusinessCapability, connectSelling } from '../../api/business';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
-import { needsIdentityStep } from '../../utils/identityState';
 
 const TRANSPORT_TYPES = ['bus', 'courier', 'van', 'truck', 'boda'];
 
