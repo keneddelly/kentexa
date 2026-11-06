@@ -6,6 +6,7 @@ import { BusinessCustomer } from './entities/business-customer.entity';
 import { Conversation } from './entities/conversation.entity';
 import { ConversationMessage } from './entities/conversation-message.entity';
 import { BusinessTeamMember } from './entities/business-team-member.entity';
+import { InstagramBusinessConnection } from './entities/instagram-business-connection.entity';
 import { Order } from '../orders/entities/order.entity';
 import { User } from '../users/entities/user.entity';
 import { BusinessCustomerService } from './business-customer.service';
@@ -22,14 +23,12 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
       Conversation,
       ConversationMessage,
       BusinessTeamMember,
+      InstagramBusinessConnection,
       Order,
       User,
     ]),
     NotificationsModule,
     forwardRef(() => WhatsappModule), // ConversationService relays outbound replies via WhatsappService
-    // Own JwtModule registration (same secret resolution as auth.module.ts)
-    // so the WebSocket gateway can verify tokens without depending on
-    // AuthModule's exports.
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
