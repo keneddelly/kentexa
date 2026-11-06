@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  HttpException,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -49,6 +50,7 @@ export class InstagramService {
     url.searchParams.set('config_id', configId);
     url.searchParams.set('redirect_uri', redirectUri);
     url.searchParams.set('response_type', 'code');
+    url.searchParams.set('override_default_response_type', 'true');
     url.searchParams.set('prompt', 'login');
     url.searchParams.set('state', state);
 
@@ -142,7 +144,7 @@ export class InstagramService {
         })),
       };
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof ConflictException) throw error;
+      if (error instanceof HttpException) throw error;
       this.logger.error(`Instagram account discovery failed: ${error.response?.data?.error?.message || error.message}`);
       throw new BadRequestException('Kentexa could not identify the Instagram account shared with Meta. Check the configuration and try again.');
     }
