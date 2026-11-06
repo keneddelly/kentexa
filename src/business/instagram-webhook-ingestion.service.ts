@@ -100,8 +100,7 @@ export class InstagramWebhookIngestionService {
         order: { id: 'ASC' },
       });
       if (sellerProfiles.length !== 1 || !sellerProfiles[0]?.userId) {
-        this.logger.warn(`Instagram Business ${connection.businessId} must resolve to exactly one approved SellerProfile; found ${sellerProfiles.length}. Event retained.`);
-        continue;
+        throw new Error(`Instagram Business ${connection.businessId} must resolve to exactly one approved SellerProfile; found ${sellerProfiles.length}. Webhook remains retryable.`);
       }
       const seller = sellerProfiles[0];
 
