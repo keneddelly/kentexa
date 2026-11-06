@@ -27,6 +27,7 @@ export class InstagramBusinessConnectionService {
       grantedScopes: row.grantedScopes,
       connectedAt: row.connectedAt,
       lastVerifiedAt: row.lastVerifiedAt,
+      webhookSubscribed: row.webhookSubscribed,
     }));
   }
 
