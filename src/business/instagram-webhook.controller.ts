@@ -8,9 +8,12 @@ import {
   BadRequestException,
   ForbiddenException,
   ServiceUnavailableException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.service';
 
 /**
  * Public Meta webhook handshake and signature boundary.
@@ -21,7 +24,10 @@ import { createHmac, timingSafeEqual } from 'crypto';
  */
 @Controller('business/instagram')
 export class InstagramWebhookController {
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly ingestion: InstagramWebhookIngestionService,
+  ) {}
 
   @Get('webhook')
   verifyWebhook(
@@ -49,10 +55,11 @@ export class InstagramWebhookController {
   }
 
   @Post('webhook')
-  receiveWebhook(
+  @HttpCode(HttpStatus.OK)
+  async receiveWebhook(
     @Req() request: { rawBody?: Buffer },
     @Headers('x-hub-signature-256') signature?: string,
-  ): never {
+  ): Promise<{ received: true; duplicate: boolean }> {
     const appSecret = this.config.get<string>('META_APP_SECRET');
     if (!appSecret) {
       throw new ServiceUnavailableException('Meta webhook signing is not configured.');
@@ -74,11 +81,8 @@ export class InstagramWebhookController {
       throw new ForbiddenException('Meta webhook signature is invalid.');
     }
 
-    // Do not return 200 until event persistence and idempotent inbox processing
-    // are implemented. A 503 tells Meta this delivery was not accepted.
-    throw new ServiceUnavailableException(
-      'Instagram webhook signature verified, but event ingestion is not enabled yet.',
-    );
+    const result = await this.ingestion.accept(rawBody);
+    return { received: true, duplicate: result.duplicate };
   }
 
   private constantTimeEquals(left: string, right: string): boolean {
