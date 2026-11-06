@@ -20,15 +20,15 @@ export enum Feature {
   ACCESS_SELLER_WALLET = 'ACCESS_SELLER_WALLET',
 }
 
-// Low-risk presence and listing creation is available without identity
-// documents. Identity remains necessary for funds/custody and authority
-// applications below. RoleContext and capability checks are independent
-// and still run at their respective service boundaries.
+// Business/store creation can happen before identity verification, but activating
+// selling requires at least Level 1 identity (ID submitted). Pending review is
+// sufficient to apply; admin approval remains a separate activation decision.
+// RoleContext and capability checks remain independent at their service boundaries.
 export const FEATURE_REQUIREMENTS: Record<Feature, number> = {
   [Feature.VIEW_LISTING]: 0,
   [Feature.BASIC_MESSAGING]: 0,
   [Feature.POST_CLASSIFIED]: 0,
-  [Feature.CREATE_STORE]: 0,
+  [Feature.CREATE_STORE]: 1,
   [Feature.CREATE_PRODUCT]: 0,
   [Feature.RECEIVE_PAYMENT]: 2,
   [Feature.REQUEST_INVOICE]: 0,
