@@ -113,6 +113,19 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto' }}>
         {mismatch && <BusinessContextMismatch contextBusinessId={mismatch.contextBusinessId} onNavigate={onNavigate} />}
 
+        {business?.id && workspaces && !mismatch && (
+          <button type="button" data-testid="business-integrations" onClick={() => onNavigate('BusinessIntegrations', { businessId: business.id })}
+            style={{ width: '100%', minHeight: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              padding: '0 16px', margin: '4px 0 18px', border: '1px solid #dbeafe', borderRadius: 14,
+              background: '#fff', color: DK, cursor: 'pointer', textAlign: 'left' }}>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <strong style={{ fontSize: 15 }}>Integrations</strong>
+              <span style={{ fontSize: 13, color: GR }}>Unganisha Instagram na huduma nyingine</span>
+            </span>
+            <span aria-hidden="true" style={{ color: B, fontSize: 22 }}>›</span>
+          </button>
+        )}
+
         {workspaces === null && !error && !mismatch && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>⏳ {t('common.loading')}</div>
         )}
