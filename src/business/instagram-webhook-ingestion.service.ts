@@ -66,22 +66,53 @@ export class InstagramWebhookIngestionService {
 
     const event = await this.events.findOne({ where: { eventHash } });
     if (!event) throw new ServiceUnavailableException('Instagram webhook could not be durably stored.');
-    if (event.processingStatus !== 'processed') {
-      try {
-        await this.processPayload(payload);
-        event.processingStatus = 'processed';
-        event.processingAttempts += 1;
-        event.processingError = null;
-        event.processedAt = new Date();
-        await this.events.save(event);
-      } catch (error) {
-        event.processingStatus = 'failed';
-        event.processingAttempts += 1;
-        event.processingError = error instanceof Error ? error.message.slice(0, 2000) : 'Unknown processing error';
-        await this.events.save(event);
-        this.logger.error(`Instagram event ${event.id} persisted but processing failed.`);
-        throw new ServiceUnavailableException('Instagram message was stored and will be retried.');
-      }
+    if (event.processingStatus === 'processed') {
+      return { duplicate: true };
+    }
+
+    // Atomically claim the delivery. A second concurrent webhook cannot
+    // process the same event while this lease is fresh. A worker crash does
+    // not strand the event forever: after five minutes a redelivery may
+    // reclaim the lease and retry it.
+    const claim = await this.events.createQueryBuilder()
+      .update(InstagramWebhookEvent)
+      .set({
+        processingStatus: 'processing',
+        processingAttempts: () => '"processingAttempts" + 1',
+        processingError: null,
+        processingStartedAt: () => 'NOW()',
+      })
+      .where(
+        `id = :id AND (
+          "processingStatus" IN (:...retryable)
+          OR ("processingStatus" = :processing AND "processingStartedAt" < NOW() - INTERVAL '5 minutes')
+        )`,
+        { id: event.id, retryable: ['received', 'failed'], processing: 'processing' },
+      )
+      .returning(['id'])
+      .execute();
+
+    if (!claim.raw?.length) {
+      // Another request owns the fresh lease, or the event was already done.
+      return { duplicate: true };
+    }
+
+    try {
+      await this.processPayload(payload);
+      await this.events.update(event.id, {
+        processingStatus: 'processed',
+        processingError: null,
+        processedAt: new Date(),
+        processingStartedAt: null,
+      });
+    } catch (error) {
+      await this.events.update(event.id, {
+        processingStatus: 'failed',
+        processingError: error instanceof Error ? error.message.slice(0, 2000) : 'Unknown processing error',
+        processingStartedAt: null,
+      });
+      this.logger.error(`Instagram event ${event.id} persisted but processing failed.`);
+      throw new ServiceUnavailableException('Instagram message was stored and will be retried.');
     }
     return { duplicate: insert.identifiers.length === 0 };
   }
