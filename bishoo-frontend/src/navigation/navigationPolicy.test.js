@@ -28,3 +28,9 @@ test('personal Classified creation is account-scoped while Business Classified m
   expect(evaluateDestination({ ...context('buyer'), page: 'SellerClassifieds' })).toMatchObject({ allowed: false, reason: 'WRONG_CONTEXT' });
   expect(evaluateDestination({ ...context('seller'), page: 'SellerClassifieds' }).allowed).toBe(true);
 });
+
+test('Business integrations is reachable from the seller inbox and dashboard in seller context', () => {
+  expect(evaluateDestination({ ...context('seller'), page: 'BusinessIntegrations' })).toMatchObject({
+    allowed: true, page: 'BusinessIntegrations', destination: { kind: 'account' },
+  });
+});

@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApplyPage, ErrorText, Field, Note, inputStyle, pillStyle } from '../components/ApplyKit';
 import { getMyBusinesses, applyForBusinessCapability, connectSelling } from '../../api/business';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
 const TRANSPORT_TYPES = ['bus', 'courier', 'van', 'truck', 'boda'];
 
@@ -33,6 +34,7 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -51,7 +53,13 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
       else await applyForBusinessCapability(businessId, code, code === 'transport' ? { type } : undefined);
       setDone(true);
     } catch (e) {
-      setError(t(applyErrorKey(e)));
+      const code = e?.response?.data?.code || e?.response?.data?.message?.code;
+      if (code === 'VERIFICATION_REQUIRED' || code === 'VERIFICATION_REJECTED') {
+        setError('');
+        setShowVerifyIdentity(true);
+      } else {
+        setError(t(applyErrorKey(e)));
+      }
     } finally { setSubmitting(false); }
   };
 
@@ -77,6 +85,12 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
       <button type="button" onClick={handleSubmit} disabled={submitting} style={pillStyle(true, submitting)}>
         {submitting ? t('apply_capability.submitting_button') : t('apply_capability.submit_button')}
       </button>
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+        />
+      )}
     </ApplyPage>
   );
 };
