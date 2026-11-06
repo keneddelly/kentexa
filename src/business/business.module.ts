@@ -44,6 +44,7 @@ import { ParticipantResolutionService } from './participant-resolution.service';
 import { ConversationClassifierService } from './conversation-classifier.service';
 import { InstagramBusinessConnection } from './entities/instagram-business-connection.entity';
 import { InstagramBusinessContact } from './entities/instagram-business-contact.entity';
+import { InstagramBusinessContactService } from './instagram-business-contact.service';
 import { InstagramBusinessAccessService } from './instagram-business-access.service';
 import { InstagramWebhookController } from './instagram-webhook.controller';
 import { InstagramWebhookEvent } from './entities/instagram-webhook-event.entity';
@@ -114,7 +115,8 @@ import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.
     ConversationClassifierService,
     InstagramBusinessAccessService,
     InstagramWebhookIngestionService,
+    InstagramBusinessContactService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService],
 })
 export class BusinessModule {}
