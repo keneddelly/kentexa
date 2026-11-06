@@ -44,6 +44,7 @@ import { ParticipantResolutionService } from './participant-resolution.service';
 import { ConversationClassifierService } from './conversation-classifier.service';
 import { InstagramBusinessConnection } from './entities/instagram-business-connection.entity';
 import { InstagramBusinessAccessService } from './instagram-business-access.service';
+import { InstagramWebhookController } from './instagram-webhook.controller';
 
 @Module({
   imports: [
@@ -94,7 +95,7 @@ import { InstagramBusinessAccessService } from './instagram-business-access.serv
       },
     }),
   ],
-  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController],
+  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController, InstagramWebhookController],
   providers: [
     BusinessCustomerService,
     ConversationService,
