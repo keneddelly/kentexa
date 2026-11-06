@@ -2114,6 +2114,7 @@ export class ConversationService {
     customerId: number;
     connectionId: number;
     instagramScopedUserId: string;
+    ownerWorkspaceOverride: { ownerWorkspaceType: string; ownerWorkspaceId: number };
     externalMessageId: string;
     text: string | null;
     attachmentSummary?: string | null;
@@ -2123,7 +2124,7 @@ export class ConversationService {
       throw new BadRequestException('A valid external Instagram message id is required.');
     }
 
-    let convo = await this.getOrCreateConversation(params.sellerId, params.customerId);
+    let convo = await this.getOrCreateConversation(params.sellerId, params.customerId, undefined, params.ownerWorkspaceOverride);
     const threadExternalId = `instagram:${params.connectionId}:${params.instagramScopedUserId}`;
     await this.convoRepo.update(convo.id, {
       channel: 'instagram',
