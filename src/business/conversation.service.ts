@@ -1513,7 +1513,7 @@ export class ConversationService {
       if (dto.isNote || dto.imageUrl || (dto.type && dto.type !== MessageType.TEXT)) {
         throw new BadRequestException('Instagram currently supports text replies only; this message type was not sent.');
       }
-      instagramExternalMessageId = await this.instagramMessaging.deliverText(convo, sender.id, dto.content || '');
+      instagramExternalMessageId = await this.instagramMessaging.deliverText(convo, dto.content || '');
     }
 
     const msg = this.msgRepo.create({
