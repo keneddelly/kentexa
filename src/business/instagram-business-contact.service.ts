@@ -87,6 +87,7 @@ export class InstagramBusinessContactService {
         .insert()
         .values(contact)
         .orIgnore()
+        .returning(['id'])
         .execute();
 
       if (inserted.identifiers.length > 0) {
