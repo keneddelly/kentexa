@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Business, BusinessStatus } from './entities/business.entity';
 import { BusinessMembership, BusinessMembershipStatus } from './entities/business-membership.entity';
 import { WorkspaceAssignment, WorkspaceAssignmentStatus } from './entities/workspace-assignment.entity';
@@ -49,7 +49,7 @@ export class InstagramBusinessAccessService {
     const workspaceIds = assignments.map((assignment) => assignment.workspaceId);
     const workspaces = await this.workspaceRepo.find({
       where: {
-        id: workspaceIds as any,
+        id: In(workspaceIds),
         businessId,
         status: OperationalWorkspaceStatus.ACTIVE,
       },
