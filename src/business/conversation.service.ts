@@ -2145,7 +2145,7 @@ export class ConversationService {
       metadata: params.attachmentSummary ? { attachmentSummary: params.attachmentSummary } as any : null,
       isNote: false,
     });
-    const inserted = await this.msgRepo.createQueryBuilder().insert().values(message).orIgnore().execute();
+    const inserted = await this.msgRepo.createQueryBuilder().insert().values(message).orIgnore().returning(['id']).execute();
     if (inserted.identifiers.length === 0) {
       const winner = await this.msgRepo.findOne({ where: { externalMessageId: externalId } });
       if (!winner) throw new Error('Instagram message conflict winner could not be loaded.');
