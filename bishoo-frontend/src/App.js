@@ -86,6 +86,7 @@ import SellerDashboard from './public/pages/SellerDashboard';
 import BusinessDashboard from './public/pages/BusinessDashboard';
 import MyBusinesses from './public/pages/MyBusinesses';
 import BusinessHome from './public/pages/BusinessHome';
+import BusinessIntegrations from './public/pages/BusinessIntegrations';
 import Workspace from './public/pages/Workspace';
 import BecomeBusinessServiceProvider from './public/pages/BecomeBusinessServiceProvider';
 import BecomeBusinessCapability from './public/pages/BecomeBusinessCapability';
@@ -992,6 +993,7 @@ function App() {
       case 'CreateCommunity':   return requireLogin(<CreateCommunity {...publicProps} />);
       case 'ConnectSelling':    return requireLogin(<ConnectSelling {...publicProps} />);
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
+      case 'BusinessIntegrations': return requireLogin(<BusinessIntegrations {...publicProps} businessId={navParams?.businessId} />);
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
       case 'CreateClassified':  return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" createOnly prefill={navParams?.prefill} />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} presetCategory={navParams?.category} />;
