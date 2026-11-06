@@ -49,6 +49,7 @@ import { InstagramBusinessAccessService } from './instagram-business-access.serv
 import { InstagramWebhookController } from './instagram-webhook.controller';
 import { InstagramWebhookEvent } from './entities/instagram-webhook-event.entity';
 import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.service';
+import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
 
 @Module({
   imports: [
@@ -116,7 +117,8 @@ import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.
     InstagramBusinessAccessService,
     InstagramWebhookIngestionService,
     InstagramBusinessContactService,
+    InstagramTokenCryptoService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService, InstagramTokenCryptoService],
 })
 export class BusinessModule {}
