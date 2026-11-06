@@ -48,6 +48,7 @@ import { ConversationParticipantState } from './entities/conversation-participan
 import { CommunicationFeatureFlagsService } from '../communication/communication-feature-flags.service';
 import { AccountRole, AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
+import { InstagramMessagingService } from './instagram-messaging.service';
 
 export interface ConversationContext {
   // 'moment': a feed post (Home Feed phase C, 2026-11-02) - Contact on a post keeps which post started the chat.
@@ -120,6 +121,7 @@ export class ConversationService {
     private gateway: ConversationGateway,
     private participants: ParticipantResolutionService,
     private flags: CommunicationFeatureFlagsService,
+    private instagramMessaging: InstagramMessagingService,
   ) {}
 
   // ── Stage 2 dual-write helpers ───────────────────────────────────────────
@@ -1506,10 +1508,19 @@ export class ConversationService {
       throw new ForbiddenException('This conversation does not belong to your active Seller workspace');
     }
 
+    let instagramExternalMessageId: string | null = null;
+    if (convo.channel === 'instagram') {
+      if (dto.isNote || dto.imageUrl || (dto.type && dto.type !== MessageType.TEXT)) {
+        throw new BadRequestException('Instagram currently supports text replies only; this message type was not sent.');
+      }
+      instagramExternalMessageId = await this.instagramMessaging.deliverText(convo, sender.id, dto.content || '');
+    }
+
     const msg = this.msgRepo.create({
       conversationId,
       senderType: MessageSenderType.SELLER,
       senderId: sender.id,
+      externalMessageId: instagramExternalMessageId,
       type: dto.type || MessageType.TEXT,
       content: dto.content || null,
       imageUrl: dto.imageUrl || null,
