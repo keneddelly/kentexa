@@ -318,7 +318,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
   const inboxMode = (sellerId || messageTargetType) ? 'buyer' : initialCustomerId ? 'seller' : resolveInboxMode(userRole);
   // Resolve the Business only from the active, server-issued AccountRole option.
   // This is a navigation hint; the integrations API still authorizes the request.
-  const activeBusinessId = roleOptions?.find(option => Number(option.accountRoleId) === Number(activeContext?.accountRoleId))?.businessId;
+  const activeBusinessId = activeContext?.businessId ?? roleOptions?.find(option => Number(option.accountRoleId) === Number(activeContext?.accountRoleId))?.businessId;
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
   const [messages,      setMessages]        = useState([]);
