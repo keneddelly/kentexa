@@ -1020,6 +1020,7 @@ export class ConversationService {
         sellerId,
         customerId,
         status: ConversationStatus.OPEN,
+        channel: conversationChannel,
         commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
         ownerWorkspaceType: ownerWorkspace ? ownerWorkspace.ownerWorkspaceType : IsNull(),
         ...(ownerWorkspace ? { ownerWorkspaceId: ownerWorkspace.ownerWorkspaceId } : {}),
@@ -1030,17 +1031,11 @@ export class ConversationService {
     });
 
     if (!convo) {
-      const customer = await this.customerRepo.findOne({
-        where: { id: customerId, sellerId },
-        relations: { seller: true },
-      });
-      if (!customer) throw new NotFoundException('Customer not found');
-
       convo = this.convoRepo.create({
         sellerId,
         customerId,
         status: ConversationStatus.OPEN,
-        channel: customer.channel || 'kentexa',
+        channel: conversationChannel,
         subject: `Mazungumzo na ${customer.name}`,
         commerceProfileId: verifiedProfileId,
         ownerWorkspaceType: ownerWorkspace?.ownerWorkspaceType ?? null,
@@ -1077,6 +1072,7 @@ export class ConversationService {
           where: {
             sellerId,
             customerId,
+            channel: conversationChannel,
             commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
             ownerWorkspaceType: ownerWorkspace ? ownerWorkspace.ownerWorkspaceType : IsNull(),
             ...(ownerWorkspace ? { ownerWorkspaceId: ownerWorkspace.ownerWorkspaceId } : {}),
@@ -2136,13 +2132,13 @@ export class ConversationService {
     }
 
     let convo = await this.getOrCreateConversation(params.sellerId, params.customerId, undefined, params.ownerWorkspaceOverride);
+    if (convo.channel !== 'instagram') throw new Error('Instagram customer resolved to a non-Instagram conversation.');
     const threadExternalId = `instagram:${params.connectionId}:${params.instagramScopedUserId}`;
-    await this.convoRepo.update(convo.id, {
-      channel: 'instagram',
-      externalId: threadExternalId,
-    });
-    convo.channel = 'instagram';
-    convo.externalId = threadExternalId;
+    if (convo.externalId && convo.externalId !== threadExternalId) throw new Error('Instagram conversation is already bound to a different external thread.');
+    if (!convo.externalId) {
+      await this.convoRepo.update(convo.id, { externalId: threadExternalId });
+      convo.externalId = threadExternalId;
+    }
 
     const existing = await this.msgRepo.findOne({ where: { externalMessageId: externalId } });
     if (existing) return { conversation: convo, message: existing, duplicate: true };
