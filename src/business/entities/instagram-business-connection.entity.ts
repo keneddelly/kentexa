@@ -42,8 +42,8 @@ export class InstagramBusinessConnection {
   @Column({ type: 'varchar', length:  255 })
   instagramUsername: string;
 
-  @Column({ type: 'text', select: false })
-  accessTokenEncrypted: string;
+  @Column({ type: 'text', nullable: true, select: false })
+  accessTokenEncrypted: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   tokenExpiresAt: Date | null;
