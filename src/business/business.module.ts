@@ -43,6 +43,7 @@ import { ConversationGateway } from './conversation.gateway';
 import { ParticipantResolutionService } from './participant-resolution.service';
 import { ConversationClassifierService } from './conversation-classifier.service';
 import { InstagramBusinessConnection } from './entities/instagram-business-connection.entity';
+import { InstagramBusinessAccessService } from './instagram-business-access.service';
 
 @Module({
   imports: [
@@ -105,7 +106,8 @@ import { InstagramBusinessConnection } from './entities/instagram-business-conne
     ConversationGateway,
     ParticipantResolutionService,
     ConversationClassifierService,
+    InstagramBusinessAccessService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService],
 })
 export class BusinessModule {}
