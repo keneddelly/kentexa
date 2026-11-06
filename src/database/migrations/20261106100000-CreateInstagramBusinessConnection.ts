@@ -15,6 +15,7 @@ export class CreateInstagramBusinessConnection20261106100000
         id SERIAL PRIMARY KEY,
         seller_id integer NOT NULL,
         instagram_user_id varchar(100) NOT NULL,
+        business_id varchar(100),
         instagram_username varchar(150),
         access_token_encrypted text NOT NULL,
         token_expires_at timestamp,
