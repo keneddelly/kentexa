@@ -38,6 +38,9 @@ export class InstagramWebhookEvent {
   processingError: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
+  processingStartedAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
   processedAt: Date | null;
 
   @CreateDateColumn()
