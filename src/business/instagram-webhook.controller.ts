@@ -17,10 +17,9 @@ import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.
 
 /**
  * Public Meta webhook handshake and signature boundary.
- *
- * This controller intentionally does not acknowledge message deliveries yet:
- * durable event persistence and inbox routing must be implemented before
- * returning 200 to Meta, otherwise messages could be silently discarded.
+ * A delivery is acknowledged only after it has been durably recorded and
+ * synchronous inbox processing has completed successfully. Failed processing
+ * returns a retryable response to Meta.
  */
 @Controller('business/instagram')
 export class InstagramWebhookController {
