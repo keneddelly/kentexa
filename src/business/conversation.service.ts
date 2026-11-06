@@ -2103,4 +2103,75 @@ export class ConversationService {
 
     return this.convoRepo.save(convo);
   }
+
+  /**
+   * Persist an inbound Instagram DM into the existing Unified Inbox thread.
+   * The external message id is globally unique so webhook retries cannot
+   * duplicate a customer message. Only trusted server-side webhook code calls this.
+   */
+  async receiveInstagramMessage(params: {
+    sellerId: number;
+    customerId: number;
+    connectionId: number;
+    instagramScopedUserId: string;
+    externalMessageId: string;
+    text: string | null;
+    attachmentSummary?: string | null;
+  }): Promise<{ conversation: Conversation; message: ConversationMessage; duplicate: boolean }> {
+    const externalId = params.externalMessageId?.trim();
+    if (!externalId || externalId.length > 255) {
+      throw new BadRequestException('A valid external Instagram message id is required.');
+    }
+
+    let convo = await this.getOrCreateConversation(params.sellerId, params.customerId);
+    const threadExternalId = `instagram:${params.connectionId}:${params.instagramScopedUserId}`;
+    await this.convoRepo.update(convo.id, {
+      channel: 'instagram',
+      externalId: threadExternalId,
+    });
+    convo.channel = 'instagram';
+    convo.externalId = threadExternalId;
+
+    const existing = await this.msgRepo.findOne({ where: { externalMessageId: externalId } });
+    if (existing) return { conversation: convo, message: existing, duplicate: true };
+
+    const message = this.msgRepo.create({
+      conversationId: convo.id,
+      senderType: MessageSenderType.CUSTOMER,
+      senderId: null,
+      externalMessageId: externalId,
+      type: MessageType.TEXT,
+      content: params.text || params.attachmentSummary || '[Instagram attachment]',
+      metadata: params.attachmentSummary ? { attachmentSummary: params.attachmentSummary } as any : null,
+      isNote: false,
+    });
+    const inserted = await this.msgRepo.createQueryBuilder().insert().values(message).orIgnore().execute();
+    if (inserted.identifiers.length === 0) {
+      const winner = await this.msgRepo.findOne({ where: { externalMessageId: externalId } });
+      if (!winner) throw new Error('Instagram message conflict winner could not be loaded.');
+      return { conversation: convo, message: winner, duplicate: true };
+    }
+
+    await this.convoRepo.update(convo.id, {
+      lastMessageAt: new Date(),
+      lastMessagePreview: (params.text || params.attachmentSummary || '[Instagram attachment]').slice(0, 100),
+      status: ConversationStatus.OPEN,
+      messageCount: () => '"messageCount" + 1',
+      unreadCount: () => '"unreadCount" + 1',
+    });
+    const saved = await this.msgRepo.findOneOrFail({ where: { externalMessageId: externalId } });
+    try {
+      this.gateway.emitNewMessage({
+        conversationId: convo.id,
+        sellerId: params.sellerId,
+        buyerUserId: null,
+        message: saved,
+        isNote: false,
+        sellerAccountRoleId: null,
+        buyerAccountRoleId: null,
+      });
+    } catch { /* durable inbox write is authoritative */ }
+    return { conversation: convo, message: saved, duplicate: false };
+  }
+
 }
