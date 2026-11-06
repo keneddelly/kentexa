@@ -101,7 +101,7 @@ export class InstagramOAuthService {
       }
 
       const accounts: MetaAccount[] = accountResponse.data?.data || [];
-      const validAccounts = accounts.filter(a => /^\\d{1,128}$/.test(String(a.id || '')) && typeof a.username === 'string' && a.username.trim());
+      const validAccounts = accounts.filter(a => /^\d{1,128}$/.test(String(a.id || '')) && typeof a.username === 'string' && a.username.trim());
       if (!validAccounts.length) {
         throw new BadRequestException('No Instagram professional accounts were shared with this integration. Check the selected business portfolio and account permissions.');
       }
