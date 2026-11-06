@@ -117,6 +117,7 @@ const ConversationRow = ({ convo, onClick, t, menuOpen, onOpenMenu, onCloseMenu,
         <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3, borderBottom: `1px solid ${LINE}`, paddingBottom: 10 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 16, fontWeight: unread ? 700 : 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+            {convo.channel && convo.channel !== 'kentexa' && <span data-testid="conversation-channel" style={{ flexShrink: 0, borderRadius: 10, padding: '2px 7px', backgroundColor: convo.channel === 'instagram' ? '#fce7f3' : '#eef2ff', color: convo.channel === 'instagram' ? '#9d174d' : '#3730a3', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>{convo.channel === 'instagram' ? 'Instagram' : convo.channel}</span>}
             <span style={{ fontSize: 12, color: unread ? BLUE : MUTED, fontWeight: unread ? 700 : 400, flexShrink: 0 }}>{listTime(convo.lastMessageAt)}</span>
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -302,7 +303,7 @@ const CHIPS = [
   { key: 'archived', label: 'Zilizohifadhiwa', seller: true },
 ];
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetType, messageTargetId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetType, messageTargetId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch, activeContext, roleOptions }) => {
   const { t } = useTranslation();
   // Deep links carry their own implied mode regardless of the bare-inbox
   // default for the active role — "message this specific seller" is always
@@ -315,6 +316,9 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
   // deep link as sellerId (MessageSeller-{userId}), just targeting a
   // specific operational identity instead of always the Seller one.
   const inboxMode = (sellerId || messageTargetType) ? 'buyer' : initialCustomerId ? 'seller' : resolveInboxMode(userRole);
+  // Resolve the Business only from the active, server-issued AccountRole option.
+  // This is a navigation hint; the integrations API still authorizes the request.
+  const activeBusinessId = activeContext?.businessId ?? roleOptions?.find(option => Number(option.accountRoleId) === Number(activeContext?.accountRoleId))?.businessId;
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
   const [messages,      setMessages]        = useState([]);
@@ -880,7 +884,13 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
                   style={{ width: 40, height: 40, marginLeft: -8, borderRadius: 20, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon d={IC.back} size={22} color={INK} sw={2.2} />
                 </button>
-                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>{t('seller_inbox.title')}</h1>
+                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, flex: 1 }}>{t('seller_inbox.title')}</h1>
+                {inboxMode === 'seller' && activeBusinessId && (
+                  <button type="button" data-testid="inbox-integrations" onClick={() => onNavigate('BusinessIntegrations', { businessId: activeBusinessId, returnTo: 'SellerInbox' })}
+                    style={{ minHeight: 36, padding: '0 12px', borderRadius: 18, border: '1px solid #dbeafe', background: '#eff6ff', color: BLUE, fontSize: 13, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    Integrations
+                  </button>
+                )}
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, height: 40, borderRadius: 20, backgroundColor: LINE, padding: '0 14px' }}>
                 <Icon d={IC.search} size={18} />

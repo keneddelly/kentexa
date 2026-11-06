@@ -6,7 +6,7 @@ const BLUE = '#2563eb';
 const INK = '#0f172a';
 const MUTED = '#64748b';
 
-export default function BusinessIntegrations({ businessId, onNavigate }) {
+export default function BusinessIntegrations({ businessId, onNavigate, returnTo }) {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
@@ -62,7 +62,7 @@ export default function BusinessIntegrations({ businessId, onNavigate }) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', color: INK }}>
-      <BackBar onBack={() => onNavigate('BusinessHome-' + businessId)} title="Business integrations" top={0} />
+      <BackBar onBack={() => onNavigate(returnTo === 'SellerInbox' ? 'SellerInbox' : 'BusinessHome-' + businessId)} title="Business integrations" top={0} />
       <main style={{ maxWidth: 620, margin: '0 auto', padding: 16 }}>
         <div style={{ margin: '8px 0 18px' }}>
           <h2 style={{ fontSize: 22, lineHeight: 1.2, margin: '0 0 8px', fontWeight: 800 }}>Instagram</h2>

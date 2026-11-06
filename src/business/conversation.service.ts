@@ -956,6 +956,10 @@ export class ConversationService {
     // already resolved its own, different, trusted owner).
     callerWorkspaceHint?: WorkspaceHint,
   ): Promise<Conversation> {
+    // Resolve the CRM channel before matching so external threads never reuse Kentexa chats.
+    const customer = await this.customerRepo.findOne({ where: { id: customerId, sellerId }, relations: { seller: true } });
+    if (!customer) throw new NotFoundException('Customer not found');
+    const conversationChannel = customer.channel || 'kentexa';
     // Never trust a client-supplied commerceProfileId blindly — must
     // actually belong to this seller, same authorization posture as
     // FeedService.publish()/ClassifiedsService.create(). An id that
@@ -999,27 +1003,15 @@ export class ConversationService {
           : null)
       : ownerWorkspaceOverride;
 
-    // Communication canonicality fix: lookup, insert, and the 23505-
-    // recovery re-fetch below all key on the SAME (sellerId, customerId,
-    // commerceProfileId, ownerWorkspaceType, ownerWorkspaceId) tuple that
-    // migration AddConversationOperationalOwnerUniqueness's four partial
-    // indexes now enforce -- a Seller conversation and a Super Agent
-    // conversation for the very same (sellerId, customerId) pair are
-    // different rows because ownerWorkspaceType/Id differ, never collapsed
-    // just because both belong to the same underlying User.
-    //
-    // Was missing commerceProfileId here — the entity's own comment already
-    // documents the intent ("must land in two conversations that each show
-    // the correct identity"), but this lookup ignored it, so a buyer
-    // messaging the seller's personal profile and, separately, their
-    // business profile got silently merged into whichever conversation was
-    // already OPEN: messages meant for one identity showed up under the
-    // other's inbox.
+    // Conversation identity includes channel as well as seller/customer,
+    // commerce profile, and owning workspace. This keeps Instagram and
+    // Kentexa threads distinct for the same customer and seller.
     let convo = await this.convoRepo.findOne({
       where: {
         sellerId,
         customerId,
         status: ConversationStatus.OPEN,
+        channel: conversationChannel,
         commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
         ownerWorkspaceType: ownerWorkspace ? ownerWorkspace.ownerWorkspaceType : IsNull(),
         ...(ownerWorkspace ? { ownerWorkspaceId: ownerWorkspace.ownerWorkspaceId } : {}),
@@ -1030,17 +1022,11 @@ export class ConversationService {
     });
 
     if (!convo) {
-      const customer = await this.customerRepo.findOne({
-        where: { id: customerId, sellerId },
-        relations: { seller: true },
-      });
-      if (!customer) throw new NotFoundException('Customer not found');
-
       convo = this.convoRepo.create({
         sellerId,
         customerId,
         status: ConversationStatus.OPEN,
-        channel: customer.channel || 'kentexa',
+        channel: conversationChannel,
         subject: `Mazungumzo na ${customer.name}`,
         commerceProfileId: verifiedProfileId,
         ownerWorkspaceType: ownerWorkspace?.ownerWorkspaceType ?? null,
@@ -1077,6 +1063,7 @@ export class ConversationService {
           where: {
             sellerId,
             customerId,
+            channel: conversationChannel,
             commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
             ownerWorkspaceType: ownerWorkspace ? ownerWorkspace.ownerWorkspaceType : IsNull(),
             ...(ownerWorkspace ? { ownerWorkspaceId: ownerWorkspace.ownerWorkspaceId } : {}),
@@ -2136,13 +2123,13 @@ export class ConversationService {
     }
 
     let convo = await this.getOrCreateConversation(params.sellerId, params.customerId, undefined, params.ownerWorkspaceOverride);
+    if (convo.channel !== 'instagram') throw new Error('Instagram customer resolved to a non-Instagram conversation.');
     const threadExternalId = `instagram:${params.connectionId}:${params.instagramScopedUserId}`;
-    await this.convoRepo.update(convo.id, {
-      channel: 'instagram',
-      externalId: threadExternalId,
-    });
-    convo.channel = 'instagram';
-    convo.externalId = threadExternalId;
+    if (convo.externalId && convo.externalId !== threadExternalId) throw new Error('Instagram conversation is already bound to a different external thread.');
+    if (!convo.externalId) {
+      await this.convoRepo.update(convo.id, { externalId: threadExternalId });
+      convo.externalId = threadExternalId;
+    }
 
     const existing = await this.msgRepo.findOne({ where: { externalMessageId: externalId } });
     if (existing) return { conversation: convo, message: existing, duplicate: true };
