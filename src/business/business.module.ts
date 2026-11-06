@@ -42,6 +42,7 @@ import { TzLocationModule } from '../tz-location/tz-location.module';
 import { ConversationGateway } from './conversation.gateway';
 import { ParticipantResolutionService } from './participant-resolution.service';
 import { ConversationClassifierService } from './conversation-classifier.service';
+import { InstagramBusinessConnection } from './entities/instagram-business-connection.entity';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { ConversationClassifierService } from './conversation-classifier.service
       WorkspaceAssignment,
       BusinessCapability,
       BusinessCapabilityApplication,
+      InstagramBusinessConnection,
       Order,
       SellerProfile,
       CommerceProfile,
