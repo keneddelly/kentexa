@@ -82,19 +82,29 @@ export class InstagramBusinessContactService {
         username: params.username?.trim() || null,
         displayName: params.displayName?.trim() || null,
       });
-      try {
-        return await contactRepo.save(contact);
-      } catch (error: any) {
-        if (error?.code !== '23505') throw error;
-        const winner = await contactRepo.findOne({
+      const inserted = await contactRepo
+        .createQueryBuilder()
+        .insert()
+        .values(contact)
+        .orIgnore()
+        .execute();
+
+      if (inserted.identifiers.length > 0) {
+        return contactRepo.findOneOrFail({
           where: { connectionId: params.connectionId, instagramScopedUserId: scopedId },
           relations: { businessCustomer: true },
         });
-        if (!winner) throw error;
-        // Concurrent insert won; remove the unused CRM row created by this tx.
-        await customerRepo.delete(customer.id);
-        return winner;
       }
+
+      // ON CONFLICT DO NOTHING keeps the PostgreSQL transaction usable.
+      // Remove the unused CRM row and return the winning contact mapping.
+      await customerRepo.delete(customer.id);
+      const winner = await contactRepo.findOne({
+        where: { connectionId: params.connectionId, instagramScopedUserId: scopedId },
+        relations: { businessCustomer: true },
+      });
+      if (!winner) throw new Error('Instagram contact conflict winner could not be loaded.');
+      return winner;
     });
   }
 }
