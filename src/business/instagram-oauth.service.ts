@@ -48,7 +48,7 @@ export class InstagramOAuthService {
     return { authorizationUrl: url.toString() };
   }
 
-  async completeAuthorization(code: string, state: string): Promise<{ connected: Array<{ id: number; username: string }>; businessId: number }> {
+  async completeAuthorization(code: string, state: string): Promise<{ connected: Array<{ id: number; username: string; webhookSubscribed: boolean }>; businessId: number }> {
     if (!code || code.length > 4096 || !state || state.length > 256) {
       throw new BadRequestException('Instagram authorization callback is incomplete.');
     }
@@ -110,7 +110,7 @@ export class InstagramOAuthService {
       const expiresAt = Number(tokenResponse.data.expires_in) > 0
         ? new Date(Date.now() + Number(tokenResponse.data.expires_in) * 1000)
         : null;
-      const connected: Array<{ id: number; username: string }> = [];
+      const connected: Array<{ id: number; username: string; webhookSubscribed: boolean }> = [];
 
       for (const account of validAccounts) {
         const instagramUserId = String(account.id);
@@ -139,7 +139,21 @@ export class InstagramOAuthService {
           connection.lastVerifiedAt = now;
         }
         const saved = await this.connections.save(connection);
-        connected.push({ id: saved.id, username: saved.instagramUsername });
+        let webhookSubscribed = false;
+        try {
+          await axios.post(
+            `${graph}/${instagramUserId}/subscribed_apps`,
+            {},
+            { params: { subscribed_fields: 'messages', access_token: token }, timeout: 15000 },
+          );
+          webhookSubscribed = true;
+        } catch {
+          // Account connection remains valid, but inbound DMs will not arrive
+          // until the app-level webhook is configured and subscription succeeds.
+          this.logger.warn(`Instagram webhook subscription is pending for connection ${saved.id}.`);
+        }
+        await this.connections.update(saved.id, { webhookSubscribed });
+        connected.push({ id: saved.id, username: saved.instagramUsername, webhookSubscribed });
       }
 
       return { connected, businessId };
