@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import { InstagramOAuthService } from './instagram-oauth.service';
 
 @Controller('business/instagram')
@@ -7,7 +7,7 @@ export class InstagramOAuthCallbackController {
 
   @Get('callback')
   callback(@Query('code') code: string, @Query('state') state: string, @Query('error') error?: string) {
-    if (error) throw new Error('Instagram authorization was cancelled or denied.');
+    if (error) throw new BadRequestException('Instagram authorization was cancelled or denied.');
     return this.oauth.completeAuthorization(code, state);
   }
 }
