@@ -8,7 +8,7 @@ import { EarlyAccessModule } from './early-access/early-access.module';
 import helmet from 'helmet';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   // Baseline security headers (X-Frame-Options, HSTS, no-sniff, etc.).
   // contentSecurityPolicy is off — this is a JSON API plus a Swagger UI

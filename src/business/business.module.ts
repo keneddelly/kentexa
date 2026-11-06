@@ -42,6 +42,21 @@ import { TzLocationModule } from '../tz-location/tz-location.module';
 import { ConversationGateway } from './conversation.gateway';
 import { ParticipantResolutionService } from './participant-resolution.service';
 import { ConversationClassifierService } from './conversation-classifier.service';
+import { InstagramBusinessConnection } from './entities/instagram-business-connection.entity';
+import { InstagramBusinessContact } from './entities/instagram-business-contact.entity';
+import { InstagramBusinessContactService } from './instagram-business-contact.service';
+import { InstagramBusinessAccessService } from './instagram-business-access.service';
+import { InstagramWebhookController } from './instagram-webhook.controller';
+import { InstagramWebhookEvent } from './entities/instagram-webhook-event.entity';
+import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.service';
+import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
+import { InstagramBusinessConnectionService } from './instagram-business-connection.service';
+import { InstagramBusinessConnectionsController } from './instagram-business-connections.controller';
+import { InstagramOAuthState } from './entities/instagram-oauth-state.entity';
+import { InstagramOAuthService } from './instagram-oauth.service';
+import { InstagramOAuthController } from './instagram-oauth.controller';
+import { InstagramOAuthCallbackController } from './instagram-oauth-callback.controller';
+import { InstagramMessagingService } from './instagram-messaging.service';
 
 @Module({
   imports: [
@@ -58,6 +73,10 @@ import { ConversationClassifierService } from './conversation-classifier.service
       WorkspaceAssignment,
       BusinessCapability,
       BusinessCapabilityApplication,
+      InstagramBusinessConnection,
+      InstagramBusinessContact,
+      InstagramWebhookEvent,
+      InstagramOAuthState,
       Order,
       SellerProfile,
       CommerceProfile,
@@ -91,7 +110,7 @@ import { ConversationClassifierService } from './conversation-classifier.service
       },
     }),
   ],
-  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController],
+  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController, InstagramWebhookController, InstagramBusinessConnectionsController, InstagramOAuthController, InstagramOAuthCallbackController],
   providers: [
     BusinessCustomerService,
     ConversationService,
@@ -103,7 +122,14 @@ import { ConversationClassifierService } from './conversation-classifier.service
     ConversationGateway,
     ParticipantResolutionService,
     ConversationClassifierService,
+    InstagramBusinessAccessService,
+    InstagramWebhookIngestionService,
+    InstagramBusinessContactService,
+    InstagramTokenCryptoService,
+    InstagramBusinessConnectionService,
+    InstagramOAuthService,
+    InstagramMessagingService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService, InstagramTokenCryptoService, InstagramBusinessConnectionService],
 })
 export class BusinessModule {}

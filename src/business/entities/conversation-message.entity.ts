@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 import { Conversation } from './conversation.entity';
 import { User } from '../../users/entities/user.entity';
@@ -26,6 +27,7 @@ export enum MessageType {
 }
 
 @Entity('conversation_message')
+@Index('UQ_conversation_message_external_id', ['externalMessageId'], { unique: true, where: '"externalMessageId" IS NOT NULL' })
 export class ConversationMessage {
   @PrimaryGeneratedColumn()
   id: number;
@@ -47,6 +49,10 @@ export class ConversationMessage {
 
   @Column({ name: 'sender_id', nullable: true })
   senderId: number | null;
+
+  // Meta message id for webhook idempotency; null for native Kentexa messages.
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  externalMessageId: string | null;
 
   // ── Stage 2: authoritative sender principal (additive, dual-write) ──────────
   // Resolved server-side ONLY, from the caller's current RoleContext at send
