@@ -6,7 +6,7 @@ import { InstagramWebhookEvent } from './entities/instagram-webhook-event.entity
 import { InstagramBusinessConnection, InstagramBusinessConnectionStatus } from './entities/instagram-business-connection.entity';
 import { InstagramBusinessContactService } from './instagram-business-contact.service';
 import { ConversationService } from './conversation.service';
-import { SellerProfile } from '../seller/entities/seller-profile.entity';
+import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
 
 type InstagramMessagingEvent = {
   sender?: { id?: string };
@@ -95,14 +95,15 @@ export class InstagramWebhookIngestionService {
       });
       if (!connection) continue;
 
-      const seller = await this.sellers.findOne({
-        where: { businessId: connection.businessId },
+      const sellerProfiles = await this.sellers.find({
+        where: { businessId: connection.businessId, status: SellerStatus.APPROVED },
         order: { id: 'ASC' },
       });
-      if (!seller?.userId) {
-        this.logger.warn(`No SellerProfile is linked to Instagram Business ${connection.businessId}; event retained.`);
+      if (sellerProfiles.length !== 1 || !sellerProfiles[0]?.userId) {
+        this.logger.warn(`Instagram Business ${connection.businessId} must resolve to exactly one approved SellerProfile; found ${sellerProfiles.length}. Event retained.`);
         continue;
       }
+      const seller = sellerProfiles[0];
 
       const messages = Array.isArray(entry.messaging) ? entry.messaging as InstagramMessagingEvent[] : [];
       for (const item of messages) {
@@ -126,6 +127,7 @@ export class InstagramWebhookIngestionService {
           sellerId: seller.userId,
           customerId: contact.businessCustomerId,
           connectionId: connection.id,
+          ownerWorkspaceOverride: { ownerWorkspaceType: 'seller_profile', ownerWorkspaceId: seller.id },
           instagramScopedUserId: senderId,
           externalMessageId: messageId,
           text: typeof item.message?.text === 'string' ? item.message.text : null,
