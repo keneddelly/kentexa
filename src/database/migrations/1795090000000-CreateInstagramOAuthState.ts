@@ -9,7 +9,7 @@ export class CreateInstagramOAuthState1795090000000 implements MigrationInterfac
         id SERIAL PRIMARY KEY,
         "stateHash" varchar(64) NOT NULL,
         "businessId" integer NOT NULL REFERENCES public.business(id) ON DELETE CASCADE,
-        "userId" integer NOT NULL REFERENCES public.user(id) ON DELETE CASCADE,
+        "userId" integer NOT NULL REFERENCES public."user"(id) ON DELETE CASCADE,
         "expiresAt" timestamp without time zone NOT NULL,
         "consumedAt" timestamp without time zone,
         "createdAt" timestamp without time zone NOT NULL DEFAULT now(),
