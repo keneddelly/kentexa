@@ -50,6 +50,8 @@ import { InstagramWebhookController } from './instagram-webhook.controller';
 import { InstagramWebhookEvent } from './entities/instagram-webhook-event.entity';
 import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.service';
 import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
+import { InstagramBusinessConnectionService } from './instagram-business-connection.service';
+import { InstagramBusinessConnectionsController } from './instagram-business-connections.controller';
 
 @Module({
   imports: [
@@ -102,7 +104,7 @@ import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
       },
     }),
   ],
-  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController, InstagramWebhookController],
+  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController, InstagramWebhookController, InstagramBusinessConnectionsController],
   providers: [
     BusinessCustomerService,
     ConversationService,
@@ -118,7 +120,8 @@ import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
     InstagramWebhookIngestionService,
     InstagramBusinessContactService,
     InstagramTokenCryptoService,
+    InstagramBusinessConnectionService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService, InstagramTokenCryptoService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService, InstagramTokenCryptoService, InstagramBusinessConnectionService],
 })
 export class BusinessModule {}
