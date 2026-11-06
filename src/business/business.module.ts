@@ -52,6 +52,10 @@ import { InstagramWebhookIngestionService } from './instagram-webhook-ingestion.
 import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
 import { InstagramBusinessConnectionService } from './instagram-business-connection.service';
 import { InstagramBusinessConnectionsController } from './instagram-business-connections.controller';
+import { InstagramOAuthState } from './entities/instagram-oauth-state.entity';
+import { InstagramOAuthService } from './instagram-oauth.service';
+import { InstagramOAuthController } from './instagram-oauth.controller';
+import { InstagramOAuthCallbackController } from './instagram-oauth-callback.controller';
 
 @Module({
   imports: [
@@ -71,6 +75,7 @@ import { InstagramBusinessConnectionsController } from './instagram-business-con
       InstagramBusinessConnection,
       InstagramBusinessContact,
       InstagramWebhookEvent,
+      InstagramOAuthState,
       Order,
       SellerProfile,
       CommerceProfile,
@@ -104,7 +109,7 @@ import { InstagramBusinessConnectionsController } from './instagram-business-con
       },
     }),
   ],
-  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController, InstagramWebhookController, InstagramBusinessConnectionsController],
+  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController, InstagramWebhookController, InstagramBusinessConnectionsController, InstagramOAuthController, InstagramOAuthCallbackController],
   providers: [
     BusinessCustomerService,
     ConversationService,
@@ -121,6 +126,7 @@ import { InstagramBusinessConnectionsController } from './instagram-business-con
     InstagramBusinessContactService,
     InstagramTokenCryptoService,
     InstagramBusinessConnectionService,
+    InstagramOAuthService,
   ],
   exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService, InstagramBusinessAccessService, InstagramBusinessContactService, InstagramTokenCryptoService, InstagramBusinessConnectionService],
 })
