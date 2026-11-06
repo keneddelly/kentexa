@@ -66,14 +66,10 @@ export class InstagramWebhookIngestionService {
 
     const event = await this.events.findOne({ where: { eventHash } });
     if (!event) throw new ServiceUnavailableException('Instagram webhook could not be durably stored.');
-    if (event.processingStatus === 'processed') {
-      return { duplicate: true };
-    }
+    if (event.processingStatus === 'processed') return { duplicate: true };
 
-    // Atomically claim the delivery. A second concurrent webhook cannot
-    // process the same event while this lease is fresh. A worker crash does
-    // not strand the event forever: after five minutes a redelivery may
-    // reclaim the lease and retry it.
+    // Atomic lease: concurrent redeliveries cannot process the same event.
+    // A crashed worker can be recovered by a later delivery after five minutes.
     const claim = await this.events.createQueryBuilder()
       .update(InstagramWebhookEvent)
       .set({
@@ -92,10 +88,7 @@ export class InstagramWebhookIngestionService {
       .returning(['id'])
       .execute();
 
-    if (!claim.raw?.length) {
-      // Another request owns the fresh lease, or the event was already done.
-      return { duplicate: true };
-    }
+    if (!claim.raw?.length) return { duplicate: true };
 
     try {
       await this.processPayload(payload);
