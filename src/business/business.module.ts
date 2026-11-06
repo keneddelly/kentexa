@@ -13,6 +13,8 @@ import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
 import { ConversationGateway } from './conversation.gateway';
 import { BusinessController } from './business.controller';
+import { InstagramController } from './instagram.controller';
+import { InstagramService } from './instagram.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 
@@ -43,8 +45,8 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
       },
     }),
   ],
-  controllers: [BusinessController],
-  providers: [BusinessCustomerService, ConversationService, ConversationGateway],
+  controllers: [BusinessController, InstagramController],
+  providers: [BusinessCustomerService, ConversationService, ConversationGateway, InstagramService],
   exports: [BusinessCustomerService, ConversationService],
 })
 export class BusinessModule {}
