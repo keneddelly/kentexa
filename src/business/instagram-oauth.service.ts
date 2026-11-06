@@ -119,7 +119,7 @@ export class InstagramOAuthService {
           connection = this.connections.create({
             businessId,
             instagramUserId,
-            instagramUsername: account.username.trim().replace(/^@/, ''),
+            instagramUsername: String(account.username || '').trim().replace(/^@/, ''),
             accessTokenEncrypted: encrypted,
             tokenExpiresAt: expiresAt,
             grantedScopes: permissions.filter(p => p.status === 'granted').map(p => p.permission!).filter(Boolean),
@@ -129,7 +129,7 @@ export class InstagramOAuthService {
             lastVerifiedAt: now,
           });
         } else {
-          connection.instagramUsername = account.username.trim().replace(/^@/, '');
+          connection.instagramUsername = String(account.username || '').trim().replace(/^@/, '');
           connection.accessTokenEncrypted = encrypted;
           connection.tokenExpiresAt = expiresAt;
           connection.grantedScopes = permissions.filter(p => p.status === 'granted').map(p => p.permission!).filter(Boolean);
