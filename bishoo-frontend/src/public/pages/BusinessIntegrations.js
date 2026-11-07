@@ -29,7 +29,22 @@ export default function BusinessIntegrations({ businessId, onNavigate, returnTo 
     }
   }, [businessId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const params = new URLSearchParams(window.location.search);
+    const oauthResult = params.get('instagramOAuth');
+    if (oauthResult === 'success') {
+      setNotice('Instagram imeunganishwa. Akaunti yako inathibitishwa...');
+    } else if (oauthResult === 'error') {
+      setError('Instagram haikuweza kuunganishwa. Hakikisha umechagua Instagram Professional account na kutoa ruhusa za ujumbe, kisha jaribu tena.');
+    }
+    if (oauthResult) {
+      params.delete('instagramOAuth');
+      params.delete('businessId');
+      const query = params.toString();
+      window.history.replaceState(window.history.state, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
+    }
+  }, [load]);
 
   const connect = async () => {
     setConnecting(true);
