@@ -164,6 +164,15 @@ export class InstagramOAuthService {
     }
   }
 
+  async businessIdForCallbackState(state: string): Promise<number | null> {
+    if (!state || state.length > 256) return null;
+    const row = await this.states.findOne({
+      where: { stateHash: this.hash(state) },
+      select: ['businessId'],
+    });
+    return row?.businessId ?? null;
+  }
+
   private requiredConfig(key: string): string {
     const value = this.config.get<string>(key);
     if (!value) throw new ServiceUnavailableException(`${key} is not configured.`);
