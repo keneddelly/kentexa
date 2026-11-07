@@ -243,6 +243,52 @@ A task is not complete until:
 7. Produce a short status report with: **Done / In progress / Blocked / Next exact action**.
 8. Then execute the highest-priority verified unfinished task. Do not restart completed work.
 
+## 10. 2026-11-07 work log and recovery handoff — READ FIRST
+
+This section records the work performed on 2026-11-07 and the exact recovery state after the production restore. It is deliberately explicit so Claude can continue without guessing.
+
+### Instagram OAuth callback — included in the restored production checkpoint
+
+- Commit: `ba22eb7329b06bbe4c470f9c25a89ac2e7c64815`.
+- Commit message: `Fix Instagram OAuth callback return to Kentexa`.
+- Changes recorded in the commit: redirect Instagram OAuth callback back to Kentexa; route the return to Business integrations; show callback result and refresh connected accounts; preserve Business context on failed OAuth; return failed attempts to the correct Business screen; backend Express response type and TypeORM select-shape build fixes.
+- This exact commit was deployed successfully to both frontend and backend during the recovery operation. Render confirmed both deployments as `live`.
+- This is a code/deploy checkpoint only. Re-test the complete OAuth flow with a real authorized Meta/Instagram test account, including login, consent, callback, connected-account display, and failure/retry paths. Do not claim the Meta messaging channel is fully operational based only on OAuth callback success.
+
+### SEO and public discoverability work — preserved in Git, not in current production checkpoint
+
+The following later work was present in the production branch tip before recovery and is preserved in the backup branch listed below. It was not included in the restored `ba22eb73` production code:
+
+- PR #287, commit `428f2e70c3f20d89fbbc955087560dbd483917a3`: search/AI visibility foundation, including public SEO landing pages and homepage metadata/structured data.
+- PR #288, commit `d71db42389dcedc7292dab1e374c935922136d11`: AI crawler support / robots directives.
+- PR #289, commit `7ea2759d3e0615c5873fedeadfe97b4a5b7fd5b2`: Kentexa identity profile and metadata/About page updates.
+- PR #290, commit `7e4ea128fb1efed23efaa82aed3405b4001c5342`: dynamic public-content sitemap endpoint and sitemap index integration.
+- Previously recorded sitemap URLs: `https://kentexa.com/sitemap.xml`, `https://kentexa.com/sitemap-static.xml`, and `https://api.kentexa.com/share/sitemap.xml`. Verify the actual routes/files on the relevant branch before relying on them.
+- The SEO deploys were previously live on Render before the recovery. After recovery, these later SEO changes are preserved in Git but are not part of the currently deployed `ba22eb73` checkpoint. Re-validate build compatibility and sitemap behavior before reintroducing them.
+
+### Production recovery performed
+
+- User requested restoring the site to the earlier working version and keeping newer work in Git for Claude.
+- Both Render production services use repository `keneddelly/kentexa`, branch `worktree-service-provider-profiles` (not `master`).
+- Frontend service: `srv-da0069dbedkc739j0ji0`.
+- Backend service: `srv-d9qnb33m8hqs738q492g`.
+- Before recovery, both services were live on `7e4ea128fb1efed23efaa82aed3405b4001c5342` (PR #290 / dynamic sitemap).
+- A preservation branch was created before moving the production branch ref: `recovery/production-before-rollback-2026-11-07`, pointing to the exact pre-recovery tip `7e4ea128fb1efed23efaa82aed3405b4001c5342`.
+- The production branch ref `worktree-service-provider-profiles` was then moved back to `ba22eb7329b06bbe4c470f9c25a89ac2e7c64815`. Render auto-deployed that commit to both services.
+- Render confirmed frontend deploy `dep-dbnnhju8bjmc73af705g` and backend deploy `dep-dbnnhju8bjmc73af6vbg` both reached status `live` on `ba22eb73`.
+- No database rollback was performed. Do not roll back or reset production database state as part of code recovery. Inspect migration history and current schema before any later deployment of code from the backup branch.
+- Important: the recovery branch preserves the full newer Git snapshot, including the later SEO work. Do not force-push or delete it. Do not assume a Git branch ref reset erased commits; use the backup branch and commit history to inspect and selectively restore changes.
+
+### Exact next steps for Claude
+
+1. Fetch and inspect both branches: `worktree-service-provider-profiles` (restored checkpoint) and `recovery/production-before-rollback-2026-11-07` (pre-recovery snapshot).
+2. Compare the two refs and inventory every changed file/commit after `ba22eb73`; do not cherry-pick or merge the whole backup branch blindly.
+3. Preserve the restored production checkpoint while diagnosing the original reported homepage issue. Inspect actual browser-rendered homepage, not only SEO metadata.
+4. Reconcile SEO work selectively: review PRs #287–#290, test frontend/backend builds, route behavior, sitemap XML and robots rules, and database migration compatibility before proposing a re-release.
+5. Re-test Instagram OAuth callback from the restored checkpoint. Separately verify Meta permissions, webhook subscription, inbound DM ingestion, outbound reply, token lifecycle, and business-account scoping before marking Instagram DM integration complete.
+6. Keep all unfinished work on feature branches/PRs. Do not change production branch to `master`, do not delete the recovery branch, and do not perform database rollback without a reviewed migration/data plan.
+
+
 ## 9. Important known repository details
 
 - Repository: `keneddelly/kentexa`
