@@ -122,10 +122,10 @@ const AboutUs = ({ onNavigate }) => {
           <h2 style={{ fontSize: 18, fontWeight:800, color: '#fff', margin: '0 0 20px', textAlign: 'center', fontFamily:'inherit' }}>{t('about_us.stats_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
             {[
-              { value: '01', label: t('about_us.stat1_label'), icon: '🛍️' },
-              { value: '02', label: t('about_us.stat2_label'), icon: '🏪' },
-              { value: '03', label: t('about_us.stat3_label'), icon: '💬' },
-              { value: '04', label: t('about_us.stat4_label'), icon: '📦' },
+              { value: 'Shop', label: t('about_us.stat1_label'), icon: '🛍️' },
+              { value: 'Manage', label: t('about_us.stat2_label'), icon: '🏪' },
+              { value: 'Connect', label: t('about_us.stat3_label'), icon: '💬' },
+              { value: 'Move', label: t('about_us.stat4_label'), icon: '📦' },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center', padding: '16px 8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 }}>
                 <div style={{ fontSize: 28 }}>{s.icon}</div>
