@@ -94,6 +94,59 @@ export class ShareController {
     }
   }
 
+  /** Database-backed sitemap of content that is currently public to unauthenticated visitors. */
+  @Get('sitemap.xml')
+  async publicSitemap(@Res() res: Response) {
+    if (!this.db) return res.status(503).type('text').send('Sitemap temporarily unavailable');
+    const base = FRONTEND_URL.endsWith('/') ? FRONTEND_URL.slice(0, -1) : FRONTEND_URL;
+    const xml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
+    })[ch] as string);
+    const rows: Array<{ loc: string; lastmod?: string }> = [];
+    const add = (items: any[], path: (row: any) => string) => {
+      for (const row of items) rows.push({ loc: base + path(row), lastmod: row.updatedAt || row.createdAt });
+    };
+    try {
+      const [profiles, products, classifieds, services, posts] = await Promise.all([
+        this.db.query(`SELECT username, "updatedAt" FROM public.commerce_profile
+          WHERE status::text = 'active' AND "hiddenFromPublic" = false ORDER BY "updatedAt" DESC`),
+        this.db.query(`SELECT x.id, x."updatedAt" FROM public.product x
+          LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId"
+          WHERE x."isActive" = true AND x."isAvailable" = true AND x."availableOnline" = true AND x.stock > 0
+          AND (x."commerceProfileId" IS NULL OR (cp.status::text = 'active' AND cp."hiddenFromPublic" = false))
+          ORDER BY x."updatedAt" DESC`),
+        this.db.query(`SELECT x.id, x."updatedAt" FROM public.classified x
+          LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId"
+          WHERE x.status::text = 'active'
+          AND (x."commerceProfileId" IS NULL OR (cp.status::text = 'active' AND cp."hiddenFromPublic" = false))
+          ORDER BY x."updatedAt" DESC`),
+        this.db.query(`SELECT x.id, x."updatedAt" FROM public.service_ad x
+          LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId"
+          WHERE x.status::text = 'active'
+          AND (x."commerceProfileId" IS NULL OR (cp.status::text = 'active' AND cp."hiddenFromPublic" = false))
+          AND (x."createdAt" < TIMESTAMPTZ '2026-10-14T00:00:00+03:00'
+            OR EXISTS (SELECT 1 FROM public.identity_profile ip WHERE ip."userId" = x."providerId" AND ip.status::text = 'verified'))
+          ORDER BY x."updatedAt" DESC`),
+        this.db.query(`SELECT x.id, x."createdAt" FROM public.business_feed_item x
+          LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId"
+          WHERE x."isActive" = true AND x.status::text = 'published' AND x.visibility::text = 'public'
+          AND (x."expiresAt" IS NULL OR x."expiresAt" > NOW())
+          AND (x."commerceProfileId" IS NULL OR (cp.status::text = 'active' AND cp."hiddenFromPublic" = false))
+          ORDER BY x."createdAt" DESC`),
+      ]);
+      add(profiles, (r) => '/@' + encodeURIComponent(r.username));
+      add(products, (r) => '/product/' + r.id);
+      add(classifieds, (r) => '/classified/' + r.id);
+      add(services, (r) => '/service/' + r.id);
+      add(posts, (r) => '/post/' + r.id);
+      const body = rows.map((r) => `<url><loc>${xml(r.loc)}</loc>${r.lastmod ? `<lastmod>${new Date(r.lastmod).toISOString()}</lastmod>` : ''}</url>`).join('');
+      res.set('Cache-Control', 'public, max-age=300');
+      return res.status(200).type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
+    } catch {
+      return res.status(503).type('text').send('Sitemap temporarily unavailable');
+    }
+  }
+
   @Get('html/:type/:ref')
   async html(@Param('type') type: string, @Param('ref') ref: string, @Res() res: Response) {
     const payload = await this.pagePayload(type, ref);
