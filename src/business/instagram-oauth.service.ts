@@ -168,7 +168,7 @@ export class InstagramOAuthService {
     if (!state || state.length > 256) return null;
     const row = await this.states.findOne({
       where: { stateHash: this.hash(state) },
-      select: ['businessId'],
+      select: { businessId: true },
     });
     return row?.businessId ?? null;
   }
