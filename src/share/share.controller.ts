@@ -98,7 +98,7 @@ export class ShareController {
   @Get('sitemap.xml')
   async publicSitemap(@Res() res: Response) {
     if (!this.db) return res.status(503).type('text').send('Sitemap temporarily unavailable');
-    const base = FRONTEND_URL.replace(/\\/$/, '');
+    const base = FRONTEND_URL.endsWith('/') ? FRONTEND_URL.slice(0, -1) : FRONTEND_URL;
     const xml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
     })[ch] as string);
