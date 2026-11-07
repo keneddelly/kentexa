@@ -112,7 +112,7 @@ export class ShareController {
           WHERE status::text = 'active' AND "hiddenFromPublic" = false ORDER BY "updatedAt" DESC`),
         this.db.query(`SELECT x.id, x."updatedAt" FROM public.product x
           LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId"
-          WHERE x."isActive" = true AND x."isAvailable" = true AND x."availableOnline" = true
+          WHERE x."isActive" = true AND x."isAvailable" = true AND x."availableOnline" = true AND x.stock > 0
           AND (x."commerceProfileId" IS NULL OR (cp.status::text = 'active' AND cp."hiddenFromPublic" = false))
           ORDER BY x."updatedAt" DESC`),
         this.db.query(`SELECT x.id, x."updatedAt" FROM public.classified x
