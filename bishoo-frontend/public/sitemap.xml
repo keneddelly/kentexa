@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://kentexa.com/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://kentexa.com/about-kentexa/</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://kentexa.com/free-pos-tanzania/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://kentexa.com/pos-for-small-shops/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://kentexa.com/free-stock-management/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://kentexa.com/track-shop-sales/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://kentexa.com/employee-sales-accountability/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://kentexa.com/free-business-management/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://kentexa.com/social-communities-tanzania/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/unified-business-inbox/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/logistics-office-management/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/hotel-restaurant-qr-menu/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/local-delivery-tanzania/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/transport-services-tanzania/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/ai-search-tanzania/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/find-local-businesses-tanzania/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://kentexa.com/online-marketplace-tanzania/</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
 </urlset>
