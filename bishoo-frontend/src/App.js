@@ -260,6 +260,8 @@ function App() {
         }
       } catch { /* keep the address as it is */ }
       const params = new URLSearchParams(window.location.search);
+      const instagramOAuthBusinessId = params.get('businessId');
+      if (params.get('instagramOAuth') && /^\d+$/.test(instagramOAuthBusinessId || '')) return 'BusinessIntegrations';
       const track   = params.get('track');
       const receive = params.get('receive');
       const confirm = params.get('confirm');
@@ -308,6 +310,9 @@ function App() {
     // WHICH of that account's profiles (personal/business/hub/transport)
     // to show, since CommerceProfile.js can't tell from the bare id alone.
     try {
+      const params = new URLSearchParams(window.location.search);
+      const instagramOAuthBusinessId = params.get('businessId');
+      if (params.get('instagramOAuth') && /^\d+$/.test(instagramOAuthBusinessId || '')) return { businessId: Number(instagramOAuthBusinessId) };
       const menu = parseMenuPath(window.location.pathname, window.location.search);
       if (menu) return menu.navParams;
       return pathToNavParams(window.location.pathname, window.location.search);
