@@ -1,6 +1,6 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { InstagramOAuthService } from './instagram-oauth.service';
 
 @Controller('business/instagram')
