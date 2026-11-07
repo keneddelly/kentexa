@@ -19,7 +19,7 @@ export class InstagramOAuthCallbackController {
   ): Promise<void> {
     // Never expose Meta's authorization code, state, or provider error details
     // in the browser URL. The one-time state is consumed by completeAuthorization.
-    let businessId: number | null = null;
+    let businessId: number | null = await this.oauth.businessIdForCallbackState(state);
     let result = 'error';
     try {
       if (error) throw new Error('Instagram authorization was cancelled or denied.');
