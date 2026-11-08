@@ -399,6 +399,39 @@ export class LogisticsServiceOfferService {
     return new Set(rows.map((r) => Number(r.id)));
   }
 
+  /**
+   * Offices whose own transporter runs this trip (owner 2026-11-09: "Ar SAMATTA added prices for
+   * regions, but no office is shown"): the transporter's active route from the sender's town to the
+   * destination counts as the office's route, priced per kg from that route, when the office has no
+   * "Bei zangu" row for it. Linked = the same owner, or the office is a parcel-acceptance stop of the
+   * route. The customer still faces the office only (owner 2026-10-26).
+   */
+  private async transportBackedRates(from: string, to: string, weight: number): Promise<Map<number, { destinationCity: string; ratePerKg: number; minimumCharge: number; estimatedDays: number | null; via: string }>> {
+    const out = new Map<number, { destinationCity: string; ratePerKg: number; minimumCharge: number; estimatedDays: number | null; via: string }>();
+    if (!this.db || !this.transport?.discoverServiceRoutes) return out;
+    const services: any[] = await this.transport.discoverServiceRoutes(from, to, weight).catch(() => []);
+    if (!services.length) return out;
+    const owners: any[] = await this.db.query(`SELECT id, "userId" FROM public.transport_provider WHERE id = ANY($1::int[])`,
+      [[...new Set(services.map((x) => Number(x.providerId)))]]).catch(() => []);
+    const ownerOf = new Map(owners.map((r) => [Number(r.id), r.userId == null ? null : Number(r.userId)]));
+    const userIds = [...new Set([...ownerOf.values()].filter((v): v is number => v != null))];
+    const owned: any[] = userIds.length ? await this.db.query(`SELECT id, "userId" FROM public.super_agent WHERE "userId" = ANY($1::int[])`, [userIds]).catch(() => []) : [];
+    for (const svc of services) {
+      const ids = new Set<number>((svc.originPoints || []).map((p: any) => Number(p.hubId)));
+      const owner = ownerOf.get(Number(svc.providerId));
+      for (const o of owned) if (owner != null && Number(o.userId) === owner) ids.add(Number(o.id));
+      const rate = { destinationCity: to, ratePerKg: Number(svc.pricePerKg) || 0, minimumCharge: Number(svc.fixedFee) || 0,
+        estimatedDays: Number(svc.estimatedHours) > 0 ? Math.max(1, Math.ceil(Number(svc.estimatedHours) / 24)) : null,
+        via: String(svc.providerName || svc.providerBusinessName || '').trim() };
+      for (const id of ids) {
+        const prev = out.get(id);
+        // The cheaper of two routes for the same office.
+        if (!prev || Math.max(rate.ratePerKg * weight, rate.minimumCharge) < Math.max(prev.ratePerKg * weight, prev.minimumCharge)) out.set(id, rate);
+      }
+    }
+    return out;
+  }
+
   async officeOffers(dto: DiscoverServiceOffersDto): Promise<LogisticsServiceOffer[]> {
     const value = Number(dto?.declaredValue);
     if (!this.db || !this.officePrices || !Number.isFinite(value) || value <= 0) return [];
@@ -425,6 +458,23 @@ export class LogisticsServiceOfferService {
       estimatedDays: r.estimatedDays == null ? null : Number(r.estimatedDays),
       rating: r.rating == null ? null : Number(r.rating), totalRatings: r.totalRatings == null ? null : Number(r.totalRatings),
     }));
+    // Offices whose own transporter runs this trip (transportBackedRates): their route counts
+    // when "Bei zangu" has no row for this destination. Intercity only.
+    const backed = sameCityOffices ? new Map() : await this.transportBackedRates(from, to, weight);
+    if (backed.size) {
+      const haveRow = new Set(rows.filter((r) => rateServesDestination(r.destinationCity, destination)).map((r) => r.officeId));
+      const need = [...backed.keys()].filter((id) => !haveRow.has(id));
+      if (need.length) {
+        const extra: any[] = await this.db.query(`SELECT sa.id AS "officeId", sa."businessName", sa.city AS "officeCity", sa.address AS "officeAddress",
+            sa.latitude AS "officeLatitude", sa.longitude AS "officeLongitude", sa.rating, sa."totalRatings"
+          FROM public.super_agent sa WHERE sa.id = ANY($1::int[]) AND sa.status = 'active' AND sa."isTrainingOffice" = false`, [need]).catch(() => []);
+        for (const o of extra) {
+          const b = backed.get(Number(o.officeId))!;
+          rows.push({ ...o, officeId: Number(o.officeId), rating: o.rating == null ? null : Number(o.rating), totalRatings: o.totalRatings == null ? null : Number(o.totalRatings),
+            destinationCity: b.destinationCity, ratePerKg: b.ratePerKg, minimumCharge: b.minimumCharge, estimatedDays: b.estimatedDays, transportBacked: true } as any);
+        }
+      }
+    }
     // An office that ticked only large goods / containers ("Bei zangu") does not take
     // small parcels: it is not offered here (owner 2026-10-26). Never set = parcels.
     const noParcels = await this.officesWithoutParcels();
@@ -455,6 +505,8 @@ export class LogisticsServiceOfferService {
       const quoted = await this.officePrices.quoteFor(office, {
         destinationCity: rate.destinationCity, declaredValue: value, weightKg: weight, servicePath: 'intercity',
         pickupAddress: dto.pickup === 'door' && officePickupFee == null ? origin.label : null,
+        // Priced from the office's own transport route when "Bei zangu" has no row (transportBackedRates).
+        kgRate: (rate as any).transportBacked ? { ratePerKg: rate.ratePerKg, minimumCharge: rate.minimumCharge } : null,
       }).catch(() => null);
       if (!quoted) continue;
       const quote = officePickupFee == null ? quoted : {
@@ -546,6 +598,7 @@ export class LogisticsServiceOfferService {
       ? new Set(((await this.db.query(`SELECT "superAgentId" FROM public.office_pickup_offer WHERE "sameCityDelivery" = true`).catch(() => [])) as any[]).map((r) => Number(r.superAgentId)))
       : new Set<number>();
     const originForMatch = pickupPoint ? { ...origin, latitude: pickupPoint.latitude, longitude: pickupPoint.longitude } : origin;
+    const backed = sameCity ? new Map() : await this.transportBackedRates(from, to, weight);
     const offices = [] as any[];
     for (const o of officeRows) {
       const id = Number(o.id);
@@ -560,14 +613,15 @@ export class LogisticsServiceOfferService {
       }
       if (sameCity) {
         if (!sameCityIds.has(id)) reasons.push('Haijachagua kupeleka ndani ya mji');
-      } else if (!routes.some((r) => rateServesDestination(r, destination))) {
+      } else if (!routes.some((r) => rateServesDestination(r, destination)) && !backed.has(id)) {
         reasons.push(routes.length ? `Haina njia kwenda ${to} (inatuma: ${routes.join(', ')})` : 'Haijaweka mkoa wowote inaotuma ("Bei zangu")');
       }
       if (noParcels.has(id)) reasons.push('Imechagua mizigo mikubwa au kontena tu, si vifurushi');
       const rule = this.officePrices ? await this.officePrices.ruleFor(id).catch(() => null) : null;
       offices.push({ id, name: o.businessName, city: o.city, status: o.status, hasPoint: Boolean(point),
         distanceKm: km == null ? null : Math.round(km * 10) / 10, chargeMode: rule?.chargeMode ?? 'value (kawaida)',
-        routes, ok: reasons.length === 0, reasons });
+        routes, ok: reasons.length === 0, reasons,
+        note: backed.has(id) ? `Inatuma ${to} kupitia usafiri wake (${backed.get(id).via || 'msafirishaji'})` : null });
     }
     // The real answer, so the check and the customer's screen never disagree.
     const offers = await this.discover({ ...dto, weightKg: weight } as any).catch((e: any) => {
