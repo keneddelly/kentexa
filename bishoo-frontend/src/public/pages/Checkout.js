@@ -154,7 +154,10 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   // ── Detect delivery methods when address changes ─────────────
   const detectDeliveryRef = React.useRef(null);
-  const detectDeliveryMethodsFor = (address) => {
+  // The engine prices from the picked place and the quantity (owner 2026-11-09): the same ask the
+  // order makes, so the price shown is the price charged. `loc` is passed in because a place just
+  // picked is not in state yet.
+  const detectDeliveryMethodsFor = (address, loc = deliveryLocation) => {
     setSelectedMethod(null);
     setDeliveryMethods([]);
     setAreaUnknown(false);
@@ -165,7 +168,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         setDetectingMethods(true);
         const productId = cart[0]?.id;
         if (!productId) return;
-        const res = await api.get(`/orders/delivery-methods?address=${encodeURIComponent(address)}&productId=${productId}`);
+        const q = new URLSearchParams({ address, productId: String(productId), qty: String(Number(cart[0]?.quantity) || 1) });
+        if (loc?.regionId) q.set('regionId', String(loc.regionId));
+        if (loc?.districtId) q.set('districtId', String(loc.districtId));
+        if (loc?.wardId) q.set('wardId', String(loc.wardId));
+        if (loc?.regionName) q.set('region', loc.regionName);
+        const res = await api.get(`/orders/delivery-methods?${q.toString()}`);
         setDeliveryMethods(res.data.methods || []);
         setIsSameCity(res.data.isSameCity || false);
         setAreaUnknown(res.data.areaUnknown === true);
@@ -177,9 +185,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       finally { setDetectingMethods(false); }
     }, DETECT_DELAY);
   };
-  const handleAddressChange = (address) => {
+  const handleAddressChange = (address, loc) => {
     setForm(f => ({ ...f, deliveryAddress: address }));
-    detectDeliveryMethodsFor(address);
+    detectDeliveryMethodsFor(address, loc);
   };
 
   // One keyword search (the shipment form's) sets region, district and ward
@@ -205,21 +213,25 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       return;
     }
     const isWard = row.type === 'ward';
-    setDeliveryLocation({
+    const picked = {
       regionId: row.regionId, regionName: row.region || '',
       districtId: row.districtId || null, districtName: row.district || '',
       wardId: isWard ? row.wardId : null, wardName: isWard ? row.ward || '' : '',
-    });
+    };
+    setDeliveryLocation(picked);
     setPlaceText(row.fullAddress);
     setError('');
-    handleAddressChange(row.fullAddress);
+    handleAddressChange(row.fullAddress, picked);
   };
 
   // Release F: local delivery options (boda, van, collection) only when the
   // server says the buyer's region is the seller's region (payment-options,
   // by region id; never the typed address). Other region, no region yet, or
   // still checking: hidden, and the order goes as 'agent' with no local fee.
-  const deliveryOptionsHidden = directMode && !isDigitalOnlyCart
+  // Another city is never hidden (owner 2026-11-09): the buyer sees the office price, or no price.
+  const intercityShown = Boolean(deliveryLocation.regionId) && !isSameCity
+    && deliveryMethods.some((m) => m.key === 'agent' || m.key === 'direct');
+  const deliveryOptionsHidden = directMode && !isDigitalOnlyCart && !intercityShown
     && !(deliveryLocation.regionId && !directInfo.loading && directInfo.sameCity);
 
   const getSelectedMethodData = () => (deliveryOptionsHidden ? null : deliveryMethods.find(m => m.key === selectedMethod) || null);
@@ -227,13 +239,10 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const getCartTotal = () => {
     const method = getSelectedMethodData();
     if (!method || deliveryMethods.length === 0) return cartTotal;
-    // Price changes based on delivery method:
-    // - Dar buyer with boda: basePrice + bodaFee
-    // - Dar buyer with van: basePrice + 3000 (flat van fee)
-    // - Intercity: basePrice + deliveryFee (product default — unchanged)
-    if (method.key === 'agent') return cartTotal; // intercity — use product price as-is
+    // The goods plus the engine's fee for the parcel, once (owner 2026-11-09). Another city: the
+    // exact office price. No price known: the goods only, and no shipping figure is shown.
     const baseOnly = cart.reduce((sum, item) => sum + Number(item.basePrice || item.price || 0) * item.quantity, 0);
-    return baseOnly + (method.fee || 0);
+    return baseOnly + (Number(method.fee) || 0);
   };
 
   // If the cart changes so that COD is no longer offered (e.g. a non-COD
@@ -344,7 +353,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       shippingMethod:   deliveryOptionsHidden ? 'agent' : (selectedMethod || (isSameCity ? 'boda' : 'agent')),
       // Send the actual delivery fee for this method
       // agent = use product default, others = method fee
-      ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
+      ...(methodData && methodData.key !== 'agent' && methodData.fee != null ? { deliveryFee: methodData.fee } : {}),
       paymentMethod: directMode ? directChoice : paymentChoice,
       items: cart.map((item) => ({ productId: item.id, quantity: item.quantity })),
     };
@@ -888,6 +897,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                         {method.label}
                       </div>
                       <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{method.desc}</div>
+                      {method.office?.offices > 1 && (
+                        <div data-testid="office-pick-note" style={{ fontSize: 11, color: '#536471', marginTop: 2 }}>
+                          Ofisi {method.office.offices} zina bei; KenteXa imechagua yenye bei nzuri na huduma bora.
+                        </div>
+                      )}
                       {method.key === 'kentexa_delivery' && (
                         <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700, marginTop: 3 }}>
                           Kata: {method.cutoffTime} · Inafika: {method.estimatedArrival}
@@ -916,7 +930,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: 14, fontWeight:800, color: method.fee === 0 && method.key !== 'boda' ? '#16a34a' : '#1d4ed8' }}>
-                        {method.key === 'boda' && method.fee === 0
+                        {method.fee == null || method.noPrice ? null : method.key === 'boda' && method.fee === 0
                           ? <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>{t('checkout.seller_sets_price')}</span>
                           : method.fee === 0
                             ? t('cart.free')
@@ -1025,7 +1039,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 14 }}>
             <span style={{ color: '#64748b' }}>{t('checkout.delivery')}</span>
-            {getSelectedMethodData() && getSelectedMethodData().key !== 'agent' ? (
+            {getSelectedMethodData() && (getSelectedMethodData().fee == null || getSelectedMethodData().noPrice) ? (
+              <span data-testid="delivery-no-price" style={{ fontSize: 12, color: '#94a3b8' }}>{getSelectedMethodData().label}</span>
+            ) : getSelectedMethodData() ? (
               <span style={{ fontWeight: 700, color: '#1d4ed8' }}>
                 TZS {Number(getSelectedMethodData().fee || 0).toLocaleString()}
                 <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>({getSelectedMethodData().label})</span>

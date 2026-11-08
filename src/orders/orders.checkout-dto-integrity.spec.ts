@@ -70,7 +70,7 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
       buyer as any,
     );
 
-    expect(getDeliveryMethods).toHaveBeenCalledWith('Kariakoo', 10);
+    expect(getDeliveryMethods).toHaveBeenCalledWith('Kariakoo', 10, expect.objectContaining({ quantity: 1 }));
     expect(repo.create).toHaveBeenCalledWith(
       expect.objectContaining({ shippingMethod: 'boda', deliveryFeeAmount: 2500 }), // the engine's method fee, NOT a request-supplied value
     );
@@ -101,7 +101,7 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
 
     await svc.create({ productId: 10, quantity: 1, deliveryAddress: 'Kariakoo' } as any, buyer as any);
 
-    expect(getDeliveryMethods).toHaveBeenCalledWith('Kariakoo', 10);
+    expect(getDeliveryMethods).toHaveBeenCalledWith('Kariakoo', 10, expect.objectContaining({ quantity: 1 }));
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ shippingMethod: 'agent', deliveryFeeAmount: 6000 }));
   });
 

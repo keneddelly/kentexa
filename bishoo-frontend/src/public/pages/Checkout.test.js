@@ -178,3 +178,34 @@ describe('buyer words', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// Owner 2026-11-09: another city shows the exact office price (one real office), or no price.
+describe('shipping to another city', () => {
+  const withMethods = (methods) => {
+    const base = api.get.getMockImplementation();
+    api.get.mockImplementation(async (url, config) => (url.startsWith('/orders/delivery-methods')
+      ? { data: { methods, isSameCity: false } } : base(url, config)));
+  };
+
+  test('the office price is shown and counted once; the engine is asked with the picked place and quantity', async () => {
+    withMethods([{ key: 'agent', label: 'Usafiri hadi mkoa wako', fee: 15000, desc: 'Ofisi Ubungo inaupeleka mji wako; unachukua ofisini',
+      office: { officeId: 6, officeName: 'Ofisi Ubungo', fee: 15000, offices: 3, cheapest: 14000 } }]);
+    renderCheckout([CART[0]]);
+    await pickPlace('iyun', 'Iyunga, Mbeya Mjini, Mbeya');
+    expect(await screen.findByText(/Ofisi Ubungo inaupeleka/)).toBeInTheDocument();
+    expect(screen.getByTestId('office-pick-note')).toHaveTextContent('Ofisi 3 zina bei');
+    expect(screen.getAllByText(/TZS 15,000/).length).toBeGreaterThan(0);
+    const asked = api.get.mock.calls.map(([u]) => u).filter((u) => u.startsWith('/orders/delivery-methods')).pop();
+    expect(asked).toMatch(/regionId=12/);
+    expect(asked).toMatch(/wardId=401/);
+    expect(asked).toMatch(/qty=1/);
+  });
+
+  test('no office has a price: no shipping figure at all (never "Bure")', async () => {
+    withMethods([{ key: 'direct', label: 'Muuzaji atapanga usafiri', fee: null, noPrice: true, desc: 'KenteXa haina bei ya usafiri huko bado' }]);
+    renderCheckout([CART[0]]);
+    await pickPlace('iyun', 'Iyunga, Mbeya Mjini, Mbeya');
+    expect(await screen.findByTestId('delivery-no-price')).toHaveTextContent('Muuzaji atapanga usafiri');
+    expect(screen.queryByText(sw.cart.free)).toBeNull();
+  });
+});
