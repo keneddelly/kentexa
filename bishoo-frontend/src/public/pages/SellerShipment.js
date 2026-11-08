@@ -257,7 +257,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     api.post('/transport/service-offers/discover', {
       fromCity: sellerCity, toCity: destCity, weightKg: weight || 1,
       pickup: inCity ? 'door' : 'point', delivery: inCity ? 'door' : 'collect',
-      origin: shop ? { place: shop.placeRef } : { text: sellerCity },
+      // A kept shop place without a map reference still has its words ("Keko, Temeke"): sent as
+      // text, never as an empty place (owner 2026-11-08: "Hatukutambua Keko").
+      origin: shop?.placeRef ? { place: shop.placeRef } : { text: shop?.label || sellerCity },
       destination: place.placeRef ? { place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId } } : { text: address || destCity },
       declaredValue: goods || undefined,
       originArea: shopArea || undefined, destinationArea: destArea || undefined,

@@ -9,6 +9,8 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
+/** Notification pages the server names differently: the agent's job list is his dashboard. */
+export const SERVER_PAGES = { 'agent-pickups': 'AgentDashboard' };
 const ago  = (d, t) => {
   const diff = Date.now() - new Date(d).getTime();
   const m = Math.floor(diff / 60000);
@@ -89,6 +91,9 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
 
   const openNotification = (notification) => {
     markRead(notification.id);
+    // Server pages with another name here (owner 2026-11-08: a pickup job notice opened Home).
+    const alias = SERVER_PAGES[notification.actionPage];
+    if (alias) { onNavigate(alias); return; }
     if (notification.actionPage) onNavigate(
       notification.actionParam
         ? `${notification.actionPage}-${notification.actionParam}` : notification.actionPage,
