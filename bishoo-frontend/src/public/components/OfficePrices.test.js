@@ -105,24 +105,18 @@ test('not an active office: no charging section, Save works on routes as before'
 const kgOffice = (rates) => serve({ priceRule: rule({ chargeMode: 'kg', source: 'office' }), rates });
 const destination = (row) => row.querySelector('select');
 
-test('"By value" hides the route rows; "By kg" shows them (saved rows untouched)', async () => {
+test('the route rows show in both ways of charging; price per kg only "By kg" (owner 2026-11-08)', async () => {
   serve();
   api.put.mockResolvedValue({ data: rule({ source: 'office' }) });
   await openPage();
   await screen.findByTestId('office-price-rule');
   await waitFor(() => expect(api.get).toHaveBeenCalledWith('/super-agents/rates/Dar%20es%20Salaam'));
-  expect(screen.queryAllByTestId('route-row')).toHaveLength(0);
-  expect(screen.queryByText('+ super_agent_settings.rate_add_route')).toBeNull();
-  fireEvent.click(screen.getByText('office_price_rule.by_kg'));
   expect(await screen.findAllByTestId('route-row')).toHaveLength(1);
-  expect(screen.getByDisplayValue('Mwanza')).toBeTruthy();
+  expect(screen.queryByText('super_agent_settings.rate_per_kg_label')).toBeNull();
+  fireEvent.click(screen.getByText('office_price_rule.by_kg'));
+  expect(screen.getByText('super_agent_settings.rate_per_kg_label')).toBeTruthy();
   fireEvent.click(screen.getByText('office_price_rule.by_value'));
-  expect(screen.queryAllByTestId('route-row')).toHaveLength(0);
-  // Saving by value sends the rule only: the hidden rows are neither re-sent nor removed.
-  fireEvent.click(screen.getByText('super_agent_settings.rate_save_button'));
-  expect(await screen.findByText('office_price_rule.saved')).toBeTruthy();
-  expect(api.post).not.toHaveBeenCalled();
-  expect(api.delete).toBeUndefined();
+  expect(screen.queryByText('super_agent_settings.rate_per_kg_label')).toBeNull();
 });
 
 test('the destination is a pick list of the engine\'s regions only', async () => {
@@ -207,4 +201,17 @@ test('360px: the route rows have no fixed widths that could overflow a phone', a
       expect(el.style.minWidth).toBe('');
     }
   }
+});
+
+test('charging by value, the office still lists the regions it sends to (owner 2026-11-08: offices never appeared)', async () => {
+  serve();
+  api.put.mockResolvedValue({ data: rule({ source: 'office' }) });
+  api.post.mockResolvedValue({ data: { message: 'ok' } });
+  await openPage();
+  await screen.findByTestId('office-price-rule');
+  expect(await screen.findByDisplayValue('Mwanza')).toBeTruthy();         // the region row is shown by value too
+  expect(screen.queryByText('super_agent_settings.rate_per_kg_label')).toBeNull(); // no price per kg by value
+  fireEvent.click(screen.getByText('super_agent_settings.rate_save_button'));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][1].rates[0]).toMatchObject({ destinationCity: 'Mwanza', estimatedDays: 2 });
 });

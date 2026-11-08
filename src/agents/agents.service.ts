@@ -33,6 +33,7 @@ import {
   AccountRoleType,
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
+import { agentCovers, GeoPoint } from '../location-intelligence/place-match';
 import { agentOnlineRequired } from './agent-online';
 
 /** Vehicle types an agent can choose (step 3 of sign-up). */
@@ -618,7 +619,13 @@ export class AgentsService {
 
   // ── Get available agents by city and weight ────────────────────────────────
 
-  async getAvailableAgents(city: string, weightKg?: number) {
+  /**
+   * Approved agents who cover a pickup (owner 2026-11-08, "shipment is dead"): by coordinates
+   * first (base within the radius of `point`), else by the shared name rule (place-match.ts:
+   * Dar es Salaam however written, its districts, the agent's city, district or region).
+   * Nearest base first, then agents without a base (they are told to set one before accepting).
+   */
+  async getAvailableAgents(city: string, weightKg?: number, point?: GeoPoint | null) {
     const agents = await this.agentRepo.find({
       where: { status: 'approved' as any },
       relations: { user: true },
@@ -626,19 +633,23 @@ export class AgentsService {
     });
 
     return agents
-      .filter((a) => {
-        const agentCity =
-          a.city?.toLowerCase() || a.district?.toLowerCase() || '';
-        const matchCity = agentCity === city.toLowerCase();
+      .map((a) => ({ a, cover: agentCovers(a as any, { names: [city], point: point ?? null }) }))
+      .filter(({ a, cover }) => {
         const maxKg = Number((a as any).maxWeightKg || 20);
         const matchWeight = !weightKg || weightKg <= maxKg;
         // Online is not required by default (agent-online.ts, owner 2026-10-25).
         const online = (a as any).isOnline === true || !agentOnlineRequired();
-        return matchCity && matchWeight && online;
+        return cover.covers && matchWeight && online;
       })
-      // Online agents first, then the rest (each group keeps the rating order).
-      .sort((x, y) => Number((y as any).isOnline === true) - Number((x as any).isOnline === true))
-      .map((a) => ({
+      // Agents with a base first (nearest first), then online, then the rating order.
+      .sort((x, y) => Number(y.cover.hasBase) - Number(x.cover.hasBase)
+        || (x.cover.distanceKm ?? Infinity) - (y.cover.distanceKm ?? Infinity)
+        || Number((y.a as any).isOnline === true) - Number((x.a as any).isOnline === true))
+      .map(({ a, cover }) => ({ ...this.availableAgentShape(a), distanceKm: cover.distanceKm == null ? null : Math.round(cover.distanceKm * 10) / 10 }));
+  }
+
+  private availableAgentShape(a: Agent) {
+    return ({
         id: a.id,
         userId: a.user?.id,
         fullName: a.fullName,
@@ -657,7 +668,7 @@ export class AgentsService {
         // Yes/no only: the base point itself never leaves the server.
         hasBasePoint: a.baseLatitude != null && a.baseLongitude != null,
         isOnline: (a as any).isOnline === true,
-      }));
+      });
   }
 
   /**

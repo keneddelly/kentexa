@@ -21,16 +21,22 @@ function build(agents: any[], officeRows: any[] = [office]) {
 const sameCity = { fromCity: 'Dar es Salaam', toCity: 'Dar es Salaam', weightKg: 3, pickup: 'door' as const, delivery: 'door' as const,
   origin: { place: { providerKey: 'tz_seed', providerPlaceId: 'kariakoo' } } };
 
-describe('same-city door pickup needs an online agent WITH a base point', () => {
-  it('an online agent without a base point is not enough (no offer)', async () => {
-    expect(await build([noBase]).svc.discover(sameCity)).toEqual([]);
+describe('same-city door pickup: every agent who covers the pickup (owner 2026-11-08, "shipment is dead")', () => {
+  it('an agent without a base point still gets the job (he sets it before accepting)', async () => {
+    const offers = await build([noBase]).svc.discover(sameCity);
+    expect(offers).toHaveLength(1);
+    expect(offers[0]).toMatchObject({ serviceType: 'direct_delivery', firstAction: { type: 'offer_pickup_task', candidateAgentIds: [4] } });
   });
 
-  it('with a base point: offered, priced from that agent', async () => {
-    const offers = await build([noBase, withBase]).svc.discover(sameCity);
+  it('agents with a base come first (the agents service orders them): priced from the nearest', async () => {
+    const offers = await build([withBase, noBase]).svc.discover(sameCity);
     expect(offers).toHaveLength(1);
     expect(offers[0]).toMatchObject({ serviceType: 'direct_delivery', price: 2000,
-      firstAction: { type: 'offer_pickup_task', candidateAgentIds: [3] } });
+      firstAction: { type: 'offer_pickup_task', candidateAgentIds: [3, 4] } });
+  });
+
+  it('no agent at all: no offer', async () => {
+    expect(await build([]).svc.discover(sameCity)).toEqual([]);
   });
 });
 
@@ -45,8 +51,12 @@ describe('early check (door-check)', () => {
     expect(t.db.query).not.toHaveBeenCalled();
   });
 
+  it('an agent without a base still counts as available (owner 2026-11-08)', async () => {
+    expect(await build([noBase]).svc.doorCheck(sameCity)).toEqual({ available: true, nearestOffice: null });
+  });
+
   it('no agent: Swahili answer + nearest office measured from the chosen place', async () => {
-    const t = build([noBase]);
+    const t = build([]);
     const r = await t.svc.doorCheck(sameCity);
     expect(r).toEqual({ available: false, code: 'NO_AGENT_NOW', message: NO_AGENT_NOW.message, nearestOffice: {
       id: 11, name: 'Kariakoo Hub', phone: '0755000111', address: 'Mtaa wa Congo',
@@ -59,7 +69,7 @@ describe('early check (door-check)', () => {
 
   it('before offices can choose same-city delivery: no office is suggested at all', async () => {
     setOfficeSameCityReadyForTests(false);
-    const t = build([noBase]);
+    const t = build([]);
     const r = await t.svc.doorCheck(sameCity);
     expect(r).toMatchObject({ available: false, code: 'NO_AGENT_NOW', nearestOffice: null });
   });
@@ -78,7 +88,7 @@ describe('"Thibitisha Kifurushi" with no agent', () => {
   beforeEach(() => setOfficeSameCityReadyForTests(true));
   afterEach(() => setOfficeSameCityReadyForTests(false));
   it('the English "no longer fulfillable" is replaced by the same Swahili answer with the office', async () => {
-    const t = build([noBase]);
+    const t = build([]);
     const err: any = await t.svc.commit(50, { ...sameCity, serviceType: 'direct_delivery' }).catch((e) => e);
     expect(err).toBeInstanceOf(BadRequestException);
     expect(err.getResponse()).toMatchObject({ statusCode: 400, code: 'NO_AGENT_NOW', message: NO_AGENT_NOW.message,

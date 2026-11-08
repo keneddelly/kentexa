@@ -125,16 +125,17 @@ const OfficePrices = () => {
     const c = (city || '').trim().toLowerCase();
     return c ? regionNames.find(n => n.toLowerCase() === c) || null : null;
   };
-  // Route rows are the per-kg prices: shown only "By kg" (or with no charging rule).
-  // "By value" hides them; the saved rows stay as they are.
-  const showRoutes = !rule || ruleForm.chargeMode === 'kg';
+  // The regions this office sends to (owner 2026-11-08, "shipment is dead"): shown in BOTH ways
+  // of charging. Charging by value, a row is only the region and the days (no price per kg);
+  // before this, an office charging by value could not list a region and was never offered.
+  const byKg = !rule || ruleForm.chargeMode === 'kg';
 
   // One Save for the Bei card: how the office charges (PUT me/price-rule), then the
   // route rows (POST rates). Routes are optional when the charging rule is shown.
   const handleSaveRates = async () => {
     // Only rows on screen with a listed destination are sent; an old free-text row
     // is left untouched (not re-saved, not deleted) until it is re-picked.
-    const valid = !showRoutes ? [] : rates.filter(r => regionFor(r.destinationCity) && Number(r.ratePerKg) > 0);
+    const valid = rates.filter(r => regionFor(r.destinationCity) && (!byKg || Number(r.ratePerKg) > 0));
     if (!rule && !valid.length) { setRateError(t('super_agent_settings.rate_validation_error')); return; }
     try {
       setRateSaving(true); setRateError(''); setRateMessage('');
@@ -149,7 +150,7 @@ const OfficePrices = () => {
         rates: valid.map(r => ({
           ...(r.id != null && { id: r.id }),
           destinationCity: r.destinationCity.trim(),
-          ratePerKg: Number(r.ratePerKg),
+          ratePerKg: byKg ? Number(r.ratePerKg) : (Number(r.ratePerKg) || 0),
           minimumCharge: Number(r.minimumCharge) || 0,
           estimatedDays: Number(r.estimatedDays) || 3,
         })),
@@ -178,11 +179,10 @@ const OfficePrices = () => {
               📋 {t('super_agent_settings.rates_title')}
             </div>
             {rule && <ChargeRuleSection rule={rule} form={ruleForm} onChange={setRuleForm} />}
-            {showRoutes && (
-              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-                {t('super_agent_settings.rates_desc', { city: city || '—' })}
-              </div>
-            )}
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+              {byKg ? t('super_agent_settings.rates_desc', { city: city || '—' })
+                : `Mikoa unayotuma mizigo kutoka ${city || 'ofisi yako'}, na siku inachukua. Bei ni ya thamani uliyoweka juu. Bila mkoa hapa, ofisi yako haionekani kwa wanaotuma.`}
+            </div>
 
             {rateError && (
               <div style={{ color: '#dc2626', backgroundColor: '#fee2e2',
@@ -198,7 +198,7 @@ const OfficePrices = () => {
               </div>
             )}
 
-            {showRoutes && rates.map((r, i) => {
+            {rates.map((r, i) => {
               const region = regionFor(r.destinationCity);
               const legacy = !region && Boolean(r.destinationCity?.trim());
               const taken = new Set(rates.filter((_, j) => j !== i).map(x => regionFor(x.destinationCity)).filter(Boolean));
@@ -224,22 +224,22 @@ const OfficePrices = () => {
                     </div>
                   )}
                 </div>
-                <div>
+                {byKg && <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_per_kg_label')}
                   </label>
                   <input type="number" placeholder="" value={r.ratePerKg}
                     onChange={e => updateRate(i, 'ratePerKg', e.target.value)} style={inp} />
-                </div>
-                <div>
+                </div>}
+                {byKg && <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_minimum_label')}
                   </label>
                   <input type="number" placeholder="" value={r.minimumCharge}
                     onChange={e => updateRate(i, 'minimumCharge', e.target.value)} style={inp} />
-                </div>
+                </div>}
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
@@ -252,12 +252,12 @@ const OfficePrices = () => {
               );
             })}
 
-            {showRoutes && <button onClick={() => setRates(prev => [...prev, blankRate()])}
+            <button onClick={() => setRates(prev => [...prev, blankRate()])}
               style={{ width: '100%', background: '#fff', color: '#1d4ed8',
                 border: '2px dashed #bfdbfe', padding: 10, borderRadius: 10,
                 cursor: 'pointer', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
               + {t('super_agent_settings.rate_add_route')}
-            </button>}
+            </button>
 
             <button onClick={handleSaveRates} disabled={rateSaving}
               style={{ width: '100%', backgroundColor: rateSaving ? '#94a3b8' : '#16a34a',

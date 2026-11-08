@@ -1,3 +1,4 @@
+import { agentCoversSql } from '../location-intelligence/place-match';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import { Cron } from '@nestjs/schedule';
@@ -79,7 +80,7 @@ export class PickupOfferSmsService {
         const agents: any[] = await em.query(`
           SELECT a.id, COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS phone
             FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId" JOIN public.shipment s ON s.id = p."shipmentId"
-            JOIN public.agent a ON a.status = 'approved' AND lower(trim(a.city)) = lower(trim(s."originCity"))
+            JOIN public.agent a ON a.status = 'approved' AND ${agentCoversSql('s."originCity"', 'COALESCE(s."pickupPinLatitude", s."originLatitude")', 'COALESCE(s."pickupPinLongitude", s."originLongitude")')}
              ${agentOnlineSql('a')} AND (a."maxWeightKg" IS NULL OR a."maxWeightKg" >= s."weightKg")
             LEFT JOIN public."user" u ON u.id = a."userId"
            WHERE t.id = $1
