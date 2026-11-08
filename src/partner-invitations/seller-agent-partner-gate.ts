@@ -15,7 +15,6 @@
  * exists is checked by SellerAgentPartnersService at start-up and every minute, never
  * inside the job queries themselves.
  */
-import { agentJobSmsOn } from '../sms/sms-policy';
 import { customerParcelNumber, smsSafeName } from '../super-agents/customer-parcel-number';
 
 export const SELLER_PARTNER_TABLE = 'public.seller_agent_partner';
@@ -91,8 +90,9 @@ export async function offerTaskToSellerPartners(
   taskId: number,
 ): Promise<number> {
   try {
-    // Agent job SMS off by default (sms-policy.ts, owner 2026-11-08): partners get the job in-app first.
-    if (!sms || sellerPartnerFirstMinutes() <= 0 || !tableReady || !agentJobSmsOn()) return 0;
+    // Agent job SMS off by default (same switch as sms/sms-policy.ts agentJobSmsOn, read here so this
+    // module never imports the SMS code; owner 2026-11-08): partners get the job in-app first.
+    if (!sms || sellerPartnerFirstMinutes() <= 0 || !tableReady || String(process.env.AGENT_JOB_SMS ?? '').trim() !== '1') return 0;
     const rows: any[] = await db.query(`
       SELECT a.id AS "agentId", COALESCE(NULLIF(btrim(a.phone), ''), au.phone) AS phone,
              COALESCE(NULLIF(btrim(sp."businessName"), ''), NULLIF(btrim(su."storeName"), ''), su.name) AS "shopName",
