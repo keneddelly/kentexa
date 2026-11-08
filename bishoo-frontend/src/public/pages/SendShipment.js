@@ -24,6 +24,7 @@ import {
 } from '../../api/shipmentRequests';
 import { formatWaybill } from '../../utils/waybill';
 import PickupPinFields from '../components/PickupPinFields';
+import OfficeCallRow from '../components/OfficeCallRow';
 import PickupLive from '../components/PickupLive';
 import NoAgentOfficeCard from '../components/NoAgentOfficeCard';
 import InviteCarrier from '../components/InviteCarrier';
@@ -130,6 +131,8 @@ export function officeOffers(offers) {
       providerName: o.name,
       officeCity: o.fulfillment.officeOption.officeCity,
       officeAddress: o.fulfillment.officeOption.officeAddress,
+      phone: o.fulfillment.officeOption.phone || null,
+      distanceKm: o.fulfillment.officeOption.distanceKm ?? null,
       rating: o.fulfillment.officeOption.rating,
       totalRatings: o.fulfillment.officeOption.totalRatings,
       chargeText: o.fulfillment.officeOption.chargeText,
@@ -719,7 +722,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                     const on = selected && !isDirectDelivery(selected) && offerKey(selected) === offerKey(o);
                     const eta = o.office ? o.etaLabel : etaText(o.etaLabel);
                     return (
-                      <button key={offerKey(o)} type="button" role="radio" aria-checked={!!on} onClick={() => choose(o)} data-testid="offer"
+                      <div key={offerKey(o)}>
+                      <button type="button" role="radio" aria-checked={!!on} onClick={() => choose(o)} data-testid="offer"
                         style={{ ...card, border: on ? `2px solid ${BLUE}` : `1px solid ${FIELD}`, display: 'flex', flexDirection: 'column', gap: 8,
                           textAlign: 'left', fontFamily: 'inherit', color: INK, cursor: 'pointer', width: '100%' }}>
                         <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', width: '100%' }}>
@@ -753,6 +757,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                           {on && <span style={{ fontSize: 12, fontWeight: 700, color: '#1e3a8a', background: '#dbeafe', borderRadius: 6, padding: '3px 8px' }}>Imechaguliwa</span>}
                         </span>
                       </button>
+                      {o.office && <OfficeCallRow testId={`office-call-${o.officeId}`} phone={o.phone} distanceKm={o.distanceKm} />}
+                      </div>
                     );
                   })}
                 </div>

@@ -449,7 +449,7 @@ export class LogisticsServiceOfferService {
     }
     const rows: OfficeRateRow[] = (await this.db.query(`
       SELECT sa.id AS "officeId", sa."businessName", sa.city AS "officeCity", sa.address AS "officeAddress",
-             sa.latitude AS "officeLatitude", sa.longitude AS "officeLongitude",
+             sa.latitude AS "officeLatitude", sa.longitude AS "officeLongitude", sa.phone AS "officePhone",
              sa.rating, sa."totalRatings", sr."destinationCity", sr."ratePerKg", sr."minimumCharge", sr."estimatedDays"
         FROM public.super_agent sa
         JOIN public.shipping_rate sr ON sr."superAgentId" = sa.id AND sr."isActive" = true
@@ -466,7 +466,7 @@ export class LogisticsServiceOfferService {
       const need = [...backed.keys()].filter((id) => !haveRow.has(id));
       if (need.length) {
         const extra: any[] = await this.db.query(`SELECT sa.id AS "officeId", sa."businessName", sa.city AS "officeCity", sa.address AS "officeAddress",
-            sa.latitude AS "officeLatitude", sa.longitude AS "officeLongitude", sa.rating, sa."totalRatings"
+            sa.latitude AS "officeLatitude", sa.longitude AS "officeLongitude", sa.phone AS "officePhone", sa.rating, sa."totalRatings"
           FROM public.super_agent sa WHERE sa.id = ANY($1::int[]) AND sa.status = 'active' AND sa."isTrainingOffice" = false`, [need]).catch(() => []);
         for (const o of extra) {
           const b = backed.get(Number(o.officeId))!;
@@ -534,6 +534,13 @@ export class LogisticsServiceOfferService {
           officeOption: {
             officeId: rate.officeId, officeName: rate.businessName, officeCity: rate.officeCity,
             officeAddress: rate.officeAddress, rating: rate.rating, totalRatings: rate.totalRatings,
+            // So the sender can call the office and offices compete openly (owner 2026-11-09).
+            phone: (rate as any).officePhone || null,
+            distanceKm: (() => {
+              const op = geoPoint((rate as any).officeLatitude, (rate as any).officeLongitude);
+              const sp = geoPoint(senderPoint?.latitude, senderPoint?.longitude);
+              return op && sp ? Math.round(kmBetween(op, sp) * 10) / 10 : null;
+            })(),
             destinationCity: rate.destinationCity, estimatedDays: rate.estimatedDays,
             chargeText: officeChargeText(quote.transport),
             pickupBy: officePickupFee != null ? 'office' : (dto.pickup === 'door' ? 'agent' : null),
