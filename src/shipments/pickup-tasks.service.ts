@@ -234,8 +234,10 @@ export class PickupTasksService {
       WHERE t.id=$1`, [taskId]);
     if (preliminary.length !== 1 || !preliminary[0].shipmentId) throw new NotFoundException('Pickup task not found');
     const result = await this.db.transaction(async (em) => {
-      const s: any[] = await em.query(`SELECT id,status,"originCity","pickupPinLatitude","pickupPinLongitude","originLatitude","originLongitude"
-        FROM public.shipment WHERE id=$1 FOR UPDATE`,
+      // Points read through to_jsonb(): a shipment table without the pin columns still works.
+      const s: any[] = await em.query(`SELECT id,status,"originCity",to_jsonb(s)->>'pickupPinLatitude' AS "pickupPinLatitude",
+        to_jsonb(s)->>'pickupPinLongitude' AS "pickupPinLongitude",to_jsonb(s)->>'originLatitude' AS "originLatitude",
+        to_jsonb(s)->>'originLongitude' AS "originLongitude" FROM public.shipment s WHERE id=$1 FOR UPDATE`,
         [preliminary[0].shipmentId]);
       const p: any[] = await em.query('SELECT id,status,"shipmentId" FROM public.parcel WHERE id=$1 FOR UPDATE',
         [preliminary[0].parcelId]);
