@@ -24,6 +24,7 @@ import {
 } from '../../api/shipmentRequests';
 import { formatWaybill } from '../../utils/waybill';
 import PickupPinFields from '../components/PickupPinFields';
+import PickupLive from '../components/PickupLive';
 import NoAgentOfficeCard from '../components/NoAgentOfficeCard';
 import InviteCarrier from '../components/InviteCarrier';
 import { landmarkOk } from '../../utils/phoneLocation';
@@ -382,6 +383,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         total: bill.total,
         direct,
         office: office ? { name: selected.providerName, address: selected.officeAddress || selected.officeCity || null } : null,
+        shipmentId: res.data.id,
       });
       setStep(6);
     } catch (err) {
@@ -450,6 +452,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           )}
         </div>
         <div style={{ padding: '18px 20px', maxWidth: 520, margin: '0 auto' }}>
+          {/* Who is coming, live (owner 2026-11-08: "like Bolt", intercity too). */}
+          {confirmed.shipmentId && <div style={{ marginBottom: 16 }}><PickupLive shipmentId={confirmed.shipmentId} /></div>}
           <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 12 }}>Safari ya mzigo</div>
           <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {journey.steps.map((s, i) => {
