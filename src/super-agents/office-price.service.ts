@@ -31,6 +31,8 @@ export interface OfficeQuoteRequest {
   deliveryAddress?: string | null;
   /** Only when an agent picks the parcel up (not at the counter). */
   pickupAddress?: string | null;
+  /** A per-kg rate from the office's own transport route (owner 2026-11-09), used when no "Bei zangu" row exists. */
+  kgRate?: { ratePerKg: number; minimumCharge: number } | null;
 }
 
 /**
@@ -110,7 +112,8 @@ export class OfficePriceService {
   async quoteFor(office: SuperAgent, req: OfficeQuoteRequest): Promise<OfficePriceQuote> {
     const declaredValue = Number(req?.declaredValue);
     if (!Number.isFinite(declaredValue) || declaredValue <= 0) throw new BadRequestException(OFFICE_PRICE_MESSAGES.badValue);
-    const [rule, kgRate] = await Promise.all([this.ruleFor(office.id), this.kgRateFor(office, req.destinationCity)]);
+    const [rule, ownRate] = await Promise.all([this.ruleFor(office.id), this.kgRateFor(office, req.destinationCity)]);
+    const kgRate = ownRate ?? req.kgRate ?? null;
 
     // Dar es Salaam: an agent pickup / door delivery is the Dar zone fee (null = an area
     // the zone table does not know: the line shows as not included and the counter types it). Elsewhere it is
