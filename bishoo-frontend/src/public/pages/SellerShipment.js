@@ -204,6 +204,10 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
 
   const destCity = place.regionName || place.districtName || place.wardName || '';
   const inCity = sameCity(destCity, sellerCity);
+  // Another city (owner 2026-11-09: "it did not ask me for pickup"): the seller chooses to bring the
+  // parcel to the office, or to have it collected at the shop (an agent, or the office itself).
+  const [pickAtShop, setPickAtShop] = useState(false);
+  const atShop = inCity || pickAtShop;
   const goods = items.reduce((t, i) => t + (Number(i.price) || 0) * (Number(i.qty) || 1), 0);
   const weight = items.reduce((t, i) => t + (Number(i.weight) || 0) * (Number(i.qty) || 1), 0);
   const address = [landmark.trim(), placeLabel(place)].filter(Boolean).join(', ');
@@ -244,13 +248,13 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     destinationResolved: place.placeRef ? { placeRef: place.placeRef, regionName: place.regionName || destCity } : null,
     originArea: shopArea, destinationArea: destArea,
     receiverName: name.trim(), receiverPhone: phone.trim(),
-    pickupOption: inCity ? 'door' : 'station', deliveryOption: inCity ? 'door' : 'station',
-    pickupLandmark: inCity ? shop?.label : undefined, pickupPin: inCity ? shop?.point || null : null,
+    pickupOption: atShop ? 'door' : 'station', deliveryOption: inCity ? 'door' : 'station',
+    pickupLandmark: atShop ? shop?.label : undefined, pickupPin: atShop ? shop?.point || null : null,
   };
-  const needShop = inCity && !shop;
+  const needShop = atShop && !shop;
 
   // Step 4: ask the engine. Runs again when what it depends on changes.
-  const findKey = step === 4 && !needShop ? [retry, sellerCity, destCity, shop?.placeRef?.providerPlaceId, place.placeRef?.providerPlaceId, address, weight, goods, cod, shopArea, destArea].join('|') : '';
+  const findKey = step === 4 && !needShop ? [retry, pickAtShop, sellerCity, destCity, shop?.placeRef?.providerPlaceId, place.placeRef?.providerPlaceId, address, weight, goods, cod, shopArea, destArea].join('|') : '';
   useEffect(() => { setDestArea(''); }, [place.placeRef?.providerPlaceId, address]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setShopArea(''); }, [shop?.placeRef?.providerPlaceId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -259,14 +263,14 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     setFinding(true); setOffers([]); setChosen(null); setFindError('');
     api.post('/transport/service-offers/discover', {
       fromCity: sellerCity, toCity: destCity, weightKg: weight || 1,
-      pickup: inCity ? 'door' : 'point', delivery: inCity ? 'door' : 'collect',
+      pickup: atShop ? 'door' : 'point', delivery: inCity ? 'door' : 'collect',
       // A kept shop place without a map reference still has its words ("Keko, Temeke"): sent as
       // text, never as an empty place (owner 2026-11-08: "Hatukutambua Keko").
       origin: shop?.placeRef ? { place: shop.placeRef } : { text: shop?.label || sellerCity },
       destination: place.placeRef ? { place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId } } : { text: address || destCity },
       declaredValue: goods || undefined,
       originArea: shopArea || undefined, destinationArea: destArea || undefined,
-      pickupPoint: inCity && shop?.point ? shop.point : undefined,
+      pickupPoint: atShop && shop?.point ? shop.point : undefined,
     }).then((r) => {
       if (!live) return;
       const list = sellerOffers(r.data, { inCity, cod });
@@ -581,7 +585,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
               <Row left="Bidhaa" right={items.map((i) => `${i.name} × ${i.qty}`).join(', ')} />
               <Row left="Kwa" right={`${name} · ${placeLabel(place)}`} />
               <Row left="Malipo" right={cod ? 'Atalipa akipokea' : 'Ameshalipa'} />
-              {inCity && shop && (
+              {atShop && shop && (
                 <div data-testid="shop-place" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, fontSize: 14 }}>
                   <span style={{ color: GREY }}>Inachukuliwa</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -591,6 +595,15 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                 </div>
               )}
             </div>
+            {!inCity && !cod && (
+              <div data-testid="intercity-pickup" style={{ marginBottom: 6 }}>
+                <span style={{ ...label, display: 'block', marginBottom: 8 }}>Mzigo ufikeje ofisini?</span>
+                <Choice testId="pickup-self" selected={!pickAtShop} onClick={() => setPickAtShop(false)}
+                  title="Nitaupeleka ofisini mwenyewe" hint="Bure: unaupeleka ofisi utakayochagua" />
+                <Choice testId="pickup-shop" selected={pickAtShop} onClick={() => setPickAtShop(true)}
+                  title="Uchukuliwe dukani kwangu" hint="Wakala au ofisi yenyewe anaufuata dukani na kuupeleka ofisini" />
+              </div>
+            )}
             {needShop ? (
               <div style={{ ...card, marginBottom: 12 }}>
                 <span style={label}>Duka lako (mzigo unachukuliwa hapa)</span>
@@ -634,6 +647,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                   <Choice testId={`offer-${o.key}`} selected={chosen?.key === o.key} onClick={() => setChosen(o)}
                     title={`${o.providerName}${cod && o.direct && fee != null ? ` · ${tzs(fee)}` : o.servicePrice != null ? ` · ${tzs(o.servicePrice)}` : o.direct && o.areaUnknown ? ' · chagua eneo' : ''}`}
                     hint={o.direct ? `Anachukua dukani kwako na kumfikishia ${name || 'mteja'} mlangoni`
+                      : pickAtShop ? `${o.pickupBy === 'office' ? 'Ofisi inaufuata dukani kwako' : 'Wakala anaufuata dukani kwako'}${Number(o.quote?.pickup) > 0 ? ` (${tzs(o.quote.pickup)})` : ''}; ofisi inaupeleka ${destCity}`
                       : `Peleka mzigo ${o.officeAddress || o.officeCity || 'ofisini'}; ofisi inaupeleka ${destCity}`} />
                   {o.office && <div style={{ marginTop: -6, marginBottom: 10 }}><OfficeCallRow testId={`office-call-${o.officeId}`} phone={o.phone} distanceKm={o.distanceKm} /></div>}
                   </div>

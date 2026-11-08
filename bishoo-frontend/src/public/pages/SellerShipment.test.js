@@ -141,6 +141,29 @@ test('another city: offices compete, and pay-on-delivery is refused', async () =
   expect(posted('/shipments')[0]).toMatchObject({ journeySelectionId: 31, pickupOption: 'station', deliveryOption: 'station' });
 });
 
+test('another city: the seller can have it collected at the shop instead of taking it to the office', async () => {
+  render(<SellerShipment isLoggedIn onNavigate={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('radio', { name: /Saa ya ukutani/ }));
+  fireEvent.click(nextBtn(1));
+  fireEvent.change(await screen.findByLabelText('Jina'), { target: { value: 'Juma' } });
+  fireEvent.change(screen.getByLabelText('Simu'), { target: { value: '0713000999' } });
+  fireEvent.change(screen.getByLabelText('Mahali pa mteja'), { target: { value: 'mbeya' } });
+  fireEvent.click(nextBtn(2));
+  fireEvent.click(screen.getByTestId('pay-paid'));
+  fireEvent.click(nextBtn(3));
+  // Default stays as before: the seller brings it to the office.
+  expect(await screen.findByTestId('pickup-self')).toHaveAttribute('aria-checked', 'true');
+  await screen.findByTestId('offer-office-6');
+  expect(posted('/transport/service-offers/discover').at(-1)).toMatchObject({ pickup: 'point', delivery: 'collect' });
+  fireEvent.click(screen.getByTestId('pickup-shop'));
+  await waitFor(() => expect(posted('/transport/service-offers/discover').at(-1)).toMatchObject({
+    pickup: 'door', delivery: 'collect', pickupPoint: { latitude: -6.82, longitude: 39.27 } }));
+  expect(await screen.findByTestId('shop-place')).toHaveTextContent('Kariakoo');
+  expect(await screen.findByTestId('offer-office-6')).toHaveTextContent('anaufuata dukani kwako');
+  fireEvent.click(nextBtn(4));
+  await waitFor(() => expect(posted('/shipments')[0]).toMatchObject({ pickupOption: 'door', deliveryOption: 'station' }));
+});
+
 test('where to open, and same city', () => {
   expect(firstStep({ items: [] })).toBe(1);
   expect(firstStep({ items: [{}], name: 'A', phone: '0712000111', place: {} })).toBe(2);
