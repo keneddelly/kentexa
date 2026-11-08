@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-09 (job offer time limit):** the pin is now `MIGRATION_RUN_UPTO=1795300000000`. The next deploy
+runs `1795300000000-AddPickupTaskOfferedAt` itself (parcel_pickup_task."offeredAt": when a job was last offered to agents; it leaves their list 5 minutes later). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-09 (checkout office price):** the pin is now `MIGRATION_RUN_UPTO=1795200000000`. The next deploy
 runs `1795200000000-AddOrderShippingQuote` itself (order."shippingQuote": the office the buyer's shipping fee came from, so the seller's send form opens on it). Check: `/version/migrations` shows `pending: []`.
 

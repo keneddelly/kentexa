@@ -7,6 +7,8 @@ import { AddParcelPickupChallenge1788279000000 } from '../database/migrations/17
 import { AddParcelPickupTask1788283200000 } from '../database/migrations/1788283200000-AddParcelPickupTask';
 import { AddPickupTaskDirectDelivery1788292800000 } from '../database/migrations/1788292800000-AddPickupTaskDirectDelivery';
 import { AddPickupTaskCodeOnAccept1792300000000 } from '../database/migrations/1792300000000-AddPickupTaskCodeOnAccept';
+import { AddPickupTaskOfferedAt1795300000000 } from '../database/migrations/1795300000000-AddPickupTaskOfferedAt';
+import { OFFER_ENDED_MESSAGE } from './pickup-offer-window';
 import { AddSellerAgentPartner1792400000000 } from '../database/migrations/1792400000000-AddSellerAgentPartner';
 import { PARTNER_JOB_MESSAGE, setSellerPartnerTableReadyForTests } from '../partner-invitations/seller-agent-partner-gate';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
@@ -171,6 +173,8 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       // COD (2026-10-22): a direct task may hold its recipient code from the rider's accept.
       await new AddPickupTaskCodeOnAccept1792300000000().up(runner);
       await new AddPickupTaskCodeOnAccept1792300000000().up(runner); // idempotent
+      await new AddPickupTaskOfferedAt1795300000000().up(runner);
+      await new AddPickupTaskOfferedAt1795300000000().up(runner); // idempotent
     } finally { await runner.release(); }
     svc = new PickupTasksService(db, sms);
   });
@@ -487,6 +491,24 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
         setSellerPartnerTableReadyForTests(false);
         await q('DROP TABLE IF EXISTS public.seller_agent_partner');
       }
+    });
+
+    // Owner 2026-11-09: offered for 5 minutes, then gone from every agent's list; the sender decides.
+    it('a job nobody accepted in 5 minutes leaves the agents\' lists and cannot be taken; "Waambie tena" offers it again', async () => {
+      const job = await mkCod();
+      expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(job.taskId);
+      const live: any = await cod.getForShipment(SELLER, job.id);
+      expect(new Date(live.task.offerEndsAt).getTime()).toBeGreaterThan(Date.now() + 4 * 60_000);
+
+      await q(`UPDATE public.parcel_pickup_task SET "createdAt" = now() - interval '6 minutes' WHERE id = $1`, [job.taskId]);
+      expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).not.toContain(job.taskId);
+      await expect(cod.claim(job.taskId, 9, agentRole(9))).rejects.toThrow(OFFER_ENDED_MESSAGE);
+      expect(await task(job.id)).toMatchObject({ status: 'requested', agentProfileId: null });
+
+      await cod.reoffer(job.taskId);
+      expect((await cod.listAvailable(9, agentRole(9))).map((j) => j.id)).toContain(job.taskId);
+      await cod.claim(job.taskId, 9, agentRole(9));
+      expect(await task(job.id)).toMatchObject({ status: 'claimed', agentProfileId: 9 });
     });
   });
 

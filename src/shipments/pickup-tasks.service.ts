@@ -2,6 +2,7 @@ import { agentJobSmsOn } from '../sms/sms-policy';
 import { PICKUP_TO_BASE_DISTANCE_SQL } from './pickup-pin';
 import { agentCovers, agentCoversSql, agentRadiusKm, geoPoint, kmBetween, kmSql, placeKey, placeKeySql } from '../location-intelligence/place-match';
 import { PARTNER_JOB_MESSAGE, partnerGateSql, sellerPartnerTableReady } from '../partner-invitations/seller-agent-partner-gate';
+import { OFFER_ENDED_MESSAGE, offerEndsSql, offerOpenSql } from './pickup-offer-window';
 import { PAID_UP_FIRST_MESSAGE, feeStandingReady, paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
@@ -267,6 +268,9 @@ export class PickupTasksService {
       if (t[0].status !== 'requested' || t[0].agentProfileId !== null) {
         throw new ConflictException('Pickup task was claimed or closed');
       }
+      // The offer has a time limit (owner 2026-11-09): an old screen cannot take an ended job.
+      const open: any[] = await em.query(`SELECT ${offerOpenSql()} AS ok FROM public.parcel_pickup_task t WHERE t.id = $1`, [taskId]);
+      if (open[0] && open[0].ok === false) throw new ConflictException(OFFER_ENDED_MESSAGE);
       // Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
       if (sellerPartnerTableReady() && partnerGateSql('$2::int') !== 'TRUE') {
         const gate: any[] = await em.query(`SELECT ${partnerGateSql('$2::int')} AS ok
@@ -820,7 +824,7 @@ export class PickupTasksService {
     // Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
     const partnerGate = partnerGateSql('$3::int');
     const rows: any[] = await this.db.query(
-      `SELECT t.id, t."servicePath", t."createdAt", t."originSnapshot",
+      `SELECT t.id, t."servicePath", t."createdAt", t."originSnapshot", ${offerEndsSql()} AS "offerEndsAt",
               s."destinationLocationLabel", s."destinationCity", s."originCity",
               s."itemDescription", s."weightKg", h."businessName" AS "originHubName",
               pw.name AS "pickupWardName",
@@ -838,6 +842,8 @@ export class PickupTasksService {
           AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_RELEASED'
                 AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = $2)
           AND ${partnerGate}
+          -- Offered for a few minutes, then gone from the list (owner 2026-11-09, pickup-offer-window.ts).
+          AND ${offerOpenSql()}
           AND ($3::int IS NULL OR $3::int IS NOT NULL) -- $3 is typed even when the partner gate is off
           -- Paid-up agents first (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts).
           AND ${paidUpGateSql(String(Number(userId)))}
@@ -854,6 +860,8 @@ export class PickupTasksService {
       id: r.id,
       servicePath: r.servicePath as PickupServicePath,
       requestedAt: r.createdAt,
+      // The job leaves this list then (owner 2026-11-09): the screen counts down and hides it.
+      offerEndsAt: r.offerEndsAt ?? null,
       distance: roughDistanceLabel(d),
       pickupArea: r.originSnapshot?.label ?? r.originSnapshot?.district ?? r.originCity,
       // Before accepting: at most the ward (approximate, off for now), never the pin or the landmark.
@@ -1102,7 +1110,8 @@ export class PickupTasksService {
     const [t] = await this.db.query(
       `SELECT t.id, t.status, t."servicePath", t."createdAt", t."claimedAt", t."collectedAt", t."deliveredAt",
               t."completedAt", t."handoffCodeExpiresAt", a."fullName" AS "agentName", a."userId" AS "agentUserId",
-              NULLIF(btrim(a.phone), '') AS "agentPhone", a."baseLatitude", a."baseLongitude"
+              NULLIF(btrim(a.phone), '') AS "agentPhone", a."baseLatitude", a."baseLongitude",
+              ${offerEndsSql()} AS "offerEndsAt"
          FROM public.parcel_pickup_task t
          JOIN public.parcel p ON p.id = t."parcelId"
          LEFT JOIN public.agent a ON a.id = t."agentProfileId"
@@ -1128,6 +1137,8 @@ export class PickupTasksService {
           : null,
         requestedAt: t.createdAt, claimedAt: t.claimedAt, collectedAt: t.collectedAt,
         deliveredAt: t.deliveredAt, completedAt: t.completedAt,
+        // When the job leaves the agents' lists (pickup-offer-window.ts); after it the sender decides.
+        offerEndsAt: t.status === 'requested' ? t.offerEndsAt ?? null : null,
         // Like Bolt (owner 2026-11-08: "agents are requested silently"): while waiting, the agents
         // told about this job, nearest first, with distance and phone (owner: the sender may call
         // any of them to hurry one).
@@ -1185,10 +1196,18 @@ export class PickupTasksService {
     const last = this.lastReminder.get(Number(row.taskId)) ?? 0;
     if (Date.now() - last < 120_000) throw new ConflictException('Subiri dakika 2 kabla ya kuwaambia tena.');
     this.lastReminder.set(Number(row.taskId), Date.now());
+    // A new offer window (owner 2026-11-09): the job is back on the agents' lists for a few minutes.
+    await this.reoffer(Number(row.taskId));
     const r = await dispatch.dispatchPickup(Number(row.taskId), { channels: ['in_app'] });
-    return { told: Number(r?.dispatched || 0) };
+    const [w] = await this.db.query(`SELECT ${offerEndsSql()} AS "offerEndsAt" FROM public.parcel_pickup_task t WHERE t.id = $1`, [row.taskId]).catch(() => []);
+    return { told: Number(r?.dispatched || 0), offerEndsAt: w?.offerEndsAt ?? null };
   }
   private readonly lastReminder = new Map<number, number>();
+
+  /** Starts a new offer window for a waiting job. Never fails the caller (before the migration: no-op). */
+  async reoffer(taskId: number) {
+    await this.db.query(`UPDATE public.parcel_pickup_task SET "offeredAt" = now() WHERE id = $1 AND status = 'requested'`, [taskId]).catch(() => undefined);
+  }
 
   /**
    * The requester cancels BEFORE physical collection. Once custody exists it

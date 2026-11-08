@@ -56,3 +56,14 @@ test('"Siwezi kufika" asks first, then gives the job back and keeps the message 
   expect(api.post).toHaveBeenCalledWith('/pickup-tasks/7/release');
   expect(screen.getByRole('status')).toHaveTextContent(sw.pickup_queue.released_ok);
 });
+
+// Owner 2026-11-09: a job is offered for 5 minutes, then it leaves the agent's list.
+test('a waiting job counts down and leaves the list when its time ends', async () => {
+  const soon = { ...waiting, id: 11, offerEndsAt: new Date(Date.now() + 3 * 60000).toISOString() };
+  const ended = { ...waiting, id: 12, offerEndsAt: new Date(Date.now() - 1000).toISOString() };
+  api.get.mockImplementation(async (url) => ({ data: url === '/pickup-tasks/mine' ? [] : [soon, ended] }));
+  await act(async () => { render(<ShipmentPickupQueue />); });
+  expect(screen.getByTestId('job-time-11')).toHaveTextContent(/Kubali ndani ya [23]:\d\d/);
+  expect(screen.queryByTestId('job-time-12')).toBeNull();
+  expect(screen.getAllByText(sw.pickup_queue.claim)).toHaveLength(1);
+});

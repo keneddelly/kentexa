@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import PickupLive, { minutesSince } from './PickupLive';
+import PickupLive, { minutesSince, timeLeft } from './PickupLive';
 import api from '../../api/api';
 
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
@@ -36,4 +36,27 @@ test('accepted: who is coming, with Piga; an office drop-off with no agent shows
   render(<PickupLive shipmentId={10} />);
   expect(await screen.findByTestId('live-office')).toHaveTextContent('Ofisi imepokea mzigo');
   expect(minutesSince(new Date(Date.now() - 5 * 60000).toISOString())).toBe(5);
+});
+
+// Owner 2026-11-09: offered for 5 minutes, then gone from the agents' lists; the sender decides.
+test('the offer has a countdown; when it ends: "Hakuna aliyekubali", Piga and Waambie tena start a new window', async () => {
+  const ago = new Date(Date.now() - 6 * 60000).toISOString();
+  api.get.mockResolvedValue({ data: { office: null, task: { status: 'requested', requestedAt: ago, offerEndsAt: new Date(Date.now() - 60000).toISOString(),
+    nearby: [{ id: 3, name: 'Amimu', phone: '0712', distanceKm: 1.2 }] } } });
+  api.post.mockResolvedValue({ data: { told: 1, offerEndsAt: new Date(Date.now() + 5 * 60000).toISOString() } });
+  render(<PickupLive shipmentId={9} pollMs={60000} />);
+  expect(await screen.findByText('Hakuna aliyekubali')).toBeInTheDocument();
+  expect(screen.getByText(/Kazi imeondolewa kwa mawakala/)).toBeInTheDocument();
+  expect(screen.queryByTestId('live-countdown')).toBeNull();
+  expect(screen.getByTestId('live-agent-3')).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('live-remind'));
+  expect(await screen.findByTestId('live-countdown')).toHaveTextContent(/Muda wa kukubali: [45]:\d\d/);
+  expect(screen.queryByText('Hakuna aliyekubali')).toBeNull();
+});
+
+test('timeLeft', () => {
+  const now = Date.parse('2026-11-09T10:00:00Z');
+  expect(timeLeft('2026-11-09T10:04:05Z', now)).toBe('4:05');
+  expect(timeLeft('2026-11-09T09:59:00Z', now)).toBeNull();
+  expect(timeLeft(null, now)).toBeNull();
 });

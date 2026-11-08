@@ -61,8 +61,17 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
     setLoaded(true);
   }, []);
   useEffect(() => { load(); }, [load]);
+  // A job is offered for a few minutes (owner 2026-11-09: "this is business, it goes with time"):
+  // new jobs come in every 30 s, each card counts down, and an ended job leaves the list at once.
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const poll = setInterval(load, 30000);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => { clearInterval(poll); clearInterval(tick); };
+  }, [load]);
+  const offered = available.filter((j) => !j.offerEndsAt || new Date(j.offerEndsAt).getTime() > now);
   // Jobs that need the Agent: claimable ones plus their own open ones.
-  const workCount = available.length + mine.filter((j) => j.nextAction).length;
+  const workCount = offered.length + mine.filter((j) => j.nextAction).length;
   useEffect(() => { if (onCount) onCount(workCount); }, [onCount, workCount]);
 
   const act = async (taskId, request, okText) => {
@@ -86,7 +95,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
   const open = mine.filter((j) => j.nextAction);
   const done = mine.filter((j) => !j.nextAction);
   // Keep the last message visible even when no job is left (e.g. after "Siwezi kufika").
-  if (!loaded || (available.length === 0 && mine.length === 0 && !message)) return null;
+  if (!loaded || (offered.length === 0 && mine.length === 0 && !message)) return null;
 
   return (
     <div style={{ marginBottom: 16 }} data-testid="shipment-pickup-queue">
@@ -199,13 +208,13 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
         </div>
       ))}
 
-      {available.length > 0 && (
+      {offered.length > 0 && (
         <div style={{ marginTop: open.length > 0 ? 16 : 0 }}>
           <h2 style={{ ...heading, marginBottom: 2 }}>{t('pickup_queue.available_title')}</h2>
           <div style={{ fontSize: 13, color: '#536471', marginBottom: 8 }}>{t('pickup_queue.available_hint')}</div>
         </div>
       )}
-      {available.map((job) => (
+      {offered.map((job) => (
         <div key={job.id} style={card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
             <strong style={{ fontSize: 15 }}>{job.itemDescription || t('pickup_queue.parcel')}</strong>
@@ -218,6 +227,11 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
           {/* Before accepting: the ward only — the exact pin comes after accepting. */}
           {job.pickupWard && <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>{t('pickup_queue.ward_near')}: {job.pickupWard}</div>}
           {job.distance && <div style={{ fontSize: 13, color: '#536471', marginTop: 4 }}>{t('pickup_queue.distance')}: {job.distance}</div>}
+          {job.offerEndsAt && (
+            <div data-testid={`job-time-${job.id}`} style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginTop: 4 }}>
+              Kubali ndani ya {(() => { const sec = Math.max(0, Math.ceil((new Date(job.offerEndsAt).getTime() - now) / 1000)); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; })()}
+            </div>
+          )}
           <div style={{ marginTop: 10 }}>
             <button style={btn(true)} disabled={busy === job.id}
               onClick={() => act(job.id, () => api.post(`/pickup-tasks/${job.id}/claim`), t('pickup_queue.claimed_ok'))}>

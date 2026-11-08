@@ -111,6 +111,11 @@ export class PickupReleaseService {
         WHERE "eventType" = $1 AND "targetType" = 'parcel_pickup_task' AND "targetId" = $2`, [PICKUP_RELEASED_EVENT, taskId]);
       return { id: taskId, status: 'requested', replay: false, agentProfileId, releases: Number(count[0]?.n || 0) };
     });
+    // Back on the other agents' lists for a new offer window (owner 2026-11-09, pickup-offer-window.ts).
+    if (!result.replay) {
+      try { await this.db.query(`UPDATE public.parcel_pickup_task SET "offeredAt" = now() WHERE id = $1 AND status = 'requested'`, [taskId]); }
+      catch { /* before the migration: the job's creation counts */ }
+    }
     if (!result.replay) await this.afterRelease(taskId, reason, result.agentProfileId, result.releases);
     return { id: result.id, status: result.status, replay: result.replay };
   }
