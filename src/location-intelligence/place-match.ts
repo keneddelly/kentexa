@@ -95,7 +95,8 @@ export function agentCovers(agent: AgentPlace, where: { names: unknown[]; point?
  */
 export function agentCoversSql(cityExpr: string, latExpr: string, lngExpr: string, alias = 'a', env: NodeJS.ProcessEnv = process.env): string {
   const city = placeKeySql(cityExpr);
-  const names = ['city', 'district', 'region'].map((c) => `${placeKeySql(`${alias}."${c}"`)} = ${city}`).join(' OR ');
+  // Read through to_jsonb(): an agent table without the district or region column still works.
+  const names = ['city', 'district', 'region'].map((c) => `${placeKeySql(`to_jsonb(${alias})->>'${c}'`)} = ${city}`).join(' OR ');
   const km = kmSql(`${alias}."baseLatitude"`, `${alias}."baseLongitude"`, latExpr, lngExpr);
   return `((length(${city}) >= 2 AND (${names})) OR coalesce(${km} <= ${agentRadiusKm(env)}, false))`;
 }

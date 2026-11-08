@@ -245,8 +245,8 @@ export class PickupTasksService {
           s[0].status !== 'confirmed' || p[0].status !== 'pending') {
         throw new ConflictException('Pickup task is no longer available');
       }
-      const agent: any[] = await em.query(`SELECT id,city,district,region,status,"userId","baseLatitude","baseLongitude" FROM public.agent
-        WHERE id=$1 FOR UPDATE`, [role.profileId]);
+      const agent: any[] = await em.query(`SELECT id,city,to_jsonb(a)->>'district' AS district,to_jsonb(a)->>'region' AS region,status,"userId","baseLatitude","baseLongitude"
+        FROM public.agent a WHERE id=$1 FOR UPDATE`, [role.profileId]);
       if (agent.length !== 1 || agent[0].userId !== userId || agent[0].status !== 'approved') {
         throw new ForbiddenException('Approved active Agent profile required');
       }
@@ -383,8 +383,8 @@ export class PickupTasksService {
   }
 
   private async approvedAgent(em: any, role: RoleContext, userId: number, lock = true) {
-    const rows: any[] = await em.query(`SELECT id,city,district,region,status,"userId","fullName","baseLatitude","baseLongitude" FROM public.agent
-      WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [role.profileId]);
+    const rows: any[] = await em.query(`SELECT id,city,to_jsonb(a)->>'district' AS district,to_jsonb(a)->>'region' AS region,status,"userId","fullName","baseLatitude","baseLongitude"
+      FROM public.agent a WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [role.profileId]);
     if (rows.length !== 1 || rows[0].userId !== userId || rows[0].status !== 'approved') {
       throw new ForbiddenException('Approved active Agent profile required');
     }

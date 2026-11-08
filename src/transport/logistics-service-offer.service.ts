@@ -499,7 +499,7 @@ export class LogisticsServiceOfferService {
     if (!pickupPoint) notes.push('Mahali pa kutoka hapana alama ya ramani: wakala na ofisi wanalinganishwa kwa majina tu.');
     const radius = agentRadiusKm();
 
-    const agentRows: any[] = await this.db.query(`SELECT a.id, a."fullName", a.city, a.district, a.region, a.status, a."isOnline",
+    const agentRows: any[] = await this.db.query(`SELECT a.id, a."fullName", a.city, to_jsonb(a)->>'district' AS district, to_jsonb(a)->>'region' AS region, a.status, a."isOnline",
         a."maxWeightKg", a."baseLatitude", a."baseLongitude", COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS phone
       FROM public.agent a LEFT JOIN public."user" u ON u.id = a."userId" ORDER BY a.id`).catch(() => []);
     const agents = agentRows.map((a) => {

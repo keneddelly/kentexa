@@ -37,7 +37,7 @@ describe('an agent covers a pickup by name OR by his base within the radius', ()
   });
   it('the SQL rule reads the same columns', () => {
     const sql = agentCoversSql('s."originCity"', 'p.lat', 'p.lng');
-    expect(sql).toMatch(/a\."city"/); expect(sql).toMatch(/a\."district"/); expect(sql).toMatch(/a\."region"/);
+    expect(sql).toMatch(/to_jsonb\(a\)->>'city'/); expect(sql).toMatch(/to_jsonb\(a\)->>'district'/); expect(sql).toMatch(/to_jsonb\(a\)->>'region'/);
     expect(sql).toMatch(/a\."baseLatitude"/);
     expect(placeKeySql('x')).toMatch(/'daressalaam'/);
   });
