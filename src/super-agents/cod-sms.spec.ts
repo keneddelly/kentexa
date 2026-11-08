@@ -76,6 +76,7 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
       bodaFees: { feeBetween: jest.fn(async () => 3000) },
     };
     fake.resolveCodBodaFee = (SuperAgentsService.prototype as any).resolveCodBodaFee.bind(fake);
+    fake.shopZonePlace = (SuperAgentsService.prototype as any).shopZonePlace.bind(fake);
     return { fake, orderRepo, call: (dto: any) => SuperAgentsService.prototype.createSellerShipment.call(fake, seller, dto) };
   };
 
@@ -140,10 +141,12 @@ describe('createSellerShipment: COD refusals happen before anything is saved', (
       bodaFees: { feeBetween: jest.fn(async () => 3000) },
     };
     fake.resolveCodBodaFee = (SuperAgentsService.prototype as any).resolveCodBodaFee.bind(fake);
+    fake.shopZonePlace = (SuperAgentsService.prototype as any).shopZonePlace.bind(fake);
     fake.resolveCodPickup = (SuperAgentsService.prototype as any).resolveCodPickup.bind(fake);
     // No saved shop place in these cases (cod-pickup-remembered.spec.ts covers reuse).
     fake.lastCodPickupSnapshot = (SuperAgentsService.prototype as any).lastCodPickupSnapshot.bind(fake);
     fake.keepSellerPickupPlace = (SuperAgentsService.prototype as any).keepSellerPickupPlace.bind(fake);
+    fake.shopZonePlace = (SuperAgentsService.prototype as any).shopZonePlace.bind(fake);
     return { sms, parcelRepo, fake, call: (dto: any) => SuperAgentsService.prototype.createSellerShipment.call(fake, seller, dto) };
   };
 

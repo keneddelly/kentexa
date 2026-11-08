@@ -35,11 +35,19 @@ export function pickupOfferSmsConfig(env: Record<string, string | undefined> = p
   };
 }
 
-/** Plain characters only, one SMS part. */
-export function pickupOfferSms(reference: string, area: string, destination: string) {
-  const where = smsSafeName(area).slice(0, 30) || 'mjini';
-  const to = smsSafeName(destination).slice(0, 24);
-  return `KenteXa: Kazi mpya ya kuchukua mzigo${reference ? ` ${reference}` : ''}, eneo ${where}${to ? `, kwenda ${to}` : ''}. Fungua KenteXa ukubali kazi.`;
+/**
+ * Plain characters only, one SMS part (owner 2026-11-08: "the SMS is old"). Says what the agent
+ * needs to decide: where to collect and where to deliver (areas only, never the address before he
+ * accepts), the weight and his pay when KenteXa knows it, and where to accept.
+ */
+export function pickupOfferSms(reference: string, area: string, destination: string,
+  more: { dropArea?: string | null; weightKg?: number | null; fee?: number | null } = {}) {
+  const where = smsSafeName(area).slice(0, 26) || 'mjini';
+  const drop = smsSafeName(more.dropArea || destination).slice(0, 26);
+  const kg = Number(more.weightKg) > 0 ? `, kg ${Math.round(Number(more.weightKg) * 10) / 10}` : '';
+  const pay = Number(more.fee) > 0 ? ` Malipo TZS ${Math.round(Number(more.fee)).toLocaleString('en-US')}.` : '';
+  const text = `KenteXa: Kazi mpya${reference ? ` ${reference}` : ''}. Chukua ${where}${drop ? `, peleka ${drop}` : ''}${kg}.${pay} Fungua KenteXa > Kazi ukubali.`;
+  return text.length <= 160 ? text : `KenteXa: Kazi mpya${reference ? ` ${reference}` : ''}. Chukua ${where}.${pay} Fungua KenteXa > Kazi.`.slice(0, 160);
 }
 
 @Injectable()
@@ -62,6 +70,8 @@ export class PickupOfferSmsService {
       const tasks: any[] = await em.query(`
         SELECT t.id, s."originCity", s."destinationCity", s."weightKg",
                COALESCE(NULLIF(btrim(s."originWard"), ''), NULLIF(btrim(s."originDistrictName"), ''), s."originCity") AS area,
+               COALESCE(NULLIF(btrim(to_jsonb(s)->>'destinationWard'), ''), NULLIF(btrim(to_jsonb(s)->>'destinationDistrictName'), ''), s."destinationCity") AS "dropArea",
+               NULLIF(to_jsonb(p)->>'agreedDeliveryFee', '')::numeric AS fee,
                s."trackingNumber" AS "shipmentNumber", p."trackingNumber", p."waybillNumber", p."createdAt" AS "parcelCreatedAt",
                (SELECT count(*)::int FROM public.activity_events e
                  WHERE e."eventType" = 'PICKUP_OFFER_SMS_SENT' AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id) AS "alreadySent"
@@ -94,7 +104,7 @@ export class PickupOfferSmsService {
         const reference = customerParcelNumber({
           trackingNumber: task.shipmentNumber ?? task.trackingNumber, waybillNumber: task.waybillNumber, createdAt: task.parcelCreatedAt,
         });
-        const message = pickupOfferSms(reference, task.area, task.destinationCity);
+        const message = pickupOfferSms(reference, task.area, task.destinationCity, { dropArea: task.dropArea, weightKg: task.weightKg, fee: task.fee });
         for (const a of agents) {
           if (!a.phone) continue;
           // Recorded BEFORE sending: a crash after this line can never send a second SMS.

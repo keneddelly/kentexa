@@ -6,6 +6,9 @@ import {
   ConflictException,
   Optional,
 } from '@nestjs/common';
+import { darMatch } from '../boda-rates/dar-boda-zones';
+import { nearestDarPlace } from '../boda-rates/dar-nearest';
+import { geoPoint } from '../location-intelligence/place-match';
 import { OfficePriceService } from './office-price.service';
 import { ShipmentActivationService } from '../shipments/shipment-activation.service';
 import { customerCollectsSelf, withOfficePhone } from './office-sms';
@@ -4521,7 +4524,7 @@ export class SuperAgentsService {
     }
     if (this.bodaFees && isDarEsSalaam(dto.destinationCity)) {
       // Dar zone fee; an area the zone table does not know is typed by the seller (never guessed).
-      const zoneFee = await this.bodaFees.feeBetween(sellerProfile?.address || dto.originCity || null, dto.deliveryAddress || null);
+      const zoneFee = await this.bodaFees.feeBetween(await this.shopZonePlace(sellerProfile?.userId ?? (sellerProfile as any)?.user?.id, sellerProfile?.address || dto.originCity || null), dto.deliveryAddress || null);
       if (zoneFee != null) return zoneFee;
     }
     throw new BadRequestException(COD_MESSAGES.bodaFeeRequired);
@@ -4650,7 +4653,23 @@ export class SuperAgentsService {
     if (!this.bodaFees || !isDarEsSalaam(toCity)) return null;
     const [sp] = await this.dataSource.query(
       `SELECT address FROM public.seller_profile WHERE "userId" = $1 ORDER BY id ASC LIMIT 1`, [seller.id]).catch(() => []);
-    return this.bodaFees.feeBetween(sp?.address || toCity || null, toAddress || null).catch(() => null);
+    return this.bodaFees.feeBetween(await this.shopZonePlace(seller.id, sp?.address || toCity || null), toAddress || null).catch(() => null);
+  }
+
+  /**
+   * Where the boda starts for the Dar zone fee (owner 2026-11-08: "Hatukutambua Keko"): the shop
+   * place the seller set (its words, else the nearest ward to its point), else the profile address.
+   */
+  private async shopZonePlace(userId: number | null | undefined, fallback: string | null): Promise<string | null> {
+    if (!userId) return fallback;
+    const snap: any = await this.lastCodPickupSnapshot(Number(userId), 'Dar es Salaam').catch(() => null);
+    if (snap) {
+      const byWords = darMatch(String(snap.label || ''));
+      if (byWords) return byWords.place;
+      const near = await nearestDarPlace(this.dataSource, geoPoint(snap.latitude, snap.longitude));
+      if (near) return near.place;
+    }
+    return fallback;
   }
 
   /** For the seller's form: the shop place the boda will use unless changed. */

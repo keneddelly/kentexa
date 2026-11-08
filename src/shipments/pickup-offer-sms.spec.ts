@@ -11,7 +11,10 @@ describe('pickup offer SMS', () => {
 
   it('the text: waybill and area only, plain characters, one SMS part', () => {
     const text = pickupOfferSms('KTX 1234 5678', 'Kariakoo', 'Dar es Salaam');
-    expect(text).toBe('KenteXa: Kazi mpya ya kuchukua mzigo KTX 1234 5678, eneo Kariakoo, kwenda Dar es Salaam. Fungua KenteXa ukubali kazi.');
+    expect(text).toBe('KenteXa: Kazi mpya KTX 1234 5678. Chukua Kariakoo, peleka Dar es Salaam. Fungua KenteXa > Kazi ukubali.');
+    // Owner 2026-11-08 ("the SMS is old"): the drop area, the weight and the pay when known.
+    expect(pickupOfferSms('KTX 7261 8479 87', 'Keko', 'Dar es Salaam', { dropArea: 'Kijitonyama', weightKg: 1, fee: 5000 }))
+      .toBe('KenteXa: Kazi mpya KTX 7261 8479 87. Chukua Keko, peleka Kijitonyama, kg 1. Malipo TZS 5,000. Fungua KenteXa > Kazi ukubali.');
     const longest = pickupOfferSms('KTX 1234 5678', 'A'.repeat(200), 'B'.repeat(200));
     expect(longest.length).toBeLessThanOrEqual(160);
     expect(/^[\x20-\x7E]+$/.test(longest)).toBe(true);

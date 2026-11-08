@@ -86,16 +86,31 @@ export class LogisticsServiceOfferService {
       [typeof area === 'string' ? area.trim().slice(0, 60) : '', words || ''].filter(Boolean).join(' — ') || null;
     const [from, to] = await Promise.all([this.placeWords(dto.origin), this.placeWords(dto.destination)]);
     const fromText = withArea(dto.originArea, from); const toText = withArea(dto.destinationArea, to);
-    const fromMatch = darMatch(fromText); const toMatch = darMatch(toText);
+    // Coordinates when the words name no known area (owner 2026-11-08): the nearest Dar ward
+    // to the sender's pin or the chosen place's point, within 6 km.
+    const [fromPoint, toPoint] = await Promise.all([this.sidePoint(dto.origin, dto.pickup === 'door' ? dto.pickupPoint : null), this.sidePoint(dto.destination, null)]);
+    const fromMatch = darMatch(fromText) ?? (fromPoint ? await this.darPinPlace(fromPoint) : null);
+    const toMatch = darMatch(toText) ?? (toPoint ? await this.darPinPlace(toPoint) : null);
     const unknown: ('origin' | 'destination')[] = [];
     if (!fromMatch) unknown.push('origin');
     if (!toMatch) unknown.push('destination');
-    const fee = unknown.length ? null : await this.darFees.feeBetween(fromText, toText, weight).catch(() => null);
+    // Priced on the area names KenteXa read (words, or the nearest ward to the point).
+    const fee = unknown.length ? null : await this.darFees.feeBetween(fromMatch!.place, toMatch!.place, weight).catch(() => null);
     // The sender's GPS pin (owner 2026-11-02: "I put my pin at Kigamboni, nothing changed"):
     // when it sits in another zone than "Kutoka", say where, so the form can ask which is right.
     const pin = dto.pickup === 'door' ? await this.darPinPlace(dto.pickupPoint) : null;
     const pinPlace = pin && fromMatch && pin.zone.key !== fromMatch.zone.key ? pin.place : null;
     return { fee, unknown, fromPlace: fromMatch?.place ?? null, toPlace: toMatch?.place ?? null, pinPlace };
+  }
+
+  /** A side's map point: the given pin, else the resolved place's point; null when neither. */
+  private async sidePoint(side: any, pin: { latitude?: number; longitude?: number } | null | undefined) {
+    const p = geoPoint(pin?.latitude, pin?.longitude);
+    if (p) return p;
+    const place = side?.place;
+    if (!this.locations || typeof place?.providerKey !== 'string' || typeof place?.providerPlaceId !== 'string') return null;
+    const c: any = await this.locations.resolve({ providerKey: place.providerKey, providerPlaceId: place.providerPlaceId }).catch(() => null);
+    return geoPoint(c?.latitude, c?.longitude);
   }
 
   /**
