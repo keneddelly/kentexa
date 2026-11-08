@@ -28,6 +28,7 @@ import PlaceSearchField, { placeLabel, fromCandidate } from '../components/Place
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { serviceOfferCommitBody, shipmentBody } from '../../api/shipmentRequests';
 import { officeOffers } from './SendShipment';
+import OfficeCallRow from '../components/OfficeCallRow';
 import PickupLive from '../components/PickupLive';
 import InviteCarrier from '../components/InviteCarrier';
 import DarAreaPicker from '../components/DarAreaPicker';
@@ -629,10 +630,13 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                   </div>
                 ))}
                 {offers.map((o) => (
-                  <Choice key={o.key} testId={`offer-${o.key}`} selected={chosen?.key === o.key} onClick={() => setChosen(o)}
+                  <div key={o.key}>
+                  <Choice testId={`offer-${o.key}`} selected={chosen?.key === o.key} onClick={() => setChosen(o)}
                     title={`${o.providerName}${cod && o.direct && fee != null ? ` · ${tzs(fee)}` : o.servicePrice != null ? ` · ${tzs(o.servicePrice)}` : o.direct && o.areaUnknown ? ' · chagua eneo' : ''}`}
                     hint={o.direct ? `Anachukua dukani kwako na kumfikishia ${name || 'mteja'} mlangoni`
                       : `Peleka mzigo ${o.officeAddress || o.officeCity || 'ofisini'}; ofisi inaupeleka ${destCity}`} />
+                  {o.office && <div style={{ marginTop: -6, marginBottom: 10 }}><OfficeCallRow testId={`office-call-${o.officeId}`} phone={o.phone} distanceKm={o.distanceKm} /></div>}
+                  </div>
                 ))}
                 <InviteCarrier shopName={null} destCity={destCity} />
               </div>
