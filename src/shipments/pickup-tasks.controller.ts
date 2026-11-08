@@ -9,6 +9,7 @@ import type { RoleContext } from '../role-context/role-context.types';
 import { PickupTasksService } from './pickup-tasks.service';
 import type { RequestPickupDto } from './pickup-tasks.service';
 import { PickupReleaseService } from './pickup-release.service';
+import { LogisticsDispatchService } from './logistics-dispatch.service';
 
 /**
  * Draft first-mile: request, claim (Stage 3S) and the physical handoffs
@@ -17,7 +18,8 @@ import { PickupReleaseService } from './pickup-release.service';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class PickupTasksController {
-  constructor(private readonly tasks: PickupTasksService, private readonly releases: PickupReleaseService) {}
+  constructor(private readonly tasks: PickupTasksService, private readonly releases: PickupReleaseService,
+    private readonly dispatch: LogisticsDispatchService) {}
 
   // D2: "Siwezi kufika" -- the accepting agent gives the job back before collecting.
   @Post('pickup-tasks/:id/release')
@@ -85,6 +87,12 @@ export class PickupTasksController {
   @RequireActiveRole(AccountRoleType.SUPER_AGENT)
   hubExpected(@Request() req, @CurrentRoleContext() role: RoleContext) {
     return this.tasks.listHubExpected(req.user.id, role);
+  }
+
+  // "Waambie tena" (owner 2026-11-08): tell the nearby agents again (sender only, every 2 minutes).
+  @Post('shipments/:id/pickup-task/remind')
+  remind(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.tasks.remindAgents(req.user.id, id, this.dispatch);
   }
 
   @Get('shipments/:id/pickup-task')

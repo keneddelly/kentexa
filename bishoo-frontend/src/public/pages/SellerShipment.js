@@ -28,6 +28,7 @@ import PlaceSearchField, { placeLabel, fromCandidate } from '../components/Place
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import { serviceOfferCommitBody, shipmentBody } from '../../api/shipmentRequests';
 import { officeOffers } from './SendShipment';
+import PickupLive from '../components/PickupLive';
 import InviteCarrier from '../components/InviteCarrier';
 import DarAreaPicker from '../components/DarAreaPicker';
 
@@ -162,6 +163,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   // The engine's offers for step 4.
   const [offers, setOffers] = useState([]);
   const [findError, setFindError] = useState('');
+  const [sentShipmentId, setSentShipmentId] = useState(null);
   const [retry, setRetry] = useState(0);
   const [finding, setFinding] = useState(false);
   const [chosen, setChosen] = useState(null);
@@ -336,6 +338,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
         ...shipmentBody(requestState, chosen, null, journey),
         senderPhone: undefined, senderName: undefined,
       })).data;
+      setSentShipmentId(shipment.id);
       const points = {};
       // 3 A marketplace order: the order goes on the Shipment and it starts (its waybill stays).
       if (fromOrder) {
@@ -372,7 +375,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   };
 
   const restart = () => {
-    setResult(null); setItems([]); setName(''); setPhone(''); setPlace({ regionName: '', districtName: '', wardName: '' });
+    setResult(null); setSentShipmentId(null); setItems([]); setName(''); setPhone(''); setPlace({ regionName: '', districtName: '', wardName: '' });
     setLandmark(''); setPayMode(''); setPaidPart(''); setBodaFee(''); setNotes(''); setError(''); setStep(1);
   };
 
@@ -397,9 +400,11 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
           <div style={{ width: '100%', maxWidth: 480, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15 }}>
             <div>{fromOrder ? `Oda #${prefill.orderId} imeanza safari; ${name || 'mteja'} anafuatilia kwa namba hii.`
               : `${name || 'Mteja'} amepata SMS yenye ${cod ? 'bei na ' : ''}namba ya kufuatilia.`}</div>
-            <div>{chosen?.own ? 'Tuma mzigo kwa njia yako na umpe mteja namba hii ya kufuatilia.'
+            {(chosen?.own || !sentShipmentId) && <div>{chosen?.own ? 'Tuma mzigo kwa njia yako na umpe mteja namba hii ya kufuatilia.'
               : chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
-              : `Peleka mzigo ${chosen?.officeAddress || chosen?.officeCity || 'ofisini'} (${chosen?.providerName || 'ofisi'}).`}</div>
+              : `Peleka mzigo ${chosen?.officeAddress || chosen?.officeCity || 'ofisini'} (${chosen?.providerName || 'ofisi'}).`}</div>}
+            {/* Who is coming, live (owner 2026-11-08: "like Bolt", intercity too). */}
+            {!chosen?.own && sentShipmentId && <PickupLive shipmentId={sentShipmentId} />}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '12px 16px 24px', background: WHITE, borderTop: `1px solid ${LINE}` }}>

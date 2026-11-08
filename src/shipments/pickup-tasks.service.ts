@@ -1,4 +1,5 @@
-import { agentCovers, agentRadiusKm, geoPoint, kmSql, placeKey, placeKeySql } from '../location-intelligence/place-match';
+import { PICKUP_TO_BASE_DISTANCE_SQL } from './pickup-pin';
+import { agentCovers, agentCoversSql, agentRadiusKm, geoPoint, kmBetween, kmSql, placeKey, placeKeySql } from '../location-intelligence/place-match';
 import { PARTNER_JOB_MESSAGE, partnerGateSql, sellerPartnerTableReady } from '../partner-invitations/seller-agent-partner-gate';
 import { PAID_UP_FIRST_MESSAGE, feeStandingReady, paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import {
@@ -1089,33 +1090,104 @@ export class PickupTasksService {
 
   /** The sender's view of their Shipment's pickup: its state and, once claimed, who is coming. */
   async getForShipment(userId: number, shipmentId: number) {
-    const [s] = await this.db.query('SELECT id, "requestedByUserId" FROM public.shipment WHERE id=$1', [shipmentId]);
+    const [s] = await this.db.query(`SELECT id, "requestedByUserId", "originCity", "originHubId", status,
+        to_jsonb(shipment)->>'pickupPinLatitude' AS "pinLat", to_jsonb(shipment)->>'pickupPinLongitude' AS "pinLng",
+        to_jsonb(shipment)->>'originLatitude' AS "oLat", to_jsonb(shipment)->>'originLongitude' AS "oLng"
+        FROM public.shipment WHERE id=$1`, [shipmentId]);
     if (!s) throw new NotFoundException('Shipment not found');
     if (s.requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
+    const point = geoPoint(s.pinLat ?? s.oLat, s.pinLng ?? s.oLng);
+    const office = await this.liveOffice(s, point);
     const [t] = await this.db.query(
       `SELECT t.id, t.status, t."servicePath", t."createdAt", t."claimedAt", t."collectedAt", t."deliveredAt",
-              t."completedAt", t."handoffCodeExpiresAt", a."fullName" AS "agentName", a.phone AS "agentPhone"
+              t."completedAt", t."handoffCodeExpiresAt", a."fullName" AS "agentName", a."userId" AS "agentUserId",
+              NULLIF(btrim(a.phone), '') AS "agentPhone", a."baseLatitude", a."baseLongitude"
          FROM public.parcel_pickup_task t
          JOIN public.parcel p ON p.id = t."parcelId"
          LEFT JOIN public.agent a ON a.id = t."agentProfileId"
         WHERE p."shipmentId" = $1 ORDER BY t.id DESC LIMIT 1`,
       [shipmentId],
     );
-    if (!t) return { task: null };
+    if (!t) return office ? { task: null, office } : { task: null };
     const assigned = ['claimed', 'collected', 'awaiting_hub'].includes(t.status);
+    // The agent's account phone when his profile has none (so the sender can always call).
+    if (assigned && !t.agentPhone && t.agentUserId) {
+      const [u] = await this.db.query('SELECT phone FROM public."user" WHERE id=$1', [t.agentUserId]).catch(() => []);
+      t.agentPhone = u?.phone || null;
+    }
+    const base = geoPoint(t.baseLatitude, t.baseLongitude);
     return {
       task: {
         id: t.id, status: t.status, servicePath: t.servicePath as PickupServicePath,
-        agent: assigned ? { name: t.agentName ?? null, phone: t.agentPhone ?? null } : null,
+        agent: assigned ? { name: t.agentName ?? null, phone: t.agentPhone ?? null,
+          distanceKm: base && point ? Math.round(kmBetween(base, point) * 10) / 10 : null } : null,
         nextAction:
           t.status === 'requested' ? 'wait_for_agent'
           : t.status === 'claimed' ? 'give_code_to_agent'
           : null,
         requestedAt: t.createdAt, claimedAt: t.claimedAt, collectedAt: t.collectedAt,
         deliveredAt: t.deliveredAt, completedAt: t.completedAt,
+        // Like Bolt (owner 2026-11-08: "agents are requested silently"): while waiting, the agents
+        // told about this job, nearest first, with distance and phone (owner: the sender may call
+        // any of them to hurry one).
+        nearby: t.status === 'requested' ? await this.nearbyAgents(t.id) : [],
       },
+      office,
     };
   }
+
+  /** The agents who cover this job (the same rule as the job offer), nearest base first. */
+  private async nearbyAgents(taskId: number) {
+    const rows: any[] = await this.db.query(`
+      SELECT a.id, a."fullName", COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS phone, a."isOnline",
+             a."baseLatitude" IS NOT NULL AND a."baseLongitude" IS NOT NULL AS "hasBase",
+             ${PICKUP_TO_BASE_DISTANCE_SQL} AS "distanceM"
+        FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId" JOIN public.shipment s ON s.id = p."shipmentId"
+        JOIN public.agent a ON a.status = 'approved' AND ${agentCoversSql('s."originCity"', 'COALESCE(s."pickupPinLatitude", s."originLatitude")', 'COALESCE(s."pickupPinLongitude", s."originLongitude")')}
+         AND (a."maxWeightKg" IS NULL OR a."maxWeightKg" >= s."weightKg")
+        LEFT JOIN public."user" u ON u.id = a."userId"
+       WHERE t.id = $1
+         AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_RELEASED'
+               AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = a.id)
+       ORDER BY (a."baseLatitude" IS NULL) ASC, "distanceM" ASC NULLS LAST, (a."isOnline" IS TRUE) DESC, a.id ASC
+       LIMIT 5`, [taskId]).catch(() => []);
+    return rows.map((r) => ({ id: Number(r.id), name: r.fullName, phone: r.phone || null, isOnline: r.isOnline === true,
+      hasBase: r.hasBase === true, distanceKm: r.distanceM == null ? null : Math.round(Number(r.distanceM) / 100) / 10 }));
+  }
+
+  /** The office this shipment goes through (intercity too): name, phone, place, distance, received? */
+  private async liveOffice(s: any, point: { latitude: number; longitude: number } | null) {
+    if (!s.originHubId) return null;
+    const [o] = await this.db.query(`SELECT sa.id, sa."businessName" AS name, sa.phone, sa.address, sa.city, sa.latitude, sa.longitude
+      FROM public.super_agent sa WHERE sa.id = $1`, [s.originHubId]).catch(() => []);
+    if (!o) return null;
+    const [rec] = await this.db.query(`SELECT 1 AS ok FROM public.parcel p WHERE p."shipmentId" = $1
+      AND p.status NOT IN ('pending', 'cancelled')`, [s.id]).catch(() => []);
+    const op = geoPoint(o.latitude, o.longitude);
+    return { id: Number(o.id), name: o.name, phone: o.phone || null, address: o.address || null, city: o.city || null,
+      distanceKm: op && point ? Math.round(kmBetween(op, point) * 10) / 10 : null,
+      mapsUrl: op ? `https://www.google.com/maps/dir/?api=1&destination=${op.latitude},${op.longitude}` : null,
+      received: Boolean(rec?.ok) };
+  }
+
+  /**
+   * "Waambie tena" (owner 2026-11-08): the sender asks KenteXa to tell the nearby agents again.
+   * Only the sender, only while nobody has accepted, at most once every 2 minutes.
+   */
+  async remindAgents(userId: number, shipmentId: number, dispatch: { dispatchPickup: (id: number, p?: any) => Promise<any> }) {
+    const [row] = await this.db.query(`SELECT s."requestedByUserId", t.id AS "taskId", t.status
+      FROM public.shipment s JOIN public.parcel p ON p."shipmentId" = s.id JOIN public.parcel_pickup_task t ON t."parcelId" = p.id
+      WHERE s.id = $1 ORDER BY t.id DESC LIMIT 1`, [shipmentId]);
+    if (!row) throw new NotFoundException('Pickup task not found');
+    if (row.requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
+    if (row.status !== 'requested') throw new ConflictException('Wakala ameshakubali kazi hii.');
+    const last = this.lastReminder.get(Number(row.taskId)) ?? 0;
+    if (Date.now() - last < 120_000) throw new ConflictException('Subiri dakika 2 kabla ya kuwaambia tena.');
+    this.lastReminder.set(Number(row.taskId), Date.now());
+    const r = await dispatch.dispatchPickup(Number(row.taskId), { channels: ['in_app'] });
+    return { told: Number(r?.dispatched || 0) };
+  }
+  private readonly lastReminder = new Map<number, number>();
 
   /**
    * The requester cancels BEFORE physical collection. Once custody exists it
