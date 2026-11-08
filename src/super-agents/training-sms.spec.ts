@@ -15,6 +15,9 @@ const smsService = () => {
 };
 
 describe('training office SMS', () => {
+  // These cases test real sending: every SMS on (codes only is the default since 2026-11-08, sms-policy.ts).
+  beforeAll(() => { process.env.SMS_SEND_ALL = '1'; });
+  afterAll(() => { delete process.env.SMS_SEND_ALL; });
   it('outside training mode nothing is captured', () => {
     expect(captureTrainingSms('+255700000001', 'x')).toBe(false);
   });
@@ -31,9 +34,8 @@ describe('training office SMS', () => {
   });
 
   it('a normal office still sends real SMS (with every SMS on; codes only is the 2026-11-08 default)', async () => {
-    process.env.SMS_SEND_ALL = '1';
     const sms = smsService();
-    try { expect(await sms.sendSms('0712345678', 'hello')).toBe(true); } finally { delete process.env.SMS_SEND_ALL; }
+    expect(await sms.sendSms('0712345678', 'hello')).toBe(true);
     expect(sms.sms.send).toHaveBeenCalledTimes(1);
   });
 
