@@ -1108,7 +1108,7 @@ export class PickupTasksService {
         WHERE p."shipmentId" = $1 ORDER BY t.id DESC LIMIT 1`,
       [shipmentId],
     );
-    if (!t) return { task: null, office };
+    if (!t) return office ? { task: null, office } : { task: null };
     const assigned = ['claimed', 'collected', 'awaiting_hub'].includes(t.status);
     // The agent's account phone when his profile has none (so the sender can always call).
     if (assigned && !t.agentPhone && t.agentUserId) {

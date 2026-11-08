@@ -44,7 +44,7 @@ export default function PickupLive({ shipmentId, pollMs = 8000 }) {
   const [msg, setMsg] = useState('');
   const [now, setNow] = useState(Date.now());
 
-  const load = useCallback(() => Promise.resolve(api.get(`/shipments/${shipmentId}/pickup-task`))
+  const load = useCallback(() => Promise.resolve(api.get(`/shipments/${shipmentId}/pickup-task`, {}))
     .then((r) => { setData(r?.data || null); setNow(Date.now()); }).catch(() => {}), [shipmentId]);
   useEffect(() => {
     if (!shipmentId) return undefined;
