@@ -31,6 +31,9 @@ import { agentCodSplit } from '../super-agents/agent-cod-settlement';
  * a recorder. Skipped (not failed) without the dedicated test database.
  */
 const config = getB5BTestConnectionConfig();
+// Agent job SMS on for these cases (off by default since 2026-11-08, sms/sms-policy.ts).
+beforeAll(() => { process.env.AGENT_JOB_SMS = '1'; });
+afterAll(() => { delete process.env.AGENT_JOB_SMS; });
 const suite = config ? describe : describe.skip;
 const uuid = (n: number) => `40000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const SENDER = 5;

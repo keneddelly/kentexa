@@ -24,6 +24,7 @@ import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import ShipmentPickupQueue from '../components/ShipmentPickupQueue';
 import AgentBasePoint from '../components/AgentBasePoint';
+import PushNudge from '../components/PushNudge';
 import AgentVehicleCard from '../components/AgentVehicleCard';
 import AgentPartnerSellersCard from '../components/AgentPartnerSellersCard';
 
@@ -302,6 +303,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       onSaved={(d) => setProfile((p) => ({ ...p, hasBasePoint: true, baseSetAt: d?.baseSetAt, baseLatitude: d?.latitude, baseLongitude: d?.longitude }))} />
                   </div>
                 )}
+                <div style={{ marginBottom: 16 }}><PushNudge who="kazi mpya" /></div>
                 {/* Shipment jobs: my jobs (one next action each), then jobs near my base. */}
                 <ShipmentPickupQueue onChanged={refresh} onCount={setShipmentPickupCount} />
 

@@ -10,6 +10,10 @@ import { checkPartnerInviteToken, hashPartnerInviteToken } from './partner-invit
 
 const SECRET = 'test-secret-seller-agent';
 
+// These cases test the agent job SMS itself: on (off by default since 2026-11-08, sms/sms-policy.ts).
+beforeAll(() => { process.env.AGENT_JOB_SMS = '1'; });
+afterAll(() => { delete process.env.AGENT_JOB_SMS; });
+
 describe('seller partner agents: partner-first gate', () => {
   afterEach(() => setSellerPartnerTableReadyForTests(false));
 

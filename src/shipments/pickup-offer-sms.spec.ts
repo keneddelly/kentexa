@@ -1,6 +1,10 @@
 import { PickupOfferSmsService, pickupOfferSms, pickupOfferSmsConfig } from './pickup-offer-sms.service';
 
 // Job offer by SMS (owner 2026-10-14): nearest 1-3 agents, waybill + area only.
+// These cases test the agent job SMS itself: on (off by default since 2026-11-08, sms/sms-policy.ts).
+beforeAll(() => { process.env.AGENT_JOB_SMS = '1'; });
+afterAll(() => { delete process.env.AGENT_JOB_SMS; });
+
 describe('pickup offer SMS', () => {
   it('settings: defaults 3 agents after 2 minutes; clamped to 0..3 and 0..60; 0 agents = off', () => {
     expect(pickupOfferSmsConfig({})).toEqual({ agents: 3, delayMinutes: 2 });

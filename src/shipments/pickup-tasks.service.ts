@@ -1,3 +1,4 @@
+import { agentJobSmsOn } from '../sms/sms-policy';
 import { PICKUP_TO_BASE_DISTANCE_SQL } from './pickup-pin';
 import { agentCovers, agentCoversSql, agentRadiusKm, geoPoint, kmBetween, kmSql, placeKey, placeKeySql } from '../location-intelligence/place-match';
 import { PARTNER_JOB_MESSAGE, partnerGateSql, sellerPartnerTableReady } from '../partner-invitations/seller-agent-partner-gate';
@@ -1247,7 +1248,8 @@ export class PickupTasksService {
           context: { taskId, reference: reference || `#${taskId}` },
         }).catch((err: any) => this.logger.warn(`Pickup cancelled in-app not sent for task ${taskId}: ${err?.message || err}`));
       }
-      if (r.agentPhone && this.sms) await this.sms.sendSms(r.agentPhone, pickupCancelledSms(reference));
+      // Agent job SMS off by default (sms-policy.ts); the in-app + push message above still goes.
+      if (r.agentPhone && this.sms && agentJobSmsOn()) await this.sms.sendSms(r.agentPhone, pickupCancelledSms(reference));
     } catch (err: any) {
       this.logger.warn(`Pickup cancelled message not sent for task ${taskId}: ${err?.message || err}`);
     }
