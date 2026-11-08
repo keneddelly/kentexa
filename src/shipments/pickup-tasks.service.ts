@@ -1,3 +1,4 @@
+import { agentCovers, agentRadiusKm, geoPoint, kmSql, placeKey, placeKeySql } from '../location-intelligence/place-match';
 import { PARTNER_JOB_MESSAGE, partnerGateSql, sellerPartnerTableReady } from '../partner-invitations/seller-agent-partner-gate';
 import { PAID_UP_FIRST_MESSAGE, feeStandingReady, paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import {
@@ -29,6 +30,11 @@ export interface RequestPickupDto {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const normalizeCity = (value: string | null) => value?.trim().toLocaleLowerCase('en') ?? '';
+/** The agent covers this shipment's pickup (place-match.ts): by name or by his base's distance. */
+const coversPickup = (agent: any, s: any) => agentCovers(agent, {
+  names: [s.originCity],
+  point: geoPoint(s.pickupPinLatitude ?? s.originLatitude, s.pickupPinLongitude ?? s.originLongitude),
+}).covers;
 
 // Same shape as the existing hub-to-Agent challenge: six digits, salted scrypt
 // bound to the parcel and the exact actor, ten-minute life, five attempts,
@@ -228,7 +234,8 @@ export class PickupTasksService {
       WHERE t.id=$1`, [taskId]);
     if (preliminary.length !== 1 || !preliminary[0].shipmentId) throw new NotFoundException('Pickup task not found');
     const result = await this.db.transaction(async (em) => {
-      const s: any[] = await em.query('SELECT id,status,"originCity" FROM public.shipment WHERE id=$1 FOR UPDATE',
+      const s: any[] = await em.query(`SELECT id,status,"originCity","pickupPinLatitude","pickupPinLongitude","originLatitude","originLongitude"
+        FROM public.shipment WHERE id=$1 FOR UPDATE`,
         [preliminary[0].shipmentId]);
       const p: any[] = await em.query('SELECT id,status,"shipmentId" FROM public.parcel WHERE id=$1 FOR UPDATE',
         [preliminary[0].parcelId]);
@@ -238,7 +245,7 @@ export class PickupTasksService {
           s[0].status !== 'confirmed' || p[0].status !== 'pending') {
         throw new ConflictException('Pickup task is no longer available');
       }
-      const agent: any[] = await em.query(`SELECT id,city,status,"userId","baseLatitude","baseLongitude" FROM public.agent
+      const agent: any[] = await em.query(`SELECT id,city,district,region,status,"userId","baseLatitude","baseLongitude" FROM public.agent
         WHERE id=$1 FOR UPDATE`, [role.profileId]);
       if (agent.length !== 1 || agent[0].userId !== userId || agent[0].status !== 'approved') {
         throw new ForbiddenException('Approved active Agent profile required');
@@ -247,7 +254,7 @@ export class PickupTasksService {
       if (agent[0].baseLatitude == null || agent[0].baseLongitude == null) {
         throw new BadRequestException(AGENT_BASE_MESSAGES.required);
       }
-      if (!normalizeCity(agent[0].city) || normalizeCity(agent[0].city) !== normalizeCity(s[0].originCity)) {
+      if (!coversPickup(agent[0], s[0])) {
         throw new ForbiddenException('Agent does not cover this pickup city');
       }
       if (t[0].status === 'claimed' && t[0].agentProfileId === role.profileId) {
@@ -376,7 +383,7 @@ export class PickupTasksService {
   }
 
   private async approvedAgent(em: any, role: RoleContext, userId: number, lock = true) {
-    const rows: any[] = await em.query(`SELECT id,city,status,"userId","fullName","baseLatitude","baseLongitude" FROM public.agent
+    const rows: any[] = await em.query(`SELECT id,city,district,region,status,"userId","fullName","baseLatitude","baseLongitude" FROM public.agent
       WHERE id=$1 ${lock ? 'FOR UPDATE' : ''}`, [role.profileId]);
     if (rows.length !== 1 || rows[0].userId !== userId || rows[0].status !== 'approved') {
       throw new ForbiddenException('Approved active Agent profile required');
@@ -474,7 +481,7 @@ export class PickupTasksService {
         throw new ForbiddenException('This pickup is not assigned to you');
       }
       const agent = await this.approvedAgent(em, role, userId);
-      if (!normalizeCity(agent.city) || normalizeCity(agent.city) !== normalizeCity(s.originCity)) {
+      if (!coversPickup(agent, s)) {
         throw new ForbiddenException('Agent does not cover this pickup city');
       }
       // An Order's Parcel: a COD seller shipment (its boda job) or the Shipment booked for that Order.
@@ -801,7 +808,11 @@ export class PickupTasksService {
   async listAvailable(userId: number, role: RoleContext) {
     this.assertAgentRole(role, userId);
     const agent = await this.approvedAgent(this.db, role, userId, false);
-    if (!normalizeCity(agent.city)) return [];
+    // The pickups this agent covers (place-match.ts, owner 2026-11-08): his town, district or
+    // region by name, or a pickup point within the radius of his base.
+    const names = [agent.city, agent.district, agent.region].map(placeKey).filter((k) => k.length >= 2);
+    const base = geoPoint(agent.baseLatitude, agent.baseLongitude);
+    if (!names.length && !base) return [];
     // Seller partner agents first, for a few minutes (seller-agent-partner-gate.ts).
     const partnerGate = partnerGateSql('$3::int');
     const rows: any[] = await this.db.query(
@@ -817,15 +828,17 @@ export class PickupTasksService {
          LEFT JOIN public.super_agent h ON h.id = t."originHubId"
          LEFT JOIN public.tz_ward pw ON pw.id = s."pickupPinWardId"
         WHERE t.status = 'requested' AND s.status = 'confirmed' AND p.status = 'pending'
-          AND lower(btrim(s."originCity")) = $1
+          AND (${placeKeySql('s."originCity"')} = ANY($1::text[])
+               OR coalesce(${kmSql('$4::float8', '$5::float8', 'COALESCE(s."pickupPinLatitude", s."originLatitude")', 'COALESCE(s."pickupPinLongitude", s."originLongitude")')} <= ${agentRadiusKm()}, false))
           -- D2: a job this agent released ("Siwezi kufika" or timeout) is not offered to him again.
           AND NOT EXISTS (SELECT 1 FROM public.activity_events e WHERE e."eventType" = 'PICKUP_RELEASED'
                 AND e."targetType" = 'parcel_pickup_task' AND e."targetId" = t.id AND e."actorProfileId" = $2)
           AND ${partnerGate}
+          AND ($3::int IS NULL OR $3::int IS NOT NULL) -- $3 is typed even when the partner gate is off
           -- Paid-up agents first (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts).
           AND ${paidUpGateSql(String(Number(userId)))}
         ORDER BY t."createdAt" ASC LIMIT 50`,
-      partnerGate === 'TRUE' ? [normalizeCity(agent.city), agent.id] : [normalizeCity(agent.city), agent.id, userId],
+      [names, agent.id, partnerGate === 'TRUE' ? null : userId, base?.latitude ?? null, base?.longitude ?? null],
     );
     // Section 18 (b): distance from the agent's base, rounded; nearest first.
     const hasBase = agent.baseLatitude != null && agent.baseLongitude != null;

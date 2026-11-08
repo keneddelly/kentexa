@@ -1,3 +1,4 @@
+import { agentCoversSql } from '../location-intelligence/place-match';
 import { Injectable, Logger } from '@nestjs/common';
 import { paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import { DataSource } from 'typeorm';
@@ -33,7 +34,7 @@ export class AgentPickupReofferService {
         SELECT t.id, a."userId", s."originCity", s."destinationCity", s."itemDescription",
                ${PICKUP_TO_BASE_DISTANCE_SQL} AS "distanceM"
           FROM public.agent a
-          JOIN public.shipment s ON lower(trim(s."originCity")) = lower(trim(a.city))
+          JOIN public.shipment s ON ${agentCoversSql('s."originCity"', 'COALESCE(s."pickupPinLatitude", s."originLatitude")', 'COALESCE(s."pickupPinLongitude", s."originLongitude")')}
           JOIN public.parcel p ON p."shipmentId" = s.id
           JOIN public.parcel_pickup_task t ON t."parcelId" = p.id
          WHERE a.id = $1 AND a.status = 'approved' AND a."isOnline" = true AND a."userId" IS NOT NULL

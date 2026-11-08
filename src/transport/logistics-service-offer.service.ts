@@ -1,3 +1,5 @@
+import { agentCovers, agentRadiusKm, geoPoint, kmBetween, officeRadiusKm, samePlace } from '../location-intelligence/place-match';
+import { agentOnlineRequired } from '../agents/agent-online';
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { officesInArrears, paidUpFirst } from '../kentexa-fee/paid-up-gate';
 import { DataSource } from 'typeorm';
@@ -10,7 +12,7 @@ import { OfficePriceService } from '../super-agents/office-price.service';
 import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
 import { isDarEsSalaam } from '../Utils/delivery-zone-detector';
 import { darMatch } from '../boda-rates/dar-boda-zones';
-import { OfficePickupOffer, OfficeRateRow, officeChargeText, officeEtaLabel, officePickupFeeFor, officePickupTableReady, officeSameCityColumnReady, isSameCityTrip, pickOfficeRates } from './office-offers';
+import { OfficePickupOffer, OfficeRateRow, officeChargeText, officeEtaLabel, officePickupFeeFor, officePickupTableReady, officeSameCityColumnReady, isSameCityTrip, officeServesOrigin, pickOfficeRates, rateServesDestination } from './office-offers';
 
 export interface DiscoverServiceOffersDto {
   fromCity: string; toCity: string; weightKg: number;
@@ -121,8 +123,12 @@ export class LogisticsServiceOfferService {
     const city = typeof dto?.fromCity === 'string' ? dto.fromCity.trim() : '';
     const weight = Number(dto?.weightKg);
     if (!city || !Number.isFinite(weight) || weight <= 0) throw new BadRequestException('fromCity and a positive weightKg are required');
-    const agents = await this.agents.getAvailableAgents(city, weight);
-    if (agents.some((a: any) => a.hasBasePoint)) return { available: true, nearestOffice: null };
+    // Coordinates first (place-match.ts): the sender's pin, else the chosen place's point.
+    const origin = await this.placeNames(dto.origin, city);
+    const point = geoPoint((dto as any).pickupPoint?.latitude, (dto as any).pickupPoint?.longitude) ?? geoPoint(origin.latitude, origin.longitude);
+    const agents = await this.agents.getAvailableAgents(city, weight, point);
+    // Owner 2026-11-08: an agent without a base still gets the job (he is asked to set it to accept).
+    if (agents.length) return { available: true, nearestOffice: null };
     return { available: false, ...NO_AGENT_NOW, nearestOffice: await this.nearestOffice(city, dto.origin) };
   }
 
@@ -204,10 +210,14 @@ export class LogisticsServiceOfferService {
     if (!from || !to || !Number.isFinite(weight) || weight <= 0) throw new BadRequestException('fromCity, toCity and a positive weightKg are required');
     if (!['door', 'point'].includes(dto.pickup) || !['door', 'collect'].includes(dto.delivery)) throw new BadRequestException('Invalid pickup or delivery outcome');
 
-    const sameCity = from.toLocaleLowerCase('en') === to.toLocaleLowerCase('en');
+    const sameCity = from.toLocaleLowerCase('en') === to.toLocaleLowerCase('en') || samePlace(from, to);
+    // Coordinates first (owner 2026-11-08): the sender's pin, else each chosen place's point.
+    const [originPlace, destinationPlace] = await Promise.all([this.placeNames(dto.origin, from), this.placeNames(dto.destination, to)]);
+    const pickupPoint = geoPoint(dto.pickupPoint?.latitude, dto.pickupPoint?.longitude) ?? geoPoint(originPlace.latitude, originPlace.longitude);
+    const dropPoint = geoPoint(destinationPlace.latitude, destinationPlace.longitude);
     const [originAgents, destinationAgents] = await Promise.all([
-      dto.pickup === 'door' ? this.agents.getAvailableAgents(from, weight) : Promise.resolve([]),
-      dto.delivery === 'door' ? this.agents.getAvailableAgents(to, weight) : Promise.resolve([]),
+      dto.pickup === 'door' ? this.agents.getAvailableAgents(from, weight, pickupPoint) : Promise.resolve([]),
+      dto.delivery === 'door' ? this.agents.getAvailableAgents(to, weight, dropPoint) : Promise.resolve([]),
     ]);
     // Route coverage and first/last-mile Agent supply are separate facts.
     // Never make a valid linehaul service disappear merely because Agent
@@ -220,9 +230,9 @@ export class LogisticsServiceOfferService {
     const deliveryFee = dto.delivery === 'door' && deliveryAgent ? Number(deliveryAgent.deliveryFee ?? 0) : 0;
 
     if (sameCity) {
-      // Door pickup needs an online agent WITH a base point (the same rule as
-      // the early check, doorCheck): pickups go to the nearest base first.
-      const pickupAgents = originAgents.filter((a: any) => a.hasBasePoint);
+      // Every agent who covers the pickup (owner 2026-11-08): nearest base first, then agents
+      // without a base, who are asked to set it before accepting (pickup-tasks claim).
+      const pickupAgents = originAgents;
       const directAgent: any = dto.pickup === 'door' ? pickupAgents[0] : deliveryAgent;
       // Offices that chose same-city delivery compete here too (owner 2026-10-24);
       // officeOffers keeps every other office out of a same-city trip.
@@ -403,7 +413,10 @@ export class LogisticsServiceOfferService {
     // An office that ticked only large goods / containers ("Bei zangu") does not take
     // small parcels: it is not offered here (owner 2026-10-26). Never set = parcels.
     const noParcels = await this.officesWithoutParcels();
-    const chosen = pickOfficeRates(rows, origin, destination)
+    // The sender's pin, when given, is the origin point for "office in my town" (place-match.ts).
+    const originForMatch = geoPoint(dto.pickupPoint?.latitude, dto.pickupPoint?.longitude)
+      ? { ...origin, latitude: dto.pickupPoint!.latitude, longitude: dto.pickupPoint!.longitude } : origin;
+    const chosen = pickOfficeRates(rows, originForMatch, destination)
       .filter((r) => !sameCityOffices || sameCityOffices.has(r.officeId))
       .filter((r) => !noParcels.has(r.officeId));
     // Offices that collect from the sender themselves (free or their own fee).
@@ -467,6 +480,92 @@ export class LogisticsServiceOfferService {
     const idOf = (o: LogisticsServiceOffer) => Number((o as any).fulfillment?.officeOption?.officeId);
     const arrears = await officesInArrears(this.db, cheapestFirst.map(idOf)).catch(() => new Set<number>());
     return paidUpFirst(cheapestFirst, idOf, arrears).slice(0, 10);
+  }
+
+  /**
+   * "Kwa nini hakuna?" (owner 2026-11-08: "run a check on agent, office ... the system says no agent
+   * available"): for one trip, EVERY agent and EVERY office with whether it qualifies and the exact
+   * reason when not. The same rules as discover()/officeOffers() (place-match.ts, office-offers.ts),
+   * read-only, admin only. Never invents a reason: each comes from the record.
+   */
+  async explain(dto: DiscoverServiceOffersDto) {
+    const from = dto?.fromCity?.trim(); const to = dto?.toCity?.trim(); const weight = Number(dto?.weightKg) || 1;
+    if (!from || !to) throw new BadRequestException('Andika mji wa kutoka na wa kwenda');
+    if (!this.db) return { agents: [], offices: [], notes: ['Hifadhidata haipatikani'] };
+    const [origin, destination] = await Promise.all([this.placeNames(dto.origin, from), this.placeNames(dto.destination, to)]);
+    const pickupPoint = geoPoint(dto.pickupPoint?.latitude, dto.pickupPoint?.longitude) ?? geoPoint(origin.latitude, origin.longitude);
+    const sameCity = samePlace(from, to) || from.toLowerCase() === to.toLowerCase();
+    const notes: string[] = [];
+    if (!pickupPoint) notes.push('Mahali pa kutoka hapana alama ya ramani: wakala na ofisi wanalinganishwa kwa majina tu.');
+    const radius = agentRadiusKm();
+
+    const agentRows: any[] = await this.db.query(`SELECT a.id, a."fullName", a.city, a.district, a.region, a.status, a."isOnline",
+        a."maxWeightKg", a."baseLatitude", a."baseLongitude", COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS phone
+      FROM public.agent a LEFT JOIN public."user" u ON u.id = a."userId" ORDER BY a.id`).catch(() => []);
+    const agents = agentRows.map((a) => {
+      const cover = agentCovers(a, { names: [from], point: pickupPoint });
+      const reasons: string[] = [];
+      if (a.status !== 'approved') reasons.push(`Hajaidhinishwa (hali: ${a.status})`);
+      if (!cover.covers) {
+        const town = a.city || a.district || a.region;
+        reasons.push(cover.distanceKm != null
+          ? `Kituo chake kiko km ${Math.round(cover.distanceKm)} (kikomo km ${radius}); mji wake "${town || 'haujawekwa'}" si ${from}`
+          : `Mji wake "${town || 'haujawekwa'}" si ${from}${cover.hasBase ? '' : ', na hana kituo cha kupima umbali'}`);
+      }
+      const maxKg = Number(a.maxWeightKg || 20);
+      if (weight > maxKg) reasons.push(`Uzito kg ${weight} ni zaidi ya kg ${maxKg} anazobeba`);
+      if (agentOnlineRequired() && a.isOnline !== true) reasons.push('Hayuko mtandaoni (lazima awe mtandaoni)');
+      const ok = reasons.length === 0;
+      return { id: Number(a.id), name: a.fullName, phone: a.phone || null, city: a.city, district: a.district, region: a.region,
+        status: a.status, hasBase: cover.hasBase, distanceKm: cover.distanceKm == null ? null : Math.round(cover.distanceKm * 10) / 10,
+        ok, reasons, note: ok && !cover.hasBase ? 'Atapata kazi, lakini lazima aweke kituo chake kabla ya kukubali' : null };
+    });
+
+    const value = Number(dto?.declaredValue);
+    if (!sameCity && !(value > 0)) notes.push('Weka thamani ya mzigo: bila thamani, ofisi hazionyeshwi kabisa.');
+    const officeRows: any[] = await this.db.query(`SELECT sa.id, sa."businessName", sa.city, sa.status, sa."isTrainingOffice",
+        sa.latitude, sa.longitude FROM public.super_agent sa ORDER BY sa.id`).catch(() => []);
+    const rateRows: any[] = await this.db.query(`SELECT "superAgentId", "destinationCity", "isActive" FROM public.shipping_rate`).catch(() => []);
+    const noParcels = await this.officesWithoutParcels();
+    const sameCityIds = sameCity && await officeSameCityColumnReady(this.db)
+      ? new Set(((await this.db.query(`SELECT "superAgentId" FROM public.office_pickup_offer WHERE "sameCityDelivery" = true`).catch(() => [])) as any[]).map((r) => Number(r.superAgentId)))
+      : new Set<number>();
+    const originForMatch = pickupPoint ? { ...origin, latitude: pickupPoint.latitude, longitude: pickupPoint.longitude } : origin;
+    const offices = [] as any[];
+    for (const o of officeRows) {
+      const id = Number(o.id);
+      const routes = rateRows.filter((r) => Number(r.superAgentId) === id && r.isActive !== false).map((r) => String(r.destinationCity));
+      const reasons: string[] = [];
+      if (o.status !== 'active') reasons.push(`Haiko hai (hali: ${o.status})`);
+      if (o.isTrainingOffice) reasons.push('Ni ofisi ya mafunzo');
+      const point = geoPoint(o.latitude, o.longitude);
+      const km = point && pickupPoint ? kmBetween(point, pickupPoint) : null;
+      if (!officeServesOrigin(o.city, originForMatch, { latitude: o.latitude, longitude: o.longitude })) {
+        reasons.push(`Iko ${o.city || 'mji haujawekwa'}${km != null ? ` (km ${Math.round(km)})` : ''}, si ${from}`);
+      }
+      if (sameCity) {
+        if (!sameCityIds.has(id)) reasons.push('Haijachagua kupeleka ndani ya mji');
+      } else if (!routes.some((r) => rateServesDestination(r, destination))) {
+        reasons.push(routes.length ? `Haina njia kwenda ${to} (inatuma: ${routes.join(', ')})` : 'Haijaweka mkoa wowote inaotuma ("Bei zangu")');
+      }
+      if (noParcels.has(id)) reasons.push('Imechagua mizigo mikubwa au kontena tu, si vifurushi');
+      const rule = this.officePrices ? await this.officePrices.ruleFor(id).catch(() => null) : null;
+      offices.push({ id, name: o.businessName, city: o.city, status: o.status, hasPoint: Boolean(point),
+        distanceKm: km == null ? null : Math.round(km * 10) / 10, chargeMode: rule?.chargeMode ?? 'value (kawaida)',
+        routes, ok: reasons.length === 0, reasons });
+    }
+    // The real answer, so the check and the customer's screen never disagree.
+    const offers = await this.discover({ ...dto, weightKg: weight } as any).catch((e: any) => {
+      notes.push(`Utafutaji ulishindwa: ${e?.message || e}`);
+      return [] as LogisticsServiceOffer[];
+    });
+    return {
+      trip: { from, to, sameCity, weightKg: weight, declaredValue: value > 0 ? value : null,
+        origin: { region: origin.regionName, district: origin.districtName, point: pickupPoint },
+        destination: { region: destination.regionName, district: destination.districtName } },
+      found: offers.map((o: any) => ({ type: o.serviceType, name: o.name, price: o.price })),
+      agents, offices, notes, radiusKm: { agent: radius, office: officeRadiusKm() },
+    };
   }
 
   /** The sender chose an office: re-price it now (never the client's numbers) and compose the journey. */

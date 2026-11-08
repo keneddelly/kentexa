@@ -208,3 +208,16 @@ test('360px: the route rows have no fixed widths that could overflow a phone', a
     }
   }
 });
+
+test('charging by value, the office still lists the regions it sends to (owner 2026-11-08: offices never appeared)', async () => {
+  serve();
+  api.put.mockResolvedValue({ data: rule({ source: 'office' }) });
+  api.post.mockResolvedValue({ data: { message: 'ok' } });
+  await openPage();
+  await screen.findByTestId('office-price-rule');
+  expect(await screen.findByDisplayValue('Mwanza')).toBeTruthy();         // the region row is shown by value too
+  expect(screen.queryByText('super_agent_settings.rate_per_kg_label')).toBeNull(); // no price per kg by value
+  fireEvent.click(screen.getByText('super_agent_settings.rate_save_button'));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][1].rates[0]).toMatchObject({ destinationCity: 'Mwanza', estimatedDays: 2 });
+});

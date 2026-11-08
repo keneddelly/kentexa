@@ -10,6 +10,7 @@
  * inactive offices never appear. Pure helpers here; queries in the service.
  */
 import { isSameCity } from '../super-agents/cod-sms';
+import { geoPoint, kmBetween, officeRadiusKm, samePlace } from '../location-intelligence/place-match';
 
 export const OFFICE_SERVICE_PATH = 'office_routed';
 
@@ -24,6 +25,8 @@ export interface OfficeRateRow {
   ratePerKg: number;
   minimumCharge: number;
   estimatedDays: number | null;
+  officeLatitude?: unknown;
+  officeLongitude?: unknown;
 }
 
 const key = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z]/g, '');
@@ -35,13 +38,21 @@ export function rateServesDestination(rateCity: string, destination: { regionNam
   return [destination.regionName, destination.districtName, destination.city]
     .some((name) => {
       const k = key(name);
-      return k.length >= 2 && (k === r || isSameCity(rateCity, String(name ?? '')) || k.replace(/mjini$/, '') === r);
+      return k.length >= 2 && (k === r || isSameCity(rateCity, String(name ?? '')) || samePlace(rateCity, name) || k.replace(/mjini$/, '') === r);
     });
 }
 
-/** Is the office in the sender's city (region or district)? */
-export function officeServesOrigin(officeCity: string, origin: { regionName?: string | null; districtName?: string | null; city?: string | null }): boolean {
-  return [origin.regionName, origin.districtName, origin.city].some((name) => name && isSameCity(officeCity, name));
+/**
+ * Is the office in the sender's town? By name (region, district or the typed town, shared rule
+ * place-match.ts) OR by coordinates (owner 2026-11-08): the office's map point within
+ * OFFICE_ORIGIN_RADIUS_KM of the sender's point.
+ */
+export function officeServesOrigin(officeCity: string, origin: { regionName?: string | null; districtName?: string | null; city?: string | null;
+  latitude?: unknown; longitude?: unknown }, officePoint?: { latitude?: unknown; longitude?: unknown } | null): boolean {
+  if ([origin.regionName, origin.districtName, origin.city].some((name) => name && (isSameCity(officeCity, name) || samePlace(officeCity, name)))) return true;
+  const o = geoPoint(officePoint?.latitude, officePoint?.longitude);
+  const p = geoPoint(origin.latitude, origin.longitude);
+  return Boolean(o && p && kmBetween(o, p) <= officeRadiusKm());
 }
 
 /**
@@ -51,7 +62,8 @@ export function officeServesOrigin(officeCity: string, origin: { regionName?: st
 export function pickOfficeRates(rows: OfficeRateRow[], origin: Record<string, any>, destination: Record<string, any>): OfficeRateRow[] {
   const byOffice = new Map<number, OfficeRateRow>();
   for (const row of rows) {
-    if (!officeServesOrigin(row.officeCity, origin) || !rateServesDestination(row.destinationCity, destination)) continue;
+    if (!officeServesOrigin(row.officeCity, origin, { latitude: (row as any).officeLatitude, longitude: (row as any).officeLongitude })
+      || !rateServesDestination(row.destinationCity, destination)) continue;
     const prev = byOffice.get(row.officeId);
     const exactDistrict = key(row.destinationCity) === key(destination.districtName);
     if (!prev || (exactDistrict && key(prev.destinationCity) !== key(destination.districtName))) byOffice.set(row.officeId, row);

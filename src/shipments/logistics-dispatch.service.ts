@@ -1,3 +1,4 @@
+import { agentCoversSql } from '../location-intelligence/place-match';
 import { Injectable } from '@nestjs/common';
 import { paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import { PICKUP_TO_BASE_DISTANCE_SQL } from './pickup-pin';
@@ -16,7 +17,7 @@ export class LogisticsDispatchService {
              a.id AS "agentId",a."userId",a."fullName",a.city,a."isOnline",a."maxWeightKg",s."weightKg",
              ${PICKUP_TO_BASE_DISTANCE_SQL} AS "distanceM"
       FROM parcel_pickup_task t JOIN parcel p ON p.id=t."parcelId" JOIN shipment s ON s.id=p."shipmentId"
-      JOIN agent a ON a.status='approved' AND lower(trim(a.city))=lower(trim(s."originCity"))
+      JOIN agent a ON a.status='approved' AND ${agentCoversSql('s."originCity"', 'COALESCE(s."pickupPinLatitude", s."originLatitude")', 'COALESCE(s."pickupPinLongitude", s."originLongitude")')}
        ${agentOnlineSql('a')} AND (a."maxWeightKg" IS NULL OR a."maxWeightKg">=s."weightKg")
       WHERE t.id=$1 AND t.status='requested'
         -- D2: never offered again to an agent who released this job.

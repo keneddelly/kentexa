@@ -155,6 +155,7 @@ import MyQuoteRequests from './public/pages/MyQuoteRequests';
 import QuoteInbox from './public/pages/QuoteInbox';
 import AdminAdvertisers from './admin/pages/AdminAdvertisers';
 import AdminKentexaFees from './admin/pages/AdminKentexaFees';
+import AdminShippingCheck from './admin/pages/AdminShippingCheck';
 import { rememberReferral } from './utils/referralLink';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
@@ -1042,6 +1043,7 @@ function App() {
       case 'AdminDispatchReminders': return requireAdmin(<AdminDispatchReminders activePage={page} {...adminProps} />);
       case 'AdminAdvertisers': return requireAdmin(<AdminAdvertisers activePage={page} {...adminProps} />);
       case 'AdminKentexaFees': return requireAdmin(<AdminKentexaFees activePage={page} {...adminProps} />);
+      case 'AdminShippingCheck': return requireAdmin(<AdminShippingCheck activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return activeContext?.roleType === 'admin'

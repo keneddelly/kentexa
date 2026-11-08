@@ -64,6 +64,15 @@ export class TransportController {
     return this.serviceOffers.discover(dto);
   }
 
+  // "Kwa nini hakuna?" (owner 2026-11-08): every agent and office for one trip, with the reason
+  // each one is or is not offered. Admin only, read-only.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('service-offers/explain')
+  explainServiceOffers(@Body() dto: DiscoverServiceOffersDto) {
+    return this.serviceOffers.explain(dto);
+  }
+
   // Early check for same-city door pickup: an online agent with a base point
   // now? If not, the nearest Super Agent office (KNOWN_FAULTS #24).
   @UseGuards(JwtAuthGuard)

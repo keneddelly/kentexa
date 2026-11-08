@@ -161,6 +161,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const [result, setResult] = useState(null);
   // The engine's offers for step 4.
   const [offers, setOffers] = useState([]);
+  const [findError, setFindError] = useState('');
+  const [retry, setRetry] = useState(0);
   const [finding, setFinding] = useState(false);
   const [chosen, setChosen] = useState(null);
   // Dar zones (owner 2026-11-02): an area picked for a place KenteXa did not know (never guessed).
@@ -245,13 +247,13 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
   const needShop = inCity && !shop;
 
   // Step 4: ask the engine. Runs again when what it depends on changes.
-  const findKey = step === 4 && !needShop ? [sellerCity, destCity, shop?.placeRef?.providerPlaceId, place.placeRef?.providerPlaceId, address, weight, goods, cod, shopArea, destArea].join('|') : '';
+  const findKey = step === 4 && !needShop ? [retry, sellerCity, destCity, shop?.placeRef?.providerPlaceId, place.placeRef?.providerPlaceId, address, weight, goods, cod, shopArea, destArea].join('|') : '';
   useEffect(() => { setDestArea(''); }, [place.placeRef?.providerPlaceId, address]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setShopArea(''); }, [shop?.placeRef?.providerPlaceId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!findKey) return undefined;
     let live = true;
-    setFinding(true); setOffers([]); setChosen(null);
+    setFinding(true); setOffers([]); setChosen(null); setFindError('');
     api.post('/transport/service-offers/discover', {
       fromCity: sellerCity, toCity: destCity, weightKg: weight || 1,
       pickup: inCity ? 'door' : 'point', delivery: inCity ? 'door' : 'collect',
@@ -264,7 +266,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
       if (!live) return;
       const list = sellerOffers(r.data, { inCity, cod });
       setOffers(list); setChosen(list[0] || null);
-    }).catch(() => { if (live) setOffers([]); })
+    // A failed search is said as such (owner 2026-11-08): never shown as "no agent".
+    }).catch((e) => { if (live) { setOffers([]); setFindError(e?.response?.data?.message || 'Imeshindikana kutafuta usafiri. Angalia mtandao, kisha jaribu tena.'); } })
       .finally(() => { if (live) setFinding(false); });
     return () => { live = false; };
   }, [findKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -590,6 +593,11 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
               </div>
             ) : finding ? (
               <div data-testid="delivery-finding" style={{ ...card, marginBottom: 12, fontSize: 15, color: GREY }}>KenteXa inatafuta usafiri…</div>
+) : findError ? (
+              <div data-testid="delivery-error" role="alert" style={{ ...card, borderColor: '#fecaca', background: '#fef2f2', fontSize: 14, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span>{String(findError)}</span>
+                <button type="button" onClick={() => setRetry((n) => n + 1)} style={{ alignSelf: 'flex-start', height: 36, padding: '0 16px', borderRadius: 18, border: 'none', background: '#0f1419', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: FONT }}>Jaribu tena</button>
+              </div>
             ) : offers.length === 0 ? (
               <div data-testid="delivery-none" style={{ marginBottom: 12 }}>
                 <div role="status" style={{ ...card, borderColor: '#fde68a', background: '#fffbeb', fontSize: 14, marginBottom: 10 }}>

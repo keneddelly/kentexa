@@ -17,10 +17,10 @@ describe('agents do not need to be online to be offered jobs', () => {
   };
   afterEach(() => { delete process.env.AGENT_ONLINE_REQUIRED; });
 
-  it('by default: every approved agent of the city who can carry it, online ones first', async () => {
+  it('by default: every approved agent of the city who can carry it; agents with a base first (2026-11-08, like the job offer)', async () => {
     const list = await service().getAvailableAgents('Dar es Salaam', 10);
-    expect(list.map((a: any) => a.id)).toEqual([2, 1]);                // agent 4 cannot carry 10 kg; Mwanza is another city
-    expect(list.map((a: any) => a.isOnline)).toEqual([true, false]);   // the real state, never "true" for everyone
+    expect(list.map((a: any) => a.id)).toEqual([1, 2]);                // agent 4 cannot carry 10 kg; Mwanza is another city
+    expect(list.map((a: any) => a.isOnline)).toEqual([false, true]);   // the real state, never "true" for everyone
     expect(list.find((a: any) => a.id === 1)).toMatchObject({ hasBasePoint: true });
   });
 
