@@ -30,9 +30,10 @@ describe('training office SMS', () => {
     expect(previews).toEqual([{ to: '+255712345678', text: 'KenteXa: Mzigo KTX 9815 9515 21 umepokelewa.' }]);
   });
 
-  it('a normal office still sends real SMS', async () => {
+  it('a normal office still sends real SMS (with every SMS on; codes only is the 2026-11-08 default)', async () => {
+    process.env.SMS_SEND_ALL = '1';
     const sms = smsService();
-    expect(await sms.sendSms('0712345678', 'hello')).toBe(true);
+    try { expect(await sms.sendSms('0712345678', 'hello')).toBe(true); } finally { delete process.env.SMS_SEND_ALL; }
     expect(sms.sms.send).toHaveBeenCalledTimes(1);
   });
 

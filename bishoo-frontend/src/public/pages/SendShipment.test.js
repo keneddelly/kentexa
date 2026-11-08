@@ -155,7 +155,7 @@ test('other city: the customer sees offices only, never a transporter directly; 
 test('the journey shows only the steps of this trip', () => {
   const direct = journeySteps({ direct: true, pickupOption: 'door', deliveryOption: 'door', receiverName: 'Amina', nextAction: { type: 'agent_pickup', agentsAlerted: 0 } });
   expect(direct.steps.map((s) => s.text)).toEqual(['Ombi limepokelewa', 'Wakala anachukua mzigo kwako', 'Amina anapokea mzigo mlangoni kwa namba ya siri']);
-  expect(direct.next).toMatch(/Hakuna wakala aliye mtandaoni/);
+  expect(direct.next).toMatch(/Hakuna wakala karibu sasa hivi/);
   const far = journeySteps({ direct: false, pickupOption: 'station', deliveryOption: 'station', providerName: 'Ofisi B', destinationLabel: 'Mbeya', receiverName: 'Amina' });
   expect(far.steps).toHaveLength(4);
   expect(far.steps[2].text).toBe('Ofisi B anausafirisha kwenda Mbeya');
