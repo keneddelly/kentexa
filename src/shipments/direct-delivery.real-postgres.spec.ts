@@ -193,6 +193,8 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       destinationArea: 'Mbagala, Temeke', deliverTo: 'recipient', originHubName: null, itemDescription: 'Nguo za watoto', weightKg: 2,
       // Pickup point fields (1791800000000): no pin and no origin coordinates on this shipment.
       pickupWard: null, distance: null,
+      // Offered for 5 minutes (owner 2026-11-09, pickup-offer-window.ts).
+      offerEndsAt: expect.any(Date),
     });
     expect(JSON.stringify(available)).not.toMatch(/Baraka|255713000002|Amina|255712000001/);
     // The same city spelled with different case/spacing is the same city; another city, or a suspended Agent, sees nothing.
