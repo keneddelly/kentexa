@@ -21,6 +21,10 @@ function service(task: { status: string; agentProfileId: number | null }, opts: 
   return { s, sms, communication, em };
 }
 
+// These cases test the agent job SMS itself: on (off by default since 2026-11-08, sms/sms-policy.ts).
+beforeAll(() => { process.env.AGENT_JOB_SMS = '1'; });
+afterAll(() => { delete process.env.AGENT_JOB_SMS; });
+
 describe('cancel after an agent accepted (review D3)', () => {
   it('the agent gets one in-app message and one SMS', async () => {
     const t = service({ status: 'claimed', agentProfileId: 5 });

@@ -1,3 +1,4 @@
+import { agentJobSmsOn } from '../sms/sms-policy';
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
@@ -136,7 +137,8 @@ export class PickupReleaseService {
             context: { taskId, reference: reference || `#${taskId}` },
           } as any).catch(() => undefined);
         }
-        if (r.agentPhone && this.sms) await this.sms.sendSms(r.agentPhone, pickupTimedOutAgentSms(reference)).catch(() => false);
+        // Agent job SMS off by default (sms-policy.ts).
+        if (r.agentPhone && this.sms && agentJobSmsOn()) await this.sms.sendSms(r.agentPhone, pickupTimedOutAgentSms(reference)).catch(() => false);
       }
       if (releases < MAX_RELEASES) {
         if (r.senderPhone && this.sms) await this.sms.sendSms(r.senderPhone, pickupReleasedSenderSms(reference)).catch(() => false);

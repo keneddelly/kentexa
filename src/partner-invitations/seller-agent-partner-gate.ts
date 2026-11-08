@@ -90,7 +90,9 @@ export async function offerTaskToSellerPartners(
   taskId: number,
 ): Promise<number> {
   try {
-    if (!sms || sellerPartnerFirstMinutes() <= 0 || !tableReady) return 0;
+    // Agent job SMS off by default (same switch as sms/sms-policy.ts agentJobSmsOn, read here so this
+    // module never imports the SMS code; owner 2026-11-08): partners get the job in-app first.
+    if (!sms || sellerPartnerFirstMinutes() <= 0 || !tableReady || String(process.env.AGENT_JOB_SMS ?? '').trim() !== '1') return 0;
     const rows: any[] = await db.query(`
       SELECT a.id AS "agentId", COALESCE(NULLIF(btrim(a.phone), ''), au.phone) AS phone,
              COALESCE(NULLIF(btrim(sp."businessName"), ''), NULLIF(btrim(su."storeName"), ''), su.name) AS "shopName",

@@ -4,6 +4,10 @@ import {
 } from './pickup-release.service';
 
 // D2 (owner 2026-10-14): "Siwezi kufika" and the accept timeout.
+// These cases test the agent job SMS itself: on (off by default since 2026-11-08, sms/sms-policy.ts).
+beforeAll(() => { process.env.AGENT_JOB_SMS = '1'; });
+afterAll(() => { delete process.env.AGENT_JOB_SMS; });
+
 describe('pickup release', () => {
   it('settings: timeout 45 and reminder 30 by default; reminder always before the timeout', () => {
     expect(pickupAcceptTimeouts({})).toEqual({ timeoutMinutes: 45, reminderMinutes: 30 });
