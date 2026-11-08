@@ -2,6 +2,9 @@ import { ConfigService } from '@nestjs/config';
 import { SmsService } from './sms.service';
 
 describe('isolated staging SMS', () => {
+  // These cases test sending itself: every SMS on (the default is codes only, sms-policy.ts).
+  beforeAll(() => { process.env.SMS_SEND_ALL = '1'; });
+  afterAll(() => { delete process.env.SMS_SEND_ALL; });
   it('boots without an API key and fails closed for sensitive and ordinary sends', async () => {
     const config = { get: (key: string) => key === 'STAGE3KR_DISABLE_OUTBOUND_SMS' ? 'true' : undefined };
     const service = new SmsService(config as ConfigService);

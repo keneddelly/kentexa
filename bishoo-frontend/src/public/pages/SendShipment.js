@@ -168,16 +168,16 @@ export function journeySteps({ direct, pickupOption, deliveryOption, providerNam
   let next = '';
   if (type === 'agent_pickup') {
     next = Number(nextAction?.agentsAlerted) === 0
-      ? 'Hakuna wakala aliye mtandaoni sasa hivi. Wakala wa kwanza akiingia ataona kazi yako; utapata SMS akikubali.'
-      : 'Wakala wa karibu ameshaarifiwa. Akikubali, utapata SMS yenye jina na simu yake.';
+      ? 'Hakuna wakala karibu sasa hivi. Wakala wa kwanza akipatikana ataona kazi yako; utaona hapa akikubali.'
+      : 'Mawakala wa karibu wameambiwa. Akikubali utaona jina na simu yake hapa juu.';
   } else if (type === 'office_pickup') {
-    next = `${providerName || 'Ofisi'} imearifiwa kwa SMS na itakupigia kupanga muda wa kuchukua mzigo.`;
+    next = `${providerName || 'Ofisi'} imearifiwa na itakupigia kupanga muda wa kuchukua mzigo.`;
   } else if (type === 'agent_pickup_pending') {
     next = 'Ofisi au msafirishaji atakupigia kupanga kuchukua mzigo.';
   } else if (type === 'customer_dropoff' || type === 'customer_dropoff_pending') {
     next = 'Peleka mzigo ofisini. Mpe mhudumu namba ya mzigo.';
   } else {
-    next = 'Tunapanga hatua inayofuata. Utapata SMS.';
+    next = 'Tunapanga hatua inayofuata. Utaona hapa na kwenye arifa zako.';
   }
   return { steps, now, next };
 }
@@ -440,7 +440,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           <div style={{ fontSize: 13, fontWeight: 600, color: GREY, marginTop: 8 }}>Namba ya mzigo</div>
           <div data-testid="waybill" style={{ fontSize: 28, fontWeight: 800, letterSpacing: '0.02em', fontVariantNumeric: 'tabular-nums', overflowWrap: 'anywhere' }}>{number}</div>
           <div style={{ fontSize: 14, color: GREY, lineHeight: 1.45, maxWidth: 340, margin: '6px auto 0' }}>
-            Namba moja kuanzia sasa hadi {receiverName.trim() || 'mpokeaji'} anaupokea. Tumeituma kwa SMS kwako na kwake.
+            Namba moja kuanzia sasa hadi {receiverName.trim() || 'mpokeaji'} anaupokea. Mpe {receiverName.trim() || 'mpokeaji'} namba hii kwa simu au WhatsApp.
           </div>
           {confirmed.total != null && <div style={{ fontSize: 15, fontWeight: 700, marginTop: 10 }}>Jumla: {tzs(confirmed.total)}</div>}
           {confirmed.office && pickupOption === 'station' && (
@@ -592,7 +592,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={field}>
               <label htmlFor="simu" style={label}>Simu ya mpokeaji</label>
               <input id="simu" type="tel" value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} placeholder="0712 000 222" style={input} />
-              <div style={{ fontSize: 13, color: GREY, lineHeight: 1.4, marginTop: 6 }}>Atapokea SMS yenye namba ya mzigo na namba ya siri ya kuuchukua.</div>
+              <div style={{ fontSize: 13, color: GREY, lineHeight: 1.4, marginTop: 6 }}>Atapokea kwa SMS namba ya siri ya kuuchukua. Mpe namba ya mzigo wewe mwenyewe.</div>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44, fontSize: 15, cursor: 'pointer' }}>
               <input type="checkbox" checked={forSomeoneElse} onChange={(e) => setForSomeoneElse(e.target.checked)} style={{ width: 20, height: 20 }} />
@@ -759,7 +759,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 )}
                 {selected?.office && deliveryOption === 'station' && (
                   <div style={{ fontSize: 13, color: GREY, lineHeight: 1.45, marginTop: 8 }}>
-                    {selected.providerName} atamtumia {receiverName.trim() || 'mpokeaji'} SMS ya ofisi ya kuchukulia {toShort || ''}.
+                    {selected.providerName} atampigia {receiverName.trim() || 'mpokeaji'} mzigo ukifika ofisi ya {toShort || ''}.
                   </div>
                 )}
                 <div style={{ fontSize: 13, color: GREY, lineHeight: 1.45, marginTop: 12 }}>Huduma zisizoweza kufanya yote uliyochagua hazionyeshwi hapa.</div>

@@ -94,7 +94,7 @@ test('same city: door to door by an agent, the agent fee is the total, then the 
 
   expect(await screen.findByText('Mzigo umetumwa')).toBeTruthy();
   expect(screen.getByTestId('waybill').textContent).toMatch(/KTX/);
-  expect(screen.getByTestId('next-step').textContent).toMatch(/^Hatua inayofuata: Wakala wa karibu ameshaarifiwa/);
+  expect(screen.getByTestId('next-step').textContent).toMatch(/^Hatua inayofuata: Mawakala wa karibu wameambiwa/);
 });
 
 test('same city, no agent online: an office that delivers inside the city is offered and booked (no dead end)', async () => {
@@ -232,5 +232,5 @@ test('an office that collects itself: its pickup is in the total, and it is told
   expect(await screen.findByText('Kuchukua kwako (Ar SAMATTA)')).toBeTruthy();
   expect(screen.getByTestId('bill-total').textContent).toBe('TZS 15,000');
   fireEvent.click(screen.getByTestId('confirm'));
-  expect((await screen.findByTestId('next-step')).textContent).toMatch(/Ar SAMATTA imearifiwa kwa SMS/);
+  expect((await screen.findByTestId('next-step')).textContent).toMatch(/Ar SAMATTA imearifiwa na itakupigia/);
 });

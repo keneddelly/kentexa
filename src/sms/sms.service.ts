@@ -1,3 +1,4 @@
+import { smsAllowed } from './sms-policy';
 import { Injectable, Logger } from '@nestjs/common';
 import { smsParts, smsReady } from './sms-text';
 import { randomInt } from 'crypto';
@@ -69,6 +70,11 @@ export class SmsService {
       return true;
     }
     if (this.outboundDisabled) return false;
+    // SMS budget (owner 2026-11-08, sms-policy.ts): codes only unless SMS_SEND_ALL=1.
+    if (!smsAllowed(sensitive)) {
+      this.logger.log(`[SMS] paused (codes only): not sent, ${smsParts(message)} part(s) saved`);
+      return false;
+    }
     const formatted = this.formatPhone(phone);
     if (this.rehearsalPhone && formatted !== this.rehearsalPhone) return false;
 

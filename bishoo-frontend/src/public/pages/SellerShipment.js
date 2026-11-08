@@ -394,7 +394,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
           </div>
           <div style={{ width: '100%', maxWidth: 480, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15 }}>
             <div>{fromOrder ? `Oda #${prefill.orderId} imeanza safari; ${name || 'mteja'} anafuatilia kwa namba hii.`
-              : `${name || 'Mteja'} amepata SMS yenye ${cod ? 'bei na ' : ''}namba ya kufuatilia.`}</div>
+              : `Mpe ${name || 'mteja'} namba hii ya kufuatilia kwa simu au WhatsApp${cod ? ', na bei ya kulipa akipokea' : ''}.`}</div>
             <div>{chosen?.own ? 'Tuma mzigo kwa njia yako na umpe mteja namba hii ya kufuatilia.'
               : chosen?.direct ? 'Mawakala wa karibu wameambiwa; wa kwanza kukubali anakuja dukani kwako.'
               : `Peleka mzigo ${chosen?.officeAddress || chosen?.officeCity || 'ofisini'} (${chosen?.providerName || 'ofisi'}).`}</div>
@@ -638,7 +638,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
             </div>
             {smsPreview && (
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: GREY, marginBottom: 6 }}>SMS atakayopata {name || 'mteja'}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: GREY, marginBottom: 6 }}>Ujumbe wa kumtumia {name || 'mteja'} (simu au WhatsApp yako)</div>
                 <div style={{ ...card, fontSize: 14, lineHeight: 1.45, color: '#334155' }}>{smsPreview}</div>
               </div>
             )}

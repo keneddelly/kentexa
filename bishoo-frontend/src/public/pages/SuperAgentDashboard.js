@@ -55,6 +55,7 @@ import OfficePricePreview, { feeDiffers, REASON_MIN } from '../components/Office
 import RouteRangePanel from '../components/RouteRangePanel';
 import OfficePrices from '../components/OfficePrices';
 import WorkAppInstall from '../components/WorkAppInstall';
+import PushNudge from '../components/PushNudge';
 import { enterWorkApp } from '../../utils/posApp';
 import { ShehenaIncoming, ShehenaSent } from '../components/ShehenaHandover';
 
@@ -780,7 +781,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
       const path = which === 'sender' ? 'resend-sender-sms' : 'resend-receiver-sms';
       const res = await api.post(`/super-agents/parcels/${trackingNumber}/${path}`);
       const sent = which === 'sender' ? res.data?.senderSmsSent : res.data?.receiverSmsSent;
-      setResendOk(!!sent); setResendMsg(sent ? 'SMS imetumwa upya' : 'SMS haikuweza kutumwa');
+      setResendOk(!!sent); setResendMsg(sent ? 'SMS imetumwa upya' : 'SMS zimesimamishwa kwa sasa: mpigie simu au mtumie WhatsApp');
     } catch (err) {
       setResendOk(false); setResendMsg(err?.response?.data?.message || 'Imeshindwa kutuma SMS');
     } finally {
@@ -1003,6 +1004,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
         {activeTab === 'home' && (
           <WorkAppInstall kind="ofisi" env={installEnv} ready={installReady} canInstall={canInstallKentexa} onInstall={onInstallKentexa} style={{ margin: '0 0 12px' }} />
         )}
+        {activeTab === 'home' && <div style={{ marginBottom: 12 }}><PushNudge who="mizigo na kazi mpya" /></div>}
         {/* ── Mwanzo: the two jobs ── */}
         {activeTab === 'home' && (
           <OfficeHome officeName={profile?.businessName} city={profile?.city}

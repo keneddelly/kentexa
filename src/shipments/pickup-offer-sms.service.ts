@@ -1,3 +1,4 @@
+import { smsSendAll } from '../sms/sms-policy';
 import { agentCoversSql } from '../location-intelligence/place-match';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { paidUpGateSql } from '../kentexa-fee/paid-up-gate';
@@ -54,7 +55,8 @@ export class PickupOfferSmsService {
   }
 
   async runOnce(now: Date, config = pickupOfferSmsConfig()): Promise<{ sent: number; failed: number; skipped: string | null }> {
-    if (!this.sms || config.agents === 0) return { sent: 0, failed: 0, skipped: 'off' };
+    // SMS budget (owner 2026-11-08): job offers go by in-app + push only, unless SMS_SEND_ALL=1.
+    if (!this.sms || config.agents === 0 || !smsSendAll()) return { sent: 0, failed: 0, skipped: 'off' };
     const toSend = await this.db.transaction(async (em) => {
       // One tick at a time, even with two servers: the second one skips.
       const lock: any[] = await em.query(`SELECT pg_try_advisory_xact_lock(hashtext('pickup-offer-sms')) AS ok`);

@@ -2,6 +2,9 @@ import { PickupOfferSmsService, pickupOfferSms, pickupOfferSmsConfig } from './p
 
 // Job offer by SMS (owner 2026-10-14): nearest 1-3 agents, waybill + area only.
 describe('pickup offer SMS', () => {
+  // These cases test sending itself: every SMS on (the default is codes only, sms-policy.ts).
+  beforeAll(() => { process.env.SMS_SEND_ALL = '1'; });
+  afterAll(() => { delete process.env.SMS_SEND_ALL; });
   it('settings: defaults 3 agents after 2 minutes; clamped to 0..3 and 0..60; 0 agents = off', () => {
     expect(pickupOfferSmsConfig({})).toEqual({ agents: 3, delayMinutes: 2 });
     expect(pickupOfferSmsConfig({ PICKUP_OFFER_SMS_AGENTS: '1', PICKUP_OFFER_SMS_DELAY_MINUTES: '5' })).toEqual({ agents: 1, delayMinutes: 5 });
