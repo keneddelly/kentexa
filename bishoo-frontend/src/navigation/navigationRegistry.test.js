@@ -29,3 +29,8 @@ test('an admin can open every page in the admin menu (Businesses went back to th
       .toMatchObject({ allowed: true, page: entry.destination });
   });
 });
+
+test('the admin menu shows Ada ya KenteXa and "Kwa nini hakuna?" (owner 2026-11-08: built but not visible)', () => {
+  const pages = ADMIN_NAVIGATION.map((entry) => entry.destination);
+  expect(pages).toEqual(expect.arrayContaining(['AdminKentexaFees', 'AdminShippingCheck']));
+});
