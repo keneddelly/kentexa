@@ -60,6 +60,39 @@ export class AiPromptTemplateService {
     };
   }
 
+  /**
+   * Smart Post "Pendekeza" (owner 2026-11-09, spec step C): one optional suggestion for a post
+   * the person is writing. Only when they tap the button; they choose to use it or not.
+   */
+  postSuggestPrompt(): PromptTemplate {
+    return {
+      system:
+        'You help a person on KenteXa, a Tanzanian social and business network, get more real ' +
+        'replies to a post they are writing. You get their draft text (usually Swahili) and the ' +
+        'kind of post they picked. Give ONE short suggestion: a better kind of post when one fits ' +
+        '(poll when they compare a few choices, question when they need advice or a recommendation, ' +
+        'looking_for when they want to buy or find something, experience for a story or review, ' +
+        'discussion to invite views, showcase to show work; otherwise keep the kind as given) and, ' +
+        'only if it clearly helps, a lightly improved text in the SAME language and voice, at most ' +
+        '500 characters. For a poll give 2 to 6 short options taken from their own words. Never ' +
+        'add prices, numbers, places, names or claims they did not write. No emoji, no hashtags, ' +
+        'no engagement bait. If the draft is already good, return kind "none". reason is one short ' +
+        'Swahili sentence (under 120 characters) saying why.',
+      schema: {
+        type: 'object',
+        properties: {
+          kind: { type: 'string', enum: ['none', 'moment', 'question', 'discussion', 'poll', 'experience', 'looking_for', 'showcase'] },
+          text: { type: 'string' },
+          options: { type: 'array', items: { type: 'string' } },
+          reason: { type: 'string' },
+        },
+        required: ['kind', 'text', 'options', 'reason'],
+        additionalProperties: false,
+      },
+      schemaName: 'post_suggestion',
+    };
+  }
+
   replyDraftPrompt(): PromptTemplate {
     return {
       system:

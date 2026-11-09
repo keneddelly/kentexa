@@ -10,6 +10,9 @@ export const COMPOSER_STEPS = Object.freeze({
   kind: 'COMPOSER_KIND_CHOSEN',
   preview: 'COMPOSER_PREVIEWED',
   abandoned: 'COMPOSER_ABANDONED',
+  // "Pendekeza": the person used the suggestion, or said no to it.
+  suggest_used: 'COMPOSER_SUGGESTION_USED',
+  suggest_dismissed: 'COMPOSER_SUGGESTION_DISMISSED',
 } as const);
 
 export const COMPOSER_KINDS = Object.freeze([

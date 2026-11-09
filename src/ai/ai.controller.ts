@@ -15,6 +15,7 @@ const ALL_TASKS: AiTask[] = [
   'product-listing',
   'search-parse',
   'search-explain',
+  'post-suggest',
 ];
 
 // Admin-only visibility into the hybrid AI system — which providers are

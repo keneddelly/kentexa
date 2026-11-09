@@ -40,6 +40,8 @@ const EMPTY_FORM = {
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
   sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
   availableOnline: true, availableInStore: true, codEnabled: false,
+  // "Uza tena" (owner 2026-11-09): open for resellers, the price they pay, the lowest selling price.
+  resaleOpen: false, resalePrice: '', resaleMinPrice: '',
   // ── Digital products (Layer 1 seller verification) ─────────────────────
   productType: 'physical', digitalFile: null, licenseType: '', copyrightDeclared: false,
 };
@@ -443,11 +445,21 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           },
         } : {}),
       };
+      // "Uza tena": the resale terms go through the product edit (checked on the server).
+      const resaleTerms = {
+        resaleOpen: !!form.resaleOpen,
+        // Left out when empty, so the stored price stays (the server reads it).
+        ...(form.resalePrice !== '' ? { resalePrice: Number(form.resalePrice) } : {}),
+        resaleMinPrice: form.resaleMinPrice !== '' ? Number(form.resaleMinPrice) : null,
+      };
+      const touchedResale = form.resaleOpen || form.resalePrice !== '' || (editProduct && editProduct.resaleOpen);
       if (editProduct) {
+        if (touchedResale) Object.assign(payload, resaleTerms);
         await api.patch(`/products/${editProduct.id}`, payload);
         setMessage(t('seller_products.updated'));
       } else {
-        await api.post('/products', payload);
+        const created = await api.post('/products', payload);
+        if (form.resaleOpen && created?.data?.id) await api.patch(`/products/${created.data.id}`, resaleTerms);
         setMessage(t('seller_products.added'));
       }
       resetForm(); fetchMyProducts();
@@ -523,6 +535,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       availableOnline:  product.availableOnline ?? true,
       availableInStore: product.availableInStore ?? true,
       codEnabled:       product.codEnabled ?? false,
+      resaleOpen:       !!product.resaleOpen,
+      resalePrice:      '',
+      resaleMinPrice:   product.resaleMinPrice != null ? String(Number(product.resaleMinPrice)) : '',
       // Digital products (Layer 1 seller verification) — the underlying
       // file is immutable once uploaded (no replace endpoint exists), so
       // editing only ever shows it read-only; digitalFile/copyrightDeclared
@@ -533,6 +548,10 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       copyrightDeclared: false,
     });
     setImagePreviews(product.images || []);
+    // The reseller price is never sent with the product: read it from the owner's resale terms.
+    api.get(`/resale/products/${product.id}`)
+      .then((r) => { if (r?.data?.own && r.data.supplierPrice != null) setForm((f) => ({ ...f, resalePrice: String(r.data.supplierPrice) })); })
+      .catch(() => {});
     setProductLocation(locationFromText(product.sellerCity));
     if (product.brandId) {
       api.get(`/brands/${product.brandId}`).then(r => setSelectedBrand(r.data)).catch(() => setSelectedBrand(null));
@@ -1240,6 +1259,41 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   {t('seller_products.allow_cod')}
                 </label>
                 <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0 22px' }}>{t('seller_products.allow_cod_hint')}</p>
+              </div>
+              {/* "Uza tena" (owner 2026-11-09): other people resell this product at their own price. */}
+              <div style={{ marginTop: 12 }} data-testid="product-resale">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: '#1e293b', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={!!form.resaleOpen} data-testid="product-resale-open"
+                    onChange={e => setForm({ ...form, resaleOpen: e.target.checked })}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  Ruhusu wauzaji kuiuza (Uza tena)
+                </label>
+                <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0 22px', lineHeight: 1.45 }}>
+                  Watu wengine wanaiuza kwa bei yao. Oda inakuja kwako; unafikisha, unapokea malipo, kisha unamlipa muuzaji faida yake.
+                </p>
+                {form.resaleOpen && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, margin: '8px 0 0 22px' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, fontWeight: 700, color: '#475569' }}>
+                      Bei ya wauzaji (wanayokulipa)
+                      <input inputMode="numeric" value={form.resalePrice} data-testid="product-resale-price"
+                        onChange={e => setForm({ ...form, resalePrice: e.target.value.replace(/[^0-9]/g, '') })}
+                        placeholder={form.basePrice ? `Chini ya ${Number(form.basePrice).toLocaleString('en-US')}` : 'Mfano 42000'}
+                        style={{ height: 40, padding: '0 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 15, fontFamily: 'inherit' }} />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, fontWeight: 700, color: '#475569' }}>
+                      Bei ya chini ya kuuza (si lazima)
+                      <input inputMode="numeric" value={form.resaleMinPrice}
+                        onChange={e => setForm({ ...form, resaleMinPrice: e.target.value.replace(/[^0-9]/g, '') })}
+                        placeholder="Wasiuze chini ya hii"
+                        style={{ height: 40, padding: '0 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 15, fontFamily: 'inherit' }} />
+                    </label>
+                    {Number(form.resalePrice) > 0 && Number(form.basePrice) > Number(form.resalePrice) && (
+                      <p style={{ gridColumn: '1 / -1', fontSize: 12, color: '#166534', margin: 0 }}>
+                        Muuzaji akiuza kwa bei yako ({Number(form.basePrice).toLocaleString('en-US')}) anapata {(Number(form.basePrice) - Number(form.resalePrice)).toLocaleString('en-US')} kwa kila moja, na anaweza kuongeza juu.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
