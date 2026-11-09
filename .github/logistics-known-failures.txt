@@ -5,7 +5,9 @@
 #
 # Recorded from the first Production Line CI run on the production line as
 # it stood at bbcb1a9 (run 37486452371): 15 suites, 156 tests.
-# 2026-11-09: 12 of the 14 old failures repaired (#327). These two still need their tests
-# rewritten for the movement-tender and hub-custody rules that came after them.
+# 2026-11-09: 11 of the 14 old failures repaired (#327). These three still need their tests
+# rewritten: the two Run suites for the movement-tender and hub-custody rules that came after
+# them, and route discovery for today's result shape (it now also returns availability).
+src/shipments/route-discovery.real-postgres.spec.ts
 src/transport/van-pilot-c8.real-postgres.spec.ts
 src/transport/parcel-run-assignment.real-postgres.spec.ts

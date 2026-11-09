@@ -7,7 +7,7 @@ Every item below was checked against the live branch (`worktree-service-provider
 | 1 | Same-city price comes from one agent | Partly changed: the price is now the nearest agent's fee, but any nearby agent may take the job (owner 2026-10-25: nearby agents see the job). Open question: should the price be fixed per area instead of per agent? |
 | 2 | Any agent in the city can claim a pickup | Now intended (owner 2026-10-25 and 2026-11-08: nearby agents see the job; a seller's partner agents get it first). Not a fault any more. |
 | 3 | Dead code in the offer file | Fixed 2026-11-09 (removed). |
-| 4, 7, 8, 12 | Old failing test files | Still open as the CI baseline: 14 logistics test suites (test fakes, not app code). The frontend ones from #8 pass. |
+| 4, 7, 8, 12 | Old failing test files | 2026-11-09: 11 of the 14 logistics suites repaired (#327). Three remain in the baseline and need their tests rewritten for later rules: parcel-run-assignment and van-pilot-c8 (movement tender and hub custody), route-discovery (today's result shape). The frontend ones from #8 pass. |
 | 5, 22 | Door pickups never created a job | Fixed: confirming a send-form booking creates the pickup job and alerts agents (same-city and hub-routed). |
 | 6 | "Kentexa will arrange..." wording | Fixed (no such text left). |
 | 9 | Timed jobs have no time zone (server runs on UTC) | Fixed 2026-11-09 (owner yes): the daily jobs run on Tanzania time (orders 08:00, shipping 00:00, warranty 03:00, brands 02:00). Jobs every minute/hour are not affected; the weekly fee statement was already written for 08:00 Tanzania. |
