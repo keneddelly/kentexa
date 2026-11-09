@@ -157,6 +157,13 @@ export class Order {
   @Column({ type: 'jsonb', nullable: true })
   variantAttributesSnapshot: Record<string, string> | null;
 
+  // The office the buyer's shipping fee came from (owner 2026-11-09: "the exact shipping price
+  // from the office price"): { fee, officeId, officeName, officeCity, officeAddress, phone,
+  // offices, cheapest, at }. The seller's send form opens on this office at this price.
+  // Null when no office priced the trip, or for same-city / seller-delivered orders.
+  @Column({ type: 'jsonb', nullable: true })
+  shippingQuote: Record<string, any> | null;
+
   // Buyer's name typed in by seller/agent, used when buyer is null
   @Column({ type: 'varchar', nullable: true })
   manualBuyerName: string | null;

@@ -19,5 +19,6 @@ test('the form opens with what the order already says', () => {
     deliveryAddress: 'Mbezi Beach, Kinondoni, Dar es Salaam', product: { id: 4, name: 'Taa', weightKg: 1.5 } })).toEqual({
     orderId: 9, name: 'Neema', phone: '0754000111', region: 'Dar es Salaam', district: 'Kinondoni', ward: 'Mbezi Beach',
     items: [{ name: 'Taa', qty: 2, price: 45000, weight: 1.5, productId: 4, classifiedId: null }],
+    shippingQuote: null,
   });
 });

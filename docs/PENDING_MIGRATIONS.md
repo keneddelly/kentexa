@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-09 (checkout office price):** the pin is now `MIGRATION_RUN_UPTO=1795200000000`. The next deploy
+runs `1795200000000-AddOrderShippingQuote` itself (order."shippingQuote": the office the buyer's shipping fee came from, so the seller's send form opens on it). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-03 (team invitations):** the pin is now `MIGRATION_RUN_UPTO=1795100000000`. The next deploy
 runs `1795100000000-AddTeamInvitation` itself (team_invitation: invitations a person accepts with Kubali; and a one-time copy of active Timu members into business_team_member, which the POS and seller tools read). Check: `/version/migrations` shows `pending: []`.
 

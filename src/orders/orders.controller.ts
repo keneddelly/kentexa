@@ -244,8 +244,18 @@ export class OrdersController {
   getDeliveryMethods(
     @Query('address') address: string,
     @Query('productId') productId: string,
+    @Query('qty') qty?: string,
+    @Query('regionId') regionId?: string,
+    @Query('districtId') districtId?: string,
+    @Query('wardId') wardId?: string,
+    @Query('region') region?: string,
   ) {
-    return this.ordersService.getDeliveryMethods(address, Number(productId));
+    // The picked place and the quantity (owner 2026-11-09): priced like the order will be.
+    const id = (v?: string) => (Number(v) > 0 ? Math.floor(Number(v)) : null);
+    const place = id(regionId) || region
+      ? { regionId: id(regionId), districtId: id(districtId), wardId: id(wardId), regionName: region ? String(region).slice(0, 80) : null }
+      : null;
+    return this.ordersService.getDeliveryMethods(address, Number(productId), { quantity: Number(qty) || 1, place: place as any });
   }
 
   @UseGuards(JwtAuthGuard, RoleContextGuard)

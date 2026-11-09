@@ -110,6 +110,8 @@ export const orderToSend = (order) => {
       price: Math.round((Number(order.baseAmount) || 0) / qty), weight: Number(order.product?.weightKg) || 0,
       productId: order.product?.id || null, classifiedId: null,
     }],
+    // The office the buyer's shipping fee came from (owner 2026-11-09): the send form opens on it.
+    shippingQuote: order.shippingQuote || null,
   };
 };
 

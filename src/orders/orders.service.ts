@@ -13,7 +13,8 @@ import { ShipmentActivationService } from '../shipments/shipment-activation.serv
 import { PickupTasksService } from '../shipments/pickup-tasks.service';
 import { LogisticsServiceOfferService } from '../transport/logistics-service-offer.service';
 import { OfficeBodaFeeService } from '../super-agents/office-boda-fee.service';
-import { engineDeliveryFees } from './engine-delivery-price';
+import { engineDeliveryFees, OfficePick } from './engine-delivery-price';
+import { samePlace, geoPoint } from '../location-intelligence/place-match';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, EntityManager } from 'typeorm';
 import {
@@ -115,7 +116,22 @@ interface CreateOrderOptions {
   lipaProof?: { url: string; reference: string | null } | null;
   /** Pricing only (quoteCheckout): no proof needed yet, nothing is written. */
   quote?: boolean;
+  /** The place the buyer picked at checkout: the engine prices from it (owner 2026-11-09). */
+  place?: CheckoutPlace | null;
 }
+
+/** What the checkout asks the engine with (owner 2026-11-09: one engine, the exact office price). */
+export interface DeliveryMethodsOptions {
+  quantity?: number;
+  place?: Pick<CheckoutPlace, 'regionName' | 'districtId' | 'wardId' | 'regionId'> | null;
+}
+
+/** The buyer's picked place as the engine's place reference (tz_seed ward / district / region). */
+const checkoutPlaceRef = (p?: DeliveryMethodsOptions['place']) => {
+  if (!p) return null;
+  const [kind, id] = p.wardId ? ['ward', p.wardId] : p.districtId ? ['district', p.districtId] : p.regionId ? ['region', p.regionId] : [null, null];
+  return kind ? { providerKey: 'tz_seed', providerPlaceId: `${kind}:${id}` } : null;
+};
 
 /** The one delivery place picked at checkout. Its label is the only location saved, sent and shown. */
 interface CheckoutPlace {
@@ -269,9 +285,12 @@ export class OrdersService {
     // seller's product fee and never a client-submitted amount. The checkout UI lists
     // the same methods (getDeliveryMethods), so what the buyer saw is what is charged.
     let engineFee: number | null = null;
+    // The office the buyer's fee came from, kept on the order (owner 2026-11-09).
+    let shippingQuote: (OfficePick & { at: string }) | null = null;
     const sellerDelivers = chosenMethod === 'direct' && !dto.shippingMethod;
     if ((product as any).productType !== 'digital' && !sellerDelivers) {
-      const { methods } = await this.getDeliveryMethods(dto.deliveryAddress || '', dto.productId);
+      const { methods } = await this.getDeliveryMethods(dto.deliveryAddress || '', dto.productId,
+        { quantity: dto.quantity, place: opts.place ?? null });
       const wanted = dto.shippingMethod || chosenMethod;
       // Owner 2026-10-25 (repeated 2026-10-27): no transport is never a block. When the way the
       // checkout asked for is not offered for this address (e.g. no office priced the trip yet),
@@ -281,6 +300,7 @@ export class OrdersService {
       if (!method) throw new BadRequestException('Hakuna usafiri kwenda mahali hapo kwa sasa. Jaribu tena baadaye.');
       chosenMethod = method.key;
       engineFee = Number(method.fee) || 0;
+      shippingQuote = method.office ? { ...method.office, at: new Date().toISOString() } : null;
     }
 
     let deliveryFee: number;
@@ -323,10 +343,11 @@ export class OrdersService {
     const isRuralCollection = needsCollection && Boolean(dto.isRuralCollection);
     const collectionFee = needsCollection ? (isRuralCollection ? 3000 : 1500) : 0;
 
-    const totalAmount =
-      (basePrice + deliveryFee) * dto.quantity + collectionFee;
+    // An engine price is for the whole parcel (priced on its total weight), paid once - never
+    // once per item (owner 2026-11-09). The seller's own per-item fee stays per item.
+    const deliveryAmount = engineFee != null ? deliveryFee : deliveryFee * dto.quantity;
     const baseAmount = basePrice * dto.quantity;
-    const deliveryAmount = deliveryFee * dto.quantity;
+    const totalAmount = baseAmount + deliveryAmount + collectionFee;
     const category = product.category || 'general';
     const commission = calcCommission(baseAmount, category);
 
@@ -370,7 +391,7 @@ export class OrdersService {
 
     return {
       direct, lipaNamba, chosenMethod, needsCollection, isRuralCollection, collectionFee, totalAmount,
-      baseAmount, deliveryAmount, commission, isCod, codUpfrontAmount, codRemainingBalance, codSkipsPayment,
+      baseAmount, deliveryAmount, commission, isCod, codUpfrontAmount, codRemainingBalance, codSkipsPayment, shippingQuote,
     };
   }
 
@@ -392,7 +413,7 @@ export class OrdersService {
 
     const {
       direct, chosenMethod, needsCollection, isRuralCollection, collectionFee, totalAmount,
-      baseAmount, deliveryAmount, commission, isCod, codUpfrontAmount, codRemainingBalance, codSkipsPayment,
+      baseAmount, deliveryAmount, commission, isCod, codUpfrontAmount, codRemainingBalance, codSkipsPayment, shippingQuote,
     } = await this.priceOrder(product, dto, opts);
 
     const order = this.repo.create({
@@ -418,6 +439,7 @@ export class OrdersService {
       totalAmount,
       baseAmount,
       deliveryFeeAmount: deliveryAmount,
+      shippingQuote,
       platformFeePercent: commission.rate,
       platformFeeAmount: commission.platformFee,
       agentCommissionAmount: 0,
@@ -808,7 +830,7 @@ export class OrdersService {
         orders.push(await this.create(
           { ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto,
           user,
-          { checkout: true, lipaProof: proofs.get(product.seller?.id) ?? null },
+          { checkout: true, lipaProof: proofs.get(product.seller?.id) ?? null, place },
         ));
       } catch (err) {
         failure = err;
@@ -849,7 +871,7 @@ export class OrdersService {
       const price = await this.priceOrder(
         product,
         { ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto,
-        { quote: true },
+        { quote: true, place },
       );
       const sellerId = product.seller?.id ?? 0;
       const group = sellers.get(sellerId) ?? {
@@ -3561,8 +3583,9 @@ export class OrdersService {
     return { sameCity, options, lipaNamba };
   }
 
-  async getDeliveryMethods(buyerAddress: string, productId: number) {
+  async getDeliveryMethods(buyerAddress: string, productId: number, opts: DeliveryMethodsOptions = {}) {
     const product = await this.productsService.findOne(productId);
+    const quantity = Math.max(1, Math.floor(Number(opts.quantity) || 1));
 
     const DAR_KEYWORDS = [
       'kariakoo',
@@ -3625,7 +3648,8 @@ export class OrdersService {
     const buyerInDar = DAR_KEYWORDS.some((kw) => lower.includes(kw));
     const sellerCity = (product as any).sellerCity || 'Dar es Salaam';
     const sellerInDar = !sellerCity || sellerCity.toLowerCase().includes('dar');
-    const isSameCity = buyerInDar && sellerInDar;
+    // The picked place's region decides first (Arusha to Arusha is the same town too).
+    const isSameCity = (buyerInDar && sellerInDar) || samePlace(opts.place?.regionName, sellerCity);
 
     let batchZone: string | null = null;
     for (const [zone, keywords] of Object.entries(BATCH_ZONES)) {
@@ -3641,14 +3665,19 @@ export class OrdersService {
     // longer sets a delivery price). A method the engine cannot price is not offered.
     // KenteXa is growing (owner 2026-10-25): where the engine has no transport yet the
     // order is still placed and the seller chooses how to ship ('direct').
+    // No price is shown when no office or agent has one (owner 2026-11-09): fee null, never "Bure".
     const sellerArranges = {
-      key: 'direct', label: 'Muuzaji atapanga usafiri', icon: '📦', fee: 0, totalPrice: basePrice,
-      desc: 'KenteXa haina usafiri huko bado; muuzaji atachagua njia ya kutuma na kukuambia gharama',
+      key: 'direct', label: 'Muuzaji atapanga usafiri', icon: '📦', fee: null as number | null, noPrice: true, totalPrice: basePrice * quantity,
+      desc: 'KenteXa haina bei ya usafiri huko bado; muuzaji atachagua njia ya kutuma na kukuambia gharama',
     };
+    const shop = await this.sellerShopPlace((product as any).seller?.id, sellerCity);
     const fees = await engineDeliveryFees(this.serviceOffers, {
-      fromCity: sellerCity, toCity: isSameCity ? sellerCity : (String(buyerAddress || '').split(',').map((p) => p.trim()).filter(Boolean).pop() || ''),
-      origin: String((product as any).seller?.businessLocation || sellerCity), destination: String(buyerAddress || ''),
-      weightKg: Number((product as any).weightKg) || 1, sameCity: isSameCity, declaredValue: basePrice,
+      fromCity: sellerCity,
+      toCity: isSameCity ? sellerCity : (opts.place?.regionName || String(buyerAddress || '').split(',').map((p) => p.trim()).filter(Boolean).pop() || ''),
+      origin: String(shop?.label || (product as any).seller?.businessLocation || sellerCity), destination: String(buyerAddress || ''),
+      originPlace: shop?.placeRef ?? null, originPoint: shop?.point ?? null, destinationPlace: checkoutPlaceRef(opts.place),
+      // One parcel: every item's weight (owner 2026-11-09).
+      weightKg: (Number((product as any).weightKg) || 1) * quantity, sameCity: isSameCity, declaredValue: basePrice * quantity,
       rateCard: isSameCity && this.bodaRateCard
         ? () => this.bodaRateCard!.feeBetween(String((product as any).seller?.businessLocation || sellerCity), String(buyerAddress || ''))
         : undefined,
@@ -3664,8 +3693,10 @@ export class OrdersService {
             label: 'Usafiri hadi mkoa wako',
             icon: '🏢',
             fee: fees.intercity,
-            totalPrice: basePrice + fees.intercity,
-            desc: 'Ofisi ya usafirishaji inaupeleka mji wako; unachukua ofisini',
+            totalPrice: basePrice * quantity + fees.intercity,
+            desc: `${fees.office?.officeName || 'Ofisi ya usafirishaji'} inaupeleka mji wako; unachukua ofisini`,
+            // The exact office this price is (bestOffice): kept on the order for the seller's form.
+            office: fees.office ?? null,
           },
         ],
       };
@@ -3684,7 +3715,7 @@ export class OrdersService {
         label: 'Wakala wa karibu',
         icon: '🛵',
         fee: fees.sameCity,
-        totalPrice: basePrice + fees.sameCity,
+        totalPrice: basePrice * quantity + fees.sameCity,
         desc: 'Wakala anachukua kwa muuzaji na kukuletea mlangoni, siku hiyo hiyo',
       },
     ];
@@ -3695,7 +3726,7 @@ export class OrdersService {
         label: 'Van ya mtaa',
         icon: '🚐',
         fee: BATCH_FEE,
-        totalPrice: basePrice + BATCH_FEE,
+        totalPrice: basePrice * quantity + BATCH_FEE,
         desc: `Van inakuja ${batchZone} kila siku — TZS ${BATCH_FEE.toLocaleString()} tu`,
         batchZone,
         cutoffTime: '7:00 AM',
@@ -3705,6 +3736,21 @@ export class OrdersService {
 
     if (!methods.length) methods.push(sellerArranges);
     return { isSameCity: true, batchZone, methods };
+  }
+
+  /** The seller's shop place for this town (set on the send form, seller_pickup_place), or null. */
+  private async sellerShopPlace(sellerUserId: unknown, city: string) {
+    if (!(Number(sellerUserId) > 0) || typeof this.repo?.manager?.query !== 'function') return null;
+    const rows: any[] = await this.repo.manager.query(
+      `SELECT city, region, label, "providerKey", "providerPlaceId", latitude, longitude
+         FROM public.seller_pickup_place WHERE "userId" = $1::int ORDER BY "updatedAt" DESC`, [Number(sellerUserId)]).catch(() => []);
+    const row = (rows || []).find((r) => samePlace(r.city || r.region, city));
+    if (!row) return null;
+    return {
+      label: String(row.label || ''),
+      placeRef: row.providerKey && row.providerPlaceId ? { providerKey: String(row.providerKey), providerPlaceId: String(row.providerPlaceId) } : null,
+      point: geoPoint(row.latitude, row.longitude),
+    };
   }
 
   // ── Seller creates order on behalf of customer ──────────────────────────

@@ -118,6 +118,8 @@ const Row = ({ left, right, strong }) => (
 const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileId }) => {
   // A marketplace order (from Oda zangu) is known like a POS sale: items, customer, paid.
   const fromOrder = Boolean(prefill?.orderId);
+  const quote = fromOrder && prefill?.shippingQuote?.officeId ? prefill.shippingQuote : null;
+  const quotedOfficeId = quote ? Number(quote.officeId) : null;
   const fromSale = Boolean(prefill?.saleId) || fromOrder;
   const [sellerCity, setSellerCity] = useState('Dar es Salaam');
   const [products, setProducts] = useState([]);
@@ -274,7 +276,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
     }).then((r) => {
       if (!live) return;
       const list = sellerOffers(r.data, { inCity, cod });
-      setOffers(list); setChosen(list[0] || null);
+      // A marketplace order opens on the office the buyer paid for (owner 2026-11-09).
+      const paidFor = quotedOfficeId ? list.find((o) => Number(o.officeId) === quotedOfficeId) : null;
+      setOffers(list); setChosen(paidFor || list[0] || null);
     // A failed search is said as such (owner 2026-11-08): never shown as "no agent".
     }).catch((e) => { if (live) { setOffers([]); setFindError(e?.response?.data?.message || 'Imeshindikana kutafuta usafiri. Angalia mtandao, kisha jaribu tena.'); } })
       .finally(() => { if (live) setFinding(false); });
@@ -602,6 +606,17 @@ const SellerShipment = ({ onNavigate, isLoggedIn, prefill = null, activeProfileI
                   title="Nitaupeleka ofisini mwenyewe" hint="Bure: unaupeleka ofisi utakayochagua" />
                 <Choice testId="pickup-shop" selected={pickAtShop} onClick={() => setPickAtShop(true)}
                   title="Uchukuliwe dukani kwangu" hint="Wakala au ofisi yenyewe anaufuata dukani na kuupeleka ofisini" />
+              </div>
+            )}
+            {quote && (
+              <div data-testid="order-shipping-quote" style={{ ...card, marginBottom: 12, fontSize: 14 }}>
+                Mteja alilipia usafiri {tzs(quote.fee)} ({quote.officeName || 'ofisi'}).
+                {chosen && !chosen.direct && Number(chosen.officeId) !== quotedOfficeId && chosen.servicePrice != null && (
+                  <span data-testid="order-quote-diff" style={{ display: 'block', color: GREY, marginTop: 4 }}>
+                    {`Ofisi uliyochagua: ${tzs(chosen.servicePrice)}`}
+                    {Number(chosen.servicePrice) !== Number(quote.fee) ? ` (tofauti ${tzs(Math.abs(Number(chosen.servicePrice) - Number(quote.fee)))})` : ''}
+                  </span>
+                )}
               </div>
             )}
             {needShop ? (

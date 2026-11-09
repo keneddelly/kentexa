@@ -164,6 +164,25 @@ test('another city: the seller can have it collected at the shop instead of taki
   await waitFor(() => expect(posted('/shipments')[0]).toMatchObject({ pickupOption: 'door', deliveryOption: 'station' }));
 });
 
+test('marketplace order: opens on the office the buyer paid for, and says the difference if another is chosen', async () => {
+  api.post.mockImplementation(async (url) => {
+    if (url === '/transport/service-offers/discover') return { data: [office(9, 'Ofisi Nafuu', 'Dar es Salaam', 11000), OFFICE_MBEYA] };
+    if (url === '/transport/service-offers/commit') return { data: { id: 31 } };
+    if (url === '/shipments') return { data: { id: 88 } };
+    return { data: {} };
+  });
+  render(<SellerShipment isLoggedIn onNavigate={jest.fn()} prefill={{
+    orderId: 50, name: 'Juma', phone: '0713000999', region: 'Mbeya', district: 'Mbeya Mjini', ward: '',
+    items: [{ name: 'Saa', qty: 1, price: 300000, weight: 2, productId: 4 }],
+    shippingQuote: { officeId: 6, officeName: 'Ofisi Ubungo', fee: 12000 },
+  }} />);
+  expect(await screen.findByTestId('offer-office-6')).toHaveAttribute('aria-checked', 'true');
+  expect(screen.getByTestId('order-shipping-quote')).toHaveTextContent('Mteja alilipia usafiri TZS 12,000 (Ofisi Ubungo)');
+  expect(screen.queryByTestId('order-quote-diff')).toBeNull();
+  fireEvent.click(screen.getByTestId('offer-office-9'));
+  expect(screen.getByTestId('order-quote-diff')).toHaveTextContent('Ofisi uliyochagua: TZS 11,000 (tofauti TZS 1,000)');
+});
+
 test('where to open, and same city', () => {
   expect(firstStep({ items: [] })).toBe(1);
   expect(firstStep({ items: [{}], name: 'A', phone: '0712000111', place: {} })).toBe(2);
