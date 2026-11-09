@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
@@ -188,6 +189,7 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                             style={{ backgroundColor: '#e0f2fe', color: '#075985', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                             Ona yote
                           </button>
+                          <SendMessageButton small userId={user.id} name={user.name || user.phone} />
                           {!['admin','manager'].includes(user.role) && (
                             <button onClick={e => { e.stopPropagation(); handleDelete(user.id, user.name); }}
                               style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>

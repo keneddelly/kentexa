@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
@@ -440,6 +441,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               </div>
             ); })()}
 
+            <div style={{ marginBottom: 14 }}><SendMessageButton userId={selected.user?.id} name={selected.storeName || selected.businessName || selected.user?.name} label="Tuma taarifa kwa muuzaji" /></div>
             {/* Fields */}
             {[
               { label: 'Jina la Duka',     value: selected.storeName },

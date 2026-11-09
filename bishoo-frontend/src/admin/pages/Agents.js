@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
@@ -356,6 +357,7 @@ const Agents = ({ onNavigate }) => {
                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
                   {selected.city || selected.district || '—'} · {selected.phone}
                 </div>
+                <div style={{ marginBottom: 12 }}><SendMessageButton userId={selected.user?.id} name={selected.fullName} label="Tuma taarifa kwa agent" /></div>
 
                 <div style={{ marginBottom: 10 }}><IdentityBadge status={selected.identityStatus} /></div>
                 {/* ID info */}

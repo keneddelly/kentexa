@@ -180,6 +180,7 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={n.isRead ? MUTED : BLUE} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
                     aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }}><path d={iconFor(n.type)} /></svg>
                   <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {n.type === 'kentexa_message' && <span data-testid={`from-kentexa-${n.id}`} style={{ fontSize: 13, fontWeight: 700, color: BLUE }}>Kutoka KenteXa</span>}
                     <span style={{ fontSize: 15, fontWeight: n.isRead ? 600 : 800 }}>{noEmoji(n.title)}</span>
                     {n.body && <span style={{ fontSize: 15, color: MUTED, lineHeight: 1.4 }}>{noEmoji(n.body)}</span>}
                     <span style={{ fontSize: 13, color: MUTED }}>{ago(n.createdAt, t)}</span>
