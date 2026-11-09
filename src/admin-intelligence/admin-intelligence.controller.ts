@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Optional, Param, ParseIntPipe, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminIntelligenceService } from './admin-intelligence.service';
 import { AdminOverviewService } from './admin-overview.service';
 import { OnboardingFunnelService } from './onboarding-funnel.service';
+import { ResaleLaunchService } from './resale-launch.service';
 import { ADMIN_DATASETS, AdminDataService } from './admin-data.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -17,6 +18,7 @@ export class AdminIntelligenceController {
     private readonly overviewService: AdminOverviewService,
     private readonly data: AdminDataService,
     private readonly onboarding: OnboardingFunnelService,
+    @Optional() private readonly resale?: ResaleLaunchService,
   ) {}
 
   /** Stage 3 (owner 2026-11-09): every kind of data, listed for the admin. */
@@ -46,6 +48,12 @@ export class AdminIntelligenceController {
   @Get('onboarding')
   getOnboarding(@Query('days') days: string) {
     return this.onboarding.funnel(Number(days) || 30);
+  }
+
+  /** "Uza tena" launch numbers (owner 2026-11-10: our door to the market). */
+  @Get('resale')
+  getResale() {
+    return this.resale ? this.resale.launch() : { network: null, weeks: null, profits: null, payDays: null, problems: null, topResellers: null, topSuppliers: null };
   }
 
   @Get('platform')

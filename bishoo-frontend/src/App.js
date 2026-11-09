@@ -158,6 +158,7 @@ import AdminActivity from './admin/pages/AdminActivity';
 import AdminPerson from './admin/pages/AdminPerson';
 import AdminChats from './admin/pages/AdminChats';
 import AdminOnboarding from './admin/pages/AdminOnboarding';
+import AdminResale from './admin/pages/AdminResale';
 import AdminBusinessView from './admin/pages/AdminBusinessView';
 import AdminData, { PAGE_DATASET } from './admin/pages/AdminData';
 import AdminStaff from './admin/pages/AdminStaff';
@@ -1067,6 +1068,7 @@ function App() {
       case 'AdminPerson': return requireAdmin(<AdminPerson activePage="Users" userId={navParams?.userId} {...adminProps} />);
       case 'AdminChats': return requireAdmin(<AdminChats activePage="AdminChats" userId={navParams?.userId} {...adminProps} />);
       case 'AdminOnboarding': return requireAdmin(<AdminOnboarding activePage="AdminOnboarding" {...adminProps} />);
+      case 'AdminResale': return requireAdmin(<AdminResale activePage="AdminResale" {...adminProps} />);
       case 'AdminBusinessView': return requireAdmin(<AdminBusinessView activePage="Businesses" businessId={navParams?.businessId} {...adminProps} />);
       // Stage 3: every kind of data that had no admin page (one screen, the menu item picks the list).
       case 'AdminMoments': case 'AdminReports': case 'AdminCommunities': case 'AdminHotelOrders': case 'AdminPosSales':
