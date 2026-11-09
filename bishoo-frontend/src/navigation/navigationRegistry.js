@@ -49,7 +49,7 @@ export const ADMIN_NAVIGATION = Object.freeze([
   ['AdminDispatchReminders', 'Vikumbusho vya kutuma', 'clock', 'logistics'], ['AdminAgentJobs', 'Kazi za mawakala', 'agent', 'logistics'], ['AdminOfficePrices', 'Bei za ofisi', 'payments', 'logistics'], ['Agents', 'Mawakala', 'agent', 'logistics'],
   ['AgentPerformance', 'Utendaji wa mawakala', 'analytics', 'logistics'], ['SuperAgents', 'Ofisi', 'hub', 'logistics'], ['HubAdmin', 'Ofisi kwa miji', 'hub', 'logistics'],
   ['TransportAdmin', 'Wasafirishaji', 'transport', 'logistics'], ['VanOperations', 'Van', 'transport', 'logistics'], ['RouteManagement', 'Njia za mikoa', 'routes', 'logistics'],
-  ['ZoneManagement', 'Kanda za Dar', 'zones', 'logistics'], ['BodaRates', 'Bei za boda', 'collection', 'logistics'], ['CollectionFees', 'Ada za kukusanya', 'collection', 'logistics'],
+  ['BodaRates', 'Bei za boda', 'collection', 'logistics'], ['CollectionFees', 'Ada za kukusanya', 'collection', 'logistics'],
   ['FinancialDashboard', 'Fedha', 'finance', 'finance'], ['Payments', 'Malipo', 'payments', 'finance'], ['Payouts', 'Malipo kwa wauzaji', 'payouts', 'finance'],
   ['Invoices', 'Ankara', 'invoices', 'finance'], ['AdminKentexaFees', 'Ada ya KenteXa', 'payments', 'finance'],
   ['ContactMessages', 'Ujumbe wa wateja', 'chat', 'support'], ['AdminChats', 'Mazungumzo', 'chat', 'support'], ['Announcements', 'Tuma taarifa', 'announce', 'support'], ['AdminNotifications', 'Taarifa zilizotumwa', 'announce', 'support'], ['Disputes', 'Migogoro', 'warning', 'support'],

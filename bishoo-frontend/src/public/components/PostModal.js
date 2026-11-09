@@ -51,7 +51,7 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
   const type = activeProfile?.type || 'personal';
   const isBusiness = type === 'business';
   const [showListChoice, setShowListChoice] = useState(false);
-  const go = (page) => { onNavigate(page); onClose(); };
+  const go = (page, params) => { if (params) onNavigate(page, params); else onNavigate(page); onClose(); };
 
   const main = [
     { key: 'moment', icon: ICON.moment, title: 'Moment', sub: 'Picha au habari ya leo kwa wanaokufuata',
@@ -72,7 +72,8 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
       { key: 'sship', icon: ICON.shipment, title: 'Tuma mzigo wa duka', onClick: () => go('SellerShipment') },
     ],
     hub: [
-      { key: 'receive', icon: ICON.down, title: 'Pokea mzigo ofisini', onClick: () => go('HubReceive') },
+      // The office's own POKEA (owner 2026-11-09 audit: HubReceive read the old daily-batch API, which is not served).
+      { key: 'receive', icon: ICON.down, title: 'Pokea mzigo ofisini', onClick: () => go('SuperAgentDashboard', { tab: 'pokea' }) },
       { key: 'send', icon: ICON.up, title: 'Tuma shehena', onClick: () => go('SuperAgentParcel') },
     ],
     transport_provider: [{ key: 'route', icon: ICON.route, title: t('post_modal.action_route_title'), onClick: () => go('TransportProviderDashboard') }],
