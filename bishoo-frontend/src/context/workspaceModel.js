@@ -98,13 +98,16 @@ export const ROLE_TOOLS = Object.freeze({
   ],
   admin: [tool('admin.dashboard', 'Usimamizi wa KenteXa', 'Dashboard', ICON.shield)],
   manager: [tool('admin.dashboard', 'Usimamizi wa KenteXa', 'Dashboard', ICON.shield)],
+  customer_care: [tool('admin.dashboard', 'Usimamizi wa KenteXa', 'Dashboard', ICON.shield)],
+  finance: [tool('admin.dashboard', 'Usimamizi wa KenteXa', 'Dashboard', ICON.shield)],
+  moderator: [tool('admin.dashboard', 'Usimamizi wa KenteXa', 'Dashboard', ICON.shield)],
 });
 
 /** What each role is called on its workspace card. */
 export const ROLE_LABEL = Object.freeze({
   seller: 'Duka', super_agent: 'Ofisi', agent: 'Wakala', transport_provider: 'Usafiri',
   service_provider: 'Huduma', admin: 'Usimamizi', manager: 'Usimamizi', customer_care: 'Huduma kwa wateja',
-  arbitrator: 'Usuluhishi', buyer: 'Binafsi',
+  arbitrator: 'Usuluhishi', buyer: 'Binafsi', finance: 'Fedha (KenteXa)', moderator: 'Ukaguzi (KenteXa)',
 });
 
 /** The account's own tools: always there for a logged-in person, no role switch needed. */

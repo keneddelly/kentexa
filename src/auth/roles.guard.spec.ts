@@ -96,3 +96,39 @@ describe('RolesGuard', () => {
     await expect(new RolesGuard(reflector, roleContextService).canActivate(context)).rejects.toThrow(ForbiddenException);
   });
 });
+
+// Owner 2026-11-09: KenteXa staff roles see the admin, each only in its own area.
+describe('RolesGuard: KenteXa staff areas', () => {
+  const run = async (roleType: AccountRoleType, method: string, routePath: string, required: UserRole[] = [UserRole.ADMIN]) => {
+    const roleContextService = { resolveContext: jest.fn().mockResolvedValue({ roleType, userId: 1, accountRoleId: 10, profileType: RoleProfileType.USER, profileId: 1, status: AccountRoleStatus.ACTIVE }) } as any;
+    const { reflector, context, request } = buildContext(required, { authPayload: payload(roleType) });
+    request.method = method; request.baseUrl = ''; request.route = { path: routePath };
+    return new RolesGuard(reflector, roleContextService).canActivate(context);
+  };
+
+  it('manager: everything except KenteXa fee changes and staff', async () => {
+    await expect(run(AccountRoleType.MANAGER, 'PATCH', '/seller/:id/approve')).resolves.toBe(true);
+    await expect(run(AccountRoleType.MANAGER, 'GET', '/payouts/admin/all')).resolves.toBe(true);
+    await expect(run(AccountRoleType.MANAGER, 'POST', '/kentexa-fee/admin/settings')).rejects.toThrow(ForbiddenException);
+    await expect(run(AccountRoleType.MANAGER, 'POST', '/admin/staff')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('customer care: reads people and orders, answers messages and disputes; no money, no approvals', async () => {
+    await expect(run(AccountRoleType.CUSTOMER_CARE, 'GET', '/activity/admin/people/:userId')).resolves.toBe(true);
+    await expect(run(AccountRoleType.CUSTOMER_CARE, 'PATCH', '/contact/:id')).resolves.toBe(true);
+    await expect(run(AccountRoleType.CUSTOMER_CARE, 'GET', '/payouts/admin/all')).rejects.toThrow(ForbiddenException);
+    await expect(run(AccountRoleType.CUSTOMER_CARE, 'PATCH', '/seller/:id/approve')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('finance: money changes only; moderator: content and approvals, no money', async () => {
+    await expect(run(AccountRoleType.FINANCE, 'POST', '/payouts/admin/process/:orderId')).resolves.toBe(true);
+    await expect(run(AccountRoleType.FINANCE, 'PATCH', '/seller/:id/approve')).rejects.toThrow(ForbiddenException);
+    await expect(run(AccountRoleType.MODERATOR, 'POST', '/admin-intelligence/reports/:id/review')).resolves.toBe(true);
+    await expect(run(AccountRoleType.MODERATOR, 'PATCH', '/seller/:id/approve')).resolves.toBe(true);
+    await expect(run(AccountRoleType.MODERATOR, 'GET', '/payouts/admin/all')).rejects.toThrow(ForbiddenException);
+  });
+
+  it('a staff role never widens a route that is not admin-only', async () => {
+    await expect(run(AccountRoleType.FINANCE, 'POST', '/pickup-tasks/:id/claim', [UserRole.AGENT])).rejects.toThrow(ForbiddenException);
+  });
+});

@@ -10,6 +10,7 @@ import { RoleContextService } from '../role-context/role-context.service';
 import { RoleContextException } from '../role-context/role-context.exception';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { RoleJwtPayload } from '../role-context/role-context.types';
+import { staffMayUse, STAFF_USER_ROLES } from './staff-access';
 
 /**
  * Authority hierarchy evaluated against a single CURRENTLY ACTIVE role, never
@@ -27,6 +28,8 @@ const ACTIVE_ROLE_HIERARCHY: Record<string, string[]> = {
     UserRole.TRANSPORT_PROVIDER,
     UserRole.SELLER,
     UserRole.ARBITRATOR,
+    UserRole.FINANCE,
+    UserRole.MODERATOR,
     UserRole.USER,
   ],
   [UserRole.MANAGER]: [
@@ -44,6 +47,8 @@ const ACTIVE_ROLE_HIERARCHY: Record<string, string[]> = {
   [UserRole.TRANSPORT_PROVIDER]: [UserRole.TRANSPORT_PROVIDER, UserRole.USER],
   [UserRole.SELLER]: [UserRole.SELLER, UserRole.USER],
   [UserRole.ARBITRATOR]: [UserRole.ARBITRATOR, UserRole.USER],
+  [UserRole.FINANCE]: [UserRole.FINANCE, UserRole.USER],
+  [UserRole.MODERATOR]: [UserRole.MODERATOR, UserRole.USER],
   [UserRole.USER]: [UserRole.USER],
 };
 
@@ -58,6 +63,8 @@ const ACCOUNT_ROLE_TO_USER_ROLE: Partial<Record<AccountRoleType, UserRole>> = {
   [AccountRoleType.MANAGER]: UserRole.MANAGER,
   [AccountRoleType.ADMIN]: UserRole.ADMIN,
   [AccountRoleType.ARBITRATOR]: UserRole.ARBITRATOR,
+  [AccountRoleType.FINANCE]: UserRole.FINANCE,
+  [AccountRoleType.MODERATOR]: UserRole.MODERATOR,
 };
 
 @Injectable()
@@ -97,7 +104,14 @@ export class RolesGuard implements CanActivate {
     const allowedRoles = new Set<string>(
       (activeUserRole && ACTIVE_ROLE_HIERARCHY[activeUserRole]) || (activeUserRole ? [activeUserRole] : []),
     );
-    const hasPermission = required.some((role) => allowedRoles.has(role));
+    let hasPermission = required.some((role) => allowedRoles.has(role));
+    // KenteXa staff (owner 2026-11-09): an admin-only route is open to a staff role when that
+    // role's area allows this method and route (auth/staff-access.ts). Everything else stays
+    // admin-only; a staff role never widens a non-admin route.
+    if (!hasPermission && activeUserRole && STAFF_USER_ROLES.has(activeUserRole) && required.includes(UserRole.ADMIN)) {
+      const route = `${request.baseUrl || ''}${request.route?.path || request.path || ''}`;
+      hasPermission = staffMayUse(activeUserRole, String(request.method || 'GET'), route);
+    }
 
     if (!hasPermission) {
       throw new ForbiddenException(

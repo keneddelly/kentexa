@@ -206,4 +206,7 @@ export const useRoleContext = () => {
   return context;
 };
 
+/** Like useRoleContext, but null outside the provider (admin screens rendered alone in tests). */
+export const useOptionalRoleContext = () => useContext(RoleContextState);
+
 export { validAuthResponse };

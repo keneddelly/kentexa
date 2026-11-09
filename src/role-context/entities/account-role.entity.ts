@@ -23,6 +23,9 @@ export enum AccountRoleType {
   MANAGER = 'manager',
   ADMIN = 'admin',
   ARBITRATOR = 'arbitrator',
+  // KenteXa staff (owner 2026-11-09): money only / content checks only. See auth/staff-access.ts.
+  FINANCE = 'finance',
+  MODERATOR = 'moderator',
 }
 
 export enum AccountRoleStatus {
