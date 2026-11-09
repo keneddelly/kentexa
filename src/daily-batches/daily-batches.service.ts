@@ -1012,7 +1012,7 @@ export class DailyBatchesService {
   // been confirmed/released, flag it. Operator gets notified by console log
   // (and email if notificationsService supports it).
   // This protects against forgotten payouts which erode seller trust.
-  @Cron('0 8 * * *') // 8am every day
+  // No schedule (owner 2026-11-09): KenteXa never holds money, so escrow jobs never run by themselves.
   async checkStaleEscrow() {
     try {
       const STALE_DAYS = 7;
@@ -1132,7 +1132,7 @@ export class DailyBatchesService {
   // Orders marked delivered where autoReleaseAt has passed and buyer never
   // confirmed — escrow released automatically to protect seller.
   // Local orders: 3 days. Intercity orders: 5 days.
-  @Cron('0 8 * * *')
+  // No schedule (owner 2026-11-09): KenteXa never holds money, so escrow jobs never run by themselves.
   async autoReleaseEscrow() {
     try {
       const now = new Date();
