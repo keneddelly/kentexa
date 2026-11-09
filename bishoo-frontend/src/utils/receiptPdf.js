@@ -81,11 +81,11 @@ export function receiptLayout(r) {
   for (const i of r.items || []) {
     const lineTotal = n(Number(i.unitPrice) * Number(i.quantity));
     const nameLines = wrap(i.name, 9.5, true, inner - textWidth(lineTotal, 9.5, true) - 8);
-    nameLines.forEach((l, k) => {
+    for (let k = 0; k < nameLines.length; k += 1) {
       y += k === 0 ? 15 : 12;
-      text(l, M, 9.5, { bold: true });
+      text(nameLines[k], M, 9.5, { bold: true });
       if (k === 0) text(lineTotal, W - M, 9.5, { bold: true, align: 'right' });
-    });
+    }
     y += 11; text(`${i.quantity} x ${n(i.unitPrice)}`, M, 8.5, { color: MUTED });
   }
   rule(9);
