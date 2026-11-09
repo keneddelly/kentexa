@@ -34,3 +34,14 @@ test('the admin menu shows Ada ya KenteXa and "Kwa nini hakuna?" (owner 2026-11-
   const pages = ADMIN_NAVIGATION.map((entry) => entry.destination);
   expect(pages).toEqual(expect.arrayContaining(['AdminKentexaFees', 'AdminShippingCheck']));
 });
+
+// Owner 2026-11-09: a professional admin. Every item sits in a section, and the pages that were
+// built but hidden are in the menu.
+test('the admin menu is grouped into sections and includes every built admin page', () => {
+  const { ADMIN_SECTIONS } = require('./navigationRegistry');
+  const keys = ADMIN_SECTIONS.map(([key]) => key);
+  ADMIN_NAVIGATION.forEach((entry) => expect(keys).toContain(entry.section));
+  const pages = ADMIN_NAVIGATION.map((entry) => entry.destination);
+  expect(pages).toEqual(expect.arrayContaining(['Analytics', 'Announcements', 'BodaRates', 'HubAdmin', 'ContactMessages']));
+  ADMIN_NAVIGATION.forEach((entry) => expect(entry.label).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u));
+});

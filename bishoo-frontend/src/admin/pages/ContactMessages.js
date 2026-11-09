@@ -14,17 +14,19 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
   const fetchMessages = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/contact/admin/messages');
-      setMessages(res.data || []);
+      // The server's routes are GET /contact and PATCH /contact/:id { status } (owner 2026-11-09:
+      // this page called addresses that do not exist, so customer messages were never seen).
+      const res = await api.get('/contact');
+      setMessages((Array.isArray(res.data) ? res.data : []).map((m) => ({ ...m, isRead: m.status && m.status !== 'open' })));
     } catch { setError('Imeshindwa kupakia ujumbe'); }
     finally { setLoading(false); }
   };
 
   const handleMarkRead = async (id) => {
     try {
-      await api.patch(`/contact/admin/messages/${id}/read`);
-      setMessages(msgs => msgs.map(m => m.id === id ? { ...m, isRead: true } : m));
-    } catch {}
+      await api.patch(`/contact/${id}`, { status: 'resolved' });
+      setMessages(msgs => msgs.map(m => m.id === id ? { ...m, status: 'resolved', isRead: true } : m));
+    } catch { setError('Imeshindwa kuweka ujumbe kuwa umeshughulikiwa'); }
   };
 
   const filtered = messages.filter(m =>
@@ -41,18 +43,18 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
 
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>📬 Ujumbe wa Wateja</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Ujumbe wa Wateja</h1>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Maswali na malalamiko kutoka kwa wateja</p>
         </div>
 
-        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>❌ {error}</div>}
+        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
         {/* Filter tabs */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {[
             { key: 'all',    label: `Yote (${messages.length})` },
-            { key: 'unread', label: `📩 Hazijasome (${unreadCount})`, alert: unreadCount > 0 },
-            { key: 'read',   label: `✅ Zimesomwa (${messages.length - unreadCount})` },
+            { key: 'unread', label: `Hazijashughulikiwa (${unreadCount})`, alert: unreadCount > 0 },
+            { key: 'read',   label: `Zimeshughulikiwa (${messages.length - unreadCount})` },
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -65,10 +67,10 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>📭</div>
+            <div style={{ fontSize: 40, marginBottom: 10 }}></div>
             <div>Hakuna ujumbe</div>
           </div>
         ) : (
@@ -77,7 +79,7 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filtered.map(msg => (
                 <div key={msg.id}
-                  onClick={() => { setSelected(msg); if (!msg.isRead) handleMarkRead(msg.id); }}
+                  onClick={() => setSelected(msg)}
                   style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16, cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
                     border: selected?.id === msg.id ? '2px solid #6366f1' : msg.isRead ? '1px solid #f1f5f9' : '2px solid #fde68a' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -101,7 +103,7 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
             {selected && (
               <div style={{ width: 380, backgroundColor: '#fff', borderRadius: 14, padding: 22, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', height: 'fit-content', position: 'sticky', top: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>📬 Ujumbe Kamili</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Ujumbe Kamili</div>
                   <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#94a3b8' }}>×</button>
                 </div>
                 {[
@@ -123,8 +125,20 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
                 {selected.email && (
                   <a href={`mailto:${selected.email}?subject=Re: ${selected.subject || 'Swali lako kwa KenteXa'}`}
                     style={{ display: 'block', marginTop: 14, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', padding: 12, borderRadius: 10, textAlign: 'center', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
-                    📧 Jibu kwa Email
+                    Jibu kwa Email
                   </a>
+                )}
+                {selected.phone && (
+                  <a href={`tel:${String(selected.phone).replace(/[^\d+]/g, '')}`}
+                    style={{ display: 'block', marginTop: 8, border: '1px solid #cbd5e1', color: '#0f172a', padding: 12, borderRadius: 10, textAlign: 'center', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                    Piga {selected.phone}
+                  </a>
+                )}
+                {!selected.isRead && (
+                  <button type="button" data-testid="contact-resolve" onClick={() => { handleMarkRead(selected.id); setSelected({ ...selected, isRead: true, status: 'resolved' }); }}
+                    style={{ width: '100%', marginTop: 8, border: 'none', background: '#05603a', color: '#fff', padding: 12, borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Imeshughulikiwa
+                  </button>
                 )}
               </div>
             )}

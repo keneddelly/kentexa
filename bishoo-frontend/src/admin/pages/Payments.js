@@ -82,25 +82,25 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
               fontSize: '14px',
             }}
           >
-            🔄 Refresh
+            Refresh
           </button>
         </div>
 
         {/* Error */}
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>
-            ❌ {error}
+            {error}
           </div>
         )}
 
         {/* Stats Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           {[
-            { label: 'Total', value: payments.length, color: '#6366f1', icon: '💳' },
-            { label: 'Success', value: payments.filter(p => p.status === 'success').length, color: '#10b981', icon: '✅' },
-            { label: 'Pending', value: payments.filter(p => p.status === 'pending').length, color: '#f59e0b', icon: '⏳' },
-            { label: 'Failed', value: payments.filter(p => p.status === 'failed').length, color: '#ef4444', icon: '❌' },
-            { label: 'Revenue (TZS)', value: totalSuccess.toLocaleString(), color: '#0ea5e9', icon: '💰' },
+            { label: 'Total', value: payments.length, color: '#6366f1', icon: '' },
+            { label: 'Success', value: payments.filter(p => p.status === 'success').length, color: '#10b981', icon: '' },
+            { label: 'Pending', value: payments.filter(p => p.status === 'pending').length, color: '#f59e0b', icon: '' },
+            { label: 'Failed', value: payments.filter(p => p.status === 'failed').length, color: '#ef4444', icon: '' },
+            { label: 'Revenue (TZS)', value: totalSuccess.toLocaleString(), color: '#0ea5e9', icon: '' },
           ].map(stat => (
             <div key={stat.label} style={{
               backgroundColor: '#fff',
@@ -109,7 +109,6 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               borderTop: `3px solid ${stat.color}`,
             }}>
-              <div style={{ fontSize: '20px', marginBottom: '8px' }}>{stat.icon}</div>
               <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a' }}>{stat.value}</div>
               <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', marginTop: '4px' }}>{stat.label}</div>
             </div>

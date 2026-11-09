@@ -219,6 +219,12 @@ export class BrandAuthorizationsService {
   // ever written for this row, oldest first. Raw actorUserId, not resolved
   // to a name — this service has no User repo and the admin can already
   // cross-reference ids elsewhere in this same page.
+  /** Admin: the evidence rows of one authorization (no file URL; use getSignedEvidenceUrl). */
+  async listEvidence(authorizationId: number) {
+    const rows = await this.evidenceRepo.find({ where: { authorization: { id: authorizationId } }, order: { createdAt: 'ASC' } });
+    return rows.map((r) => ({ id: r.id, documentType: r.documentType, format: r.format, uploadedByUserId: r.uploadedByUserId, createdAt: r.createdAt }));
+  }
+
   async getAuditLog(authorizationId: number): Promise<BrandAuthorizationAuditLog[]> {
     return this.auditRepo.find({
       where: { authorization: { id: authorizationId } },

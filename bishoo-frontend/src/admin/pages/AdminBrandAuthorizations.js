@@ -3,12 +3,12 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: '⏳ Pending' },
-  approved:  { bg: '#dcfce7', color: '#16a34a', label: '✅ Authorized' },
-  rejected:  { bg: '#fee2e2', color: '#dc2626', label: '❌ Rejected' },
-  suspended: { bg: '#ffedd5', color: '#c2410c', label: '⏸ Suspended' },
-  expired:   { bg: '#f1f5f9', color: '#64748b', label: '⌛ Expired' },
-  revoked:   { bg: '#fee2e2', color: '#dc2626', label: '🚫 Revoked' },
+  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Pending' },
+  approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Authorized' },
+  rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
+  suspended: { bg: '#ffedd5', color: '#c2410c', label: 'Suspended' },
+  expired:   { bg: '#f1f5f9', color: '#64748b', label: 'Expired' },
+  revoked:   { bg: '#fee2e2', color: '#dc2626', label: 'Revoked' },
 };
 
 const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
@@ -63,7 +63,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
       setActionLoading(true);
       if (action === 'approve') {
         await api.patch(`/brand-authorizations/${row.id}/approve`);
-        showMsg('✅ Brand authorization approved');
+        showMsg('Brand authorization approved');
       } else {
         await api.patch(`/brand-authorizations/${row.id}/${action}`, { reason });
         showMsg(`Authorization ${action}ed`);
@@ -83,22 +83,22 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>✅ Brand Authorizations</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Brand Authorizations</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Review and manage business-to-brand authorization requests</p>
           </div>
           <button onClick={() => fetchRows(filter)}
             style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            🔄 Refresh
+            Refresh
           </button>
         </div>
 
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           {[
-            { key: 'pending',   label: '⏳ Pending',   color: '#ca8a04' },
-            { key: 'approved',  label: '✅ Authorized', color: '#16a34a' },
+            { key: 'pending',   label: 'Pending',   color: '#ca8a04' },
+            { key: 'approved',  label: 'Authorized', color: '#16a34a' },
             { key: 'all',       label: 'All',           color: '#6366f1' },
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
@@ -112,10 +112,10 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Loading...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading...</div>
         ) : rows.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🏷️</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>No authorization requests here</div>
           </div>
         ) : (
@@ -149,7 +149,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                         {r.status === 'pending' && (
                           <button onClick={e => { e.stopPropagation(); runAction('approve', null, r); }} disabled={actionLoading}
                             style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                            ✅ Approve
+                            Approve
                           </button>
                         )}
                       </td>
@@ -203,7 +203,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                 {evidence.map(ev => (
                   <button key={ev.id} onClick={() => viewEvidence(ev)}
                     style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', marginBottom: 6, backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
-                    📄 {ev.documentType} — view (signed link, expires in 5 min)
+                    {ev.documentType} — view (signed link, expires in 5 min)
                   </button>
                 ))}
               </div>
@@ -234,11 +234,11 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                 <>
                   <button onClick={() => runAction('approve')} disabled={actionLoading}
                     style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
-                    {actionLoading ? '⏳...' : '✅ Approve'}
+                    {actionLoading ? '...' : 'Approve'}
                   </button>
                   <button onClick={() => setReasonModal('reject')}
                     style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                    ❌ Reject
+                    Reject
                   </button>
                 </>
               )}
@@ -246,18 +246,18 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                 <>
                   <button onClick={() => setReasonModal('suspend')}
                     style={{ backgroundColor: '#ffedd5', color: '#c2410c', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                    ⏸ Suspend
+                    Suspend
                   </button>
                   <button onClick={() => setReasonModal('revoke')}
                     style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                    🚫 Revoke
+                    Revoke
                   </button>
                 </>
               )}
               {['suspended', 'expired'].includes(selected.status) && (
                 <button onClick={() => runAction('approve')} disabled={actionLoading}
                   style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
-                  {actionLoading ? '⏳...' : '✅ Reinstate'}
+                  {actionLoading ? '...' : 'Reinstate'}
                 </button>
               )}
             </div>

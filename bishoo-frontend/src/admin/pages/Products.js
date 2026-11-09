@@ -92,26 +92,26 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight:'800', color: '#0f172a', margin: 0, fontFamily:'inherit' }}>📦 Products</h1>
+            <h1 style={{ fontSize: '24px', fontWeight:'800', color: '#0f172a', margin: 0, fontFamily:'inherit' }}>Products</h1>
             <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>{products.length} total · {pendingCount} pending approval</p>
           </div>
           <button onClick={fetchProducts} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '700' }}>
-            🔄 Refresh
+            Refresh
           </button>
         </div>
 
-        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>✅ {message} <button onClick={() => setMessage('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>❌ {error} <button onClick={() => setError(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
+        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>{message} <button onClick={() => setMessage('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>{error} <button onClick={() => setError(null)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
 
         {/* Search + filter */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          <input type="text" placeholder="🔍 Search product or seller..." value={search} onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search product or seller..." value={search} onChange={e => setSearch(e.target.value)}
             style={{ flex: 1, minWidth: 200, padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
           {[
             { key: 'all',      label: `All (${products.length})` },
-            { key: 'pending',  label: `⏳ Pending (${pendingCount})` },
-            { key: 'active',   label: '✅ Active' },
-            { key: 'disabled', label: '⏸ Disabled' },
+            { key: 'pending',  label: `Pending (${pendingCount})` },
+            { key: 'active',   label: 'Active' },
+            { key: 'disabled', label: 'Disabled' },
           ].map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, backgroundColor: filter === f.key ? '#1d4ed8' : '#fff', color: filter === f.key ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
@@ -140,7 +140,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ height: '160px', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
                       {p.images?.[0] ? (
                         <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
-                      ) : <span style={{ fontSize: '40px' }}>📦</span>}
+                      ) : <span style={{ fontSize: '40px' }}></span>}
                       {p.images?.length > 1 && (
                         <span style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '2px 8px', borderRadius: 10, fontSize: 11 }}>
                           +{p.images.length - 1} more
@@ -148,7 +148,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                       )}
                       {isPending && (
                         <span style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#fbbf24', color: '#92400e', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
-                          ⏳ PENDING REVIEW
+                          PENDING REVIEW
                         </span>
                       )}
                     </div>
@@ -164,7 +164,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
 
                       {/* Seller info — who posted it */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                        <span style={{ fontSize: 12 }}>👤</span>
+                        <span style={{ fontSize: 12 }}></span>
                         <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>{p.seller?.name || p.seller?.businessName || '—'}</span>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>· {p.seller?.phone || p.seller?.email || '—'}</span>
                       </div>
@@ -185,11 +185,11 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                           <button onClick={() => handleApprove(p)}
                             style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                            ✅ Approve
+                            Approve
                           </button>
                           <button onClick={() => handleReject(p)}
                             style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                            ❌ Reject
+                            Reject
                           </button>
                         </div>
                       ) : null}
@@ -198,11 +198,11 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => handleToggleAvailability(p)}
                           style={{ flex: 1, backgroundColor: p.isAvailable ? '#fef9c3' : '#dcfce7', color: p.isAvailable ? '#ca8a04' : '#16a34a', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                          {p.isAvailable ? '⏸ Disable' : '▶ Enable'}
+                          {p.isAvailable ? 'Disable' : '▶ Enable'}
                         </button>
                         <button onClick={() => handleDelete(p.id)}
                           style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                          🗑 Delete
+                          Delete
                         </button>
                       </div>
                     </div>

@@ -7,9 +7,9 @@ import Sidebar from '../components/Sidebar';
 import api     from '../../api/api';
 
 const STATUS = {
-  approved: { bg:'#dcfce7', text:'#16a34a', label:'✅ Imeidhinishwa' },
-  pending:  { bg:'#fef3c7', text:'#d97706', label:'⏳ Inasubiri'     },
-  rejected: { bg:'#fee2e2', text:'#dc2626', label:'❌ Imekataliwa'   },
+  approved: { bg:'#dcfce7', text:'#16a34a', label:'Imeidhinishwa' },
+  pending:  { bg:'#fef3c7', text:'#d97706', label:'Inasubiri'     },
+  rejected: { bg:'#fee2e2', text:'#dc2626', label:'Imekataliwa'   },
 };
 
 const TZ_CITIES = [
@@ -75,7 +75,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
           ? hubForm.coverageZones.split(',').map(s => s.trim()).filter(Boolean)
           : [],
       });
-      alert('✅ Kituo kimepewa!');
+      alert('Kituo kimepewa!');
       setSelected(null);
       fetchAll();
     } catch (e) {
@@ -96,7 +96,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
           alignItems:'center', marginBottom:20 }}>
           <div>
             <div style={{ fontSize:20, fontWeight:800, color:'#1e293b' }}>
-              🏢 Usimamizi wa Vituo
+              Usimamizi wa Vituo
             </div>
             <div style={{ fontSize:12, color:'#64748b' }}>
               Panga ofisi katika miji na vituo maalum
@@ -109,7 +109,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                 backgroundColor: view==='map' ? '#1d4ed8' : '#fff',
                 color: view==='map' ? '#fff' : '#64748b',
                 boxShadow:'0 1px 4px rgba(0,0,0,0.08)' }}>
-              🗺️ Ramani ya Miji
+              Ramani ya Miji
             </button>
             <button onClick={() => setView('list')}
               style={{ padding:'7px 14px', borderRadius:8, border:'none',
@@ -117,7 +117,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                 backgroundColor: view==='list' ? '#1d4ed8' : '#fff',
                 color: view==='list' ? '#fff' : '#64748b',
                 boxShadow:'0 1px 4px rgba(0,0,0,0.08)' }}>
-              📋 Orodha
+              Orodha
             </button>
           </div>
         </div>
@@ -126,21 +126,21 @@ const HubAdmin = ({ onNavigate, activePage }) => {
         {view === 'map' && (
           <div style={{ marginBottom:20 }}>
             <div style={{ fontSize:14, fontWeight:800, color:'#1e293b', marginBottom:12 }}>
-              📍 Vituo vilivyopewa
+              Vituo vilivyopewa
             </div>
             <div style={{ display:'grid',
               gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12 }}>
               {hubSummary.length === 0 ? (
                 <div style={{ gridColumn:'1/-1', textAlign:'center', padding:40,
                   backgroundColor:'#fff', borderRadius:14, color:'#94a3b8' }}>
-                  <div style={{ fontSize:40, marginBottom:8 }}>🏢</div>
+                  <div style={{ fontSize:40, marginBottom:8 }}></div>
                   <div>Bado hakuna vituo vilivyopewa</div>
                 </div>
               ) : hubSummary.map(h => (
                 <div key={h.city} style={{ backgroundColor:'#fff', borderRadius:14,
                   padding:16, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                   <div style={{ fontSize:13, fontWeight:800, color:'#1e293b', marginBottom:4 }}>
-                    📍 {h.city}
+                    {h.city}
                   </div>
                   <div style={{ fontSize:22, fontWeight:800, color:'#1d4ed8',
                     marginBottom:8 }}>{h.count}</div>
@@ -160,7 +160,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                 <div key={c} style={{ backgroundColor:'#f8fafc', borderRadius:14,
                   padding:16, border:'1.5px dashed #e2e8f0' }}>
                   <div style={{ fontSize:13, fontWeight:700, color:'#94a3b8', marginBottom:4 }}>
-                    📍 {c}
+                    {c}
                   </div>
                   <div style={{ fontSize:11, color:'#cbd5e1' }}>Hakuna ofisi</div>
                 </div>
@@ -193,7 +193,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
               ) : superAgents.length === 0 ? (
                 <div style={{ textAlign:'center', padding:60, backgroundColor:'#fff',
                   borderRadius:16, color:'#94a3b8' }}>
-                  <div style={{ fontSize:40, marginBottom:8 }}>👤</div>
+                  <div style={{ fontSize:40, marginBottom:8 }}></div>
                   <div>Hakuna ofisi</div>
                 </div>
               ) : superAgents.map(sa => {
@@ -212,15 +212,15 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                           {sa.businessName || sa.user?.name || '—'}
                         </div>
                         <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>
-                          📍 {sa.city} · {sa.user?.phone}
+                          {sa.city} · {sa.user?.phone}
                         </div>
                         {hasHub ? (
                           <div style={{ fontSize:11, marginTop:4, color:'#16a34a', fontWeight:700 }}>
-                            🏢 {sa.hubName} — {sa.hubCity}
+                            {sa.hubName} — {sa.hubCity}
                           </div>
                         ) : (
                           <div style={{ fontSize:11, marginTop:4, color:'#d97706' }}>
-                            ⚠️ Kituo hakijapewa
+                            Kituo hakijapewa
                           </div>
                         )}
                       </div>
@@ -242,11 +242,11 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                 <div style={{ background:'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
                   padding:'16px 20px', color:'#fff' }}>
                   <div style={{ display:'flex', justifyContent:'space-between' }}>
-                    <div style={{ fontSize:15, fontWeight:800 }}>🏢 Pewa Kituo</div>
+                    <div style={{ fontSize:15, fontWeight:800 }}>Pewa Kituo</div>
                     <button onClick={() => setSelected(null)}
                       style={{ background:'rgba(255,255,255,0.2)', border:'none',
                         color:'#fff', borderRadius:6, padding:'4px 10px',
-                        cursor:'pointer' }}>✕</button>
+                        cursor:'pointer' }}></button>
                   </div>
                   <div style={{ fontSize:13, color:'rgba(255,255,255,0.7)', marginTop:4 }}>
                     {selected.businessName || selected.user?.name}
@@ -303,7 +303,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                       color:'#fff', border:'none', borderRadius:10, padding:'12px 0',
                       cursor:saving?'not-allowed':'pointer',
                       fontSize:14, fontWeight:800 }}>
-                    {saving ? '⏳ Inahifadhi...' : '✅ Hifadhi Kituo'}
+                    {saving ? 'Inahifadhi...' : 'Hifadhi Kituo'}
                   </button>
                 </div>
               </div>

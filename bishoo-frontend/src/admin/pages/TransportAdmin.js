@@ -15,17 +15,17 @@ import api    from '../../api/api';
 // by an admin. "all" (no status filter) is new too — there was no way to
 // see every provider in one view before.
 const STATUS = {
-  all:       { bg: '#e0e7ff', text: '#4338ca', label: '📋 Zote' },
-  pending:   { bg: '#fef3c7', text: '#d97706', label: '⏳ Inasubiri' },
-  verified:  { bg: '#dcfce7', text: '#16a34a', label: '✅ Imehakikiwa' },
-  active:    { bg: '#dcfce7', text: '#16a34a', label: '🟢 Inafanya kazi' },
-  inactive:  { bg: '#f1f5f9', text: '#64748b', label: '⚪ Haifanyi kazi' },
-  testing:   { bg: '#e0f2fe', text: '#0284c7', label: '🧪 Inajaribiwa' },
-  rejected:  { bg: '#fee2e2', text: '#dc2626', label: '❌ Imekataliwa' },
-  suspended: { bg: '#f1f5f9', text: '#64748b', label: '⛔ Imesimamishwa' },
+  all:       { bg: '#e0e7ff', text: '#4338ca', label: 'Zote' },
+  pending:   { bg: '#fef3c7', text: '#d97706', label: 'Inasubiri' },
+  verified:  { bg: '#dcfce7', text: '#16a34a', label: 'Imehakikiwa' },
+  active:    { bg: '#dcfce7', text: '#16a34a', label: 'Inafanya kazi' },
+  inactive:  { bg: '#f1f5f9', text: '#64748b', label: 'Haifanyi kazi' },
+  testing:   { bg: '#e0f2fe', text: '#0284c7', label: 'Inajaribiwa' },
+  rejected:  { bg: '#fee2e2', text: '#dc2626', label: 'Imekataliwa' },
+  suspended: { bg: '#f1f5f9', text: '#64748b', label: 'Imesimamishwa' },
 };
 
-const TYPE_ICON = { bus: '🚌', van: '🚐', courier: '📦', truck: '🚛', boda: '🏍️' };
+const TYPE_ICON = { bus: '', van: '', courier: '', truck: '', boda: '' };
 
 const TransportAdmin = ({ onNavigate, activePage }) => {
   const [providers, setProviders] = useState([]);
@@ -90,7 +90,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
           alignItems: 'center', marginBottom: 20 }}>
           <div>
             <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>
-              🚌 Wasafirishaji
+              Wasafirishaji
             </div>
             <div style={{ fontSize: 12, color: '#64748b' }}>
               Kagua na thibitisha ombi za wasafirishaji
@@ -119,12 +119,12 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
             ) : providers.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                 borderRadius: 16 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🚌</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}></div>
                 <div style={{ color: '#64748b' }}>Hakuna wasafirishaji wenye hali ya "{STATUS[filter]?.label}"</div>
               </div>
             ) : providers.map(p => {
               // Was `|| STATUS.pending` — silently mislabeled any provider
-              // whose real status wasn't in this map as "⏳ Inasubiri"
+              // whose real status wasn't in this map as "Inasubiri"
               // instead of showing what it actually is.
               const sc = STATUS[p.status] || { bg: '#f1f5f9', text: '#64748b', label: p.status };
               return (
@@ -136,7 +136,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between',
                     alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <div style={{ fontSize: 32 }}>{TYPE_ICON[p.type] || '🚛'}</div>
+                      <div style={{ fontSize: 32 }}>{TYPE_ICON[p.type] || ''}</div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                           {p.name}
@@ -176,11 +176,11 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
               <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
                 padding: '16px 20px', color: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <div style={{ fontSize: 24 }}>{TYPE_ICON[selected.type] || '🚛'}</div>
+                  <div style={{ fontSize: 24 }}>{TYPE_ICON[selected.type] || ''}</div>
                   <button onClick={() => setSelected(null)}
                     style={{ background: 'rgba(255,255,255,0.2)', border: 'none',
                       color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
-                    ✕
+
                   </button>
                 </div>
                 <div style={{ fontSize: 16, fontWeight:800, marginTop: 8 }}>{selected.name}</div>
@@ -213,7 +213,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                 {selected.description && (
                   <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 12,
                     marginBottom: 14, fontSize: 12, color: '#1e293b', lineHeight: 1.5 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>📝 Maelezo:</div>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>Maelezo:</div>
                     {selected.description}
                   </div>
                 )}
@@ -222,7 +222,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                 {selected.licenseUrl && (
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
-                      📄 Hati ya Leseni
+                      Hati ya Leseni
                     </div>
                     <a href={selected.licenseUrl} target="_blank" rel="noreferrer">
                       <img src={selected.licenseUrl} alt="License"
@@ -249,13 +249,13 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                           style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff',
                             border: 'none', borderRadius: 10, padding: '12px 0',
                             cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-                          {saving ? '⏳...' : '✅ Thibitisha'}
+                          {saving ? '...' : 'Thibitisha'}
                         </button>
                         <button onClick={() => setShowReject(true)}
                           style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626',
                             border: 'none', borderRadius: 10, padding: '12px 0',
                             cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-                          ❌ Kataa
+                          Kataa
                         </button>
                       </div>
                     ) : (
@@ -269,7 +269,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                             style={{ flex: 1, backgroundColor: '#dc2626', color: '#fff',
                               border: 'none', borderRadius: 10, padding: '12px 0',
                               cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                            {saving ? '⏳...' : '❌ Thibitisha Kukataa'}
+                            {saving ? '...' : 'Thibitisha Kukataa'}
                           </button>
                           <button onClick={() => setShowReject(false)}
                             style={{ backgroundColor: '#f1f5f9', color: '#64748b',
@@ -288,7 +288,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                     style={{ width: '100%', backgroundColor: '#fee2e2', color: '#dc2626',
                       border: 'none', borderRadius: 10, padding: '12px 0',
                       cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-                    ⛔ Simamisha Akaunti
+                    Simamisha Akaunti
                   </button>
                 )}
               </div>

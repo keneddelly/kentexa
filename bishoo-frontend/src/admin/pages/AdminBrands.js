@@ -50,7 +50,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
         countryOfOrigin: brandForm.countryOfOrigin || undefined,
         description: brandForm.description || undefined,
       });
-      showMsg('✅ Brand created');
+      showMsg('Brand created');
       setShowBrandForm(false); setBrandForm(EMPTY_BRAND);
       fetchAll();
     } catch (err) { showErr(err?.response?.data?.message || 'Failed to create brand'); }
@@ -77,7 +77,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
     try {
       setSaving(true);
       await api.post(`/brands/${ownerBrand.id}/assign-owner`, { userId });
-      showMsg(`✅ Brand identity assigned to user #${userId}`);
+      showMsg(`Brand identity assigned to user #${userId}`);
       setOwnerBrand(null); setOwnerUserId('');
     } catch (err) { showErr(err?.response?.data?.message || 'Failed to assign owner'); }
     finally { setSaving(false); }
@@ -91,7 +91,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
         name: distForm.name,
         contactInfo: { phone: distForm.contactPhone || undefined, email: distForm.contactEmail || undefined },
       });
-      showMsg('✅ Distributor created');
+      showMsg('Distributor created');
       setShowDistForm(false); setDistForm(EMPTY_DISTRIBUTOR);
       fetchAll();
     } catch (err) { showErr(err?.response?.data?.message || 'Failed to create distributor'); }
@@ -107,7 +107,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>🏷️ Brand Network</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Brand Network</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Manage brands and distributors — see Brand Authorizations for reviewing seller requests</p>
           </div>
           <button onClick={() => tab === 'brands' ? setShowBrandForm(true) : setShowDistForm(true)}
@@ -117,7 +117,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           {[{ key: 'brands', label: 'Brands' }, { key: 'distributors', label: 'Distributors' }].map(t => (
@@ -131,7 +131,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Loading...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading...</div>
         ) : tab === 'brands' ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -151,7 +151,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                         backgroundColor: b.verificationStatus === 'verified' ? '#dcfce7' : '#f1f5f9',
                         color: b.verificationStatus === 'verified' ? '#16a34a' : '#64748b' }}>
-                        {b.verificationStatus === 'verified' ? '✅ Verified' : 'Unverified'}
+                        {b.verificationStatus === 'verified' ? 'Verified' : 'Unverified'}
                       </span>
                     </td>
                     <td style={{ padding: '14px 16px', fontSize: 12, color: b.isActive ? '#16a34a' : '#dc2626' }}>{b.isActive ? 'Active' : 'Inactive'}</td>

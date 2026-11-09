@@ -71,19 +71,19 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
   };
 
   const EVENT_ICONS = {
-    page_view:                '👁',
-    click:                    '🖱️',
-    scroll:                   '📜',
-    search:                   '🔍',
-    product_view:             '📦',
-    add_to_cart:              '🛒',
-    checkout_start:           '💳',
-    order_placed:             '✅',
-    login:                    '🔑',
-    session_start:            '🟢',
-    delivery_method_selected: '🚚',
-    seller_action:            '🏪',
-    page_exit:                '🚪',
+    page_view:                '',
+    click:                    '',
+    scroll:                   '',
+    search:                   '',
+    product_view:             '',
+    add_to_cart:              '',
+    checkout_start:           '',
+    order_placed:             '',
+    login:                    '',
+    session_start:            '',
+    delivery_method_selected: '',
+    seller_action:            '',
+    page_exit:                '',
   };
 
   return (
@@ -94,7 +94,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>📊 Analytics — Tabia za Watumiaji</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Analytics — Tabia za Watumiaji</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Kila kitu kinachofanywa na watumiaji — wakati halisi</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -108,12 +108,12 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
             ))}
             <button onClick={fetchStats}
               style={{ padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, backgroundColor: '#f1f5f9', color: '#64748b' }}>
-              🔄
+
             </button>
           </div>
         </div>
 
-        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>❌ {error}</div>}
+        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
         {/* Active users badge */}
         {stats?.summary?.activeSessions > 0 && (
@@ -125,19 +125,19 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             Inapakia data za analytics...
           </div>
         ) : stats && (
           <>
             {/* Summary cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 14, marginBottom: 28 }}>
-              <StatCard icon="🌐" label="Sessions" value={stats.summary.totalSessions.toLocaleString()} color="#6366f1" />
-              <StatCard icon="⚡" label="Matukio" value={stats.summary.totalEvents.toLocaleString()} color="#f59e0b" />
-              <StatCard icon="👁" label="Page Views" value={stats.summary.totalPageViews.toLocaleString()} color="#06b6d4" />
-              <StatCard icon="✅" label="Waliponunua" value={stats.summary.conversions.toLocaleString()} sub={`${stats.summary.conversionRate}% conversion`} color="#10b981" />
-              <StatCard icon="🟢" label="Wanaotumia Sasa" value={stats.summary.activeSessions} color="#16a34a" />
-              <StatCard icon="📈" label="Events/Session" value={stats.summary.avgEventsPerSession} color="#8b5cf6" />
+              <StatCard icon="" label="Sessions" value={stats.summary.totalSessions.toLocaleString()} color="#6366f1" />
+              <StatCard icon="" label="Matukio" value={stats.summary.totalEvents.toLocaleString()} color="#f59e0b" />
+              <StatCard icon="" label="Page Views" value={stats.summary.totalPageViews.toLocaleString()} color="#06b6d4" />
+              <StatCard icon="" label="Waliponunua" value={stats.summary.conversions.toLocaleString()} sub={`${stats.summary.conversionRate}% conversion`} color="#10b981" />
+              <StatCard icon="" label="Wanaotumia Sasa" value={stats.summary.activeSessions} color="#16a34a" />
+              <StatCard icon="" label="Events/Session" value={stats.summary.avgEventsPerSession} color="#8b5cf6" />
             </div>
 
             {/* Main grid */}
@@ -145,19 +145,19 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Top pages */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>📄 Kurasa Zinazofikiwa Zaidi</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Kurasa Zinazofikiwa Zaidi</div>
                 <MiniBar data={stats.topPages} valueKey="views" labelKey="page" colors={COLORS} />
               </div>
 
               {/* Top products */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>📦 Bidhaa Zinazoangaliwa Zaidi</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Bidhaa Zinazoangaliwa Zaidi</div>
                 <MiniBar data={stats.topProducts} valueKey="views" labelKey="name" colors={['#f59e0b','#fbbf24','#fcd34d','#fde68a']} />
               </div>
 
               {/* Top searches */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>🔍 Utafutaji Mkubwa</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Utafutaji Mkubwa</div>
                 <MiniBar data={stats.topSearches} valueKey="count" labelKey="term" colors={['#8b5cf6','#a78bfa','#c4b5fd']} />
               </div>
             </div>
@@ -166,11 +166,11 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Devices */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>📱 Vifaa</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Vifaa</div>
                 {(stats.devices || []).map((d, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{d.device === 'mobile' ? '📱' : d.device === 'tablet' ? '📟' : '🖥️'}</span>
+                      <span>{d.device === 'mobile' ? '' : d.device === 'tablet' ? '' : ''}</span>
                       <span style={{ fontSize: 13, color: '#475569', textTransform: 'capitalize' }}>{d.device || 'desktop'}</span>
                     </div>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{Number(d.count).toLocaleString()}</span>
@@ -180,26 +180,26 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Browsers */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>🌐 Vivinjari</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Vivinjari</div>
                 <MiniBar data={stats.browsers} valueKey="count" labelKey="browser" colors={COLORS} />
               </div>
 
               {/* Traffic sources */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>📡 Chanzo cha Trafiki</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Chanzo cha Trafiki</div>
                 <MiniBar data={stats.sources} valueKey="count" labelKey="source" colors={['#10b981','#34d399','#6ee7b7']} />
               </div>
 
               {/* Cities */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>📍 Miji</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Miji</div>
                 <MiniBar data={stats.cities} valueKey="count" labelKey="city" colors={['#ef4444','#f87171','#fca5a5']} />
               </div>
             </div>
 
             {/* Sessions over time */}
             <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>📈 Sessions kwa Siku</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>Sessions kwa Siku</div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
                 {(() => {
                   const data = stats.byDay || [];
@@ -222,7 +222,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Event breakdown */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>⚡ Matukio kwa Aina</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Matukio kwa Aina</div>
                 {(stats.eventTypes || []).map((e, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid #f8fafc', fontSize: 12 }}>
                     <span style={{ color: '#475569' }}>
@@ -237,12 +237,12 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
-                    🟢 Matukio ya Mwisho
+                    Matukio ya Mwisho
                     <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 400, marginLeft: 6 }}>inasasishwa kila sekunde 15</span>
                   </div>
                   <button onClick={fetchLive}
                     style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer', color: '#64748b' }}>
-                    🔄
+
                   </button>
                 </div>
                 <div style={{ maxHeight: 320, overflowY: 'auto' }}>
@@ -255,8 +255,8 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                           {e.eventLabel && <span style={{ color: '#94a3b8', fontWeight: 400 }}> — {e.eventLabel?.slice(0,40)}</span>}
                         </div>
                         <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                          📄 {e.page || '—'}
-                          {e.userId && <span style={{ marginLeft: 6, color: '#6366f1' }}>👤 #{e.userId}</span>}
+                          {e.page || '—'}
+                          {e.userId && <span style={{ marginLeft: 6, color: '#6366f1' }}>#{e.userId}</span>}
                         </div>
                       </div>
                       <div style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
@@ -270,7 +270,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
 
             {/* Recent sessions table */}
             <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginTop: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>🌐 Sessions za Hivi Karibuni</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>Sessions za Hivi Karibuni</div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
@@ -287,7 +287,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#6366f1' }}>{s.sessionId?.slice(0,12)}...</td>
                         <td style={{ padding: '8px 12px', color: '#475569' }}>{s.userId ? `#${s.userId}` : '—'}</td>
                         <td style={{ padding: '8px 12px' }}>
-                          {s.device === 'mobile' ? '📱' : s.device === 'tablet' ? '📟' : '🖥️'} {s.device || 'desktop'}
+                          {s.device === 'mobile' ? '' : s.device === 'tablet' ? '' : ''} {s.device || 'desktop'}
                         </td>
                         <td style={{ padding: '8px 12px', color: '#475569' }}>{s.browser || '—'}</td>
                         <td style={{ padding: '8px 12px', color: '#475569' }}>
@@ -297,7 +297,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                         <td style={{ padding: '8px 12px', fontWeight: 700, color: '#1e293b' }}>{s.events}</td>
                         <td style={{ padding: '8px 12px' }}>
                           {s.converted
-                            ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✅ Ndiyo</span>
+                            ? <span style={{ color: '#16a34a', fontWeight: 700 }}>Ndiyo</span>
                             : <span style={{ color: '#94a3b8' }}>—</span>}
                         </td>
                         <td style={{ padding: '8px 12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>

@@ -46,9 +46,9 @@ const BodaRates = ({ onNavigate }) => {
       });
       setMatrix(m => ({ ...m, [key]: Number(value) }));
       setEditCell(null);
-      showMsg('✅ Bei imesasishwa');
+      showMsg('Bei imesasishwa');
     } catch {
-      showMsg('❌ Imeshindwa kuhifadhi');
+      showMsg('Imeshindwa kuhifadhi');
     } finally {
       setSaving(s => ({ ...s, [key]: false }));
     }
@@ -70,7 +70,7 @@ const BodaRates = ({ onNavigate }) => {
   const handleResetDefaults = async () => {
     if (!window.confirm('Rudisha bei zote kwa chaguo-msingi la KenteXa?')) return;
     setMatrix({ ...DEFAULT_MATRIX });
-    showMsg('✅ Bei zimerudishwa — zitaathiri mara tu upakiwe upya');
+    showMsg('Bei zimerudishwa — zitaathiri mara tu upakiwe upya');
   };
 
   return (
@@ -79,17 +79,17 @@ const BodaRates = ({ onNavigate }) => {
       <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <button onClick={() => onNavigate('Dashboard')} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>🛵 Bei za Boda Boda — Dar es Salaam</div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Bei za Boda Boda — Dar es Salaam</div>
           <div style={{ fontSize: 11, color: '#94a3b8' }}>KenteXa inasimamia bei zote kwa niaba ya wauzaji</div>
         </div>
         <button onClick={handleResetDefaults}
           style={{ fontSize: 11, color: '#94a3b8', background: 'none', border: '1px solid #e2e8f0', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
-          🔄 Chaguo-Msingi
+          Chaguo-Msingi
         </button>
       </div>
 
       {message && (
-        <div style={{ backgroundColor: message.startsWith('❌') ? '#fee2e2' : '#dcfce7', color: message.startsWith('❌') ? '#dc2626' : '#15803d', padding: '10px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
+        <div style={{ backgroundColor: message.startsWith('') ? '#fee2e2' : '#dcfce7', color: message.startsWith('') ? '#dc2626' : '#15803d', padding: '10px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
           {message}
         </div>
       )}
@@ -105,7 +105,7 @@ const BodaRates = ({ onNavigate }) => {
         {/* Fee Matrix Table */}
         <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 16, overflowX: 'auto' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-            📊 Jedwali la Bei (TZS) — Muuzaji → Mnunuzi
+            Jedwali la Bei (TZS) — Muuzaji → Mnunuzi
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
@@ -148,7 +148,7 @@ const BodaRates = ({ onNavigate }) => {
                             />
                             <button onClick={() => handleSaveCell(key, editCell.value)}
                               style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>
-                              {saving[key] ? '⏳' : '✓'}
+                              {saving[key] ? '' : '✓'}
                             </button>
                           </div>
                         ) : (
@@ -169,13 +169,13 @@ const BodaRates = ({ onNavigate }) => {
           </table>
 
           <div style={{ marginTop: 10, fontSize: 10, color: '#94a3b8' }}>
-            💡 Gusa bei yoyote ili kuibadilisha · Kisanduku <span style={{ backgroundColor: '#f0fdf4', padding: '0 4px', borderRadius: 3 }}>kijani</span> = muuzaji na mnunuzi wako eneo moja
+            Gusa bei yoyote ili kuibadilisha · Kisanduku <span style={{ backgroundColor: '#f0fdf4', padding: '0 4px', borderRadius: 3 }}>kijani</span> = muuzaji na mnunuzi wako eneo moja
           </div>
         </div>
 
         {/* Zone Legend */}
         <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>📍 Maeneo</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>Maeneo</div>
           {ZONES.map(z => (
             <div key={z.rank} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f8fafc' }}>
               <span style={{ fontSize: 12, fontWeight:800, color: '#7c3aed', width: 20 }}>{z.rank}</span>
@@ -186,7 +186,7 @@ const BodaRates = ({ onNavigate }) => {
 
         {/* Live tester */}
         <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>🧮 Jaribu Bei</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>Jaribu Bei</div>
           <div style={{ marginBottom: 8 }}>
             <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Eneo la Muuzaji</label>
             <select value={testSeller} onChange={e => setTestSeller(e.target.value)}
@@ -203,7 +203,7 @@ const BodaRates = ({ onNavigate }) => {
           </div>
           <button onClick={handleTest} disabled={testing}
             style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 11, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-            {testing ? '⏳ Inakokotoa...' : '🧮 Kokotoa Bei'}
+            {testing ? 'Inakokotoa...' : 'Kokotoa Bei'}
           </button>
 
           {testResult && !testResult.error && (
@@ -215,7 +215,7 @@ const BodaRates = ({ onNavigate }) => {
             </div>
           )}
           {testResult?.error && (
-            <div style={{ marginTop: 10, color: '#dc2626', fontSize: 13 }}>❌ {testResult.error}</div>
+            <div style={{ marginTop: 10, color: '#dc2626', fontSize: 13 }}>{testResult.error}</div>
           )}
         </div>
       </div>

@@ -10,10 +10,10 @@ const CITIES = [
 ];
 
 const TRANSPORT_LABELS = {
-  bus:       '🚌 Basi',
-  agent_van: '🚐 Van ya Agent',
-  courier:   '📦 Courier',
-  flight:    '✈️ Ndege',
+  bus:       'Basi',
+  agent_van: 'Van ya Agent',
+  courier:   'Courier',
+  flight:    'Ndege',
 };
 
 const inputStyle = {
@@ -56,7 +56,7 @@ const RouteManagement = ({ onNavigate }) => {
     try {
       setSeeding(true); setError(''); setSuccess('');
       const res = await api.post('/locations/seed');
-      setSuccess(`✅ Maeneo yamejazwa: Mikoa ${res.data.regions}, Wilaya ${res.data.districts}, Kata ${res.data.wards}`);
+      setSuccess(`Maeneo yamejazwa: Mikoa ${res.data.regions}, Wilaya ${res.data.districts}, Kata ${res.data.wards}`);
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kujaza maeneo');
     } finally { setSeeding(false); }
@@ -68,7 +68,7 @@ const RouteManagement = ({ onNavigate }) => {
       setSeeding(true); setError(''); setSuccess(''); setSeedResult(null);
       const res = await api.post('/super-agents/admin/seed-routes');
       setSeedResult(res.data);
-      setSuccess(`✅ Imekamilika! Njia mpya: ${res.data.seeded}, Zilizokuwepo: ${res.data.skipped}`);
+      setSuccess(`Imekamilika! Njia mpya: ${res.data.seeded}, Zilizokuwepo: ${res.data.skipped}`);
       fetchRoutes();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kujaza njia');
@@ -117,7 +117,7 @@ const RouteManagement = ({ onNavigate }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>🗺️ Jedwali la Njia za Intercity</h1>
+            <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>Jedwali la Njia za Intercity</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
               Simamia njia zote kati ya miji — ETA, ada, na usafirishaji
             </p>
@@ -125,23 +125,23 @@ const RouteManagement = ({ onNavigate }) => {
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={handleSeed} disabled={seeding}
               style={{ background: seeding ? '#64748b' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: seeding ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-              {seeding ? '⏳ Inajaza...' : '🌍 Jaza Njia za Tanzania'}
+              {seeding ? 'Inajaza...' : 'Jaza Njia za Tanzania'}
             </button>
             <button onClick={handleSeedLocations} disabled={seeding}
               style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff',
                 border: 'none', padding: '10px 18px', borderRadius: 10,
                 cursor: seeding ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-              {seeding ? '⏳ Inajaza...' : '🗺️ Jaza Maeneo ya Tanzania'}
+              {seeding ? 'Inajaza...' : 'Jaza Maeneo ya Tanzania'}
             </button>
             <button onClick={() => setShowForm(!showForm)}
               style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-              {showForm ? '✕ Funga' : '+ Ongeza Route'}
+              {showForm ? 'Funga' : '+ Ongeza Route'}
             </button>
           </div>
         </div>
 
-        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>❌ {error}</div>}
-        {success && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>✅ {success}</div>}
+        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>{error}</div>}
+        {success && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>{success}</div>}
 
         {/* Seed result summary */}
         {seedResult && (
@@ -164,7 +164,7 @@ const RouteManagement = ({ onNavigate }) => {
         {/* Add/Edit form */}
         {showForm && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 20 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>➕ Route Mpya</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>Route Mpya</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
                 <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Jiji la Asili *</label>
@@ -202,21 +202,21 @@ const RouteManagement = ({ onNavigate }) => {
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
                   <input type="checkbox" checked={form.isPartnerRoute}
                     onChange={e => setForm(f => ({...f, isPartnerRoute: e.target.checked}))} />
-                  🤝 Route ya Mshirika (Partner)
+                  Route ya Mshirika (Partner)
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
                   <input type="checkbox" checked={form.isActive !== false}
                     onChange={e => setForm(f => ({...f, isActive: e.target.checked}))} />
-                  ✅ Inatumika
+                  Inatumika
                 </label>
               </div>
               <div>
                 <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Usafiri wa Kawaida</label>
                 <select value={form.primaryTransport} onChange={e => setForm(f => ({ ...f, primaryTransport: e.target.value }))} style={inputStyle}>
-                  <option value="bus">🚌 Basi</option>
-                  <option value="agent_van">🚐 Van ya Agent</option>
-                  <option value="courier">📦 Courier</option>
-                  <option value="flight">✈️ Ndege</option>
+                  <option value="bus">Basi</option>
+                  <option value="agent_van">Van ya Agent</option>
+                  <option value="courier">Courier</option>
+                  <option value="flight">Ndege</option>
                 </select>
               </div>
               <div>
@@ -247,7 +247,7 @@ const RouteManagement = ({ onNavigate }) => {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handleSave} disabled={saving}
                 style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                {saving ? '⏳ Inahifadhi...' : '💾 Hifadhi Route'}
+                {saving ? 'Inahifadhi...' : 'Hifadhi Route'}
               </button>
               <button onClick={() => setShowForm(false)}
                 style={{ padding: '10px 18px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#64748b' }}>
@@ -269,10 +269,10 @@ const RouteManagement = ({ onNavigate }) => {
 
         {/* Routes table */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>Hakuna routes bado. Ongeza route ya kwanza!</div>
           </div>
         ) : (
@@ -290,7 +290,7 @@ const RouteManagement = ({ onNavigate }) => {
                   <tr key={route.id} style={{ borderBottom: '1px solid #f8fafc' }}>
                     <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
                       {route.originCity} → {route.destinationCity}
-                      {route.transitCity && <div style={{ fontSize: 11, color: '#ca8a04', marginTop: 2 }}>🔄 Via {route.transitCity}</div>}
+                      {route.transitCity && <div style={{ fontSize: 11, color: '#ca8a04', marginTop: 2 }}>Via {route.transitCity}</div>}
                     {route.notes && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{route.notes}</div>}
                     </td>
                     <td style={{ padding: '12px 14px', fontSize: 13, color: '#475569' }}>
@@ -309,13 +309,13 @@ const RouteManagement = ({ onNavigate }) => {
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                         backgroundColor: route.isActive ? '#dcfce7' : '#fee2e2',
                         color: route.isActive ? '#16a34a' : '#dc2626' }}>
-                        {route.isActive ? '✅ Inafanya kazi' : '⏸️ Imesimamishwa'}
+                        {route.isActive ? 'Inafanya kazi' : 'Imesimamishwa'}
                       </span>
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <button onClick={() => handleDelete(route.id, `${route.originCity} → ${route.destinationCity}`)}
                         style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '5px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                        🗑️ Futa
+                        Futa
                       </button>
                     </td>
                   </tr>

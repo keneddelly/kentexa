@@ -36,7 +36,7 @@ export default function AdminDispatchReminders({ activePage, onNavigate, onLogou
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 22, margin: 0, color: '#0f172a' }}>⏰ Dispatch reminders</h1>
+            <h1 style={{ fontSize: 22, margin: 0, color: '#0f172a' }}>Dispatch reminders</h1>
             <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: 13 }}>
               Vifurushi vilivyopokelewa bila taarifa za kusafirisha: alama za "Bado kiko hapa" na SMS za jioni kwa ofisi.
             </p>
@@ -50,7 +50,7 @@ export default function AdminDispatchReminders({ activePage, onNavigate, onLogou
         {loading ? <div>Inapakia…</div> : (
           <>
             <div style={card}>
-              <h2 style={{ fontSize: 16, margin: '0 0 10px' }}>✋ "Bado kiko hapa" ({marks.length})</h2>
+              <h2 style={{ fontSize: 16, margin: '0 0 10px' }}>"Bado kiko hapa" ({marks.length})</h2>
               {marks.length === 0 ? <div style={{ color: '#64748b', fontSize: 13 }}>Hakuna alama.</div> : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead><tr><th style={th}>Lini</th><th style={th}>Ofisi</th><th style={th}>Kifurushi</th><th style={th}>Kwenda</th><th style={th}>Hali sasa</th><th style={th}>Aliyebonyeza</th></tr></thead>
@@ -67,7 +67,7 @@ export default function AdminDispatchReminders({ activePage, onNavigate, onLogou
               )}
             </div>
             <div style={card}>
-              <h2 style={{ fontSize: 16, margin: '0 0 10px' }}>📩 SMS za jioni ({reminders.length})</h2>
+              <h2 style={{ fontSize: 16, margin: '0 0 10px' }}>SMS za jioni ({reminders.length})</h2>
               {reminders.length === 0 ? <div style={{ color: '#64748b', fontSize: 13 }}>Hakuna SMS.</div> : (
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead><tr><th style={th}>Tarehe</th><th style={th}>Ofisi</th><th style={th}>Vifurushi</th><th style={th}>Hali</th><th style={th}>Majaribio</th><th style={th}>Kosa</th></tr></thead>
