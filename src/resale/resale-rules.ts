@@ -13,6 +13,47 @@ import { BadRequestException } from '@nestjs/common';
  */
 export const RESALE_NOTE_MAX = 200;
 
+/** The supplier pays the reseller's profit within this many days of delivery (owner 2026-11-09). */
+export const PAY_DAYS = 3;
+/** A supplier with a profit unpaid this many days after delivery gets no new resale orders. */
+export const STOP_DAYS = 7;
+const DAY = 24 * 3600_000;
+
+/**
+ * Where one resale order's profit stands. The order's own status and the profit record decide it;
+ * nothing is guessed.
+ *   waiting    not delivered yet: nothing owed
+ *   owed       delivered, the supplier should pay within PAY_DAYS
+ *   late       delivered more than PAY_DAYS ago, still unpaid
+ *   paid       the supplier says paid (with a reference); the reseller has not answered
+ *   confirmed  the reseller confirmed receiving it
+ *   disputed   the reseller says not received
+ *   on_hold    the buyer disputed the order
+ *   cancelled  cancelled: nothing owed
+ */
+export type ProfitState = 'waiting' | 'owed' | 'late' | 'paid' | 'confirmed' | 'disputed' | 'on_hold' | 'cancelled';
+
+export function profitState(o: {
+  status?: string | null; deliveredAt?: Date | string | null; completedAt?: Date | string | null;
+  resellerPaidAt?: unknown; resellerConfirmedAt?: unknown; resellerDisputedAt?: unknown;
+}, now = Date.now()): ProfitState {
+  const status = String(o.status || '');
+  if (status === 'cancelled') return 'cancelled';
+  if (status === 'disputed') return 'on_hold';
+  if (status !== 'delivered' && status !== 'completed') return 'waiting';
+  if (o.resellerConfirmedAt) return 'confirmed';
+  if (o.resellerDisputedAt) return 'disputed';
+  if (o.resellerPaidAt) return 'paid';
+  const at = new Date((o.deliveredAt || o.completedAt) as any).getTime();
+  return Number.isFinite(at) && now - at > PAY_DAYS * DAY ? 'late' : 'owed';
+}
+
+/** SQL: resale profits this supplier left unpaid more than STOP_DAYS after delivery (alias p = product). */
+export const UNPAID_LATE_SQL = `(SELECT COUNT(*) FROM public."order" r
+  WHERE r."sellerId" = p."sellerId" AND r."resellerUserId" IS NOT NULL AND r."resellerPaidAt" IS NULL
+    AND r.status::text IN ('delivered', 'completed')
+    AND COALESCE(r."deliveredAt", r."completedAt") < now() - interval '${STOP_DAYS} days')`;
+
 export const money = (v: unknown): number => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
@@ -72,7 +113,8 @@ export async function resaleForOrder(query: Query, offerId: unknown, productId: 
   if (!Number.isInteger(id) || id <= 0) throw new BadRequestException('Ofa ya muuzaji si sahihi.');
   const [row] = await query(
     `SELECT o.id, o."productId", o."resellerUserId", o.price, o."isActive",
-            p."resaleOpen", p."resalePrice", p."resaleMinPrice", p."sellerId"
+            p."resaleOpen", p."resalePrice", p."resaleMinPrice", p."sellerId",
+            ${UNPAID_LATE_SQL} AS "unpaidLate"
        FROM public.resale_offer o JOIN public.product p ON p.id = o."productId"
       WHERE o.id = $1::int`, [id]);
   if (!row || !row.isActive || Number(row.productId) !== Number(productId)) {
@@ -83,6 +125,10 @@ export async function resaleForOrder(query: Query, offerId: unknown, productId: 
   }
   if (buyerId != null && Number(row.resellerUserId) === Number(buyerId)) {
     throw new BadRequestException('Huwezi kuagiza kutoka kwenye ofa yako mwenyewe.');
+  }
+  // Owner 2026-11-09: a supplier that left a reseller's profit unpaid 7 days gets no new resale orders.
+  if (Number(row.unpaidLate) > 0) {
+    throw new BadRequestException('Duka hili bado halijawalipa wauzaji faida zao. Agiza kwa bei ya duka, au jaribu baadaye.');
   }
   if (money(row.price) < sellingFloor(row)) {
     throw new BadRequestException('Bei ya muuzaji imebadilika. Muulize muuzaji akupe kiungo kipya.');

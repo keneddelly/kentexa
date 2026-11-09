@@ -2,7 +2,11 @@
  * "Uza tena" (resell), owner approved 2026-11-09: the person's reselling in one place.
  *   Ofa zangu        their offers: price, profit for one sale, orders, link to share, stop
  *   Bidhaa za kuuza  products suppliers opened for resellers, with the profit at the shop price
- * GET /resale/mine, GET /resale/products, DELETE /resale/offers/:id.
+ *   Faida zangu      every order from their links and where its profit stands; "Nimepokea" or
+ *                    "Sijapokea" once the shop says it paid (R3)
+ *   Wauzaji wangu    for a shop: what it owes each reseller; "Nimelipa" with the M-Pesa reference
+ * GET /resale/mine, /resale/products, /resale/profits, /resale/supplier-orders;
+ * DELETE /resale/offers/:id; POST /resale/orders/:id/paid | confirm | dispute.
  */
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
@@ -18,11 +22,43 @@ const thumb = { width: 56, height: 56, borderRadius: 10, objectFit: 'cover', bac
 const small = (bg, color = WH) => ({ height: 36, padding: '0 14px', borderRadius: 18, border: bg === WH ? '1px solid #cfd9de' : 'none', backgroundColor: bg, color,
   fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' });
 
-export default function MyResales({ onNavigate }) {
-  const [tab, setTab] = useState('mine');
+const STATE = {
+  waiting: ['Inasubiri mteja apokee', GR],
+  owed: ['Duka linadaiwa', '#b45309'],
+  late: ['Imechelewa, zaidi ya siku 3', '#b91c1c'],
+  paid: ['Duka limesema limelipa', B],
+  confirmed: ['Imepokelewa', '#166534'],
+  disputed: ['Muuzaji anasema hajapokea', '#b91c1c'],
+  on_hold: ['Mteja ana malalamiko', '#b45309'],
+  cancelled: ['Imeghairiwa', GR],
+};
+const StateTag = ({ state }) => {
+  const [text, color] = STATE[state] || [state, GR];
+  return <span data-testid={`state-${state}`} style={{ fontSize: 13, fontWeight: 700, color }}>{text}</span>;
+};
+
+export default function MyResales({ onNavigate, startTab }) {
+  const [tab, setTab] = useState(startTab || 'mine');
   const [mine, setMine] = useState(null);
   const [open, setOpen] = useState(null);
+  const [profits, setProfits] = useState(null);
+  const [supplier, setSupplier] = useState(null);
+  const [refs, setRefs] = useState({});
   const [msg, setMsg] = useState('');
+
+  const loadProfits = () => api.get('/resale/profits').then((r) => setProfits(r.data || { items: [] })).catch(() => setProfits({ items: [] }));
+  const loadSupplier = () => api.get('/resale/supplier-orders').then((r) => setSupplier(r.data || { items: [] })).catch(() => setSupplier({ items: [] }));
+  useEffect(() => { loadProfits(); loadSupplier(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once on open
+  const act = async (fn, okText) => {
+    setMsg('');
+    try { await fn(); setMsg(okText); } catch (e) { setMsg(e?.response?.data?.message || 'Imeshindikana.'); }
+  };
+  const markPaid = (o) => act(async () => {
+    await api.post(`/resale/orders/${o.orderId}/paid`, { ref: (refs[o.orderId] || '').trim() });
+    await loadSupplier();
+  }, 'Imehifadhiwa. Muuzaji ataambiwa.');
+  const confirmPaid = (o) => act(async () => { await api.post(`/resale/orders/${o.orderId}/confirm`); await loadProfits(); }, 'Asante. Imethibitishwa.');
+  const dispute = (o) => act(async () => { await api.post(`/resale/orders/${o.orderId}/dispute`, {}); await loadProfits(); }, 'Duka limeambiwa hujapokea.');
 
   const loadMine = () => api.get('/resale/mine').then((r) => setMine(r.data || [])).catch(() => setMine([]));
   useEffect(() => { loadMine(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once on open
@@ -59,7 +95,9 @@ export default function MyResales({ onNavigate }) {
       </header>
       <div role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, padding: '0 4px' }}>
         {tabBtn('mine', 'Ofa zangu')}
+        {tabBtn('profits', 'Faida zangu')}
         {tabBtn('open', 'Bidhaa za kuuza')}
+        {(supplier?.items?.length > 0 || startTab === 'supplier') && tabBtn('supplier', 'Wauzaji wangu')}
       </div>
       {msg && <div role="status" style={{ margin: 16, fontSize: 14, color: '#166534', fontWeight: 600, overflowWrap: 'anywhere' }}>{msg}</div>}
 
@@ -90,6 +128,75 @@ export default function MyResales({ onNavigate }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {tab === 'profits' && (
+        <div data-testid="resale-profits">
+          {profits && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 16 }}>
+              {[['Inakuja', profits.totals?.coming], ['Unadai', profits.totals?.owed], ['Umepokea', profits.totals?.received]].map(([k, v]) => (
+                <div key={k} style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: 10 }}>
+                  <div style={{ fontSize: 13, color: GR }}>{k}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>{tzs(v)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {profits === null && <li style={{ padding: 16, color: GR }}>Inapakia...</li>}
+            {profits?.items?.length === 0 && <li style={{ padding: 16, color: GR, fontSize: 15 }}>Bado hakuna oda kutoka kwenye viungo vyako.</li>}
+            {(profits?.items || []).map((o) => (
+              <li key={o.orderId} style={{ padding: '12px 16px', borderBottom: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <b style={{ fontSize: 15 }}>{o.product} · oda #{o.orderId}</b>
+                  <b style={{ fontSize: 15, flexShrink: 0 }}>{tzs(o.profit)}</b>
+                </div>
+                <div style={{ fontSize: 14, color: GR }}>{o.supplierName}{o.supplierPhone ? ` · ${o.supplierPhone}` : ''} · {o.quantity} x {tzs(o.sellingPrice)}</div>
+                <StateTag state={o.state} />
+                {o.state === 'paid' && (
+                  <>
+                    <div style={{ fontSize: 14, color: DK }}>Muamala: {o.paidRef}</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" data-testid={`confirm-${o.orderId}`} onClick={() => confirmPaid(o)} style={small('#166534')}>Nimepokea</button>
+                      <button type="button" data-testid={`dispute-${o.orderId}`} onClick={() => dispute(o)} style={small(WH, DK)}>Sijapokea</button>
+                    </div>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {tab === 'supplier' && (
+        <div data-testid="resale-supplier">
+          <p style={{ margin: 16, fontSize: 14, color: GR, lineHeight: 1.45 }}>
+            Mlipe muuzaji faida yake ndani ya siku 3 baada ya mteja kupokea. Ukichelewa siku 7, oda mpya za wauzaji kwako zinasimama mpaka ulipe.
+          </p>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {supplier === null && <li style={{ padding: 16, color: GR }}>Inapakia...</li>}
+            {supplier?.items?.length === 0 && <li style={{ padding: 16, color: GR }}>Hakuna oda za wauzaji bado.</li>}
+            {(supplier?.items || []).map((o) => (
+              <li key={o.orderId} style={{ padding: '12px 16px', borderBottom: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                  <b style={{ fontSize: 15 }}>{o.product} · oda #{o.orderId}</b>
+                  <b style={{ fontSize: 15, flexShrink: 0 }}>{tzs(o.profit)}</b>
+                </div>
+                <div style={{ fontSize: 14, color: GR }}>{o.resellerName}{o.resellerPhone ? ` · ${o.resellerPhone}` : ''} · aliuza {o.quantity} x {tzs(o.sellingPrice)}</div>
+                <StateTag state={o.state} />
+                {o.paidRef && <div style={{ fontSize: 14, color: DK }}>Muamala: {o.paidRef}{o.disputeNote ? ` · ${o.disputeNote}` : ''}</div>}
+                {['owed', 'late', 'disputed'].includes(o.state) && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input value={refs[o.orderId] || ''} onChange={(e) => setRefs((r) => ({ ...r, [o.orderId]: e.target.value }))}
+                      placeholder="Namba ya muamala (M-Pesa)" aria-label={`Namba ya muamala oda ${o.orderId}`} data-testid={`ref-${o.orderId}`}
+                      style={{ flex: 1, minWidth: 0, height: 36, padding: '0 10px', borderRadius: 10, border: '1px solid #cfd9de', fontSize: 15, fontFamily: 'inherit' }} />
+                    <button type="button" data-testid={`paid-${o.orderId}`} onClick={() => markPaid(o)} style={small(DK)}>Nimelipa</button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {tab === 'open' && (

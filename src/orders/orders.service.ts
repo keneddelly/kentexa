@@ -770,6 +770,20 @@ export class OrdersService {
       /* non-critical */
     }
 
+    // "Uza tena": the reseller hears that their link sold (their profit is owed after delivery).
+    if (resale) {
+      this.inAppNotif.notify({
+        userId: resale.resellerUserId,
+        type: 'resale_profit',
+        title: 'Kiungo chako kimeuza',
+        body: `${product.name}: oda #${saved.id}. Faida yako TZS ${Math.round(resellerProfit(resale.resaleUnitPrice, resale.supplierUnitPrice, dto.quantity)).toLocaleString('en-US')} baada ya mteja kupokea.`,
+        actionPage: 'MyResales',
+        orderId: saved.id,
+        sourceType: 'order',
+        sourceId: saved.id,
+      }).catch(() => undefined);
+    }
+
     // 🔔 In-app + push for the BUYER — via the Communication Engine (Phase
     // C). The seller leg above already works via orderPlacedById; the
     // buyer previously got only the email at line ~397, never an in-app

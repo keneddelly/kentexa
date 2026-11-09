@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { assertResaleTerms, assertSellingPrice, resaleForOrder, resellerProfit, sellingFloor } from './resale-rules';
+import { assertResaleTerms, assertSellingPrice, profitState, resaleForOrder, resellerProfit, sellingFloor } from './resale-rules';
 
 /** "Uza tena" (owner 2026-11-09): supplier 42,000, reseller sells at 55,000, earns 13,000 a piece. */
 describe('Uza tena: price rules', () => {
@@ -56,5 +56,27 @@ describe('Uza tena: the order is checked again on the server', () => {
     await expect(resaleForOrder(q(offer({ resalePrice: '56000.00' })), 7, 3, 1)).rejects.toThrow('imebadilika');
     await expect(resaleForOrder(q(null), 7, 3, 1)).rejects.toBeInstanceOf(BadRequestException);
     await expect(resaleForOrder(q(offer()), 'x', 3, 1)).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('Uza tena R3: where a profit stands', () => {
+  const now = Date.parse('2026-11-20T12:00:00Z');
+  const days = (n: number) => new Date(now - n * 24 * 3600_000).toISOString();
+  it('nothing owed before delivery or on a cancelled order', () => {
+    expect(profitState({ status: 'preparing' }, now)).toBe('waiting');
+    expect(profitState({ status: 'cancelled', resellerPaidAt: null }, now)).toBe('cancelled');
+    expect(profitState({ status: 'disputed' }, now)).toBe('on_hold');
+  });
+  it('owed after delivery, late after 3 days; then paid, confirmed or disputed', () => {
+    expect(profitState({ status: 'delivered', deliveredAt: days(1) }, now)).toBe('owed');
+    expect(profitState({ status: 'completed', deliveredAt: days(4) }, now)).toBe('late');
+    expect(profitState({ status: 'delivered', deliveredAt: days(4), resellerPaidAt: days(0) }, now)).toBe('paid');
+    expect(profitState({ status: 'delivered', resellerPaidAt: days(0), resellerDisputedAt: days(0) }, now)).toBe('disputed');
+    expect(profitState({ status: 'delivered', resellerPaidAt: days(1), resellerConfirmedAt: days(0) }, now)).toBe('confirmed');
+  });
+  it('a supplier with a profit unpaid 7 days gets no new resale orders', async () => {
+    const row = { id: 7, productId: 3, resellerUserId: 20, price: '55000.00', isActive: true, resaleOpen: true,
+      resalePrice: '42000.00', resaleMinPrice: null, sellerId: 9, unpaidLate: '1' };
+    await expect(resaleForOrder(jest.fn(async () => [row]), 7, 3, 1)).rejects.toThrow('halijawalipa');
   });
 });
