@@ -1,4 +1,9 @@
 import 'reflect-metadata';
+// Discovery also offers bookable Runs (run-supply.ts), so the Run tables must exist.
+import { RouteStop } from '../transport/entities/route-stop.entity';
+import { TransportRun } from '../transport/entities/transport-run.entity';
+import { TransportRunStop } from '../transport/entities/transport-run-stop.entity';
+import { Vehicle } from '../transport/entities/vehicle.entity';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
 import { BadRequestException } from '@nestjs/common';
@@ -60,9 +65,13 @@ suite('Route discovery — real PostgreSQL, production-shaped data', () => {
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, TzRegion, TzDistrict, TzWard, ProviderAvailability, TransportRoute, Shipment],
+      entities: [...B5B_BASE_ENTITIES, TzRegion, TzDistrict, TzWard, ProviderAvailability, TransportRoute, Shipment, RouteStop, TransportRun, TransportRunStop, Vehicle],
     });
     await ds.initialize();
+    // Run load (run-supply.ts) reads these; bare stand-ins, as in the Run suites.
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.journey_leg (id serial PRIMARY KEY, "journeySelectionId" integer, "runId" integer)`);
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.parcel (id serial PRIMARY KEY, "weightKg" decimal(8,2), "shipmentId" integer)`);
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.parcel_run_assignment (id serial PRIMARY KEY, "runId" integer, "parcelId" integer, status varchar)`);
 
     const tz = new TzLocationService(ds.getRepository(TzRegion), ds.getRepository(TzDistrict), ds.getRepository(TzWard));
     await seedTzLocations(ds); // production parity: union of both idempotent loaders
@@ -103,8 +112,8 @@ suite('Route discovery — real PostgreSQL, production-shaped data', () => {
     ids.slotOneChar = (await mkSlot(pD, { fromCity: 'a', toCity: 'Mbeya' })).id;
     ids.slotUnderscore = (await mkSlot(pD, { fromCity: 'Dar_es', toCity: 'Tanga' })).id;
 
-    const args: any[] = new Array(14).fill({});
-    args[0] = providers; args[1] = routes; args[2] = slots;
+    const args: any[] = new Array(16).fill({});
+    args[0] = providers; args[1] = routes; args[2] = slots; args[15] = ds; // discoverSupply reads dataSource (index 15)
     transport = new (TransportService as any)(...args);
     shipments = new ShipmentsService({} as any, {} as any, {} as any, {} as any, transport, tz, li);
   });

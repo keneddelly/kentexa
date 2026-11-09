@@ -63,6 +63,7 @@ describe('TransportService legacy authority closure', () => {
       noop, // commerceProfiles
       noop, // tzLocation
       noop, // roleContextService
+      noop, // searchIndex (added to the constructor later)
       dataSource,
     );
     return { service, assignmentRepo, providerRepo, superAgentRepo };

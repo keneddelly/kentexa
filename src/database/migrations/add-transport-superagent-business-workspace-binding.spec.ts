@@ -123,10 +123,12 @@ describe('AddTransportSuperAgentBusinessWorkspaceBinding1788262800000', () => {
     expect(destination?.options).toMatchObject({ nullable: true, onDelete: 'SET NULL' });
   });
 
-  it('raises the repository migration implementation count to 11', () => {
-    const migrations = readdirSync(__dirname).filter((name) =>
-      /^\d{13}-.+\.ts$/.test(name),
-    );
-    expect(migrations).toHaveLength(11);
+  // The old fixed total (11 / 22 files) went stale as soon as later migrations were added
+  // (owner 2026-11-09: repair the baseline). What matters is that this migration is in the
+  // folder exactly once.
+  it('this migration is in the folder exactly once', () => {
+    const migrations = readdirSync(__dirname).filter((name) => /^\d{13}-.+\.ts$/.test(name) && !/\.spec\.ts$/.test(name));
+    expect(migrations.filter((n) => n.startsWith('1788262800000-'))).toHaveLength(1);
+    expect(migrations.length).toBeGreaterThan(1);
   });
 });

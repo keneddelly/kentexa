@@ -87,10 +87,10 @@ suite('Stage 3S-B3 — canonical transport quote lifecycle, real PostgreSQL', ()
     quotes = ds.getRepository(TransportQuote);
     shipmentsRepo = ds.getRepository(Shipment);
 
-    const args: any[] = new Array(15).fill({});
+    const args: any[] = new Array(16).fill({}); // searchIndex was added before dataSource
     args[0] = providers; args[1] = routes; args[2] = slots;
     transport = new (TransportService as any)(...args);
-    quoteService = new TransportQuoteService(quotes, routes, slots, transport, ds);
+    quoteService = new TransportQuoteService(quotes, routes, slots, {} as any /* journeyRepo, added later */, transport, ds, {} as any /* journeys */);
     const parcelRepoFake: any = { create: (v: any) => v, findOne: async () => null, save: async (v: any) => v };
     shipmentService = new (ShipmentsService as any)(
       shipmentsRepo, routes, parcelRepoFake, { findOne: async () => null }, transport,

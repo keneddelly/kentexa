@@ -127,7 +127,7 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
     shipmentRepo.manager = {
       transaction: async (cb: any) => {
         const tx = { undo: new Map<number, any>(), mine: new Set<number>(), held: [] as Array<() => void>, slotUndo: new Map<number, Slot>() };
-        const em: any = { __tx: tx, getRepository: (cls: any) => (cls === Shipment ? makeRepo(tx) : ({} as any)) };
+        const em: any = { __tx: tx, getRepository: (cls: any) => (cls === Shipment ? makeRepo(tx) : cls?.name === 'Parcel' ? parcelRepo : ({} as any)) };
         txDepth++;
         try {
           return await cb(em);
@@ -143,7 +143,8 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
     };
     const parcelRepo: any = {
       create: (v: any) => ({ ...v }),
-      findOne: async ({ where }: any) => parcels.find((p) => p.shipment?.id === where.shipment.id) ?? null,
+      // Only a by-Shipment lookup can match here; the order-parcel lookup (shipment IS NULL) finds none.
+      findOne: async ({ where }: any) => (where?.shipment?.id == null ? null : parcels.find((p) => p.shipment?.id === where.shipment.id) ?? null),
       save: async (v: any) => {
         if (v.id) return v;
         if (parcelSaveFailures > 0) { parcelSaveFailures--; throw new Error('connection terminated unexpectedly'); }

@@ -43,8 +43,15 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
       update: jest.fn(),
       find: jest.fn(),
     };
+    let txChain: Promise<unknown> = Promise.resolve();
     shipmentRepo.manager = {
-      transaction: (cb: any) => cb({ getRepository: () => shipmentRepo }),
+      // The Parcel is created inside the same transaction (ensureParcelForShipment).
+      // One transaction at a time, like the Shipment row lock the real confirmation takes.
+      transaction: (cb: any) => {
+        const run = txChain.then(() => cb({ getRepository: (cls: any) => (cls?.name === 'Parcel' ? parcelRepo : shipmentRepo) }));
+        txChain = run.catch(() => undefined);
+        return run;
+      },
     };
     parcelRepo = {
       findOne: jest.fn(),
@@ -96,11 +103,13 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
   const snapshotKeys = new Set(SHIPMENT_LOCATION_SNAPSHOT_COLUMNS);
   const touchesSnapshot = (obj: any) => Object.keys(obj || {}).some((k) => snapshotKeys.has(k));
 
+  // Confirmation reads the Shipment again inside the Parcel transaction (ensureParcelForShipment),
+  // so after the first read every later read returns the CONFIRMED row.
   // 6 ─────────────────────────────────────────────────────────────────────
   it('confirmation retry is idempotent and never writes a snapshot column', async () => {
     shipmentRepo.findOne
       .mockResolvedValueOnce(pendingShipment())
-      .mockResolvedValueOnce({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
+      .mockResolvedValue({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const first = await service.confirmShipment(7, 1, { providerId: 5 });
 
@@ -157,7 +166,7 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
     };
     shipmentRepo.findOne
       .mockResolvedValueOnce(legacy)
-      .mockResolvedValueOnce({ ...legacy, status: ShipmentStatus.CONFIRMED, ...DECIDED });
+      .mockResolvedValue({ ...legacy, status: ShipmentStatus.CONFIRMED, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const result = await service.confirmShipment(7, 9, {});
     expect(result.parcel.originCity).toBe('Arusha');
@@ -183,8 +192,11 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
     const tracked = await service.trackShipment('KTX-SHP-1');
 
     expect(Object.keys(tracked).sort()).toEqual(
+      // The waybill fields (number, parcel status, current holder and place) joined public
+      // tracking with the shared waybill; still no snapshot values (checked below).
       ['trackingNumber', 'status', 'originCity', 'destinationCity', 'itemDescription', 'weightKg', 'pickupOption',
-        'deliveryOption', 'receiverName', 'collectedAt', 'deliveredAt', 'completedAt', 'createdAt', 'parcelTrackingNumber'].sort(),
+        'deliveryOption', 'receiverName', 'collectedAt', 'deliveredAt', 'completedAt', 'createdAt', 'parcelTrackingNumber',
+        'waybillNumber', 'parcelStatus', 'holder', 'location'].sort(),
     );
     const json = JSON.stringify(tracked);
     for (const leak of ['SECRET-LABEL', '-6.123456', '39.654321', 'SECRET-REGION', 'SECRET-DISTRICT', 'secret_provider', '0711111111']) {
@@ -196,15 +208,13 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
   it('a personal (non-commerce) shipment still confirms with no Order or payment evidence', async () => {
     shipmentRepo.findOne
       .mockResolvedValueOnce(pendingShipment())
-      .mockResolvedValueOnce({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
+      .mockResolvedValue({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const { parcel } = await service.confirmShipment(7, 1, { providerId: 5 });
     expect(parcel.order).toBeNull();
     expect(parcel.source).toBe('shipment');
-    // The service has no order/payment/wallet collaborator at all: its 7 injected
-    // dependencies are the shipment/route/parcel/hub repositories, transport, tz-location
-    // and (Stage 2D) location intelligence.
-    expect(ShipmentsService.length).toBe(7);
+    // The service has no order/payment/wallet collaborator at all. (Its constructor grew with
+    // later stages, so the old fixed count of 7 was dropped; the source check below is the proof.)
     const src = require('fs')
       .readFileSync(require('path').join(__dirname, 'shipments.service.ts'), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -216,7 +226,7 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
   it("Stage 1's UQ_parcel_shipmentId recovery is intact: an unrelated 23505 is not misread as the shipment race", async () => {
     shipmentRepo.findOne
       .mockResolvedValueOnce(pendingShipment())
-      .mockResolvedValueOnce({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
+      .mockResolvedValue({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const other: any = new Error('duplicate key value violates unique constraint "UQ_parcel_trackingNumber"');
     other.code = '23505';
@@ -232,6 +242,8 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
       join(root, 'shipments', 'entities', 'shipment.entity.ts'),
       join(root, 'shipments', 'shipment-location-snapshot.ts'),
       join(root, 'database', 'migrations', '1788271200000-AddShipmentLocationSnapshot.ts'),
+      // Reads the pickup place label for the agent's SMS (never writes the snapshot).
+      join(root, 'shipments', 'shipment-activation.service.ts'),
     ]);
     const files: string[] = [];
     const walk = (dir: string) => {

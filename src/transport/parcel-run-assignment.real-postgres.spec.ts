@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { MakeShipmentProviderTenderGenerationSafe1788289200000 } from '../database/migrations/1788289200000-MakeShipmentProviderTenderGenerationSafe';
 import { Client } from 'pg';
 import { DataSource, Repository } from 'typeorm';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -156,6 +157,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       status varchar DEFAULT 'pending', "destinationSuperAgentId" integer, "arrivedAtHubTime" timestamp,
       "weightKg" decimal(8,2), "journeySelectionId" integer NULL, "shipmentId" integer NULL
     )`);
+    // Direct-booking authority reads Parcel -> Shipment.providerId (a bare stand-in, like parcel).
+    await ds.query(`CREATE TABLE public.shipment (id SERIAL PRIMARY KEY, "providerId" integer NULL)`);
     await ds.query(`CREATE TABLE public.journey_selection (
       id integer PRIMARY KEY, status varchar(24) NOT NULL
     )`);
@@ -172,6 +175,18 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       "updatedBy" varchar, "handlerPhone" varchar, "handlerLocation" varchar, "handlerType" varchar,
       "createdAt" timestamp NOT NULL DEFAULT now()
     )`);
+    // The movement tender the service now reads and writes (added after this suite was written;
+    // same fixture as van-pilot-c8, owner 2026-11-09: repair the baseline).
+    await ds.query(`CREATE TABLE public.parcel_movement_tender (
+      id SERIAL PRIMARY KEY, "parcelId" integer NOT NULL, "transportProviderId" integer NOT NULL,
+      "runId" integer NULL, "loadRunStopId" integer NULL, "releasingSuperAgentId" integer NULL,
+      source varchar(32) NOT NULL, status varchar(16) NOT NULL DEFAULT 'open',
+      "issuedByUserId" integer NULL, "issuedByRoleType" varchar(32) NULL,
+      "idempotencyKey" varchar(128) NOT NULL UNIQUE, "expiresAt" timestamp NULL,
+      "consumedByParcelRunAssignmentId" integer NULL UNIQUE, "consumedAt" timestamp NULL,
+      "createdAt" timestamp NOT NULL DEFAULT now()
+    )`);
+    await new MakeShipmentProviderTenderGenerationSafe1788289200000().up(ds.createQueryRunner() as any);
 
     providers = ds.getRepository(TransportProvider);
     routes = ds.getRepository(TransportRoute);
@@ -179,8 +194,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     runs = ds.getRepository(TransportRun);
     runStops = ds.getRepository(TransportRunStop);
 
-    const args: any[] = new Array(15).fill({});
-    args[0] = providers; args[1] = routes; args[14] = ds;
+    const args: any[] = new Array(16).fill({}); // searchIndex was added before dataSource
+    args[0] = providers; args[1] = routes; args[15] = ds; // dataSource moved to 15 when searchIndex was added at 14
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);
@@ -193,6 +208,26 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     assignmentService = new ParcelRunAssignmentService(
       ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, obligationService,
     );
+    // Movement authority (added after these suites were written): a carrier may only load a parcel
+    // it holds an open tender for. The suites test run/stop rules, so each assignment first gets an
+    // open release tender for the Run's own provider (owner 2026-11-09: repair the baseline).
+    const assignWithoutTender = assignmentService.createAssignment.bind(assignmentService);
+    (assignmentService as any).createAssignment = async (userId: number, dto: any, ...rest: any[]) => {
+      const [run] = await ds.query(`SELECT "providerId" FROM public.transport_run WHERE id = $1`, [dto?.runId]);
+      const [stop] = await ds.query(`SELECT "superAgentId" FROM public.transport_run_stop WHERE id = $1`, [dto?.loadRunStopId]);
+      const [open] = run && dto?.parcelId ? await ds.query(
+        `SELECT id FROM public.parcel_movement_tender WHERE "parcelId" = $1 AND "transportProviderId" = $2 AND status = 'open'`,
+        [dto.parcelId, run.providerId]) : [];
+      if (run && dto?.parcelId && !open) {
+        // Released by the hub at the load stop (or by no hub at a plain stop), like a real release.
+        await ds.query(
+          `INSERT INTO public.parcel_movement_tender ("parcelId", "transportProviderId", "releasingSuperAgentId", source, status, "idempotencyKey")
+           VALUES ($1, $2, $3, 'super_agent_release', 'open', $4)`,
+          [dto.parcelId, run.providerId, stop?.superAgentId ?? null, `test-release:${dto.parcelId}:${run.providerId}:${Date.now()}:${Math.random()}`],
+        );
+      }
+      return assignWithoutTender(userId, dto, ...rest);
+    };
   });
 
   afterAll(async () => { if (ds) await ds.destroy().catch(() => {}); });
@@ -213,6 +248,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ds.query(`DELETE FROM public.parcel_tracking`);
     await ds.query(`DELETE FROM public.parcel`);
     await ds.query(`DELETE FROM public.journey_leg`);
+    await ds.query(`DELETE FROM public.parcel_movement_tender`);
     await ds.query(`DELETE FROM public.journey_selection`);
     await ds.query(`DELETE FROM public.super_agent`);
   });

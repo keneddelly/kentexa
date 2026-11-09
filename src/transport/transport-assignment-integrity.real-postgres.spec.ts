@@ -230,7 +230,7 @@ suite('Stage 3S-B1 — TransportAssignment capacity/authority integrity, real Po
       transaction: (fn: any) => ds.transaction((m) => fn(wrapManager(m))),
     };
 
-    const args: any[] = new Array(15).fill({});
+    const args: any[] = new Array(16).fill({}); // searchIndex was added at 14, dataSource is 15
     args[0] = providerRepoFor(ds); // providerRepo
     args[2] = { findOne: async ({ where }: any) => (await ds.query(`SELECT * FROM public.provider_availability WHERE id = $1`, [where.id]))[0] ?? null }; // availabilityRepo
     args[3] = assignmentRepoFor(ds); // assignmentRepo (unlocked pre-checks only)
@@ -264,7 +264,7 @@ suite('Stage 3S-B1 — TransportAssignment capacity/authority integrity, real Po
       },
     }; // superAgentRepo
     args[10] = { award: async () => {} }; // reputationService
-    args[14] = fakeDataSource; // dataSource
+    args[15] = fakeDataSource; // dataSource
     transport = new (TransportService as any)(...args);
   });
 

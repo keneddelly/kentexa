@@ -119,10 +119,12 @@ describe('AddServiceBusinessAuthorityFoundation1788263400000', () => {
     expect(businessIndex?.options?.unique).not.toBe(true);
   });
 
-  it('tracks the repository migration implementation count (21 through Stage 2F + 1 Stage 3A custody schema = 22)', () => {
-    const migrations = readdirSync(__dirname).filter((name) =>
-      /^\d{13}-.+\.ts$/.test(name),
-    );
-    expect(migrations).toHaveLength(22);
+  // The old fixed total (11 / 22 files) went stale as soon as later migrations were added
+  // (owner 2026-11-09: repair the baseline). What matters is that this migration is in the
+  // folder exactly once.
+  it('this migration is in the folder exactly once', () => {
+    const migrations = readdirSync(__dirname).filter((name) => /^\d{13}-.+\.ts$/.test(name) && !/\.spec\.ts$/.test(name));
+    expect(migrations.filter((n) => n.startsWith('1788263400000-'))).toHaveLength(1);
+    expect(migrations.length).toBeGreaterThan(1);
   });
 });

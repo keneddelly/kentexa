@@ -254,7 +254,7 @@ suite('Place resolution — real PostgreSQL, actual seed data', () => {
       const created = await shipments.createShipment(7, dto({ originPlace: ref(`ward:${id}`), destinationCity: 'Mwanza' }));
       const tracked = await shipments.trackShipment(created.trackingNumber!);
       expect(Object.keys(tracked).sort()).toEqual(
-        ['trackingNumber', 'status', 'originCity', 'destinationCity', 'itemDescription', 'weightKg', 'pickupOption', 'deliveryOption', 'receiverName', 'collectedAt', 'deliveredAt', 'completedAt', 'createdAt', 'parcelTrackingNumber'].sort(),
+        ['trackingNumber', 'status', 'originCity', 'destinationCity', 'itemDescription', 'weightKg', 'pickupOption', 'deliveryOption', 'receiverName', 'collectedAt', 'deliveredAt', 'completedAt', 'createdAt', 'parcelTrackingNumber', 'waybillNumber', 'parcelStatus', 'holder', 'location'].sort(),
       );
       expect(JSON.stringify(tracked)).not.toMatch(/Ubungo|admin_seed|tz_seed|-6\./);
     });
