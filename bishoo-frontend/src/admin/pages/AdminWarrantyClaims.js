@@ -6,11 +6,11 @@ import api from '../../api/api';
 // stays seller-owned (SellerWarrantyClaims.js); this is visibility only,
 // same posture as every other admin oversight page in this codebase.
 const STATUS_STYLE = {
-  submitted:    { bg: '#fef9c3', color: '#ca8a04', label: '📝 Submitted' },
-  under_review: { bg: '#eff6ff', color: '#1d4ed8', label: '🔎 Under Review' },
-  approved:     { bg: '#dcfce7', color: '#16a34a', label: '✅ Approved' },
-  rejected:     { bg: '#fee2e2', color: '#dc2626', label: '❌ Rejected' },
-  resolved:     { bg: '#dcfce7', color: '#16a34a', label: '✅ Resolved' },
+  submitted:    { bg: '#fef9c3', color: '#ca8a04', label: 'Submitted' },
+  under_review: { bg: '#eff6ff', color: '#1d4ed8', label: 'Under Review' },
+  approved:     { bg: '#dcfce7', color: '#16a34a', label: 'Approved' },
+  rejected:     { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
+  resolved:     { bg: '#dcfce7', color: '#16a34a', label: 'Resolved' },
 };
 
 const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
@@ -46,22 +46,22 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>🛡️ Warranty Claims</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Warranty Claims</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Cross-business visibility — claim review itself is owned by the seller</p>
           </div>
           <button onClick={fetchRows}
             style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            🔄 Refresh
+            Refresh
           </button>
         </div>
 
-        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Loading...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading...</div>
         ) : rows.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🛡️</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>No warranty claims yet</div>
           </div>
         ) : (

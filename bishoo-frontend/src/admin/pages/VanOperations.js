@@ -36,10 +36,10 @@ export default function VanOperations({ onNavigate, activePage }) {
     <Sidebar activePage={activePage} onNavigate={onNavigate}/>
     <main className="admin-content" style={{flex:1,marginLeft:250,padding:24,boxSizing:'border-box'}}>
       <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',marginBottom:20,flexWrap:'wrap'}}>
-        <div><div style={{fontSize:22,fontWeight:800,color:'#0f172a'}}>🚐 Van Operations</div>
+        <div><div style={{fontSize:22,fontWeight:800,color:'#0f172a'}}>Van Operations</div>
           <div style={{fontSize:13,color:'#64748b',marginTop:3}}>Runs, hub exceptions na parcels zinazongoja completion — production view.</div></div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          <button onClick={()=>onNavigate('TransportAdmin')} style={{border:'1px solid #cbd5e1',borderRadius:10,padding:'10px 14px',background:'#fff',color:'#0f172a',fontWeight:800,cursor:'pointer'}}>🚌 Transport Providers</button>
+          <button onClick={()=>onNavigate('TransportAdmin')} style={{border:'1px solid #cbd5e1',borderRadius:10,padding:'10px 14px',background:'#fff',color:'#0f172a',fontWeight:800,cursor:'pointer'}}>Transport Providers</button>
           <button onClick={load} style={{border:0,borderRadius:10,padding:'10px 14px',background:'#2563eb',color:'#fff',fontWeight:800,cursor:'pointer'}}>Refresh</button>
         </div>
       </div>
@@ -49,7 +49,7 @@ export default function VanOperations({ onNavigate, activePage }) {
       </div>
       {error && <div style={{background:'#fef2f2',color:'#b91c1c',padding:12,borderRadius:10,marginBottom:14}}>{error}</div>}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:18}}>
-        {[['Active / recent Runs',runs.length,'🚐'],['Blocked receipt',blocked.length,'⚠️'],['Awaiting completion',awaiting.length,'📦']].map(([l,v,i])=>
+        {[['Active / recent Runs',runs.length,''],['Blocked receipt',blocked.length,''],['Awaiting completion',awaiting.length,'']].map(([l,v,i])=>
           <div key={l} style={card}><div style={{fontSize:24}}>{i}</div><div style={{fontSize:26,fontWeight:800,color:'#0f172a',marginTop:6}}>{v}</div><div style={{fontSize:12,color:'#64748b'}}>{l}</div></div>)}
       </div>
       {loading ? <div style={card}>Inapakia...</div> : <>
@@ -67,9 +67,9 @@ export default function VanOperations({ onNavigate, activePage }) {
           {runs.length===0&&<div style={{padding:20,textAlign:'center',color:'#94a3b8'}}>Hakuna Run bado.</div>}
         </section>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:16}}>
-          <section style={card}><div style={{fontWeight:800,marginBottom:10}}>⚠️ Unloaded, waiting hub receipt</div>
+          <section style={card}><div style={{fontWeight:800,marginBottom:10}}>Unloaded, waiting hub receipt</div>
             {blocked.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel iliyokwama.</div>:blocked.map(x=><div key={x.assignmentId} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>Parcel #{x.parcelId}</b> · Run #{x.runId}<br/><span style={{color:'#64748b'}}>Hub #{x.superAgentId} · {Math.round(Number(x.waitingMinutes)||0)} min waiting</span></div>)}</section>
-          <section style={card}><div style={{fontWeight:800,marginBottom:10}}>📦 Awaiting last mile / pickup</div>
+          <section style={card}><div style={{fontWeight:800,marginBottom:10}}>Awaiting last mile / pickup</div>
             {awaiting.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel inayosubiri completion.</div>:awaiting.map(x=><div key={x.id} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>{x.trackingNumber||('Parcel #'+x.id)}</b><br/><span style={{color:'#64748b'}}>{x.status} · Hub #{x.destinationSuperAgentId||'—'}</span></div>)}</section>
         </div>
       </>}

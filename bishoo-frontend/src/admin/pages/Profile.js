@@ -112,7 +112,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
             marginBottom: '20px',
             fontSize: '14px',
           }}>
-            ✅ {message}
+            {message}
           </div>
         )}
 
@@ -126,7 +126,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
             marginBottom: '20px',
             fontSize: '14px',
           }}>
-            ❌ {error}
+            {error}
           </div>
         )}
 
@@ -155,7 +155,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                   fontSize: '32px',
                   margin: '0 auto 12px',
                 }}>
-                  👤
+
                 </div>
                 <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>
                   {profile?.name || 'Admin'}
@@ -253,7 +253,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                       fontWeight: '600',
                     }}
                   >
-                    ✏️ Edit Profile
+                    Edit Profile
                   </button>
                 )}
               </div>
@@ -267,7 +267,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             }}>
               <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#0f172a', marginBottom: '20px', marginTop: 0 }}>
-                🔒 Change Password
+                Change Password
               </h3>
 
               <div style={{ marginBottom: '16px' }}>
@@ -306,7 +306,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                   fontSize: '14px',
                 }}
               >
-                🔐 Update Password
+                Update Password
               </button>
 
               {/* Account Info */}
@@ -320,10 +320,10 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                   Account Info
                 </h4>
                 <div style={{ fontSize: '13px', color: '#0f172a', lineHeight: '2' }}>
-                  <div>🆔 ID: <strong>{profile?.id}</strong></div>
-                  <div>📧 Email: <strong>{profile?.email}</strong></div>
-                  <div>👑 Role: <strong>{profile?.role}</strong></div>
-                  <div>📅 Joined: <strong>{new Date(profile?.createdAt).toLocaleDateString()}</strong></div>
+                  <div>ID: <strong>{profile?.id}</strong></div>
+                  <div>Email: <strong>{profile?.email}</strong></div>
+                  <div>Role: <strong>{profile?.role}</strong></div>
+                  <div>Joined: <strong>{new Date(profile?.createdAt).toLocaleDateString()}</strong></div>
                 </div>
               </div>
             </div>

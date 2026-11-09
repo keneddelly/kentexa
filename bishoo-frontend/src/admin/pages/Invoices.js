@@ -27,7 +27,7 @@ const PhoneCell = ({ phone }) => {
 const STATUS = {
   awaiting_payment:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri Malipo' },
   payment_processing: { bg: '#dbeafe', color: '#2563eb', label: 'Inashughulikiwa' },
-  paid:               { bg: '#dcfce7', color: '#16a34a', label: '✅ Imelipwa' },
+  paid:               { bg: '#dcfce7', color: '#16a34a', label: 'Imelipwa' },
   expired:            { bg: '#fee2e2', color: '#dc2626', label: 'Imekwisha Muda' },
   cancelled:          { bg: '#f1f5f9', color: '#64748b', label: 'Imefutwa' },
 };
@@ -38,7 +38,7 @@ const STATUS = {
 const CLS_STATUS = {
   pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
   sent:      { bg: '#dbeafe', color: '#2563eb', label: 'Imetumwa' },
-  paid:      { bg: '#dcfce7', color: '#16a34a', label: '✅ Imelipwa' },
+  paid:      { bg: '#dcfce7', color: '#16a34a', label: 'Imelipwa' },
   cancelled: { bg: '#f1f5f9', color: '#64748b', label: 'Imefutwa' },
 };
 
@@ -123,7 +123,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0 }}>🧾 Ankara</h1>
+            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0 }}>Ankara</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
               {tab === 'order' ? `${invoices.length} ankara za agizo` : `${clsInvoices.length} ankara za matangazo`}
             </p>
@@ -131,7 +131,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
           <button onClick={tab === 'order' ? fetchInvoices : fetchClassifiedInvoices}
             style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
               padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-            🔄 Onyesha Upya
+            Onyesha Upya
           </button>
         </div>
 
@@ -140,8 +140,8 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
             classified ad) — separate datasets, separate shapes. */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {[
-            { key: 'order',      label: `🧾 Ankara za Agizo (${invoices.length})` },
-            { key: 'classified', label: `📋 Ankara za Tangazo (${clsInvoices.length})` },
+            { key: 'order',      label: `Ankara za Agizo (${invoices.length})` },
+            { key: 'classified', label: `Ankara za Tangazo (${clsInvoices.length})` },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{ padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
@@ -158,7 +158,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
         <>
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px',
-            borderRadius: 8, marginBottom: 20 }}>❌ {error}</div>
+            borderRadius: 8, marginBottom: 20 }}>{error}</div>
         )}
 
         {/* Stats */}
@@ -183,7 +183,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
         {/* Search & Filter */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <input type="text" placeholder="🔍 Tafuta ankara, mteja, muuzaji, bidhaa..."
+          <input type="text" placeholder="Tafuta ankara, mteja, muuzaji, bidhaa..."
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ flex: 1, padding: '10px 14px', borderRadius: 8,
               border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
@@ -201,7 +201,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
         {/* Table */}
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>⏳ Inapakia...</div>
+          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Inapakia...</div>
         ) : (
           <div style={{ backgroundColor: '#fff', borderRadius: 12,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -237,7 +237,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         {inv.invoiceNumber}
                         {statusMismatch && (
                           <div style={{ fontSize: 9, color: '#c2410c', fontWeight: 800 }}>
-                            ⚠️ AGIZO LIMELIPWA
+                            AGIZO LIMELIPWA
                           </div>
                         )}
                       </td>
@@ -304,7 +304,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                 </div>
                 <button onClick={() => setSelected(null)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 20, color: '#94a3b8' }}>✕</button>
+                    fontSize: 20, color: '#94a3b8' }}></button>
               </div>
 
               {/* Status */}
@@ -321,7 +321,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                     {mismatch && (
                       <div style={{ backgroundColor: '#fff7ed', color: '#c2410c', padding: '10px 14px',
                         borderRadius: 10, fontSize: 12, fontWeight: 700, marginBottom: 16 }}>
-                        ⚠️ Agizo limelipwa lakini ankara bado inaonyesha "Inasubiri Malipo".
+                        Agizo limelipwa lakini ankara bado inaonyesha "Inasubiri Malipo".
                         Hii itatoka punde tu unapobonyeza Onyesha Upya.
                       </div>
                     )}
@@ -332,14 +332,14 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               {/* Seller section */}
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
-                  marginBottom: 8, letterSpacing: 0.5 }}>🏪 MUUZAJI</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {selected.order?.seller?.businessName || selected.order?.seller?.user?.name || '—'}
                 </div>
                 <PhoneCell phone={selected.order?.seller?.user?.phone || selected.order?.seller?.phone} />
                 {selected.order?.seller?.user?.email && (
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                    ✉️ {selected.order.seller.user.email}
+                    {selected.order.seller.user.email}
                   </div>
                 )}
               </div>
@@ -347,7 +347,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               {/* Buyer section */}
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a',
-                  marginBottom: 8, letterSpacing: 0.5 }}>👤 MNUNUZI</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>MNUNUZI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {selected.buyer?.name || selected.order?.buyer?.name || selected.order?.manualBuyerName || '—'}
                 </div>
@@ -357,7 +357,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               {/* Invoice details */}
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
-                  marginBottom: 8, letterSpacing: 0.5 }}>📋 MAELEZO</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Bidhaa',     selected.order?.product?.name || selected.order?.manualProductName || '—'],
                   ['Kiasi',      `TZS ${Number(selected.amount).toLocaleString()}`],
@@ -381,7 +381,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                 style={{ width: '100%', backgroundColor: '#eff6ff', color: '#1d4ed8',
                   border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer',
                   fontSize: 13, fontWeight: 700 }}>
-                📍 Fuatilia Agizo
+                Fuatilia Agizo
               </button>
             </div>
           </div>
@@ -393,12 +393,12 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
         <>
         {clsError && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px',
-            borderRadius: 8, marginBottom: 20 }}>❌ {clsError}</div>
+            borderRadius: 8, marginBottom: 20 }}>{clsError}</div>
         )}
 
         {/* Search & Filter */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <input type="text" placeholder="🔍 Tafuta ankara, tangazo, mteja, muuzaji..."
+          <input type="text" placeholder="Tafuta ankara, tangazo, mteja, muuzaji..."
             value={clsSearch} onChange={e => setClsSearch(e.target.value)}
             style={{ flex: 1, padding: '10px 14px', borderRadius: 8,
               border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
@@ -414,7 +414,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {clsLoading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>⏳ Inapakia...</div>
+          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Inapakia...</div>
         ) : (
           <div style={{ backgroundColor: '#fff', borderRadius: 12,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -503,7 +503,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                 </div>
                 <button onClick={() => setClsSelected(null)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 20, color: '#94a3b8' }}>✕</button>
+                    fontSize: 20, color: '#94a3b8' }}></button>
               </div>
 
               {(() => {
@@ -518,21 +518,21 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
-                  marginBottom: 8, letterSpacing: 0.5 }}>🏪 MUUZAJI</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {clsSelected.seller?.storeName || clsSelected.seller?.name || '—'}
                 </div>
                 <PhoneCell phone={clsSelected.seller?.phone} />
                 {clsSelected.seller?.email && (
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                    ✉️ {clsSelected.seller.email}
+                    {clsSelected.seller.email}
                   </div>
                 )}
               </div>
 
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a',
-                  marginBottom: 8, letterSpacing: 0.5 }}>👤 MNUNUZI</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>MNUNUZI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {clsSelected.buyer?.name || '—'}
                 </div>
@@ -546,7 +546,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
-                  marginBottom: 8, letterSpacing: 0.5 }}>📋 MAELEZO</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Tangazo',    clsSelected.classified?.title || '—'],
                   ['Kiasi',      `TZS ${Number(clsSelected.amount || 0).toLocaleString()}`],
@@ -573,7 +573,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                   style={{ width: '100%', backgroundColor: '#eff6ff', color: '#1d4ed8',
                     border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer',
                     fontSize: 13, fontWeight: 700 }}>
-                  📍 Fuatilia Agizo
+                  Fuatilia Agizo
                 </button>
               )}
             </div>

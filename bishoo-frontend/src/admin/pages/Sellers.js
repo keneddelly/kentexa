@@ -3,10 +3,10 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: '⏳ Inasubiri' },
-  approved:  { bg: '#dcfce7', color: '#16a34a', label: '✅ Imeidhinishwa' },
-  rejected:  { bg: '#fee2e2', color: '#dc2626', label: '❌ Imekataliwa' },
-  suspended: { bg: '#fee2e2', color: '#dc2626', label: '🚫 Imesimamishwa' },
+  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Imeidhinishwa' },
+  rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Imekataliwa' },
+  suspended: { bg: '#fee2e2', color: '#dc2626', label: 'Imesimamishwa' },
 };
 
 // Sellers who registered before the ID gate (2026-11-07) may be approved without an ID document.
@@ -77,7 +77,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       setBackfillLoading(true);
       const res = await api.post('/business/admin/backfill');
       const r = res.data || {};
-      setMessage(`✅ Backfill imekamilika: ${r.businessCreated} Business zimeundwa, ${r.sellerProfilesLinked} SellerProfile zimeunganishwa, ${r.commerceProfilesLinked} CommerceProfile zimeunganishwa (${r.skippedAlreadyExisted} tayari zilikuwepo, ${r.skippedNotBusinessType} si aina ya biashara)`);
+      setMessage(`Backfill imekamilika: ${r.businessCreated} Business zimeundwa, ${r.sellerProfilesLinked} SellerProfile zimeunganishwa, ${r.commerceProfilesLinked} CommerceProfile zimeunganishwa (${r.skippedAlreadyExisted} tayari zilikuwepo, ${r.skippedNotBusinessType} si aina ya biashara)`);
       setTimeout(() => setMessage(''), 12000);
     } catch (err) {
       showErr(err?.response?.data?.message || 'Backfill imeshindwa');
@@ -95,7 +95,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       setCapabilityBackfillLoading(true);
       const res = await api.post('/selling-capability/admin/backfill');
       const r = res.data || {};
-      setMessage(`✅ Backfill imekamilika: ruhusa ${r.granted} zimetolewa (${r.skippedAlreadyGranted} tayari zilikuwepo, ${r.skippedNotApproved} si wauzaji walioidhinishwa)`);
+      setMessage(`Backfill imekamilika: ruhusa ${r.granted} zimetolewa (${r.skippedAlreadyGranted} tayari zilikuwepo, ${r.skippedNotApproved} si wauzaji walioidhinishwa)`);
       setTimeout(() => setMessage(''), 12000);
     } catch (err) {
       showErr(err?.response?.data?.message || 'Backfill imeshindwa');
@@ -106,7 +106,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/seller/${id}/approve`, tier ? { verificationTier: tier } : {});
-      showMsg('✅ Muuzaji ameidhinishwa na ataarifiwa kwa SMS/email');
+      showMsg('Muuzaji ameidhinishwa na ataarifiwa kwa SMS/email');
       setSelected(null);
       fetchSellers();
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
@@ -138,7 +138,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/seller/${seller.id}/restore`, { reason: reason.trim() });
-      showMsg('✅ Muuzaji amerejeshwa');
+      showMsg('Muuzaji amerejeshwa');
       setSelected(null);
       fetchSellers();
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa kurejesha muuzaji'); }
@@ -150,7 +150,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/seller/${id}/reject`, { reason: rejectReason });
-      showMsg('❌ Muuzaji amekataliwa na ataarifiwa');
+      showMsg('Muuzaji amekataliwa na ataarifiwa');
       setShowRejectModal(false);
       setRejectReason('');
       setSelected(null);
@@ -164,7 +164,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/seller/${id}/suspend`, { reason: suspendReason });
-      showMsg('🚫 Muuzaji amesimamishwa');
+      showMsg('Muuzaji amesimamishwa');
       setShowSuspendModal(false);
       setSuspendReason('');
       setSelected(null);
@@ -177,7 +177,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     try {
       setBusinessActionLoading(true);
       await api.patch(`/identity/business/admin/${sellerProfileId}/review`, { approve: true });
-      showMsg('✅ Business documents verified');
+      showMsg('Business documents verified');
       await silentRefresh(sellerProfileId);
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
     finally { setBusinessActionLoading(false); }
@@ -188,7 +188,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     try {
       setBusinessActionLoading(true);
       await api.patch(`/identity/business/admin/${sellerProfileId}/review`, { approve: false, reason: businessRejectReason });
-      showMsg('❌ Business documents rejected');
+      showMsg('Business documents rejected');
       setShowBusinessRejectModal(false);
       setBusinessRejectReason('');
       await silentRefresh(sellerProfileId);
@@ -272,39 +272,39 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>🏪 Wauzaji</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Wauzaji</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Simamia maombi ya wauzaji na akaunti zao</p>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={handleRunBusinessBackfill} disabled={backfillLoading}
               title="Unda Business kwa wauzaji wote wenye sellerType=business ambao bado hawajaunganishwa"
               style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: backfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
-              {backfillLoading ? '⏳...' : '🏢 Business Backfill'}
+              {backfillLoading ? '...' : 'Business Backfill'}
             </button>
             <button onClick={handleRunCapabilityBackfill} disabled={capabilityBackfillLoading}
               title="Toa ruhusa ya SELL_PHYSICAL kwa wauzaji wote walioidhinishwa ambao bado hawana ruhusa hiyo"
               style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: capabilityBackfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
-              {capabilityBackfillLoading ? '⏳...' : '🎯 Selling Capability Backfill'}
+              {capabilityBackfillLoading ? '...' : 'Selling Capability Backfill'}
             </button>
             <button onClick={fetchSellers}
               style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-              🔄 Onyesha Upya
+              Onyesha Upya
             </button>
           </div>
         </div>
 
         {/* Flash messages */}
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         {/* Stat tabs */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           {[
             { key: 'all',       label: 'Wote',          count: counts.all,       color: '#6366f1' },
-            { key: 'pending',   label: '⏳ Wanaosubiri', count: counts.pending,   color: '#ca8a04' },
-            { key: 'approved',  label: '✅ Walioidhinishwa', count: counts.approved, color: '#16a34a' },
-            { key: 'rejected',  label: '❌ Waliokataliwa', count: counts.rejected, color: '#dc2626' },
-            { key: 'suspended', label: '🚫 Waliositamishwa', count: counts.suspended, color: '#dc2626' },
+            { key: 'pending',   label: 'Wanaosubiri', count: counts.pending,   color: '#ca8a04' },
+            { key: 'approved',  label: 'Walioidhinishwa', count: counts.approved, color: '#16a34a' },
+            { key: 'rejected',  label: 'Waliokataliwa', count: counts.rejected, color: '#dc2626' },
+            { key: 'suspended', label: 'Waliositamishwa', count: counts.suspended, color: '#dc2626' },
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -318,7 +318,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 20 }}>
-          <input placeholder="🔍 Tafuta kwa jina, email, simu..." value={search}
+          <input placeholder="Tafuta kwa jina, email, simu..." value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ ...inputStyle, paddingLeft: 16, backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} />
         </div>
@@ -327,16 +327,16 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
         {counts.pending > 0 && (
           <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e', fontWeight: 600, cursor: 'pointer' }}
             onClick={() => setFilter('pending')}>
-            ⚠️ Kuna wauzaji <strong>{counts.pending}</strong> wanaosubiri idhini yako — bonyeza hapa kuangalia
+            Kuna wauzaji <strong>{counts.pending}</strong> wanaosubiri idhini yako — bonyeza hapa kuangalia
           </div>
         )}
 
         {/* Table */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🏪</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>Hakuna wauzaji wanaolingana na utafutaji wako</div>
           </div>
         ) : (
@@ -387,29 +387,29 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                             <>
                               <button onClick={e => { e.stopPropagation(); handleApprove(seller.id); }} disabled={actionLoading}
                                 style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                                ✅ Idhinisha
+                                Idhinisha
                               </button>
                               <button onClick={e => { e.stopPropagation(); setSelected(seller); setShowRejectModal(true); }}
                                 style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                                ❌ Kataa
+                                Kataa
                               </button>
                             </>
                           )}
                           {seller.status === 'approved' && (
                             <button onClick={e => { e.stopPropagation(); setSelected(seller); setShowSuspendModal(true); }}
                               style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                              🚫 Simamisha
+                              Simamisha
                             </button>
                           )}
                           {['rejected','suspended'].includes(seller.status) && (
                             <button onClick={e => { e.stopPropagation(); seller.status === 'suspended' ? handleRestore(seller) : handleApprove(seller.id); }} disabled={actionLoading}
                               style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                              🔄 Amilisha
+                              Amilisha
                             </button>
                           )}
                           <button onClick={e => { e.stopPropagation(); setSelected(seller); }}
                             style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                            👁 Angalia
+                            Angalia
                           </button>
                         </div>
                       </td>
@@ -429,7 +429,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ width: 420, backgroundColor: '#fff', height: '100%', overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.12)' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>🏪 Maelezo ya Muuzaji</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Maelezo ya Muuzaji</h2>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
 
@@ -456,8 +456,8 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Kata',             value: selected.businessCity },
               { label: 'Kiwango cha Uthibitisho', value: {
                   registered: 'Amesajiliwa',
-                  verified_seller: '✅ Muuzaji Aliyethibitishwa',
-                  verified_business: '🏆 Biashara Iliyothibitishwa',
+                  verified_seller: 'Muuzaji Aliyethibitishwa',
+                  verified_business: 'Biashara Iliyothibitishwa',
                 }[selected.verificationTier] },
               { label: 'Tarehe ya Ombi',   value: selected.createdAt ? new Date(selected.createdAt).toLocaleDateString('sw-TZ') : null },
             ].filter(f => f.value).map(field => (
@@ -473,7 +473,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>HATI YA UTAMBULISHO</div>
                 <a href={selected.idDocument} target="_blank" rel="noreferrer"
                   style={{ display: 'block', backgroundColor: '#eff6ff', color: '#2563eb', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
-                  📄 Angalia Hati →
+                  Angalia Hati →
                 </a>
               </div>
             )}
@@ -482,7 +482,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
             {/* KYC Documents */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                🪪 Nyaraka za KYC
+                Nyaraka za KYC
               </div>
               {selected.idPhotoUrl ? (
                 <div>
@@ -501,14 +501,14 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>
-                  <div style={{ fontSize: 32, marginBottom: 6 }}>📄</div>
+                  <div style={{ fontSize: 32, marginBottom: 6 }}></div>
                   <div style={{ fontSize: 12 }}>Hakuna nyaraka zilizopakiwa</div>
                 </div>
               )}
               {selected.registrationNumber && (
                 <div style={{ marginTop: 10, padding: '8px 12px', backgroundColor: '#fff',
                   borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }}>
-                  📋 Usajili: <strong>{selected.registrationNumber}</strong>
+                  Usajili: <strong>{selected.registrationNumber}</strong>
                 </div>
               )}
             </div>
@@ -518,7 +518,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16,
                 border: selected.businessDocumentsStatus === 'pending' ? '2px solid #ca8a04' : '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>🏢 Business Documents</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Business Documents</div>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                     backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[selected.businessDocumentsStatus] || '#f1f5f9',
                     color: { not_submitted: '#64748b', pending: '#ca8a04', verified: '#16a34a', rejected: '#dc2626' }[selected.businessDocumentsStatus] || '#64748b' }}>
@@ -550,11 +550,11 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <button onClick={() => handleVerifyBusiness(selected.id)} disabled={businessActionLoading}
                       style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                      ✅ Verify Business
+                      Verify Business
                     </button>
                     <button onClick={() => setShowBusinessRejectModal(true)}
                       style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                      ❌ Reject
+                      Reject
                     </button>
                   </div>
                 )}
@@ -574,7 +574,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               const isBlocked = threshold > 0 && balance >= threshold;
               return (
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16, border: isBlocked ? '2px solid #dc2626' : '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>💳 Billing &amp; Free Orders</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>Billing &amp; Free Orders</div>
                   {[
                     ['Free orders granted', granted],
                     ['Free orders used', used],
@@ -594,7 +594,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   </div>
                   {isBlocked && (
                     <div style={{ marginTop: 8, backgroundColor: '#fef2f2', borderRadius: 6, padding: '8px 10px', fontSize: 11.5, color: '#b91c1c', fontWeight: 700 }}>
-                      ⚠️ This seller is blocked from new manual shipments until the balance is paid down.
+                      This seller is blocked from new manual shipments until the balance is paid down.
                     </div>
                   )}
                   {billingError && <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', fontWeight: 700 }}>{billingError}</div>}
@@ -643,13 +643,13 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                     <select value={approveTier} onChange={e => setApproveTier(e.target.value)}
                       style={{ ...inputStyle, marginBottom: 4 }}>
                       <option value="registered">Amesajiliwa</option>
-                      <option value="verified_seller">✅ Muuzaji Aliyethibitishwa</option>
-                      <option value="verified_business">🏆 Biashara Iliyothibitishwa</option>
+                      <option value="verified_seller">Muuzaji Aliyethibitishwa</option>
+                      <option value="verified_business">Biashara Iliyothibitishwa</option>
                     </select>
                   </div>
                   <button onClick={() => handleApprove(selected.id, approveTier)} disabled={actionLoading}
                     style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
-                    {actionLoading ? '⏳...' : '✅ Idhinisha Muuzaji'}
+                    {actionLoading ? '...' : 'Idhinisha Muuzaji'}
                   </button>
                   {beforeIdGate(selected) && (
                     <button data-testid="approve-without-id" onClick={() => handleApproveWithoutId(selected, approveTier)} disabled={actionLoading}
@@ -659,14 +659,14 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   )}
                   <button onClick={() => setShowRejectModal(true)}
                     style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                    ❌ Kataa Ombi
+                    Kataa Ombi
                   </button>
                 </>
               )}
               {selected.status === 'approved' && (
                 <button onClick={() => setShowSuspendModal(true)}
                   style={{ backgroundColor: '#fef9c3', color: '#92400e', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                  🚫 Simamisha Akaunti
+                  Simamisha Akaunti
                 </button>
               )}
               {selected.status === 'suspended' && beforeIdGate(selected) && (
@@ -678,7 +678,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               {['rejected','suspended'].includes(selected.status) && (
                 <button onClick={() => selected.status === 'suspended' ? handleRestore(selected) : handleApprove(selected.id)} disabled={actionLoading}
                   style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
-                  🔄 Amilisha Tena
+                  Amilisha Tena
                 </button>
               )}
             </div>
@@ -690,7 +690,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       {showRejectModal && selected && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>❌ Kataa Ombi</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>Kataa Ombi</h3>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>
               Muuzaji <strong>{selected.businessName || selected.user?.name}</strong> atakataliwa na ataariwa sababu hii.
             </p>
@@ -705,7 +705,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               </button>
               <button onClick={() => handleReject(selected.id)} disabled={actionLoading}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
-                {actionLoading ? '⏳...' : '❌ Kataa Ombi'}
+                {actionLoading ? '...' : 'Kataa Ombi'}
               </button>
             </div>
           </div>
@@ -716,7 +716,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       {showSuspendModal && selected && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>🚫 Simamisha Akaunti</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>Simamisha Akaunti</h3>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>
               Muuzaji <strong>{selected.storeName || selected.businessName}</strong> hataweza kufanya mauzo hadi akaunti iamilishwe.
             </p>
@@ -731,7 +731,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               </button>
               <button onClick={() => handleSuspend(selected.id)} disabled={actionLoading}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
-                {actionLoading ? '⏳...' : '🚫 Simamisha'}
+                {actionLoading ? '...' : 'Simamisha'}
               </button>
             </div>
           </div>
@@ -742,7 +742,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       {showBusinessRejectModal && selected && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>❌ Reject Business Documents</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>Reject Business Documents</h3>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>
               <strong>{selected.businessName}</strong>'s business documents will be rejected with this reason.
             </p>
@@ -757,7 +757,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               </button>
               <button onClick={() => handleRejectBusiness(selected.id)} disabled={businessActionLoading}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: businessActionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
-                {businessActionLoading ? '⏳...' : '❌ Reject'}
+                {businessActionLoading ? '...' : 'Reject'}
               </button>
             </div>
           </div>

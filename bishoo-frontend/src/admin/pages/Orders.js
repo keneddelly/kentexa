@@ -3,15 +3,15 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:         { bg: '#f1f5f9', color: '#64748b',  label: '📋 Inasubiri' },
-  pending_payment: { bg: '#fef9c3', color: '#ca8a04',  label: '💳 Inasubiri Malipo' },
-  paid:            { bg: '#dbeafe', color: '#2563eb',  label: '💰 Imelipwa' },
-  preparing:       { bg: '#ede9fe', color: '#7c3aed',  label: '📦 Inaandaliwa' },
-  in_transit:      { bg: '#e0f2fe', color: '#0284c7',  label: '🚚 Inasafirishwa' },
-  delivered:       { bg: '#dcfce7', color: '#16a34a',  label: '✅ Imetolewa' },
-  confirmed:       { bg: '#f0fdf4', color: '#15803d',  label: '🎉 Imethibitishwa' },
-  cancelled:       { bg: '#fee2e2', color: '#dc2626',  label: '❌ Imefutwa' },
-  disputed:        { bg: '#fef3c7', color: '#d97706',  label: '⚠️ Inabishaniwa' },
+  pending:         { bg: '#f1f5f9', color: '#64748b',  label: 'Inasubiri' },
+  pending_payment: { bg: '#fef9c3', color: '#ca8a04',  label: 'Inasubiri Malipo' },
+  paid:            { bg: '#dbeafe', color: '#2563eb',  label: 'Imelipwa' },
+  preparing:       { bg: '#ede9fe', color: '#7c3aed',  label: 'Inaandaliwa' },
+  in_transit:      { bg: '#e0f2fe', color: '#0284c7',  label: 'Inasafirishwa' },
+  delivered:       { bg: '#dcfce7', color: '#16a34a',  label: 'Imetolewa' },
+  confirmed:       { bg: '#f0fdf4', color: '#15803d',  label: 'Imethibitishwa' },
+  cancelled:       { bg: '#fee2e2', color: '#dc2626',  label: 'Imefutwa' },
+  disputed:        { bg: '#fef3c7', color: '#d97706',  label: 'Inabishaniwa' },
   refunded:        { bg: '#fee2e2', color: '#9f1239',  label: '↩️ Imerudishwa' },
 };
 
@@ -23,10 +23,10 @@ const STATUS_STYLE = {
 // (Super Agent orders have no seller by design) — making them
 // indistinguishable from each other and from a data error.
 const SOURCE_STYLE = {
-  online:            { bg: '#eff6ff', color: '#2563eb', label: '🌐 Mtandaoni', short: 'Mtandaoni' },
-  offline:           { bg: '#f1f5f9', color: '#64748b', label: '🤝 Mauzo ya Nje', short: 'Nje' },
-  offline_intercity: { bg: '#f5f3ff', color: '#7c3aed', label: '🏢 Ofisi', short: 'Ofisi' },
-  seller_shipment:   { bg: '#fff7ed', color: '#c2410c', label: '📦 Muuzaji-Msafirishaji', short: 'Msafirishaji' },
+  online:            { bg: '#eff6ff', color: '#2563eb', label: 'Mtandaoni', short: 'Mtandaoni' },
+  offline:           { bg: '#f1f5f9', color: '#64748b', label: 'Mauzo ya Nje', short: 'Nje' },
+  offline_intercity: { bg: '#f5f3ff', color: '#7c3aed', label: 'Ofisi', short: 'Ofisi' },
+  seller_shipment:   { bg: '#fff7ed', color: '#c2410c', label: 'Muuzaji-Msafirishaji', short: 'Msafirishaji' },
 };
 const sourceStyleOf = (s) => SOURCE_STYLE[s] || { bg: '#f1f5f9', color: '#64748b', label: s || '—', short: s || '—' };
 
@@ -63,7 +63,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/orders/${orderId}/admin-status`, { status });
-      showMsg(`✅ Hali imebadilishwa kwenda ${status}`);
+      showMsg(`Hali imebadilishwa kwenda ${status}`);
       fetchOrders();
       if (selected?.id === orderId) setSelected(s => ({ ...s, status }));
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
@@ -77,7 +77,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
       setActionLoading(true);
       // The admin's own step (any order not yet delivered), never the buyer's cancel.
       await api.patch(`/orders/${orderId}/admin-cancel`, { reason: reason.trim() });
-      showMsg(`✅ Agizo #${orderId} limefutwa`);
+      showMsg(`Agizo #${orderId} limefutwa`);
       fetchOrders();
       setSelected(null);
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
@@ -115,29 +115,28 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>🛒 Maagizo Yote</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Maagizo Yote</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Angalia na simamia maagizo yote ya mfumo</p>
           </div>
           <button onClick={fetchOrders}
             style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            🔄 Onyesha Upya
+            Onyesha Upya
           </button>
         </div>
 
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Maagizo Yote',  value: orders.length,          color: '#6366f1', bg: '#ede9fe', icon: '📋' },
-            { label: 'Inasubiri',     value: counts.pending_payment || 0, color: '#ca8a04', bg: '#fef9c3', icon: '⏳' },
-            { label: 'Inasafirishwa', value: counts.in_transit || 0, color: '#0284c7', bg: '#e0f2fe', icon: '🚚' },
-            { label: 'Yaliyotolewa',  value: (counts.delivered || 0) + (counts.confirmed || 0), color: '#16a34a', bg: '#dcfce7', icon: '✅' },
-            { label: 'Mapato (TZS)',  value: totalRevenue.toLocaleString(), color: '#15803d', bg: '#f0fdf4', icon: '💰' },
+            { label: 'Maagizo Yote',  value: orders.length,          color: '#6366f1', bg: '#ede9fe', icon: '' },
+            { label: 'Inasubiri',     value: counts.pending_payment || 0, color: '#ca8a04', bg: '#fef9c3', icon: '' },
+            { label: 'Inasafirishwa', value: counts.in_transit || 0, color: '#0284c7', bg: '#e0f2fe', icon: '' },
+            { label: 'Yaliyotolewa',  value: (counts.delivered || 0) + (counts.confirmed || 0), color: '#16a34a', bg: '#dcfce7', icon: '' },
+            { label: 'Mapato (TZS)',  value: totalRevenue.toLocaleString(), color: '#15803d', bg: '#f0fdf4', icon: '' },
           ].map(c => (
             <div key={c.label} style={{ backgroundColor: c.bg, borderRadius: 12, padding: '14px 16px' }}>
-              <div style={{ fontSize: 20, marginBottom: 4 }}>{c.icon}</div>
               <div style={{ fontSize: 18, fontWeight:800, color: c.color }}>{c.value}</div>
               <div style={{ fontSize: 11, color: c.color, opacity: 0.8, fontWeight: 600 }}>{c.label}</div>
             </div>
@@ -189,13 +188,13 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {/* Search */}
-        <input placeholder="🔍 Tafuta kwa #ID, jina la mnunuzi, bidhaa, tracking..." value={search}
+        <input placeholder="Tafuta kwa #ID, jina la mnunuzi, bidhaa, tracking..." value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ ...inputStyle, marginBottom: 16, backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} />
 
         {/* Table */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
         ) : (
           <div style={{ backgroundColor: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -232,16 +231,16 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 12, color: '#64748b' }}>
                         {order.source === 'offline_intercity'
-                          ? (order.handlingSuperAgent?.businessName || '—') + ' 🏢'
+                          ? (order.handlingSuperAgent?.businessName || '—') + ''
                           : (order.seller?.storeName || order.seller?.name || '—')}
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>
                         TZS {Number(order.totalAmount || 0).toLocaleString()}
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 11, color: '#64748b' }}>
-                        {order.shippingMethod === 'boda' ? '🛵' :
-                         order.shippingMethod === 'kentexa_delivery' ? '🚐' :
-                         order.shippingMethod === 'agent' ? '🏢' : '📦'}
+                        {order.shippingMethod === 'boda' ? '' :
+                         order.shippingMethod === 'kentexa_delivery' ? '' :
+                         order.shippingMethod === 'agent' ? '' : ''}
                         {' '}{order.shippingMethod || '—'}
                       </td>
                       <td style={{ padding: '11px 14px' }}>
@@ -255,7 +254,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '11px 14px' }}>
                         <button onClick={e => { e.stopPropagation(); setSelected(order); }}
                           style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                          👁
+
                         </button>
                       </td>
                     </tr>
@@ -282,19 +281,19 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
             {/* Manual/offline order banner — appears above status, impossible to miss */}
             {selected.source === 'offline' && (
               <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#92400e', lineHeight: 1.6 }}>
-                💰 <strong>MAUZO YA NJE — HAKUNA MALIPO YA KENTEXA</strong><br/>
+                <strong>MAUZO YA NJE — HAKUNA MALIPO YA KENTEXA</strong><br/>
                 Agizo hili liliundwa na muuzaji kwa mteja aliyelipa nje ya mfumo (M-Pesa, taslimu). KenteXa haikushika pesa hii — hakuna ada wala malipo yanayohitajika kutoka KenteXa.
               </div>
             )}
             {selected.source === 'offline_intercity' && (
               <div style={{ backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#5b21b6', lineHeight: 1.6 }}>
-                🏢 <strong>SUPER AGENT — MAUZO YA KAUNTA</strong><br/>
+                <strong>SUPER AGENT — MAUZO YA KAUNTA</strong><br/>
                 Mteja alilipa taslimu kwa {selected.handlingSuperAgent?.businessName || 'ofisi'} kaunta ya intercity. Hakuna muuzaji (seller) kwenye agizo hili — ofisi ndiyo iliyopokea malipo na kusajili kifurushi.
               </div>
             )}
             {selected.source === 'seller_shipment' && (
               <div style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#9a3412', lineHeight: 1.6 }}>
-                📦 <strong>MUUZAJI — USAFIRISHAJI WA KIBINAFSI</strong><br/>
+                <strong>MUUZAJI — USAFIRISHAJI WA KIBINAFSI</strong><br/>
                 Muuzaji tayari alipokea malipo kutoka kwa mteja nje ya mfumo — anatumia mtandao wa KenteXa kusafirisha tu. KenteXa hutoza ada ya ufuatiliaji pekee (TZS 1,000), si asilimia ya mauzo.
               </div>
             )}
@@ -345,34 +344,34 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
             {/* Admin actions */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>
-                ⚡ Vitendo vya Admin
+                Vitendo vya Admin
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
                 {!['delivered','confirmed','cancelled','refunded'].includes(selected.status) && (
                   <button onClick={() => handleForceStatus(selected.id, 'delivered')} disabled={actionLoading}
                     style={{ backgroundColor: '#dcfce7', color: '#16a34a', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
-                    ✅ Weka kama Imetolewa
+                    Weka kama Imetolewa
                   </button>
                 )}
 
                 {!['in_transit','cancelled','refunded'].includes(selected.status) && (
                   <button onClick={() => handleForceStatus(selected.id, 'in_transit')} disabled={actionLoading}
                     style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
-                    🚚 Weka kama Inasafirishwa
+                    Weka kama Inasafirishwa
                   </button>
                 )}
 
                 {!['confirmed','cancelled','refunded'].includes(selected.status) && (
                   selected.source === 'offline' ? (
                     <div style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: '1px dashed #cbd5e1', padding: '10px 14px', borderRadius: 8, fontSize: 12, textAlign: 'left', lineHeight: 1.5 }}>
-                      💰 <strong>Mauzo ya Nje — Hakuna Malipo ya KenteXa</strong><br/>
+                      <strong>Mauzo ya Nje — Hakuna Malipo ya KenteXa</strong><br/>
                       Mteja alilipa muuzaji moja kwa moja. KenteXa haikushika pesa hii — hakuna malipo ya kutoa.
                     </div>
                   ) : (
                     <button onClick={() => handleForceStatus(selected.id, 'confirmed')} disabled={actionLoading}
                       style={{ backgroundColor: '#f0fdf4', color: '#15803d', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
-                      🎉 Thibitisha na Toa Malipo kwa Muuzaji
+                      Thibitisha na Toa Malipo kwa Muuzaji
                     </button>
                   )
                 )}
@@ -380,13 +379,13 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                 {!['cancelled','refunded','delivered','completed'].includes(selected.status) && (
                   <button onClick={() => handleCancel(selected.id)} disabled={actionLoading}
                     style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
-                    ❌ Futa Agizo
+                    Futa Agizo
                   </button>
                 )}
 
                 <button onClick={() => onNavigate(`TrackParcel-${selected.trackingNumber || selected.id}`)}
                   style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
-                  📍 Angalia Ufuatiliaji
+                  Angalia Ufuatiliaji
                 </button>
               </div>
             </div>

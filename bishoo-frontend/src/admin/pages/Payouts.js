@@ -3,19 +3,19 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const PAYOUT_METHOD_LABELS = {
-  mpesa:        '📱 M-Pesa',
-  airtel_money: '📱 Airtel Money',
-  tigo_pesa:    '📱 Tigo Pesa',
-  halotel:      '📱 Halotel',
-  bank:         '🏦 Benki',
+  mpesa:        'M-Pesa',
+  airtel_money: 'Airtel Money',
+  tigo_pesa:    'Tigo Pesa',
+  halotel:      'Halotel',
+  bank:         'Benki',
 };
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: '⏳ Inasubiri' },
-  approved:  { bg: '#dcfce7', color: '#16a34a', label: '✅ Imeidhinishwa' },
-  released:  { bg: '#dbeafe', color: '#2563eb', label: '💸 Imetolewa' },
-  completed: { bg: '#f0fdf4', color: '#15803d', label: '🎉 Imekamilika' },
-  rejected:  { bg: '#fee2e2', color: '#dc2626', label: '❌ Imekataliwa' },
+  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Imeidhinishwa' },
+  released:  { bg: '#dbeafe', color: '#2563eb', label: 'Imetolewa' },
+  completed: { bg: '#f0fdf4', color: '#15803d', label: 'Imekamilika' },
+  rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Imekataliwa' },
 };
 
 const Payouts = ({ activePage, onNavigate, onLogout }) => {
@@ -67,7 +67,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
     try {
       setSettlingKey(key);
       await api.patch(`/super-agents/admin/courier-cost/${item.type}/${item.id}/settle`);
-      showMsg(`✅ Gharama ya ${item.trackingNumber} imewekwa kama imelipwa`);
+      showMsg(`Gharama ya ${item.trackingNumber} imewekwa kama imelipwa`);
       fetchAgentLedger();
     } catch (err) {
       showErr(err?.response?.data?.message || 'Imeshindwa kuweka kama imelipwa');
@@ -85,7 +85,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
         amount: Number(releaseAmount),
         note:   releaseNote.trim() || undefined,
       });
-      setMessage(`✅ TZS ${Number(res.data.released).toLocaleString()} imetolewa kwa ${releaseAgent.fullName}`);
+      setMessage(`TZS ${Number(res.data.released).toLocaleString()} imetolewa kwa ${releaseAgent.fullName}`);
       setReleaseAgent(null); setReleaseAmount(''); setReleaseNote('');
       // Refresh
       api.get('/agents/admin/pending-earnings').then(r => setLocalAgents(r.data || []));
@@ -98,11 +98,15 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
     if (!paymentMethod.trim()) { showErr('Weka njia ya malipo iliyotumika'); return; }
     try {
       setActionLoading(true);
-      await api.patch(`/payouts/admin/${selected.id}/release`, {
+      // The server's route is POST /payouts/admin/process/:orderId (owner 2026-11-09: this button
+      // called PATCH /payouts/admin/:id/release, which does not exist).
+      const orderId = selected.order?.id ?? selected.orderId;
+      if (!orderId) { showErr('Oda ya malipo haijulikani'); return; }
+      await api.post(`/payouts/admin/process/${orderId}`, {
         paymentMethod: paymentMethod.trim(),
-        paymentReference: paymentRef.trim() || undefined,
+        transactionReference: paymentRef.trim() || paymentMethod.trim(),
       });
-      showMsg(`💸 TZS ${Number(selected.sellerAmount).toLocaleString()} imetolewa kwa ${selected.seller?.storeName || selected.seller?.name}`);
+      showMsg(`TZS ${Number(selected.sellerAmount).toLocaleString()} imetolewa kwa ${selected.seller?.storeName || selected.seller?.name}`);
       setShowReleaseModal(false);
       setPaymentMethod('');
       setPaymentRef('');
@@ -145,24 +149,24 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>💸 Malipo ya Wauzaji</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Malipo ya Wauzaji</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Toa malipo kwa wauzaji baada ya bidhaa kutolewa</p>
           </div>
           <button onClick={fetchPayouts}
             style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            🔄 Onyesha Upya
+            Onyesha Upya
           </button>
         </div>
 
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {[
-            { key: 'seller', label: '🏪 Malipo ya Wauzaji' },
-            { key: 'agents', label: '🏢 Gharama za Ofisi' },
-            { key: 'local_agents', label: '🤝 Malipo ya Wakala' },
+            { key: 'seller', label: 'Malipo ya Wauzaji' },
+            { key: 'agents', label: 'Gharama za Ofisi' },
+            { key: 'local_agents', label: 'Malipo ya Wakala' },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{ padding: '9px 20px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -179,13 +183,12 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Summary cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
               {[
-                { label: 'Inasubiri Kutolewa', value: `TZS ${totalPending.toLocaleString()}`, count: counts.pending, color: '#ca8a04', bg: '#fef9c3', icon: '⏳' },
-                { label: 'Zimetolewa', value: counts.released, color: '#2563eb', bg: '#dbeafe', icon: '💸' },
-                { label: 'Zimekamilika', value: counts.completed, color: '#15803d', bg: '#f0fdf4', icon: '✅' },
-                { label: 'Jumla', value: counts.all, color: '#6366f1', bg: '#ede9fe', icon: '📊' },
+                { label: 'Inasubiri Kutolewa', value: `TZS ${totalPending.toLocaleString()}`, count: counts.pending, color: '#ca8a04', bg: '#fef9c3', icon: '' },
+                { label: 'Zimetolewa', value: counts.released, color: '#2563eb', bg: '#dbeafe', icon: '' },
+                { label: 'Zimekamilika', value: counts.completed, color: '#15803d', bg: '#f0fdf4', icon: '' },
+                { label: 'Jumla', value: counts.all, color: '#6366f1', bg: '#ede9fe', icon: '' },
               ].map(card => (
                 <div key={card.label} style={{ backgroundColor: card.bg, borderRadius: 12, padding: 16 }}>
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>{card.icon}</div>
                   <div style={{ fontSize: 20, fontWeight:800, color: card.color }}>{card.value}</div>
                   <div style={{ fontSize: 11, color: card.color, opacity: 0.8, fontWeight: 600, marginTop: 2 }}>{card.label}</div>
                 </div>
@@ -195,7 +198,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Pending alert */}
             {counts.pending > 0 && (
               <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: 13, color: '#92400e', fontWeight: 600 }}>
-                ⚠️ Wauzaji <strong>{counts.pending}</strong> wanasubiri malipo yao ya jumla <strong>TZS {totalPending.toLocaleString()}</strong>
+                Wauzaji <strong>{counts.pending}</strong> wanasubiri malipo yao ya jumla <strong>TZS {totalPending.toLocaleString()}</strong>
               </div>
             )}
 
@@ -212,16 +215,16 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             </div>
 
             {/* Search */}
-            <input placeholder="🔍 Tafuta muuzaji..." value={search}
+            <input placeholder="Tafuta muuzaji..." value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ ...inputStyle, marginBottom: 16, backgroundColor: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }} />
 
             {/* Table */}
             {loading ? (
-              <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Inapakia...</div>
+              <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>💸</div>
+                <div style={{ fontSize: 40, marginBottom: 10 }}></div>
                 <div>Hakuna malipo yanayolingana</div>
               </div>
             ) : (
@@ -251,7 +254,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                               </div>
                             ) : (
                               <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 600, marginTop: 2 }}>
-                                ⚠️ Hajaweka njia ya malipo
+                                Hajaweka njia ya malipo
                               </div>
                             )}
                           </td>
@@ -277,7 +280,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                                   setShowReleaseModal(true);
                                 }}
                                 style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                                💸 Toa
+                                Toa
                               </button>
                             )}
                           </td>
@@ -296,9 +299,9 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             Settle action (settling is per-item, not per-agent). */}
         {tab === 'agents' && (
           <div style={{ backgroundColor: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 24 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>🤝 Gharama za Usafirishaji — Ofisi</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>Gharama za Usafirishaji — Ofisi</h3>
             {ledgerLoading ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>⏳ Inapakia...</div>
+              <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Inapakia...</div>
             ) : agentLedger.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Hakuna rekodi za gharama</div>
             ) : (
@@ -335,7 +338,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                             <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>TZS {Number(item.courierCost || 0).toLocaleString()}</div>
                             <button onClick={() => handleSettleCourierCost(item)} disabled={settlingKey === settleKey}
                               style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: settlingKey === settleKey ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700 }}>
-                              {settlingKey === settleKey ? '⏳...' : '✅ Imelipwa'}
+                              {settlingKey === settleKey ? '...' : 'Imelipwa'}
                             </button>
                           </div>
                         </div>
@@ -352,7 +355,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
         {tab === 'local_agents' && (
           <div style={{ backgroundColor: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>🤝 Kamisheni ya Mawakala (Kukusanya Malipo)</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>Kamisheni ya Mawakala (Kukusanya Malipo)</h3>
               <div style={{ fontSize: 13, color: '#64748b' }}>
                 Hawa ni mawakala wanaokusanya malipo ya M-Pesa kwa niaba ya wanunuzi.
                 KenteXa inawadaiwa kamisheni hii tu — uwasilishaji na ukusanyaji wa vifurushi wanalipwa na ofisi moja kwa moja nje ya mfumo.
@@ -365,10 +368,10 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             </div>
 
             {localAgentsLoading ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳ Inapakia...</div>
+              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
             ) : localAgents.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
+                <div style={{ fontSize: 36, marginBottom: 10 }}></div>
                 <div>Hakuna malipo yanayosubiri kwa sasa</div>
               </div>
             ) : (
@@ -385,7 +388,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                         )}
                       </div>
                       <div style={{ fontSize: 12, color: '#64748b' }}>
-                        📍 {agent.city || '—'} · 📞 {agent.phone || '—'}
+                        {agent.city || '—'} · {agent.phone || '—'}
                       </div>
                       {/* Earnings breakdown */}
                       <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
@@ -402,7 +405,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       {/* Payout method if set */}
                       {agent.payoutMethod && (
                         <div style={{ marginTop: 6, fontSize: 11, color: '#475569' }}>
-                          💳 {agent.payoutMethod}
+                          {agent.payoutMethod}
                           {agent.payoutAccountNumber && ` — ${agent.payoutAccountNumber}`}
                           {agent.payoutAccountName && ` (${agent.payoutAccountName})`}
                         </div>
@@ -416,7 +419,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       <button
                         onClick={() => { setReleaseAgent(agent); setReleaseAmount(String(agent.pendingEarnings)); setReleaseNote(''); }}
                         style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                        💸 Toa Malipo
+                        Toa Malipo
                       </button>
                     </div>
                   </div>
@@ -432,7 +435,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
       {showReleaseModal && selected && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>💸 Toa Malipo</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>Toa Malipo</h3>
             <div style={{ backgroundColor: '#dcfce7', borderRadius: 10, padding: 14, marginBottom: 18 }}>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>MUUZAJI</div>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#15803d' }}>
@@ -446,25 +449,25 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Seller's stated payout details — exactly where to send the money */}
             {selected.seller?.payoutMethod ? (
               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 14, marginBottom: 18 }}>
-                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>📍 NJIA ALIYOWEKA MUUZAJI</div>
+                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>NJIA ALIYOWEKA MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {PAYOUT_METHOD_LABELS[selected.seller.payoutMethod] || selected.seller.payoutMethod}
                 </div>
                 {selected.seller.payoutAccountName && (
-                  <div style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>👤 {selected.seller.payoutAccountName}</div>
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>{selected.seller.payoutAccountName}</div>
                 )}
                 {selected.seller.payoutAccountNumber && (
                   <div style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 700, marginTop: 2, fontFamily: 'monospace' }}>{selected.seller.payoutAccountNumber}</div>
                 )}
                 {selected.seller.payoutMethod === 'bank' && selected.seller.payoutBankName && (
                   <div style={{ fontSize: 12, color: '#475569', marginTop: 3 }}>
-                    🏦 {selected.seller.payoutBankName}{selected.seller.payoutBranchName ? ` — ${selected.seller.payoutBranchName}` : ''}
+                    {selected.seller.payoutBankName}{selected.seller.payoutBranchName ? ` — ${selected.seller.payoutBranchName}` : ''}
                   </div>
                 )}
               </div>
             ) : (
               <div style={{ backgroundColor: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: 14, marginBottom: 18, fontSize: 12, color: '#dc2626', fontWeight: 600 }}>
-                ⚠️ Muuzaji hajaweka njia ya malipo bado. Wasiliana naye kabla ya kutoa malipo.
+                Muuzaji hajaweka njia ya malipo bado. Wasiliana naye kabla ya kutoa malipo.
               </div>
             )}
             <div style={{ marginBottom: 12 }}>
@@ -489,7 +492,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
               </button>
               <button onClick={handleRelease} disabled={actionLoading}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
-                {actionLoading ? '⏳ Inatoa...' : '💸 Toa Malipo'}
+                {actionLoading ? 'Inatoa...' : 'Toa Malipo'}
               </button>
             </div>
           </div>
@@ -500,7 +503,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
       {releaseAgent && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 420 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>💸 Toa Malipo — {releaseAgent.fullName}</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>Toa Malipo — {releaseAgent.fullName}</h3>
 
             {/* Agent details */}
             <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 16 }}>
@@ -509,14 +512,14 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                 TZS {Number(releaseAgent.pendingEarnings).toLocaleString()}
               </div>
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                📍 {releaseAgent.city || '—'} · {releaseAgent.agentCode || '—'}
+                {releaseAgent.city || '—'} · {releaseAgent.agentCode || '—'}
               </div>
             </div>
 
             {/* Payout method */}
             {releaseAgent.payoutMethod ? (
               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>💳 NJIA YA MALIPO</div>
+                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>NJIA YA MALIPO</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{releaseAgent.payoutMethod}</div>
                 {releaseAgent.payoutAccountNumber && (
                   <div style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 700, marginTop: 3, fontFamily: 'monospace' }}>
@@ -524,12 +527,12 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                   </div>
                 )}
                 {releaseAgent.payoutAccountName && (
-                  <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>👤 {releaseAgent.payoutAccountName}</div>
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{releaseAgent.payoutAccountName}</div>
                 )}
               </div>
             ) : (
               <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 10, marginBottom: 16, fontSize: 12, color: '#92400e' }}>
-                ⚠️ Wakala hajaweka njia ya malipo. Wasiliana naye moja kwa moja: {releaseAgent.phone}
+                Wakala hajaweka njia ya malipo. Wasiliana naye moja kwa moja: {releaseAgent.phone}
               </div>
             )}
 
@@ -551,7 +554,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handleReleaseAgent} disabled={releasing || !releaseAmount}
                 style={{ flex: 1, background: releasing ? '#64748b' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: releasing ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 800 }}>
-                {releasing ? '⏳ Inatoa...' : '💸 Toa Malipo'}
+                {releasing ? 'Inatoa...' : 'Toa Malipo'}
               </button>
               <button onClick={() => setReleaseAgent(null)}
                 style={{ padding: '14px 18px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#64748b' }}>

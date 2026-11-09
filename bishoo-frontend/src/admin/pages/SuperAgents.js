@@ -164,14 +164,14 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0, fontFamily:'inherit' }}>🏢 Offices</h1>
+            <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0, fontFamily:'inherit' }}>Offices</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>{agents.length} total super agents</p>
           </div>
-          <button onClick={fetchAgents} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>🔄 Refresh</button>
+          <button onClick={fetchAgents} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>Refresh</button>
         </div>
 
-        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>✅ {message} <button onClick={() => setMessage('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>❌ {error} <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
+        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>{message} <button onClick={() => setMessage('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#16a34a', fontWeight: 'bold' }}>×</button></div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 8, marginBottom: 20, fontSize: 14 }}>{error} <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button></div>}
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
@@ -222,7 +222,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                         <div style={{ fontSize: 12, color: '#64748b' }}>{agent.user?.email || agent.user?.phone}</div>
                         {agent.isTrainingOffice && (
                           <span data-testid="training-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 20,
-                            fontSize: 11, fontWeight: 800, backgroundColor: '#ede9fe', color: '#6d28d9' }}>🎓 Mafunzo</span>
+                            fontSize: 11, fontWeight: 800, backgroundColor: '#ede9fe', color: '#6d28d9' }}>Mafunzo</span>
                         )}
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748b' }}>{agent.city}</td>
@@ -239,24 +239,24 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button onClick={() => setDetailAgent(agent)}
                             style={{ backgroundColor: '#f1f5f9', color: '#1e293b', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                            🔍 View
+                            View
                           </button>
                           {agent.status === 'pending' && (
                             <button onClick={() => handleApprove(agent.id)} disabled={actionLoading}
                               style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                              ✅ Approve
+                              Approve
                             </button>
                           )}
                           {agent.status === 'pending' && (
                             <button onClick={() => { setSelected(agent); setSuspendIsReject(true); setShowSuspendModal(true); }}
                               style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                              ❌ Reject
+                              Reject
                             </button>
                           )}
                           {agent.status === 'active' && (
                             <button onClick={() => { setSelected(agent); setSuspendIsReject(false); setShowSuspendModal(true); }}
                               style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                              🚫 Suspend
+                              Suspend
                             </button>
                           )}
                           {agent.status !== 'pending' && (
@@ -264,13 +264,13 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                               title={agent.isTrainingOffice ? 'Show this office to customers again' : 'Hide from customers; for staff testing and training only; no real SMS'}
                               style={{ backgroundColor: agent.isTrainingOffice ? '#f5f3ff' : '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe',
                                 padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                              {agent.isTrainingOffice ? '↩️ Ondoa mafunzo' : '🎓 Mafunzo'}
+                              {agent.isTrainingOffice ? '↩️ Ondoa mafunzo' : 'Mafunzo'}
                             </button>
                           )}
                           {agent.status === 'suspended' && (
                             <button onClick={() => handleApprove(agent.id)} disabled={actionLoading}
                               style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                              🔄 Reactivate
+                              Reactivate
                             </button>
                           )}
                         </div>
@@ -289,7 +289,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: 32, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
-              {suspendIsReject ? '❌ Reject Application' : '🚫 Suspend Office'}
+              {suspendIsReject ? 'Reject Application' : 'Suspend Office'}
             </h2>
             <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>{selected?.businessName} — {selected?.agentCode}</p>
             <label style={{ display: 'block', fontSize: 13, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>
@@ -301,7 +301,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { setShowSuspendModal(false); setSuspendReason(''); setSuspendIsReject(false); }} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
               <button onClick={handleSuspend} disabled={actionLoading} style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
-                {actionLoading ? '⏳' : suspendIsReject ? '❌ Reject' : '🚫 Suspend'}
+                {actionLoading ? '' : suspendIsReject ? 'Reject' : 'Suspend'}
               </button>
             </div>
           </div>
@@ -357,7 +357,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                 field for applications submitted after this phase. */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>🪪 Identity Verification</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Identity Verification</div>
                 {applicantIdentity && (
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                     backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[applicantIdentity.status] || '#f1f5f9',
@@ -389,13 +389,13 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
             {/* Referral program (Phase 4) — audit visibility only */}
             {detailAgent.referralCode && (
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>🎁 Referrals</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>Referrals</div>
                 <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>Code: <strong>{detailAgent.referralCode}</strong></div>
                 {agentReferrals.length === 0 ? (
                   <div style={{ fontSize: 12, color: '#94a3b8' }}>No referrals yet</div>
                 ) : (
                   agentReferrals.map(r => {
-                    const badge = { registered: ['⏳', '#ca8a04'], qualified: ['✅', '#16a34a'], rejected_fraud: ['❌', '#dc2626'] }[r.status] || ['?', '#64748b'];
+                    const badge = { registered: ['', '#ca8a04'], qualified: ['', '#16a34a'], rejected_fraud: ['', '#dc2626'] }[r.status] || ['?', '#64748b'];
                     return (
                       <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
                         <span style={{ color: '#475569' }}>{r.referredUser?.name || '—'}</span>
@@ -416,7 +416,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
               const isBlocked = threshold > 0 && balance >= threshold;
               return (
                 <div style={{ marginBottom: 18, backgroundColor: '#f8fafc', borderRadius: 10, padding: 16, border: isBlocked ? '2px solid #dc2626' : '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>💳 Billing &amp; Free Orders</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>Billing &amp; Free Orders</div>
                   {[
                     ['Free orders granted', granted],
                     ['Free orders used', used],
@@ -438,7 +438,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                   </div>
                   {isBlocked && (
                     <div style={{ marginTop: 8, backgroundColor: '#fef2f2', borderRadius: 6, padding: '8px 10px', fontSize: 11.5, color: '#b91c1c', fontWeight: 700 }}>
-                      ⚠️ This agent is blocked from new registrations until the balance is paid down.
+                      This agent is blocked from new registrations until the balance is paid down.
                     </div>
                   )}
                   {billingError && <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', fontWeight: 700 }}>{billingError}</div>}
@@ -481,11 +481,11 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                 <>
                   <button onClick={() => { handleApprove(detailAgent.id); setDetailAgent(null); }} disabled={actionLoading}
                     style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
-                    ✅ Approve
+                    Approve
                   </button>
                   <button onClick={() => { setSelected(detailAgent); setSuspendIsReject(true); setShowSuspendModal(true); setDetailAgent(null); }}
                     style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
-                    ❌ Reject
+                    Reject
                   </button>
                 </>
               )}

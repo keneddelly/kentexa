@@ -35,7 +35,7 @@ const PhoneCell = ({ phone, name }) => {
 };
 
 const STATUS = {
-  active:  { bg: '#dcfce7', color: '#16a34a', label: '✅ Inaonyeshwa' },
+  active:  { bg: '#dcfce7', color: '#16a34a', label: 'Inaonyeshwa' },
   sold:    { bg: '#f1f5f9', color: '#64748b', label: 'Imeuzwa' },
   expired: { bg: '#fee2e2', color: '#dc2626', label: 'Imekwisha' },
 };
@@ -101,7 +101,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
           alignItems: 'center', marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 24, fontWeight:800, color: '#0f172a', margin: 0 }}>
-              📋 Matangazo
+              Matangazo
             </h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
               {items.length} matangazo yote
@@ -111,14 +111,14 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
             style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
               padding: '10px 20px', borderRadius: 8, cursor: 'pointer',
               fontSize: 14, fontWeight: 700 }}>
-            🔄 Onyesha Upya
+            Onyesha Upya
           </button>
         </div>
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626',
             padding: '12px 16px', borderRadius: 8, marginBottom: 20 }}>
-            ❌ {error}
+            {error}
           </div>
         )}
 
@@ -141,7 +141,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
 
         {/* Search & Filter */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <input type="text" placeholder="🔍 Tafuta jina, muuzaji, simu, eneo..."
+          <input type="text" placeholder="Tafuta jina, muuzaji, simu, eneo..."
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ flex: 1, padding: '10px 14px', borderRadius: 8,
               border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
@@ -157,7 +157,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
 
         {/* Table */}
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>⏳ Inapakia...</div>
+          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Inapakia...</div>
         ) : (
           <div style={{ backgroundColor: '#fff', borderRadius: 12,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
@@ -193,7 +193,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                           <div style={{ width: 44, height: 44, borderRadius: 8,
                             backgroundColor: '#f1f5f9', display: 'flex',
                             alignItems: 'center', justifyContent: 'center',
-                            fontSize: 18 }}>📦</div>
+                            fontSize: 18 }}></div>
                         )}
                       </td>
                       <td style={{ padding: '10px 14px', maxWidth: 200 }}>
@@ -221,7 +221,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                         )}
                       </td>
                       <td style={{ padding: '10px 14px', fontSize: 12, color: '#64748b' }}>
-                        📍 {item.location || '—'}
+                        {item.location || '—'}
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{ padding: '3px 10px', borderRadius: 20,
@@ -284,7 +284,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                 </div>
                 <button onClick={() => setSelected(null)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 20, color: '#94a3b8', flexShrink: 0 }}>✕</button>
+                    fontSize: 20, color: '#94a3b8', flexShrink: 0 }}></button>
               </div>
 
               {/* Image */}
@@ -298,11 +298,11 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12,
                 padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
-                  marginBottom: 8, letterSpacing: 0.5 }}>🏪 ALIYEWEKA</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>ALIYEWEKA</div>
                 <PhoneCell name={selected.seller?.name} phone={selected.seller?.phone} />
                 {selected.seller?.email && (
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-                    ✉️ {selected.seller.email}
+                    {selected.seller.email}
                   </div>
                 )}
                 {selected.seller?.id && (
@@ -316,7 +316,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12,
                 padding: 14, marginBottom: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
-                  marginBottom: 8, letterSpacing: 0.5 }}>📋 MAELEZO</div>
+                  marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Bei',       `TZS ${Number(selected.price).toLocaleString()}`],
                   ['Kategoria', CATEGORY_LABELS[selected.category] || selected.category || '—'],
@@ -339,7 +339,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 12,
                   padding: 14, marginBottom: 16 }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
-                    marginBottom: 8, letterSpacing: 0.5 }}>📝 MAELEZO ZAIDI</div>
+                    marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO ZAIDI</div>
                   <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, margin: 0 }}>
                     {selected.description}
                   </p>
@@ -354,7 +354,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                     style={{ backgroundColor: '#f1f5f9', color: '#64748b',
                       border: 'none', padding: 12, borderRadius: 10,
                       cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                    ✅ Weka kama Imeuzwa
+                    Weka kama Imeuzwa
                   </button>
                 )}
                 {selected.status === 'expired' && (
@@ -363,7 +363,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                     style={{ backgroundColor: '#dcfce7', color: '#16a34a',
                       border: 'none', padding: 12, borderRadius: 10,
                       cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                    🔄 Onyesha Tena
+                    Onyesha Tena
                   </button>
                 )}
                 {selected.status !== 'expired' && (
@@ -372,7 +372,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                     style={{ backgroundColor: '#fee2e2', color: '#dc2626',
                       border: 'none', padding: 12, borderRadius: 10,
                       cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                    🗑️ Futa Tangazo
+                    Futa Tangazo
                   </button>
                 )}
                 {selected.seller?.phone && (
@@ -382,7 +382,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                       border: 'none', padding: 12, borderRadius: 10,
                       cursor: 'pointer', fontSize: 13, fontWeight: 700,
                       textDecoration: 'none', textAlign: 'center', display: 'block' }}>
-                    💬 Wasiliana na Muuzaji WhatsApp
+                    Wasiliana na Muuzaji WhatsApp
                   </a>
                 )}
               </div>

@@ -4,9 +4,9 @@ import api from '../../api/api';
 
 const STATUS_STYLE = {
   not_submitted: { bg: '#f1f5f9', color: '#64748b', label: '— Not submitted' },
-  pending:       { bg: '#fef9c3', color: '#ca8a04', label: '⏳ Pending' },
-  verified:      { bg: '#dcfce7', color: '#16a34a', label: '✅ Verified' },
-  rejected:      { bg: '#fee2e2', color: '#dc2626', label: '❌ Rejected' },
+  pending:       { bg: '#fef9c3', color: '#ca8a04', label: 'Pending' },
+  verified:      { bg: '#dcfce7', color: '#16a34a', label: 'Verified' },
+  rejected:      { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
 };
 
 const ID_TYPE_LABEL = {
@@ -45,7 +45,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/identity/admin/${id}/review`, { approve: true });
-      showMsg('✅ Identity verified');
+      showMsg('Identity verified');
       setSelected(null);
       fetchProfiles(filter);
     } catch (err) { showErr(err?.response?.data?.message || 'Failed'); }
@@ -57,7 +57,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
     try {
       setActionLoading(true);
       await api.patch(`/identity/admin/${id}/review`, { approve: false, reason: rejectReason });
-      showMsg('❌ Identity submission rejected');
+      showMsg('Identity submission rejected');
       setShowRejectModal(false);
       setRejectReason('');
       setSelected(null);
@@ -77,21 +77,21 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>🪪 Identity Verification</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Identity Verification</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Review submitted NIDA/identity information</p>
           </div>
           <button onClick={() => fetchProfiles(filter)}
             style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            🔄 Refresh
+            Refresh
           </button>
         </div>
 
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           {[
-            { key: 'pending', label: '⏳ Pending', color: '#ca8a04' },
+            { key: 'pending', label: 'Pending', color: '#ca8a04' },
             { key: 'all',     label: 'All',        color: '#6366f1' },
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
@@ -105,10 +105,10 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Loading...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading...</div>
         ) : profiles.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🪪</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>No identity submissions here</div>
           </div>
         ) : (
@@ -146,11 +146,11 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button onClick={e => { e.stopPropagation(); handleApprove(p.id); }} disabled={actionLoading}
                               style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                              ✅ Approve
+                              Approve
                             </button>
                             <button onClick={e => { e.stopPropagation(); setSelected(p); setShowRejectModal(true); }}
                               style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                              ❌ Reject
+                              Reject
                             </button>
                           </div>
                         )}
@@ -171,7 +171,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ width: 420, backgroundColor: '#fff', height: '100%', overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.12)' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>🪪 Identity Submission</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Identity Submission</h2>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
 
@@ -212,11 +212,11 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
                   style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
-                  {actionLoading ? '⏳...' : '✅ Verify Identity'}
+                  {actionLoading ? '...' : 'Verify Identity'}
                 </button>
                 <button onClick={() => setShowRejectModal(true)}
                   style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                  ❌ Reject Submission
+                  Reject Submission
                 </button>
               </div>
             )}
@@ -228,7 +228,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
       {showRejectModal && selected && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>❌ Reject Submission</h3>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>Reject Submission</h3>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>
               <strong>{selected.legalName || selected.user?.name}</strong>'s identity submission will be rejected with this reason.
             </p>
@@ -243,7 +243,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
               </button>
               <button onClick={() => handleReject(selected.id)} disabled={actionLoading}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
-                {actionLoading ? '⏳...' : '❌ Reject'}
+                {actionLoading ? '...' : 'Reject'}
               </button>
             </div>
           </div>

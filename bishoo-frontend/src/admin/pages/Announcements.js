@@ -3,18 +3,18 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const AUDIENCE_LABELS = {
-  all:         { label: '👥 Wote', color: '#6366f1' },
-  sellers:     { label: '🏪 Wauzaji', color: '#7c3aed' },
-  agents:      { label: '🤝 Agents', color: '#2563eb' },
-  super_agents:{ label: '⭐ Ofisi', color: '#ca8a04' },
-  buyers:      { label: '👤 Wanunuzi', color: '#16a34a' },
+  all:         { label: 'Wote', color: '#6366f1' },
+  sellers:     { label: 'Wauzaji', color: '#7c3aed' },
+  agents:      { label: 'Agents', color: '#2563eb' },
+  super_agents:{ label: 'Ofisi', color: '#ca8a04' },
+  buyers:      { label: 'Wanunuzi', color: '#16a34a' },
 };
 
 const PRIORITY_LABELS = {
   info:    { label: 'ℹ️ Habari',    bg: '#dbeafe', color: '#1d4ed8' },
-  success: { label: '✅ Mafanikio', bg: '#dcfce7', color: '#16a34a' },
-  warning: { label: '⚠️ Onyo',      bg: '#fef9c3', color: '#ca8a04' },
-  urgent:  { label: '🚨 Dharura',   bg: '#fee2e2', color: '#dc2626' },
+  success: { label: 'Mafanikio', bg: '#dcfce7', color: '#16a34a' },
+  warning: { label: 'Onyo',      bg: '#fef9c3', color: '#ca8a04' },
+  urgent:  { label: 'Dharura',   bg: '#fee2e2', color: '#dc2626' },
 };
 
 const emptyForm = {
@@ -88,7 +88,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
         expiresAt: form.expiresAt || undefined,
         sendSms:   form.sendSms,
       });
-      showMsg(`✅ Tangazo limetumwa${form.sendSms ? ' + SMS' : ''}`);
+      showMsg(`Tangazo limetumwa${form.sendSms ? ' + SMS' : ''}`);
       setShowForm(false);
       setForm(emptyForm);
       setTargetMode('broadcast');
@@ -107,7 +107,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
   const handleDelete = async (id) => {
     if (!window.confirm('Futa tangazo hili?')) return;
     await api.delete(`/announcements/admin/${id}`);
-    showMsg('✅ Tangazo limefutwa');
+    showMsg('Tangazo limefutwa');
     fetchAll();
   };
 
@@ -121,17 +121,17 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>📢 Matangazo</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Matangazo</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Tuma ujumbe kwa wauzaji, agents na wanunuzi</p>
           </div>
           <button onClick={() => setShowForm(true)}
             style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-            ➕ Tangazo Jipya
+            Tangazo Jipya
           </button>
         </div>
 
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         {/* Quick stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
@@ -150,10 +150,10 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
 
         {/* List */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
         ) : announcements.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 14, color: '#94a3b8' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}></div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>Hakuna matangazo bado</div>
             <div style={{ fontSize: 13 }}>Bonyeza "Tangazo Jipya" kuandika ujumbe wa kwanza</div>
           </div>
@@ -170,39 +170,39 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
                         <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: ps.bg, color: ps.color }}>{ps.label}</span>
                         {a.targetUserId ? (
-                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>👤 {a.targetUserName || `User #${a.targetUserId}`}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>{a.targetUserName || `User #${a.targetUserId}`}</span>
                         ) : a.thresholdEntity ? (
                           <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>
-                            💰 {a.thresholdEntity === 'seller' ? 'Wauzaji' : 'Ofisi'} {a.thresholdOperator === 'gte' ? '≥' : '≤'} TZS {Number(a.thresholdAmount).toLocaleString()}
+                            {a.thresholdEntity === 'seller' ? 'Wauzaji' : 'Ofisi'} {a.thresholdOperator === 'gte' ? '≥' : '≤'} TZS {Number(a.thresholdAmount).toLocaleString()}
                           </span>
                         ) : (
                           <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: as_.color }}>{as_.label}</span>
                         )}
                         {!a.isActive && <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>IMEZIMWA</span>}
-                        {a.smsSent && <span style={{ fontSize: 11, fontWeight: 700, color: '#ca8a04' }}>📱 SMS Imetumwa</span>}
+                        {a.smsSent && <span style={{ fontSize: 11, fontWeight: 700, color: '#ca8a04' }}>SMS Imetumwa</span>}
                       </div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{a.title}</div>
                       <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.6 }}>{a.message}</div>
                       {a.linkUrl && (
-                        <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4 }}>🔗 {a.linkUrl}</div>
+                        <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4 }}>{a.linkUrl}</div>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: 6, marginLeft: 16, flexShrink: 0 }}>
                       <button onClick={() => handleToggle(a.id, a.isActive)}
                         style={{ backgroundColor: a.isActive ? '#fef9c3' : '#dcfce7', color: a.isActive ? '#ca8a04' : '#16a34a', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                        {a.isActive ? '⏸ Simamisha' : '▶️ Amilisha'}
+                        {a.isActive ? 'Simamisha' : '▶️ Amilisha'}
                       </button>
                       <button onClick={() => handleDelete(a.id)}
                         style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                        🗑️
+
                       </button>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#94a3b8', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
-                    <span>📅 {new Date(a.createdAt).toLocaleString('sw-TZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                    <span>👁 Wamesoma: {readCount}</span>
-                    {a.expiresAt && <span>⏰ Inaisha: {new Date(a.expiresAt).toLocaleDateString('sw-TZ')}</span>}
-                    <span>✍️ {a.createdBy?.name || 'Admin'}</span>
+                    <span>{new Date(a.createdAt).toLocaleString('sw-TZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>Wamesoma: {readCount}</span>
+                    {a.expiresAt && <span>Inaisha: {new Date(a.expiresAt).toLocaleDateString('sw-TZ')}</span>}
+                    <span>{a.createdBy?.name || 'Admin'}</span>
                   </div>
                 </div>
               );
@@ -216,7 +216,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
           <div style={{ width: 480, backgroundColor: '#fff', height: '100%', overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>📢 Tangazo Jipya</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Tangazo Jipya</h2>
               <button onClick={() => { setShowForm(false); setForm(emptyForm); setTargetMode('broadcast'); setUserSearch(''); }}
                 style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
@@ -224,9 +224,9 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
             {/* Broadcast vs specific-user vs threshold mode */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {[
-                { key: 'broadcast', label: '📢 Broadcast' },
-                { key: 'user',      label: '👤 Mtumiaji' },
-                { key: 'threshold', label: '💰 Kiwango cha Deni' },
+                { key: 'broadcast', label: 'Broadcast' },
+                { key: 'user',      label: 'Mtumiaji' },
+                { key: 'threshold', label: 'Kiwango cha Deni' },
               ].map(m => (
                 <button key={m.key} type="button"
                   onClick={() => { setTargetMode(m.key); if (m.key === 'user') loadUsersOnce(); }}
@@ -245,8 +245,8 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ display: 'flex', gap: 8 }}>
                   <select value={form.thresholdEntity} onChange={e => setForm({...form, thresholdEntity: e.target.value})}
                     style={{ ...inputStyle, flex: 1 }}>
-                    <option value="seller">🏪 Wauzaji</option>
-                    <option value="super_agent">⭐ Ofisi</option>
+                    <option value="seller">Wauzaji</option>
+                    <option value="super_agent">Ofisi</option>
                   </select>
                   <select value={form.thresholdOperator} onChange={e => setForm({...form, thresholdOperator: e.target.value})}
                     style={{ ...inputStyle, flex: '0 0 90px' }}>
@@ -269,7 +269,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                 {form.targetUserId ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     backgroundColor: '#eef2ff', borderRadius: 8, padding: '10px 12px' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>👤 {form.targetUserName}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{form.targetUserName}</span>
                     <button onClick={() => { setForm({...form, targetUserId: null, targetUserName: ''}); setUserSearch(''); }}
                       style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                       Badilisha
@@ -356,13 +356,13 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                   {form.sendSms && <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>✓</span>}
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>📱 Tuma SMS pia</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Tuma SMS pia</div>
                   <div style={{ fontSize: 11, color: '#64748b' }}>SMS itatumwa kwa wote waliolengwa wanazo namba za simu</div>
                 </div>
               </div>
               {form.sendSms && (
                 <div style={{ marginTop: 8, fontSize: 11, color: '#92400e', fontWeight: 600 }}>
-                  ⚠️ Hii itatumia credits za Africa's Talking. Hakikisha una credit ya kutosha.
+                  Hii itatumia credits za Africa's Talking. Hakikisha una credit ya kutosha.
                 </div>
               )}
             </div>
@@ -389,7 +389,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
               </button>
               <button onClick={handleCreate} disabled={saving}
                 style={{ flex: 2, background: saving ? '#a5b4fc' : 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
-                {saving ? '⏳ Inatuma...' : `📢 Tuma${form.sendSms ? ' + SMS' : ''}`}
+                {saving ? 'Inatuma...' : `Tuma${form.sendSms ? ' + SMS' : ''}`}
               </button>
             </div>
           </div>

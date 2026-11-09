@@ -85,7 +85,7 @@ const CollectionFees = ({ onNavigate }) => {
       <div className="admin-content" style={{ flex: 1, padding: 24, maxWidth: 900, marginLeft: 250, boxSizing: 'border-box' }}>
 
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>🚴 Ada za Kukusanya kwa Mji</h1>
+          <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>Ada za Kukusanya kwa Mji</h1>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
             Weka ada za kukusanya bidhaa kutoka kwa wauzaji kwa kila mji. Mji wa vijijini una ada ya juu zaidi.
           </p>
@@ -93,14 +93,14 @@ const CollectionFees = ({ onNavigate }) => {
 
         {/* Global defaults info */}
         <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#1d4ed8' }}>
-          💡 Mji usio na ada maalum utatumia: <strong>TZS {DEFAULT_URBAN.toLocaleString()} (mjini)</strong> na <strong>TZS {DEFAULT_RURAL.toLocaleString()} (vijijini)</strong> kwa chaguo-msingi.
+          Mji usio na ada maalum utatumia: <strong>TZS {DEFAULT_URBAN.toLocaleString()} (mjini)</strong> na <strong>TZS {DEFAULT_RURAL.toLocaleString()} (vijijini)</strong> kwa chaguo-msingi.
         </div>
 
-        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>❌ {error}</div>}
-        {success && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>✅ {success}</div>}
+        {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>{error}</div>}
+        {success && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: 12, borderRadius: 8, marginBottom: 14, fontSize: 13 }}>{success}</div>}
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
             {CITIES.map(city => {
@@ -115,28 +115,28 @@ const CollectionFees = ({ onNavigate }) => {
                   border: dirty ? '2px solid #f59e0b' : hasCustom ? '1px solid #86efac' : '1px solid #e2e8f0' }}>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>📍 {city}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{city}</div>
                     {hasCustom && !dirty && (
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#dcfce7', color: '#16a34a' }}>
-                        ✅ Imewekwa
+                        Imewekwa
                       </span>
                     )}
                     {dirty && (
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#fef9c3', color: '#ca8a04' }}>
-                        ✏️ Mabadiliko
+                        Mabadiliko
                       </span>
                     )}
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <div>
-                      <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>🏙️ Mjini (TZS)</label>
+                      <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Mjini (TZS)</label>
                       <input type="number" value={vals.urban}
                         onChange={e => setField(city, 'urban', e.target.value)}
                         style={inputStyle} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>🌾 Vijijini (TZS)</label>
+                      <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Vijijini (TZS)</label>
                       <input type="number" value={vals.rural}
                         onChange={e => setField(city, 'rural', e.target.value)}
                         style={inputStyle} />
@@ -148,7 +148,7 @@ const CollectionFees = ({ onNavigate }) => {
                       fontSize: 12, fontWeight: 700,
                       background: dirty ? 'linear-gradient(135deg,#1d4ed8,#2563eb)' : '#f1f5f9',
                       color: dirty ? '#fff' : '#94a3b8' }}>
-                    {saving === city ? '⏳ Inahifadhi...' : dirty ? '💾 Hifadhi' : '✓ Imehifadhiwa'}
+                    {saving === city ? 'Inahifadhi...' : dirty ? 'Hifadhi' : '✓ Imehifadhiwa'}
                   </button>
                 </div>
               );

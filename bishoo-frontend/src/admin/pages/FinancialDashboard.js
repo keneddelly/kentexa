@@ -98,7 +98,7 @@ const FinancialDashboard = ({ onNavigate }) => {
 
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>💰</div>
+      <div style={{ fontSize: 40, marginBottom: 12 }}></div>
       <div>Inapakia takwimu za fedha...</div>
     </div>
   );
@@ -155,7 +155,7 @@ const FinancialDashboard = ({ onNavigate }) => {
         alignItems: 'center', marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>
-            💰 Dashibodi ya Fedha
+            Dashibodi ya Fedha
           </div>
           <div style={{ fontSize: 12, color: '#64748b' }}>
             Muhtasari wa mapato yote ya KenteXa
@@ -199,19 +199,19 @@ const FinancialDashboard = ({ onNavigate }) => {
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)',
         gap: 12, marginBottom: 20 }}>
-        <StatCard icon="💳" label="Ada za Platform"
+        <StatCard icon="" label="Ada za Platform"
           value={`TZS ${fmt(platformFees)}`}
           sub={`TZS 1,000 × ${totalOrders} maagizo`}
           color="#7c3aed" bg="#f5f3ff" />
-        <StatCard icon="🔒" label="Escrow Inayosubiri"
+        <StatCard icon="" label="Escrow Inayosubiri"
           value={`TZS ${fmt(pendingEscrow)}`}
           sub="Itatolewa baada ya uthibitisho"
           color="#f59e0b" bg="#fef3c7" />
-        <StatCard icon="✅" label="Ilitolewa Leo"
+        <StatCard icon="" label="Ilitolewa Leo"
           value={`TZS ${fmt(releasedToday)}`}
           sub="Malipo kwa wauzaji"
           color="#16a34a" bg="#f0fdf4" />
-        <StatCard icon="📦" label="Maagizo Yote"
+        <StatCard icon="" label="Maagizo Yote"
           value={totalOrders}
           sub={`${onlineOrders} online · ${offlineOrders} manual`}
           color="#1d4ed8" bg="#eff6ff" />
@@ -221,9 +221,9 @@ const FinancialDashboard = ({ onNavigate }) => {
       <div style={{ display: 'flex', backgroundColor: '#fff', borderRadius: 12,
         padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
         {[
-          { key: 'overview', label: '📊 Muhtasari' },
-          { key: 'channels', label: '🔀 Njia' },
-          { key: 'sellers',  label: '🏪 Wauzaji' },
+          { key: 'overview', label: 'Muhtasari' },
+          { key: 'channels', label: 'Njia' },
+          { key: 'sellers',  label: 'Wauzaji' },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ flex: 1, padding: '9px 8px', border: 'none', cursor: 'pointer',
@@ -299,10 +299,10 @@ const FinancialDashboard = ({ onNavigate }) => {
           {/* Quick links */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
-              { label: '📋 Ona Maagizo Yote', page: 'Orders' },
-              { label: '💳 Ona Malipo',        page: 'Payments' },
-              { label: '🧾 Ona Ankara',         page: 'Invoices' },
-              { label: '🤝 Ona Wauzaji',        page: 'Sellers' },
+              { label: 'Ona Maagizo Yote', page: 'Orders' },
+              { label: 'Ona Malipo',        page: 'Payments' },
+              { label: 'Ona Ankara',         page: 'Invoices' },
+              { label: 'Ona Wauzaji',        page: 'Sellers' },
             ].map(l => (
               <button key={l.page} onClick={() => onNavigate(l.page)}
                 style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0',
@@ -320,7 +320,7 @@ const FinancialDashboard = ({ onNavigate }) => {
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>
-            🏆 Wauzaji Bora
+            Wauzaji Bora
           </div>
           {topSellers.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>

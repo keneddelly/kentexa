@@ -3,13 +3,13 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: '⏳ Inasubiri',     dot: '#ca8a04' },
-  approved:  { bg: '#dcfce7', color: '#16a34a', label: '✅ Ameidhinishwa', dot: '#16a34a' },
-  rejected:  { bg: '#fee2e2', color: '#dc2626', label: '❌ Alikataliwa',   dot: '#dc2626' },
-  suspended: { bg: '#f1f5f9', color: '#64748b', label: '🚫 Imesimamishwa', dot: '#64748b' },
+  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri',     dot: '#ca8a04' },
+  approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Ameidhinishwa', dot: '#16a34a' },
+  rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Alikataliwa',   dot: '#dc2626' },
+  suspended: { bg: '#f1f5f9', color: '#64748b', label: 'Imesimamishwa', dot: '#64748b' },
 };
 
-const TIER_LABEL = { basic: '🥉 Basic', silver: '🥈 Silver', gold: '🥇 Gold' };
+const TIER_LABEL = { basic: 'Basic', silver: 'Silver', gold: 'Gold' };
 
 const inputStyle = {
   width: '100%', padding: '9px 12px', borderRadius: 8,
@@ -200,15 +200,15 @@ const Agents = ({ onNavigate }) => {
 
         {/* Header */}
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>🤝 Mawakala wa KenteXa</h1>
+          <h1 style={{ fontSize: 22, fontWeight:800, color: '#0f172a', margin: 0 }}>Mawakala wa KenteXa</h1>
           <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>
             Idhinisha, simamia, na weka mipangilio ya mawakala wa mitaa
           </p>
         </div>
 
         {/* Alerts */}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13 }}>❌ {error}</div>}
-        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600 }}>✅ {message}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13 }}>{error}</div>}
+        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600 }}>{message}</div>}
 
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
@@ -229,7 +229,7 @@ const Agents = ({ onNavigate }) => {
         {(counts.pending || 0) > 0 && (
           <div style={{ backgroundColor: '#fff7ed', border: '2px solid #fed7aa', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: '#c2410c', fontWeight: 700 }}>
-              ⚠️ Kuna maombi {counts.pending} yanayosubiri idhini yako
+              Kuna maombi {counts.pending} yanayosubiri idhini yako
             </span>
             <button onClick={() => setFilterStatus('pending')}
               style={{ backgroundColor: '#c2410c', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
@@ -243,7 +243,7 @@ const Agents = ({ onNavigate }) => {
           <div style={{ flex: 1 }}>
             {/* Filters */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-              <input placeholder="🔍 Tafuta jina, simu, msimbo, mji..."
+              <input placeholder="Tafuta jina, simu, msimbo, mji..."
                 value={search} onChange={e => setSearch(e.target.value)}
                 style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
@@ -265,10 +265,10 @@ const Agents = ({ onNavigate }) => {
             </div>
 
             {loading ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳ Inapakia...</div>
+              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🤝</div>
+                <div style={{ fontSize: 36, marginBottom: 10 }}></div>
                 <div>Hakuna mawakala wanaolingana</div>
               </div>
             ) : (
@@ -294,7 +294,7 @@ const Agents = ({ onNavigate }) => {
                             )}
                           </div>
                           <div style={{ fontSize: 12, color: '#64748b' }}>
-                            📞 {agent.phone || '—'} · 📍 {agent.city || agent.district || '—'}
+                            {agent.phone || '—'} · {agent.city || agent.district || '—'}
                           </div>
                           <IdentityBadge status={agent.identityStatus} />
                         </div>
@@ -315,7 +315,7 @@ const Agents = ({ onNavigate }) => {
                             {[
                               { l: 'Zimefishwa', v: agent.totalDeliveriesCompleted || 0, c: '#1d4ed8' },
                               { l: 'Makusanyo',  v: agent.totalCollectionsCompleted || 0, c: '#7c3aed' },
-                              { l: 'Rating',     v: agent.rating ? `${Number(agent.rating).toFixed(1)}⭐` : '5.0⭐', c: '#f59e0b' },
+                              { l: 'Rating',     v: agent.rating ? `${Number(agent.rating).toFixed(1)}` : '5.0', c: '#f59e0b' },
                               { l: 'Mapato',     v: `TZS ${Number(agent.totalEarnings || 0).toLocaleString()}`, c: '#16a34a' },
                             ].map(s => (
                               <div key={s.l} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
@@ -327,15 +327,15 @@ const Agents = ({ onNavigate }) => {
 
                           {/* Earnings breakdown */}
                           <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginTop: 10 }}>
-                            <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>💰 Mgawanyo wa Mapato</div>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>Mgawanyo wa Mapato</div>
                             {[
-                              { label: 'Utoaji wa Bidhaa', value: agent.totalEarningsDeliveries || 0, icon: '🏍️' },
-                              { label: 'Ukusanyaji wa Malipo', value: agent.totalEarningsPayments || 0, icon: '💳' },
-                              { label: 'Ukusanyaji wa Bidhaa', value: agent.totalEarningsCollections || 0, icon: '📦' },
-                              { label: 'Inayosubiri Kulipwa', value: agent.pendingEarnings || 0, icon: '⏳' },
+                              { label: 'Utoaji wa Bidhaa', value: agent.totalEarningsDeliveries || 0, icon: '' },
+                              { label: 'Ukusanyaji wa Malipo', value: agent.totalEarningsPayments || 0, icon: '' },
+                              { label: 'Ukusanyaji wa Bidhaa', value: agent.totalEarningsCollections || 0, icon: '' },
+                              { label: 'Inayosubiri Kulipwa', value: agent.pendingEarnings || 0, icon: '' },
                             ].map(e => (
                               <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #dcfce7' }}>
-                                <span style={{ fontSize: 11, color: '#475569' }}>{e.icon} {e.label}</span>
+                                <span style={{ fontSize: 11, color: '#475569' }}>{e.label}</span>
                                 <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>TZS {Number(e.value).toLocaleString()}</span>
                               </div>
                             ))}
@@ -355,19 +355,19 @@ const Agents = ({ onNavigate }) => {
               <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', position: 'sticky', top: 24 }}>
                 <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 4 }}>{selected.fullName}</div>
                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
-                  📍 {selected.city || selected.district || '—'} · {selected.phone}
+                  {selected.city || selected.district || '—'} · {selected.phone}
                 </div>
 
                 <div style={{ marginBottom: 10 }}><IdentityBadge status={selected.identityStatus} /></div>
                 {/* ID info */}
                 {selected.idNumber && (
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>🪪 KITAMBULISHO (nakala ya zamani iliyoandikwa na wakala)</div>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>KITAMBULISHO (nakala ya zamani iliyoandikwa na wakala)</div>
                     <div style={{ fontSize: 12, color: '#1e293b' }}>{selected.idType}: {selected.idNumber}</div>
                     {selected.idPhotoUrl && (
                       <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"
                         style={{ fontSize: 11, color: '#1d4ed8', display: 'block', marginTop: 4 }}>
-                        📷 Angalia picha ya ID
+                        Angalia picha ya ID
                       </a>
                     )}
                   </div>
@@ -376,14 +376,14 @@ const Agents = ({ onNavigate }) => {
                 {/* Address */}
                 {selected.address && (
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 2 }}>📍 ANWANI</div>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 2 }}>ANWANI</div>
                     <div style={{ fontSize: 12, color: '#1e293b' }}>{selected.address}</div>
                   </div>
                 )}
 
                 {/* Settings preview */}
                 <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '10px 12px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>⚙️ MIPANGILIO</div>
+                  <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>MIPANGILIO</div>
                   {[
                     ['Kamisheni (Malipo)', `${selected.commissionRate || 2.5}%`],
                     ['Ada ya Uwasilishaji', `TZS ${Number(selected.deliveryCommission || 500).toLocaleString()}`],
@@ -398,7 +398,7 @@ const Agents = ({ onNavigate }) => {
                 </div>
 
                 <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>💵 COD iliyopo kwa wakala</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>COD iliyopo kwa wakala</div>
                   {codLoading ? <div style={{ fontSize: 16 }}>Inapakia...</div> :
                     codCollections.filter(c => Number(c.remainingAmount) > 0).length === 0 ?
                       <div style={{ fontSize: 16 }}>Hakuna salio la COD.</div> :
@@ -444,11 +444,11 @@ const Agents = ({ onNavigate }) => {
                     <>
                       <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
                         style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                        {actionLoading ? '⏳' : '✅ Idhinisha Wakala'}
+                        {actionLoading ? '' : 'Idhinisha Wakala'}
                       </button>
                       <button onClick={() => { setShowRejectModal(true); setError(''); }} disabled={actionLoading}
                         style={{ width: '100%', backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                        ❌ Kataa Ombi
+                        Kataa Ombi
                       </button>
                     </>
                   )}
@@ -457,7 +457,7 @@ const Agents = ({ onNavigate }) => {
                   {selected.status === 'approved' && (
                     <button onClick={() => handleSuspend(selected.id)} disabled={actionLoading}
                       style={{ width: '100%', backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                      🚫 Simamisha
+                      Simamisha
                     </button>
                   )}
 
@@ -465,14 +465,14 @@ const Agents = ({ onNavigate }) => {
                   {(selected.status === 'suspended' || selected.status === 'rejected') && (
                     <button onClick={() => handleReactivate(selected.id)} disabled={actionLoading}
                       style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                      🔄 Anza Tena
+                      Anza Tena
                     </button>
                   )}
 
                   {/* Edit settings — always */}
                   <button onClick={() => openEdit(selected)} disabled={actionLoading}
                     style={{ width: '100%', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                    ⚙️ Badilisha Mipangilio
+                    Badilisha Mipangilio
                   </button>
 
                   <button onClick={() => setSelected(null)}
@@ -489,7 +489,7 @@ const Agents = ({ onNavigate }) => {
         {showRejectModal && selected && (
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}>
             <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 420 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#dc2626', margin: '0 0 6px' }}>❌ Kataa Ombi</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#dc2626', margin: '0 0 6px' }}>Kataa Ombi</h3>
               <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 16px' }}>
                 Ombi la <strong>{selected.fullName}</strong> litakataliwa. SMS itumwe nao.
               </p>
@@ -499,11 +499,11 @@ const Agents = ({ onNavigate }) => {
               <textarea rows={3} value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                 placeholder="e.g. Picha ya kitambulisho haionekani vizuri. Tuma upya picha iliyo wazi."
                 style={{ ...inputStyle, resize: 'vertical', marginBottom: 16 }} />
-              {error && <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>❌ {error}</div>}
+              {error && <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 10 }}>{error}</div>}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={handleReject} disabled={actionLoading}
                   style={{ flex: 1, backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                  {actionLoading ? '⏳' : 'Kataa'}
+                  {actionLoading ? '' : 'Kataa'}
                 </button>
                 <button onClick={() => { setShowRejectModal(false); setRejectReason(''); }}
                   style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#64748b' }}>
@@ -519,7 +519,7 @@ const Agents = ({ onNavigate }) => {
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: 16 }}>
             <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 420 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>
-                ⚙️ Mipangilio — {selected.fullName}
+                Mipangilio — {selected.fullName}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[
@@ -543,11 +543,11 @@ const Agents = ({ onNavigate }) => {
                   </div>
                 ))}
               </div>
-              {error && <div style={{ fontSize: 12, color: '#dc2626', margin: '10px 0' }}>❌ {error}</div>}
+              {error && <div style={{ fontSize: 12, color: '#dc2626', margin: '10px 0' }}>{error}</div>}
               <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                 <button onClick={handleSaveEdit} disabled={actionLoading}
                   style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                  {actionLoading ? '⏳' : '💾 Hifadhi'}
+                  {actionLoading ? '' : 'Hifadhi'}
                 </button>
                 <button onClick={() => setShowEditModal(false)}
                   style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#64748b' }}>
@@ -565,8 +565,8 @@ const Agents = ({ onNavigate }) => {
 // The account's identity (one per person, reused everywhere). Approval needs "verified".
 const IDENTITY_LABEL = {
   verified: ['✔ Kitambulisho kimethibitishwa', '#166534', '#dcfce7'],
-  pending: ['⏳ Kitambulisho kinasubiri uthibitisho', '#854d0e', '#fef9c3'],
-  rejected: ['✖ Kitambulisho kilikataliwa', '#991b1b', '#fee2e2'],
+  pending: ['Kitambulisho kinasubiri uthibitisho', '#854d0e', '#fef9c3'],
+  rejected: ['Kitambulisho kilikataliwa', '#991b1b', '#fee2e2'],
   not_submitted: ['— Hakuna kitambulisho', '#475569', '#f1f5f9'],
 };
 function IdentityBadge({ status }) {

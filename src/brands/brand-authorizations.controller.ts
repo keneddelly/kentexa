@@ -75,6 +75,16 @@ export class BrandAuthorizationsController {
   // Full audit trail for one authorization — spec §24's "Audit — full
   // history" admin capability. The data was already written correctly by
   // every transition; this is the first endpoint that exposes it.
+  // The evidence documents of one authorization, for the admin review screen (owner 2026-11-09:
+  // the screen asked for this list and the route did not exist). Ids and types only; each file
+  // is opened through the signed-url route above.
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get(':id/evidence')
+  listEvidence(@Param('id', ParseIntPipe) id: number) {
+    return this.service.listEvidence(id);
+  }
+
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get(':id/audit')

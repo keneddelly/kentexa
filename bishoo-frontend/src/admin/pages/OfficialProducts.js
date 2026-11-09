@@ -43,7 +43,7 @@ const OfficialProducts = ({ activePage, onNavigate, onLogout }) => {
         category: form.category,
         subcategory: form.subcategory || undefined,
       });
-      showMsg('✅ Official product created');
+      showMsg('Official product created');
       setShowForm(false); setForm(EMPTY_FORM);
       fetchItems(selectedBrandId || undefined);
     } catch (err) { showErr(err?.response?.data?.message || 'Failed to create'); }
@@ -66,7 +66,7 @@ const OfficialProducts = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>📋 Official Product Catalog</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Official Product Catalog</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>A brand's own canonical items (e.g. LG OLED55C4) — sellers link their own listings to these so offers can be compared</p>
           </div>
           <button onClick={() => setShowForm(true)}
@@ -76,7 +76,7 @@ const OfficialProducts = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>❌ {error}</div>}
+        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
 
         <select value={selectedBrandId} onChange={e => setSelectedBrandId(e.target.value)}
           style={{ ...inputStyle, maxWidth: 260, marginBottom: 20 }}>
@@ -85,10 +85,10 @@ const OfficialProducts = ({ activePage, onNavigate, onLogout }) => {
         </select>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Loading...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading...</div>
         ) : items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>No official products yet</div>
           </div>
         ) : (

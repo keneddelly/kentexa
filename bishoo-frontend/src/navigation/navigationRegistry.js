@@ -24,17 +24,32 @@ export const ROLE_NAVIGATION = Object.freeze({
   admin: { home: 'Dashboard', items: bottom() },
 });
 
+// Admin menu (owner 2026-11-09: "make KenteXa look like a professional company"): grouped by
+// section, Swahili labels, no emoji. [destination, label, iconId, section]. Every admin page that
+// exists is here, including the five that were built but hidden (Takwimu, Matangazo ya KenteXa,
+// Bei za boda, Ofisi kwa miji, Ujumbe wa wateja).
+export const ADMIN_SECTIONS = Object.freeze([
+  ['overview', 'Muhtasari'], ['people', 'Watu'], ['business', 'Biashara'], ['catalog', 'Bidhaa na maudhui'],
+  ['orders', 'Oda'], ['logistics', 'Usafirishaji'], ['finance', 'Fedha'], ['support', 'Msaada'], ['system', 'Mfumo'],
+]);
 export const ADMIN_NAVIGATION = Object.freeze([
-  ['Dashboard','Dashboard','dashboard'],['Users','Users','users'],['Sellers','Sellers','seller'],['Businesses','Businesses','business'],['IdentityVerifications','Identity Verification','identity'],
-  ['Agents','Agents','agent'],['SuperAgents','Offices','hub'],['AgentPerformance','Agent Performance','analytics'],['Products','Products','products'],
-  ['AdminBrands','Brands','brand'],['AdminBrandAuthorizations','Brand Authorizations','verified'],['AdminWarrantyClaims','Warranty Claims','warranty'],
-  ['OfficialProducts','Official Catalog','catalog'],['AdminServices','Services','services'],['Classifieds','Classifieds','listings'],['Orders','Orders','orders'],['AdminShipments','Shipments','shipments'],['AdminDispatchReminders','Dispatch reminders','shipments'],['AdminAdvertisers','Watangazaji','users'],
-  // Owner 2026-11-08: these two were built but missing from the menu (the menu is drawn from this list).
-  ['AdminKentexaFees','Ada ya KenteXa','payments'],['AdminShippingCheck','Kwa nini hakuna?','shipments'],
-  ['TransportAdmin','Transport Providers','transport'],['VanOperations','Van Operations','transport'],['Disputes','Disputes','warning'],['Payouts','Payouts','payouts'],['Payments','Payments','payments'],
-  ['Invoices','Invoices','invoices'],['FinancialDashboard','Fedha (Finance)','finance'],['Reports','Reports','reports'],['RouteManagement','Njia za Intercity','routes'],
-  ['CollectionFees','Ada za Kukusanya','collection'],['ZoneManagement','Zones (Dar)','zones'],['Profile','Profile','profile'],
-].map(([destination,label,iconId]) => ({ id: `admin.${destination}`, destination, label, iconId, placements: ['admin'] })));
+  ['Dashboard', 'Muhtasari', 'dashboard', 'overview'], ['Analytics', 'Takwimu', 'analytics', 'overview'], ['Reports', 'Ripoti', 'reports', 'overview'],
+  ['Users', 'Watumiaji', 'users', 'people'], ['IdentityVerifications', 'Vitambulisho', 'identity', 'people'],
+  ['Businesses', 'Biashara', 'business', 'business'], ['Sellers', 'Wauzaji', 'seller', 'business'], ['AdminAdvertisers', 'Watangazaji', 'announce', 'business'],
+  ['Products', 'Bidhaa', 'products', 'catalog'], ['OfficialProducts', 'Katalogi rasmi', 'catalog', 'catalog'], ['AdminBrands', 'Chapa', 'brand', 'catalog'],
+  ['AdminBrandAuthorizations', 'Idhini za chapa', 'verified', 'catalog'], ['AdminWarrantyClaims', 'Madai ya dhamana', 'warranty', 'catalog'],
+  ['AdminServices', 'Huduma', 'services', 'catalog'], ['Classifieds', 'Matangazo', 'listings', 'catalog'], ['Announcements', 'Matangazo ya KenteXa', 'announce', 'catalog'],
+  ['Orders', 'Oda', 'orders', 'orders'],
+  ['AdminShipments', 'Mizigo', 'shipments', 'logistics'], ['AdminShippingCheck', 'Kwa nini hakuna?', 'search', 'logistics'],
+  ['AdminDispatchReminders', 'Vikumbusho vya kutuma', 'clock', 'logistics'], ['Agents', 'Mawakala', 'agent', 'logistics'],
+  ['AgentPerformance', 'Utendaji wa mawakala', 'analytics', 'logistics'], ['SuperAgents', 'Ofisi', 'hub', 'logistics'], ['HubAdmin', 'Ofisi kwa miji', 'hub', 'logistics'],
+  ['TransportAdmin', 'Wasafirishaji', 'transport', 'logistics'], ['VanOperations', 'Van', 'transport', 'logistics'], ['RouteManagement', 'Njia za mikoa', 'routes', 'logistics'],
+  ['ZoneManagement', 'Kanda za Dar', 'zones', 'logistics'], ['BodaRates', 'Bei za boda', 'collection', 'logistics'], ['CollectionFees', 'Ada za kukusanya', 'collection', 'logistics'],
+  ['FinancialDashboard', 'Fedha', 'finance', 'finance'], ['Payments', 'Malipo', 'payments', 'finance'], ['Payouts', 'Malipo kwa wauzaji', 'payouts', 'finance'],
+  ['Invoices', 'Ankara', 'invoices', 'finance'], ['AdminKentexaFees', 'Ada ya KenteXa', 'payments', 'finance'],
+  ['ContactMessages', 'Ujumbe wa wateja', 'chat', 'support'], ['Disputes', 'Migogoro', 'warning', 'support'],
+  ['Profile', 'Wasifu', 'profile', 'system'],
+].map(([destination, label, iconId, section]) => ({ id: `admin.${destination}`, destination, label, iconId, section, placements: ['admin'] })));
 
 export const navigationForRole = (roleType) => ROLE_NAVIGATION[roleType] || ROLE_NAVIGATION.buyer;
 export const homeForRole = (roleType) => navigationForRole(roleType).home;

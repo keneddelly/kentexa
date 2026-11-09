@@ -17,10 +17,10 @@ const STATUS_COLOR = {
 };
 
 const RESOLUTION_OPTIONS = [
-  { value: 'favour_buyer',  label: '👤 Uamuzi kwa Mnunuzi',  desc: 'Mrejesho — mnunuzi anapata pesa, muuzaji anapoteza escrow' },
-  { value: 'favour_seller', label: '🏪 Uamuzi kwa Muuzaji',  desc: 'Malipo yatolewa — dai la mnunuzi limekataliwa' },
-  { value: 'split',         label: '⚖️ Mgawanyo',             desc: 'Mrejesho wa sehemu — wote wawili wanakubaliana' },
-  { value: 'withdrawn',     label: '🔙 Imeondolewa',          desc: 'Mnunuzi ameondoa dai' },
+  { value: 'favour_buyer',  label: 'Uamuzi kwa Mnunuzi',  desc: 'Mrejesho — mnunuzi anapata pesa, muuzaji anapoteza escrow' },
+  { value: 'favour_seller', label: 'Uamuzi kwa Muuzaji',  desc: 'Malipo yatolewa — dai la mnunuzi limekataliwa' },
+  { value: 'split',         label: 'Mgawanyo',             desc: 'Mrejesho wa sehemu — wote wawili wanakubaliana' },
+  { value: 'withdrawn',     label: 'Imeondolewa',          desc: 'Mnunuzi ameondoa dai' },
 ];
 
 const Disputes = ({ onNavigate, activePage }) => {
@@ -70,7 +70,7 @@ const Disputes = ({ onNavigate, activePage }) => {
         resolutionNote: resolution.resolutionNote,
         refundAmount:   resolution.refundAmount ? Number(resolution.refundAmount) : undefined,
       });
-      alert('✅ Uamuzi umehifadhiwa');
+      alert('Uamuzi umehifadhiwa');
       setSelected(null);
       setDetail(null);
       fetchDisputes();
@@ -99,7 +99,7 @@ const Disputes = ({ onNavigate, activePage }) => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>⚖️ Mashauri ya Migogoro</div>
+            <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>Mashauri ya Migogoro</div>
             <div style={{ fontSize: 12, color: '#64748b' }}>Simamia na usuluhishe migogoro kati ya wanunuzi na wauzaji</div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -124,7 +124,7 @@ const Disputes = ({ onNavigate, activePage }) => {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
             ) : disputes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>⚖️</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}></div>
                 <div style={{ color: '#64748b' }}>Hakuna migogoro ya "{STATUS_COLOR[filter]?.label}"</div>
               </div>
             ) : disputes.map(d => {
@@ -148,7 +148,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                         {d.order?.product?.name || d.order?.manualProductName || `Agizo #${d.orderId}`}
                       </div>
                       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
-                        👤 {d.order?.buyer?.name || 'Mnunuzi'} → 🏪 {d.order?.seller?.storeName || 'Muuzaji'}
+                        {d.order?.buyer?.name || 'Mnunuzi'} → {d.order?.seller?.storeName || 'Muuzaji'}
                       </div>
                       <div style={{ fontSize: 12, color: '#dc2626', backgroundColor: '#fee2e2',
                         borderRadius: 6, padding: '4px 8px', display: 'inline-block' }}>
@@ -172,10 +172,10 @@ const Disputes = ({ onNavigate, activePage }) => {
               {/* Header */}
               <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '16px 20px', color: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 15, fontWeight:800 }}>⚖️ Shauri #{selected.id}</div>
+                  <div style={{ fontSize: 15, fontWeight:800 }}>Shauri #{selected.id}</div>
                   <button onClick={() => setSelected(null)}
                     style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff',
-                      borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                      borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 13 }}></button>
                 </div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
                   {fmtDt(selected.createdAt)}
@@ -189,7 +189,7 @@ const Disputes = ({ onNavigate, activePage }) => {
 
                   {/* Order info */}
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>📦 MAELEZO YA AGIZO</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>MAELEZO YA AGIZO</div>
                     {[
                       ['Bidhaa',   detail.order?.product?.name || detail.order?.manualProductName || '—'],
                       ['Kiasi',    `TZS ${fmt(detail.order?.totalAmount)}`],
@@ -207,7 +207,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   {/* Buyer claim */}
                   <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: 12, marginBottom: 10 }}>
                     <div style={{ fontSize: 11, fontWeight: 800, color: '#dc2626', marginBottom: 6 }}>
-                      👤 DAI LA MNUNUZI — {detail.order?.buyer?.name || '—'} ({detail.order?.buyer?.phone || '—'})
+                      DAI LA MNUNUZI — {detail.order?.buyer?.name || '—'} ({detail.order?.buyer?.phone || '—'})
                     </div>
                     <div style={{ fontSize: 12, color: '#1e293b', marginBottom: 6 }}>
                       {detail.reason || detail.buyerReason || 'Sababu haijatajwa'}
@@ -224,7 +224,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   {/* Seller response */}
                   <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 12, marginBottom: 14 }}>
                     <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 6 }}>
-                      🏪 JIBU LA MUUZAJI — {detail.order?.seller?.storeName || detail.order?.seller?.name || '—'}
+                      JIBU LA MUUZAJI — {detail.order?.seller?.storeName || detail.order?.seller?.name || '—'}
                     </div>
                     {detail.sellerResponse ? (
                       <>
@@ -247,7 +247,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   {/* Previous resolution */}
                   {detail.status === 'resolved' && (
                     <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>✅ UAMUZI ULIOTOLEWA</div>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>UAMUZI ULIOTOLEWA</div>
                       <div style={{ fontSize: 12, color: '#1e293b', marginBottom: 4 }}>
                         {RESOLUTION_OPTIONS.find(r => r.value === detail.resolution)?.label || detail.resolution}
                       </div>
@@ -266,7 +266,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                       style={{ width: '100%', backgroundColor: '#f0fdf4', color: '#16a34a',
                         border: '1px solid #86efac', borderRadius: 10, padding: '10px 0',
                         cursor: 'pointer', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
-                      🙋 Jibu Huu Mimi — Nishughulikiwe
+                      Jibu Huu Mimi — Nishughulikiwe
                     </button>
                   )}
 
@@ -274,7 +274,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   {detail.status !== 'resolved' && detail.status !== 'closed' && (
                     <div style={{ borderTop: '2px solid #f1f5f9', paddingTop: 16 }}>
                       <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                        ⚖️ Toa Uamuzi
+                        Toa Uamuzi
                       </div>
 
                       {/* Resolution choice */}
@@ -324,7 +324,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                         style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                           color: '#fff', border: 'none', borderRadius: 10, padding: '12px 0',
                           cursor: resolving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 800 }}>
-                        {resolving ? '⏳ Inahifadhi...' : '✅ Hifadhi Uamuzi'}
+                        {resolving ? 'Inahifadhi...' : 'Hifadhi Uamuzi'}
                       </button>
                     </div>
                   )}
