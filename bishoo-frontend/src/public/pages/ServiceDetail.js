@@ -48,7 +48,7 @@ const label = { fontSize: 13, color: GR, fontWeight: 600, display: 'flex', flexD
 
 const Shell = ({ children, onBack, title, right }) => (
   <div style={{ minHeight: '100vh', background: WH, color: DK }}>
-    <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}`, paddingBottom: isLoggedIn ? 160 : 96 }}>
+    <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}`, paddingBottom: 160 }}>
       <header style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 20, height: 52, display: 'flex', alignItems: 'center', gap: 4, padding: '0 6px',
         background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${LINE}` }}>
         <IconBtn label="Rudi" onClick={onBack}><Icon d={IC.back} size={22} /></IconBtn>
