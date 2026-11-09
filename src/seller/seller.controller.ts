@@ -168,6 +168,20 @@ export class SellerController {
     return this.approvalBridge.approve(id, req.user, verificationTier);
   }
 
+  // Owner 2026-11-09: a seller who registered before the ID gate (no ID sent): mark the owner's
+  // ID as checked (reason required, recorded), then approve (or restore if suspended).
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/approve-without-id')
+  approveWithoutId(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @Body('reason') reason?: string,
+    @Body('verificationTier') verificationTier?: string,
+  ) {
+    return this.approvalBridge.approveWithoutId(id, req.user, String(reason ?? ''), verificationTier);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch(':id/reject')
