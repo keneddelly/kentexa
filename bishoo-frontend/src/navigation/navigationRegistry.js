@@ -52,7 +52,7 @@ export const ADMIN_NAVIGATION = Object.freeze([
   ['ZoneManagement', 'Kanda za Dar', 'zones', 'logistics'], ['BodaRates', 'Bei za boda', 'collection', 'logistics'], ['CollectionFees', 'Ada za kukusanya', 'collection', 'logistics'],
   ['FinancialDashboard', 'Fedha', 'finance', 'finance'], ['Payments', 'Malipo', 'payments', 'finance'], ['Payouts', 'Malipo kwa wauzaji', 'payouts', 'finance'],
   ['Invoices', 'Ankara', 'invoices', 'finance'], ['AdminKentexaFees', 'Ada ya KenteXa', 'payments', 'finance'],
-  ['ContactMessages', 'Ujumbe wa wateja', 'chat', 'support'], ['Announcements', 'Tuma taarifa', 'announce', 'support'], ['AdminNotifications', 'Taarifa zilizotumwa', 'announce', 'support'], ['Disputes', 'Migogoro', 'warning', 'support'],
+  ['ContactMessages', 'Ujumbe wa wateja', 'chat', 'support'], ['AdminChats', 'Mazungumzo', 'chat', 'support'], ['Announcements', 'Tuma taarifa', 'announce', 'support'], ['AdminNotifications', 'Taarifa zilizotumwa', 'announce', 'support'], ['Disputes', 'Migogoro', 'warning', 'support'],
   ['AdminStaff', 'Wafanyakazi', 'users', 'system'], ['Profile', 'Wasifu', 'profile', 'system'],
 ].map(([destination, label, iconId, section]) => ({ id: `admin.${destination}`, destination, label, iconId, section, placements: ['admin'] })));
 

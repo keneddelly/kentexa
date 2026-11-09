@@ -120,6 +120,13 @@ describe('RolesGuard: KenteXa staff areas', () => {
     await expect(run(AccountRoleType.CUSTOMER_CARE, 'PATCH', '/seller/:id/approve')).rejects.toThrow(ForbiddenException);
   });
 
+  it('inbox chats (owner 2026-11-09): admin, manager, customer care and moderator read them; finance does not', async () => {
+    await expect(run(AccountRoleType.CUSTOMER_CARE, 'GET', '/activity/admin/chats/:conversationId')).resolves.toBe(true);
+    await expect(run(AccountRoleType.MANAGER, 'GET', '/activity/admin/chats')).resolves.toBe(true);
+    await expect(run(AccountRoleType.MODERATOR, 'GET', '/activity/admin/chats')).resolves.toBe(true);
+    await expect(run(AccountRoleType.FINANCE, 'GET', '/activity/admin/chats')).rejects.toThrow(ForbiddenException);
+  });
+
   it('finance: money changes only; moderator: content and approvals, no money', async () => {
     await expect(run(AccountRoleType.FINANCE, 'POST', '/payouts/admin/process/:orderId')).resolves.toBe(true);
     await expect(run(AccountRoleType.FINANCE, 'PATCH', '/seller/:id/approve')).rejects.toThrow(ForbiddenException);

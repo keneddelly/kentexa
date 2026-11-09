@@ -18,6 +18,8 @@ export const STAFF_USER_ROLES: ReadonlySet<string> = new Set([UserRole.MANAGER, 
 
 const MONEY = /^(payments|payouts|wallet|kentexa-fee|invoices\/admin|super-agent-settlement|super-agent-commission|money-routing)(\/|$)|^admin-intelligence\/finance|^super-agents\/admin\/(courier-cost|sellers\/[^/]+\/(billing-payment|grant-free-orders))|^agents\/[^/]+\/release-earnings|^agents\/admin\/pending-earnings/;
 const STAFF_ADMIN = /^admin\/staff(\/|$)/;
+// Users' inbox chats (owner 2026-11-09: admin reads all chats): not for finance.
+const CHATS = /^activity\/admin\/chats(\/|$)/;
 
 interface Area { read: (r: string) => boolean; write: (r: string) => boolean }
 const AREAS: Record<string, Area> = {
@@ -30,7 +32,7 @@ const AREAS: Record<string, Area> = {
     write: (r) => /^(contact|disputes)(\/|$)/.test(r),
   },
   [UserRole.FINANCE]: {
-    read: (r) => !STAFF_ADMIN.test(r),
+    read: (r) => !STAFF_ADMIN.test(r) && !CHATS.test(r),
     write: (r) => MONEY.test(r) || /^invoices(\/|$)/.test(r),
   },
   [UserRole.MODERATOR]: {

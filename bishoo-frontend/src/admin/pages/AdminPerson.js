@@ -58,6 +58,7 @@ export default function AdminPerson({ userId, activePage, onNavigate, onLogout }
                   </>
                 )}
                 {u.email && <a href={`mailto:${u.email}`} style={contactBtn}>Barua pepe</a>}
+                <button type="button" data-testid="person-chats" onClick={() => onNavigate('AdminChats', { userId: u.id })} style={contactBtn}>Mazungumzo yake</button>
               </div>
               <div style={{ marginTop: 8, fontSize: 14 }}>Kitambulisho: <b>{ID_LABEL[data.identity?.status] || 'Hakijatumwa'}</b>{data.identity?.reviewedAt ? ` (${day(data.identity.reviewedAt)})` : ''}</div>
             </section>

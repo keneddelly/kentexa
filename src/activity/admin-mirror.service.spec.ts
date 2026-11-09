@@ -32,4 +32,20 @@ describe('AdminMirrorService', () => {
     expect(all).not.toMatch(/password|"idNumber"|idDocumentImageUrl/);
     await expect(new AdminMirrorService({ query: jest.fn(async () => []) } as any).person(1)).rejects.toBeInstanceOf(NotFoundException);
   });
+  it('chats: one person\'s chats from either side; a chat opens with all its messages', async () => {
+    const db = { query: jest.fn(async (sql: string) => {
+      if (sql.includes('conversation_message')) return [{ id: 1, senderType: 'customer', content: 'Bei gani?' }, { id: 2, senderType: 'seller', content: '20,000' }];
+      return [{ id: 5, sellerId: 7, customerUserId: 40 }];
+    }) };
+    const svc = new AdminMirrorService(db as any);
+    await svc.chats({ userId: 40, q: 'simu' });
+    const [sql, params] = db.query.mock.calls[0] as any;
+    expect(sql).toMatch(/\(c\.seller_id = \$1 OR bc\.user_id = \$1\)/);
+    expect(params).toEqual([40, '%simu%']);
+    const r: any = await svc.chat(5);
+    expect(r.conversation.customerUserId).toBe(40);
+    expect(r.messages.map((m: any) => m.content)).toEqual(['Bei gani?', '20,000']);
+    const none = new AdminMirrorService({ query: jest.fn(async () => []) } as any);
+    await expect(none.chat(99)).rejects.toBeInstanceOf(NotFoundException);
+  });
 });
