@@ -89,7 +89,7 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
   const account = (
     <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.6 }}>
       <strong>{name || '—'}</strong> · {phone || '—'}
-      <div style={{ fontSize: 11, color: '#94a3b8' }}>{t('agent_signup.from_account')}</div>
+      <div style={{ fontSize: 12, color: '#94a3b8' }}>{t('agent_signup.from_account')}</div>
     </div>
   );
   const identityModal = showIdentity && (
@@ -104,7 +104,7 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
     return (
       <div data-testid="agent-signup" style={card}>
         {account}
-        <div data-testid="agent-identity-step" style={{ background: '#fff7ed', border: '1px solid #fed7aa', padding: 12, borderRadius: 10, fontSize: 13, color: '#7c2d12', marginTop: 12 }}>
+        <div data-testid="agent-identity-step" style={{ background: '#fffbeb', border: '1px solid #fde68a', padding: 12, borderRadius: 10, fontSize: 13, color: '#92400e', marginTop: 12 }}>
           {idState === 'rejected' ? t('agent_signup.identity_rejected') : t('agent_signup.identity_missing')}
           <button type="button" onClick={() => setShowIdentity(true)} style={{ ...primary(true), marginTop: 10 }}>
             {t('agent_signup.identity_button')}
@@ -120,7 +120,7 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
       {errorBox}
       {account}
       {idState === 'waiting' && (
-        <div role="status" style={{ background: '#fef9c3', color: '#854d0e', padding: '10px 12px', borderRadius: 10, fontSize: 13, marginTop: 10 }}>
+        <div role="status" style={{ background: '#fffbeb', color: '#92400e', padding: '10px 12px', borderRadius: 10, fontSize: 13, marginTop: 10 }}>
           <strong>{t('agent_signup.identity_pending')}</strong><br />{t('agent_signup.identity_pending_note')}
         </div>
       )}
@@ -132,7 +132,7 @@ export default function AgentSignupSteps({ currentUser, onSubmitted, getPosition
       {place?.regionName && <div style={{ fontSize: 12, color: '#16a34a', margin: '-6px 0 10px' }}>{place.regionName}</div>}
       <div style={{ fontSize: 12, color: '#475569', margin: '6px 0 8px' }}>{t('agent_base.explain')}</div>
       <button type="button" data-testid="agent-base-button" onClick={takeBase} disabled={locating}
-        style={{ ...primary(true), background: base ? '#ecfdf5' : '#ea580c', color: base ? '#065f46' : '#fff' }}>
+        style={{ ...primary(true), background: base ? '#f0fdf4' : '#d97706', color: base ? '#166534' : '#fff' }}>
         {locating ? t('pickup_pin.locating') : base ? t('agent_signup.base_taken', { m: Math.round(base.accuracyM || 0) }) : t('agent_base.button')}
       </button>
 

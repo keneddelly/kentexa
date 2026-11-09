@@ -142,12 +142,12 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                         <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
                       ) : <span style={{ fontSize: '40px' }}></span>}
                       {p.images?.length > 1 && (
-                        <span style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '2px 8px', borderRadius: 10, fontSize: 11 }}>
+                        <span style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '2px 8px', borderRadius: 10, fontSize: 12 }}>
                           +{p.images.length - 1} more
                         </span>
                       )}
                       {isPending && (
-                        <span style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#fbbf24', color: '#92400e', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
+                        <span style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#fbbf24', color: '#92400e', padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>
                           PENDING REVIEW
                         </span>
                       )}
@@ -157,7 +157,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ padding: '14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0, flex: 1 }}>{p.name}</h3>
-                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#ede9fe', color: '#6366f1', fontSize: 11, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
+                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#ede9fe', color: '#6366f1', fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
                           {p.category?.replace(/_/g, ' ')}
                         </span>
                       </div>
@@ -165,7 +165,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                       {/* Seller info — who posted it */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
                         <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>{p.seller?.name || p.seller?.businessName || '—'}</span>
-                        <span style={{ fontSize: 11, color: '#94a3b8' }}>· {p.seller?.phone || p.seller?.email || '—'}</span>
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>· {p.seller?.phone || p.seller?.email || '—'}</span>
                       </div>
 
                       <p style={{ fontSize: 12, color: '#64748b', marginBottom: 10, lineHeight: 1.5 }}>

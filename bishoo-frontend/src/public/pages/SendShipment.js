@@ -100,7 +100,7 @@ const PlaceInput = ({ id, labelText, value, onChange, onResolved, resolved, plac
           onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
           style={{ border: 0, outline: 0, padding: 0, fontFamily: 'inherit', fontSize: 16, fontWeight: 600, color: INK, background: 'transparent', minWidth: 0 }} />
         {value?.trim() && !resolved && (
-          <span style={{ fontSize: 12, color: '#b45309' }}>Chagua mahali kwenye orodha</span>
+          <span style={{ fontSize: 12, color: '#d97706' }}>Chagua mahali kwenye orodha</span>
         )}
       </div>
       {open && suggestions.length > 0 && (
@@ -439,7 +439,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       <div data-testid="send-form-v2" style={{ minHeight: '100vh', background: PAPER, fontFamily: FONT, color: INK }}>
         <div style={{ background: WHITE, borderBottom: `1px solid ${LINE}`, padding: '28px 20px 22px', textAlign: 'center' }}>
           <div aria-hidden="true" style={{ width: 56, height: 56, borderRadius: 28, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           </div>
           <h1 style={{ ...h1, fontSize: 24 }}>Mzigo umetumwa</h1>
           <div style={{ fontSize: 13, fontWeight: 600, color: GREY, marginTop: 8 }}>Namba ya mzigo</div>
@@ -465,8 +465,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 <li key={s.text} style={{ display: 'flex', gap: 12 }}>
                   <div aria-hidden="true" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div style={{ width: 16, height: 16, borderRadius: 8, boxSizing: 'border-box',
-                      background: done ? '#15803d' : WHITE, border: done ? 0 : now ? `4px solid ${BLUE}` : '2px solid #94a3b8' }} />
-                    {!last && <div style={{ width: 2, flexGrow: 1, minHeight: 24, background: done ? '#15803d' : FIELD }} />}
+                      background: done ? '#16a34a' : WHITE, border: done ? 0 : now ? `4px solid ${BLUE}` : '2px solid #94a3b8' }} />
+                    {!last && <div style={{ width: 2, flexGrow: 1, minHeight: 24, background: done ? '#16a34a' : FIELD }} />}
                   </div>
                   <div style={{ paddingBottom: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ fontSize: 15, fontWeight: now ? 700 : done ? 600 : 400, color: now ? BLUE : done ? INK : GREY }}>
@@ -589,7 +589,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{ height: 1, background: LINE, marginLeft: 24 }} />
               <PlaceInput id="kwenda" labelText="Kwenda" value={destination} onChange={setDestination} onResolved={setDestinationResolved} resolved={destinationResolved}
                 placeholder="Mtaa, kata au wilaya"
-                marker={<div aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 2, background: '#f97316', flexShrink: 0 }} />} />
+                marker={<div aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 2, background: '#d97706', flexShrink: 0 }} />} />
             </div>
             <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 12 }}>Mpokeaji</div>
             <div style={field}>

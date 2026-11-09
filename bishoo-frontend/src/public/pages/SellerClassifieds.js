@@ -373,7 +373,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const statusColor = (status) => ({
     active:  { backgroundColor: '#dcfce7', color: '#16a34a' },
     sold:    { backgroundColor: '#fee2e2', color: '#dc2626' },
-    expired: { backgroundColor: '#fef9c3', color: '#ca8a04' },
+    expired: { backgroundColor: '#fffbeb', color: '#d97706' },
   }[status] || { backgroundColor: '#f1f5f9', color: '#64748b' });
 
   return (
@@ -417,7 +417,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
 
         {/* Phone number warning */}
         {!userPhone && (
-          <div style={{ backgroundColor: '#fef9c3', border: '2px solid #fcd34d', borderRadius: 12, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ backgroundColor: '#fffbeb', border: '2px solid #fcd34d', borderRadius: 12, padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>{t('seller_classifieds.phone_warning_title')}</div>
               <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>{t('seller_classifieds.phone_warning_desc')}</div>
@@ -465,31 +465,31 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               <div key={item.id} style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', outline: '1px solid #eff3f4', border: '1px solid #f1f5f9' }}>
                 <div style={{ height: 180, backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
                   {item.images?.[0] ? <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 48 }}></span>}
-                  <span style={{ position: 'absolute', top: 10, right: 10, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 10, ...statusColor(item.status) }}>{item.status?.toUpperCase()}</span>
+                  <span style={{ position: 'absolute', top: 10, right: 10, fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 10, ...statusColor(item.status) }}>{item.status?.toUpperCase()}</span>
                 </div>
                 <div style={{ padding: 16 }}>
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#0f1419', color: '#fff' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#0f1419', color: '#fff' }}>
                       {CATEGORIES[item.category]?.icon} {item.category?.replace(/_/g,' ')}
                     </span>
                     {item.subcategory && (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, backgroundColor: '#f0fdf4', color: '#16a34a' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6, backgroundColor: '#f0fdf4', color: '#16a34a' }}>
                         {CATEGORIES[item.category]?.subcategories?.[item.subcategory]?.label || item.subcategory}
                       </span>
                     )}
                     {item.condition && (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, backgroundColor: '#eff6ff', color: '#1d4ed8' }}>{item.condition}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 6, backgroundColor: '#eff6ff', color: '#1d4ed8' }}>{item.condition}</span>
                     )}
                   </div>
                   <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: '0 0 4px' }}>{item.title}</h3>
                   {item.specs && Object.keys(item.specs).length > 0 && (
-                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
                       {Object.entries(item.specs).slice(0,2).map(([k,v]) => `${k}: ${v}`).join(' · ')}
                     </div>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                     <span style={{ fontSize: 17, fontWeight:800, color: '#0f1419' }}>TZS {Number(item.price).toLocaleString()}</span>
-                    {item.isNegotiable && <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{t('seller_classifieds.negotiable_badge')}</span>}
+                    {item.isNegotiable && <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{t('seller_classifieds.negotiable_badge')}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)} style={{ flex: 1, backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', padding: 8, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>{t('seller_classifieds.view_button')}</button>
@@ -525,13 +525,13 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
             {/* Images */}
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>{t('seller_classifieds.photos_label')}{mediaRules.minImages > 0 ? ' *' : ''}</label>
-              <p style={{ color: '#64748b', fontSize: 11, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
+              <p style={{ color: '#64748b', fontSize: 12, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
               {imagePreviews.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                   {imagePreviews.map((p, i) => (
                     <div key={i} style={{ position: 'relative' }}>
                       <img src={p} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '2px solid #e2e8f0' }} />
-                      <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                      <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                     </div>
                   ))}
                 </div>
@@ -542,7 +542,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                   <label htmlFor="classifiedImages" style={{ background: '#0f1419', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? t('seller_classifieds.uploading') : t('seller_classifieds.choose_photos')}
                   </label>
-                  <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
+                  <p style={{ color: '#94a3b8', fontSize: 12, margin: '6px 0 0' }}>
                     {t('seller_classifieds.photos_count_hint', { count: imagePreviews.length })}/{mediaRules.maxImages}
                   </p>
                 </div>
@@ -561,8 +561,8 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               <div>
                 <label style={labelStyle}>
                   {t('seller_classifieds.category_label')} *
-                  {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_classifieds.category_detecting')}</span>}
-                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#0f1419', fontWeight: 700 }}> {t('seller_classifieds.category_suggested')}</span>}
+                  {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>{t('seller_classifieds.category_detecting')}</span>}
+                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 12, color: '#0f1419', fontWeight: 700 }}> {t('seller_classifieds.category_suggested')}</span>}
                 </label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {Object.entries(CATEGORIES).map(([key, cat]) => (
@@ -588,8 +588,8 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 <button type="button" onClick={generateDescription}
                   disabled={descGenerating || !form.title || !form.images.length}
                   title={!form.images.length ? t('seller_classifieds.ai_description_needs_photo') : ''}
-                  style={{ fontSize: 11, fontWeight: 800, color: '#0f1419', background: 'none',
-                    border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
+                  style={{ fontSize: 12, fontWeight: 800, color: '#0f1419', background: 'none',
+                    border: '1px solid #536471', borderRadius: 8, padding: '4px 10px',
                     cursor: (descGenerating || !form.title || !form.images.length) ? 'not-allowed' : 'pointer',
                     opacity: (!form.title || !form.images.length) ? 0.5 : 1 }}>
                   {descGenerating ? ` ${t('seller_classifieds.ai_description_generating')}` : ` ${t('seller_classifieds.ai_description_button')}`}
@@ -612,7 +612,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
                   {t('seller_classifieds.listing_details_title')}
-                  <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_classifieds.listing_details_hint')}</span>
+                  <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_classifieds.listing_details_hint')}</span>
                 </div>
                 {attrFields.some(a => !a.required && a.key !== 'condition') && (
                   <button type="button" onClick={() => setShowOptionalDetails(v => !v)}
@@ -646,7 +646,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {attr.allowedValues.map(v => (
                                 <button type="button" key={v} onClick={() => toggleMultiSpec(attr.key, v)}
-                                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                                     border: selected.includes(v) ? '2px solid #2563eb' : '1px solid #e2e8f0',
                                     background: selected.includes(v) ? '#dbeafe' : '#fff', color: selected.includes(v) ? '#1d4ed8' : '#64748b' }}>
                                   {v}
@@ -691,7 +691,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 </div>
               </div>
             {/* Flash Sale toggle */}
-            <div style={{ backgroundColor:'#FFF5F5', border:'1.5px solid #FCA5A5', borderRadius:12, padding:14, marginTop:10 }}>
+            <div style={{ backgroundColor:'#fef2f2', border:'1.5px solid #FCA5A5', borderRadius:12, padding:14, marginTop:10 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 <input type="checkbox" id="isFlash"
                   checked={form.isFlashSale}
@@ -765,12 +765,12 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                             <button key={r.label} onClick={() => setForm(f => ({ ...f, price: String(r.value) }))}
                               style={{ flex: 1, backgroundColor: '#fff', border: `1px solid ${r.color}`,
                                 borderRadius: 8, padding: '6px 0', cursor: 'pointer', textAlign: 'center' }}>
-                              <div style={{ fontSize: 10, color: r.color, fontWeight: 700 }}>{r.label}</div>
+                              <div style={{ fontSize: 12, color: r.color, fontWeight: 700 }}>{r.label}</div>
                               <div style={{ fontSize: 12, fontWeight:800, color: r.color }}>TZS {Number(r.value).toLocaleString()}</div>
                             </button>
                           ))}
                         </div>
-                        <div style={{ fontSize: 11, color: '#475569' }}>{priceSuggestion.insights?.[0]}</div>
+                        <div style={{ fontSize: 12, color: '#475569' }}>{priceSuggestion.insights?.[0]}</div>
                       </>
                     ) : null}
                   </div>
@@ -787,7 +787,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                     }}
                   />
                   {form.location && (
-                    <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}> {form.location}</div>
+                    <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}> {form.location}</div>
                   )}
               </div>
             </div>
@@ -802,7 +802,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 value={form.contactPhone}
                 onChange={e => setForm({ ...form, contactPhone: e.target.value })}
                 style={inputStyle} />
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{t('seller_classifieds.contact_phone_hint')}</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{t('seller_classifieds.contact_phone_hint')}</div>
             </div>
             <div style={{ height: 16 }} />
           </div>

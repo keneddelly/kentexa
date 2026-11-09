@@ -1263,11 +1263,11 @@ function App() {
                 <button key={lang.code} onClick={() => handleLangPick(lang.code)}
                   style={{ padding: '14px', borderRadius: 12, border: lang.code === 'sw' ? '2px solid #1d4ed8' : '2px solid #e2e8f0', backgroundColor: lang.code === 'sw' ? '#eff6ff' : '#f8fafc', cursor: 'pointer', fontSize: 15, fontWeight: 800, color: lang.code === 'sw' ? '#1d4ed8' : '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                   {lang.flag} {lang.label}
-                  {lang.code === 'sw' && <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>({t('welcome.language_picker.recommended')})</span>}
+                  {lang.code === 'sw' && <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>({t('welcome.language_picker.recommended')})</span>}
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 16 }}>{t('welcome.language_picker.hint')}</p>
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 16 }}>{t('welcome.language_picker.hint')}</p>
           </div>
         </div>
       )}

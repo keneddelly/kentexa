@@ -235,7 +235,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
                       style={{ marginTop:2, flexShrink:0 }} />
                     <div>
                       <div style={{ fontSize:13, fontWeight:700, color:'#1e293b' }}>{r.label}</div>
-                      <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{r.desc}</div>
+                      <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>{r.desc}</div>
                     </div>
                   </label>
                 ))}
@@ -360,7 +360,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
                       {m.user?.phone} · {role?.label || m.role}
                     </div>
                     {!m.isActive && (
-                      <span style={{ fontSize:10, fontWeight:700, color:'#dc2626',
+                      <span style={{ fontSize:12, fontWeight:700, color:'#dc2626',
                         backgroundColor:'#fee2e2', padding:'2px 8px', borderRadius:100 }}>
                         {t('seller_team.suspended_badge')}
                       </span>
@@ -388,7 +388,7 @@ const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
               {activePerm.length > 0 && (
                 <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                   {activePerm.map(p => (
-                    <span key={p} style={{ fontSize:11, fontWeight:700,
+                    <span key={p} style={{ fontSize:12, fontWeight:700,
                       backgroundColor:'#eff6ff', color:'#1d4ed8',
                       padding:'3px 10px', borderRadius:100 }}>
                        {p}

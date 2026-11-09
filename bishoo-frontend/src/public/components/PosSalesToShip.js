@@ -56,7 +56,7 @@ export default function PosSalesToShip({ onNavigate, refreshKey = 0, visible = t
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: '1px solid #cfd9de', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>POS</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: s.isCod ? '#92400e' : '#166534', background: s.isCod ? '#fffbeb' : '#ecfdf3', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: s.isCod ? '#92400e' : '#166534', background: s.isCod ? '#fffbeb' : '#f0fdf4', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>
                   {s.isCod ? `Atalipa akipokea ${tzs(s.balanceDue)}` : 'Imelipwa'}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8' }}>Itume</span>
@@ -112,7 +112,7 @@ export function PosSalesList({ onNavigate }) {
               <span style={{ fontSize: 13, color: MUTED }}>
                 {(s.items || []).map((i) => `${i.productName}${Number(i.quantity) > 1 ? ` x${i.quantity}` : ''}`).join(', ') || s.receiptNumber}
               </span>
-              <span style={{ fontSize: 13, color: wait ? '#b54708' : MUTED, fontWeight: wait ? 700 : 400 }}>
+              <span style={{ fontSize: 13, color: wait ? '#d97706' : MUTED, fontWeight: wait ? 700 : 400 }}>
                 {s.receiptNumber} · {paidLine(s)} · {state} · {when(s.createdAt)}
               </span>
             </div>

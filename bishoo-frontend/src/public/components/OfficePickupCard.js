@@ -106,7 +106,7 @@ const OfficePickupCard = () => {
         </label>
       )}
       {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c', marginTop: 10 }}>{error}</div>}
-      {message && <div role="status" style={{ fontSize: 13, color: '#15803d', marginTop: 10 }}>{message}</div>}
+      {message && <div role="status" style={{ fontSize: 13, color: '#16a34a', marginTop: 10 }}>{message}</div>}
       <button type="button" onClick={save} disabled={busy || !canSave}
         style={{ width: '100%', height: 48, marginTop: 12, border: 0, borderRadius: 10, background: '#1d4ed8', color: '#fff',
           fontFamily: 'inherit', fontSize: 15, fontWeight: 700, cursor: busy || !canSave ? 'not-allowed' : 'pointer', opacity: busy || !canSave ? 0.6 : 1 }}>

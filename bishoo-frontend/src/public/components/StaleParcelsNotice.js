@@ -65,7 +65,7 @@ export default function StaleParcelsNotice({ onAddToShehena }) {
                 {p.recipientName || 'Mpokeaji hajaandikwa'} · {p.destinationCity} · kimepokelewa {ago(p.receivedAt)}
               </div>
               {p.bulkShipmentCode && (
-                <div style={{ fontSize: 11, color: '#b45309', marginTop: 3 }}>Kiko kwenye shehena {p.bulkShipmentCode} ambayo bado haijatumwa</div>
+                <div style={{ fontSize: 12, color: '#d97706', marginTop: 3 }}>Kiko kwenye shehena {p.bulkShipmentCode} ambayo bado haijatumwa</div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button onClick={() => onAddToShehena && onAddToShehena(p)} style={btn('#eff6ff', '#1d4ed8', '#bfdbfe')}>

@@ -97,10 +97,10 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
             {profile?.type && (
-              <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '10px 14px',
-                marginBottom: 20, fontSize: 12, color: '#9a5b00', textTransform: 'capitalize' }}>
+              <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: '10px 14px',
+                marginBottom: 20, fontSize: 12, color: '#92400e', textTransform: 'capitalize' }}>
                 {t('transport_provider_settings.vehicle_type_label')}: <strong>{profile.type}</strong>
-                <div style={{ fontSize: 11, color: '#9a5b00', opacity: 0.8, marginTop: 2, textTransform: 'none' }}>
+                <div style={{ fontSize: 12, color: '#92400e', opacity: 0.8, marginTop: 2, textTransform: 'none' }}>
                   {t('transport_provider_settings.vehicle_type_locked')}
                 </div>
               </div>
@@ -170,7 +170,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
               </label>
               <input style={inp} value={form.cities} placeholder="Dar es Salaam, Mwanza, Arusha"
                 onChange={e => setForm(p => ({ ...p, cities: e.target.value }))} />
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                 {t('transport_provider_settings.field_cities_hint')}
               </div>
             </div>

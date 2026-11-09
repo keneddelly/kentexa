@@ -18,8 +18,8 @@ const btn = (bg, color = '#fff', border = 'none') => ({
 });
 
 const STATE = {
-  waiting: ['Inasubiri muuzaji athibitishe malipo', '#b45309', '#fffbeb'],
-  confirmed: ['Malipo yamethibitishwa', '#15803d', '#f0fdf4'],
+  waiting: ['Inasubiri muuzaji athibitishe malipo', '#d97706', '#fffbeb'],
+  confirmed: ['Malipo yamethibitishwa', '#16a34a', '#f0fdf4'],
   rejected: ['Malipo hayajathibitishwa', '#b91c1c', '#fef2f2'],
 };
 
@@ -108,7 +108,7 @@ const LipaPaymentReview = ({ orderId, onChanged }) => {
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           {data.canConfirm && (
             <button type="button" disabled={busy} onClick={() => act(() => api.patch(`/orders/${orderId}/lipa/confirm`))}
-              style={{ ...btn('#15803d'), opacity: busy ? 0.6 : 1 }}>Nimepokea pesa</button>
+              style={{ ...btn('#16a34a'), opacity: busy ? 0.6 : 1 }}>Nimepokea pesa</button>
           )}
           {data.canReject && (
             <button type="button" disabled={busy} onClick={() => setChoosing(true)}

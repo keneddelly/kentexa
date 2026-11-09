@@ -7,34 +7,34 @@ import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
 
 const getCategories = (t) => ({
-  electronics:   { icon: 'phone', label: t('category_page.cat_electronics'),    color: '#1d4ed8', bg: '#ede9fe' },
-  vehicles:      { icon: 'car', label: t('category_page.cat_vehicles'),       color: '#ea580c', bg: '#ffedd5' },
+  electronics:   { icon: 'phone', label: t('category_page.cat_electronics'),    color: '#1d4ed8', bg: '#f7f9f9' },
+  vehicles:      { icon: 'car', label: t('category_page.cat_vehicles'),       color: '#d97706', bg: '#fffbeb' },
   property:      { icon: 'office', label: t('category_page.cat_property'),      color: '#16a34a', bg: '#dcfce7' },
-  fashion:       { icon: 'shirt', label: t('category_page.cat_fashion'),        color: '#db2777', bg: '#fce7f3' },
-  services:      { icon: 'wrench', label: t('category_page.cat_services'),      color: '#ca8a04', bg: '#fef9c3' },
-  home_garden:   { icon: 'home', label: t('category_page.cat_home_garden'),   color: '#0891b2', bg: '#cffafe' },
-  health_beauty: { icon: 'heart', label: t('category_page.cat_health_beauty'), color: '#9333ea', bg: '#f3e8ff' },
+  fashion:       { icon: 'shirt', label: t('category_page.cat_fashion'),        color: '#0f1419', bg: '#f7f9f9' },
+  services:      { icon: 'wrench', label: t('category_page.cat_services'),      color: '#d97706', bg: '#fffbeb' },
+  home_garden:   { icon: 'home', label: t('category_page.cat_home_garden'),   color: '#1d4ed8', bg: '#eff6ff' },
+  health_beauty: { icon: 'heart', label: t('category_page.cat_health_beauty'), color: '#0f1419', bg: '#f7f9f9' },
   food:          { icon: 'cart', label: t('category_page.cat_food'),          color: '#16a34a', bg: '#dcfce7' },
-  baby_kids:     { icon: 'heart', label: t('category_page.cat_baby_kids'),     color: '#f59e0b', bg: '#fef9c3' },
+  baby_kids:     { icon: 'heart', label: t('category_page.cat_baby_kids'),     color: '#f59e0b', bg: '#fffbeb' },
   sports:        { icon: 'star', label: t('category_page.cat_sports'),        color: '#2563eb', bg: '#dbeafe' },
-  agriculture:   { icon: 'sprout', label: t('category_page.cat_agriculture'),   color: '#65a30d', bg: '#ecfccb' },
+  agriculture:   { icon: 'sprout', label: t('category_page.cat_agriculture'),   color: '#16a34a', bg: '#f0fdf4' },
   security:      { icon: 'lock', label: t('category_page.cat_security'),      color: '#1d4ed8', bg: '#dbeafe' },
-  books:         { icon: 'doc', label: t('category_page.cat_books'),         color: '#7c3aed', bg: '#ede9fe' },
-  arts:          { icon: 'pencil', label: t('category_page.cat_arts'),          color: '#e11d48', bg: '#ffe4e6' },
-  pets:          { icon: 'heart', label: t('category_page.cat_pets'),          color: '#b45309', bg: '#fef3c7' },
+  books:         { icon: 'doc', label: t('category_page.cat_books'),         color: '#0f1419', bg: '#f7f9f9' },
+  arts:          { icon: 'pencil', label: t('category_page.cat_arts'),          color: '#dc2626', bg: '#fef2f2' },
+  pets:          { icon: 'heart', label: t('category_page.cat_pets'),          color: '#d97706', bg: '#fef3c7' },
   construction:  { icon: 'wrench', label: t('category_page.cat_construction'),  color: '#78716c', bg: '#f5f5f4' },
   industrial:    { icon: 'office', label: t('category_page.cat_industrial'),    color: '#475569', bg: '#f1f5f9' },
-  appliances:          { icon: 'home', label: t('category_page.cat_appliances'),          color: '#0284c7', bg: '#e0f2fe' },
-  musical_instruments: { icon: 'star', label: t('category_page.cat_musical_instruments'), color: '#9333ea', bg: '#f3e8ff' },
-  flowers:             { icon: 'sprout', label: t('category_page.cat_flowers'),             color: '#db2777', bg: '#fce7f3' },
+  appliances:          { icon: 'home', label: t('category_page.cat_appliances'),          color: '#1d4ed8', bg: '#eff6ff' },
+  musical_instruments: { icon: 'star', label: t('category_page.cat_musical_instruments'), color: '#0f1419', bg: '#f7f9f9' },
+  flowers:             { icon: 'sprout', label: t('category_page.cat_flowers'),             color: '#0f1419', bg: '#f7f9f9' },
   jobs:                { icon: 'idcard', label: t('category_page.cat_jobs'),                color: '#1e293b', bg: '#f1f5f9' },
   energy:              { icon: 'bolt', label: t('category_page.cat_energy'),              color: '#d97706', bg: '#fef3c7' },
   tools_hardware:      { icon: 'wrench', label: t('category_page.cat_tools_hardware'),      color: '#78716c', bg: '#f5f5f4' },
-  weddings_events:     { icon: 'gem', label: t('category_page.cat_weddings_events'),     color: '#be185d', bg: '#fce7f3' },
-  water_sanitation:    { icon: 'globe', label: t('category_page.cat_water_sanitation'),    color: '#0891b2', bg: '#cffafe' },
+  weddings_events:     { icon: 'gem', label: t('category_page.cat_weddings_events'),     color: '#0f1419', bg: '#f7f9f9' },
+  water_sanitation:    { icon: 'globe', label: t('category_page.cat_water_sanitation'),    color: '#1d4ed8', bg: '#eff6ff' },
   office_supplies:     { icon: 'note', label: t('category_page.cat_office_supplies'),     color: '#475569', bg: '#f1f5f9' },
   collectibles:        { icon: 'gem', label: t('category_page.cat_collectibles'),        color: '#92400e', bg: '#fef3c7' },
-  tickets_vouchers:    { icon: 'receipt', label: t('category_page.cat_tickets_vouchers'),    color: '#7c3aed', bg: '#ede9fe' },
+  tickets_vouchers:    { icon: 'receipt', label: t('category_page.cat_tickets_vouchers'),    color: '#0f1419', bg: '#f7f9f9' },
   free_giveaway:       { icon: 'tag', label: t('category_page.cat_free_giveaway'),       color: '#16a34a', bg: '#dcfce7' },
   general:       { icon: 'box', label: t('category_page.cat_general'),       color: '#64748b', bg: '#f1f5f9' },
 });
@@ -55,7 +55,7 @@ const CategoryPage = ({ onNavigate, category }) => {
   const [activeFilters, setActiveFilters] = useState({}); // { [attrKey]: value }
 
   const CATEGORIES = getCategories(t);
-  const cat = CATEGORIES[category] || { icon: 'box', label: category?.replace(/_/g,' ') || t('category_page.cat_fallback'), color: '#1d4ed8', bg: '#ede9fe' };
+  const cat = CATEGORIES[category] || { icon: 'box', label: category?.replace(/_/g,' ') || t('category_page.cat_fallback'), color: '#1d4ed8', bg: '#f7f9f9' };
 
   useEffect(() => {
     if (!category) return;
@@ -155,11 +155,11 @@ const CategoryPage = ({ onNavigate, category }) => {
         <div style={{ backgroundColor: '#fff', padding: '10px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 8, overflowX: 'auto' }}>
           {categorySchema.map(attr => (
             <div key={attr.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', flexShrink: 0, minWidth: 60 }}>{attr.label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', flexShrink: 0, minWidth: 60 }}>{attr.label}</span>
               <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
                 {(attr.allowedValues?.length ? attr.allowedValues : []).map(v => (
                   <button key={v} onClick={() => toggleFilter(attr.key, v)}
-                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
                       border: activeFilters[attr.key] === v ? `2px solid ${cat.color}` : '1px solid #e2e8f0',
                       background: activeFilters[attr.key] === v ? cat.bg : '#fff',
                       color: activeFilters[attr.key] === v ? cat.color : '#64748b' }}>
@@ -170,7 +170,7 @@ const CategoryPage = ({ onNavigate, category }) => {
                   <input type="text" placeholder={t('category_page.filter_placeholder', { label: attr.label })}
                     value={activeFilters[attr.key] || ''}
                     onChange={e => setActiveFilters(prev => ({ ...prev, [attr.key]: e.target.value }))}
-                    style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 11, outline: 'none' }} />
+                    style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, outline: 'none' }} />
                 )}
               </div>
             </div>
@@ -216,7 +216,7 @@ const CategoryPage = ({ onNavigate, category }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t('category_page.store_products_title')}</span>
-                      <span style={{ fontSize: 11, backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{filteredProducts.length}</span>
+                      <span style={{ fontSize: 12, backgroundColor: '#dbeafe', color: '#1d4ed8', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{filteredProducts.length}</span>
                     </div>
                     <span onClick={() => setTab('products')} style={{ fontSize: 12, color: cat.color, fontWeight: 700, cursor: 'pointer' }}>{t('category_page.see_all')}</span>
                   </div>
@@ -230,13 +230,13 @@ const CategoryPage = ({ onNavigate, category }) => {
                           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name="box" size={28} color="#94a3b8" /></div>
                         }
                         {/* Product badge */}
-                        <span style={{ position: 'absolute', top: 7, left: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#1d4ed8', color: '#fff' }}>{t('category_page.store_badge')}</span>
+                        <span style={{ position: 'absolute', top: 7, left: 7, fontSize: 12, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#1d4ed8', color: '#fff' }}>{t('category_page.store_badge')}</span>
                         {p.codEnabled && (
-                          <span style={{ position: 'absolute', top: 7, right: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>{t('category_page.cod_badge')}</span>
+                          <span style={{ position: 'absolute', top: 7, right: 7, fontSize: 12, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>{t('category_page.cod_badge')}</span>
                         )}
                         {!p.isAvailable && (
                           <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>{t('category_page.out_of_stock')}</span>
+                            <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>{t('category_page.out_of_stock')}</span>
                           </div>
                         )}
                       </div>
@@ -244,10 +244,10 @@ const CategoryPage = ({ onNavigate, category }) => {
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>{p.name}</div>
                         <div style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', marginBottom: 4 }}>TZS {Number(p.displayPrice || p.basePrice || 0).toLocaleString()}</div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 700 }}>{t('category_page.free_delivery')}</span>
+                          <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>{t('category_page.free_delivery')}</span>
                           <button onClick={e => { e.stopPropagation(); if (p.isAvailable) addToCart(p); }}
                             disabled={!p.isAvailable}
-                            style={{ background: p.isAvailable ? 'linear-gradient(135deg,#1d4ed8,#2563eb)' : '#e2e8f0', color: p.isAvailable ? '#fff' : '#94a3b8', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: p.isAvailable ? 'pointer' : 'not-allowed', fontSize: 10, fontWeight: 700 }}>
+                            style={{ background: p.isAvailable ? 'linear-gradient(135deg,#1d4ed8,#2563eb)' : '#e2e8f0', color: p.isAvailable ? '#fff' : '#94a3b8', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: p.isAvailable ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 700 }}>
                             
                           </button>
                         </div>
@@ -265,7 +265,7 @@ const CategoryPage = ({ onNavigate, category }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t('category_page.classified_ads_title')}</span>
-                      <span style={{ fontSize: 11, backgroundColor: '#fce7f3', color: '#db2777', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{filteredClassifieds.length}</span>
+                      <span style={{ fontSize: 12, backgroundColor: '#f7f9f9', color: '#0f1419', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{filteredClassifieds.length}</span>
                     </div>
                     <span onClick={() => setTab('classifieds')} style={{ fontSize: 12, color: cat.color, fontWeight: 700, cursor: 'pointer' }}>{t('category_page.see_all')}</span>
                   </div>
@@ -279,19 +279,19 @@ const CategoryPage = ({ onNavigate, category }) => {
                           : <div style={{ width: '100%', aspectRatio: '4/3', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name="list" size={28} color="#94a3b8" /></div>
                         }
                         {/* Classified badge */}
-                        <span style={{ position: 'absolute', top: 7, left: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#db2777', color: '#fff' }}>{t('category_page.ad_badge')}</span>
+                        <span style={{ position: 'absolute', top: 7, left: 7, fontSize: 12, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#0f1419', color: '#fff' }}>{t('category_page.ad_badge')}</span>
                         {item.isNegotiable && (
-                          <span style={{ position: 'absolute', bottom: 7, left: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#fef9c3', color: '#ca8a04' }}>{t('category_page.negotiable_badge')}</span>
+                          <span style={{ position: 'absolute', bottom: 7, left: 7, fontSize: 12, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#fffbeb', color: '#d97706' }}>{t('category_page.negotiable_badge')}</span>
                         )}
                       </div>
                       <div style={{ padding: '8px 10px 12px' }}>
                         <h3 style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: '0 0 4px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
                           {item.title}
                         </h3>
-                        <div style={{ fontSize: 13, fontWeight:800, color: '#db2777', marginBottom: 2 }}>
+                        <div style={{ fontSize: 13, fontWeight:800, color: '#0f1419', marginBottom: 2 }}>
                           TZS {Number(item.price).toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 10, color: '#94a3b8' }}>{item.location || t('category_page.default_location')}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>{item.location || t('category_page.default_location')}</div>
                       </div>
                     </div>
                   ))}

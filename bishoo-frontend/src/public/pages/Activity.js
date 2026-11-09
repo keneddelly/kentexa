@@ -176,7 +176,7 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
               <li key={n.id}>
                 <button type="button" data-testid={`activity-${n.id}`} onClick={() => openNotification(n)}
                   style={{ display: 'flex', gap: 12, width: '100%', padding: '12px 16px', border: 'none', borderBottom: `1px solid ${LINE}`,
-                    background: n.isRead ? '#fff' : '#f5fafe', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: INK }}>
+                    background: n.isRead ? '#fff' : '#eff6ff', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', color: INK }}>
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={n.isRead ? MUTED : BLUE} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
                     aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }}><path d={iconFor(n.type)} /></svg>
                   <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>

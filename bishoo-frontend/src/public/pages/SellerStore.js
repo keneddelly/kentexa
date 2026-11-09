@@ -64,7 +64,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
         <div style={{ textAlign: 'center', padding: '80px' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}><LineIcon name="help" size={40} /></div>
           <p style={{ color: '#64748b' }}>{t('seller_store.store_not_found')}</p>
-          <button onClick={() => onNavigate('Stores')} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', marginTop: '16px', fontWeight: '700' }}>
+          <button onClick={() => onNavigate('Stores')} style={{ background: 'linear-gradient(135deg, #0f1419 0%, #0f1419 100%)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', marginTop: '16px', fontWeight: '700' }}>
             {t('seller_store.browse_stores')}
           </button>
         </div>
@@ -78,7 +78,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
 
       {/* Store Header */}
       <div style={{
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)',
+        background: 'linear-gradient(135deg, #0f172a 0%, #0f1419 100%)',
         padding: '40px 32px',
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
@@ -86,7 +86,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
             {/* Store Logo */}
             <div style={{
               width: '90px', height: '90px', borderRadius: '16px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #0f1419 0%, #0f1419 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '40px', flexShrink: 0,
               border: '3px solid rgba(255,255,255,0.2)',
@@ -158,9 +158,9 @@ const SellerStore = ({ onNavigate, sellerId }) => {
           ].map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
               backgroundColor: 'transparent',
-              color: activeTab === tab.key ? '#7c3aed' : '#64748b',
+              color: activeTab === tab.key ? '#0f1419' : '#64748b',
               border: 'none',
-              borderBottom: activeTab === tab.key ? '3px solid #7c3aed' : '3px solid transparent',
+              borderBottom: activeTab === tab.key ? '3px solid #0f1419' : '3px solid transparent',
               padding: '10px 20px', cursor: 'pointer',
               fontSize: '14px', fontWeight: activeTab === tab.key ? '800' : '600',
               marginBottom: '-2px',
@@ -195,7 +195,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                       ) : <span style={{ fontSize: '48px' }}><LineIcon name="box" size={40} /></span>}
                     </div>
                     <div style={{ padding: '16px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', background: 'linear-gradient(135deg, #0f1419 0%, #0f1419 100%)', color: '#fff' }}>
                         {product.category?.replace(/_/g, ' ')}
                       </span>
                       <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '8px 0 4px' }}>
@@ -205,24 +205,24 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                         {product.description?.substring(0, 60)}...
                       </p>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '16px', fontWeight: '800', color: '#7c3aed' }}>
+                        <span style={{ fontSize: '16px', fontWeight: '800', color: '#0f1419' }}>
                           TZS {Number(product.price).toLocaleString()}
                         </span>
-                        <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', backgroundColor: product.isAvailable && Number(product.stock) > 0 ? '#dcfce7' : '#fee2e2', color: product.isAvailable && Number(product.stock) > 0 ? '#16a34a' : '#dc2626' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', backgroundColor: product.isAvailable && Number(product.stock) > 0 ? '#dcfce7' : '#fee2e2', color: product.isAvailable && Number(product.stock) > 0 ? '#16a34a' : '#dc2626' }}>
                           {product.isAvailable && Number(product.stock) > 0 ? t('seller_store.in_stock') : t('seller_store.out_of_stock')}
                         </span>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           onClick={() => onNavigate(`ProductDetail-${product.id}`)}
-                          style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
+                          style={{ flex: 1, backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
                         >
                           {t('seller_store.view_button')}
                         </button>
                         <button
                           onClick={() => { if (product.isAvailable && Number(product.stock) > 0) addToCart(product); }}
                           disabled={!product.isAvailable}
-                          style={{ flex: 1, background: product.isAvailable ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#e2e8f0', color: product.isAvailable ? '#fff' : '#94a3b8', border: 'none', padding: '8px', borderRadius: '8px', cursor: product.isAvailable ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '700' }}
+                          style={{ flex: 1, background: product.isAvailable ? 'linear-gradient(135deg, #0f1419 0%, #0f1419 100%)' : '#e2e8f0', color: product.isAvailable ? '#fff' : '#94a3b8', border: 'none', padding: '8px', borderRadius: '8px', cursor: product.isAvailable ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '700' }}
                         >
                           {t('seller_store.add_button')}
                         </button>
@@ -260,12 +260,12 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                       ) : <span style={{ fontSize: '48px' }}><LineIcon name="list" size={40} /></span>}
                     </div>
                     <div style={{ padding: '14px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: '#fff' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: '#fff' }}>
                         {item.category}
                       </span>
                       <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '8px 0 4px' }}>{item.title}</h3>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '16px', fontWeight: '800', color: '#7c3aed' }}>TZS {Number(item.price).toLocaleString()}</span>
+                        <span style={{ fontSize: '16px', fontWeight: '800', color: '#0f1419' }}>TZS {Number(item.price).toLocaleString()}</span>
                         <span style={{ fontSize: '12px', color: '#94a3b8' }}>{item.location || t('seller_store.default_location')}</span>
                       </div>
                     </div>

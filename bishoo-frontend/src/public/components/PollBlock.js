@@ -49,7 +49,7 @@ export default function PollBlock({ postId, isLoggedIn, onNavigate }) {
         <div key={o.id} data-testid={`poll-result-${o.id}`}
           style={{ position: 'relative', overflow: 'hidden', borderRadius: 8, background: '#f7f9fa', padding: '8px 10px',
             display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 14, color: INK, fontWeight: poll.myOptionId === o.id ? 800 : 400 }}>
-          <span aria-hidden="true" style={{ position: 'absolute', inset: '0 auto 0 0', width: `${o.percent}%`, background: '#dbe7fd' }} />
+          <span aria-hidden="true" style={{ position: 'absolute', inset: '0 auto 0 0', width: `${o.percent}%`, background: '#eff6ff' }} />
           <span style={{ position: 'relative', minWidth: 0, overflowWrap: 'anywhere' }}>{o.label}{poll.myOptionId === o.id ? ' (wewe)' : ''}</span>
           <span style={{ position: 'relative', fontVariantNumeric: 'tabular-nums' }}>{o.percent}%</span>
         </div>

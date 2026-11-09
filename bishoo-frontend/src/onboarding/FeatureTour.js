@@ -149,7 +149,7 @@ const FeatureTour = ({ tourKey, onStepChange, autoStart = false, onFinalCta }) =
       <div role="dialog" aria-label={t(step.titleKey)} style={{ ...cardStyle, backgroundColor: WH, borderRadius: 16,
         padding: 18, boxShadow: '0 12px 32px rgba(0,0,0,0.25)', fontFamily:'inherit' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: GR }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: GR }}>
             {t('tours.step_counter', { num: stepIndex + 1, total: tour.steps.length })}
           </span>
           <button onClick={handleSkip} aria-label={t('tours.skip')}
@@ -176,7 +176,7 @@ const FeatureTour = ({ tourKey, onStepChange, autoStart = false, onFinalCta }) =
           </button>
           <button onClick={handleNext}
             style={{ marginLeft: 'auto', padding: '9px 18px', borderRadius: 10, border: 'none',
-              background: `linear-gradient(135deg,${B},#7C3AED)`, color: WH,
+              background: `linear-gradient(135deg,${B},#0f1419)`, color: WH,
               cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
             {isLast || step.isFinal ? t('tours.finish') : t('tours.next')}
           </button>

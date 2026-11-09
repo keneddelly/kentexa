@@ -166,7 +166,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false,
             <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0,
               backgroundColor: s.done ? '#16a34a' : '#e2e8f0',
               display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:11, color: s.done ? '#fff' : '#94a3b8' }}>
+              fontSize:12, color: s.done ? '#fff' : '#94a3b8' }}>
               {s.done ? '✓' : <LineIcon name={s.icon} size={18} />}
             </div>
             <span style={{ fontSize:12,
@@ -176,7 +176,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false,
               {s.label}
             </span>
             {!s.done && s.page && (
-              <span style={{ fontSize:10, color:B, fontWeight:700, marginLeft:'auto' }}>
+              <span style={{ fontSize:12, color:B, fontWeight:700, marginLeft:'auto' }}>
                 {t('profile_completion.do_it_button')}
               </span>
             )}

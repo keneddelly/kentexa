@@ -14,7 +14,7 @@ const StatCard = ({ icon, label, value, sub, color = '#6366f1' }) => (
     <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
     <div style={{ fontSize: 26, fontWeight:800, color: '#0f172a' }}>{value}</div>
     <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{label}</div>
-    {sub && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{sub}</div>}
+    {sub && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>{sub}</div>}
   </div>
 );
 
@@ -205,9 +205,9 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                   const max  = Math.max(...data.map(d => Number(d.sessions || 0)), 1);
                   return data.map((d, i) => (
                     <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 9, color: '#94a3b8' }}>{Number(d.sessions)}</span>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{Number(d.sessions)}</span>
                       <div style={{ width: '100%', backgroundColor: '#6366f1', borderRadius: '3px 3px 0 0', height: `${(Number(d.sessions) / max) * 60}px`, minHeight: 2 }} />
-                      <span style={{ fontSize: 9, color: '#94a3b8', transform: 'rotate(-30deg)', transformOrigin: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#94a3b8', transform: 'rotate(-30deg)', transformOrigin: 'center' }}>
                         {d.date ? new Date(d.date).toLocaleDateString('sw-TZ', { day: 'numeric', month: 'short' }) : ''}
                       </span>
                     </div>
@@ -237,10 +237,10 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                     Matukio ya Mwisho
-                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 400, marginLeft: 6 }}>inasasishwa kila sekunde 15</span>
+                    <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400, marginLeft: 6 }}>inasasishwa kila sekunde 15</span>
                   </div>
                   <button onClick={fetchLive}
-                    style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer', color: '#64748b' }}>
+                    style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer', color: '#64748b' }}>
             Onyesha upya
                   </button>
                 </div>
@@ -253,12 +253,12 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                           {e.eventType?.replace(/_/g, ' ')}
                           {e.eventLabel && <span style={{ color: '#94a3b8', fontWeight: 400 }}> — {e.eventLabel?.slice(0,40)}</span>}
                         </div>
-                        <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>
                           {e.page || '—'}
                           {e.userId && <span style={{ marginLeft: 6, color: '#6366f1' }}>#{e.userId}</span>}
                         </div>
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, color: '#94a3b8', flexShrink: 0 }}>
                         {e.createdAt ? new Date(e.createdAt).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
                       </div>
                     </div>
@@ -275,7 +275,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc' }}>
                       {['Session', 'Mtumiaji', 'Kifaa', 'Kivinjari', 'Chanzo', 'Ukurasa', 'Matukio', 'Mabadiliko', 'Wakati'].map(h => (
-                        <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>

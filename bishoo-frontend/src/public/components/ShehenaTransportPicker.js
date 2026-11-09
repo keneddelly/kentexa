@@ -27,13 +27,13 @@ export default function ShehenaTransportPicker({ value, onChange, inputStyle }) 
               data-testid={`shehena-transport-${t.id}`}
               onClick={() => onChange({ transportProviderId: t.id, transportCompany: t.name })} style={chip(value.transportProviderId === t.id)}>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{t.name}</div>
-              <div style={{ fontSize: 11, color: '#475569' }}>{t.relation === 'own' ? 'Usafiri wako' : 'Mshirika'}</div>
+              <div style={{ fontSize: 12, color: '#475569' }}>{t.relation === 'own' ? 'Usafiri wako' : 'Mshirika'}</div>
             </button>
           ))}
           <button type="button" role="radio" aria-checked={typed} onClick={() => onChange({ transportProviderId: null, transportCompany: '' })}
             style={chip(typed)}>
             <div style={{ fontSize: 14, fontWeight: 700 }}>Mwingine</div>
-            <div style={{ fontSize: 11, color: '#475569' }}>Andika jina</div>
+            <div style={{ fontSize: 12, color: '#475569' }}>Andika jina</div>
           </button>
         </div>
       )}

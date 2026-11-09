@@ -95,8 +95,8 @@ const WishlistHeart = ({
              2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09
              C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5
              c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-          fill={saved ? '#ef4444' : 'none'}
-          stroke={saved ? '#ef4444' : '#94a3b8'}
+          fill={saved ? '#dc2626' : 'none'}
+          stroke={saved ? '#dc2626' : '#94a3b8'}
           strokeWidth="2"
         />
       </svg>

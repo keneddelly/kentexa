@@ -15,7 +15,7 @@ const TourTrigger = ({ tourKey, style }) => {
       style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
         backgroundColor: '#EFF6FF', color: '#1D4ED8', border: 'none',
         borderRadius: 20, padding: '6px 12px', cursor: 'pointer',
-        fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', ...style }}>
+        fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', ...style }}>
       {t('tours.trigger_label')}
     </button>
   );

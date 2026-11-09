@@ -37,7 +37,7 @@ const MapPreview = ({ latitude, longitude }) => {
       <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -100%)' }}>
         <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z" fill="#1d4ed8" /><circle cx="12" cy="9.5" r="2.5" fill="#fff" /></svg>
       </span>
-      <span style={{ position: 'absolute', right: 6, bottom: 4, fontSize: 10, color: MUTED, background: 'rgba(255,255,255,0.85)', padding: '0 4px', borderRadius: 4 }}>© OpenStreetMap</span>
+      <span style={{ position: 'absolute', right: 6, bottom: 4, fontSize: 12, color: MUTED, background: 'rgba(255,255,255,0.85)', padding: '0 4px', borderRadius: 4 }}>© OpenStreetMap</span>
     </a>
   );
 };

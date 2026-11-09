@@ -117,7 +117,7 @@ export default function PosToday({ onClose, cashierUserId, cashierName }) {
               <section data-testid="pos-shift" style={{ borderTop: `1px solid ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Zamu ya {cashierName || 'mhudumu'}</h3>
                 {closed && (
-                  <div data-testid="pos-shift-closed" style={{ background: closed.difference === 0 ? '#ecfdf3' : '#fffbeb', borderRadius: 12, padding: 12, fontSize: 15 }}>
+                  <div data-testid="pos-shift-closed" style={{ background: closed.difference === 0 ? '#f0fdf4' : '#fffbeb', borderRadius: 12, padding: 12, fontSize: 15 }}>
                     Zamu imefungwa. Droo: {tzs(closed.expected)}, umehesabu {tzs(closed.counted)}. <b>{diffText(closed.difference)}</b>. Ripoti imetumwa kwa mmiliki.
                   </div>
                 )}

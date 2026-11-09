@@ -41,7 +41,7 @@ export default function TopicPicker({ topics = [], initial = [], onDone, onLater
             return (
               <button key={t.key} type="button" aria-pressed={on} data-testid={`topic-${t.key}`} onClick={() => toggle(t.key)}
                 style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
-                  border: `1px solid ${on ? BLUE : '#e6ebef'}`, background: on ? '#eef3fe' : '#fff', color: on ? BLUE : INK,
+                  border: `1px solid ${on ? BLUE : '#e6ebef'}`, background: on ? '#eff6ff' : '#fff', color: on ? BLUE : INK,
                   display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ fontSize: 14, fontWeight: 700 }}>{t.label}</span>
                 {t.note && <span style={{ fontSize: 12, color: MUTED }}>{t.note}</span>}

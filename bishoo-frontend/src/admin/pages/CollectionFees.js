@@ -117,12 +117,12 @@ const CollectionFees = ({ onNavigate }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{city}</div>
                     {hasCustom && !dirty && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#dcfce7', color: '#16a34a' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#dcfce7', color: '#16a34a' }}>
                         Imewekwa
                       </span>
                     )}
                     {dirty && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#fef9c3', color: '#ca8a04' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#fef9c3', color: '#ca8a04' }}>
                         Mabadiliko
                       </span>
                     )}
@@ -130,13 +130,13 @@ const CollectionFees = ({ onNavigate }) => {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <div>
-                      <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Mjini (TZS)</label>
+                      <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Mjini (TZS)</label>
                       <input type="number" value={vals.urban}
                         onChange={e => setField(city, 'urban', e.target.value)}
                         style={inputStyle} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Vijijini (TZS)</label>
+                      <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Vijijini (TZS)</label>
                       <input type="number" value={vals.rural}
                         onChange={e => setField(city, 'rural', e.target.value)}
                         style={inputStyle} />

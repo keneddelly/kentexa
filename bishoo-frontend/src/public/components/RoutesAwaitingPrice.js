@@ -5,7 +5,7 @@ import api from '../../api/api';
 // Msafirishaji (owner 2026-10-14): the main route from sign-up is created
 // switched off and without a price. After approval, the provider sets its
 // first price here ("Weka bei"), which also switches the route on.
-const card = { backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 14, padding: 14, marginBottom: 10 };
+const card = { backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 14, padding: 14, marginBottom: 10 };
 const lbl = { display: 'block', flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: '#475569' };
 const inp = { width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' };
 
@@ -46,7 +46,7 @@ export default function RoutesAwaitingPrice({ onPriced, onCount }) {
     <div data-testid="routes-awaiting-price">
       {routes.map((r) => (
         <div key={r.id} style={card}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#9a3412' }}>{t('transport_signup.weka_bei_title')}</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#92400e' }}>{t('transport_signup.weka_bei_title')}</div>
           <div style={{ fontSize: 13, color: '#1e293b', margin: '4px 0 10px' }}>{r.originCity} → {r.destinationCity}</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <label style={lbl}>{t('transport_signup.price_per_kg')}
@@ -60,7 +60,7 @@ export default function RoutesAwaitingPrice({ onPriced, onCount }) {
           </div>
           {message?.id === r.id && <div role="alert" style={{ fontSize: 12, color: '#b91c1c', marginTop: 6 }}>{message.text}</div>}
           <button type="button" disabled={busy === r.id} onClick={() => save(r)}
-            style={{ marginTop: 10, width: '100%', padding: 12, border: 'none', borderRadius: 10, background: '#ea580c', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+            style={{ marginTop: 10, width: '100%', padding: 12, border: 'none', borderRadius: 10, background: '#d97706', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
             {busy === r.id ? '...' : t('transport_signup.weka_bei_button')}
           </button>
         </div>

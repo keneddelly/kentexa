@@ -138,7 +138,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
           ].map(c => (
             <div key={c.label} style={{ backgroundColor: c.bg, borderRadius: 12, padding: '14px 16px' }}>
               <div style={{ fontSize: 18, fontWeight:800, color: c.color }}>{c.value}</div>
-              <div style={{ fontSize: 11, color: c.color, opacity: 0.8, fontWeight: 600 }}>{c.label}</div>
+              <div style={{ fontSize: 12, color: c.color, opacity: 0.8, fontWeight: 600 }}>{c.label}</div>
             </div>
           ))}
         </div>
@@ -148,7 +148,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
             own shipment or a normal online order was to open each one and
             read the "Chanzo" field in the drawer; now grouped up front. */}
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Chanzo cha Agizo
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -201,7 +201,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['#', 'Chanzo', 'Mnunuzi', 'Bidhaa', 'Muuzaji/Wakala', 'Kiasi', 'Utoaji', 'Hali', 'Tarehe', ''].map(h => (
-                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -216,17 +216,17 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                         #{order.id}
                       </td>
                       <td style={{ padding: '11px 14px' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: srcS.bg, color: srcS.color, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: srcS.bg, color: srcS.color, whiteSpace: 'nowrap' }}>
                           {srcS.short}
                         </span>
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{order.buyer?.name || order.manualBuyerName || '—'}</div>
-                        <div style={{ fontSize: 11, color: '#94a3b8' }}>{order.buyer?.email || order.phone || '—'}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>{order.buyer?.email || order.phone || '—'}</div>
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 12, color: '#475569', maxWidth: 160 }}>
                         <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {order.product?.name || order.manualProductName || '—'}{order.weightKg ? <span style={{fontSize:9,backgroundColor:'#f1f5f9',color:'#64748b',padding:'1px 4px',borderRadius:4,marginLeft:4}}>{order.weightKg}kg</span> : ''}
+                          {order.product?.name || order.manualProductName || '—'}{order.weightKg ? <span style={{fontSize:12,backgroundColor:'#f1f5f9',color:'#64748b',padding:'1px 4px',borderRadius:4,marginLeft:4}}>{order.weightKg}kg</span> : ''}
                         </div>
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 12, color: '#64748b' }}>
@@ -237,23 +237,23 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>
                         TZS {Number(order.totalAmount || 0).toLocaleString()}
                       </td>
-                      <td style={{ padding: '11px 14px', fontSize: 11, color: '#64748b' }}>
+                      <td style={{ padding: '11px 14px', fontSize: 12, color: '#64748b' }}>
                         {order.shippingMethod === 'boda' ? '' :
                          order.shippingMethod === 'kentexa_delivery' ? '' :
                          order.shippingMethod === 'agent' ? '' : ''}
                         {' '}{order.shippingMethod || '—'}
                       </td>
                       <td style={{ padding: '11px 14px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color, whiteSpace: 'nowrap' }}>
                           {ss.label}
                         </span>
                       </td>
-                      <td style={{ padding: '11px 14px', fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '11px 14px', fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap' }}>
                         {order.createdAt ? new Date(order.createdAt).toLocaleDateString('sw-TZ') : '—'}
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <button onClick={e => { e.stopPropagation(); setSelected(order); }}
-                          style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                          style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
             Ona
                         </button>
                       </td>
@@ -324,13 +324,13 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                 { label: 'Tracking', value: selected.trackingNumber || '—' },
               ].map(f => (
                 <div key={f.label} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '10px 12px' }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 3 }}>{f.label.toUpperCase()}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, marginBottom: 3 }}>{f.label.toUpperCase()}</div>
                   {f.isPhone && f.value !== '—' ? (
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <a href={`tel:${f.value}`} style={{ fontSize: 12, fontWeight: 600, color: '#1d4ed8', textDecoration: 'none' }}>{f.value}</a>
                       <a href={`https://wa.me/${String(f.value).replace(/[^\d]/g,'').replace(/^0/,'255')}`}
                         target="_blank" rel="noreferrer"
-                        style={{ fontSize: 10, backgroundColor: '#25D366', color: '#fff', padding: '2px 6px', borderRadius: 6, textDecoration: 'none', fontWeight: 700 }}>
+                        style={{ fontSize: 12, backgroundColor: '#25D366', color: '#fff', padding: '2px 6px', borderRadius: 6, textDecoration: 'none', fontWeight: 700 }}>
                         WA
                       </a>
                     </div>

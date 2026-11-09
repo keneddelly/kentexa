@@ -359,7 +359,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                   <button key={k.key} type="button" role="radio" aria-checked={on} data-testid={`kind-${k.key}`}
                     onClick={() => { setKind(k.key); setError(''); }}
                     style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, padding:'8px 4px', borderRadius:12,
-                      border:`1px solid ${on ? B : LN}`, background: on ? '#EEF3FE' : WH, color: on ? B : DK,
+                      border:`1px solid ${on ? B : LN}`, background: on ? '#eff6ff' : WH, color: on ? B : DK,
                       fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
                     <Icon d={KIND_ICON[k.key]} />{k.label}
                   </button>
@@ -455,7 +455,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
             {photos.length < COMPOSER.photos && (
               <button type="button" onClick={() => fileRef.current?.click()} aria-label="Ongeza picha" data-testid="add-photo"
                 style={{ aspectRatio:'1 / 1', borderRadius:10, border:`1.5px dashed ${LN}`, background:WH, color:GR,
-                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, cursor:'pointer', fontFamily:'inherit', fontSize:11, fontWeight:700 }}>
+                  display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, cursor:'pointer', fontFamily:'inherit', fontSize:12, fontWeight:700 }}>
                 <Icon d="M12 5v14M5 12h14" color={GR} />
                 {photos.length}/{COMPOSER.photos}
               </button>
@@ -492,7 +492,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                         <button key={`${item.type}-${item.id}`} type="button" onClick={() => setTagged(on ? null : item)} aria-pressed={on}
                           data-testid={`link-${item.type}-${item.id}`}
                           style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:10,
-                            border:`1px solid ${on ? B : LN}`, backgroundColor: on ? '#EEF3FE' : WH, cursor:'pointer', textAlign:'left', fontFamily:'inherit' }}>
+                            border:`1px solid ${on ? B : LN}`, backgroundColor: on ? '#eff6ff' : WH, cursor:'pointer', textAlign:'left', fontFamily:'inherit' }}>
                           <div style={{ width:32, height:32, borderRadius:8, backgroundColor:'#F1F5F9', flexShrink:0, overflow:'hidden' }}>
                             {item.image && <img src={item.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />}
                           </div>

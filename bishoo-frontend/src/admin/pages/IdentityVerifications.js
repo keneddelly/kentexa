@@ -116,7 +116,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Legal Name', 'Account', 'ID Type', 'ID Number', 'Status', 'Submitted', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -135,7 +135,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{ID_TYPE_LABEL[p.idType] || '—'}</td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{p.idNumber || '—'}</td>
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#94a3b8' }}>
                         {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}
@@ -144,11 +144,11 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
                         {p.status === 'pending' && (
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button onClick={e => { e.stopPropagation(); handleApprove(p.id); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Approve
                             </button>
                             <button onClick={e => { e.stopPropagation(); setSelected(p); setShowRejectModal(true); }}
-                              style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Reject
                             </button>
                           </div>
@@ -192,14 +192,14 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Submitted',     value: selected.createdAt ? new Date(selected.createdAt).toLocaleString() : null },
             ].filter(f => f.value).map(field => (
               <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
                 <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{field.value}</div>
               </div>
             ))}
 
             {selected.idDocumentImageUrl && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>ID DOCUMENT</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>ID DOCUMENT</div>
                 <a href={selected.idDocumentImageUrl} target="_blank" rel="noreferrer">
                   <img src={selected.idDocumentImageUrl} alt="ID Document"
                     style={{ width: '100%', borderRadius: 10, border: '2px solid #e2e8f0', cursor: 'pointer' }} />

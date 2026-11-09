@@ -122,13 +122,13 @@ const Sidebar = ({ activePage, onNavigate, onLogout, items: givenItems }) => {
             <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
             <span style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
-          <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Usimamizi{STAFF_TITLE[roleType] ? ` · ${STAFF_TITLE[roleType]}` : ''}</div>
+          <div style={{ fontSize: 12, color: '#64748b', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Usimamizi{STAFF_TITLE[roleType] ? ` · ${STAFF_TITLE[roleType]}` : ''}</div>
         </div>
 
         <nav aria-label="Menyu ya usimamizi" style={{ flex: '1 0 auto', padding: '8px 10px 12px' }}>
           {sections.map((sec) => (
             <div key={sec.key} data-testid={`admin-section-${sec.key}`} style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 10.5, fontWeight: 700, color: '#64748b', letterSpacing: '1.2px', textTransform: 'uppercase', padding: '6px 14px 4px' }}>{sec.title}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', letterSpacing: '1.2px', textTransform: 'uppercase', padding: '6px 14px 4px' }}>{sec.title}</div>
               {sec.items.map((item) => {
                 const on = activePage === item.destination;
                 return (

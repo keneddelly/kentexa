@@ -72,16 +72,16 @@ const HUB_OPS_ENABLED = true;
 const STATUS_LABEL = {
   pending:              { l: 'Inasubiri',        c: '#64748b', bg: '#f1f5f9' },
   received_at_hub:      { l: 'Iko ofisini',        c: '#1d4ed8', bg: '#eff6ff' },
-  verified:             { l: 'Imethibitishwa',    c: '#0891b2', bg: '#ecfeff' },
+  verified:             { l: 'Imethibitishwa',    c: '#1d4ed8', bg: '#eff6ff' },
   ready_for_dispatch:   { l: 'Tayari Kutuma',     c: '#16a34a', bg: '#dcfce7' },
-  dispatched:           { l: 'Imetumwa',          c: '#15803d', bg: '#f0fdf4' },
-  in_transit:           { l: 'Njiani',         c: '#ca8a04', bg: '#fef9c3' },
-  arrived_at_hub:       { l: 'Imefika ofisini', c: '#7c3aed', bg: '#ede9fe' },
+  dispatched:           { l: 'Imetumwa',          c: '#16a34a', bg: '#f0fdf4' },
+  in_transit:           { l: 'Njiani',         c: '#d97706', bg: '#fffbeb' },
+  arrived_at_hub:       { l: 'Imefika ofisini', c: '#0f1419', bg: '#f7f9f9' },
   awaiting_buyer:       { l: 'Mteja Achague',  c: '#dc2626', bg: '#fee2e2' },
-  out_for_delivery:     { l: 'Inafikishwa',   c: '#f59e0b', bg: '#fef9c3' },
+  out_for_delivery:     { l: 'Inafikishwa',   c: '#f59e0b', bg: '#fffbeb' },
   delivered:            { l: 'Imefikishwa',    c: '#16a34a', bg: '#dcfce7' },
-  collection_requested: { l: 'Ombi la Kuchukua',  c: '#f59e0b', bg: '#fef9c3' },
-  collected_by_agent:   { l: 'Imechukuliwa',      c: '#7c3aed', bg: '#ede9fe' },
+  collection_requested: { l: 'Ombi la Kuchukua',  c: '#f59e0b', bg: '#fffbeb' },
+  collected_by_agent:   { l: 'Imechukuliwa',      c: '#0f1419', bg: '#f7f9f9' },
 };
 
 const inp = {
@@ -92,7 +92,7 @@ const inp = {
 const SBadge = ({ status }) => {
   const s = STATUS_LABEL[status] || { l: status, c: '#64748b', bg: '#f1f5f9' };
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px',
+    <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 8px',
       borderRadius: 10, backgroundColor: s.bg, color: s.c }}>
       {s.l}
     </span>
@@ -110,9 +110,9 @@ const PCard = ({ p, actions = [] }) => (
         <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 800,
           color: '#1d4ed8' }}>{displayParcelNumber(p)}</div>
         {otherParcelNumbers(p, formatWaybill).length > 0 && (
-          <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#94a3b8' }}>{otherParcelNumbers(p, formatWaybill).join(' · ')}</div>
+          <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#94a3b8' }}>{otherParcelNumbers(p, formatWaybill).join(' · ')}</div>
         )}
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
           {p.originCity} → {p.destinationCity}
           {p.transitCity && <span style={{ color: '#f59e0b' }}> via {p.transitCity}</span>}
         </div>
@@ -131,7 +131,7 @@ const PCard = ({ p, actions = [] }) => (
         the handling Super Agent needs these directly to actually call
         someone (confirm handover, resolve a delivery issue, etc). */}
     {(p.senderPhone || p.buyerPhone) && (
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>
         {p.senderPhone && <span>Mtumaji: {p.senderPhone} </span>}
         {p.buyerPhone && <span>Mpokeaji: {p.buyerPhone}</span>}
       </div>
@@ -149,24 +149,24 @@ const PCard = ({ p, actions = [] }) => (
         "Mtumaji analipa cash" (the sender already paid in full) below. */}
     {p.order?.paymentMethod === 'cod' && !p.order?.codBalanceCollected ? (
       <div style={{ backgroundColor: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 6,
-        padding: '3px 8px', fontSize: 10, color: '#1d4ed8', marginBottom: 8, display: 'inline-block' }}>
+        padding: '3px 8px', fontSize: 12, color: '#1d4ed8', marginBottom: 8, display: 'inline-block' }}>
         COD — Kusanya TZS {Number(p.order?.codRemainingBalance || 0).toLocaleString()} kwa mpokeaji
       </div>
     ) : p.source === 'online' ? (
       <div style={{ backgroundColor: '#f0fdf4', borderRadius: 6, padding: '3px 8px',
-        fontSize: 10, color: '#16a34a', marginBottom: 8, display: 'inline-block' }}>
+        fontSize: 12, color: '#16a34a', marginBottom: 8, display: 'inline-block' }}>
         Muuzaji analipa ada ya usafirishaji
       </div>
     ) : p.source === 'seller_shipment' || p.source === 'offline_intercity' ? (
       <div style={{ backgroundColor: '#eff6ff', borderRadius: 6, padding: '3px 8px',
-        fontSize: 10, color: '#1d4ed8', marginBottom: 8, display: 'inline-block' }}>
+        fontSize: 12, color: '#1d4ed8', marginBottom: 8, display: 'inline-block' }}>
         Mtumaji analipa cash
       </div>
     ) : null}
 
     {/* Bus/courier details if dispatched */}
     {p.busTicketNumber && (
-      <div style={{ fontSize: 11, color: '#92400e', backgroundColor: '#fef9c3',
+      <div style={{ fontSize: 12, color: '#92400e', backgroundColor: '#fffbeb',
         borderRadius: 6, padding: '3px 8px', marginBottom: 8 }}>
         {p.busCompany} — Tiketi: <strong>{p.busTicketNumber}</strong>
       </div>
@@ -177,7 +177,7 @@ const PCard = ({ p, actions = [] }) => (
         {actions.map((a, i) => (
           <button key={i} onClick={() => a.fn(p)}
             style={{ padding: '7px 12px', borderRadius: 7, border: 'none',
-              cursor: 'pointer', fontSize: 11, fontWeight: 700,
+              cursor: 'pointer', fontSize: 12, fontWeight: 700,
               backgroundColor: a.color || '#1d4ed8', color: '#fff' }}>
             {a.label}
           </button>
@@ -916,7 +916,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
           {t('super_agent_dashboard.registered_desc')}
         </p>
         <button onClick={() => onNavigate('SellerShipment')}
-          style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff',
+          style={{ background: 'linear-gradient(135deg,#2563EB,#0f1419)', color: '#fff',
             border: 'none', padding: '14px 28px', borderRadius: 12, cursor: 'pointer',
             fontSize: 14, fontWeight: 800 }}>
           {t('super_agent_dashboard.create_shipment_button')}
@@ -947,7 +947,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
           (spec: "do not remove existing Super Agents automatically"). */}
       {needsIdentityStep(identityStatus) && (
         <div onClick={() => setShowVerifyIdentity(true)}
-          style={{ backgroundColor: '#fef9c3', padding: '10px 16px', fontSize: 12,
+          style={{ backgroundColor: '#fffbeb', padding: '10px 16px', fontSize: 12,
             color: '#92400e', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
           {t('super_agent_dashboard.identity_prompt')}
         </div>
@@ -1090,7 +1090,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                   <>
                     {incoming.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
-                        { label: 'Pokea', color: '#7c3aed',
+                        { label: 'Pokea', color: '#0f1419',
                           fn: (parcel) => { setStatusParcel(parcel); setNewStatus('received_at_hub'); setPickupCode(''); setCodBalanceAmount(''); } },
                         ...(canHandOverToRecipient(p) ? [handoverAction] : []),
                       ]} />
@@ -1121,14 +1121,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 {!walkResult ? (
                   <>
                     {/* Sender */}
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                       marginBottom: 8, letterSpacing: 0.5 }}>MTUMAJI</div>
                     {[
                       { k: 'senderName',  l: 'Jina *',  ph: 'Juma Hamisi' },
                       { k: 'senderPhone', l: 'Simu *',  ph: '0712345678' },
                     ].map(f => (
                       <div key={f.k} style={{ marginBottom: 10 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                           display: 'block', marginBottom: 3 }}>{f.l}</label>
                         <input type="text" placeholder={f.ph} value={walkForm[f.k]}
                           onChange={e => setWalkForm(p => ({ ...p, [f.k]: e.target.value }))}
@@ -1137,14 +1137,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     ))}
 
                     {/* Recipient */}
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                       margin: '14px 0 8px', letterSpacing: 0.5 }}>MPOKEAJI</div>
                     {[
                       { k: 'recipientName',  l: 'Jina *',    ph: 'Amina Hassan' },
                       { k: 'recipientPhone', l: 'Simu *',    ph: '0787654321' },
                     ].map(f => (
                       <div key={f.k} style={{ marginBottom: 10 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                           display: 'block', marginBottom: 3 }}>{f.l}</label>
                         <input type="text" placeholder={f.ph} value={walkForm[f.k]}
                           onChange={e => setWalkForm(p => ({ ...p, [f.k]: e.target.value }))}
@@ -1153,7 +1153,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     ))}
 
                     <div data-tour="sa-walkin-destination" style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                         display: 'block', marginBottom: 3 }}>Mji wa Mwisho *</label>
                       <IntelligentLocationInput
                         label=""
@@ -1200,7 +1200,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                       {/* C1: chosen from the office region vs the destination region; all
                           three only when the region is unknown or the office overrides. */}
                       {walkRegion === 'other' && !walkPathOverride && (
-                        <div style={{ fontSize:12, color:'#5b21b6', marginBottom:6 }}>Mkoa mwingine — Intercity imechaguliwa</div>
+                        <div style={{ fontSize:12, color:'#0f1419', marginBottom:6 }}>Mkoa mwingine — Intercity imechaguliwa</div>
                       )}
                       {(walkRegion !== 'other' || walkPathOverride) && (
                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
@@ -1212,7 +1212,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                       )}
                       {(walkRegion !== 'same' || walkPathOverride) && (
                         <button type="button" onClick={()=>setWalkServicePath('intercity')}
-                          style={{width:'100%',marginTop:walkRegion === 'other' && !walkPathOverride ? 0 : 8,padding:9,borderRadius:9,border:walkServicePath==='intercity'?'2px solid #7c3aed':'1px solid #e2e8f0',background:walkServicePath==='intercity'?'#f5f3ff':'#fff',fontWeight:800}}>Intercity / Courier</button>
+                          style={{width:'100%',marginTop:walkRegion === 'other' && !walkPathOverride ? 0 : 8,padding:9,borderRadius:9,border:walkServicePath==='intercity'?'2px solid #0f1419':'1px solid #e2e8f0',background:walkServicePath==='intercity'?'#f7f9f9':'#fff',fontWeight:800}}>Intercity / Courier</button>
                       )}
                       {walkRegion && !walkPathOverride && (
                         <button type="button" onClick={()=>setWalkPathOverride(true)}
@@ -1239,15 +1239,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     {/* The platform route estimate only when the office's own price is not available. */}
                     {walkPriceEstimate && !walkQuote && (
                       <div style={{ borderRadius: 10, padding: '10px 14px', marginBottom: 10,
-                        backgroundColor: walkPriceEstimate.confidence === 'exact' ? '#f0fdf4' : '#fff7ed',
-                        border: `1px solid ${walkPriceEstimate.confidence === 'exact' ? '#86efac' : '#fed7aa'}` }}>
+                        backgroundColor: walkPriceEstimate.confidence === 'exact' ? '#f0fdf4' : '#fffbeb',
+                        border: `1px solid ${walkPriceEstimate.confidence === 'exact' ? '#bbf7d0' : '#fde68a'}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
-                            <div style={{ fontSize: 11, fontWeight: 700,
-                              color: walkPriceEstimate.confidence === 'exact' ? '#15803d' : '#92400e' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700,
+                              color: walkPriceEstimate.confidence === 'exact' ? '#16a34a' : '#92400e' }}>
                               {walkPriceEstimate.confidence === 'exact' ? 'Bei Halisi' : 'Makisio ya Bei'}
                             </div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>
                               {walkPriceEstimate.displayNote}
                               {walkPriceEstimate.via && ` · ${walkPriceEstimate.via}`}
                             </div>
@@ -1257,7 +1257,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                               color: walkPriceEstimate.confidence === 'exact' ? '#16a34a' : '#f59e0b' }}>
                               {walkPriceEstimate.displayPrice}
                             </div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>
                               Siku {walkPriceEstimate.estimatedDays}
                             </div>
                           </div>
@@ -1271,7 +1271,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     )}
                     {walkRoute && !walkRouteLoading && (
                       <div style={{ backgroundColor: '#f0fdf4', borderRadius: 8,
-                        padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#15803d' }}>
+                        padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#16a34a' }}>
                         {profile?.city} → {walkForm.destinationCity}
                         {walkRoute.transitCity && ` via ${walkRoute.transitCity}`}
                         {' '}· Siku {walkRoute.estimatedDays}
@@ -1284,7 +1284,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     )}
 
                     <div style={{ marginBottom: 10 }}>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                         display: 'block', marginBottom: 3 }}>Anwani ya Mpokeaji *</label>
                       <input type="text" placeholder="Mtaa, alama muhimu"
                         value={walkForm.deliveryAddress}
@@ -1293,7 +1293,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     </div>
 
                     {/* Parcel + fee */}
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                       margin: '14px 0 8px', letterSpacing: 0.5 }}>BIDHAA NA MALIPO</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {[
@@ -1303,21 +1303,21 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                         { k: 'shippingFeeCollected',l: 'Ada Uliyokusanya (TZS)', ph: '8000', type: 'number' },
                       ].map(f => (
                         <div key={f.k} style={{ marginBottom: 8 }}>
-                          <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
+                          <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                             display: 'block', marginBottom: 3 }}>{f.l}</label>
                           <input type={f.type || 'text'} placeholder={f.ph}
                             value={walkForm[f.k]}
                             onChange={e => setWalkForm(p => ({ ...p, [f.k]: e.target.value }))}
                             style={inp} />
                           {f.k === 'declaredValue' && (
-                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
                               Weka thamani halisi ya bidhaa zilizomo kwenye mzigo. Thamani hii inaweza kutumika kama kumbukumbu katika kushughulikia upotevu, uharibifu au madai.
                             </div>
                           )}
                         </div>
                       ))}
                       <div style={{ marginBottom: 8 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
+                        <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                           display: 'block', marginBottom: 3 }}>Malipo</label>
                         <select value={walkForm.paymentMethod}
                           onChange={e => setWalkForm(p => ({ ...p, paymentMethod: e.target.value }))}
@@ -1358,14 +1358,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                      tracking number. */
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="check" size={40} color="#536471" /></div>
-                    <div style={{ fontSize: 13, fontWeight:800, color: '#15803d',
+                    <div style={{ fontSize: 13, fontWeight:800, color: '#16a34a',
                       marginBottom: 8 }}>Kifurushi Kimesajiliwa!</div>
                     <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight:800,
                       color: '#1d4ed8', marginBottom: 6 }}>
                       {displayParcelNumber(walkResult)}
                     </div>
                     {otherParcelNumbers(walkResult, formatWaybill).length > 0 && (
-                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8', marginBottom: 6 }}>
+                      <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#94a3b8', marginBottom: 6 }}>
                         {otherParcelNumbers(walkResult, formatWaybill).join(' · ')}
                       </div>
                     )}
@@ -1376,19 +1376,19 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                       </div>
                     )}
                     {walkResult.senderSmsSent === false && (
-                      <div style={{ fontSize: 12, color: '#b45309', marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, color: '#d97706', marginBottom: 8 }}>
                         SMS kwa mtumaji haikutumwa — tuma tena: Historia → Risiti → SMS tena
                       </div>
                     )}
                     {/* Release C, claim code option (a): shown ONCE, only here, only while this
                         screen holds it in memory (never stored), and printed on this first receipt. */}
                     {walkResult.shipmentClaim?.receiptSecret && (
-                      <div data-keep-open style={{ border: '2px dashed #7c3aed', borderRadius: 10, padding: '10px 12px', marginBottom: 14, background: '#faf5ff' }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: '#5b21b6' }}>Namba ya siri ya mteja (kudai mzigo mtandaoni)</div>
+                      <div data-keep-open style={{ border: '2px dashed #0f1419', borderRadius: 10, padding: '10px 12px', marginBottom: 14, background: '#f7f9f9' }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: '#0f1419' }}>Namba ya siri ya mteja (kudai mzigo mtandaoni)</div>
                         <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight:800, color: '#1e293b', margin: '6px 0', wordSpacing: 4 }}>
                           {formatClaimSecret(walkResult.shipmentClaim.receiptSecret)}
                         </div>
-                        <div style={{ fontSize: 11, color: '#6b21a8' }}>
+                        <div style={{ fontSize: 12, color: '#0f1419' }}>
                           Inachapishwa kwenye risiti hii ya kwanza tu. Chapisha risiti na umpe mteja — ukibonyeza "Mzigo mpya" haitaonekana tena.
                         </div>
                       </div>
@@ -1411,11 +1411,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                       </button>
                     </div>
                     {SHOW_CLAIM_CODE_NOTE && !walkResult.shipmentClaim?.receiptSecret && (
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 14 }}>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 14 }}>
                         {CLAIM_CODE_NOTE}
                       </div>
                     )}
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 14 }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 14 }}>
                       Risiti hii inapatikana tena kwenye Historia → Risiti.
                     </div>
                   </div>
@@ -1457,7 +1457,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={handleConfirmArrival}
                     disabled={actionLoading || !arrivalTracking.trim()}
-                    style={{ flex: 2, backgroundColor: !arrivalTracking.trim() ? '#94a3b8' : '#7c3aed',
+                    style={{ flex: 2, backgroundColor: !arrivalTracking.trim() ? '#94a3b8' : '#0f1419',
                       color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                       cursor: 'pointer', fontSize: 14, fontWeight:800 }}>
                     {actionLoading ? '…' : 'Sajili Kufika — SMS kwa Mpokeaji'}
@@ -1507,8 +1507,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                       katika {dispatchParcel.destinationCity}
                     </div>
                     {localAgents.length === 0 ? (
-                      <div style={{ backgroundColor: '#fff7ed', borderRadius: 8,
-                        padding: 12, fontSize: 12, color: '#c2410c' }}>
+                      <div style={{ backgroundColor: '#fffbeb', borderRadius: 8,
+                        padding: 12, fontSize: 12, color: '#d97706' }}>
                         Hakuna mawakala walioidhinishwa katika {dispatchParcel.destinationCity}
                       </div>
                     ) : (
@@ -1523,7 +1523,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                           <div style={{ fontSize: 13, fontWeight: 700 }}>
                             {a.fullName} {selectedAgent?.id === a.id && <LineIcon name="check" size={14} color="#16a34a" strokeWidth={3} style={{ verticalAlign: 'middle' }} />}
                           </div>
-                          <div style={{ fontSize: 11, color: '#64748b' }}>
+                          <div style={{ fontSize: 12, color: '#64748b' }}>
                             {/* Only what the agent's record says: no made-up rating or fee. */}
                             {[Number(a.totalDeliveriesCompleted) > 0 && Number(a.rating) > 0 && `${Number(a.rating).toFixed(1)} / 5`,
                               Number(a.deliveryFee) > 0 && `TZS ${Number(a.deliveryFee).toLocaleString()}`].filter(Boolean).join(' · ') || 'Bei haijawekwa'}
@@ -1572,16 +1572,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                       <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>Inapakia…</div>
                     ) : bulkOpenShipments.length > 0 && (
                       <>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
                           SHEHENA ZILIZO WAZI
                         </div>
                         {bulkOpenShipments.map(s => (
-                          <div key={s.id} style={{ backgroundColor: '#fff7ed', borderRadius: 10,
-                            padding: '12px 14px', marginBottom: 8, border: '1px solid #fed7aa' }}>
+                          <div key={s.id} style={{ backgroundColor: '#fffbeb', borderRadius: 10,
+                            padding: '12px 14px', marginBottom: 8, border: '1px solid #fde68a' }}>
                             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
                               → {s.destinationCity} {s.lastMileSuperAgent?.businessName ? `(${s.lastMileSuperAgent.businessName})` : s.lastMileContactName ? `(${s.lastMileContactName})` : ''}
                             </div>
-                            <div style={{ fontSize: 11, color: '#92400e', marginBottom: 8 }}>
+                            <div style={{ fontSize: 12, color: '#92400e', marginBottom: 8 }}>
                               Vifurushi {s.totalParcels || 0}
                             </div>
                             <div style={{ display: 'flex', gap: 8 }}>
@@ -1605,7 +1605,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     )}
                     <button onClick={() => { resetBulkForm(); setBulkStep('new'); }}
                       style={{ width: '100%', marginTop: 8, background: '#fff', color: '#d97706',
-                        border: '2px dashed #fdba74', padding: 12, borderRadius: 10,
+                        border: '2px dashed #fde68a', padding: 12, borderRadius: 10,
                         cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
                       + Anzisha Shehena Mpya
                     </button>
@@ -1635,13 +1635,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                           style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%', textAlign: 'left',
                             padding: '12px 12px', borderRadius: 12, marginBottom: 8, cursor: 'pointer',
                             border: `2px solid ${bulkReceiverMode === mode ? '#d97706' : '#e2e8f0'}`,
-                            background: bulkReceiverMode === mode ? '#fff7ed' : '#fff' }}>
+                            background: bulkReceiverMode === mode ? '#fffbeb' : '#fff' }}>
                           <span style={{ width: 18, height: 18, marginTop: 1, borderRadius: '50%', flexShrink: 0,
                             border: `2px solid ${bulkReceiverMode === mode ? '#d97706' : '#94a3b8'}`,
                             background: bulkReceiverMode === mode ? 'radial-gradient(#d97706 45%, #fff 50%)' : '#fff' }} />
                           <span>
                             <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{title}</span>
-                            <span style={{ display: 'block', fontSize: 11, color: '#64748b', marginTop: 2 }}>{sub}</span>
+                            <span style={{ display: 'block', fontSize: 12, color: '#64748b', marginTop: 2 }}>{sub}</span>
                           </span>
                         </button>
                       );
@@ -1665,16 +1665,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                                   style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
                                     borderRadius: 10, marginBottom: 6, cursor: 'pointer',
                                     border: `2px solid ${bulkLastMileAgentId === h.id ? '#d97706' : '#e2e8f0'}`,
-                                    backgroundColor: bulkLastMileAgentId === h.id ? '#fff7ed' : '#f8fafc' }}>
+                                    backgroundColor: bulkLastMileAgentId === h.id ? '#fffbeb' : '#f8fafc' }}>
                                   <input type="radio" checked={bulkLastMileAgentId === h.id} readOnly />
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
                                       {h.businessName}
                                       {inviteParcel?.destinationSuperAgent?.id === h.id && (
-                                        <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, color: '#16a34a' }}>· mteja aliichagua</span>
+                                        <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 800, color: '#16a34a' }}>· mteja aliichagua</span>
                                       )}
                                     </div>
-                                    <div style={{ fontSize: 11, color: '#64748b' }}>{h.address || h.city}</div>
+                                    <div style={{ fontSize: 12, color: '#64748b' }}>{h.address || h.city}</div>
                                   </div>
                                 </label>
                               ))}
@@ -1705,7 +1705,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                             </div>
                           )}
                           {receiverReady && who && (
-                            <div data-testid="receiver-summary" style={{ marginTop: 4, marginBottom: 6, padding: '10px 12px', borderRadius: 10, background: '#ecfdf5', color: '#065f46', fontSize: 12, fontWeight: 700 }}>
+                            <div data-testid="receiver-summary" style={{ marginTop: 4, marginBottom: 6, padding: '10px 12px', borderRadius: 10, background: '#f0fdf4', color: '#166534', fontSize: 12, fontWeight: 700 }}>
                               {inviteParcel
                                 ? `Mzigo ${displayParcelNumber(inviteParcel)} unaenda ${bulkDestCity}. Atakayepokea: ${who}.`
                                 : `Shehena inaenda ${bulkDestCity}. Atakayepokea: ${who}.`}
@@ -1744,7 +1744,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                               <div style={{ fontSize: 12, fontWeight: 800, fontFamily: 'monospace', color: '#1d4ed8' }}>
                                 {displayParcelNumber(p)}
                               </div>
-                              <div style={{ fontSize: 11, color: '#64748b' }}>
+                              <div style={{ fontSize: 12, color: '#64748b' }}>
                                 {p.recipientName} — {p.description || 'Bidhaa'}
                               </div>
                             </div>
@@ -1802,7 +1802,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                               <div style={{ fontSize: 12, fontWeight: 800, fontFamily: 'monospace', color: '#1d4ed8' }}>
                                 {displayParcelNumber(p)}
                               </div>
-                              <div style={{ fontSize: 11, color: '#64748b' }}>
+                              <div style={{ fontSize: 12, color: '#64748b' }}>
                                 {p.recipientName} — {p.description || 'Bidhaa'}
                               </div>
                             </div>
@@ -1894,7 +1894,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 {/* In transit */}
                 {inTransit.length > 0 && (
                   <>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: '#ca8a04',
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#d97706',
                       marginBottom: 8, marginTop: 16 }}>
                       NJIANI ({inTransit.length})
                     </div>
@@ -1918,7 +1918,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     {awaitingBuyer.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         ...(canHandOverToRecipient(p) ? [handoverAction] : []),
-                        { label: 'Sasisha Hali', color: '#7c3aed',
+                        { label: 'Sasisha Hali', color: '#0f1419',
                           fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
                     ))}
@@ -1959,7 +1959,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 <PCard key={p.trackingNumber} p={p} actions={[
                   ...(canReopenReceipt(p) ? [{ label: 'Risiti', color: '#1d4ed8',
                     fn: (parcel) => openReceipt(parcel.trackingNumber) }] : []),
-                  { label: 'Historia Kamili', color: '#7c3aed',
+                  { label: 'Historia Kamili', color: '#0f1419',
                     fn: (parcel) => openParcelHistory(parcel.trackingNumber) },
                 ]} />
               ))
@@ -1975,25 +1975,25 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
                   MAPATO YA LEO
                 </div>
                 <div style={{ fontSize: 22, fontWeight:800, color: '#16a34a' }}>
                   TZS {Number(revenue?.today ?? cashToday).toLocaleString()}
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                   Umekusanya moja kwa moja
                 </div>
               </div>
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 6 }}>
                   KENTEXA INAKUDAIWA
                 </div>
                 <div style={{ fontSize: 22, fontWeight:800, color: '#1d4ed8' }}>
                   TZS {kenetxaOwes.toLocaleString()}
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                   Ada ya usafirishaji — online orders
                 </div>
               </div>
@@ -2056,7 +2056,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 {referralData.referrals?.length > 0 && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
                     {referralData.referrals.map(r => {
-                      const badge = { registered: ['Amejisajili', '#ca8a04'], qualified: ['Amekamilisha', '#16a34a'], rejected_fraud: ['Amekataliwa', '#dc2626'] }[r.status] || [r.status, '#64748b'];
+                      const badge = { registered: ['Amejisajili', '#d97706'], qualified: ['Amekamilisha', '#16a34a'], rejected_fraud: ['Amekataliwa', '#dc2626'] }[r.status] || [r.status, '#64748b'];
                       return (
                         <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between',
                           padding: '5px 0', fontSize: 12 }}>
@@ -2108,7 +2108,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     <div>
                       <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8',
                         fontWeight: 700 }}>{displayParcelNumber(p)}</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
                         {p.originCity} → {p.destinationCity} · <SBadge status={p.status} />
                       </div>
                     </div>
@@ -2127,7 +2127,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'bei' && (
           <>
-            <div style={{ backgroundColor: '#fff7ed', borderRadius: 10,
+            <div style={{ backgroundColor: '#fffbeb', borderRadius: 10,
               padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
               Bei zako zote ziko hapa: weka, badilisha, kisha bonyeza Hifadhi
             </div>
@@ -2153,7 +2153,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     const candidates=eligibleRuns[p.id] || [];
                     return <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8 }}>
                       <div style={{fontWeight:800,fontSize:13}}>{p.trackingNumber || `Parcel #${p.id}`}</div>
-                      <div style={{fontSize:11,color:'#64748b',margin:'3px 0 8px'}}>{p.originCity} → {p.destinationCity}{p.weightKg ? ` · ${p.weightKg}kg` : ''}</div>
+                      <div style={{fontSize:12,color:'#64748b',margin:'3px 0 8px'}}>{p.originCity} → {p.destinationCity}{p.weightKg ? ` · ${p.weightKg}kg` : ''}</div>
                       {candidates.length===0 ? <button onClick={()=>loadEligibleRuns(p.id)} style={{width:'100%',border:'none',borderRadius:8,padding:9,fontWeight:800,cursor:'pointer'}}>Tafuta Van</button> :
                         <><select value={selectedRun[p.id] || ''} onChange={e=>setSelectedRun(x=>({...x,[p.id]:e.target.value}))} style={{width:'100%',padding:9,borderRadius:8,border:'1px solid #cbd5e1',marginBottom:7}}>
                           <option value="">Chagua Van</option>{candidates.map(x=><option key={x.runId} value={x.runId}>{x.loadLabel} → {x.unloadLabel} · {new Date(x.scheduledDeparture).toLocaleString()}</option>)}
@@ -2161,11 +2161,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                         <button disabled={!selectedRun[p.id]||actionLoading} onClick={()=>releaseParcelToVan(p)} style={{width:'100%',border:'none',borderRadius:8,padding:9,background:'#1d4ed8',color:'#fff',fontWeight:800}}>Achia kwa Van</button></>}
                     </div>;
                   })}
-                <div style={{ fontSize:12, fontWeight:800, color:'#7c3aed', margin:'18px 0 8px' }}>INCOMING VAN · {vanIncoming.length}</div>
+                <div style={{ fontSize:12, fontWeight:800, color:'#0f1419', margin:'18px 0 8px' }}>INCOMING VAN · {vanIncoming.length}</div>
                 {vanIncoming.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12, marginBottom:18 }}>Hakuna mzigo wa Van unaosubiri kupokelewa.</div> :
                   vanIncoming.map(p => <div key={p.assignmentId} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8 }}>
                     <div style={{ fontWeight:800, fontSize:13, color:'#1e293b' }}>{p.trackingNumber || `Parcel #${p.parcelId}`}</div>
-                    <div style={{ fontSize:11, color:'#64748b', margin:'4px 0 10px' }}>Run #{p.runId} · Imeshushwa {Math.max(0, Math.round(Number(p.waitingMinutes || 0)))} dk zilizopita</div>
+                    <div style={{ fontSize:12, color:'#64748b', margin:'4px 0 10px' }}>Run #{p.runId} · Imeshushwa {Math.max(0, Math.round(Number(p.waitingMinutes || 0)))} dk zilizopita</div>
                     <button disabled={actionLoading} onClick={() => confirmVanReceipt(p.assignmentId)}
                       style={{ width:'100%', border:'none', borderRadius:10, padding:11, background:'#16a34a', color:'#fff', fontWeight:800, cursor:'pointer' }}>
                       Nimepokea Mzigo
@@ -2174,7 +2174,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 <div style={{ fontSize:12, fontWeight:800, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO OFISINI · {vanReady.length}</div>
                 {vanReady.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12 }}>Hakuna mzigo wa Van unaosubiri pickup/delivery.</div> :
                   vanReady.map(p => <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8, display:'flex', justifyContent:'space-between', gap:10 }}>
-                    <div><div style={{ fontWeight:800, fontSize:13 }}>{displayParcelNumber(p)}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
+                    <div><div style={{ fontWeight:800, fontSize:13 }}>{displayParcelNumber(p)}</div><div style={{ fontSize:12, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
                     <SBadge status={p.status} />
                   </div>)}
               </>
@@ -2240,13 +2240,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 <button onClick={() => handleResendSms('sender', receiptModal.trackingNumber)} disabled={resendLoading !== ''}
                   style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none',
                     padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 11.5, fontWeight: 700 }}>
+                    fontSize: 12, fontWeight: 700 }}>
                   {resendLoading === 'sender' ? '…' : 'SMS tena — Mtumaji'}
                 </button>
                 <button onClick={() => handleResendSms('receiver', receiptModal.trackingNumber)} disabled={resendLoading !== ''}
                   style={{ flex: 1, backgroundColor: '#f0fdf4', color: '#16a34a', border: 'none',
                     padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 11.5, fontWeight: 700 }}>
+                    fontSize: 12, fontWeight: 700 }}>
                   {resendLoading === 'receiver' ? '…' : 'SMS tena — Mpokeaji'}
                 </button>
               </div>
@@ -2256,7 +2256,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                 {resendMsg}
               </div>
             )}
-            {SHOW_CLAIM_CODE_NOTE && <div style={{ fontSize: 11, color: '#64748b' }}>{CLAIM_CODE_NOTE}</div>}
+            {SHOW_CLAIM_CODE_NOTE && <div style={{ fontSize: 12, color: '#64748b' }}>{CLAIM_CODE_NOTE}</div>}
           </div>
         </div>
       )}
@@ -2312,13 +2312,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                   <button onClick={() => handleResendSms('sender')} disabled={resendLoading !== ''}
                     style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none',
                       padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
-                      fontSize: 11.5, fontWeight: 700 }}>
+                      fontSize: 12, fontWeight: 700 }}>
                     {resendLoading === 'sender' ? '…' : 'Tuma SMS ya Mtumaji'}
                   </button>
                   <button onClick={() => handleResendSms('receiver')} disabled={resendLoading !== ''}
                     style={{ flex: 1, backgroundColor: '#f0fdf4', color: '#16a34a', border: 'none',
                       padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
-                      fontSize: 11.5, fontWeight: 700 }}>
+                      fontSize: 12, fontWeight: 700 }}>
                     {resendLoading === 'receiver' ? '…' : 'Tuma SMS ya Mpokeaji'}
                   </button>
                 </div>
@@ -2328,7 +2328,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                   </div>
                 )}
 
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8',
                   marginBottom: 8, textTransform: 'uppercase' }}>Matukio</div>
                 {(historyModal.data.history || []).map((h, i) => (
                   <div key={i} style={{ borderLeft: '2px solid #e2e8f0', paddingLeft: 12,
@@ -2338,8 +2338,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
                     <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b' }}>
                       {STATUS_LABEL[h.status]?.l || h.status}
                     </div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>{h.note}</div>
-                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{h.note}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                       {h.updatedBy}{h.handlerPhone ? ` · ${h.handlerPhone}` : ''}
                       {h.handlerLocation ? ` · ${h.handlerLocation}` : ''}
                       {h.createdAt ? ` · ${new Date(h.createdAt).toLocaleString('sw-TZ')}` : ''}

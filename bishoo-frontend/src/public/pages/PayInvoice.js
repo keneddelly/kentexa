@@ -88,7 +88,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => onNavigate('Home')} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>{t('pay_invoice.home')}</button>
-              <button onClick={() => onNavigate('MyOrders')} style={{ flex: 1, background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>{t('pay_invoice.my_orders')}</button>
+              <button onClick={() => onNavigate('MyOrders')} style={{ flex: 1, background: 'linear-gradient(135deg, #0f1419, #0f1419)', color: '#fff', border: 'none', padding: '12px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }}>{t('pay_invoice.my_orders')}</button>
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
 
-      <div style={{ background: 'linear-gradient(135deg, #1e1b4b, #7c3aed)', padding: '28px 16px', textAlign: 'center', position:'relative' }}>
+      <div style={{ background: 'linear-gradient(135deg, #0f1419, #0f1419)', padding: '28px 16px', textAlign: 'center', position:'relative' }}>
         <button onClick={() => onNavigate('MyOrders')} style={{ position:'absolute', top:14, left:14,
           background:'rgba(255,255,255,0.15)', border:'none', borderRadius:8, padding:6, cursor:'pointer' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
@@ -125,14 +125,14 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
             <div style={{ display: 'flex', gap: '8px' }}>
               <input placeholder={t('pay_invoice.placeholder')} value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLookup()}
                 style={{ flex: 1, padding: '12px 14px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '14px', outline: 'none', fontFamily: 'monospace', minWidth: 0 }}
-                onFocus={e => e.target.style.border = '2px solid #7c3aed'} onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
-              <button onClick={handleLookup} disabled={lookupLoading} style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '12px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', whiteSpace: 'nowrap' }}>
+                onFocus={e => e.target.style.border = '2px solid #0f1419'} onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
+              <button onClick={handleLookup} disabled={lookupLoading} style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '12px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', whiteSpace: 'nowrap' }}>
                 {lookupLoading ? '...' : <LineIcon name="search" size={18} />}
               </button>
             </div>
             {!isLoggedIn && (
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: '10px', padding: '10px 14px', marginTop: '14px', fontSize: '12px', color: '#92400e' }}>
-                {t('pay_invoice.login_required')} <span onClick={() => onNavigate('PublicLogin')} style={{ color: '#7c3aed', cursor: 'pointer', fontWeight: '700' }}>{t('pay_invoice.login_link')}</span> {t('pay_invoice.login_suffix')}
+              <div style={{ backgroundColor: '#fffbeb', borderRadius: '10px', padding: '10px 14px', marginTop: '14px', fontSize: '12px', color: '#92400e' }}>
+                {t('pay_invoice.login_required')} <span onClick={() => onNavigate('PublicLogin')} style={{ color: '#0f1419', cursor: 'pointer', fontWeight: '700' }}>{t('pay_invoice.login_link')}</span> {t('pay_invoice.login_suffix')}
               </div>
             )}
           </div>
@@ -145,14 +145,14 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
                 <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: 0 }}>{t('pay_invoice.invoice_details')}</h2>
                 <button onClick={() => { setInvoice(null); setInvoiceNumber(''); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px' }}>{t('pay_invoice.search_again')}</button>
               </div>
-              <div style={{ background: 'linear-gradient(135deg, #1e1b4b, #7c3aed)', borderRadius: '12px', padding: '14px 16px', marginBottom: invoice.isCod ? 8 : '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: 'linear-gradient(135deg, #0f1419, #0f1419)', borderRadius: '12px', padding: '14px 16px', marginBottom: invoice.isCod ? 8 : '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px' }}>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px' }}>
                     {invoice.isCod ? t('pay_invoice.cod_due_now') : t('pay_invoice.amount_due')}
                   </div>
                   <div style={{ fontSize: '24px', fontWeight:'800', color: '#fff' }}>TZS {Number(invoice.amount).toLocaleString()}</div>
                 </div>
-                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '5px 12px', color: '#fff', fontSize: '11px', fontWeight: '700' }}>
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '5px 12px', color: '#fff', fontSize: '12px', fontWeight: '700' }}>
                   {invoice.status?.toUpperCase()}
                 </div>
               </div>
@@ -171,7 +171,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
                   { label: t('pay_invoice.due_date'),   value: invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—' },
                 ].map(item => (
                   <div key={item.label} style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '8px 10px' }}>
-                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '2px' }}>{item.label}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '2px' }}>{item.label}</div>
                     <div style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value}</div>
                   </div>
                 ))}
@@ -185,17 +185,17 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
                   <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>{t('pay_invoice.your_phone')}</label>
                   <input placeholder="255712345678" value={payerPhone} onChange={e => setPayerPhone(e.target.value)}
                     style={{ width: '100%', padding: '12px 14px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
-                    onFocus={e => e.target.style.border = '2px solid #7c3aed'} onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
+                    onFocus={e => e.target.style.border = '2px solid #0f1419'} onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
                 </div>
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '20px' }}><LineIcon name="lock" size={20} /></span>
                   <div>
                     <div style={{ fontSize: '12px', fontWeight: '800', color: '#166534' }}>{t('pay_invoice.secure_payment')}</div>
-                    <div style={{ fontSize: '11px', color: '#166534' }}>{t('pay_invoice.networks')}</div>
+                    <div style={{ fontSize: '12px', color: '#166534' }}>{t('pay_invoice.networks')}</div>
                   </div>
                 </div>
                 <button onClick={handlePay} disabled={paying || !payerPhone.trim()}
-                  style={{ width: '100%', background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg, #667eea, #764ba2)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: '14px', borderRadius: '12px', cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontSize: '15px', fontWeight:'800' }}>
+                  style={{ width: '100%', background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg, #0f1419, #0f1419)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: '14px', borderRadius: '12px', cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontSize: '15px', fontWeight:'800' }}>
                   {paying ? `${t('pay_invoice.initiating')}` : `${t('pay_invoice.pay_button')} ${Number(invoice.amount).toLocaleString()}`}
                 </button>
               </div>
@@ -212,7 +212,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
             )}
 
             {invoice.status === 'paid' && !invoice.isCod && (
-              <div style={{ backgroundColor: '#dcfce7', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '2px solid #86efac' }}>
+              <div style={{ backgroundColor: '#dcfce7', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '2px solid #bbf7d0' }}>
                 <div style={{ fontSize: '36px', marginBottom: '8px' }}><LineIcon name="check" size={36} /></div>
                 <h3 style={{ color: '#16a34a', fontWeight: '800', margin: '0 0 4px', fontSize: '15px' }}>{t('pay_invoice.already_paid')}</h3>
                 <p style={{ color: '#166534', fontSize: '12px', margin: 0 }}>{t('pay_invoice.paid_success')}</p>
@@ -227,7 +227,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
             <h2 style={{ fontSize: '18px', fontWeight:'800', color: '#1e293b', marginBottom: '8px' }}>{t('pay_invoice.check_phone')}</h2>
             <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px' }}>{t('pay_invoice.enter_pin')}</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-              {[0, 1, 2].map(i => <div key={i} style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#7c3aed', opacity: 0.4 + i * 0.3 }} />)}
+              {[0, 1, 2].map(i => <div key={i} style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#0f1419', opacity: 0.4 + i * 0.3 }} />)}
             </div>
           </div>
         )}

@@ -195,7 +195,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
           <div data-testid="seller-form" style={card}>
             {errorBox}
             {idWaiting && (
-              <div role="status" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
+              <div role="status" style={{ backgroundColor: '#fffbeb', color: '#92400e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
                 <strong>{t('identity_state.waiting_title')}</strong><br />{t('seller_signup.identity_waiting_note')}
               </div>
             )}
@@ -208,9 +208,9 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
               ].map((opt) => (
                 <button key={opt.key} type="button" onClick={() => setSellerType(opt.key)} aria-pressed={sellerType === opt.key}
                   style={{ flex: 1, textAlign: 'left', padding: 12, borderRadius: 12, cursor: 'pointer',
-                    border: sellerType === opt.key ? '2px solid #7c3aed' : '2px solid #e2e8f0', backgroundColor: sellerType === opt.key ? '#f5f3ff' : '#fff' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: sellerType === opt.key ? '#7c3aed' : '#1e293b' }}>{opt.title}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{opt.desc}</div>
+                    border: sellerType === opt.key ? '2px solid #0f1419' : '2px solid #e2e8f0', backgroundColor: sellerType === opt.key ? '#f7f9f9' : '#fff' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: sellerType === opt.key ? '#0f1419' : '#1e293b' }}>{opt.title}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{opt.desc}</div>
                 </button>
               ))}
             </div>
@@ -225,8 +225,8 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
               {CATEGORIES.map((c) => (
                 <button key={c.key} type="button" onClick={() => setBusinessCategory(c.key)} aria-pressed={businessCategory === c.key}
                   style={{ padding: '8px 12px', borderRadius: 100, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    border: businessCategory === c.key ? '2px solid #7c3aed' : '2px solid #e2e8f0',
-                    backgroundColor: businessCategory === c.key ? '#f5f3ff' : '#fff', color: businessCategory === c.key ? '#7c3aed' : '#475569' }}>
+                    border: businessCategory === c.key ? '2px solid #0f1419' : '2px solid #e2e8f0',
+                    backgroundColor: businessCategory === c.key ? '#f7f9f9' : '#fff', color: businessCategory === c.key ? '#0f1419' : '#475569' }}>
                   {c.label}
                 </button>
               ))}
@@ -239,7 +239,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
                 <>
                   {t('seller_signup.place_from_account', { place: accountPlace || '—' })}{' '}
                   <button type="button" onClick={() => setChangePlace(true)}
-                    style={{ background: 'none', border: 'none', padding: 0, color: '#7c3aed', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
+                    style={{ background: 'none', border: 'none', padding: 0, color: '#0f1419', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
                     {t('seller_signup.change_place')}
                   </button>
                 </>
@@ -257,7 +257,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
             {!isLoggedIn && (
               <p style={{ textAlign: 'center', fontSize: 12, color: '#64748b', marginTop: 14 }}>
                 {t('become_seller.login_required_pre')}{' '}
-                <span onClick={() => onNavigate('PublicLogin')} style={{ color: '#7c3aed', cursor: 'pointer', fontWeight: 700 }}>{t('become_seller.login_required_link')}</span>
+                <span onClick={() => onNavigate('PublicLogin')} style={{ color: '#0f1419', cursor: 'pointer', fontWeight: 700 }}>{t('become_seller.login_required_link')}</span>
                 {' '}{t('become_seller.login_required_post')}
               </p>
             )}
@@ -288,13 +288,13 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
                   {businessDocs[doc.key] && <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 800 }}>✓</span>}
                   <input type="file" accept="image/*" style={{ display: 'none' }} id={`doc-${doc.key}`}
                     onChange={(e) => handleBusinessDocUpload(doc.key, e.target.files?.[0])} />
-                  <label htmlFor={`doc-${doc.key}`} style={{ background: '#f5f3ff', color: '#7c3aed', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <label htmlFor={`doc-${doc.key}`} style={{ background: '#f7f9f9', color: '#0f1419', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
                     {uploadingDoc === doc.key ? t('become_seller.uploading') : businessDocs[doc.key] ? t('become_seller.doc_change') : t('become_seller.doc_choose')}
                   </label>
                 </div>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>{t('become_seller.business_documents_hint')}</p>
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{t('become_seller.business_documents_hint')}</p>
             <button type="button" disabled={loading} onClick={handleSubmit} style={primary(!loading)}>
               {loading ? t('become_seller.submitting') : t('become_seller.submit_button')}
             </button>

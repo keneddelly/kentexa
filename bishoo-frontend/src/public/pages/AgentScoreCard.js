@@ -19,7 +19,7 @@ const getTiers = (t) => [
   { name: t('agent_scorecard.tier_new'),     min: 0,   color: '#94a3b8', bg: '#f1f5f9',  icon: 'sprout', next: 10  },
   { name: t('agent_scorecard.tier_regular'), min: 10,  color: '#16a34a', bg: '#dcfce7',  icon: 'star', next: 50  },
   { name: t('agent_scorecard.tier_good'),   min: 50,  color: '#1d4ed8', bg: '#dbeafe',  icon: 'star', next: 150 },
-  { name: t('agent_scorecard.tier_excellent'),    min: 150, color: '#7c3aed', bg: '#ede9fe',  icon: 'gem', next: 500 },
+  { name: t('agent_scorecard.tier_excellent'),    min: 150, color: '#0f1419', bg: '#f7f9f9',  icon: 'gem', next: 500 },
   { name: t('agent_scorecard.tier_master'),    min: 500, color: '#dc2626', bg: '#fee2e2',  icon: 'trophy', next: null },
 ];
 
@@ -96,7 +96,7 @@ const AgentScorecard = ({ onNavigate }) => {
     { icon:'box', label:t('agent_scorecard.stat_delivered'),    value: fmt(deliveries),     color:'#1d4ed8', bg:'#eff6ff' },
     { icon:'star', label:t('agent_scorecard.stat_rating'),       value: `${Number(profile.rating||0).toFixed(1)}/5.0`, color:'#d97706', bg:'#fef3c7' },
     { icon:'check', label:t('agent_scorecard.stat_completion_rate'), value:`${completionRate}%`, color:'#16a34a', bg:'#dcfce7' },
-    { icon:'card', label:t('agent_scorecard.stat_payments_processed'), value: fmt(profile.totalPaymentsProcessed||0), color:'#7c3aed', bg:'#ede9fe' },
+    { icon:'card', label:t('agent_scorecard.stat_payments_processed'), value: fmt(profile.totalPaymentsProcessed||0), color:'#0f1419', bg:'#f7f9f9' },
   ];
 
   return (
@@ -129,7 +129,7 @@ const AgentScorecard = ({ onNavigate }) => {
               <div style={{ fontSize:32, fontWeight:800 }}>
                 TZS {fmt(earnings.total)}
               </div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)' }}>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.6)' }}>
                 {t('agent_scorecard.total_earnings_label')}
               </div>
             </div>
@@ -139,16 +139,16 @@ const AgentScorecard = ({ onNavigate }) => {
           {nextTier && (
             <div style={{ marginTop:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between',
-                fontSize:11, color:'rgba(255,255,255,0.6)', marginBottom:6 }}>
+                fontSize:12, color:'rgba(255,255,255,0.6)', marginBottom:6 }}>
                 <span>{tier.name}</span>
                 <span>{t('agent_scorecard.more_to_go', { count: toNextTier })} {nextTier.name}</span>
               </div>
               <div style={{ height:8, backgroundColor:'rgba(255,255,255,0.2)', borderRadius:100 }}>
                 <div style={{ height:'100%', borderRadius:100,
-                  background:'linear-gradient(90deg,#60a5fa,#a78bfa)',
+                  background:'linear-gradient(90deg,#bfdbfe,#536471)',
                   width:`${tierProgress}%`, transition:'width 0.6s' }} />
               </div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,0.5)', marginTop:4 }}>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', marginTop:4 }}>
                 {t('agent_scorecard.progress_hint', { count: toNextTier })}
               </div>
             </div>
@@ -200,7 +200,7 @@ const AgentScorecard = ({ onNavigate }) => {
             {[
               { label:t('agent_scorecard.earning_deliveries'),       value: earnings.deliveries,  icon:'moto', color:'#1d4ed8' },
               { label:t('agent_scorecard.earning_payments'),    value: earnings.payments,    icon:'card', color:'#16a34a' },
-              { label:t('agent_scorecard.earning_collections'),    value: earnings.collections, icon:'box', color:'#7c3aed' },
+              { label:t('agent_scorecard.earning_collections'),    value: earnings.collections, icon:'box', color:'#0f1419' },
               { label:t('agent_scorecard.earning_pending'),     value: earnings.pending,     icon:'clock', color:'#d97706' },
             ].map(e => {
               const share = earnings.total > 0 ? Math.round((e.value/earnings.total)*100) : 0;
@@ -265,7 +265,7 @@ const AgentScorecard = ({ onNavigate }) => {
               [t('agent_scorecard.row_completed'),   deliveries,  '#16a34a'],
               [t('agent_scorecard.row_failed'),    failed,      '#dc2626'],
               [t('agent_scorecard.row_total_attempts'), totalAttempts, '#1d4ed8'],
-              [t('agent_scorecard.row_collections'),      profile.totalCollectionsCompleted||0, '#7c3aed'],
+              [t('agent_scorecard.row_collections'),      profile.totalCollectionsCompleted||0, '#0f1419'],
               [t('agent_scorecard.row_rating'),       `${Number(profile.rating||0).toFixed(1)} / 5.0`, '#d97706'],
               [t('agent_scorecard.row_complaints'),       profile.totalComplaints||0, '#dc2626'],
             ].map(([label, value, color]) => (

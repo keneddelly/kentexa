@@ -69,7 +69,7 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Registration', 'Reason', 'Status', 'Reviewed', 'Submitted'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -82,7 +82,7 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>#{r.registrationId}</td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#475569', maxWidth: 320 }}>{r.reason}</td>
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#94a3b8' }}>
                         {r.reviewedAt ? new Date(r.reviewedAt).toLocaleDateString() : '—'}
@@ -125,14 +125,14 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Reviewed',     value: selected.reviewedAt ? new Date(selected.reviewedAt).toLocaleString() : null },
             ].filter(f => f.value).map(field => (
               <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
                 <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{field.value}</div>
               </div>
             ))}
 
             {selected.evidenceImages?.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>EVIDENCE</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>EVIDENCE</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {selected.evidenceImages.map((img, i) => (
                     <img key={i} src={img} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }}
@@ -147,7 +147,7 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
                 ever written for this claim, oldest first. */}
             {auditLog.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>AUDIT HISTORY</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>AUDIT HISTORY</div>
                 {auditLog.map(entry => (
                   <div key={entry.id} style={{ padding: '10px 14px', marginBottom: 6, backgroundColor: '#f8fafc', borderRadius: 8, fontSize: 12 }}>
                     <div style={{ fontWeight: 700, color: '#1e293b' }}>

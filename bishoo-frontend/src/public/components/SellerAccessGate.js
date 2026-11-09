@@ -47,7 +47,7 @@ const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
             </div>
           )}
           {!waiting && <button onClick={() => setShowVerify(true)}
-            style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', border: 'none',
+            style={{ background: 'linear-gradient(135deg,#0f1419,#0f1419)', color: '#fff', border: 'none',
               padding: '13px 28px', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800,
               boxShadow: '0 4px 12px rgba(102,126,234,0.4)' }}>
             {t('seller_access_gate.verify_button')}

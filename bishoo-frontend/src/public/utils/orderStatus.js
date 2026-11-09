@@ -21,7 +21,7 @@ export const PAYMENT_STATUS = {
 };
 
 export const STATUS_TONE = (status) => (
-  ['completed', 'delivered'].includes(status) ? { bg: '#ecfdf3', fg: '#166534' }
+  ['completed', 'delivered'].includes(status) ? { bg: '#f0fdf4', fg: '#166534' }
     : ['cancelled', 'disputed'].includes(status) ? { bg: '#fef2f2', fg: '#b91c1c' }
       : status === 'pending_payment' ? { bg: '#fffbeb', fg: '#92400e' }
         : { bg: '#eff6ff', fg: '#1d4ed8' });

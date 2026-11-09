@@ -121,7 +121,7 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
             <div key={c.key} onClick={() => setFilter(c.key)}
               style={{ backgroundColor: filter === c.key ? c.color : c.bg, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', transition: 'all 0.2s' }}>
               <div style={{ fontSize: 18, fontWeight:800, color: filter === c.key ? '#fff' : c.color }}>{c.value}</div>
-              <div style={{ fontSize: 10, color: filter === c.key ? 'rgba(255,255,255,0.8)' : c.color, fontWeight: 600, marginTop: 2 }}>{c.label}</div>
+              <div style={{ fontSize: 12, color: filter === c.key ? 'rgba(255,255,255,0.8)' : c.color, fontWeight: 600, marginTop: 2 }}>{c.label}</div>
             </div>
           ))}
         </div>
@@ -140,7 +140,7 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['#', 'Jina', 'Email / Simu', 'Jukumu', 'Imethibitishwa', 'Tarehe', 'Vitendo'].map(h => (
-                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -156,10 +156,10 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <div style={{ fontSize: 12, color: '#475569' }}>{user.email}</div>
-                        <div style={{ fontSize: 11, color: '#94a3b8' }}>{user.phone || '—'}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>{user.phone || '—'}</div>
                       </td>
                       <td style={{ padding: '11px 14px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: rs.bg, color: rs.color }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: rs.bg, color: rs.color }}>
                           {rs.label}
                         </span>
                       </td>
@@ -168,31 +168,31 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                           {user.isVerified ? 'Ndiyo' : 'Hapana'}
                         </span>
                       </td>
-                      <td style={{ padding: '11px 14px', fontSize: 11, color: '#94a3b8' }}>
+                      <td style={{ padding: '11px 14px', fontSize: 12, color: '#94a3b8' }}>
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('sw-TZ') : '—'}
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
                           {user.id === 3 && (
                             <button onClick={e => { e.stopPropagation(); handleAssignOfficialKentexa(user); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 800 }}>
+                              style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800 }}>
                               ✓ Official @kentexa
                             </button>
                           )}
                           {!user.isVerified && (
                             <button onClick={e => { e.stopPropagation(); handleVerifyAccount(user); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#dcfce7', color: '#15803d', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#dcfce7', color: '#15803d', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Thibitisha
                             </button>
                           )}
                           <button type="button" data-testid={`open-person-${user.id}`} onClick={e => { e.stopPropagation(); onNavigate('AdminPerson', { userId: user.id }); }}
-                            style={{ backgroundColor: '#e0f2fe', color: '#075985', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                            style={{ backgroundColor: '#e0f2fe', color: '#075985', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                             Ona yote
                           </button>
                           <SendMessageButton small userId={user.id} name={user.name || user.phone} />
                           {!['admin','manager'].includes(user.role) && (
                             <button onClick={e => { e.stopPropagation(); handleDelete(user.id, user.name); }}
-                              style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
             Futa
                             </button>
                           )}

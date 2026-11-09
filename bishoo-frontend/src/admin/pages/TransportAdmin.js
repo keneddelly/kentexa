@@ -145,12 +145,12 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                           {p.type?.toUpperCase()} · {p.contactPhone}
                           {p.registrationNumber && ` · ${p.registrationNumber}`}
                         </div>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                           Alisajili: {new Date(p.createdAt).toLocaleDateString('sw-TZ')}
                         </div>
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px',
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px',
                       borderRadius: 100, backgroundColor: sc.bg, color: sc.text }}>
                       {sc.label}
                     </span>

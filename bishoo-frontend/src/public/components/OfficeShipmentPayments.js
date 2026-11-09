@@ -65,7 +65,7 @@ function PaymentRow({ row, methods, onSaved }) {
       )}
       {error && <div role="alert" style={{ fontSize: 12, color: '#b91c1c', marginTop: 8 }}>{error}</div>}
       <button type="button" onClick={save} disabled={busy || !(Number(digits(amount)) > 0)}
-        style={{ width: '100%', height: 44, marginTop: 10, border: 0, borderRadius: 10, background: '#15803d', color: '#fff',
+        style={{ width: '100%', height: 44, marginTop: 10, border: 0, borderRadius: 10, background: '#16a34a', color: '#fff',
           fontFamily: 'inherit', fontSize: 14, fontWeight: 800, cursor: 'pointer', opacity: busy || !(Number(digits(amount)) > 0) ? 0.6 : 1 }}>
         {busy ? 'Inahifadhi…' : `Weka malipo ${METHOD_LABEL[method] ? `(${METHOD_LABEL[method].toLowerCase()})` : ''}`}
       </button>
@@ -84,7 +84,7 @@ export default function OfficeShipmentPayments({ refreshKey = 0 }) {
   useEffect(() => { load(); }, [load, refreshKey]);
 
   if (!data || !data.parcels?.length) {
-    return message ? <div role="status" style={{ ...card, fontSize: 12, fontWeight: 700, color: '#065F46', background: '#ECFDF5' }}>{message}</div> : null;
+    return message ? <div role="status" style={{ ...card, fontSize: 12, fontWeight: 700, color: '#166534', background: '#f0fdf4' }}>{message}</div> : null;
   }
   const saved = (row) => {
     setMessage(`Malipo ya ${row.waybill || row.trackingNumber} yamewekwa. Mtumaji amepata SMS.`);
@@ -92,10 +92,10 @@ export default function OfficeShipmentPayments({ refreshKey = 0 }) {
   };
   return (
     <div style={{ marginBottom: 20 }} data-testid="office-shipment-payments">
-      <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
         Malipo ya kuweka ({data.parcels.length})
       </div>
-      {message && <div role="status" style={{ ...card, padding: 10, fontSize: 12, fontWeight: 700, color: '#065F46', background: '#ECFDF5' }}>{message}</div>}
+      {message && <div role="status" style={{ ...card, padding: 10, fontSize: 12, fontWeight: 700, color: '#166534', background: '#f0fdf4' }}>{message}</div>}
       {data.parcels.map((row) => <PaymentRow key={row.parcelId} row={row} methods={data.methods || ['cash']} onSaved={saved} />)}
     </div>
   );

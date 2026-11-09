@@ -82,7 +82,7 @@ export default function HubExpectedShipments({ onReceived, officeCity }) {
   const foundKind = found ? (found.source === 'online' ? 'marketplace' : 'seller') : null;
   return (
     <div style={{ marginBottom: 20 }} data-testid="hub-expected-shipments">
-      <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 }}>
         Mizigo inayokuja ofisini ({rows.length})
       </div>
       <div style={{ ...card, display: 'flex', gap: 8 }}>
@@ -92,7 +92,7 @@ export default function HubExpectedShipments({ onReceived, officeCity }) {
       </div>
       {message && (
         <div role={message.type === 'error' ? 'alert' : 'status'} style={{ ...card, padding: 10, fontSize: 12, fontWeight: 700,
-          color: message.type === 'error' ? '#B91C1C' : '#065F46', backgroundColor: message.type === 'error' ? '#FEF2F2' : '#ECFDF5' }}>
+          color: message.type === 'error' ? '#B91C1C' : '#166534', backgroundColor: message.type === 'error' ? '#FEF2F2' : '#f0fdf4' }}>
           {message.text}
         </div>
       )}
@@ -100,7 +100,7 @@ export default function HubExpectedShipments({ onReceived, officeCity }) {
         <div data-testid="found-order" style={{ ...card, border: '2px solid #1d4ed8' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
             <strong style={{ fontSize: 14 }}>Oda #{found.orderId}</strong>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e3a8a', border: '1px solid #1e3a8a', borderRadius: 6, padding: '2px 6px' }}>{KIND_LABEL[foundKind]}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#1e3a8a', border: '1px solid #1e3a8a', borderRadius: 6, padding: '2px 6px' }}>{KIND_LABEL[foundKind]}</span>
           </div>
           <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>{found.productName || 'Mzigo'} → {found.destinationCity || found.deliveryAddress}</div>
           <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>Muuzaji (analipa ada ya usafiri): {found.sellerName}{found.sellerPhone && found.sellerPhone !== '—' ? ` · ${found.sellerPhone}` : ''}</div>
@@ -114,14 +114,14 @@ export default function HubExpectedShipments({ onReceived, officeCity }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
             <strong style={{ fontSize: 14 }}>{label(row)}</strong>
             <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {row.weightKg > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>{row.weightKg} kg</span>}
+              {row.weightKg > 0 && <span style={{ fontSize: 12, color: '#64748b' }}>{row.weightKg} kg</span>}
               {KIND_LABEL[row.kind] && (
-                <span data-testid={`kind-${row.parcelId}`} style={{ fontSize: 11, fontWeight: 700, color: '#1e3a8a', border: '1px solid #1e3a8a', borderRadius: 6, padding: '2px 6px' }}>{KIND_LABEL[row.kind]}</span>
+                <span data-testid={`kind-${row.parcelId}`} style={{ fontSize: 12, fontWeight: 700, color: '#1e3a8a', border: '1px solid #1e3a8a', borderRadius: 6, padding: '2px 6px' }}>{KIND_LABEL[row.kind]}</span>
               )}
             </span>
           </div>
           {(row.orderId || (row.waybill && row.trackingNumber)) && (
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
               {row.orderId ? `Oda #${row.orderId}` : row.trackingNumber}
             </div>
           )}

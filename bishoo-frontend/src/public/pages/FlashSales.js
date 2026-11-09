@@ -41,7 +41,7 @@ const Countdown = ({ endsAt, size = 'md' }) => {
   const pad  = n => String(n).padStart(2, '0');
 
   if (expired) return (
-    <span style={{ fontSize: big ? 14 : 11, fontWeight: 800, color: '#DC2626' }}>
+    <span style={{ fontSize: big ? 14 : 12, fontWeight: 800, color: '#DC2626' }}>
       {t('flash_sales.expired')}
     </span>
   );
@@ -64,7 +64,7 @@ const Countdown = ({ endsAt, size = 'md' }) => {
               {pad(val)}
             </div>
             {big && (
-              <div style={{ fontSize: 9, color: GR, marginTop: 3, fontWeight: 700 }}>
+              <div style={{ fontSize: 12, color: GR, marginTop: 3, fontWeight: 700 }}>
                 {label}
               </div>
             )}
@@ -140,7 +140,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
         {/* Countdown */}
         <div style={{ display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 10, color: GR, fontWeight: 700 }}>{t('flash_sales.ends_in')}</span>
+          <span style={{ fontSize: 12, color: GR, fontWeight: 700 }}>{t('flash_sales.ends_in')}</span>
           <Countdown endsAt={item.flashSaleEndsAt} />
         </div>
 
@@ -149,10 +149,10 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
           <div style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between',
               marginBottom: 4 }}>
-              <span style={{ fontSize: 10, color: GR }}>
+              <span style={{ fontSize: 12, color: GR }}>
                 {remaining !== null ? t('flash_sales.remaining_count', { count: remaining }) : t('flash_sales.few_remaining')}
               </span>
-              <span style={{ fontSize: 10, color: '#DC2626', fontWeight: 700 }}>
+              <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 700 }}>
                 {t('flash_sales.percent_sold', { percent: pctSold })}
               </span>
             </div>
@@ -216,12 +216,12 @@ const FlashSales = ({ onNavigate, isLoggedIn }) => {
   useEffect(() => { loadItems(); }, [loadItems]);
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#FFF5F5',
+    <div style={{ minHeight: '100vh', backgroundColor: '#fef2f2',
       fontFamily:'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('flash_sales.page_title')} top={0} />
 
       {/* Hero banner */}
-      <div style={{ background: 'linear-gradient(135deg,#DC2626,#EA580C)',
+      <div style={{ background: 'linear-gradient(135deg,#DC2626,#d97706)',
         padding: '20px 16px', color: WH }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
           marginBottom: 4 }}>{t('flash_sales.eyebrow')}</div>

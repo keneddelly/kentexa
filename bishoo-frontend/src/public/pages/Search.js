@@ -53,7 +53,7 @@ const ServiceCard = ({ item, onNavigate }) => {
   return (
     <button type="button" onClick={() => onNavigate(`ServiceDetail-${item.id}`)} style={tile}>
       {item.category && (
-        <span style={{ alignSelf:'flex-start', fontSize:12, fontWeight:700, color:'#166534', backgroundColor:'#ecfdf3',
+        <span style={{ alignSelf:'flex-start', fontSize:12, fontWeight:700, color:'#166534', backgroundColor:'#f0fdf4',
           padding:'3px 8px', borderRadius:100 }}>{item.category}</span>
       )}
       <span style={{ ...titleStyle, fontWeight:700, fontSize:15 }}>{item.title}</span>

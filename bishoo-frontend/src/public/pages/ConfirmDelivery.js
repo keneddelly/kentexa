@@ -192,7 +192,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
           <div style={{ fontSize: 36 }}><LineIcon name="box" size={36} /></div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8',
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8',
               marginBottom: 4, letterSpacing: 0.5 }}>{t('confirm_delivery.your_item_label')}</div>
             <div style={{ fontSize: 17, fontWeight:800, color: '#1e293b', marginBottom: 4 }}>
               {order?.productName || order?.description || t('confirm_delivery.default_item_name')}
@@ -201,7 +201,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
               {t('confirm_delivery.from_label')} <strong>{order?.storeName || t('confirm_delivery.default_seller_name')}</strong>
             </div>
             {order?.trackingNumber && (
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4,
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4,
                 fontFamily: 'monospace' }}>
                 {order.trackingNumber}
               </div>
@@ -332,7 +332,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
             style={{ ...btn('#dc2626'), opacity: (!report.trim() || saving) ? 0.5 : 1 }}>
             {saving ? t('confirm_delivery.reporting_button') : t('confirm_delivery.report_problem_button')}
           </button>
-          <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
             {t('confirm_delivery.payment_safe_note')}
           </div>
         </div>

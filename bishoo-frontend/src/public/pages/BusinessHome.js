@@ -51,9 +51,9 @@ const Tile = ({ tile, onTap, t }) => {
         cursor: actionable ? 'pointer' : 'default', opacity: actionable ? 1 : 0.6 }}>
       <div style={{ height: 26, display: 'flex', alignItems: 'center' }}><LineIcon name={tile.icon} size={26} /></div>
       <div style={{ fontSize: 12, fontWeight: 800, color: DK, textAlign: 'center' }}>{t(tile.labelKey)}</div>
-      {isActive && <div style={{ fontSize: 9, fontWeight: 800, color: B }}>{t('profile_switcher.active_label')}</div>}
+      {isActive && <div style={{ fontSize: 12, fontWeight: 800, color: B }}>{t('profile_switcher.active_label')}</div>}
       {!actionable && (
-        <div style={{ fontSize: 9, color: GR, textAlign: 'center' }}>{t(STATE_LABEL_KEY[tile.state] || 'business_home.state_pending')}</div>
+        <div style={{ fontSize: 12, color: GR, textAlign: 'center' }}>{t(STATE_LABEL_KEY[tile.state] || 'business_home.state_pending')}</div>
       )}
     </button>
   );

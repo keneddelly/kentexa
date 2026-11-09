@@ -262,13 +262,13 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
   };
 
   const paymentColor = (status) => (
-    ['paid', 'released'].includes(status) ? { backgroundColor: '#ecfdf3', color: '#166534' }
+    ['paid', 'released'].includes(status) ? { backgroundColor: '#f0fdf4', color: '#166534' }
       : status === 'failed' ? { backgroundColor: '#fef2f2', color: '#b91c1c' }
         : { backgroundColor: '#fffbeb', color: '#92400e' });
 
   const invoiceStatusStyle = (status) => {
     switch (status) {
-      case 'pending':   return { backgroundColor: '#fef9c3', color: '#ca8a04' };
+      case 'pending':   return { backgroundColor: '#fffbeb', color: '#d97706' };
       case 'sent':      return { backgroundColor: '#dbeafe', color: '#2563eb' };
       case 'paid':      return { backgroundColor: '#dcfce7', color: '#16a34a' };
       case 'cancelled': return { backgroundColor: '#fee2e2', color: '#dc2626' };
@@ -373,7 +373,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
               style={{
                 padding: '10px 20px', borderRadius: '10px', border: 'none',
                 cursor: 'pointer', fontSize: '14px', fontWeight: '700',
-                backgroundColor: activeTab === tab.key ? '#6366f1' : '#fff',
+                backgroundColor: activeTab === tab.key ? '#0f1419' : '#fff',
                 color: activeTab === tab.key ? '#fff' : '#64748b',
                 outline: '1px solid #eff3f4',
                 display: 'flex', alignItems: 'center', gap: '8px',
@@ -382,10 +382,10 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
               {tab.label}
               {tab.key === 'invoices' && pendingInvoicesCount > 0 && (
                 <span style={{
-                  backgroundColor: '#ef4444', color: '#fff',
+                  backgroundColor: '#dc2626', color: '#fff',
                   borderRadius: '50%', width: '20px', height: '20px',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '10px', fontWeight: '800',
+                  fontSize: '12px', fontWeight: '800',
                 }}>
                   {pendingInvoicesCount}
                 </span>
@@ -407,7 +407,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                   style={{
                     padding: '8px 16px', borderRadius: '20px', border: 'none',
                     cursor: 'pointer', fontSize: '13px', fontWeight: '600',
-                    backgroundColor: filter === status ? '#6366f1' : '#fff',
+                    backgroundColor: filter === status ? '#0f1419' : '#fff',
                     color: filter === status ? '#fff' : '#64748b',
                     outline: '1px solid #eff3f4',
                   }}
@@ -424,7 +424,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                 <p style={{ color: '#64748b', marginBottom: '24px' }}>{t('my_orders.no_orders_desc')}</p>
                 <button
                   onClick={() => onNavigate('Store')}
-                  style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
+                  style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
                 >
                   {t('my_orders.browse_store')}
                 </button>
@@ -436,8 +436,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                   return (
                   <div key={order.id} ref={isHighlighted ? highlightRef : null} style={{
                     backgroundColor: '#fff', borderRadius: '12px', padding: '24px',
-                    boxShadow: isHighlighted ? '0 0 0 3px #6366f1, 0 2px 8px rgba(0,0,0,0.06)' : '0 2px 8px rgba(0,0,0,0.06)',
-                    border: isHighlighted ? '1px solid #6366f1' : '1px solid #f1f5f9',
+                    boxShadow: isHighlighted ? '0 0 0 3px #0f1419, 0 2px 8px rgba(0,0,0,0.06)' : '0 2px 8px rgba(0,0,0,0.06)',
+                    border: isHighlighted ? '1px solid #0f1419' : '1px solid #f1f5f9',
                   }}>
                     {/* Order Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
@@ -477,7 +477,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                                 }}>
                                   {isCompleted ? <LineIcon name="check" size={14} color="#fff" strokeWidth={3} /> : index + 1}
                                 </div>
-                                <div style={{ fontSize: '11px', color: isCompleted ? '#1d4ed8' : '#94a3b8', fontWeight: isCompleted ? '700' : '400' }}>
+                                <div style={{ fontSize: '12px', color: isCompleted ? '#1d4ed8' : '#94a3b8', fontWeight: isCompleted ? '700' : '400' }}>
                                   {step}
                                 </div>
                               </div>
@@ -522,7 +522,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         )}
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#6366f1' }}>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#0f1419' }}>
                           TZS {Number(order.totalAmount).toLocaleString()}
                         </div>
                         {(() => {
@@ -537,7 +537,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           if (isDirectPaymentOrder(order)) return null; // paid to the seller directly (Release F)
                           if (order.status === 'cancelled' || order.paymentStatus === 'paid' || nothingOwedOnlineYet) return null;
                           return (
-                            <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', fontWeight: '600' }}>
+                            <div style={{ fontSize: '12px', color: '#f59e0b', marginTop: '4px', fontWeight: '600' }}>
                               {isCodOrder ? t('my_orders.cod_deposit_pending') : t('my_orders.payment_pending')}
                             </div>
                           );
@@ -645,7 +645,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       {['delivered','in_transit'].includes(order.status) && order.trackingNumber && (
                         <button
                           onClick={() => onNavigate(`ConfirmDelivery-${order.confirmationToken || order.trackingNumber}`)}
-                          style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '2px solid #86efac',
+                          style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '2px solid #bbf7d0',
                             padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
                             fontSize: 12, fontWeight: 800 }}
                         >
@@ -656,7 +656,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       {order.status === 'completed' && !order.buyerRating && (
                         <button
                           onClick={() => onNavigate(`ConfirmDelivery-${order.confirmationToken || order.trackingNumber}`)}
-                          style={{ backgroundColor: '#fef9c3', color: '#ca8a04', border: '1px solid #fde68a',
+                          style={{ backgroundColor: '#fffbeb', color: '#d97706', border: '1px solid #fde68a',
                             padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
                             fontSize: 12, fontWeight: 800 }}
                         >
@@ -689,7 +689,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       {order.status === 'completed' && order.brandId && registeredWarrantyOrderIds.includes(order.id) && (
                         <button
                           onClick={() => onNavigate('MyWarranties')}
-                          style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #86efac',
+                          style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
                             padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
                             fontSize: 12, fontWeight: 800 }}
                         >
@@ -723,7 +723,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                 </p>
                 <button
                   onClick={() => onNavigate('ClassifiedsPublic')}
-                  style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
+                  style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
                 >
                   {t('my_orders.browse_classifieds')}
                 </button>
@@ -768,7 +768,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
                     {/* Waiting state */}
                     {inv.status === 'pending' && (
-                      <div style={{ backgroundColor: '#fef9c3', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', color: '#92400e', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ backgroundColor: '#fffbeb', borderRadius: '10px', padding: '14px 16px', fontSize: '13px', color: '#92400e', display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <LineIcon name="clock" size={20} color="#1d4ed8" />
                         <div>
                           <strong>{t('my_orders.waiting_seller')}</strong>
@@ -789,20 +789,20 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                               { label: t('my_orders.status_label'),         value: inv.status.toUpperCase() },
                             ].map(item => (
                               <div key={item.label} style={{ padding: '10px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
-                                <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '3px' }}>{item.label}</div>
+                                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '3px' }}>{item.label}</div>
                                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>{item.value}</div>
                               </div>
                             ))}
                           </div>
                           {inv.invoiceDescription && (
                             <div style={{ padding: '10px', backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #f1f5f9', marginBottom: '8px' }}>
-                              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '3px' }}>{t('my_orders.description_label')}</div>
+                              <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '3px' }}>{t('my_orders.description_label')}</div>
                               <div style={{ fontSize: '14px', color: '#1e293b' }}>{inv.invoiceDescription}</div>
                             </div>
                           )}
                           {inv.sellerNotes && (
                             <div style={{ padding: '10px', backgroundColor: '#fffbeb', borderRadius: '8px', border: '1px solid #fde68a' }}>
-                              <div style={{ fontSize: '11px', color: '#92400e', fontWeight: '600', textTransform: 'uppercase', marginBottom: '3px' }}>{t('my_orders.seller_note_label')}</div>
+                              <div style={{ fontSize: '12px', color: '#92400e', fontWeight: '600', textTransform: 'uppercase', marginBottom: '3px' }}>{t('my_orders.seller_note_label')}</div>
                               <div style={{ fontSize: '13px', color: '#92400e', fontStyle: 'italic' }}>{inv.sellerNotes}</div>
                             </div>
                           )}
@@ -812,9 +812,9 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         {inv.status === 'sent' && (
                           <div style={{ marginBottom: 14 }}>
                             {/* Invoice number card */}
-                            <div style={{ backgroundColor: '#1e1b4b', borderRadius: 12, padding: 14, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                            <div style={{ backgroundColor: '#0f1419', borderRadius: 12, padding: 14, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                               <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
+                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
                                 <div style={{ fontSize: 16, fontWeight:800, color: '#fff', fontFamily: 'monospace', letterSpacing: 1, wordBreak: 'break-all' }}>{inv.invoiceNumber}</div>
                                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>TZS {invTotal.toLocaleString()}</div>
                               </div>
@@ -859,7 +859,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                               </div>
 
                               {/* Pay Online */}
-                              <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, border: '1.5px solid #86efac' }}>
+                              <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, border: '1.5px solid #bbf7d0' }}>
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                                   <LineIcon name="card" size={22} color="#1d4ed8" />
                                   <div style={{ flex: 1 }}>
@@ -915,18 +915,18 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             buyer shouldn't have to go find their shipment
                             separately. */}
                         {inv.shipment && !inv.shipment.requiresShipment && (
-                          <div style={{ backgroundColor: '#ecfeff', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#0e7490' }}>
+                          <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#1d4ed8' }}>
                             {t('my_orders.buyer_pickup_notice')}
                           </div>
                         )}
                         {inv.shipment?.requiresShipment && !inv.shipment.trackingNumber && (
-                          <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#9a3412' }}>
+                          <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#92400e' }}>
                             {t('my_orders.shipment_pending_notice')}
                           </div>
                         )}
                         {inv.shipment?.trackingNumber && (
                           <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '14px 16px', marginBottom: 10, border: '1px solid #bfdbfe' }}>
-                            <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>
+                            <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>
                               {t('my_orders.shipment_created_label')}
                             </div>
                             <div style={{ fontSize: 16, fontWeight:800, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 4 }}>
@@ -991,13 +991,13 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                 {payMode !== 'online' ? (
                   <button onClick={() => setPayMode('online')} style={{ width: '100%', border: '2px solid #16a34a', borderRadius: 14, padding: '18px 16px', backgroundColor: '#f0fdf4', cursor: 'pointer', marginBottom: 12, textAlign: 'center' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><LineIcon name="card" size={28} color="#1d4ed8" /></div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: '#065f46', marginBottom: 4 }}>{t('my_orders.pay_online_modal_title')}</div>
-                    <div style={{ fontSize: 12, color: '#047857', marginBottom: 6 }}>{t('my_orders.pay_online_modal_sub')}</div>
-                    <div style={{ display: 'inline-block', backgroundColor: '#16a34a', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20 }}>{t('my_orders.instant_confirm_badge')}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: '#166534', marginBottom: 4 }}>{t('my_orders.pay_online_modal_title')}</div>
+                    <div style={{ fontSize: 12, color: '#16a34a', marginBottom: 6 }}>{t('my_orders.pay_online_modal_sub')}</div>
+                    <div style={{ display: 'inline-block', backgroundColor: '#16a34a', color: '#fff', fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20 }}>{t('my_orders.instant_confirm_badge')}</div>
                   </button>
                 ) : (
                   <div style={{ border: '2px solid #16a34a', borderRadius: 14, padding: '18px 16px', marginBottom: 12, textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#065f46', marginBottom: 10 }}>{t('my_orders.enter_phone_label')}</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#166534', marginBottom: 10 }}>{t('my_orders.enter_phone_label')}</div>
                     {!paymentPending ? (
                       <>
                         <input placeholder="255712345678" value={payerPhone} onChange={e => setPayerPhone(e.target.value)}
@@ -1038,7 +1038,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '2px dashed #2563eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, textAlign: 'left' }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
                     <div style={{ fontSize: 15, fontWeight:800, color: '#2563eb', fontFamily: 'monospace' }}>{payModalOrder.invoiceNumber || payModalOrder.id}</div>
                     <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>TZS {modalDueNow.toLocaleString()}</div>
                   </div>
@@ -1052,7 +1052,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                 {agentsLoading ? (
                   <div style={{ textAlign: 'center', padding: 16, color: '#64748b', fontSize: 13 }}>{t('my_orders.finding_agents')}</div>
                 ) : nearbyAgents.length === 0 ? (
-                  <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 14, fontSize: 12, color: '#92400e', textAlign: 'center', marginBottom: 12 }}>
+                  <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 14, fontSize: 12, color: '#92400e', textAlign: 'center', marginBottom: 12 }}>
                     {t('my_orders.no_agents_found')}
                   </div>
                 ) : nearbyAgents.map(agent => (

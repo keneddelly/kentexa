@@ -221,7 +221,7 @@ export default function FoodOrder({ orderId, onNavigate, isLoggedIn }) {
         <section style={{ margin: '24px 16px 0', padding: 16, borderRadius: 16, border: `1px solid ${C.line}`, display: 'flex', gap: 12, alignItems: 'center' }}>
           {hotel.logo
             ? <img src={hotel.logo} alt="" style={{ width: 44, height: 44, borderRadius: 22, objectFit: 'cover' }} />
-            : <span style={{ width: 44, height: 44, borderRadius: 22, background: '#7c2d12', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800 }}>
+            : <span style={{ width: 44, height: 44, borderRadius: 22, background: '#92400e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800 }}>
                 {String(hotel.name || 'H').charAt(0).toUpperCase()}</span>}
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <strong style={{ fontSize: 15 }}>{hotel.name}</strong>

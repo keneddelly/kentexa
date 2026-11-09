@@ -190,7 +190,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
               ].map(card => (
                 <div key={card.label} style={{ backgroundColor: card.bg, borderRadius: 12, padding: 16 }}>
                   <div style={{ fontSize: 20, fontWeight:800, color: card.color }}>{card.value}</div>
-                  <div style={{ fontSize: 11, color: card.color, opacity: 0.8, fontWeight: 600, marginTop: 2 }}>{card.label}</div>
+                  <div style={{ fontSize: 12, color: card.color, opacity: 0.8, fontWeight: 600, marginTop: 2 }}>{card.label}</div>
                 </div>
               ))}
             </div>
@@ -232,7 +232,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                       {['#', 'Muuzaji', 'Agizo', 'Kiasi (TZS)', 'Njia', 'Hali', 'Tarehe', 'Vitendo'].map(h => (
-                        <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                        <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -245,14 +245,14 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#94a3b8', fontFamily: 'monospace' }}>#{payout.id}</td>
                           <td style={{ padding: '12px 14px' }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{payout.seller?.storeName || payout.seller?.name || '—'}</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{payout.seller?.email}</div>
+                            <div style={{ fontSize: 12, color: '#94a3b8' }}>{payout.seller?.email}</div>
                             {payout.seller?.payoutMethod ? (
-                              <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
+                              <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
                                 {PAYOUT_METHOD_LABELS[payout.seller.payoutMethod] || payout.seller.payoutMethod}
                                 {payout.seller.payoutAccountNumber ? ` — ${payout.seller.payoutAccountNumber}` : ''}
                               </div>
                             ) : (
-                              <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 600, marginTop: 2 }}>
+                              <div style={{ fontSize: 12, color: '#dc2626', fontWeight: 600, marginTop: 2 }}>
                                 Hajaweka njia ya malipo
                               </div>
                             )}
@@ -263,7 +263,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                           </td>
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#64748b' }}>{payout.paymentMethod || '—'}</td>
                           <td style={{ padding: '12px 14px' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
                           </td>
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#94a3b8' }}>
                             {payout.createdAt ? new Date(payout.createdAt).toLocaleDateString('sw-TZ') : '—'}
@@ -278,7 +278,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                                   setPaymentMethod(methodMap[payout.seller?.payoutMethod] || '');
                                   setShowReleaseModal(true);
                                 }}
-                                style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                 Toa
                               </button>
                             )}
@@ -328,7 +328,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                         <div key={settleKey} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#f8fafc', borderRadius: 8, marginBottom: 6 }}>
                           <div>
                             <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1e293b' }}>{item.trackingNumber}</div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>
                               {item.courierName || '—'}{item.transportRef ? ` · ${item.transportRef}` : ''}
                               {item.dispatchTime ? ` · ${new Date(item.dispatchTime).toLocaleDateString('sw-TZ')}` : ''}
                             </div>
@@ -336,7 +336,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>TZS {Number(item.courierCost || 0).toLocaleString()}</div>
                             <button onClick={() => handleSettleCourierCost(item)} disabled={settlingKey === settleKey}
-                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: settlingKey === settleKey ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: settlingKey === settleKey ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 700 }}>
                               {settlingKey === settleKey ? '...' : 'Imelipwa'}
                             </button>
                           </div>
@@ -380,7 +380,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                         <span style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{agent.fullName}</span>
                         {agent.agentCode && (
-                          <span style={{ fontSize: 10, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
+                          <span style={{ fontSize: 12, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
                             {agent.agentCode}
                           </span>
                         )}
@@ -395,14 +395,14 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                           { l: 'Uwasilishaji', v: agent.totalEarningsDeliveries, c: '#1d4ed8' },
                           { l: 'Makusanyo', v: agent.totalEarningsCollections, c: '#16a34a' },
                         ].filter(s => s.v > 0).map(s => (
-                          <div key={s.l} style={{ fontSize: 11, color: s.c }}>
+                          <div key={s.l} style={{ fontSize: 12, color: s.c }}>
                             {s.l}: <strong>TZS {Number(s.v).toLocaleString()}</strong>
                           </div>
                         ))}
                       </div>
                       {/* Payout method if set */}
                       {agent.payoutMethod && (
-                        <div style={{ marginTop: 6, fontSize: 11, color: '#475569' }}>
+                        <div style={{ marginTop: 6, fontSize: 12, color: '#475569' }}>
                           {agent.payoutMethod}
                           {agent.payoutAccountNumber && ` — ${agent.payoutAccountNumber}`}
                           {agent.payoutAccountName && ` (${agent.payoutAccountName})`}
@@ -413,7 +413,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       <div style={{ fontSize: 20, fontWeight:800, color: '#dc2626' }}>
                         TZS {Number(agent.pendingEarnings).toLocaleString()}
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 8 }}>inayosubiri</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>inayosubiri</div>
                       <button
                         onClick={() => { setReleaseAgent(agent); setReleaseAmount(String(agent.pendingEarnings)); setReleaseNote(''); }}
                         style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
@@ -447,7 +447,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Seller's stated payout details — exactly where to send the money */}
             {selected.seller?.payoutMethod ? (
               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 14, marginBottom: 18 }}>
-                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>NJIA ALIYOWEKA MUUZAJI</div>
+                <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>NJIA ALIYOWEKA MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {PAYOUT_METHOD_LABELS[selected.seller.payoutMethod] || selected.seller.payoutMethod}
                 </div>
@@ -509,7 +509,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
               <div style={{ fontSize: 28, fontWeight:800, color: '#15803d' }}>
                 TZS {Number(releaseAgent.pendingEarnings).toLocaleString()}
               </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
                 {releaseAgent.city || '—'} · {releaseAgent.agentCode || '—'}
               </div>
             </div>
@@ -517,7 +517,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Payout method */}
             {releaseAgent.payoutMethod ? (
               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>NJIA YA MALIPO</div>
+                <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>NJIA YA MALIPO</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{releaseAgent.payoutMethod}</div>
                 {releaseAgent.payoutAccountNumber && (
                   <div style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 700, marginTop: 3, fontFamily: 'monospace' }}>

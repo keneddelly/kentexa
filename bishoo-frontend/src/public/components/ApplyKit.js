@@ -65,7 +65,7 @@ export const pillStyle = (dark = true, disabled = false) => ({
 export const ErrorText = ({ children }) => (children ? <p role="alert" style={{ margin: 0, color: K.RED, fontSize: 14 }}>{children}</p> : null);
 
 export const Note = ({ tone = 'grey', children }) => {
-  const c = { grey: ['#f7f9f9', K.INK], green: ['#ecfdf3', K.GREEN], amber: ['#fffbeb', '#92400e'], blue: ['#eff6ff', '#1e40af'] }[tone] || ['#f7f9f9', K.INK];
+  const c = { grey: ['#f7f9f9', K.INK], green: ['#f0fdf4', K.GREEN], amber: ['#fffbeb', '#92400e'], blue: ['#eff6ff', '#1d4ed8'] }[tone] || ['#f7f9f9', K.INK];
   return <div style={{ background: c[0], color: c[1], borderRadius: 12, padding: '12px 14px', fontSize: 14, lineHeight: 1.45 }}>{children}</div>;
 };
 

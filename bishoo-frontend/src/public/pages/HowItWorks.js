@@ -22,11 +22,11 @@ const HowItWorks = ({ onNavigate }) => {
       steps: buildSteps('seller'),
     },
     agent: {
-      icon: 'moto', label: t('how_it_works.role_agent_label'), color: '#7c3aed',
+      icon: 'moto', label: t('how_it_works.role_agent_label'), color: '#0f1419',
       steps: buildSteps('agent'),
     },
     super_agent: {
-      icon: 'office', label: t('how_it_works.role_super_agent_label'), color: '#ea580c',
+      icon: 'office', label: t('how_it_works.role_super_agent_label'), color: '#d97706',
       steps: buildSteps('super_agent'),
     },
   };
@@ -48,7 +48,7 @@ const HowItWorks = ({ onNavigate }) => {
       <BackBar onBack={() => onNavigate('back')} title={t('how_it_works.page_title', 'How It Works')} top={0} />
 
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '48px 16px', textAlign: 'center' }}>
+      <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', padding: '48px 16px', textAlign: 'center' }}>
         <h1 style={{ fontSize: 28, fontWeight:800, color: '#fff', margin: '0 0 12px', fontFamily:'inherit' }}>{t('how_it_works.hero_title')}</h1>
         <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', maxWidth: 500, margin: '0 auto' }}>
           {t('how_it_works.hero_desc')}
@@ -63,7 +63,7 @@ const HowItWorks = ({ onNavigate }) => {
             <button key={key} onClick={() => setActiveRole(key)}
               style={{ padding: '12px 4px', borderRadius: 12, border: '2px solid', borderColor: activeRole === key ? r.color : '#e2e8f0', backgroundColor: activeRole === key ? `${r.color}15` : '#fff', cursor: 'pointer', textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}><LineIcon name={r.icon} size={22} /></div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: activeRole === key ? r.color : '#64748b' }}>{r.label}</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: activeRole === key ? r.color : '#64748b' }}>{r.label}</div>
             </button>
           ))}
         </div>
@@ -105,7 +105,7 @@ const HowItWorks = ({ onNavigate }) => {
               <div key={p.name} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '14px 12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><LineIcon name={p.icon} size={24} color="#1d4ed8" /></div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{p.desc}</div>
+                <div style={{ fontSize: 12, color: '#64748b' }}>{p.desc}</div>
               </div>
             ))}
           </div>
@@ -125,15 +125,15 @@ const HowItWorks = ({ onNavigate }) => {
               <div key={f.category} style={{ display: 'flex', alignItems: 'center', padding: '11px 14px', backgroundColor: i % 2 === 0 ? '#f8fafc' : '#fff', borderTop: '1px solid #e2e8f0' }}>
                 <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{f.category}</div>
                 <div style={{ width: 60, fontSize: 14, fontWeight:800, color: '#1d4ed8', textAlign: 'center' }}>{f.fee}</div>
-                <div style={{ flex: 1, fontSize: 11, color: '#64748b', textAlign: 'right' }}>{f.note}</div>
+                <div style={{ flex: 1, fontSize: 12, color: '#64748b', textAlign: 'right' }}>{f.note}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Buyer Protection */}
-        <div style={{ background: 'linear-gradient(135deg,#dcfce7,#d1fae5)', borderRadius: 16, padding: '24px 20px', marginBottom: 16, border: '1px solid #86efac' }}>
-          <h2 style={{ fontSize: 18, fontWeight:800, color: '#15803d', margin: '0 0 14px', fontFamily:'inherit' }}>{t('how_it_works.protection_title')}</h2>
+        <div style={{ background: 'linear-gradient(135deg,#dcfce7,#f0fdf4)', borderRadius: 16, padding: '24px 20px', marginBottom: 16, border: '1px solid #bbf7d0' }}>
+          <h2 style={{ fontSize: 18, fontWeight:800, color: '#16a34a', margin: '0 0 14px', fontFamily:'inherit' }}>{t('how_it_works.protection_title')}</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
               t('how_it_works.protection_point1'),

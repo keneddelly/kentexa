@@ -44,8 +44,8 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
   if (!quote && !loading && !error) return null;
   const differs = feeDiffers(quote, fee);
   return (
-    <div data-testid="office-price-preview" style={{ border: '1px solid #bfdbfe', borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: '#f8fbff' }}>
-      <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', letterSpacing: 0.5, marginBottom: 6 }}>BEI YA OFISI</div>
+    <div data-testid="office-price-preview" style={{ border: '1px solid #bfdbfe', borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: '#eff6ff' }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', letterSpacing: 0.5, marginBottom: 6 }}>BEI YA OFISI</div>
       {loading && !quote && <div style={{ fontSize: 13, color: '#64748b' }}>Inahesabu bei…</div>}
       {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c' }}>{error}</div>}
       {quote?.noSuggestion && (
@@ -65,7 +65,7 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight:800, padding: '6px 0 2px', borderTop: '1px dashed #cbd5e1', marginTop: 4, color: '#0f172a' }}>
             <span>Jumla</span><span>{money(quote.total)}</span>
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
             {quote.transport?.mode === 'same_city'
               ? 'Ndani ya Dar es Salaam: ada ya boda boda tu'
               : quote.transport?.mode === 'kg'
@@ -81,7 +81,7 @@ const OfficePricePreview = ({ input, fee, reason, onQuote, onUseTotal, onReasonC
           )}
           {differs && (
             <div style={{ marginTop: 8 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#b45309', display: 'block', marginBottom: 3 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#d97706', display: 'block', marginBottom: 3 }}>
                 Ada ni tofauti na bei ya ofisi. Sababu ya kubadilisha bei *
               </label>
               <input type="text" value={reason || ''} onChange={(e) => onReasonChange?.(e.target.value)} placeholder="mf. Punguzo la mteja wa kudumu"

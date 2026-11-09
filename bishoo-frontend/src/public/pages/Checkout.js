@@ -549,7 +549,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <p style={{ color: '#64748b', marginBottom: 20, fontSize: 14 }}>
               {codInfo && codInfo.upfront <= 0 ? t('checkout.cod_confirmed_sub') : t('checkout.order_being_prepared')}
             </p>
-            <div style={{ backgroundColor: '#ecfdf3', borderRadius: 16, padding: 16, marginBottom: codInfo && codInfo.upfront > 0 ? 10 : 20 }}>
+            <div style={{ backgroundColor: '#f0fdf4', borderRadius: 16, padding: 16, marginBottom: codInfo && codInfo.upfront > 0 ? 10 : 20 }}>
               <div style={{ fontSize: 13, color: '#166534', marginBottom: 4 }}>
                 {codInfo ? (codInfo.upfront > 0 ? t('checkout.cod_deposit_paid_label') : t('checkout.cod_pay_on_delivery')) : t('checkout.amount_paid')}
               </div>
@@ -558,7 +558,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               </div>
             </div>
             {codInfo && codInfo.upfront > 0 && (
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+              <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
                 {t('checkout.cod_remaining_notice', { amount: Number(codInfo.remaining).toLocaleString() })}
               </div>
             )}
@@ -592,7 +592,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             {placedOrders.map((order, i) => (
               <div key={i} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 8, border: '2px dashed #2563eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{t('checkout.invoice_number_label')}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{t('checkout.invoice_number_label')}</div>
                   <div style={{ fontSize: 15, fontWeight:800, color: '#2563eb', fontFamily: 'monospace', wordBreak: 'break-all' }}>{order.invoiceNumber || order.id}</div>
                   {order.totalAmount && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>}
                 </div>
@@ -609,7 +609,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             {agentsLoading ? (
               <div style={{ textAlign: 'center', padding: 20, color: '#64748b', fontSize: 13 }}><Spinner size={16} color={B} /> {t('checkout.finding_agents')}</div>
             ) : nearbyAgents.length === 0 ? (
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 14, fontSize: 12, color: '#92400e', textAlign: 'center' }}>
+              <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 14, fontSize: 12, color: '#92400e', textAlign: 'center' }}>
                 {t('checkout.no_agents_found')}
               </div>
             ) : nearbyAgents.map(agent => (
@@ -644,13 +644,13 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         <div style={{ flex: 1, padding: '16px', maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
           {/* Success banner */}
-          <div style={{ backgroundColor: '#ecfdf3', borderRadius: 16, padding: '18px 16px', textAlign: 'center', marginBottom: 16, border: '1px solid #bbf7d0' }}>
+          <div style={{ backgroundColor: '#f0fdf4', borderRadius: 16, padding: '18px 16px', textAlign: 'center', marginBottom: 16, border: '1px solid #bbf7d0' }}>
             <SuccessMark size={44} />
-            <h2 style={{ fontSize: 18, fontWeight:800, color: '#15803d', margin: '0 0 4px', fontFamily:'inherit' }}>{t('checkout.order_placed')}</h2>
+            <h2 style={{ fontSize: 18, fontWeight:800, color: '#16a34a', margin: '0 0 4px', fontFamily:'inherit' }}>{t('checkout.order_placed')}</h2>
             <p style={{ color: '#166534', fontSize: 13, margin: '0 0 8px' }}>
               {codInfo ? t('checkout.cod_upfront_notice') : t('checkout.order_placed_sub')}
             </p>
-            <div style={{ fontSize: 18, fontWeight:800, color: '#15803d' }}>
+            <div style={{ fontSize: 18, fontWeight:800, color: '#16a34a' }}>
               TZS {Number(codInfo ? codInfo.upfront : orderTotal).toLocaleString()}
             </div>
             {codInfo && (
@@ -672,8 +672,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: showOnlinePayment ? 14 : 0 }}>
               <IconCircle d={IC.phone} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#065f46' }}>{t('checkout.pay_online')}</div>
-                <div style={{ fontSize: 12, color: '#047857' }}>{t('checkout.pay_online_sub')}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#166534' }}>{t('checkout.pay_online')}</div>
+                <div style={{ fontSize: 12, color: '#16a34a' }}>{t('checkout.pay_online_sub')}</div>
               </div>
               {!showOnlinePayment && (
                 <button onClick={() => setShowOnlinePayment(true)}
@@ -691,7 +691,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                   <button onClick={() => setShowOnlinePayment(false)}
                     style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 11, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('checkout.cancel')}</button>
                   <button onClick={handlePayOnline} disabled={paying || !payerPhone.trim()}
-                    style={{ flex: 2, background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: 11, borderRadius: 8, cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
+                    style={{ flex: 2, background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#16a34a)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: 11, borderRadius: 8, cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
                     {paying ? t('checkout.sending') : t('checkout.pay_button', { amount: Number(codInfo ? codInfo.upfront : orderTotal).toLocaleString() })}
                   </button>
                 </div>
@@ -775,7 +775,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{t('checkout.qty_label', { count: item.quantity })}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{t('checkout.qty_label', { count: item.quantity })}</div>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#2563eb', flexShrink: 0 }}>
                   TZS {(getItemPrice(item) * item.quantity).toLocaleString()}
@@ -831,7 +831,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, border: '1px solid #eff3f4', marginBottom: 14 }}>
           <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: '#0f1419', color: '#fff', fontSize: 12, fontWeight:800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span> {isDigitalOnlyCart ? t('checkout.contact_info') : t('checkout.delivery_address')}</h2>
           {isDigitalOnlyCart ? (
-            <div style={{ backgroundColor: '#faf5ff', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>
+            <div style={{ backgroundColor: '#f7f9f9', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#0f1419', fontWeight: 600 }}>
               {t('checkout.digital_instant_delivery')}
             </div>
           ) : (
@@ -896,28 +896,28 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                       <div style={{ fontSize: 14, fontWeight: 800, color: selectedMethod === method.key ? '#1d4ed8' : '#1e293b' }}>
                         {method.label}
                       </div>
-                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{method.desc}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{method.desc}</div>
                       {method.office?.offices > 1 && (
-                        <div data-testid="office-pick-note" style={{ fontSize: 11, color: '#536471', marginTop: 2 }}>
+                        <div data-testid="office-pick-note" style={{ fontSize: 12, color: '#536471', marginTop: 2 }}>
                           Ofisi {method.office.offices} zina bei; KenteXa imechagua yenye bei nzuri na huduma bora.
                         </div>
                       )}
                       {method.key === 'kentexa_delivery' && (
-                        <div style={{ fontSize: 11, color: '#7c3aed', fontWeight: 700, marginTop: 3 }}>
+                        <div style={{ fontSize: 12, color: '#0f1419', fontWeight: 700, marginTop: 3 }}>
                           Kata: {method.cutoffTime} · Inafika: {method.estimatedArrival}
                         </div>
                       )}
                       {method.key === 'agent' && method.estimatedDays && (
                         <div style={{ marginTop: 6 }}>
                           {method.transitCity ? (
-                            <div style={{ backgroundColor: '#fef9c3', borderRadius: 6, padding: '5px 8px', fontSize: 11, color: '#92400e', marginBottom: 4 }}>
+                            <div style={{ backgroundColor: '#fffbeb', borderRadius: 6, padding: '5px 8px', fontSize: 12, color: '#92400e', marginBottom: 4 }}>
                               {t('checkout.via_transit')} <strong>{method.transitCity}</strong>
                               {method.leg1Days && method.leg2Days && (
                                 <span> {t('checkout.days_suffix', { leg1: method.leg1Days, leg2: method.leg2Days })}</span>
                               )}
                             </div>
                           ) : null}
-                          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>
+                          <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>
                             {t('checkout.expected_days', { days: method.estimatedDays })}
                             {method.expectedArrival && (
                               <span style={{ fontWeight: 500, color: '#64748b' }}>
@@ -931,7 +931,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: 14, fontWeight:800, color: method.fee === 0 && method.key !== 'boda' ? '#16a34a' : '#1d4ed8' }}>
                         {method.fee == null || method.noPrice ? null : method.key === 'boda' && method.fee === 0
-                          ? <span style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700 }}>{t('checkout.seller_sets_price')}</span>
+                          ? <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 700 }}>{t('checkout.seller_sets_price')}</span>
                           : method.fee === 0
                             ? t('cart.free')
                             : `TZS ${Number(method.fee).toLocaleString()}`
@@ -973,8 +973,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                   border: `2px solid ${paymentChoice === 'online' ? '#16a34a' : '#e2e8f0'}` }}>
                 <Radio on={paymentChoice === 'online'} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'online' ? '#15803d' : '#1e293b' }}>{t('checkout.pm_online')}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t('checkout.pm_online_sub')}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'online' ? '#16a34a' : '#1e293b' }}>{t('checkout.pm_online')}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{t('checkout.pm_online_sub')}</div>
                 </div>
                 
               </div>
@@ -986,14 +986,14 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                   <Radio on={paymentChoice === 'cod'} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'cod' ? '#1d4ed8' : '#1e293b' }}>{t('checkout.pm_cod')}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                       {isIntercityForCod ? t('checkout.pm_cod_sub_intercity') : t('checkout.pm_cod_sub_samecity')}
                     </div>
                   </div>
                   
                 </div>
               ) : (
-                <div style={{ fontSize: 11, color: '#94a3b8', padding: '4px 4px' }}>
+                <div style={{ fontSize: 12, color: '#94a3b8', padding: '4px 4px' }}>
                   {t('checkout.pm_cod_not_offered')}
                 </div>
               )}
@@ -1044,7 +1044,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             ) : getSelectedMethodData() ? (
               <span style={{ fontWeight: 700, color: '#1d4ed8' }}>
                 TZS {Number(getSelectedMethodData().fee || 0).toLocaleString()}
-                <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>({getSelectedMethodData().label})</span>
+                <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 4 }}>({getSelectedMethodData().label})</span>
               </span>
             ) : (
               <span style={{ fontWeight: 700, color: '#16a34a' }}>{t('checkout.delivery_included')}</span>
@@ -1054,9 +1054,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           {/* ETA confirmation for intercity agent orders */}
           {getSelectedMethodData()?.key === 'agent' && getSelectedMethodData()?.estimatedDays && (
             <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '10px 14px', marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 4 }}>{t('checkout.delivery_info_title')}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', marginBottom: 4 }}>{t('checkout.delivery_info_title')}</div>
               {getSelectedMethodData().transitCity && (
-                <div style={{ fontSize: 11, color: '#92400e', backgroundColor: '#fef9c3', borderRadius: 6, padding: '4px 8px', marginBottom: 6 }}>
+                <div style={{ fontSize: 12, color: '#92400e', backgroundColor: '#fffbeb', borderRadius: 6, padding: '4px 8px', marginBottom: 6 }}>
                   {t('checkout.via_transit')} <strong>{getSelectedMethodData().transitCity}</strong>
                   {getSelectedMethodData().leg1Days && getSelectedMethodData().leg2Days && (
                     <span> ({t('checkout.days_suffix', { leg1: getSelectedMethodData().leg1Days, leg2: getSelectedMethodData().leg2Days })})</span>
@@ -1065,7 +1065,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                 <span style={{ color: '#64748b' }}>{t('checkout.delivery_time_label')}</span>
-                <span style={{ fontWeight: 700, color: '#15803d' }}>{t('checkout.expected_days', { days: getSelectedMethodData().estimatedDays })}</span>
+                <span style={{ fontWeight: 700, color: '#16a34a' }}>{t('checkout.expected_days', { days: getSelectedMethodData().estimatedDays })}</span>
               </div>
               {getSelectedMethodData().expectedArrival && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 3 }}>
@@ -1145,7 +1145,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                 style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : B, color: '#fff', border: 'none', minHeight: 52, borderRadius: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily:'inherit' }}>
                 {loading ? <><Spinner size={18} color="#fff" /> {t('checkout.placing')}</> : t('checkout.place_order')}
               </button>
-              <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>{t('cart.secure_note')}</div>
+              <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>{t('cart.secure_note')}</div>
             </>
           )}
         </div>

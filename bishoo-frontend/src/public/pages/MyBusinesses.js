@@ -107,7 +107,7 @@ const MyBusinesses = ({ onNavigate, isLoggedIn }) => {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: DK }}>{b.tradingName || b.legalName}</div>
-                <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: GR, marginTop: 2 }}>
                   {b.status === 'active' ? t('my_businesses.status_active') : b.status}
                 </div>
               </div>

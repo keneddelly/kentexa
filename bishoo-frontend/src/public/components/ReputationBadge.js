@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 const getTiers = (t) => [
   { min:900, name:t('reputation_badge.tier_elite'),    color:'#dc2626', bg:'#fee2e2' },
-  { min:600, name:t('reputation_badge.tier_master'),     color:'#7c3aed', bg:'#ede9fe' },
+  { min:600, name:t('reputation_badge.tier_master'),     color:'#0f1419', bg:'#f7f9f9' },
   { min:300, name:t('reputation_badge.tier_trusted'),color:'#1d4ed8', bg:'#dbeafe' },
   { min:100, name:t('reputation_badge.tier_rising'),    color:'#16a34a', bg:'#dcfce7' },
   { min:0,   name:t('reputation_badge.tier_new'),     color:'#64748b', bg:'#f1f5f9' },
@@ -40,7 +40,7 @@ const ReputationBadge = ({ score = 0, size = 'sm', style = {} }) => {
 
   if (size === 'xs') return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:3,
-      fontSize:11, fontWeight:700, color:tier.color,
+      fontSize:12, fontWeight:700, color:tier.color,
       backgroundColor:tier.bg, padding:'2px 7px', borderRadius:100, ...style }}>
       <Shield color={tier.color} /> {s}
     </span>
@@ -48,7 +48,7 @@ const ReputationBadge = ({ score = 0, size = 'sm', style = {} }) => {
 
   if (size === 'sm') return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:4,
-      fontSize:11, fontWeight:700, color:tier.color,
+      fontSize:12, fontWeight:700, color:tier.color,
       backgroundColor:tier.bg, padding:'3px 9px', borderRadius:100, ...style }}>
       <Shield color={tier.color} /> {tier.name}
     </span>
@@ -60,7 +60,7 @@ const ReputationBadge = ({ score = 0, size = 'sm', style = {} }) => {
       padding:'10px 14px', textAlign:'center', ...style }}>
       <div style={{ display:'flex', justifyContent:'center', marginBottom:4 }}><Shield color={tier.color} size={24} /></div>
       <div style={{ fontSize:18, fontWeight:800, color:tier.color, lineHeight:1 }}>{s}</div>
-      <div style={{ fontSize:10, color:tier.color, fontWeight:700, marginTop:2 }}>{tier.name}</div>
+      <div style={{ fontSize:12, color:tier.color, fontWeight:700, marginTop:2 }}>{tier.name}</div>
     </div>
   );
 };
