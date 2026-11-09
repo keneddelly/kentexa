@@ -130,6 +130,9 @@ export const START_OPTIONS = Object.freeze([
   // Owner 2026-11-02: "a hotel need to open that business will be hard to find". A hotel is a
   // business whose category is food; this opens the same business form with that chosen.
   { key: 'hotel', label: 'Fungua hoteli', note: 'Hoteli au mgahawa: menyu, QR ya meza, jiko', destination: 'BecomeBusiness', params: { category: 'food' }, icon: ICON.order },
+  // Moved here from "+" (owner 2026-11-09: "+" keeps daily jobs only; these are done once).
+  { key: 'business', label: 'Fungua biashara', note: 'Duka, ofisi au huduma yako', destination: 'BecomeBusiness', icon: ICON.store },
+  { key: 'community', label: 'Fungua jumuiya', note: 'Kikundi cha mazungumzo kuhusu mada moja', destination: 'CreateCommunity', icon: ICON.chat },
 ]);
 
 export const ROLE_STATE = Object.freeze({

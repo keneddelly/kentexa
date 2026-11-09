@@ -58,21 +58,18 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
       onClick: () => { onOpenMoment?.('moment'); onClose(); } },
     { key: 'list', icon: ICON.listing, title: t('post_modal.action_listing_title'), sub: 'Uza kitu: picha, bei, mahali',
       onClick: () => { if (isBusiness) { setShowListChoice(true); return; } go('CreateClassified'); } },
-    { key: 'ship', icon: ICON.shipment, title: 'Tuma mzigo', sub: 'Ofisi na mawakala wanakuletea bei', onClick: () => go('SendShipment') },
+    // A business sends from its own shop (KAZI YAKO below), not as a person (owner 2026-11-09).
+    ...(isBusiness ? [] : [{ key: 'ship', icon: ICON.shipment, title: 'Tuma mzigo', sub: 'Ofisi na mawakala wanakuletea bei', onClick: () => go('SendShipment') }]),
     { key: 'service', icon: ICON.service, title: 'Tangaza huduma', sub: 'Fundi, usafi, ushauri na zaidi', onClick: () => go('PostService') },
-    { key: 'business', icon: ICON.business, title: 'Fungua biashara', sub: 'Duka, ofisi au huduma yako kwenye KenteXa', onClick: () => go('BecomeBusiness') },
-    // Social Home part 3 (owner approved 2026-11-02): open a community.
-    { key: 'community', icon: ICON.community, title: 'Fungua jumuiya', sub: 'Kikundi cha mazungumzo kuhusu mada moja', onClick: () => go('CreateCommunity') },
-    // Owner 2026-11-02: a hotel must be easy to find. Same business form, with hotel chosen.
-    { key: 'hotel', icon: ICON.hotel, title: 'Fungua hoteli', sub: 'Hoteli au mgahawa: menyu, QR ya meza, jiko',
-      onClick: () => { onNavigate('BecomeBusiness', { category: 'food' }); onClose(); } },
+    // Owner 2026-11-09: only daily jobs here. Opening a business, a community or a hotel is done
+    // once: they live in Kazi (My Workspace), "Fanya kazi na KenteXa" (workspaceModel START_OPTIONS).
   ];
 
   // Only the jobs of the profile you are acting as.
   const ROLE = {
     business: [
-      { key: 'update', icon: ICON.update, title: t('post_modal.action_update_title'), onClick: () => go('CommerceProfile') },
-      { key: 'sship', icon: ICON.shipment, title: t('post_modal.action_shipment_title'), onClick: () => go('SellerShipment') },
+      // "Tuma Taarifa" is gone: a business update is a Moment now (owner 2026-11-09, no duplicate).
+      { key: 'sship', icon: ICON.shipment, title: 'Tuma mzigo wa duka', onClick: () => go('SellerShipment') },
     ],
     hub: [
       { key: 'receive', icon: ICON.down, title: 'Pokea mzigo ofisini', onClick: () => go('HubReceive') },

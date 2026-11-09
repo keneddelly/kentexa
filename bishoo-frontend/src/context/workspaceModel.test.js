@@ -40,7 +40,7 @@ describe('Kazi workspace model (owner 2026-11-01)', () => {
   });
 
   it('offers to start only roles not held yet; a pending one is held', () => {
-    expect(startOptionsFor([role(1, 'buyer')]).map((o) => o.key)).toEqual(['seller', 'service_provider', 'agent', 'super_agent', 'hotel']);
+    expect(startOptionsFor([role(1, 'buyer')]).map((o) => o.key)).toEqual(['seller', 'service_provider', 'agent', 'super_agent', 'hotel', 'business', 'community']);
     expect(startOptionsFor([role(1, 'buyer'), role(3, 'agent', { status: 'pending' })]).map((o) => o.key)).not.toContain('agent');
   });
 
