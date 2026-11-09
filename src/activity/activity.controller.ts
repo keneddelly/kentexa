@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminMirrorService } from './admin-mirror.service';
 import { ActivityEventService } from './activity-event.service';
 import { ActivityCategory } from './entities/activity-event.entity';
@@ -46,6 +46,26 @@ export class ActivityController {
   @Get('admin/businesses/:businessId')
   business(@Param('businessId', ParseIntPipe) businessId: number) {
     return this.mirror.business(businessId);
+  }
+
+  // Inbox chats between users (owner 2026-11-09: admin reads all chats). Finance cannot open them
+  // (auth/staff-access.ts). Opening one chat is recorded with who opened it.
+  @Get('admin/chats')
+  chats(@Query('q') q?: string, @Query('userId') userId?: string, @Query('before') before?: string, @Query('limit') limit?: string) {
+    const id = (v?: string) => (Number(v) > 0 ? Math.floor(Number(v)) : undefined);
+    return this.mirror.chats({ q, userId: id(userId), before: id(before), limit: id(limit) });
+  }
+
+  @Get('admin/chats/:conversationId')
+  async chat(@Param('conversationId', ParseIntPipe) conversationId: number, @Request() req) {
+    const result = await this.mirror.chat(conversationId);
+    await this.activityEvents.record({
+      eventType: 'ADMIN_CHAT_VIEWED', category: ActivityCategory.SECURITY, actorId: req.user?.id ?? null, actorType: 'staff',
+      targetType: 'conversation', targetId: conversationId, relatedUserId: result.conversation.sellerId ?? null,
+      metadata: { customerUserId: result.conversation.customerUserId ?? null, role: req.roleContext?.roleType ?? null },
+      severity: 'info', visibility: 'admin',
+    });
+    return result;
   }
 
   @Get('admin/recent')

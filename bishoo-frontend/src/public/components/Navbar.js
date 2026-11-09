@@ -4,6 +4,7 @@ import { useCart } from '../../context/CartContext';
 import { navigationForRole } from '../../navigation/navigationRegistry';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from '../../utils/supportedLanguages';
 import { isAppleMobile } from '../utils/isAppleMobile';
+import LineIcon from './LineIcon';
 
 const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,27 +37,27 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
 
   const getMenuItems = () => {
     const common = [
-      { label: '🏠 Home',        page: 'Home' },
-      { label: '🏪 Stores',      page: 'Stores' },
-      { label: '📋 Classifieds', page: 'ClassifiedsPublic' },
+      { label: 'Home',        page: 'Home' },
+      { label: 'Stores',      page: 'Stores' },
+      { label: 'Classifieds', page: 'ClassifiedsPublic' },
     ];
     if (!isLoggedIn) {
       return [...common,
-        { label: '🔐 Login',    page: 'PublicLogin' },
-        { label: '✨ Register', page: 'Register' },
+        { label: 'Login',    page: 'PublicLogin' },
+        { label: 'Register', page: 'Register' },
       ];
     }
     const loggedIn = [
-      { label: '🛒 My Orders', page: 'MyOrders' },
-      { label: '👤 Profile',   page: 'CustomerProfile' },
+      { label: 'My Orders', page: 'MyOrders' },
+      { label: 'Profile',   page: 'CustomerProfile' },
     ];
     const roleNavigation = navigationForRole(userRole);
     if (roleNavigation.home !== 'Home')
-      loggedIn.push({ label: '📊 Current role dashboard', page: roleNavigation.home });
+      loggedIn.push({ label: 'Current role dashboard', page: roleNavigation.home });
     if (userRole === 'buyer' || !userRole) {
-      loggedIn.push({ label: '🏪 Become a Seller',      page: 'BecomeSeller' });
-      loggedIn.push({ label: '🤝 Become an Agent',      page: 'BecomeAgent' });
-      loggedIn.push({ label: '🏢 Fungua ofisi', page: 'BecomeSuperAgentInfo' });
+      loggedIn.push({ label: 'Become a Seller',      page: 'BecomeSeller' });
+      loggedIn.push({ label: 'Become an Agent',      page: 'BecomeAgent' });
+      loggedIn.push({ label: 'Fungua ofisi', page: 'BecomeSuperAgentInfo' });
     }
     return [...common, ...loggedIn];
   };
@@ -100,7 +101,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
         .kx-lang-btn {
           background: #1e293b; border: none; cursor: pointer;
           padding: 5px 9px; border-radius: 8px;
-          color: #e2e8f0; font-size: 11px; font-weight: 700;
+          color: #e2e8f0; font-size: 12px; font-weight: 700;
           display: flex; align-items: center; gap: 4px;
           white-space: nowrap;
         }
@@ -118,7 +119,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
           text-align: left; display: flex; align-items: center; gap: 8px;
         }
         .kx-lang-opt:hover { background: #334155; }
-        .kx-lang-opt.active { color: #60a5fa; background: rgba(29,78,216,0.2); }
+        .kx-lang-opt.active { color: #bfdbfe; background: rgba(29,78,216,0.2); }
       `}</style>
 
       <div className="kx-nav-root">
@@ -129,21 +130,21 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             <div style={{ width: 34, height: 34, backgroundColor: '#1d4ed8', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(29,78,216,0.5)', flexShrink: 0 }}>
               <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
                 <path d="M2 2 L7 8 L11 5 L11 20 L5 14 Z" fill="white"/>
-                <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#60a5fa"/>
+                <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#bfdbfe"/>
                 <circle cx="7.5" cy="9.5" r="1" fill="#0f172a"/>
                 <circle cx="14.5" cy="9.5" r="1" fill="#0f172a"/>
               </svg>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, lineHeight: 1 }}>
               <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-              <span style={{ fontSize: 18, fontWeight: 900, color: '#3b82f6', letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
             </div>
           </div>
 
           {/* Search */}
           <div className="kx-search">
             <div className="kx-search-inner">
-              <span style={{ fontSize: 12, color: '#475569' }}>🔍</span>
+              <span style={{ fontSize: 12, color: '#475569' }}><LineIcon name="search" size={16} /></span>
               <input className="kx-search-input" type="text" placeholder="Search..."
                 style={isAppleMobile() ? { fontSize: 16 } : undefined}
                 value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
@@ -156,9 +157,9 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
 
             {/* Cart */}
             <button onClick={() => onNavigate('Cart')} style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: '#94a3b8', fontSize: 20, lineHeight: 1 }}>
-              🛒
+              <LineIcon name="cart" size={20} />
               {cartCount > 0 && (
-                <span style={{ position: 'absolute', top: 0, right: 0, backgroundColor: '#ef4444', color: '#fff', borderRadius: '50%', width: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight:800 }}>
+                <span style={{ position: 'absolute', top: 0, right: 0, backgroundColor: '#dc2626', color: '#fff', borderRadius: '50%', width: 15, height: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight:800 }}>
                   {cartCount}
                 </span>
               )}
@@ -167,7 +168,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             {/* Language dropdown */}
             <div className="kx-lang-wrap">
               <button className="kx-lang-btn" onClick={() => setLangOpen(o => !o)}>
-                {currentLang.flag} {currentLang.short} <span style={{ fontSize: 9 }}>▾</span>
+                {currentLang.short} <span style={{ fontSize: 12 }}>▾</span>
               </button>
               {langOpen && (
                 <>
@@ -176,8 +177,8 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
                     {languages.map(lang => (
                       <button key={lang.code} className={`kx-lang-opt${i18n.language === lang.code ? ' active' : ''}`}
                         onClick={() => changeLanguage(lang.code)}>
-                        {lang.flag} {lang.short}
-                        {i18n.language === lang.code && <span style={{ marginLeft: 'auto', fontSize: 11 }}>✓</span>}
+                        {lang.short}
+                        {i18n.language === lang.code && <span style={{ marginLeft: 'auto', fontSize: 12 }}><LineIcon name="check" size={16} /></span>}
                       </button>
                     ))}
                   </div>
@@ -188,7 +189,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             {/* Hamburger */}
             <button onClick={() => setMenuOpen(!menuOpen)}
               style={{ background: menuOpen ? '#1d4ed8' : '#1e293b', border: 'none', cursor: 'pointer', padding: '7px 9px', borderRadius: 8, color: '#fff', fontSize: 15, lineHeight: 1 }}>
-              {menuOpen ? '✕' : '☰'}
+              {menuOpen ? '✕' : '≡'}
             </button>
           </div>
         </nav>
@@ -215,8 +216,8 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             ))}
             {isLoggedIn && (
               <button onClick={() => { onLogout(); setMenuOpen(false); }}
-                style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', padding: '12px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700, textAlign: 'left', marginTop: 6 }}>
-                🚪 Logout
+                style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.2)', padding: '12px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700, textAlign: 'left', marginTop: 6 }}>
+                Logout
               </button>
             )}
           </div>

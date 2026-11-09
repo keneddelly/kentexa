@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 /**
  * The office dashboard's shell (approved mockup "KenteXa Super Agent Dashboard",
  * owner 2026-10-11: "two jobs only, POKEA and TUMA; everything else in the menu").
- * Plain words, KenteXa colours, no emoji: POKEA blue #1d4ed8, TUMA orange #f97316,
+ * Plain words, KenteXa colours, no emoji: POKEA blue #1d4ed8, TUMA orange #d97706,
  * text #0f172a. The forms behind each button are the dashboard's existing ones.
  */
-export const OFFICE_COLORS = { pokea: '#1d4ed8', tuma: '#f97316', ink: '#0f172a', grey: '#475569', line: '#cbd5e1', paper: '#f8fafc' };
+export const OFFICE_COLORS = { pokea: '#1d4ed8', tuma: '#d97706', ink: '#0f172a', grey: '#475569', line: '#cbd5e1', paper: '#f8fafc' };
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
 const Icon = ({ d, color = OFFICE_COLORS.ink, size = 22, width = 2 }) => (
@@ -67,7 +67,7 @@ export function OfficeHome({ officeName, city, pokeaCount, tumaCount, today, onP
         <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
           <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 56, fontWeight: 800, lineHeight: 1 }}>TUMA</span>
-            <span style={{ fontSize: 16, fontWeight: 500, color: '#431407' }}>Mzigo unatoka ofisini</span>
+            <span style={{ fontSize: 16, fontWeight: 500, color: '#92400e' }}>Mzigo unatoka ofisini</span>
           </span>
           <Icon d="M12 20V6M6 12l6-6 6 6" size={36} width={2.2} />
         </span>
@@ -91,7 +91,7 @@ export function OfficeHome({ officeName, city, pokeaCount, tumaCount, today, onP
 export function OfficeScreenHeader({ title, count, kind, onBack, backLabel = 'Mwanzo' }) {
   const bg = kind === 'pokea' ? OFFICE_COLORS.pokea : kind === 'tuma' ? OFFICE_COLORS.tuma : '#ffffff';
   const fg = kind === 'pokea' ? '#ffffff' : OFFICE_COLORS.ink;
-  const soft = kind === 'pokea' ? '#dbeafe' : kind === 'tuma' ? '#431407' : OFFICE_COLORS.grey;
+  const soft = kind === 'pokea' ? '#dbeafe' : kind === 'tuma' ? '#92400e' : OFFICE_COLORS.grey;
   return (
     <div data-testid="office-screen-header" style={{ background: bg, color: fg, padding: '12px 16px 18px', borderBottom: kind ? 0 : '1px solid #e2e8f0', fontFamily: FONT }}>
       <div style={{ maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 6 }}>

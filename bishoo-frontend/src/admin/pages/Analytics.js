@@ -7,14 +7,14 @@ import api from '../../api/api';
  * Shows real-time user behavior, sessions, events, devices, locations
  */
 
-const COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
+const COLORS = ['#0f1419','#f59e0b','#16a34a','#dc2626','#0f1419','#1d4ed8','#d97706','#0f1419'];
 
-const StatCard = ({ icon, label, value, sub, color = '#6366f1' }) => (
+const StatCard = ({ icon, label, value, sub, color = '#0f1419' }) => (
   <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: '18px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', borderTop: `3px solid ${color}` }}>
     <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
     <div style={{ fontSize: 26, fontWeight:800, color: '#0f172a' }}>{value}</div>
     <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{label}</div>
-    {sub && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{sub}</div>}
+    {sub && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>{sub}</div>}
   </div>
 );
 
@@ -30,7 +30,7 @@ const MiniBar = ({ data, valueKey, labelKey, colors }) => {
             <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{Number(item[valueKey]).toLocaleString()}</span>
           </div>
           <div style={{ height: 6, backgroundColor: '#f1f5f9', borderRadius: 3 }}>
-            <div style={{ height: '100%', width: `${(Number(item[valueKey]) / max) * 100}%`, backgroundColor: colors?.[i % colors.length] || '#6366f1', borderRadius: 3, transition: 'width 0.6s ease' }} />
+            <div style={{ height: '100%', width: `${(Number(item[valueKey]) / max) * 100}%`, backgroundColor: colors?.[i % colors.length] || '#0f1419', borderRadius: 3, transition: 'width 0.6s ease' }} />
           </div>
         </div>
       ))}
@@ -101,7 +101,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
             {[1, 7, 14, 30].map(d => (
               <button key={d} onClick={() => setDays(d)}
                 style={{ padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                  backgroundColor: days === d ? '#6366f1' : '#fff', color: days === d ? '#fff' : '#64748b',
+                  backgroundColor: days === d ? '#0f1419' : '#fff', color: days === d ? '#fff' : '#64748b',
                   boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
                 {d === 1 ? 'Leo' : `Siku ${d}`}
               </button>
@@ -131,12 +131,12 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
           <>
             {/* Summary cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 14, marginBottom: 28 }}>
-              <StatCard icon="" label="Sessions" value={stats.summary.totalSessions.toLocaleString()} color="#6366f1" />
+              <StatCard icon="" label="Sessions" value={stats.summary.totalSessions.toLocaleString()} color="#0f1419" />
               <StatCard icon="" label="Matukio" value={stats.summary.totalEvents.toLocaleString()} color="#f59e0b" />
-              <StatCard icon="" label="Page Views" value={stats.summary.totalPageViews.toLocaleString()} color="#06b6d4" />
-              <StatCard icon="" label="Waliponunua" value={stats.summary.conversions.toLocaleString()} sub={`${stats.summary.conversionRate}% conversion`} color="#10b981" />
+              <StatCard icon="" label="Page Views" value={stats.summary.totalPageViews.toLocaleString()} color="#1d4ed8" />
+              <StatCard icon="" label="Waliponunua" value={stats.summary.conversions.toLocaleString()} sub={`${stats.summary.conversionRate}% conversion`} color="#16a34a" />
               <StatCard icon="" label="Wanaotumia Sasa" value={stats.summary.activeSessions} color="#16a34a" />
-              <StatCard icon="" label="Events/Session" value={stats.summary.avgEventsPerSession} color="#8b5cf6" />
+              <StatCard icon="" label="Events/Session" value={stats.summary.avgEventsPerSession} color="#0f1419" />
             </div>
 
             {/* Main grid */}
@@ -157,7 +157,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
               {/* Top searches */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Utafutaji Mkubwa</div>
-                <MiniBar data={stats.topSearches} valueKey="count" labelKey="term" colors={['#8b5cf6','#a78bfa','#c4b5fd']} />
+                <MiniBar data={stats.topSearches} valueKey="count" labelKey="term" colors={['#0f1419','#536471','#536471']} />
               </div>
             </div>
 
@@ -186,13 +186,13 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
               {/* Traffic sources */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Chanzo cha Trafiki</div>
-                <MiniBar data={stats.sources} valueKey="count" labelKey="source" colors={['#10b981','#34d399','#6ee7b7']} />
+                <MiniBar data={stats.sources} valueKey="count" labelKey="source" colors={['#16a34a','#16a34a','#6ee7b7']} />
               </div>
 
               {/* Cities */}
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>Miji</div>
-                <MiniBar data={stats.cities} valueKey="count" labelKey="city" colors={['#ef4444','#f87171','#fca5a5']} />
+                <MiniBar data={stats.cities} valueKey="count" labelKey="city" colors={['#dc2626','#dc2626','#fca5a5']} />
               </div>
             </div>
 
@@ -205,9 +205,9 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                   const max  = Math.max(...data.map(d => Number(d.sessions || 0)), 1);
                   return data.map((d, i) => (
                     <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 9, color: '#94a3b8' }}>{Number(d.sessions)}</span>
-                      <div style={{ width: '100%', backgroundColor: '#6366f1', borderRadius: '3px 3px 0 0', height: `${(Number(d.sessions) / max) * 60}px`, minHeight: 2 }} />
-                      <span style={{ fontSize: 9, color: '#94a3b8', transform: 'rotate(-30deg)', transformOrigin: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#94a3b8' }}>{Number(d.sessions)}</span>
+                      <div style={{ width: '100%', backgroundColor: '#0f1419', borderRadius: '3px 3px 0 0', height: `${(Number(d.sessions) / max) * 60}px`, minHeight: 2 }} />
+                      <span style={{ fontSize: 12, color: '#94a3b8', transform: 'rotate(-30deg)', transformOrigin: 'center' }}>
                         {d.date ? new Date(d.date).toLocaleDateString('sw-TZ', { day: 'numeric', month: 'short' }) : ''}
                       </span>
                     </div>
@@ -237,10 +237,10 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                     Matukio ya Mwisho
-                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 400, marginLeft: 6 }}>inasasishwa kila sekunde 15</span>
+                    <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400, marginLeft: 6 }}>inasasishwa kila sekunde 15</span>
                   </div>
                   <button onClick={fetchLive}
-                    style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer', color: '#64748b' }}>
+                    style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer', color: '#64748b' }}>
             Onyesha upya
                   </button>
                 </div>
@@ -253,12 +253,12 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                           {e.eventType?.replace(/_/g, ' ')}
                           {e.eventLabel && <span style={{ color: '#94a3b8', fontWeight: 400 }}> — {e.eventLabel?.slice(0,40)}</span>}
                         </div>
-                        <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>
                           {e.page || '—'}
-                          {e.userId && <span style={{ marginLeft: 6, color: '#6366f1' }}>#{e.userId}</span>}
+                          {e.userId && <span style={{ marginLeft: 6, color: '#0f1419' }}>#{e.userId}</span>}
                         </div>
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, color: '#94a3b8', flexShrink: 0 }}>
                         {e.createdAt ? new Date(e.createdAt).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
                       </div>
                     </div>
@@ -275,7 +275,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc' }}>
                       {['Session', 'Mtumiaji', 'Kifaa', 'Kivinjari', 'Chanzo', 'Ukurasa', 'Matukio', 'Mabadiliko', 'Wakati'].map(h => (
-                        <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -283,7 +283,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                     {(stats.recentSessions || []).map((s, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #f8fafc', cursor: 'pointer' }}
                         onClick={() => window.open(`/admin/session/${s.sessionId}`, '_blank')}>
-                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#6366f1' }}>{s.sessionId?.slice(0,12)}...</td>
+                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#0f1419' }}>{s.sessionId?.slice(0,12)}...</td>
                         <td style={{ padding: '8px 12px', color: '#475569' }}>{s.userId ? `#${s.userId}` : '—'}</td>
                         <td style={{ padding: '8px 12px' }}>
                           {s.device === 'mobile' ? '' : s.device === 'tablet' ? '' : ''} {s.device || 'desktop'}

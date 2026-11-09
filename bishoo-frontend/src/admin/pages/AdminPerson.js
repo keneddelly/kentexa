@@ -4,6 +4,7 @@
  * every recorded action by or about them. GET /activity/admin/people/:userId. Read-only.
  */
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import ActivityList from '../components/ActivityList';
 import api from '../../api/api';
@@ -11,6 +12,14 @@ import api from '../../api/api';
 const card = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 16 };
 const tzs = (v) => `TZS ${Number(v || 0).toLocaleString('en-US')}`;
 const day = (d) => (d ? new Date(d).toLocaleDateString('sw-TZ') : '—');
+// Phone in international digits for WhatsApp (07xx -> 2557xx).
+export const waNumber = (phone) => {
+  const d = String(phone || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('0')) return `255${d.slice(1)}`;
+  return d;
+};
+const contactBtn = { display: 'inline-flex', alignItems: 'center', height: 36, padding: '0 16px', borderRadius: 18, border: '1px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: 14, fontWeight: 700, textDecoration: 'none', cursor: 'pointer', fontFamily: 'inherit' };
 const ID_LABEL = { verified: 'Kimeangaliwa', pending: 'Kimetumwa, kinasubiri', rejected: 'Kimekataliwa', not_submitted: 'Hakijatumwa' };
 
 export default function AdminPerson({ userId, activePage, onNavigate, onLogout }) {
@@ -38,6 +47,18 @@ export default function AdminPerson({ userId, activePage, onNavigate, onLogout }
                 {(data.roles || []).map((r) => (
                   <span key={r.id} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 12, background: r.status === 'active' ? '#dcfce7' : '#f1f5f9', color: '#0f172a' }}>{r.roleType} · {r.status}</span>
                 ))}
+              </div>
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }} data-testid="person-contact">
+                <SendMessageButton testId="person-message" userId={u.id} name={u.name || u.phone || `#${u.id}`} />
+                {u.phone && (
+                  <>
+                    <a href={`tel:${u.phone}`} style={contactBtn}>Piga</a>
+                    <a href={`https://wa.me/${waNumber(u.phone)}`} target="_blank" rel="noreferrer" style={contactBtn}>WhatsApp</a>
+                    <a href={`sms:${u.phone}`} style={contactBtn}>SMS ya simu yako</a>
+                  </>
+                )}
+                {u.email && <a href={`mailto:${u.email}`} style={contactBtn}>Barua pepe</a>}
+                <button type="button" data-testid="person-chats" onClick={() => onNavigate('AdminChats', { userId: u.id })} style={contactBtn}>Mazungumzo yake</button>
               </div>
               <div style={{ marginTop: 8, fontSize: 14 }}>Kitambulisho: <b>{ID_LABEL[data.identity?.status] || 'Hakijatumwa'}</b>{data.identity?.reviewedAt ? ` (${day(data.identity.reviewedAt)})` : ''}</div>
             </section>

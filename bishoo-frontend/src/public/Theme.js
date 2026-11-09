@@ -1,21 +1,21 @@
 export const theme = {
   // ===== BRAND COLORS =====
   primary: '#2563eb',       // Kentexa Blue
-  primaryLight: '#60a5fa',
+  primaryLight: '#bfdbfe',
   primaryDark: '#1d4ed8',
 
   // ===== ACTION COLORS =====
-  accent: '#f97316',        // Orange for CTA buttons
-  accentLight: '#fb923c',
+  accent: '#d97706',        // Orange for CTA buttons
+  accentLight: '#d97706',
 
-  success: '#10b981',
+  success: '#16a34a',
   warning: '#f59e0b',
-  danger: '#ef4444',
+  danger: '#dc2626',
 
   // ===== EXTRA COLORS =====
-  purple: '#7c3aed',
-  pink: '#db2777',
-  cyan: '#06b6d4',
+  purple: '#0f1419',
+  pink: '#0f1419',
+  cyan: '#1d4ed8',
 
   // ===== BACKGROUNDS =====
   white: '#ffffff',
@@ -37,16 +37,16 @@ export const theme = {
 
   // ===== GRADIENTS =====
   heroGradient:
-    'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
+    'linear-gradient(135deg, #2563eb 0%, #0f1419 100%)',
 
   successGradient:
-    'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+    'linear-gradient(135deg, #16a34a 0%, #16a34a 100%)',
 
   warningGradient:
     'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
 
   dangerGradient:
-    'linear-gradient(135deg, #ef4444 0%, #f87171 100%)',
+    'linear-gradient(135deg, #dc2626 0%, #dc2626 100%)',
 
   cardGradient:
     'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',

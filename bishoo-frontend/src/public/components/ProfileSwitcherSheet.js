@@ -21,6 +21,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
 import { isAppleMobile } from '../utils/isAppleMobile';
+import LineIcon from './LineIcon';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -28,12 +29,12 @@ const GR = '#64748B';
 const WH = '#FFFFFF';
 
 const TYPE_META = {
-  personal:           { icon: '👤', label: 'profile_switcher.type_personal' },
-  business:           { icon: '🏪', label: 'profile_switcher.type_business' },
-  hub:                { icon: '🏢', label: 'profile_switcher.type_hub' },
-  transport_provider: { icon: '🚌', label: 'profile_switcher.type_transport' },
-  agent:              { icon: '🏍️', label: 'profile_switcher.type_agent' },
-  service_provider:   { icon: '🔧', label: 'profile_switcher.type_service' },
+  personal:           { icon: 'person', label: 'profile_switcher.type_personal' },
+  business:           { icon: 'store', label: 'profile_switcher.type_business' },
+  hub:                { icon: 'office', label: 'profile_switcher.type_hub' },
+  transport_provider: { icon: 'bus', label: 'profile_switcher.type_transport' },
+  agent:              { icon: 'moto', label: 'profile_switcher.type_agent' },
+  service_provider:   { icon: 'wrench', label: 'profile_switcher.type_service' },
 };
 
 // Capability-domain label for a role grouped under a Business — deliberately
@@ -53,7 +54,7 @@ const ProfileRow = ({ profile, isActive, disabled, onClick, label, icon, transla
       alignItems:'center', justifyContent:'center', fontSize:19 }}>
       {profile?.photoUrl
         ? <img src={profile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-        : icon}
+        : <LineIcon name={icon} size={20} color="#536471" />}
     </div>
     <div style={{ flex:1, minWidth:0 }}>
       <div style={{ fontSize:13, fontWeight:800, color:DK,
@@ -61,10 +62,10 @@ const ProfileRow = ({ profile, isActive, disabled, onClick, label, icon, transla
         {label}
       </div>
       {profile?.status && profile.status !== 'active' && (
-        <div style={{ fontSize:10, color:GR, marginTop:1 }}>{profile.status}</div>
+        <div style={{ fontSize:12, color:GR, marginTop:1 }}>{profile.status}</div>
       )}
     </div>
-    {isActive && <span style={{ fontSize:11, fontWeight:800, color:B }}>{translatedActiveLabel}</span>}
+    {isActive && <span style={{ fontSize:12, fontWeight:800, color:B }}>{translatedActiveLabel}</span>}
   </button>
 );
 
@@ -102,7 +103,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           WebkitOverflowScrolling:appleMobile ? 'touch' : undefined,
           overscrollBehavior:appleMobile ? 'contain' : undefined, padding:'8px 16px 16px' }}>
           {error && <div role="alert" style={{ margin:'4px 0 10px', padding:'9px 10px', borderRadius:10,
-            backgroundColor:'#FEE2E2', color:'#B91C1C', fontSize:11, fontWeight:700 }}>{error}</div>}
+            backgroundColor:'#FEE2E2', color:'#B91C1C', fontSize:12, fontWeight:700 }}>{error}</div>}
 
           {personal && (
             <ProfileRow profile={personal} isActive={isActive(personal)} disabled={rowDisabled(personal)}
@@ -112,7 +113,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           )}
 
           {businesses.length > 0 && (
-            <div style={{ fontSize:10, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
+            <div style={{ fontSize:12, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
               {t('profile_switcher.my_businesses_header')}
             </div>
           )}
@@ -121,7 +122,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
               <button onClick={() => onOpenBusiness?.(group.businessId)}
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'6px 10px',
                   border:'none', background:'none', cursor:'pointer', textAlign:'left' }}>
-                <span style={{ fontSize:14 }}>🏢</span>
+                <span style={{ fontSize:14 }}><LineIcon name="office" size={16} /></span>
                 <span style={{ fontSize:13, fontWeight:800, color:DK,
                   minWidth:appleMobile ? 0 : undefined, overflow:appleMobile ? 'hidden' : undefined,
                   textOverflow:appleMobile ? 'ellipsis' : undefined,
@@ -142,7 +143,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           ))}
 
           {other.length > 0 && (
-            <div style={{ fontSize:10, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
+            <div style={{ fontSize:12, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
               {t('profile_switcher.other_roles_header')}
             </div>
           )}

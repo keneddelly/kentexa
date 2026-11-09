@@ -166,13 +166,13 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
           style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
         <div>
           <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>Maeneo ya Utoaji — Dar es Salaam</div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>Simamia maeneo ya batch delivery van</div>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>Simamia maeneo ya batch delivery van</div>
         </div>
       </div>
 
       {/* Flash messages */}
       {message && (
-        <div style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '12px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
+        <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
           {message}
         </div>
       )}
@@ -195,7 +195,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
               {[...zones].sort((a,b) => a.routeOrder - b.routeOrder).map(zone => (
                 <React.Fragment key={zone.id}>
                   <span style={{ color: '#94a3b8' }}>→</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', backgroundColor: zone.isActive ? '#ede9fe' : '#f1f5f9', color: zone.isActive ? '#7c3aed' : '#94a3b8', borderRadius: 20 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', backgroundColor: zone.isActive ? '#f7f9f9' : '#f1f5f9', color: zone.isActive ? '#0f1419' : '#94a3b8', borderRadius: 20 }}>
                     {zone.name} (+{zone.etaMinutesFromDeparture}min)
                   </span>
                 </React.Fragment>
@@ -212,7 +212,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
           </button>
           {zones.length === 0 && (
             <button onClick={handleSeedAll} disabled={seeding}
-              style={{ background: seeding ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: seeding ? '#94a3b8' : '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: seeding ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13 }}>
+              style={{ background: seeding ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#16a34a)', color: seeding ? '#94a3b8' : '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: seeding ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13 }}>
               {seeding ? 'Inaunda...' : 'Unda Maeneo 3 Yote (Mbagala → Mbezi → Bunju)'}
             </button>
           )}
@@ -233,7 +233,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 <div key={zone.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 10 }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{zone.name}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8' }}>
                       Route #{zone.routeOrder} · ETA +{zone.etaMinutesFromDeparture} dakika · {zone.addressKeywords.join(', ')}
                     </div>
                   </div>
@@ -262,9 +262,9 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 20, fontWeight:800, color: '#7c3aed' }}>#{zone.routeOrder}</span>
+                      <span style={{ fontSize: 20, fontWeight:800, color: '#0f1419' }}>#{zone.routeOrder}</span>
                       <span style={{ fontSize: 16, fontWeight:800, color: '#1e293b' }}>{zone.name}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: zone.isActive ? '#dcfce7' : '#fee2e2', color: zone.isActive ? '#16a34a' : '#dc2626' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: zone.isActive ? '#dcfce7' : '#fee2e2', color: zone.isActive ? '#16a34a' : '#dc2626' }}>
                         {zone.isActive ? 'Hai' : 'Imezimwa'}
                       </span>
                     </div>
@@ -276,7 +276,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                       </div>
                     )}
                     {!zone.zoneAgent && (
-                      <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600, marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600, marginTop: 2 }}>
                         Hakuna agent aliyepangiwa — hariri na weka agent
                       </div>
                     )}
@@ -290,9 +290,9 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 {/* Keywords */}
                 {zone.addressKeywords?.length > 0 && (
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
-                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, alignSelf: 'center' }}>Maneno:</span>
+                    <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, alignSelf: 'center' }}>Maneno:</span>
                     {zone.addressKeywords.map(kw => (
-                      <span key={kw} style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: 20 }}>
+                      <span key={kw} style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', backgroundColor: '#f1f5f9', color: '#475569', borderRadius: 20 }}>
                         {kw}
                       </span>
                     ))}
@@ -324,13 +324,13 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 <label style={labelStyle}>Nambari ya Route *</label>
                 <input type="number" placeholder="1" value={form.routeOrder}
                   onChange={e => setForm({...form, routeOrder: e.target.value})} style={inputStyle} />
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>Mbagala=1, Mbezi=2, Bunju=3</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>Mbagala=1, Mbezi=2, Bunju=3</div>
               </div>
               <div>
                 <label style={labelStyle}>ETA (dakika) *</label>
                 <input type="number" placeholder="45" value={form.etaMinutesFromDeparture}
                   onChange={e => setForm({...form, etaMinutesFromDeparture: e.target.value})} style={inputStyle} />
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>Baada ya kuondoka Kariakoo</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>Baada ya kuondoka Kariakoo</div>
               </div>
             </div>
 
@@ -349,7 +349,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 rows={3}
                 style={{ ...inputStyle, resize: 'none' }}
               />
-              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 3 }}>
                 Mfumo utatumia maneno haya kutambua anwani za wanunuzi wanaopaswa kupelekwa eneo hili
               </div>
             </div>
@@ -366,7 +366,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 ))}
               </select>
               {agents.length === 0 && (
-                <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 4 }}>
                   Hakuna ofisi zilizosajiliwa bado. Unaweza kuongeza baadaye.
                 </div>
               )}

@@ -9,17 +9,18 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
 import api      from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const fmt  = n => Number(n||0).toLocaleString();
 const pct  = (a, b) => b > 0 ? Math.round((a/b)*100) : 0;
 
 // Tier definitions
 const getTiers = (t) => [
-  { name: t('agent_scorecard.tier_new'),     min: 0,   color: '#94a3b8', bg: '#f1f5f9',  icon: '🌱', next: 10  },
-  { name: t('agent_scorecard.tier_regular'), min: 10,  color: '#16a34a', bg: '#dcfce7',  icon: '⭐', next: 50  },
-  { name: t('agent_scorecard.tier_good'),   min: 50,  color: '#1d4ed8', bg: '#dbeafe',  icon: '🌟', next: 150 },
-  { name: t('agent_scorecard.tier_excellent'),    min: 150, color: '#7c3aed', bg: '#ede9fe',  icon: '💎', next: 500 },
-  { name: t('agent_scorecard.tier_master'),    min: 500, color: '#dc2626', bg: '#fee2e2',  icon: '🏆', next: null },
+  { name: t('agent_scorecard.tier_new'),     min: 0,   color: '#94a3b8', bg: '#f1f5f9',  icon: 'sprout', next: 10  },
+  { name: t('agent_scorecard.tier_regular'), min: 10,  color: '#16a34a', bg: '#dcfce7',  icon: 'star', next: 50  },
+  { name: t('agent_scorecard.tier_good'),   min: 50,  color: '#1d4ed8', bg: '#dbeafe',  icon: 'star', next: 150 },
+  { name: t('agent_scorecard.tier_excellent'),    min: 150, color: '#0f1419', bg: '#f7f9f9',  icon: 'gem', next: 500 },
+  { name: t('agent_scorecard.tier_master'),    min: 500, color: '#dc2626', bg: '#fee2e2',  icon: 'trophy', next: null },
 ];
 
 const getTier = (deliveries, tiers) => {
@@ -45,7 +46,7 @@ const AgentScorecard = ({ onNavigate }) => {
       <BackBar onBack={() => onNavigate('AgentDashboard')} title={t('agent_scorecard.page_title')} top={0} />
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
         <div style={{ textAlign:'center', color:'#94a3b8' }}>
-          <div style={{ fontSize:40, marginBottom:12 }}>🏍️</div>
+          <div style={{ fontSize:40, marginBottom:12 }}><LineIcon name="moto" size={40} /></div>
           <div>{t('agent_scorecard.loading')}</div>
         </div>
       </div>
@@ -57,7 +58,7 @@ const AgentScorecard = ({ onNavigate }) => {
       <BackBar onBack={() => onNavigate('AgentDashboard')} title={t('agent_scorecard.page_title')} top={0} />
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
         <div style={{ textAlign:'center' }}>
-          <div style={{ fontSize:64, marginBottom:16 }}>🏍️</div>
+          <div style={{ fontSize:64, marginBottom:16 }}><LineIcon name="moto" size={40} /></div>
           <div style={{ fontSize:18, fontWeight:800, color:'#1e293b', marginBottom:8 }}>
             {t('agent_scorecard.not_registered_title')}
           </div>
@@ -92,10 +93,10 @@ const AgentScorecard = ({ onNavigate }) => {
   };
 
   const statCards = [
-    { icon:'📦', label:t('agent_scorecard.stat_delivered'),    value: fmt(deliveries),     color:'#1d4ed8', bg:'#eff6ff' },
-    { icon:'⭐', label:t('agent_scorecard.stat_rating'),       value: `${Number(profile.rating||0).toFixed(1)}/5.0`, color:'#d97706', bg:'#fef3c7' },
-    { icon:'✅', label:t('agent_scorecard.stat_completion_rate'), value:`${completionRate}%`, color:'#16a34a', bg:'#dcfce7' },
-    { icon:'💳', label:t('agent_scorecard.stat_payments_processed'), value: fmt(profile.totalPaymentsProcessed||0), color:'#7c3aed', bg:'#ede9fe' },
+    { icon:'box', label:t('agent_scorecard.stat_delivered'),    value: fmt(deliveries),     color:'#1d4ed8', bg:'#eff6ff' },
+    { icon:'star', label:t('agent_scorecard.stat_rating'),       value: `${Number(profile.rating||0).toFixed(1)}/5.0`, color:'#d97706', bg:'#fef3c7' },
+    { icon:'check', label:t('agent_scorecard.stat_completion_rate'), value:`${completionRate}%`, color:'#16a34a', bg:'#dcfce7' },
+    { icon:'card', label:t('agent_scorecard.stat_payments_processed'), value: fmt(profile.totalPaymentsProcessed||0), color:'#0f1419', bg:'#f7f9f9' },
   ];
 
   return (
@@ -115,7 +116,7 @@ const AgentScorecard = ({ onNavigate }) => {
                 {t('agent_scorecard.your_tier_label')}
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-                <span style={{ fontSize:36 }}>{tier.icon}</span>
+                <span style={{ display:'inline-flex' }}><LineIcon name={tier.icon} size={36} /></span>
                 <div>
                   <div style={{ fontSize:26, fontWeight:800 }}>{t('agent_scorecard.agent_prefix', { tier: tier.name })}</div>
                   <div style={{ fontSize:12, color:'rgba(255,255,255,0.6)' }}>
@@ -128,7 +129,7 @@ const AgentScorecard = ({ onNavigate }) => {
               <div style={{ fontSize:32, fontWeight:800 }}>
                 TZS {fmt(earnings.total)}
               </div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)' }}>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.6)' }}>
                 {t('agent_scorecard.total_earnings_label')}
               </div>
             </div>
@@ -138,16 +139,16 @@ const AgentScorecard = ({ onNavigate }) => {
           {nextTier && (
             <div style={{ marginTop:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between',
-                fontSize:11, color:'rgba(255,255,255,0.6)', marginBottom:6 }}>
-                <span>{tier.icon} {tier.name}</span>
-                <span>{t('agent_scorecard.more_to_go', { count: toNextTier })} {nextTier.icon} {nextTier.name}</span>
+                fontSize:12, color:'rgba(255,255,255,0.6)', marginBottom:6 }}>
+                <span>{tier.name}</span>
+                <span>{t('agent_scorecard.more_to_go', { count: toNextTier })} {nextTier.name}</span>
               </div>
               <div style={{ height:8, backgroundColor:'rgba(255,255,255,0.2)', borderRadius:100 }}>
                 <div style={{ height:'100%', borderRadius:100,
-                  background:'linear-gradient(90deg,#60a5fa,#a78bfa)',
+                  background:'linear-gradient(90deg,#bfdbfe,#536471)',
                   width:`${tierProgress}%`, transition:'width 0.6s' }} />
               </div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,0.5)', marginTop:4 }}>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.5)', marginTop:4 }}>
                 {t('agent_scorecard.progress_hint', { count: toNextTier })}
               </div>
             </div>
@@ -164,7 +165,7 @@ const AgentScorecard = ({ onNavigate }) => {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12, marginBottom:20 }}>
           {statCards.map(s => (
             <div key={s.label} style={{ backgroundColor:s.bg, borderRadius:14, padding:16 }}>
-              <div style={{ fontSize:24, marginBottom:8 }}>{s.icon}</div>
+              <div style={{ marginBottom:8 }}><LineIcon name={s.icon} size={24} /></div>
               <div style={{ fontSize:24, fontWeight:800, color:s.color }}>{s.value}</div>
               <div style={{ fontSize:12, color:'#64748b', marginTop:4, fontWeight:600 }}>{s.label}</div>
             </div>
@@ -197,17 +198,17 @@ const AgentScorecard = ({ onNavigate }) => {
               {t('agent_scorecard.earnings_breakdown_title')}
             </div>
             {[
-              { label:t('agent_scorecard.earning_deliveries'),       value: earnings.deliveries,  icon:'🏍️', color:'#1d4ed8' },
-              { label:t('agent_scorecard.earning_payments'),    value: earnings.payments,    icon:'💳', color:'#16a34a' },
-              { label:t('agent_scorecard.earning_collections'),    value: earnings.collections, icon:'📦', color:'#7c3aed' },
-              { label:t('agent_scorecard.earning_pending'),     value: earnings.pending,     icon:'⏳', color:'#d97706' },
+              { label:t('agent_scorecard.earning_deliveries'),       value: earnings.deliveries,  icon:'moto', color:'#1d4ed8' },
+              { label:t('agent_scorecard.earning_payments'),    value: earnings.payments,    icon:'card', color:'#16a34a' },
+              { label:t('agent_scorecard.earning_collections'),    value: earnings.collections, icon:'box', color:'#0f1419' },
+              { label:t('agent_scorecard.earning_pending'),     value: earnings.pending,     icon:'clock', color:'#d97706' },
             ].map(e => {
               const share = earnings.total > 0 ? Math.round((e.value/earnings.total)*100) : 0;
               return (
                 <div key={e.label} style={{ marginBottom:14 }}>
                   <div style={{ display:'flex', justifyContent:'space-between',
                     alignItems:'center', marginBottom:6 }}>
-                    <span style={{ fontSize:13, color:'#475569' }}>{e.icon} {e.label}</span>
+                    <span style={{ fontSize:13, color:'#475569' }}>{e.label}</span>
                     <span style={{ fontSize:14, fontWeight:800, color:e.color }}>
                       TZS {fmt(e.value)}
                     </span>
@@ -264,7 +265,7 @@ const AgentScorecard = ({ onNavigate }) => {
               [t('agent_scorecard.row_completed'),   deliveries,  '#16a34a'],
               [t('agent_scorecard.row_failed'),    failed,      '#dc2626'],
               [t('agent_scorecard.row_total_attempts'), totalAttempts, '#1d4ed8'],
-              [t('agent_scorecard.row_collections'),      profile.totalCollectionsCompleted||0, '#7c3aed'],
+              [t('agent_scorecard.row_collections'),      profile.totalCollectionsCompleted||0, '#0f1419'],
               [t('agent_scorecard.row_rating'),       `${Number(profile.rating||0).toFixed(1)} / 5.0`, '#d97706'],
               [t('agent_scorecard.row_complaints'),       profile.totalComplaints||0, '#dc2626'],
             ].map(([label, value, color]) => (
@@ -285,11 +286,11 @@ const AgentScorecard = ({ onNavigate }) => {
               {t('agent_scorecard.tips_title')}
             </div>
             {[
-              { icon:'⚡', title:t('agent_scorecard.tip1_title'), desc:t('agent_scorecard.tip1_desc') },
-              { icon:'⭐', title:t('agent_scorecard.tip2_title'), desc:t('agent_scorecard.tip2_desc') },
-              { icon:'📍', title:t('agent_scorecard.tip3_title'), desc:t('agent_scorecard.tip3_desc') },
-              { icon:'📱', title:t('agent_scorecard.tip4_title'), desc:t('agent_scorecard.tip4_desc') },
-              { icon:'🏆', title:t('agent_scorecard.tip5_title', { tier: nextTier?.name || t('agent_scorecard.default_max_tier') }), desc: nextTier ? t('agent_scorecard.tip5_desc_next', { count: toNextTier }) : t('agent_scorecard.tip5_desc_max') },
+              { icon:'bolt', title:t('agent_scorecard.tip1_title'), desc:t('agent_scorecard.tip1_desc') },
+              { icon:'star', title:t('agent_scorecard.tip2_title'), desc:t('agent_scorecard.tip2_desc') },
+              { icon:'pin', title:t('agent_scorecard.tip3_title'), desc:t('agent_scorecard.tip3_desc') },
+              { icon:'phone', title:t('agent_scorecard.tip4_title'), desc:t('agent_scorecard.tip4_desc') },
+              { icon:'trophy', title:t('agent_scorecard.tip5_title', { tier: nextTier?.name || t('agent_scorecard.default_max_tier') }), desc: nextTier ? t('agent_scorecard.tip5_desc_next', { count: toNextTier }) : t('agent_scorecard.tip5_desc_max') },
             ].map(tip => (
               <div key={tip.title} style={{ display:'flex', gap:14, padding:'14px 0',
                 borderBottom:'1px solid #f1f5f9' }}>
@@ -297,7 +298,7 @@ const AgentScorecard = ({ onNavigate }) => {
                   backgroundColor:'#eff6ff',
                   display:'flex', alignItems:'center', justifyContent:'center',
                   fontSize:20 }}>
-                  {tip.icon}
+                  <LineIcon name={tip.icon} size={20} />
                 </div>
                 <div>
                   <div style={{ fontSize:13, fontWeight:800, color:'#1e293b', marginBottom:3 }}>

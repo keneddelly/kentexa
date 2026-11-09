@@ -45,7 +45,7 @@ export default function SellerLipaNambaCard({ profile, onSaved }) {
       <div style={{ fontSize: 16, fontWeight: 800, color: DARK }}>{t('direct_payment.seller_card_title')}</div>
       <div style={{ fontSize: 13, color: GREY, marginTop: 4, lineHeight: 1.45 }}>{t('direct_payment.seller_card_desc')}</div>
       {!has && !message?.ok && (
-        <div role="status" style={{ marginTop: 10, backgroundColor: '#fff7ed', color: '#9a3412', borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.45 }}>
+        <div role="status" style={{ marginTop: 10, backgroundColor: '#fffbeb', color: '#92400e', borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.45 }}>
           {t('direct_payment.seller_missing')}
         </div>
       )}

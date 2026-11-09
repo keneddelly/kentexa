@@ -74,6 +74,42 @@ export class Announcement {
   @Column({ type: 'jsonb', default: [] })
   readByUserIds: number[];
 
+  // ── "Tuma taarifa" send flow (owner 2026-11-09, migration 1795600000000) ──
+  // pending_approval -> (approved) scheduled | sending -> sent; or rejected / cancelled.
+  @Column({ type: 'varchar', default: 'sent' })
+  status: string;
+
+  // A page inside KenteXa the notification opens, e.g. 'POS' or 'ProductDetail' + '12'.
+  @Column({ type: 'varchar', nullable: true })
+  actionPage: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  actionParam: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  scheduledAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  sentAt: Date | null;
+
+  @Column({ type: 'int', default: 0 })
+  recipientCount: number;
+
+  @Column({ type: 'int', default: 0 })
+  smsCount: number;
+
+  @Column({ type: 'varchar', nullable: true })
+  createdByRole: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  approvedById: number | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  approvedAt: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  rejectReason: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

@@ -21,6 +21,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { commenterIdentity } from '../utils/publicActor';
+import LineIcon from './LineIcon';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -85,11 +86,11 @@ const RatingSummary = ({ summary }) => {
           {summary.average.toFixed(1)}
         </div>
         <Stars value={Math.round(summary.average)} size={14} />
-        <div style={{ fontSize: 11, color: GR, marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: GR, marginTop: 4 }}>
           {t('comment_section.reviews_count', { count: summary.total })}
         </div>
         {summary.verifiedPurchaseCount > 0 && (
-          <div style={{ fontSize: 10, color: '#16A34A', fontWeight: 700, marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 700, marginTop: 2 }}>
             {t('comment_section.verified_count', { count: summary.verifiedPurchaseCount })}
           </div>
         )}
@@ -97,7 +98,7 @@ const RatingSummary = ({ summary }) => {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
         {[5, 4, 3, 2, 1].map(star => (
           <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 10, color: GR, width: 10 }}>{star}</span>
+            <span style={{ fontSize: 11, color: GR, width: 10 }}>{star}</span>
             <div style={{ flex: 1, height: 6, backgroundColor: '#F1F5F9', borderRadius: 100, overflow: 'hidden' }}>
               <div style={{
                 width: `${(summary.breakdown[star] / max) * 100}%`,
@@ -117,10 +118,10 @@ const AiSummaryCard = ({ pinned }) => {
   if (!pinned) return null;
   return (
     <div style={{ margin: '12px 14px', padding: '14px 16px', borderRadius: 14,
-      background: 'linear-gradient(135deg,#EFF6FF,#F5F3FF)', border: '1px solid #DBEAFE' }}>
+      background: 'linear-gradient(135deg,#EFF6FF,#f7f9f9)', border: '1px solid #DBEAFE' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 14 }}>✨</span>
-        <span style={{ fontSize: 11, fontWeight: 800, color: B, textTransform: 'uppercase',
+        <span style={{ fontSize: 14 }}><LineIcon name="bolt" size={16} /></span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: B, textTransform: 'uppercase',
           letterSpacing: 0.4 }}>{t('comment_section.ai_summary_label')}</span>
       </div>
       <div style={{ fontSize: 13, color: DK, lineHeight: 1.5 }}>{pinned.body}</div>
@@ -200,17 +201,17 @@ const CommentRow = ({
               {commenterName || t('comment_section.user_fallback')}
             </span>
             {c.type === 'question' && (
-              <span style={{ fontSize: 9, fontWeight: 700, color: '#7C3AED', backgroundColor: '#F5F3FF',
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#0f1419', backgroundColor: '#f7f9f9',
                 padding: '2px 8px', borderRadius: 100 }}>{t('comment_section.question_badge')}</span>
             )}
-            <span style={{ fontSize: 10, color: GR }}>{ago(c.createdAt, t)}</span>
+            <span style={{ fontSize: 12, color: GR }}>{ago(c.createdAt, t)}</span>
           </div>
 
           {isReview && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Stars value={c.rating} size={13} />
               {badge && (
-                <span style={{ fontSize: 9, fontWeight: 700, color: badge.color,
+                <span style={{ fontSize: 12, fontWeight: 700, color: badge.color,
                   backgroundColor: badge.bg, padding: '2px 8px', borderRadius: 100 }}>
                   {badge.label}
                 </span>
@@ -226,14 +227,14 @@ const CommentRow = ({
               <button onClick={() => onHelpful(c.id)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex',
                   alignItems: 'center', gap: 4, color: c.helpfulByMe ? B : GR,
-                  fontSize: 11, fontWeight: 700, padding: 0 }}>
+                  fontSize: 12, fontWeight: 700, padding: 0 }}>
                 {t('comment_section.helpful_button')}{c.helpfulCount > 0 ? t('comment_section.helpful_count_suffix', { count: c.helpfulCount }) : ''}
               </button>
             )}
             {isSeller && !c.replies?.length && c.type !== 'seller_reply' && (
               <button onClick={() => { if (!isLoggedIn) { onNavigate('PublicLogin'); return; } setShowReplyBox(s => !s); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: B,
-                  fontSize: 11, fontWeight: 700, padding: 0 }}>
+                  fontSize: 12, fontWeight: 700, padding: 0 }}>
                 {t('comment_section.reply_as_seller')}
               </button>
             )}
@@ -253,7 +254,7 @@ const CommentRow = ({
                 </button>
               </div>
               {replyError && (
-                <div style={{ fontSize: 11, color: RED, marginTop: 6, fontWeight: 600 }}>
+                <div style={{ fontSize: 12, color: RED, marginTop: 6, fontWeight: 600 }}>
                   {replyError}
                 </div>
               )}
@@ -269,9 +270,9 @@ const CommentRow = ({
                   <span style={{ fontSize: 12, fontWeight: 800, color: B }}>
                     {r.commerceProfile?.displayName || r.author?.name || t('comment_section.seller_fallback')}
                   </span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: WH, backgroundColor: B,
+                  <span style={{ fontSize: 12, fontWeight: 700, color: WH, backgroundColor: B,
                     padding: '1px 7px', borderRadius: 100 }}>{t('comment_section.seller_badge')}</span>
-                  <span style={{ fontSize: 10, color: GR }}>{ago(r.createdAt, t)}</span>
+                  <span style={{ fontSize: 12, color: GR }}>{ago(r.createdAt, t)}</span>
                 </div>
                 <div style={{ fontSize: 12, color: DK, lineHeight: 1.5 }}>{r.body}</div>
               </div>
@@ -361,7 +362,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
             style={{ flex: 1, padding: '7px 0', borderRadius: 10, cursor: 'pointer',
               border: `1.5px solid ${mode === m.key ? B : '#E2E8F0'}`,
               backgroundColor: mode === m.key ? '#EFF6FF' : WH,
-              color: mode === m.key ? B : GR, fontSize: 11, fontWeight: 700 }}>
+              color: mode === m.key ? B : GR, fontSize: 12, fontWeight: 700 }}>
             {m.label}
           </button>
         ))}
@@ -371,7 +372,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
         <div style={{ marginBottom: 8 }}>
           <Stars value={rating} onChange={setRating} size={24} />
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
-            fontSize: 11, color: GR, cursor: 'pointer' }}>
+            fontSize: 12, color: GR, cursor: 'pointer' }}>
             <input type="checkbox" checked={offlineClaim}
               onChange={e => setOfflineClaim(e.target.checked)} />
             {t('comment_section.offline_claim_label')}
@@ -395,7 +396,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
               <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <button onClick={() => setMedia(prev => prev.filter((_, idx) => idx !== i))}
                 style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%',
-                  backgroundColor: '#EF4444', color: WH, border: 'none', fontSize: 10, cursor: 'pointer',
+                  backgroundColor: '#dc2626', color: WH, border: 'none', fontSize: 12, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
           ))}
@@ -403,7 +404,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
             <label style={{ width: 48, height: 48, borderRadius: 8, border: '1.5px dashed #CBD5E1',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
               fontSize: 18, color: GR }}>
-              {uploading ? '⏳' : '+'}
+              {uploading ? '...' : '+'}
               <input type="file" accept="image/*,video/*" multiple hidden
                 onChange={handleFileSelect} disabled={uploading} />
             </label>
@@ -414,7 +415,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
       {error && (
         <div style={{ fontSize: 12, color: RED, marginTop: 8, fontWeight: 600,
           backgroundColor: '#FEF2F2', borderRadius: 8, padding: '8px 10px' }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
@@ -522,7 +523,7 @@ const CommerceCommentSection = ({
           <div style={{ padding: 30, textAlign: 'center', color: GR, fontSize: 12 }}>{t('comment_section.loading')}</div>
         ) : loadError ? (
           <div style={{ padding: '30px 20px', textAlign: 'center', color: RED, fontSize: 12 }}>
-            ⚠️ {loadError}
+            {loadError}
           </div>
         ) : items.length === 0 ? (
           <div style={{ padding: '30px 20px', textAlign: 'center', color: GR, fontSize: 12 }}>

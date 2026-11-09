@@ -18,6 +18,7 @@ import useNavigationShell from './navigation/NavigationShell';
 import { homeForRole } from './navigation/navigationRegistry';
 import { activeBusinessNameFor } from './context/businessGrouping';
 import { evaluateDestination } from './navigation/navigationPolicy';
+import { unavailableNotice } from './navigation/unavailableNotice';
 import HomeFeed           from './public/pages/HomeFeed';
 import PostDetail         from './public/pages/PostDetail';
 import CommunityPage      from './public/pages/CommunityPage';
@@ -158,6 +159,8 @@ import AdminKentexaFees from './admin/pages/AdminKentexaFees';
 import AdminShippingCheck from './admin/pages/AdminShippingCheck';
 import AdminActivity from './admin/pages/AdminActivity';
 import AdminPerson from './admin/pages/AdminPerson';
+import AdminChats from './admin/pages/AdminChats';
+import AdminOnboarding from './admin/pages/AdminOnboarding';
 import AdminBusinessView from './admin/pages/AdminBusinessView';
 import AdminData, { PAGE_DATASET } from './admin/pages/AdminData';
 import AdminStaff from './admin/pages/AdminStaff';
@@ -180,6 +183,7 @@ import TrainingSmsNotice from './public/components/TrainingSmsNotice';
 import { identityState, afterIdentitySent } from './utils/identityState';
 import useIdentityRefresh from './utils/useIdentityRefresh';
 import useAgentPresence from './utils/useAgentPresence';
+import LineIcon from './public/components/LineIcon';
 
 // Seller's private order link tokens: the long signed form (?sellerCheckout=a.b) and the
 // short one sent since 2026-10-23 (?so=<5 base-36 parts>.<16-char signature>).
@@ -462,10 +466,18 @@ function App() {
     if (path) window.history[mode === 'replace' ? 'replaceState' : 'pushState'](state, '', path);
   };
 
+  // A page that cannot open says why (owner 2026-11-09 audit), instead of a silent jump home.
+  const [navNotice, setNavNotice] = useState(null);
+  useEffect(() => {
+    if (!navNotice) return undefined;
+    const t = setTimeout(() => setNavNotice(null), 7000);
+    return () => clearTimeout(t);
+  }, [navNotice]);
+
   const navigation = useNavigationShell({
     page, setPage, navParams, setNavParams, navHistory, setNavHistory,
     isAuthenticated: isLoggedIn, activeContext, capabilities: roleContext.capabilities,
-    contextEpoch, syncUrl,
+    contextEpoch, syncUrl, onUnavailable: (decision) => setNavNotice(unavailableNotice(decision)),
   });
 
   // Direct boot/auth/deep-link state changes pass through the same policy as
@@ -1053,6 +1065,8 @@ function App() {
       // Owner 2026-11-09: the admin mirror. Every action, and one page per person / business.
       case 'AdminActivity': return requireAdmin(<AdminActivity activePage={page} {...adminProps} />);
       case 'AdminPerson': return requireAdmin(<AdminPerson activePage="Users" userId={navParams?.userId} {...adminProps} />);
+      case 'AdminChats': return requireAdmin(<AdminChats activePage="AdminChats" userId={navParams?.userId} {...adminProps} />);
+      case 'AdminOnboarding': return requireAdmin(<AdminOnboarding activePage="AdminOnboarding" {...adminProps} />);
       case 'AdminBusinessView': return requireAdmin(<AdminBusinessView activePage="Businesses" businessId={navParams?.businessId} {...adminProps} />);
       // Stage 3: every kind of data that had no admin page (one screen, the menu item picks the list).
       case 'AdminMoments': case 'AdminReports': case 'AdminCommunities': case 'AdminHotelOrders': case 'AdminPosSales':
@@ -1084,7 +1098,7 @@ function App() {
       case 'Invoices':    return requireAdmin(<Invoices    activePage={page} {...adminProps} />);
       case 'Reports':        return requireAdmin(<Reports     activePage={page} {...adminProps} />);
       case 'ContactMessages': return requireAdmin(<ContactMessages activePage={page} {...adminProps} />);
-      case 'Announcements':    return requireAdmin(<Announcements activePage={page} {...adminProps} />);
+      case 'Announcements':    return requireAdmin(<Announcements activePage={page} targetUserId={navParams?.targetUserId} targetName={navParams?.targetName} {...adminProps} />);
       case 'Analytics':        return requireAdmin(<Analytics activePage={page} {...adminProps} />);
       case 'ZoneManagement':    return requireAdmin(<ZoneManagement onNavigate={handleNavigate} onLogout={handleLogout} />);
       case 'BodaRates':         return requireAdmin(<BodaRates onNavigate={handleNavigate} onLogout={handleLogout} />);
@@ -1134,6 +1148,19 @@ function App() {
       <UpdateNotice page={page}
         beforeReload={() => rememberPageForUpdate({ page, navParams, roleType: activeContext?.roleType })} />
       <TrainingSmsNotice />
+      {navNotice && (
+        <div role="status" data-testid="nav-notice"
+          style={{ position: 'fixed', left: 12, right: 12, bottom: 84, zIndex: 3000, maxWidth: 520, margin: '0 auto', background: '#0f1419', color: '#fff',
+            borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'center', fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+          <span style={{ flex: 1 }}>{navNotice.text}</span>
+          {navNotice.canSwitch && isLoggedIn && (
+            <button type="button" onClick={() => { setNavNotice(null); setShowProfileSwitcher(true); }}
+              style={{ background: '#fff', color: '#0f1419', border: 'none', borderRadius: 16, padding: '6px 12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Badilisha kazi</button>
+          )}
+          <button type="button" aria-label="Funga" onClick={() => setNavNotice(null)}
+            style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 18, lineHeight: 1, fontFamily: 'inherit' }}>×</button>
+        </div>
+      )}
 
       {/* ── Social Commerce Navigation ─────────────────────── */}
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show
@@ -1230,7 +1257,7 @@ function App() {
       {showLangPicker && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: '32px 24px', width: '100%', maxWidth: 340, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🇹🇿</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="globe" size={40} /></div>
             <h2 style={{ fontSize: 20, fontWeight:800, color: '#1e293b', margin: '0 0 6px', fontFamily:'inherit' }}>{t('welcome.language_picker.title')}</h2>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 24px' }}>{t('welcome.language_picker.subtitle')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1238,11 +1265,11 @@ function App() {
                 <button key={lang.code} onClick={() => handleLangPick(lang.code)}
                   style={{ padding: '14px', borderRadius: 12, border: lang.code === 'sw' ? '2px solid #1d4ed8' : '2px solid #e2e8f0', backgroundColor: lang.code === 'sw' ? '#eff6ff' : '#f8fafc', cursor: 'pointer', fontSize: 15, fontWeight: 800, color: lang.code === 'sw' ? '#1d4ed8' : '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                   {lang.flag} {lang.label}
-                  {lang.code === 'sw' && <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>({t('welcome.language_picker.recommended')})</span>}
+                  {lang.code === 'sw' && <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>({t('welcome.language_picker.recommended')})</span>}
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 16 }}>{t('welcome.language_picker.hint')}</p>
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 16 }}>{t('welcome.language_picker.hint')}</p>
           </div>
         </div>
       )}

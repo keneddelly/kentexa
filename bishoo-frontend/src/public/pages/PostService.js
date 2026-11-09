@@ -60,7 +60,7 @@ const label = { display: 'block', fontSize: 13, fontWeight: 700, color: '#64748b
 const chip = (on) => ({ padding: '8px 12px', borderRadius: 100, fontSize: 12, fontWeight: 700, cursor: 'pointer',
   border: on ? '2px solid #1d4ed8' : '2px solid #e2e8f0', backgroundColor: on ? '#eff6ff' : '#fff', color: on ? '#1d4ed8' : '#475569' });
 const card = { backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 14 };
-const primary = (on) => ({ width: '100%', background: on ? 'linear-gradient(135deg,#1d4ed8,#7c3aed)' : '#94a3b8', color: '#fff',
+const primary = (on) => ({ width: '100%', background: on ? 'linear-gradient(135deg,#1d4ed8,#0f1419)' : '#94a3b8', color: '#fff',
   border: 'none', borderRadius: 12, padding: '14px 0', cursor: on ? 'pointer' : 'not-allowed', fontSize: 15, fontWeight: 800 });
 const fixedPrice = (pt) => !['negotiate', 'free_quote'].includes(pt);
 
@@ -180,7 +180,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
 
   let body;
   if (!identityStatus) {
-    body = <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>⏳</div>;
+    body = <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>Inapakia...</div>;
   } else if (sent) {
     body = (
       <div data-testid="service-waiting-id" style={{ ...card, textAlign: 'center' }}>
@@ -204,7 +204,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
       <div data-testid="service-form" style={card}>
         {error && <div role="alert" style={{ backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{error}</div>}
         {idWaiting && (
-          <div role="status" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
+          <div role="status" style={{ backgroundColor: '#fffbeb', color: '#92400e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
             <strong>{t('identity_state.waiting_title')}</strong><br />{t('service_signup.identity_waiting_note')}
           </div>
         )}
@@ -228,8 +228,8 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
             <div key={i} style={{ position: 'relative', width: 72, height: 72 }}>
               <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} />
               <button type="button" onClick={() => removeImage(i)} aria-label="x"
-                style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%',
-                  width: 18, height: 18, cursor: 'pointer', fontSize: 10 }}>×</button>
+                style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%',
+                  width: 18, height: 18, cursor: 'pointer', fontSize: 11 }}>×</button>
             </div>
           ))}
           {form.images.length < 5 && (
@@ -244,7 +244,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <label style={{ ...label, marginBottom: 0 }}>{t('post_service.field_description_label')}</label>
           <button type="button" onClick={generateDescription} disabled={descGenerating || !form.title || !form.images.length}
-            style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', background: 'none', border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
+            style={{ fontSize: 12, fontWeight: 800, color: '#0f1419', background: 'none', border: '1px solid #536471', borderRadius: 8, padding: '4px 10px',
               cursor: (descGenerating || !form.title || !form.images.length) ? 'not-allowed' : 'pointer', opacity: (!form.title || !form.images.length) ? 0.5 : 1 }}>
             {descGenerating ? t('post_service.ai_description_generating') : t('post_service.ai_description_button')}
           </button>
@@ -282,7 +282,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
         {changeArea && (
           <div style={{ marginBottom: 12 }}>
             <PlaceSearchField id="service-place" value={areaLocation} onChange={setAreaLocation} />
-            {pickedArea && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>✓ {pickedArea}</div>}
+            {pickedArea && <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>✓ {pickedArea}</div>}
           </div>
         )}
 

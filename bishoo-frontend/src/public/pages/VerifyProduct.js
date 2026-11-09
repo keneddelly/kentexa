@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const VerifyProduct = ({ onNavigate, code }) => {
   const { t } = useTranslation();
@@ -72,7 +73,7 @@ const VerifyProduct = ({ onNavigate, code }) => {
 
         {!loading && result && !result.found && (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 24, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>❓</div>
+            <div style={{ fontSize: 40, marginBottom: 8 }}><LineIcon name="help" size={40} /></div>
             <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{t('verify_product.not_found_title')}</div>
             <div style={{ fontSize: 13, color: '#64748b' }}>{t('verify_product.not_found_desc')}</div>
           </div>
@@ -86,7 +87,7 @@ const VerifyProduct = ({ onNavigate, code }) => {
               color: isFlagged ? '#dc2626' : '#16a34a',
               fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              {isFlagged ? '⚠️' : '✅'}
+              <LineIcon name={isFlagged ? 'help' : 'check'} size={28} />
               {isFlagged
                 ? t(result.status === 'reported_stolen' ? 'verify_product.flagged_stolen' : 'verify_product.flagged_lost')
                 : t('verify_product.genuine_unit')}
@@ -104,14 +105,14 @@ const VerifyProduct = ({ onNavigate, code }) => {
               </div>
 
               {result.brandAuthorizationBadge === 'brand_authorized' && (
-                <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                <div style={{ display: 'inline-block', fontSize: 12, fontWeight: 800, color: '#1d4ed8',
                   backgroundColor: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 20, padding: '3px 10px', marginBottom: 12 }}>
                   ✓ {t('verify_product.brand_authorized_badge', { brand: result.brand?.name || '' })}
                 </div>
               )}
               {result.brandAuthorizationBadge === 'kentexa_verified' && (
-                <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#16a34a',
-                  backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 20, padding: '3px 10px', marginBottom: 12 }}>
+                <div style={{ display: 'inline-block', fontSize: 12, fontWeight: 800, color: '#16a34a',
+                  backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 20, padding: '3px 10px', marginBottom: 12 }}>
                   ✓ {t('verify_product.kentexa_verified_badge')}
                 </div>
               )}
@@ -126,7 +127,7 @@ const VerifyProduct = ({ onNavigate, code }) => {
                     : <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: '#e2e8f0' }} />}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.seller.displayName}</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>{t('verify_product.sold_by')}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>{t('verify_product.sold_by')}</div>
                   </div>
                   <span style={{ color: '#94a3b8' }}>›</span>
                 </div>

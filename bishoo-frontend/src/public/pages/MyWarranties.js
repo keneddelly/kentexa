@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const STATUS_META = {
   active:  { color: '#16a34a', bg: '#f0fdf4' },
@@ -15,7 +16,7 @@ const STATUS_META = {
 };
 
 const CLAIM_STATUS_META = {
-  submitted:    { color: '#ca8a04', bg: '#fef9c3' },
+  submitted:    { color: '#d97706', bg: '#fffbeb' },
   under_review: { color: '#1d4ed8', bg: '#eff6ff' },
   approved:     { color: '#16a34a', bg: '#f0fdf4' },
   rejected:     { color: '#dc2626', bg: '#fee2e2' },
@@ -107,7 +108,7 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <BackBar onBack={() => onNavigate('back')} title={`🛡️ ${t('my_warranties.title')}`} top={0} />
+      <BackBar onBack={() => onNavigate('back')} title={`${t('my_warranties.title')}`} top={0} />
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 10, fontSize: 12, marginBottom: 12 }}>{message}</div>}
         {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, fontSize: 12, marginBottom: 12 }}>{error}</div>}
@@ -116,7 +117,7 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>{t('my_warranties.loading')}</div>
         ) : registrations.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60 }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>🛡️</div>
+            <div style={{ fontSize: 40, marginBottom: 8 }}><LineIcon name="shield" size={40} /></div>
             <div style={{ fontSize: 13, color: '#64748b' }}>{t('my_warranties.no_warranties_desc')}</div>
           </div>
         ) : (
@@ -127,14 +128,14 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>{t('my_warranties.order_label', { id: reg.orderId })}</div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
                       {t('my_warranties.expires_label', { date: new Date(reg.expiresAt).toLocaleDateString() })}
                     </div>
                     {reg.serialNumber && (
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, fontFamily: 'monospace' }}>{reg.serialNumber}</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2, fontFamily: 'monospace' }}>{reg.serialNumber}</div>
                     )}
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20, color: meta.color, backgroundColor: meta.bg }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 20, color: meta.color, backgroundColor: meta.bg }}>
                     {t(`my_warranties.status_${reg.status}`)}
                   </span>
                 </div>
@@ -165,12 +166,12 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
                           <div key={claim.id} style={{ padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                               <div style={{ fontSize: 12, color: '#0f172a', flex: 1 }}>{claim.reason}</div>
-                              <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, color: cMeta.color, backgroundColor: cMeta.bg, whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 20, color: cMeta.color, backgroundColor: cMeta.bg, whiteSpace: 'nowrap' }}>
                                 {t(`my_warranties.claim_status_${claim.status}`)}
                               </span>
                             </div>
                             {claim.resolution && (
-                              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{t('my_warranties.resolution_label')}: {claim.resolution}</div>
+                              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{t('my_warranties.resolution_label')}: {claim.resolution}</div>
                             )}
                           </div>
                         );

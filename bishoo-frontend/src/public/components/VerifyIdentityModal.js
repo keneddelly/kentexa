@@ -150,7 +150,7 @@ const VerifyIdentityModal = ({ onClose, onVerified }) => {
             fontSize: 14, fontWeight: 800, opacity: submitting || uploading ? 0.7 : 1 }}>
           {submitting ? t('verify_identity.submitting') : t('verify_identity.submit_button')}
         </button>
-        <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 10 }}>
+        <p style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', marginTop: 10 }}>
           {t('verify_identity.privacy_note')}
         </p>
       </div>

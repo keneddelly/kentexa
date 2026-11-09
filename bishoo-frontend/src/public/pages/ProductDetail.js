@@ -53,7 +53,7 @@ const Verified = () => (
     <circle cx="12" cy="12" r="10" fill={B} /><path d="M8 12.5l3 3 5-6" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" />
   </svg>
 );
-const CHIP = { green: ['#ecfdf3', '#166534'], red: ['#fef2f2', '#b91c1c'], blue: ['#eff6ff', '#1e40af'], grey: ['#f7f9f9', GR] };
+const CHIP = { green: ['#f0fdf4', '#166534'], red: ['#fef2f2', '#b91c1c'], blue: ['#eff6ff', '#1d4ed8'], grey: ['#f7f9f9', GR] };
 const Chip = ({ tone = 'grey', children }) => (
   <span style={{ height: 28, padding: '0 10px', borderRadius: 14, backgroundColor: CHIP[tone][0], color: CHIP[tone][1], fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>{children}</span>
 );
@@ -436,7 +436,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                 {product.brandAuthorizationBadge === 'brand_authorized' && <Chip tone="blue">{t('product_detail.brand_authorized_badge', { brand: product.brand?.name || '' })}</Chip>}
                 {product.brandAuthorizationBadge === 'kentexa_verified' && <Chip tone="green">{t('product_detail.kentexa_verified_badge')}</Chip>}
               </div>
-              {lowStock && <div style={{ fontSize:13, color:'#b45309', fontWeight:600 }}>{t('product_detail.only_left')} {product.stock}</div>}
+              {lowStock && <div style={{ fontSize:13, color:'#d97706', fontWeight:600 }}>{t('product_detail.only_left')} {product.stock}</div>}
               {product.codEnabled && <div style={{ fontSize:13, color:GR }}>{t('product_detail.cod_terms_hint')}</div>}
               {/* Registered serials exist for this listing (spec §14). */}
               {product.hasRegisteredSerials && (
@@ -686,7 +686,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
         <button type="button" aria-label={t('product_detail.add_to_cart')} title={t('product_detail.add_to_cart')}
           onClick={handleAddToCart} disabled={!product.isAvailable}
           style={{ width:48, height:48, flexShrink:0, borderRadius:24, cursor: product.isAvailable ? 'pointer' : 'not-allowed',
-            border: isInCart(product.id) ? 'none' : '1px solid #cfd9de', backgroundColor: isInCart(product.id) ? '#ecfdf3' : WH,
+            border: isInCart(product.id) ? 'none' : '1px solid #cfd9de', backgroundColor: isInCart(product.id) ? '#f0fdf4' : WH,
             display:'flex', alignItems:'center', justifyContent:'center' }}>
           <Icon d={isInCart(product.id) ? IC.check : IC.bagPlus} size={20} color={isInCart(product.id) ? '#166534' : DK} />
         </button>

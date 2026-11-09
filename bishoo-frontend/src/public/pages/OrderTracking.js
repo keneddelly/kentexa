@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { openDocumentPdf } from '../../utils/documentPdf';
 import api from '../../api/api';
 import { DirectPaymentNotice } from '../components/DirectPayment';
 import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
-import { API_BASE_URL } from '../../api/baseUrl';
 import { PageLoading, Spinner } from '../components/Loading';
 import OrderAgentPanel from '../components/OrderAgentPanel';
 
@@ -126,20 +126,20 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
   const statusColor = (status) => ({
     pending_payment:  '#f59e0b',
-    paid:             '#3b82f6',
+    paid:             '#1d4ed8',
     preparing:        '#0f1419',
-    in_transit:       '#f97316',
-    ready_for_pickup: '#06b6d4',
-    delivered:        '#10b981',
+    in_transit:       '#d97706',
+    ready_for_pickup: '#1d4ed8',
+    delivered:        '#16a34a',
     completed:        '#16a34a',
-    disputed:         '#ef4444',
+    disputed:         '#dc2626',
     cancelled:        '#dc2626',
   }[status] || '#64748b');
 
   const paymentBadge = (status) => ({
     paid:   { bg: '#dcfce7', color: '#16a34a', label: t('order_tracking.payment_paid') },
     failed: { bg: '#fee2e2', color: '#dc2626', label: t('order_tracking.payment_failed') },
-  }[status] || { bg: '#fef9c3', color: '#ca8a04', label: t('order_tracking.payment_pending') });
+  }[status] || { bg: '#fffbeb', color: '#d97706', label: t('order_tracking.payment_pending') });
 
   // Buyer can confirm/dispute once parcel is on the move, at pickup, or delivered
   const canConfirmOrDispute = order && [
@@ -188,7 +188,6 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
   const currentIdx   = getCurrentIndex(currentSteps);
   const payment      = paymentBadge(order?.paymentStatus);
 
-  const API_URL = API_BASE_URL;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
@@ -208,7 +207,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <span style={{ backgroundColor: payment.bg, color: payment.color, padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>{payment.label}</span>
-              <span style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
+              <span style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 700 }}>
                 {getSteps().find(st => st.status === order?.status)?.label || order?.status?.replace(/_/g, ' ')}
               </span>
               {order?.shippingMethod && (
@@ -330,7 +329,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
                   <div style={{ flex: 1, paddingTop: 8 }}>
                     <div style={{ fontSize: 14, fontWeight: isCurrent ? 800 : 600, color: isCompleted ? '#1e293b' : '#94a3b8', marginBottom: 2 }}>
                       {step.label}
-                      {isCurrent && <span style={{ marginLeft: 8, fontSize: 10, backgroundColor: `${color}20`, color, padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{t('order_tracking.current_badge')}</span>}
+                      {isCurrent && <span style={{ marginLeft: 8, fontSize: 12, backgroundColor: `${color}20`, color, padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>{t('order_tracking.current_badge')}</span>}
                     </div>
                     <div style={{ fontSize: 12, color: isCompleted ? '#64748b' : '#cbd5e1' }}>{step.desc}</div>
                   </div>
@@ -346,12 +345,12 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('order_tracking.shipping_proof_title')}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('order_tracking.product_photo_label')}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('order_tracking.product_photo_label')}</div>
                 <img src={order.shippingProductImage} alt="Product" style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 150 }} />
               </div>
               {order.shippingReceiptImage && (
                 <div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('order_tracking.receipt_label')}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('order_tracking.receipt_label')}</div>
                   <img src={order.shippingReceiptImage} alt="Receipt" style={{ width: '100%', borderRadius: 10, objectFit: 'cover', maxHeight: 150 }} />
                 </div>
               )}
@@ -394,7 +393,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
               </div>
             )}
 
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 10, textAlign: 'center' }}>
               {t('order_tracking.auto_confirm_note')}
             </div>
           </div>
@@ -404,14 +403,14 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
         {order?.status === 'disputed' && (
           <div style={{ backgroundColor: '#fef2f2', borderRadius: 16, padding: 18, border: '2px solid #fecaca', marginBottom: 16 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#dc2626', margin: '0 0 8px' }}>{t('order_tracking.dispute_in_progress_title')}</h3>
-            <p style={{ fontSize: 13, color: '#991b1b', margin: '0 0 8px' }}>{t('order_tracking.dispute_reason_label', { reason: order.disputeReason })}</p>
+            <p style={{ fontSize: 13, color: '#b91c1c', margin: '0 0 8px' }}>{t('order_tracking.dispute_reason_label', { reason: order.disputeReason })}</p>
             <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>{t('order_tracking.dispute_reviewing_note')}</p>
           </div>
         )}
 
         {/* Completed */}
         {order?.status === 'completed' && (
-          <div style={{ background: '#ecfdf3', border: '1px solid #bbf7d0', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 16, padding: 24, textAlign: 'center', marginBottom: 16 }}>
             <h3 style={{ fontSize: 20, fontWeight:800, color: '#166534', margin: '0 0 8px' }}>{t('order_tracking.order_completed_title')}</h3>
             <p style={{ fontSize: 14, color: '#166534', margin: '0 0 16px' }}>{t('order_tracking.order_completed_desc')}</p>
             <button onClick={() => onNavigate('Search')} style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 24, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
@@ -491,22 +490,22 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
                 { label: t('order_tracking.amount_label'),    value: `TZS ${Number(invoice.amount).toLocaleString()}` },
               ].map(item => (
                 <div key={item.label} style={{ padding: '10px 12px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{item.label}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{item.label}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{item.value}</div>
                 </div>
               ))}
             </div>
             {invoice.invoiceNumber && (
               <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <a href={`${API_URL}/invoices/number/${invoice.invoiceNumber}/pdf`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: 'inline-block', background: '#0f1419', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                <button type="button" onClick={() => openDocumentPdf('invoice', invoice.invoiceNumber).catch(() => {})}
+                  style={{ display: 'inline-block', background: '#0f1419', color: '#fff', border: 'none', cursor: 'pointer', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                   {t('order_tracking.download_invoice')}
-                </a>
+                </button>
                 {invoice.receiptNumber && (
-                  <a href={`${API_URL}/invoices/receipt/${invoice.receiptNumber}/pdf`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-block', background: '#0f1419', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  <button type="button" onClick={() => openDocumentPdf('receipt', invoice.receiptNumber).catch(() => {})}
+                    style={{ display: 'inline-block', background: '#0f1419', color: '#fff', border: 'none', cursor: 'pointer', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                     {t('order_tracking.download_receipt')}
-                  </a>
+                  </button>
                 )}
               </div>
             )}

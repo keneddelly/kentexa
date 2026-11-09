@@ -4,9 +4,9 @@ import api from '../../api/api';
 
 const card = { background:'#fff', borderRadius:14, padding:16, boxShadow:'0 2px 10px rgba(15,23,42,.06)' };
 const badge = (status) => {
-  const map = { scheduled:['#eff6ff','#1d4ed8'], active:['#ecfdf5','#047857'], in_transit:['#ecfdf5','#047857'], completed:['#f1f5f9','#475569'], cancelled:['#fef2f2','#b91c1c'] };
+  const map = { scheduled:['#eff6ff','#1d4ed8'], active:['#f0fdf4','#16a34a'], in_transit:['#f0fdf4','#16a34a'], completed:['#f1f5f9','#475569'], cancelled:['#fef2f2','#b91c1c'] };
   const [bg,color] = map[String(status || '').toLowerCase()] || ['#f8fafc','#475569'];
-  return { background:bg, color, borderRadius:999, padding:'4px 9px', fontSize:11, fontWeight:800 };
+  return { background:bg, color, borderRadius:999, padding:'4px 9px', fontSize:12, fontWeight:800 };
 };
 
 export default function VanOperations({ onNavigate, activePage }) {

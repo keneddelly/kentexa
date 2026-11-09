@@ -15,14 +15,14 @@ const PrivacyPolicy = ({ onNavigate }) => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: 'inherit' }}>
       <BackBar onBack={() => onNavigate('back')} top={0} />
 
-      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b)', padding: '40px 16px', textAlign: 'center' }}>
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#0f1419)', padding: '40px 16px', textAlign: 'center' }}>
         <h1 style={{ fontSize: 26, fontWeight:800, color: '#fff', margin: '0 0 10px', fontFamily:'inherit' }}>{t('privacy_policy.page_title')}</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>{t('privacy_policy.page_subtitle')}</p>
       </div>
 
       <div style={{ maxWidth: 800, margin: '0 auto', width: '100%', padding: '20px 16px 40px' }}>
-        <div style={{ backgroundColor: '#dcfce7', borderRadius: 12, padding: '14px 16px', marginBottom: 20, border: '1px solid #86efac' }}>
-          <p style={{ fontSize: 13, color: '#15803d', margin: 0, lineHeight: 1.6 }}>
+        <div style={{ backgroundColor: '#dcfce7', borderRadius: 12, padding: '14px 16px', marginBottom: 20, border: '1px solid #bbf7d0' }}>
+          <p style={{ fontSize: 13, color: '#16a34a', margin: 0, lineHeight: 1.6 }}>
             {t('privacy_policy.intro_banner')}
           </p>
         </div>

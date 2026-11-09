@@ -38,7 +38,7 @@ const ConnectSelling = ({ onNavigate, isLoggedIn, activeProfile }) => {
           </div>
         )}
         {error && <div style={{ color: '#dc2626', fontSize: 13 }}>{error}</div>}
-        {data === null && !error && <div style={{ padding: '40px 0', textAlign: 'center', color: GR }}>⏳ {t('common.loading')}</div>}
+        {data === null && !error && <div style={{ padding: '40px 0', textAlign: 'center', color: GR }}>{t('common.loading')}</div>}
         {data && data.options.length === 0 && (
           <div style={{ padding: '24px 0', textAlign: 'center', color: GR, fontSize: 13 }}>{t('connect_selling.empty')}</div>
         )}
@@ -47,7 +47,7 @@ const ConnectSelling = ({ onNavigate, isLoggedIn, activeProfile }) => {
             <div style={{ fontSize: 15, fontWeight:800, color: DK }}>{o.businessName}</div>
             <div style={{ fontSize: 12, color: GR, margin: '2px 0 10px' }}>{t(`connect_selling.state_${o.sellingState}`)}</div>
             {o.blocker && !String(o.blocker).startsWith('SELLING_') && (
-              <div style={{ fontSize: 12, color: '#b45309', marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: '#d97706', marginBottom: 8 }}>
                 {t(`connect_selling.blocker_${o.blocker}`, { defaultValue: o.blocker })}
               </div>
             )}

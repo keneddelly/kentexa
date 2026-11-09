@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
+import LineIcon from '../components/LineIcon';
 
 const getSizes = (t) => [
   { value: 'small',  label: t('super_agent_parcel.size_small'),  desc: t('super_agent_parcel.size_small_desc') },
@@ -18,7 +19,7 @@ const inputStyle = {
 
 const SectionTitle = ({ icon, title }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '20px 0 12px' }}>
-    <span style={{ fontSize: 18 }}>{icon}</span>
+    <span style={{ display: 'inline-flex' }}><LineIcon name={icon} size={18} /></span>
     <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{title}</span>
     <div style={{ flex: 1, height: 1, backgroundColor: '#f1f5f9' }} />
   </div>
@@ -30,7 +31,7 @@ const Field = ({ label, required, children, hint }) => (
       {label} {required && <span style={{ color: '#dc2626' }}>*</span>}
     </label>
     {children}
-    {hint && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{hint}</div>}
+    {hint && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{hint}</div>}
   </div>
 );
 
@@ -132,15 +133,15 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {/* Ada ya KenteXa (2026-11-03): no payment step here; tracking works at once. */}
           <>
-            <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', borderRadius: 20, padding: 28, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
-              <div style={{ fontSize: 52, marginBottom: 12 }}>✅</div>
+            <div style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', borderRadius: 20, padding: 28, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
+              <div style={{ fontSize: 52, marginBottom: 12 }}><LineIcon name="check" size={40} /></div>
               <h2 style={{ fontSize: 20, fontWeight:800, margin: '0 0 6px' }}>{t('super_agent_parcel.parcel_registered_title')}</h2>
               <p style={{ fontSize: 13, opacity: 0.9, margin: 0 }}>{t('super_agent_parcel.parcel_registered_desc')}</p>
             </div>
 
         {/* Tracking number — big and prominent */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>
             {t('super_agent_parcel.tracking_number_label')}
           </div>
           <div style={{ fontSize: 26, fontWeight:800, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 2 }}>
@@ -200,7 +201,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600 }}>
-            ❌ {error}
+            {error}
             <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16, fontWeight:800 }}>×</button>
           </div>
         )}
@@ -208,7 +209,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
           {/* Sender */}
-          <SectionTitle icon="👤" title={t('super_agent_parcel.section_sender')} />
+          <SectionTitle icon="person" title={t('super_agent_parcel.section_sender')} />
           <Field label={t('super_agent_parcel.sender_name_label')} required>
             <input type="text" placeholder="e.g. Juma Salehe" value={form.senderName}
               onChange={e => set('senderName', e.target.value)} style={inputStyle} />
@@ -219,7 +220,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           </Field>
 
           {/* Recipient */}
-          <SectionTitle icon="📍" title={t('super_agent_parcel.section_recipient')} />
+          <SectionTitle icon="pin" title={t('super_agent_parcel.section_recipient')} />
           <Field label={t('super_agent_parcel.recipient_name_label')} required>
             <input type="text" placeholder="e.g. Amina Hassan" value={form.recipientName}
               onChange={e => set('recipientName', e.target.value)} style={inputStyle} />
@@ -244,11 +245,11 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
 
           {/* ETA and transit info — shown when destination city selected */}
           {form.destinationCity && routeInfo && (
-            <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '10px 14px', marginBottom: 14, border: '1px solid #86efac' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 6 }}>{t('super_agent_parcel.route_details_title')}</div>
+            <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '10px 14px', marginBottom: 14, border: '1px solid #bbf7d0' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', marginBottom: 6 }}>{t('super_agent_parcel.route_details_title')}</div>
               {routeInfo.transitCity && (
-                <div style={{ backgroundColor: '#fef9c3', borderRadius: 6, padding: '5px 8px', marginBottom: 6, fontSize: 11, color: '#92400e' }}>
-                  🔄 {t('super_agent_parcel.via_label')} <strong>{routeInfo.transitCity}</strong>
+                <div style={{ backgroundColor: '#fffbeb', borderRadius: 6, padding: '5px 8px', marginBottom: 6, fontSize: 12, color: '#92400e' }}>
+                  {t('super_agent_parcel.via_label')} <strong>{routeInfo.transitCity}</strong>
                   {routeInfo.leg1Days && routeInfo.leg2Days && (
                     <span>{t('super_agent_parcel.transit_leg_note', { leg1: routeInfo.leg1Days, transit: routeInfo.transitCity, leg2: routeInfo.leg2Days, dest: form.destinationCity })}</span>
                   )}
@@ -256,7 +257,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
                 <span style={{ color: '#64748b' }}>{t('super_agent_parcel.typical_time_label')}</span>
-                <span style={{ fontWeight: 700, color: '#15803d' }}>{t('super_agent_parcel.days_value', { count: routeInfo.estimatedDays ?? 2 })}</span>
+                <span style={{ fontWeight: 700, color: '#16a34a' }}>{t('super_agent_parcel.days_value', { count: routeInfo.estimatedDays ?? 2 })}</span>
               </div>
               {routeInfo.primaryTransport && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
@@ -267,12 +268,12 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
                 </div>
               )}
               {routeInfo.notes && (
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, fontStyle: 'italic' }}>{routeInfo.notes}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, fontStyle: 'italic' }}>{routeInfo.notes}</div>
               )}
             </div>
           )}
           {form.destinationCity && !routeInfo && (
-            <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 11, color: '#92400e' }}>
+            <div style={{ backgroundColor: '#fffbeb', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
               {t('super_agent_parcel.no_route_warning', { city: form.destinationCity })}
             </div>
           )}
@@ -283,7 +284,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           </Field>
 
           {/* Parcel */}
-          <SectionTitle icon="📦" title={t('super_agent_parcel.section_parcel')} />
+          <SectionTitle icon="box" title={t('super_agent_parcel.section_parcel')} />
           <Field label={t('super_agent_parcel.contents_label')} required hint={t('super_agent_parcel.contents_hint')}>
             <input type="text" placeholder={t('super_agent_parcel.contents_placeholder')} value={form.description}
               onChange={e => set('description', e.target.value)} style={inputStyle} />
@@ -305,8 +306,8 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
             {SIZES.map(s => (
               <div key={s.value} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, opacity: form.parcelSize === s.value ? 1 : 0.5 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', minWidth: 50 }}>{s.label}</span>
-                <span style={{ fontSize: 11, color: '#64748b' }}>{s.desc}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', minWidth: 50 }}>{s.label}</span>
+                <span style={{ fontSize: 12, color: '#64748b' }}>{s.desc}</span>
               </div>
             ))}
           </div>
@@ -315,7 +316,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
               its own section so it's never mistaken for the shipping fee
               collected below (a genuinely different number, for a
               genuinely different purpose — this one matters for claims). */}
-          <SectionTitle icon="💰" title={t('super_agent_parcel.section_declared_value')} />
+          <SectionTitle icon="money" title={t('super_agent_parcel.section_declared_value')} />
           <Field label={t('super_agent_parcel.declared_value_label')} required hint={t('super_agent_parcel.declared_value_hint')}>
             <input type="number" min="0" placeholder="e.g. 150000"
               value={form.declaredValue} onChange={e => set('declaredValue', e.target.value)}
@@ -323,7 +324,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           </Field>
 
           {/* Payment */}
-          <SectionTitle icon="💵" title={t('super_agent_parcel.section_payment')} />
+          <SectionTitle icon="money" title={t('super_agent_parcel.section_payment')} />
           <Field label={t('super_agent_parcel.fee_collected_label')} required hint={t('super_agent_parcel.fee_collected_hint')}>
             <input type="number" min="0" placeholder="e.g. 5000"
               value={form.shippingFeeCollected} onChange={e => set('shippingFeeCollected', e.target.value)}
@@ -337,7 +338,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
                 { value: 'airtel', label: t('super_agent_parcel.payment_airtel') },
               ].map(m => (
                 <button key={m.value} onClick={() => set('paymentMethod', m.value)}
-                  style={{ flex: 1, padding: '10px 6px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                  style={{ flex: 1, padding: '10px 6px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700,
                     border: form.paymentMethod === m.value ? '2px solid #1d4ed8' : '2px solid #e2e8f0',
                     backgroundColor: form.paymentMethod === m.value ? '#eff6ff' : '#fff',
                     color: form.paymentMethod === m.value ? '#1d4ed8' : '#64748b' }}>

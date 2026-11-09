@@ -11,6 +11,7 @@ import RunBookings from '../components/RunBookings';
 import RoutesAwaitingPrice from '../components/RoutesAwaitingPrice';
 import { TransportHome, TRANSPORT_COLORS } from '../components/TransportDashboardShell';
 import { OfficeScreenHeader, OfficeRow, officeSection } from '../components/OfficeDashboardShell';
+import LineIcon from '../components/LineIcon';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Operational dashboard (posting routes, availability, accepting
@@ -23,7 +24,7 @@ const getStatusStyle = t => ({
   accepted:  { bg: '#dcfce7', text: '#16a34a', label: t('transport_provider_dashboard.status_accepted') },
   declined:  { bg: '#fee2e2', text: '#dc2626', label: t('transport_provider_dashboard.status_declined') },
   collected: { bg: '#dbeafe', text: '#1d4ed8', label: t('transport_provider_dashboard.status_collected') },
-  departed:  { bg: '#ede9fe', text: '#7c3aed', label: t('transport_provider_dashboard.status_departed') },
+  departed:  { bg: '#f7f9f9', text: '#0f1419', label: t('transport_provider_dashboard.status_departed') },
   arrived:   { bg: '#f0fdf4', text: '#16a34a', label: t('transport_provider_dashboard.status_arrived') },
   completed: { bg: '#f8fafc', text: '#64748b', label: t('transport_provider_dashboard.status_completed') },
 });
@@ -358,7 +359,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🚌</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="bus" size={40} /></div>
           <div>{t('transport_provider_dashboard.loading')}</div>
         </div>
       </div>
@@ -370,7 +371,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}><LineIcon name="bus" size={40} /></div>
           <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
             {t('transport_provider_dashboard.no_account_title')}
           </div>
@@ -398,7 +399,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center', maxWidth: 340 }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}><LineIcon name="bus" size={40} /></div>
           <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
             {t('transport_provider_dashboard.registered_title')}
           </div>
@@ -696,7 +697,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               {scheduleForm.scheduleType==='selected_days' && <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=><button type="button" key={d} onClick={()=>setScheduleForm(p=>({...p,daysOfWeek:p.daysOfWeek.includes(i)?p.daysOfWeek.filter(x=>x!==i):[...p.daysOfWeek,i]}))} style={{border:'1px solid #cbd5e1',borderRadius:8,padding:'6px 8px',background:scheduleForm.daysOfWeek.includes(i)?'#dbeafe':'#fff',fontWeight:700}}>{d}</button>)}</div>}
               <input type="time" style={{...inp,marginTop:8}} value={scheduleForm.departureTime} onChange={e=>setScheduleForm(p=>({...p,departureTime:e.target.value}))}/>
               <select style={{...inp,marginTop:8}} value={scheduleForm.defaultVehicleId} onChange={e=>setScheduleForm(p=>({...p,defaultVehicleId:e.target.value}))}><option value="">Bila gari maalum</option>{vehicles.filter(v=>v.isActive).map(v=><option key={v.id} value={v.id}>{v.identifier}{v.registrationPlate?` · ${v.registrationPlate}`:''}</option>)}</select>
-              <div style={{fontSize:11,color:'#64748b',marginTop:7}}>KenteXa itaandaa safari za siku 14 zijazo. Wewe badilisha zile tu zenye mabadiliko.</div>
+              <div style={{fontSize:12,color:'#64748b',marginTop:7}}>KenteXa itaandaa safari za siku 14 zijazo. Wewe badilisha zile tu zenye mabadiliko.</div>
               <button disabled={!scheduleForm.routeId||!scheduleForm.departureTime||runBusy==='schedule'||(scheduleForm.scheduleType==='selected_days'&&!scheduleForm.daysOfWeek.length)} onClick={createRecurringSchedule} style={{width:'100%',marginTop:8,padding:10,border:'none',borderRadius:8,background:'#16a34a',color:'#fff',fontWeight:800}}>Hifadhi ratiba</button>
             </div>}
             {schedules.filter(s=>s.isActive).length>0 && <div style={{background:'#fff',borderRadius:12,padding:12,marginBottom:12}}>
@@ -711,10 +712,10 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               <button disabled={!runForm.routeId||!runForm.scheduledDeparture||runBusy==='create'} onClick={createVanRun} style={{ width:'100%', marginTop:8, padding:10, border:'none', borderRadius:8, background:'#16a34a', color:'#fff', fontWeight:800 }}>Unda safari</button>
             </div>}
             {vanTenders.length>0 && <div style={{marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:800,color:'#7c3aed',marginBottom:7}}>ULIYOPEWA · {vanTenders.length}</div>
+              <div style={{fontSize:12,fontWeight:800,color:'#0f1419',marginBottom:7}}>ULIYOPEWA · {vanTenders.length}</div>
               {vanTenders.map(t=><div key={t.tenderId} style={{background:'#fff',borderRadius:12,padding:12,marginBottom:7}}>
                 <div style={{fontSize:13,fontWeight:800}}>{t.trackingNumber || `Parcel #${t.parcelId}`}</div>
-                <div style={{fontSize:11,color:'#64748b',margin:'3px 0 8px'}}>{t.loadLocation} → {t.unloadLocation} · Run #{t.runId}{t.weightKg ? ` · ${t.weightKg}kg` : ''}</div>
+                <div style={{fontSize:12,color:'#64748b',margin:'3px 0 8px'}}>{t.loadLocation} → {t.unloadLocation} · Run #{t.runId}{t.weightKg ? ` · ${t.weightKg}kg` : ''}</div>
                 <button disabled={runBusy===`tender-${t.tenderId}`} onClick={()=>acceptTenderIntoRun(t)} style={{width:'100%',border:'none',borderRadius:8,padding:9,background:'#1d4ed8',color:'#fff',fontWeight:800}}>Pakia kwenye safari</button>
               </div>)}
             </div>}
@@ -733,13 +734,13 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                       <div style={{ fontSize:15, fontWeight:800 }}>Safari #{run.id}</div>
                       <div style={{ fontSize:12, color:'#64748b' }}>{new Date(run.scheduledDeparture).toLocaleString()} · Route #{run.routeId}</div>
                     </div>
-                    <span style={{ fontSize:11, fontWeight:800, textTransform:'uppercase' }}>{run.status}</span>
+                    <span style={{ fontSize:12, fontWeight:800, textTransform:'uppercase' }}>{run.status}</span>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
-                    {!run.vehicleId && vehicles.filter(v=>v.isActive).length>0 && <select defaultValue="" onChange={e=>assignVehicle(run.id,e.target.value)} style={{border:'1px solid #cbd5e1',borderRadius:8,padding:'8px 10px',fontSize:11}}>
+                    {!run.vehicleId && vehicles.filter(v=>v.isActive).length>0 && <select defaultValue="" onChange={e=>assignVehicle(run.id,e.target.value)} style={{border:'1px solid #cbd5e1',borderRadius:8,padding:'8px 10px',fontSize:12}}>
                       <option value="">Chagua gari</option>{vehicles.filter(v=>v.isActive).map(v=><option key={v.id} value={v.id}>{v.identifier}{v.registrationPlate ? ` · ${v.registrationPlate}` : ''}</option>)}
                     </select>}
-                    {run.vehicleId && <span style={{fontSize:11,padding:'8px 10px',background:'#f1f5f9',borderRadius:8}}>Vehicle #{run.vehicleId}</span>}
+                    {run.vehicleId && <span style={{fontSize:12,padding:'8px 10px',background:'#f1f5f9',borderRadius:8}}>Vehicle #{run.vehicleId}</span>}
                     <button onClick={() => loadManifest(run.id)} style={{ border:'none', borderRadius:8, padding:'9px 12px', cursor:'pointer', fontWeight:700 }}>Orodha ya mizigo</button>
                     {['scheduled','open','closed'].includes(run.status) && <button disabled={runBusy===run.id} onClick={()=>transitionRun(run.id,'cancel')}
                       style={{border:'none',borderRadius:8,padding:'9px 12px',cursor:'pointer',fontWeight:700,background:'#fee2e2',color:'#b91c1c'}}>Ghairi</button>}
@@ -756,7 +757,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                         manifest.map(a => (
                           <div key={a.id} style={{ borderTop:'1px solid #e2e8f0', padding:'10px 0' }}>
                             <div style={{ fontSize:12, fontWeight:800 }}>{a.trackingNumber || `Parcel #${a.parcelId}`} · {a.recipientName || 'Recipient'}</div>
-                            <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{a.loadLocation} → {a.unloadLocation} · {a.status}</div>
+                            <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>{a.loadLocation} → {a.unloadLocation} · {a.status}</div>
                             <div style={{ display:'flex', gap:6, marginTop:7 }}>
                               {a.status === 'scheduled' && <button disabled={runBusy === a.id} onClick={() => markRunParcel(run.id, a.id, 'loaded')}>Pakia</button>}
                               {a.status === 'loaded' && <button disabled={runBusy === a.id} onClick={() => markRunParcel(run.id, a.id, 'unloaded')}>Shusha</button>}
@@ -823,7 +824,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                       <button type="button" onClick={()=>setNewRouteStops(p=>p.filter((_,x)=>x!==i))} style={{border:'none',background:'none',color:'#b91c1c'}}>Ondoa</button>
                     </div>)}
                     <button type="button" onClick={()=>addNewRouteStop()} style={{border:'1px solid #cbd5e1',borderRadius:8,padding:'7px 10px',background:'#fff',fontWeight:700,marginTop:6}}>+ Kituo cha kawaida</button>
-                    <div style={{fontSize:11,color:'#64748b',marginTop:6}}>Chagua ofisi pale mzigo unapopakiwa au kushushwa. Vituo vya kawaida ni vya kupita tu.</div>
+                    <div style={{fontSize:12,color:'#64748b',marginTop:6}}>Chagua ofisi pale mzigo unapopakiwa au kushushwa. Vituo vya kawaida ni vya kupita tu.</div>
                   </div>
                 )}
 
@@ -879,7 +880,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
 
             {routes.length === 0 && routesAwaitingPrice > 0 ? null : routes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, color: '#94a3b8' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="map" size={40} /></div>
                 <div>{t('transport_provider_dashboard.no_routes_title')}</div>
                 <div style={{ fontSize: 12, marginTop: 6 }}>{t('transport_provider_dashboard.no_routes_desc')}</div>
               </div>
@@ -901,9 +902,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                   {r.pricePerKg > 0 && ` · TZS ${Number(r.pricePerKg).toLocaleString()}/kg`}
                 </div>
                 {r.routeType === 'local_loop' && <div style={{marginTop:10,borderTop:'1px solid #e2e8f0',paddingTop:10}}>
-                  <button onClick={()=>loadRouteStops(r.id)} style={{border:'none',borderRadius:8,padding:'7px 10px',fontSize:11,fontWeight:800,cursor:'pointer'}}>Vituo vya van</button>
+                  <button onClick={()=>loadRouteStops(r.id)} style={{border:'none',borderRadius:8,padding:'7px 10px',fontSize:12,fontWeight:800,cursor:'pointer'}}>Vituo vya van</button>
                   {routeStops[r.id] && <div style={{marginTop:8}}>
-                    {routeStops[r.id].filter(x=>x.isActive!==false).map(st=><div key={st.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,padding:'5px 0'}}>
+                    {routeStops[r.id].filter(x=>x.isActive!==false).map(st=><div key={st.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:12,padding:'5px 0'}}>
                       <span>{st.sequence+1}. {st.locationLabel}{st.superAgentId ? ` · Hub #${st.superAgentId}` : ''}</span>
                       <span><button onClick={()=>reorderCanonicalStop(r.id,st,-1)} style={{border:'none',background:'none',cursor:'pointer'}}>↑</button><button onClick={()=>reorderCanonicalStop(r.id,st,1)} style={{border:'none',background:'none',cursor:'pointer'}}>↓</button><button onClick={()=>renameCanonicalStop(r.id,st)} style={{border:'none',background:'none',color:'#1d4ed8',cursor:'pointer'}}>Edit</button><button onClick={()=>deactivateCanonicalStop(r.id,st.id)} style={{border:'none',background:'none',color:'#b91c1c',cursor:'pointer'}}>Ondoa</button></span>
                     </div>)}

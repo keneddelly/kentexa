@@ -91,10 +91,10 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
             {/* Key metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
               {[
-                { label: 'Total Revenue',   value: `TZS ${data.totalRevenue.toLocaleString()}`,  icon: '', gradient: 'linear-gradient(135deg,#16a34a,#15803d)' },
+                { label: 'Total Revenue',   value: `TZS ${data.totalRevenue.toLocaleString()}`,  icon: '', gradient: 'linear-gradient(135deg,#16a34a,#16a34a)' },
                 { label: 'Platform Fees',   value: `TZS ${data.platformFees.toLocaleString()}`,  icon: '', gradient: 'linear-gradient(135deg,#1d4ed8,#2563eb)' },
-                { label: 'Total Orders',    value: data.totalOrders,                              icon: '', gradient: 'linear-gradient(135deg,#7c3aed,#6d28d9)' },
-                { label: 'Conversion Rate', value: `${data.conversionRate}%`,                    icon: '', gradient: 'linear-gradient(135deg,#ea580c,#dc2626)' },
+                { label: 'Total Orders',    value: data.totalOrders,                              icon: '', gradient: 'linear-gradient(135deg,#0f1419,#0f1419)' },
+                { label: 'Conversion Rate', value: `${data.conversionRate}%`,                    icon: '', gradient: 'linear-gradient(135deg,#d97706,#dc2626)' },
               ].map(s => (
                 <div key={s.label} style={{ background: s.gradient, borderRadius: 14, padding: 20, color: '#fff' }}>
                   <div style={{ fontSize: 22, fontWeight:800, marginBottom: 4 }}>{s.value}</div>
@@ -106,7 +106,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
             {/* Secondary stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
               {[
-                { label: 'Total Users',     value: data.totalUsers,           bg: '#ede9fe', color: '#7c3aed' },
+                { label: 'Total Users',     value: data.totalUsers,           bg: '#f7f9f9', color: '#0f1419' },
                 { label: 'Total Products',  value: data.totalProducts,        bg: '#dbeafe', color: '#2563eb' },
                 { label: 'Completed Orders',value: data.completedOrders,      bg: '#dcfce7', color: '#16a34a' },
                 { label: 'Disputed Orders', value: data.disputedOrders,       bg: '#fee2e2', color: '#dc2626' },
@@ -143,7 +143,7 @@ const Reports = ({ activePage, onNavigate, onLogout }) => {
                     <span style={{ fontSize: 13, color: '#64748b', textTransform: 'capitalize' }}>{role.replace(/_/g,' ')}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 80, height: 6, backgroundColor: '#f1f5f9', borderRadius: 3 }}>
-                        <div style={{ width: `${(count/data.totalUsers*100)}%`, height: '100%', backgroundColor: '#7c3aed', borderRadius: 3 }} />
+                        <div style={{ width: `${(count/data.totalUsers*100)}%`, height: '100%', backgroundColor: '#0f1419', borderRadius: 3 }} />
                       </div>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', minWidth: 24 }}>{count}</span>
                     </div>

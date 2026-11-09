@@ -10,12 +10,13 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const StatCard = ({ icon, label, value, color, bg }) => (
   <div style={{ backgroundColor: bg || '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-    <div style={{ fontSize: 20, marginBottom: 6 }}>{icon}</div>
+    <div style={{ marginBottom: 6 }}><LineIcon name={icon} size={20} /></div>
     <div style={{ fontSize: 22, fontWeight:800, color: color || '#0f172a' }}>{value}</div>
-    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginTop: 2 }}>{label}</div>
+    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginTop: 2 }}>{label}</div>
   </div>
 );
 
@@ -39,7 +40,7 @@ const BrandDashboard = ({ onNavigate, activeProfileId, activeProfile }) => {
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <button onClick={() => onNavigate('BrandCatalog')}
           style={{ width: '100%', backgroundColor: '#fff', color: '#1d4ed8', border: '1px solid #93c5fd', borderRadius: 12, padding: '12px 16px', marginBottom: 16, cursor: 'pointer', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          📋 {t('brand_dashboard.manage_catalog_button')}
+          {t('brand_dashboard.manage_catalog_button')}
         </button>
         {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
@@ -53,10 +54,10 @@ const BrandDashboard = ({ onNavigate, activeProfileId, activeProfile }) => {
               {t('brand_dashboard.authorized_businesses_section')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-              <StatCard icon="🏪" label={t('brand_dashboard.total_label')} value={data.authorizedBusinesses.total} />
-              <StatCard icon="✅" label={t('brand_dashboard.active_label')} value={data.authorizedBusinesses.approved} color="#16a34a" bg="#f0fdf4" />
-              <StatCard icon="⏳" label={t('brand_dashboard.pending_label')} value={data.authorizedBusinesses.pending} color="#ca8a04" bg="#fef9c3" />
-              <StatCard icon="⏸" label={t('brand_dashboard.suspended_label')} value={data.authorizedBusinesses.suspended} color="#c2410c" bg="#fff7ed" />
+              <StatCard icon="store" label={t('brand_dashboard.total_label')} value={data.authorizedBusinesses.total} />
+              <StatCard icon="check" label={t('brand_dashboard.active_label')} value={data.authorizedBusinesses.approved} color="#16a34a" bg="#f0fdf4" />
+              <StatCard icon="clock" label={t('brand_dashboard.pending_label')} value={data.authorizedBusinesses.pending} color="#d97706" bg="#fffbeb" />
+              <StatCard icon="clock" label={t('brand_dashboard.suspended_label')} value={data.authorizedBusinesses.suspended} color="#d97706" bg="#fffbeb" />
             </div>
 
             <div style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', marginBottom: 10, textTransform: 'uppercase' }}>
@@ -69,7 +70,7 @@ const BrandDashboard = ({ onNavigate, activeProfileId, activeProfile }) => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {data.cities.map(city => (
                     <span key={city} style={{ fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20, backgroundColor: '#eff6ff', color: '#1d4ed8' }}>
-                      📍 {city}
+                      {city}
                     </span>
                   ))}
                 </div>
@@ -80,10 +81,10 @@ const BrandDashboard = ({ onNavigate, activeProfileId, activeProfile }) => {
               {t('brand_dashboard.commerce_section')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <StatCard icon="📦" label={t('brand_dashboard.products_label')} value={data.products} />
-              <StatCard icon="🛒" label={t('brand_dashboard.orders_label')} value={data.orders.count} />
-              <StatCard icon="💰" label={t('brand_dashboard.revenue_label')} value={`TZS ${Number(data.orders.revenue || 0).toLocaleString()}`} color="#1d4ed8" bg="#eff6ff" />
-              <StatCard icon="🛡️" label={t('brand_dashboard.warranty_registrations_label')} value={data.warrantyRegistrations} />
+              <StatCard icon="box" label={t('brand_dashboard.products_label')} value={data.products} />
+              <StatCard icon="cart" label={t('brand_dashboard.orders_label')} value={data.orders.count} />
+              <StatCard icon="money" label={t('brand_dashboard.revenue_label')} value={`TZS ${Number(data.orders.revenue || 0).toLocaleString()}`} color="#1d4ed8" bg="#eff6ff" />
+              <StatCard icon="shield" label={t('brand_dashboard.warranty_registrations_label')} value={data.warrantyRegistrations} />
             </div>
           </>
         )}

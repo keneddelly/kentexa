@@ -209,7 +209,7 @@ function WhatsAppSellerButton({ notice, showStore }) {
   return (
     <a data-testid="whatsapp-seller" href={notice.whatsappUrl} target="_blank" rel="noopener noreferrer"
       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 48, padding: '10px 14px', borderRadius: 12,
-        backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', width: '100%' }}>
+        backgroundColor: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 15, textDecoration: 'none', textAlign: 'center', boxSizing: 'border-box', width: '100%' }}>
       <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="#fff" style={{ flexShrink: 0 }}>
         <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z" />
       </svg>
@@ -245,7 +245,7 @@ function SellerContact({ notice, method, showStore }) {
         </div>
       )}
       {!notice.whatsappUrl && method === 'lipa_namba' && (
-        <div data-testid="no-whatsapp-note" style={note('#fefce8', '#854d0e')}>{t('direct_payment.no_whatsapp_note')}</div>
+        <div data-testid="no-whatsapp-note" style={note('#fffbeb', '#92400e')}>{t('direct_payment.no_whatsapp_note')}</div>
       )}
     </div>
   );
@@ -260,7 +260,7 @@ export function DirectPaymentSuccess({ method, total, notices = [], onNavigate }
       <div data-testid="direct-payment-success" style={{ padding: '24px 16px', maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ ...card, textAlign: 'center' }}>
           <div style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
-            <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           </div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: DARK, margin: '0 0 8px' }}>{t('direct_payment.success_title')}</h2>
           <p style={{ fontSize: 15, color: GREY, margin: 0, lineHeight: 1.5 }}>

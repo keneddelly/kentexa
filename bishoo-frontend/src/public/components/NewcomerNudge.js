@@ -4,6 +4,9 @@
  * top of For You:
  *   no photo yet       -> "Weka picha yako" (opens the photo page);
  *   no post yet        -> "Chapisho lako la kwanza" (opens the composer with a ready start).
+ * Before both, for people who joined before the new welcome (owner 2026-11-09, "catch up old
+ * users"): "Karibu kwenye KenteXa mpya" opens the welcome once (town, topics, what they want to
+ * do, communities, follows). Shown when the old welcome is done but the new one never was.
  * "Baadaye" hides it for a day on this phone. The post count comes from the server
  * (GET /feed/profile/:id/summary); nothing is shown when it cannot be read.
  */
@@ -37,7 +40,10 @@ export default function NewcomerNudge({ currentUser, activeProfileId, onNavigate
   const later = (what) => { try { window.localStorage.setItem(hiddenKey(uid, what), String(Date.now())); } catch { /* storage blocked */ } setTick((n) => n + 1); };
 
   let card = null;
-  if (!currentUser.avatarUrl && !hidden(uid, 'photo')) {
+  if (currentUser.onboardingCompleted === true && !currentUser.onboardingState?.welcomedAt && !hidden(uid, 'welcome')) {
+    card = { what: 'welcome', title: 'Karibu kwenye KenteXa mpya', text: 'Chagua mada, jumuiya na unachotaka kufanya hapa. Inachukua dakika moja.', go: 'Anza',
+      act: () => onNavigate('Onboarding') };
+  } else if (!currentUser.avatarUrl && !hidden(uid, 'photo')) {
     card = { what: 'photo', title: 'Weka picha yako', text: 'Watu wanakuamini zaidi wakiona sura yako.', go: 'Weka picha', act: () => onNavigate('AddProfilePhoto') };
   } else if (postCount === 0 && !hidden(uid, 'post')) {
     card = { what: 'post', title: 'Chapisho lako la kwanza', text: 'Jitambulishe: watu wa mada zako wataanza kukuona.', go: 'Andika sasa',

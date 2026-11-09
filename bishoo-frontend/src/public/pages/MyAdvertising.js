@@ -111,9 +111,9 @@ export default function MyAdvertising({ onNavigate, currentUser }) {
               <div style={{ fontSize: 15, fontWeight: 700, wordBreak: 'break-all', marginBottom: 12 }}>{data.link}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="button" onClick={copy} style={{ flex: 1, height: 48, borderRadius: 12, border: '1px solid #cbd5e1', background: '#ffffff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>{copied ? 'Imenakiliwa' : 'Nakili'}</button>
-                <a href={share} target="_blank" rel="noopener noreferrer" style={{ flex: 1, height: 48, borderRadius: 12, background: '#15803d', color: '#ffffff', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>Tuma WhatsApp</a>
+                <a href={share} target="_blank" rel="noopener noreferrer" style={{ flex: 1, height: 48, borderRadius: 12, background: '#16a34a', color: '#ffffff', fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>Tuma WhatsApp</a>
               </div>
-              {!data.active && <div role="status" style={{ fontSize: 13, color: '#b45309', marginTop: 10 }}>Kiungo hiki kimesimamishwa na KenteXa.</div>}
+              {!data.active && <div role="status" style={{ fontSize: 13, color: '#d97706', marginTop: 10 }}>Kiungo hiki kimesimamishwa na KenteXa.</div>}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>

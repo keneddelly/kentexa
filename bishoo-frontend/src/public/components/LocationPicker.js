@@ -155,7 +155,7 @@ const LocationPicker = ({
       {!value.regionId && value.regionName && (
         <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#f0fdf4',
           borderRadius: 8, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
-          📍 {[value.wardName, value.districtName, value.regionName].filter(Boolean).join(', ')}
+          {[value.wardName, value.districtName, value.regionName].filter(Boolean).join(', ')}
         </div>
       )}
 
@@ -163,7 +163,7 @@ const LocationPicker = ({
       {value.wardName && value.districtName && value.regionName && (
         <div style={{ marginTop: 8, padding: '8px 12px', backgroundColor: '#f0fdf4',
           borderRadius: 8, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
-          📍 {value.wardName}, {value.districtName}, {value.regionName}
+          {value.wardName}, {value.districtName}, {value.regionName}
         </div>
       )}
     </div>

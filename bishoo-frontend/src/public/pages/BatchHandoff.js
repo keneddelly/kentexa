@@ -110,7 +110,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
               ))}
             </div>
 
-            <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#92400e', textAlign: 'left', fontWeight: 600 }}>
+            <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#92400e', textAlign: 'left', fontWeight: 600 }}>
               {t('batch_handoff.cutoff_warning', { time: cutoff ? cutoff.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) : '7:00 AM' })}
             </div>
 
@@ -163,12 +163,12 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
             <button onClick={() => setMode('assign')}
               style={{ backgroundColor: '#fff', border: '2px solid #e2e8f0', borderRadius: 16, padding: 20, cursor: 'pointer', textAlign: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{t('batch_handoff.mode_kentexa_title')}</div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>{t('batch_handoff.mode_kentexa_desc')}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{t('batch_handoff.mode_kentexa_desc')}</div>
             </button>
             <button onClick={() => setMode('offline')}
               style={{ backgroundColor: '#fff', border: '2px solid #e2e8f0', borderRadius: 16, padding: 20, cursor: 'pointer', textAlign: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{t('batch_handoff.mode_offline_title')}</div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>{t('batch_handoff.mode_offline_desc')}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>{t('batch_handoff.mode_offline_desc')}</div>
             </button>
           </div>
         )}
@@ -184,7 +184,7 @@ const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
               onChange={e => setOrderId(e.target.value)}
               style={inputStyle}
             />
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4, marginBottom: 16 }}>
               {t('batch_handoff.order_number_hint')}
             </div>
             <div style={{ display: 'flex', gap: 10 }}>

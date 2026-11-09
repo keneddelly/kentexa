@@ -54,7 +54,7 @@ export const subscribeToPush = async (apiBase = '') => {
     });
     if (!saved.ok) return null;
 
-    console.log('✅ Push subscription saved');
+    console.log('Push subscription saved');
     return subscription;
   } catch (err) {
     console.warn('Push subscription failed:', err);
@@ -187,7 +187,7 @@ export const InstallBanner = ({ onInstall, onDismiss }) => {
     <img src="/logo192.png" alt="" width="40" height="40" style={{ borderRadius: 10 }} />
     <div style={{ flex: 1, color: '#fff', minWidth: 0 }}>
       <strong style={{ fontSize: 13 }}>{t('install_kentexa.title')}</strong>
-      <div style={{ fontSize: 11, marginTop: 3, opacity: 0.8 }}>{t('install_kentexa.subtitle')}</div>
+      <div style={{ fontSize: 12, marginTop: 3, opacity: 0.8 }}>{t('install_kentexa.subtitle')}</div>
     </div>
     <button onClick={onInstall} style={{ background: '#2563eb', color: '#fff', border: 0,
       borderRadius: 8, padding: '10px 12px', fontWeight: 700, cursor: 'pointer' }}>{t('install_kentexa.action')}</button>

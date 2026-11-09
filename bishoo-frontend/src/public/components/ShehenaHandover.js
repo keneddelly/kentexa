@@ -84,7 +84,7 @@ export function ShehenaIncoming({ onReceived }) {
   return (
     <section data-testid="shehena-incoming" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 800, color: MUTED, letterSpacing: '0.04em' }}>SHEHENA ZINAZOKUJA ({rows.length})</div>
-      {done && <div role="status" style={{ ...card, background: '#e7f6ee', borderColor: 'transparent', color: GREEN, fontSize: 14, fontWeight: 600 }}>{done}</div>}
+      {done && <div role="status" style={{ ...card, background: '#f0fdf4', borderColor: 'transparent', color: GREEN, fontSize: 14, fontWeight: 600 }}>{done}</div>}
       {rows.map((s) => (
         <div key={s.id} style={card} data-testid={`shehena-incoming-${s.id}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>

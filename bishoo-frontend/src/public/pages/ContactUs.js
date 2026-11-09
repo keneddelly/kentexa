@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { KENTEXA_SUPPORT } from '../utils/whatsapp-link';
+import LineIcon from '../components/LineIcon';
 
 const getFaqs = (t) => Array.from({ length: 7 }, (_, i) => ({
   q: t(`contact_us.faq${i + 1}_q`),
@@ -45,8 +46,8 @@ const ContactUs = ({ onNavigate, currentUser }) => {
       <BackBar onBack={() => onNavigate('back')} title={t('contact_us.page_title')} top={0} />
 
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 8 }}>💬</div>
+      <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 8 }}><LineIcon name="chat" size={40} /></div>
         <h1 style={{ fontSize: 22, fontWeight:800, color: '#fff', margin: '0 0 6px', fontFamily:'inherit' }}>{t('contact_us.hero_title')}</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('contact_us.hero_subtitle')}</p>
       </div>
@@ -56,15 +57,15 @@ const ContactUs = ({ onNavigate, currentUser }) => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
           <a href={`https://wa.me/${KENTEXA_SUPPORT}`} target="_blank" rel="noreferrer"
             style={{ backgroundColor: '#dcfce7', borderRadius: 14, padding: '16px 12px', textAlign: 'center', textDecoration: 'none', display: 'block' }}>
-            <div style={{ fontSize: 28, marginBottom: 6 }}>💬</div>
+            <div style={{ fontSize: 28, marginBottom: 6 }}><LineIcon name="chat" size={28} /></div>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a' }}>{t('contact_us.whatsapp_label')}</div>
-            <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>{t('contact_us.whatsapp_desc')}</div>
+            <div style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>{t('contact_us.whatsapp_desc')}</div>
           </a>
           <a href="mailto:support@kentexa.com"
             style={{ backgroundColor: '#eff6ff', borderRadius: 14, padding: '16px 12px', textAlign: 'center', textDecoration: 'none', display: 'block' }}>
-            <div style={{ fontSize: 28, marginBottom: 6 }}>📧</div>
+            <div style={{ fontSize: 28, marginBottom: 6 }}><LineIcon name="mail" size={28} /></div>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8' }}>{t('contact_us.email_label')}</div>
-            <div style={{ fontSize: 11, color: '#1e40af', marginTop: 2 }}>support@kentexa.com</div>
+            <div style={{ fontSize: 12, color: '#1d4ed8', marginTop: 2 }}>support@kentexa.com</div>
           </a>
         </div>
       </div>
@@ -83,7 +84,7 @@ const ContactUs = ({ onNavigate, currentUser }) => {
           )}
           {error && (
             <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-              <span>❌ {error}</span>
+              <span>{error}</span>
               <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
             </div>
           )}

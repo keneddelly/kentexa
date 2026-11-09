@@ -15,7 +15,7 @@ const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','Selle
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
 const TRANSPORT_PAGES = ['TransportProviderDashboard','TransportProviderSettings'];
-const ADMIN_PAGES = ['Profile','Dashboard','AdminActivity','AdminPerson','AdminBusinessView','AdminStaff','AdminMoments','AdminReports','AdminCommunities','AdminHotelOrders','AdminPosSales','AdminTeamInvitations','AdminInstagram','AdminOfficePrices','AdminAgentJobs','AdminReviews','AdminNotifications','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin',
+const ADMIN_PAGES = ['Profile','Dashboard','AdminActivity','AdminPerson','AdminChats','AdminOnboarding','AdminBusinessView','AdminStaff','AdminMoments','AdminReports','AdminCommunities','AdminHotelOrders','AdminPosSales','AdminTeamInvitations','AdminInstagram','AdminOfficePrices','AdminAgentJobs','AdminReviews','AdminNotifications','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin',
   // In the admin menu but missing here, so a click went back to the Dashboard (2026-10-24).
   'Businesses','AdminShipments','AdminDispatchReminders','AdminAdvertisers','AdminKentexaFees','AdminShippingCheck'];
 
@@ -27,7 +27,6 @@ export const DESTINATIONS = Object.freeze(Object.fromEntries([
   ...AGENT_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.OPERATIONAL, ['agent'])]),
   ...HUB_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.OPERATIONAL, ['super_agent'])]),
   ...TRANSPORT_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.OPERATIONAL, ['transport_provider'])]),
-  ['VanToday', destination('VanToday', DESTINATION_KIND.OPERATIONAL, ['seller', 'super_agent'])],
   ['BecomeTransportProvider', destination('BecomeTransportProvider', DESTINATION_KIND.ACCOUNT)],
   // Existing MyServices identity/backend behavior remains a documented Phase F dependency.
   ['MyServices', destination('MyServices', DESTINATION_KIND.OPERATIONAL, ['service_provider', 'seller'])],

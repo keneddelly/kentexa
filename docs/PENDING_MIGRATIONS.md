@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-09 (Tuma taarifa):** the pin is now `MIGRATION_RUN_UPTO=1795600000000`. The next deploy
+runs `1795600000000-AddAnnouncementSendFlow` itself (announcements: status, in-app link, schedule, approval and reach; old rows become 'sent'; an index on notification source). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-09 (staff roles):** the pin is now `MIGRATION_RUN_UPTO=1795500000000`. The next deploy
 runs `1795500000000-AddStaffRoleTypes` itself (adds 'finance' and 'moderator' to account_role_type_enum). Check: `/version/migrations` shows `pending: []`.
 

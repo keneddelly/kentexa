@@ -20,7 +20,7 @@ import { INK, MUTED, LINE, BLUE, eventLabel, when, Icon, IC, card, pill, tone } 
 const STATUS_KEY = ['pending', 'in_transit', 'arrived_at_hub', 'awaiting_buyer', 'out_for_delivery', 'delivered', 'self_pickup'];
 
 const Notice = ({ kind, children, onClose }) => {
-  const [bg, fg] = kind === 'error' ? ['#fef2f2', '#b91c1c'] : kind === 'ok' ? ['#ecfdf3', '#166534'] : ['#eff6ff', BLUE];
+  const [bg, fg] = kind === 'error' ? ['#fef2f2', '#b91c1c'] : kind === 'ok' ? ['#f0fdf4', '#166534'] : ['#eff6ff', BLUE];
   return (
     <div role={kind === 'error' ? 'alert' : 'status'} style={{ backgroundColor: bg, color: fg, padding: '12px 14px', borderRadius: 12, fontSize: 14,
       display: 'flex', gap: 10, alignItems: 'flex-start', lineHeight: 1.4 }}>

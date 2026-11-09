@@ -29,9 +29,9 @@ export default function PickupPinFields({ pin, onPin, landmark, onLandmark, plac
 
       {pin ? (
         <div style={{ fontSize: 13, color: '#166534', fontWeight: 700 }}>
-          ✅ {t('pickup_pin.found', { m: pin.accuracyM })}
+          {t('pickup_pin.found', { m: pin.accuracyM })}
           {pin.accuracyM > WEAK_ACCURACY_M && (
-            <div style={{ fontSize: 12, color: '#B45309', fontWeight: 600, marginTop: 4 }}>{t('pickup_pin.weak')}</div>
+            <div style={{ fontSize: 12, color: '#d97706', fontWeight: 600, marginTop: 4 }}>{t('pickup_pin.weak')}</div>
           )}
           <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
             <button type="button" onClick={locate} disabled={state === 'locating'}
@@ -54,7 +54,7 @@ export default function PickupPinFields({ pin, onPin, landmark, onLandmark, plac
           {state === 'error' && (
             <div role="alert" style={{ fontSize: 12, color: '#B91C1C', marginTop: 6 }}>{t(`pickup_pin.error_${errorCode}`)}</div>
           )}
-          <div style={{ fontSize: 12, color: placeName ? '#64748B' : '#B45309', marginTop: 8 }}>
+          <div style={{ fontSize: 12, color: placeName ? '#64748B' : '#d97706', marginTop: 8 }}>
             {placeName ? `Si lazima. Weka pin tu kama uko ${placeName} sasa; bei inatokana na ${placeName}.` : t('pickup_pin.ask')}
           </div>
         </>
@@ -66,7 +66,7 @@ export default function PickupPinFields({ pin, onPin, landmark, onLandmark, plac
       <textarea value={landmark} maxLength={LANDMARK_MAX} rows={2} onChange={(e) => onLandmark(e.target.value)}
         placeholder={t('pickup_pin.landmark_placeholder')}
         style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid #CBD5E1', fontSize: 15 }} />
-      <div style={{ fontSize: 11, color: '#64748B' }}>{t('pickup_pin.landmark_hint')}</div>
+      <div style={{ fontSize: 12, color: '#64748B' }}>{t('pickup_pin.landmark_hint')}</div>
     </div>
   );
 }

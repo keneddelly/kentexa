@@ -5,6 +5,7 @@ import api from '../../api/api';
 // eslint-disable-next-line no-unused-vars
 // eslint-disable-next-line no-unused-vars
 import LocationPicker from '../../public/components/LocationPicker';
+import LineIcon from '../../public/components/LineIcon';
 
 const labelStyle = { display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 };
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box', backgroundColor: '#fff' };
@@ -112,20 +113,20 @@ const StoreSettings = ({ userId, onNavigate }) => {
     }
   };
 
-  if (loading) return <div style={{ padding: 24, color: '#64748b' }}>⏳ Loading store settings...</div>;
+  if (loading) return <div style={{ padding: 24, color: '#64748b' }}>Loading store settings...</div>;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, paddingBottom: 100 }}>
-      <BackBar onBack={() => onNavigate('back')} title="⚙️ Mipangilio ya Duka" />
-      <h2 style={{ fontSize: 20, fontWeight:800, color: '#0f172a', marginBottom: 4, fontFamily:'inherit' }}>🏪 Store Settings</h2>
+      <BackBar onBack={() => onNavigate('back')} title="Mipangilio ya Duka" />
+      <h2 style={{ fontSize: 20, fontWeight:800, color: '#0f172a', marginBottom: 4, fontFamily:'inherit' }}>Store Settings</h2>
       <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Customize how your store appears to buyers</p>
 
-      {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>✅ {message}</div>}
-      {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>❌ {error}</div>}
+      {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{message}</div>}
+      {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13 }}>{error}</div>}
 
       {/* Branding */}
       <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 14 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>🎨 Branding</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>Branding</h3>
 
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>Store Name</label>
@@ -137,8 +138,8 @@ const StoreSettings = ({ userId, onNavigate }) => {
           <label style={labelStyle}>Namba ya WhatsApp ya Duka <span style={{ fontWeight: 400, color: '#94a3b8' }}>(kwa ufuatiliaji wa wateja)</span></label>
           <input type="tel" value={form.storeWhatsApp} onChange={e => setForm({ ...form, storeWhatsApp: e.target.value })}
             placeholder="e.g. 0788075633" style={inputStyle} />
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-            💬 Wateja wataweza kufuatilia agizo kwa kubonyeza kitufe cha WhatsApp — kitaenda kwenye namba hii badala ya namba ya KenteXa
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+            Wateja wataweza kufuatilia agizo kwa kubonyeza kitufe cha WhatsApp — kitaenda kwenye namba hii badala ya namba ya KenteXa
           </div>
         </div>
 
@@ -159,7 +160,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
           <label style={labelStyle}>Store Logo</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 60, height: 60, borderRadius: 12, backgroundColor: '#f1f5f9', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {form.logo ? <img src={form.logo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🏪'}
+              {form.logo ? <img src={form.logo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <LineIcon name="store" size={32} />}
             </div>
             <label style={{ padding: '8px 16px', borderRadius: 8, backgroundColor: '#1d4ed8', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
               {uploading === 'logo' ? 'Uploading...' : 'Upload Logo'}
@@ -192,10 +193,10 @@ const StoreSettings = ({ userId, onNavigate }) => {
 
       {/* Business info */}
       <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 14 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>📍 Business Information</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>Business Information</h3>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>📍 Eneo la Biashara (Mkoa / Wilaya / Kata)</label>
+          <label style={labelStyle}>Eneo la Biashara (Mkoa / Wilaya / Kata)</label>
           <LocationPicker
             value={storeLocation}
             onChange={loc => {
@@ -210,21 +211,21 @@ const StoreSettings = ({ userId, onNavigate }) => {
             }}
           />
           {form.businessLocation ? (
-            <div style={{ fontSize: 11, color: '#16a34a', marginTop: 6 }}>
-              ✅ {form.businessLocation}
+            <div style={{ fontSize: 12, color: '#16a34a', marginTop: 6 }}>
+              {form.businessLocation}
             </div>
           ) : null}
         </div>
 
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle}>
-            Anwani ya Kuchukua Bidhaa 🚴 <span style={{ fontWeight: 400, color: '#94a3b8' }}>(kwa wakala wa kukusanya)</span>
+            Anwani ya Kuchukua Bidhaa<span style={{ fontWeight: 400, color: '#94a3b8' }}>(kwa wakala wa kukusanya)</span>
           </label>
           <textarea value={form.sellerPickupAddress} onChange={e => setForm({ ...form, sellerPickupAddress: e.target.value })}
             rows={3} placeholder="e.g. Nyumba ya Rangi ya Njano, Mtaa wa Geita, karibu na kanisa la KKKT — namba ya simu: 0788..."
             style={{ ...inputStyle, resize: 'vertical' }} />
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-            🏠 Maelekezo mazuri husaidia wakala kukupata haraka. Weka alama muhimu karibu nawe.
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+            Maelekezo mazuri husaidia wakala kukupata haraka. Weka alama muhimu karibu nawe.
           </div>
         </div>
 
@@ -237,7 +238,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
 
       {/* Delivery options */}
       <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 14 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>🚚 Delivery Options</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>Delivery Options</h3>
         {[
           { key: 'pickupAvailable', label: 'Pickup Available', desc: 'Buyers can collect from your location' },
           { key: 'freeDelivery',    label: 'Free Delivery',    desc: 'You offer free shipping on orders' },
@@ -248,7 +249,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
               style={{ width: 18, height: 18, accentColor: '#1d4ed8' }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{opt.label}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>{opt.desc}</div>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>{opt.desc}</div>
             </div>
           </label>
         ))}
@@ -256,7 +257,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
 
       {/* Gallery */}
       <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 14 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>📸 Store Gallery</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>Store Gallery</h3>
         <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Show photos of your shop, office, or warehouse to build trust</p>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -264,7 +265,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
             <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
               <img src={img} alt={`gallery-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
               <button onClick={() => removeGalleryImage(i)}
-                style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', backgroundColor: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight:800, lineHeight: 1 }}>×</button>
+                style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', backgroundColor: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight:800, lineHeight: 1 }}>×</button>
             </div>
           ))}
         </div>
@@ -278,7 +279,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
       {/* Save */}
       <button onClick={handleSave} disabled={saving}
         style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-        {saving ? '⏳ Saving...' : '💾 Save Store Settings'}
+        {saving ? 'Saving...' : 'Save Store Settings'}
       </button>
     </div>
   );

@@ -35,10 +35,10 @@ export function PickupPoint({ point }) {
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <a href={point.mapsUrl} target="_blank" rel="noopener noreferrer"
             style={{ ...btn(true), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>{t('pickup_queue.open_map')}</a>
-          {point.accuracyM != null && <span style={{ fontSize: 11, color: '#64748b' }}>{t('pickup_queue.pin_accuracy', { m: point.accuracyM })}</span>}
+          {point.accuracyM != null && <span style={{ fontSize: 12, color: '#64748b' }}>{t('pickup_queue.pin_accuracy', { m: point.accuracyM })}</span>}
         </div>
       ) : (
-        <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: '#b45309' }}>{point.note || t('pickup_queue.no_pin')}</div>
+        <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700, color: '#d97706' }}>{point.note || t('pickup_queue.no_pin')}</div>
       )}
     </div>
   );
@@ -102,7 +102,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
       {open.length > 0 && <h2 style={heading}>{t('pickup_queue.title')}</h2>}
       {message && (
         <div role={message.type === 'error' ? 'alert' : 'status'} style={{ ...card, padding: 10, fontSize: 12, fontWeight: 700,
-          color: message.type === 'error' ? '#B91C1C' : '#065F46', backgroundColor: message.type === 'error' ? '#FEF2F2' : '#ECFDF5' }}>
+          color: message.type === 'error' ? '#B91C1C' : '#166534', backgroundColor: message.type === 'error' ? '#FEF2F2' : '#f0fdf4' }}>
           {message.text}
         </div>
       )}
@@ -138,7 +138,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
               {/* D2: give the job back before collecting; an on-page confirmation, never a browser pop-up. */}
               {confirmRelease === job.id ? (
                 <div data-testid="release-confirm" style={{ marginTop: 10, padding: 10, borderRadius: 10, background: '#FEF2F2', border: '1px solid #FECACA' }}>
-                  <div style={{ fontSize: 13, color: '#7F1D1D', marginBottom: 8 }}>{t('pickup_queue.cannot_come_confirm')}</div>
+                  <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 8 }}>{t('pickup_queue.cannot_come_confirm')}</div>
                   <button style={{ ...btn(true), backgroundColor: '#DC2626', marginRight: 8 }} disabled={busy === job.id}
                     onClick={() => { setConfirmRelease(null); act(job.id, () => api.post(`/pickup-tasks/${job.id}/release`), t('pickup_queue.released_ok')); }}>
                     {t('pickup_queue.cannot_come_yes')}
@@ -242,7 +242,7 @@ export default function ShipmentPickupQueue({ onChanged, onCount }) {
       ))}
 
       {done.length > 0 && (
-        <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
           {t('pickup_queue.completed_7_days')}: {done.map((j) => j.trackingNumber).join(', ')}
         </div>
       )}

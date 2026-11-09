@@ -11,10 +11,10 @@ const PAYOUT_METHOD_LABELS = {
 };
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri' },
   approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Imeidhinishwa' },
   released:  { bg: '#dbeafe', color: '#2563eb', label: 'Imetolewa' },
-  completed: { bg: '#f0fdf4', color: '#15803d', label: 'Imekamilika' },
+  completed: { bg: '#f0fdf4', color: '#16a34a', label: 'Imekamilika' },
   rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Imekataliwa' },
 };
 
@@ -153,7 +153,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Toa malipo kwa wauzaji baada ya bidhaa kutolewa</p>
           </div>
           <button onClick={fetchPayouts}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             Onyesha Upya
           </button>
         </div>
@@ -170,7 +170,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{ padding: '9px 20px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                backgroundColor: tab === t.key ? '#6366f1' : '#fff',
+                backgroundColor: tab === t.key ? '#0f1419' : '#fff',
                 color: tab === t.key ? '#fff' : '#64748b',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
               {t.label}
@@ -183,21 +183,21 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Summary cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
               {[
-                { label: 'Inasubiri Kutolewa', value: `TZS ${totalPending.toLocaleString()}`, count: counts.pending, color: '#ca8a04', bg: '#fef9c3', icon: '' },
+                { label: 'Inasubiri Kutolewa', value: `TZS ${totalPending.toLocaleString()}`, count: counts.pending, color: '#d97706', bg: '#fffbeb', icon: '' },
                 { label: 'Zimetolewa', value: counts.released, color: '#2563eb', bg: '#dbeafe', icon: '' },
-                { label: 'Zimekamilika', value: counts.completed, color: '#15803d', bg: '#f0fdf4', icon: '' },
-                { label: 'Jumla', value: counts.all, color: '#6366f1', bg: '#ede9fe', icon: '' },
+                { label: 'Zimekamilika', value: counts.completed, color: '#16a34a', bg: '#f0fdf4', icon: '' },
+                { label: 'Jumla', value: counts.all, color: '#0f1419', bg: '#f7f9f9', icon: '' },
               ].map(card => (
                 <div key={card.label} style={{ backgroundColor: card.bg, borderRadius: 12, padding: 16 }}>
                   <div style={{ fontSize: 20, fontWeight:800, color: card.color }}>{card.value}</div>
-                  <div style={{ fontSize: 11, color: card.color, opacity: 0.8, fontWeight: 600, marginTop: 2 }}>{card.label}</div>
+                  <div style={{ fontSize: 12, color: card.color, opacity: 0.8, fontWeight: 600, marginTop: 2 }}>{card.label}</div>
                 </div>
               ))}
             </div>
 
             {/* Pending alert */}
             {counts.pending > 0 && (
-              <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+              <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 18, fontSize: 13, color: '#92400e', fontWeight: 600 }}>
                 Wauzaji <strong>{counts.pending}</strong> wanasubiri malipo yao ya jumla <strong>TZS {totalPending.toLocaleString()}</strong>
               </div>
             )}
@@ -207,7 +207,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
               {['all','pending','released','completed','rejected'].map(f => (
                 <button key={f} onClick={() => setFilter(f)}
                   style={{ padding: '6px 14px', borderRadius: 16, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                    backgroundColor: filter === f ? '#6366f1' : '#fff', color: filter === f ? '#fff' : '#64748b',
+                    backgroundColor: filter === f ? '#0f1419' : '#fff', color: filter === f ? '#fff' : '#64748b',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                   {f === 'all' ? `Yote (${counts.all})` : `${STATUS_STYLE[f]?.label} (${counts[f] || 0})`}
                 </button>
@@ -232,7 +232,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                       {['#', 'Muuzaji', 'Agizo', 'Kiasi (TZS)', 'Njia', 'Hali', 'Tarehe', 'Vitendo'].map(h => (
-                        <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                        <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -245,14 +245,14 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#94a3b8', fontFamily: 'monospace' }}>#{payout.id}</td>
                           <td style={{ padding: '12px 14px' }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{payout.seller?.storeName || payout.seller?.name || '—'}</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{payout.seller?.email}</div>
+                            <div style={{ fontSize: 12, color: '#94a3b8' }}>{payout.seller?.email}</div>
                             {payout.seller?.payoutMethod ? (
-                              <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
+                              <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600, marginTop: 2 }}>
                                 {PAYOUT_METHOD_LABELS[payout.seller.payoutMethod] || payout.seller.payoutMethod}
                                 {payout.seller.payoutAccountNumber ? ` — ${payout.seller.payoutAccountNumber}` : ''}
                               </div>
                             ) : (
-                              <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 600, marginTop: 2 }}>
+                              <div style={{ fontSize: 12, color: '#dc2626', fontWeight: 600, marginTop: 2 }}>
                                 Hajaweka njia ya malipo
                               </div>
                             )}
@@ -263,7 +263,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                           </td>
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#64748b' }}>{payout.paymentMethod || '—'}</td>
                           <td style={{ padding: '12px 14px' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
                           </td>
                           <td style={{ padding: '12px 14px', fontSize: 12, color: '#94a3b8' }}>
                             {payout.createdAt ? new Date(payout.createdAt).toLocaleDateString('sw-TZ') : '—'}
@@ -278,7 +278,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                                   setPaymentMethod(methodMap[payout.seller?.payoutMethod] || '');
                                   setShowReleaseModal(true);
                                 }}
-                                style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                 Toa
                               </button>
                             )}
@@ -328,7 +328,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                         <div key={settleKey} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#f8fafc', borderRadius: 8, marginBottom: 6 }}>
                           <div>
                             <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1e293b' }}>{item.trackingNumber}</div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>
                               {item.courierName || '—'}{item.transportRef ? ` · ${item.transportRef}` : ''}
                               {item.dispatchTime ? ` · ${new Date(item.dispatchTime).toLocaleDateString('sw-TZ')}` : ''}
                             </div>
@@ -336,7 +336,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>TZS {Number(item.courierCost || 0).toLocaleString()}</div>
                             <button onClick={() => handleSettleCourierCost(item)} disabled={settlingKey === settleKey}
-                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: settlingKey === settleKey ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: settlingKey === settleKey ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 700 }}>
                               {settlingKey === settleKey ? '...' : 'Imelipwa'}
                             </button>
                           </div>
@@ -380,7 +380,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                         <span style={{ fontSize: 14, fontWeight: 800, color: '#0f172a' }}>{agent.fullName}</span>
                         {agent.agentCode && (
-                          <span style={{ fontSize: 10, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
+                          <span style={{ fontSize: 12, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
                             {agent.agentCode}
                           </span>
                         )}
@@ -391,18 +391,18 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       {/* Earnings breakdown */}
                       <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
                         {[
-                          { l: 'Malipo', v: agent.totalEarningsPayments, c: '#7c3aed' },
+                          { l: 'Malipo', v: agent.totalEarningsPayments, c: '#0f1419' },
                           { l: 'Uwasilishaji', v: agent.totalEarningsDeliveries, c: '#1d4ed8' },
                           { l: 'Makusanyo', v: agent.totalEarningsCollections, c: '#16a34a' },
                         ].filter(s => s.v > 0).map(s => (
-                          <div key={s.l} style={{ fontSize: 11, color: s.c }}>
+                          <div key={s.l} style={{ fontSize: 12, color: s.c }}>
                             {s.l}: <strong>TZS {Number(s.v).toLocaleString()}</strong>
                           </div>
                         ))}
                       </div>
                       {/* Payout method if set */}
                       {agent.payoutMethod && (
-                        <div style={{ marginTop: 6, fontSize: 11, color: '#475569' }}>
+                        <div style={{ marginTop: 6, fontSize: 12, color: '#475569' }}>
                           {agent.payoutMethod}
                           {agent.payoutAccountNumber && ` — ${agent.payoutAccountNumber}`}
                           {agent.payoutAccountName && ` (${agent.payoutAccountName})`}
@@ -413,7 +413,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                       <div style={{ fontSize: 20, fontWeight:800, color: '#dc2626' }}>
                         TZS {Number(agent.pendingEarnings).toLocaleString()}
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 8 }}>inayosubiri</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>inayosubiri</div>
                       <button
                         onClick={() => { setReleaseAgent(agent); setReleaseAmount(String(agent.pendingEarnings)); setReleaseNote(''); }}
                         style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
@@ -436,10 +436,10 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>Toa Malipo</h3>
             <div style={{ backgroundColor: '#dcfce7', borderRadius: 10, padding: 14, marginBottom: 18 }}>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>MUUZAJI</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#15803d' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#16a34a' }}>
                 {selected.seller?.storeName || selected.seller?.name}
               </div>
-              <div style={{ fontSize: 24, fontWeight:800, color: '#15803d', marginTop: 6 }}>
+              <div style={{ fontSize: 24, fontWeight:800, color: '#16a34a', marginTop: 6 }}>
                 TZS {Number(selected.sellerAmount || 0).toLocaleString()}
               </div>
             </div>
@@ -447,7 +447,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Seller's stated payout details — exactly where to send the money */}
             {selected.seller?.payoutMethod ? (
               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 14, marginBottom: 18 }}>
-                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>NJIA ALIYOWEKA MUUZAJI</div>
+                <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>NJIA ALIYOWEKA MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {PAYOUT_METHOD_LABELS[selected.seller.payoutMethod] || selected.seller.payoutMethod}
                 </div>
@@ -489,7 +489,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                 Ghairi
               </button>
               <button onClick={handleRelease} disabled={actionLoading}
-                style={{ flex: 2, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
+                style={{ flex: 2, background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
                 {actionLoading ? 'Inatoa...' : 'Toa Malipo'}
               </button>
             </div>
@@ -506,10 +506,10 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Agent details */}
             <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>INAYOSUBIRI</div>
-              <div style={{ fontSize: 28, fontWeight:800, color: '#15803d' }}>
+              <div style={{ fontSize: 28, fontWeight:800, color: '#16a34a' }}>
                 TZS {Number(releaseAgent.pendingEarnings).toLocaleString()}
               </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
                 {releaseAgent.city || '—'} · {releaseAgent.agentCode || '—'}
               </div>
             </div>
@@ -517,7 +517,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             {/* Payout method */}
             {releaseAgent.payoutMethod ? (
               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>NJIA YA MALIPO</div>
+                <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>NJIA YA MALIPO</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{releaseAgent.payoutMethod}</div>
                 {releaseAgent.payoutAccountNumber && (
                   <div style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 700, marginTop: 3, fontFamily: 'monospace' }}>
@@ -529,7 +529,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
                 )}
               </div>
             ) : (
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 10, marginBottom: 16, fontSize: 12, color: '#92400e' }}>
+              <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 10, marginBottom: 16, fontSize: 12, color: '#92400e' }}>
                 Wakala hajaweka njia ya malipo. Wasiliana naye moja kwa moja: {releaseAgent.phone}
               </div>
             )}
@@ -551,7 +551,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handleReleaseAgent} disabled={releasing || !releaseAmount}
-                style={{ flex: 1, background: releasing ? '#64748b' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: releasing ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 800 }}>
+                style={{ flex: 1, background: releasing ? '#64748b' : 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: releasing ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 800 }}>
                 {releasing ? 'Inatoa...' : 'Toa Malipo'}
               </button>
               <button onClick={() => setReleaseAgent(null)}

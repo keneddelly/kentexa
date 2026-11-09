@@ -3,9 +3,9 @@
  * Place at: src/public/pages/HomeFeed.js
  *
  * Post types and their actions:
- *  classified  → Save ❤️ | Ask 💬 | Share ↗ | Contact 📞 | Ship 📦 | Follow 👤
- *  product     → Save ❤️ | Ask 💬 | Share ↗ | Buy Now 🛒 | Cart 🛍️ | Follow 👤
- *  service     → Save ❤️ | Ask 💬 | Share ↗ | Book 📅 | Contact 📞 | Follow 👤
+ *  classified  → Save | Ask | Share ↗ | Contact | Ship | Follow 
+ *  product     → Save | Ask | Share ↗ | Buy Now | Cart | Follow 
+ *  service     → Save | Ask | Share ↗ | Book | Contact | Follow 
  *
  * Engagement tracking:
  *  All saves/shares/views go to POST /engagements (entity-based, works on virtual IDs)
@@ -82,15 +82,15 @@ const getFilters = t => [
 ];
 
 const getTypeMeta = t => ({
-  classified:  { label:t('home_feed.type_listing'),   bg:'#FFF7ED', color:'#EA580C' },
+  classified:  { label:t('home_feed.type_listing'),   bg:'#fffbeb', color:'#d97706' },
   product:     { label:t('home_feed.type_products'),  bg:'#EFF6FF', color:B         },
   service:     { label:t('home_feed.type_services'),    bg:'#F0FDF4', color:'#16A34A' },
   new_product: { label:t('home_feed.type_products'),  bg:'#EFF6FF', color:B         },
   new_service: { label:t('home_feed.type_services'),    bg:'#F0FDF4', color:'#16A34A' },
-  discount:    { label:t('home_feed.type_discount'),   bg:'#FFF7ED', color:'#EA580C' },
+  discount:    { label:t('home_feed.type_discount'),   bg:'#fffbeb', color:'#d97706' },
   announcement:{ label:t('home_feed.type_listing'),   bg:'#FEF3C7', color:'#D97706' },
   delivery_info:{ label:t('home_feed.type_transport'),  bg:'#FEF3C7', color:'#D97706' },
-  looking_for: { label:t('home_feed.type_looking_for'), bg:'#F5F3FF', color:'#7C3AED' },
+  looking_for: { label:t('home_feed.type_looking_for'), bg:'#f7f9f9', color:'#0f1419' },
   moment:      { label:t('home_feed.type_moment'),      bg:'#EFF6FF', color:B         },
 });
 
@@ -155,7 +155,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
             
             <div>
               <div style={{ fontSize:14, fontWeight:800, color:DK }}>{t('home_feed.kentexa_inbox_label')}</div>
-              <div style={{ fontSize:11, color:GR }}>{t('home_feed.send_in_app_desc')}</div>
+              <div style={{ fontSize:12, color:GR }}>{t('home_feed.send_in_app_desc')}</div>
             </div>
           </button>
           {waHref && (
@@ -167,7 +167,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
               
               <div>
                 <div style={{ fontSize:14, fontWeight:800, color:'#16A34A' }}>{t('home_feed.whatsapp_label')}</div>
-                <div style={{ fontSize:11, color:GR }}>{t('home_feed.chat_directly_desc')}</div>
+                <div style={{ fontSize:12, color:GR }}>{t('home_feed.chat_directly_desc')}</div>
               </div>
             </a>
           )}
@@ -312,7 +312,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       borderBottom: isReply ? 'none' : '1px solid #F8FAFC' }}>
       <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
         backgroundColor:B, display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:11, color:WH, fontWeight:800, overflow:'hidden' }}>
+        justifyContent:'center', fontSize:12, color:WH, fontWeight:800, overflow:'hidden' }}>
         {commenterPhoto
           ? <img src={commenterPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : commenterName.charAt(0).toUpperCase()}
@@ -322,7 +322,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           <span style={{ fontSize:12, fontWeight:800, color:DK }}>
             {commenterName}
           </span>
-          <span style={{ fontSize:10, color:GR }}>{ago(c.createdAt)}</span>
+          <span style={{ fontSize:12, color:GR }}>{ago(c.createdAt)}</span>
         </div>
         <div style={{ fontSize:13, color: c.isDeleted ? GR : DK,
           lineHeight:1.4, fontStyle: c.isDeleted ? 'italic' : 'normal' }}>
@@ -342,10 +342,10 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
               else onNavigate(`ClassifiedDetail-${id}`);
             }}
             style={{ display:'flex', alignItems:'center', gap:10, marginTop:8,
-              padding:8, borderRadius:10, border:'1px solid #E9D5FF',
-              backgroundColor:'#F5F3FF', cursor:'pointer', width:'100%',
+              padding:8, borderRadius:10, border:'1px solid #eff3f4',
+              backgroundColor:'#f7f9f9', cursor:'pointer', width:'100%',
               maxWidth:280, textAlign:'left' }}>
-            <div style={{ width:36, height:36, borderRadius:8, backgroundColor:'#EDE9FE',
+            <div style={{ width:36, height:36, borderRadius:8, backgroundColor:'#f7f9f9',
               flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center',
               justifyContent:'center', fontSize:16 }}>
               {c.offerCard.image
@@ -353,17 +353,17 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
                 : ''}
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:11, fontWeight:800, color:DK,
+              <div style={{ fontSize:12, fontWeight:800, color:DK,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {c.offerCard.title}
               </div>
               {c.offerCard.price != null && (
-                <div style={{ fontSize:12, fontWeight:800, color:'#7C3AED' }}>
+                <div style={{ fontSize:12, fontWeight:800, color:'#0f1419' }}>
                   TZS {fmt(c.offerCard.price)}
                 </div>
               )}
             </div>
-            <span style={{ fontSize:10, fontWeight:800, color:'#7C3AED', flexShrink:0 }}>
+            <span style={{ fontSize:12, fontWeight:800, color:'#0f1419', flexShrink:0 }}>
               {t('home_feed.view_arrow')}
             </span>
           </button>
@@ -374,7 +374,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
             setReplyTo(c); inputRef.current?.focus();
           }}
             style={{ background:'none', border:'none', cursor:'pointer',
-              color:GR, fontSize:11, fontWeight:700, padding:'4px 0 0' }}>
+              color:GR, fontSize:12, fontWeight:700, padding:'4px 0 0' }}>
             {t('home_feed.reply_button')}
           </button>
         )}
@@ -399,8 +399,8 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       {isLookingFor && (
         <div style={{ padding:'0 14px 10px' }}>
           <button onClick={openReply}
-            style={{ width:'100%', backgroundColor:'#F5F3FF', color:'#7C3AED',
-              border:'1px solid #E9D5FF', borderRadius:10, padding:'10px 0',
+            style={{ width:'100%', backgroundColor:'#f7f9f9', color:'#0f1419',
+              border:'1px solid #eff3f4', borderRadius:10, padding:'10px 0',
               cursor:'pointer', fontSize:13, fontWeight:800 }}>
             {t('home_feed.have_this_reply_button')}
           </button>
@@ -410,13 +410,13 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
         borderTop:'1px solid #F1F5F9', backgroundColor:WH }}>
         <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
           backgroundColor:B, display:'flex', alignItems:'center',
-          justifyContent:'center', fontSize:11, color:WH, fontWeight:800 }}>
+          justifyContent:'center', fontSize:12, color:WH, fontWeight:800 }}>
           {(currentUser?.name || 'U').charAt(0).toUpperCase()}
         </div>
         <div style={{ flex:1, backgroundColor:'#F1F5F9', borderRadius:20,
           display:'flex', alignItems:'center', padding:'0 12px', gap:6 }}>
           {replyTo && (
-            <span style={{ fontSize:11, color:B, fontWeight:700 }}>
+            <span style={{ fontSize:12, color:B, fontWeight:700 }}>
               @{replyTo.author?.name?.split(' ')[0]}
             </span>
           )}
@@ -479,9 +479,9 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
                       onClick={() => setReplyItem(item)}
                       style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px',
                         borderRadius:10, border: replyItem?.type===item.type && replyItem?.id===item.id
-                          ? '2px solid #7C3AED' : '1px solid #E2E8F0',
+                          ? '2px solid #0f1419' : '1px solid #E2E8F0',
                         backgroundColor: replyItem?.type===item.type && replyItem?.id===item.id
-                          ? '#F5F3FF' : WH,
+                          ? '#f7f9f9' : WH,
                         cursor:'pointer', textAlign:'left' }}>
                       <div style={{ width:32, height:32, borderRadius:8, backgroundColor:'#F1F5F9',
                         flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center',
@@ -505,7 +505,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
             <div style={{ flexShrink:0, padding:'12px 16px max(12px, env(safe-area-inset-bottom))',
               borderTop:'1px solid #F1F5F9' }}>
               <button onClick={sendOffer} disabled={!replyItem || replySending}
-                style={{ width:'100%', backgroundColor: replyItem ? '#7C3AED' : '#E2E8F0',
+                style={{ width:'100%', backgroundColor: replyItem ? '#0f1419' : '#E2E8F0',
                   color: replyItem ? WH : GR, border:'none', borderRadius:12, padding:'13px 0',
                   cursor: replyItem && !replySending ? 'pointer' : 'not-allowed',
                   fontSize:14, fontWeight:800 }}>
@@ -816,7 +816,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
 
         {(tag || (post.topic && !post.community)) && (
           <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:MUTED_TX }}>
-            {tag && <span data-testid="post-tag" style={{ fontWeight:700, color:B, background:'#EEF3FE', padding:'2px 8px', borderRadius:10 }}>{tag}</span>}
+            {tag && <span data-testid="post-tag" style={{ fontWeight:700, color:B, background:'#eff6ff', padding:'2px 8px', borderRadius:10 }}>{tag}</span>}
             {post.topic && <span data-testid="post-topic">{topicLabel(post.topic)}</span>}
           </div>
         )}
@@ -897,8 +897,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               {counts.reposts > 0 && counts.reposts}
             </button>
           )}
-          <button type="button" onClick={handleLike} aria-label="Penda" aria-pressed={liked} data-testid="post-like" style={{ ...actionTx, color: liked ? '#e11d48' : MUTED_TX }}>
-            {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', liked ? '#e11d48' : null)}
+          <button type="button" onClick={handleLike} aria-label="Penda" aria-pressed={liked} data-testid="post-like" style={{ ...actionTx, color: liked ? '#dc2626' : MUTED_TX }}>
+            {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', liked ? '#dc2626' : null)}
             {counts.likes > 0 && counts.likes}
           </button>
           <button type="button" onClick={handleShare} aria-label="Shiriki" data-testid="post-share" style={actionTx}>
@@ -1002,7 +1002,7 @@ const TransportPostCard = ({ post, onNavigate }) => {
             {biz.logo
               ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
                   onError={e => e.target.style.display='none'} />
-              : <span style={{ fontSize:10, fontWeight:800, color:B }}>{(biz.name||'?').charAt(0).toUpperCase()}</span>}
+              : <span style={{ fontSize:12, fontWeight:800, color:B }}>{(biz.name||'?').charAt(0).toUpperCase()}</span>}
           </div>
           <span style={{ fontSize:12, fontWeight:800, color:DK, overflow:'hidden',
             textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -1018,7 +1018,7 @@ const TransportPostCard = ({ post, onNavigate }) => {
         </div>
 
         {/* Price + available space + location */}
-        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', fontSize:11, color:GR }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', fontSize:12, color:GR }}>
           {priceLabel && <span style={{ color:B, fontWeight:800, fontSize:13 }}>{priceLabel}</span>}
           {tr.slotsAvailable != null && (
             <span style={{ fontWeight:700, color: tr.slotsAvailable > 0 ? '#16A34A' : '#DC2626' }}>
@@ -1061,17 +1061,17 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
       style={{ backgroundColor:'#F8FAFC', borderRadius:12, padding:'10px 14px',
         flexShrink:0, cursor:'pointer', border:'1px solid #F1F5F9', minWidth:160 }}>
       <div style={{ fontSize:16, marginBottom:4 }}>{icon}</div>
-      <div style={{ fontSize:11, fontWeight:800, color:DK,
+      <div style={{ fontSize:12, fontWeight:800, color:DK,
         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
         {p.title || p.business?.storeName}
       </div>
-      <div style={{ fontSize:10, color:GR, marginTop:2, marginBottom:6 }}>{label}</div>
+      <div style={{ fontSize:12, color:GR, marginTop:2, marginBottom:6 }}>{label}</div>
       {bizId && (
         followed ? (
-          <span style={{ fontSize:9, color:'#16A34A', fontWeight:700 }}>{t('home_feed.following_badge')}</span>
+          <span style={{ fontSize:12, color:'#16A34A', fontWeight:700 }}>{t('home_feed.following_badge')}</span>
         ) : (
           <button onClick={handleFollow} disabled={busy}
-            style={{ fontSize:9, fontWeight:800, color:WH, backgroundColor:B,
+            style={{ fontSize:12, fontWeight:800, color:WH, backgroundColor:B,
               border:'none', borderRadius:100, padding:'3px 10px',
               cursor: busy ? 'wait' : 'pointer' }}>
             {t('home_feed.follow_button')}
@@ -1152,7 +1152,7 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
                   ? <img src={item.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                   : null}
               </div>
-              <div style={{ fontSize:11, fontWeight:700, color:DK,
+              <div style={{ fontSize:12, fontWeight:700, color:DK,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {item.storeName || item.name}
               </div>
@@ -1169,17 +1169,17 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
                   ? <img src={item.provider.logoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                   : null}
               </div>
-              <div style={{ fontSize:11, fontWeight:700, color:DK, marginBottom:2,
+              <div style={{ fontSize:12, fontWeight:700, color:DK, marginBottom:2,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {item.routeLabel}
               </div>
               {item.routeType && (
-                <div style={{ fontSize:10, color:GR, marginBottom:2 }}>
+                <div style={{ fontSize:12, color:GR, marginBottom:2 }}>
                   {ROUTE_LABELS[item.routeType] || item.routeType}
                 </div>
               )}
               {(item.pricePerKg || item.fixedFee || item.maxWeightKg) && (
-                <div style={{ fontSize:11, fontWeight:800, color:B, marginBottom:2 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:B, marginBottom:2 }}>
                   {item.pricePerKg
                     ? t('home_feed.transport_price_per_kg', { amount: fmt(item.pricePerKg) })
                     : item.fixedFee ? `TZS ${fmt(item.fixedFee)}` : ''}
@@ -1187,13 +1187,13 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
                 </div>
               )}
               {item.location && (
-                <div style={{ fontSize:10, color:GR, marginBottom:2,
+                <div style={{ fontSize:12, color:GR, marginBottom:2,
                   overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {item.location}
                 </div>
               )}
               {/* Logistics company name, beneath everything else */}
-              <div style={{ fontSize:10, fontWeight:700, color:DK,
+              <div style={{ fontSize:12, fontWeight:700, color:DK,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {item.provider?.name}
               </div>
@@ -1208,12 +1208,12 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
                   ? <img src={item.imageUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                   : null}
               </div>
-              <div style={{ fontSize:11, fontWeight:700, color:DK, marginBottom:2,
+              <div style={{ fontSize:12, fontWeight:700, color:DK, marginBottom:2,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {item.title}
               </div>
               {item.price != null && (
-                <div style={{ fontSize:11, fontWeight:800, color:B }}>
+                <div style={{ fontSize:12, fontWeight:800, color:B }}>
                   TZS {Number(item.price).toLocaleString()}
                 </div>
               )}
@@ -1387,7 +1387,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
       <div style={{ display:'flex', alignItems:'center', gap:10,
         padding:'16px 14px', position:'relative', zIndex:2 }}>
         <div style={{ width:34, height:34, borderRadius:'50%', overflow:'hidden',
-          backgroundColor:'#333', flexShrink:0, display:'flex', alignItems:'center',
+          backgroundColor:'#0f1419', flexShrink:0, display:'flex', alignItems:'center',
           justifyContent:'center' }}>
           {biz.logo
             ? <img src={biz.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
@@ -1396,10 +1396,10 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
         <button onClick={() => { onClose(); biz.id && biz.actorResolved !== false && onNavigate(`CommerceProfile-${biz.id}`, biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : undefined); }}
           style={{ background:'none', border:'none', cursor:'pointer', textAlign:'left', flex:1 }}>
           <div style={{ color:WH, fontSize:13, fontWeight:800 }}>{bizName}</div>
-          <div style={{ color:'rgba(255,255,255,0.6)', fontSize:10 }}>{ago(moment.createdAt)}</div>
+          <div style={{ color:'rgba(255,255,255,0.6)', fontSize:12 }}>{ago(moment.createdAt)}</div>
         </button>
         {isLookingFor && (
-          <span style={{ fontSize:10, fontWeight:800, color:WH, backgroundColor:'#7C3AED',
+          <span style={{ fontSize:12, fontWeight:800, color:WH, backgroundColor:'#0f1419',
             padding:'4px 10px', borderRadius:100, flexShrink:0, marginRight:6 }}>
             {moment.category || t('home_feed.looking_for_fallback')}
           </span>
@@ -1431,7 +1431,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
               backgroundColor:'rgba(255,255,255,0.15)', border:'none', cursor:'pointer',
               display:'flex', alignItems:'center', justifyContent:'center' }}>
             <svg width="20" height="20" viewBox="0 0 24 24"
-              fill={saved ? '#EF4444' : 'none'} stroke={saved ? '#EF4444' : WH} strokeWidth="2">
+              fill={saved ? '#dc2626' : 'none'} stroke={saved ? '#dc2626' : WH} strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
             </svg>
           </button>
@@ -1445,14 +1445,14 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
           )}
           {isLookingFor && !replySent && (
             <button onClick={openReply}
-              style={{ flex:1, backgroundColor:'#7C3AED', color:WH, border:'none',
+              style={{ flex:1, backgroundColor:'#0f1419', color:WH, border:'none',
                 borderRadius:12, padding:'0 20px', cursor:'pointer',
                 fontSize:14, fontWeight:800 }}>
               {t('home_feed.i_have_this_button')}
             </button>
           )}
           {isLookingFor && replySent && (
-            <div style={{ flex:1, backgroundColor:'rgba(22,163,74,0.2)', color:'#4ADE80',
+            <div style={{ flex:1, backgroundColor:'rgba(22,163,74,0.2)', color:'#16a34a',
               border:'1px solid #16A34A', borderRadius:12, padding:'0 20px',
               display:'flex', alignItems:'center', justifyContent:'center',
               fontSize:13, fontWeight:800 }}>
@@ -1492,9 +1492,9 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
                       onClick={() => setReplyItem(item)}
                       style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px',
                         borderRadius:10, border: replyItem?.type===item.type && replyItem?.id===item.id
-                          ? '2px solid #7C3AED' : '1px solid #E2E8F0',
+                          ? '2px solid #0f1419' : '1px solid #E2E8F0',
                         backgroundColor: replyItem?.type===item.type && replyItem?.id===item.id
-                          ? '#F5F3FF' : WH,
+                          ? '#f7f9f9' : WH,
                         cursor:'pointer', textAlign:'left' }}>
                       <div style={{ width:32, height:32, borderRadius:8, backgroundColor:'#F1F5F9',
                         flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center',
@@ -1518,7 +1518,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
             <div style={{ flexShrink:0, padding:'12px 16px max(12px, env(safe-area-inset-bottom))',
               borderTop:'1px solid #F1F5F9' }}>
               <button onClick={sendOffer} disabled={!replyItem || replySending}
-                style={{ width:'100%', backgroundColor: replyItem ? '#7C3AED' : '#E2E8F0',
+                style={{ width:'100%', backgroundColor: replyItem ? '#0f1419' : '#E2E8F0',
                   color: replyItem ? WH : GR, border:'none', borderRadius:12, padding:'13px 0',
                   cursor: replyItem && !replySending ? 'pointer' : 'not-allowed',
                   fontSize:14, fontWeight:800 }}>
@@ -1546,7 +1546,7 @@ const MomentStory = ({ moment, onView }) => {
       <div style={{ position:'relative' }}>
         <div style={{ padding:2, borderRadius:'50%',
           background: isLookingFor
-            ? '#0f766e'
+            ? '#1d4ed8'
             : '#1d4ed8' }}>
           <div style={{ width:52, height:52, borderRadius:'50%',
             backgroundColor:WH, padding:2, boxSizing:'border-box',
@@ -1563,8 +1563,8 @@ const MomentStory = ({ moment, onView }) => {
         </div>
         {isLookingFor && (
           <div style={{ position:'absolute', bottom:-2, right:-2, width:20, height:20,
-            borderRadius:'50%', backgroundColor:'#7C3AED', border:'2px solid #fff',
-            display:'flex', alignItems:'center', justifyContent:'center', fontSize:10 }}>
+            borderRadius:'50%', backgroundColor:'#0f1419', border:'2px solid #fff',
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>
           </div>
         )}
       </div>
@@ -1573,7 +1573,7 @@ const MomentStory = ({ moment, onView }) => {
         {name}
       </span>
       {momentRoleLine(moment) && (
-        <span data-testid="moment-role" style={{ fontSize:11, color:'#536471', textAlign:'center', lineHeight:'13px',
+        <span data-testid="moment-role" style={{ fontSize:12, color:'#536471', textAlign:'center', lineHeight:'13px',
           width:66, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
           {momentRoleLine(moment)}
         </span>
@@ -1627,15 +1627,15 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
           </div>
         </div>
       </button>
-      <span style={{ fontSize:9, color:DK, fontWeight:600, textAlign:'center',
+      <span style={{ fontSize:12, color:DK, fontWeight:600, textAlign:'center',
         width:64, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
         {name.split(' ')[0]}
       </span>
       {followed ? (
-        <span style={{ fontSize:8, color:'#16A34A', fontWeight:700 }}>{t('home_feed.following_badge')}</span>
+        <span style={{ fontSize:12, color:'#16A34A', fontWeight:700 }}>{t('home_feed.following_badge')}</span>
       ) : (
         <button onClick={handleFollow} disabled={busy}
-          style={{ fontSize:9, fontWeight:800, color:WH, backgroundColor:B,
+          style={{ fontSize:12, fontWeight:800, color:WH, backgroundColor:B,
             border:'none', borderRadius:100, padding:'2px 10px',
             cursor: busy ? 'wait' : 'pointer' }}>
           {t('home_feed.follow_button')}
@@ -1815,7 +1815,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               boxShadow:'0 2px 8px rgba(29,78,216,0.4)', flexShrink:0 }}>
               <svg width="15" height="15" viewBox="0 0 22 22" fill="none">
                 <path d="M2 2 L7 8 L11 5 L11 20 L5 14 Z" fill="white"/>
-                <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#60a5fa"/>
+                <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#bfdbfe"/>
                 <circle cx="7.5" cy="9.5" r="1" fill="#0f172a"/>
                 <circle cx="14.5" cy="9.5" r="1" fill="#0f172a"/>
               </svg>
@@ -1847,9 +1847,9 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               </svg>
               {unread > 0 && (
                 <div style={{ position:'absolute', top:4, right:4, width:15, height:15,
-                  borderRadius:'50%', backgroundColor:'#EF4444', display:'flex',
+                  borderRadius:'50%', backgroundColor:'#dc2626', display:'flex',
                   alignItems:'center', justifyContent:'center',
-                  fontSize:8, color:WH, fontWeight:800 }}>
+                  fontSize:12, color:WH, fontWeight:800 }}>
                   {unread > 9 ? '9+' : unread}
                 </div>
               )}
@@ -1946,7 +1946,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                         </span>}
                   </div>
                 </div>
-                <span style={{ fontSize:9, color:DK, fontWeight:600 }}>
+                <span style={{ fontSize:12, color:DK, fontWeight:600 }}>
                   {isLoggedIn ? t('home_feed.you_label') : t('home_feed.join_label')}
                 </span>
               </button>
@@ -1955,7 +1955,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                   style={{ position:'absolute', bottom:14, right:4, width:18, height:18,
                     borderRadius:'50%', backgroundColor:B, border:'2px solid #fff',
                     display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:10, color:WH, fontWeight:800, cursor:'pointer', padding:0 }}>
+                    fontSize:12, color:WH, fontWeight:800, cursor:'pointer', padding:0 }}>
                   +
                 </button>
               )}
@@ -2175,7 +2175,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
             <div style={{ fontSize:13, fontWeight:800, color:DK }}>{t('home_feed.share_prompt_title')}</div>
-            <div style={{ fontSize:11, color:GR, marginTop:2 }}>{t('home_feed.share_prompt_desc')}</div>
+            <div style={{ fontSize:12, color:GR, marginTop:2 }}>{t('home_feed.share_prompt_desc')}</div>
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => onNavigate(isLoggedIn?'SellerClassifieds':'Register')}

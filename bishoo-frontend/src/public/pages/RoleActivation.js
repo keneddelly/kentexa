@@ -138,7 +138,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
           {activeRoles.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {activeRoles.map((r) => (
-                <span key={r} style={{ fontSize: 13, fontWeight: 700, background: '#ecfdf3', color: K.GREEN, padding: '4px 10px', borderRadius: 999 }}>{roleName(r)}</span>
+                <span key={r} style={{ fontSize: 13, fontWeight: 700, background: '#f0fdf4', color: K.GREEN, padding: '4px 10px', borderRadius: 999 }}>{roleName(r)}</span>
               ))}
             </div>
           )}
@@ -153,7 +153,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
                     <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <b style={{ fontSize: 16 }}>{r.title}</b>
-                        {isActive && <span style={{ fontSize: 12, background: '#ecfdf3', color: K.GREEN, padding: '2px 8px', borderRadius: 999, fontWeight: 700 }}>{t('role_activation.already_have_role')}</span>}
+                        {isActive && <span style={{ fontSize: 12, background: '#f0fdf4', color: K.GREEN, padding: '2px 8px', borderRadius: 999, fontWeight: 700 }}>{t('role_activation.already_have_role')}</span>}
                       </span>
                       <span style={{ fontSize: 14, color: K.MUTED }}>{r.tagline}</span>
                     </span>

@@ -50,7 +50,7 @@ export default function CommunitiesPanel({ isLoggedIn, onNavigate, topic = '' })
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 52, height: 52, borderRadius: 14, background: INK, color: '#fff', fontWeight: 800, fontSize: 16,
                   display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{initials(c.name)}</span>
-                <span style={{ fontSize: 11, color: INK, textAlign: 'center', lineHeight: 1.2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.name}</span>
+                <span style={{ fontSize: 12, color: INK, textAlign: 'center', lineHeight: 1.2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.name}</span>
               </button>
             ))}
           </div>

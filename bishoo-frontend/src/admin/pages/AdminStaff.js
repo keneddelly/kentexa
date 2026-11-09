@@ -85,7 +85,7 @@ export default function AdminStaff({ activePage, onNavigate, onLogout }) {
                   style={{ background: 'none', border: 'none', padding: 0, fontWeight: 700, color: '#0f172a', cursor: 'pointer', fontFamily: 'inherit', fontSize: 15 }}>{r.name || `#${r.userId}`}</button>
                 <span style={{ display: 'block', fontSize: 13, color: '#64748b' }}>{[r.phone, NAME[r.roleType] || r.roleType].filter(Boolean).join(' · ')}</span>
               </span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: r.status === 'active' ? '#05603a' : '#b45309' }}>{r.status === 'active' ? 'Anafanya kazi' : 'Amesimamishwa'}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: r.status === 'active' ? '#05603a' : '#d97706' }}>{r.status === 'active' ? 'Anafanya kazi' : 'Amesimamishwa'}</span>
               {r.status === 'active'
                 ? <button type="button" data-testid={`staff-pause-${r.id}`} onClick={() => setStatus(r, 'suspended')} style={pill(false)}>Simamisha</button>
                 : <button type="button" data-testid={`staff-open-${r.id}`} onClick={() => setStatus(r, 'active')} style={pill(false)}>Rudisha</button>}

@@ -1,401 +1,292 @@
-import React, { useEffect, useState } from 'react';
+/**
+ * Admin: "Tuma taarifa" — KenteXa's messages to its users (owner 2026-11-09: "admin or staff need
+ * to send notifications to user, app notifications or SMS ... with its link"). A message lands in
+ * the person's Taarifa list and as a push on the phone, and opens the page it links to; SMS is
+ * optional and shows its cost first.
+ *
+ * Who sends (owner's choice): admin and manager write; a manager's message to more than 100
+ * people, or with SMS, waits for an admin to approve it here; customer care messages one person.
+ * The server enforces all of this; this page only shows it.
+ */
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
+import { useOptionalRoleContext } from '../../context/RoleContext';
+import { MESSAGE_LINKS, linkLabel } from '../messageLinks';
 
-const AUDIENCE_LABELS = {
-  all:         { label: 'Wote', color: '#6366f1' },
-  sellers:     { label: 'Wauzaji', color: '#7c3aed' },
-  agents:      { label: 'Agents', color: '#2563eb' },
-  super_agents:{ label: 'Ofisi', color: '#ca8a04' },
-  buyers:      { label: 'Wanunuzi', color: '#16a34a' },
+const AUDIENCES = [
+  ['all', 'Wote'], ['sellers', 'Wauzaji'], ['businesses', 'Wenye biashara'], ['super_agents', 'Ofisi'],
+  ['agents', 'Agents'], ['transport', 'Usafiri'], ['services', 'Watoa huduma'],
+];
+const STATUS = {
+  pending_approval: ['Inasubiri idhini', '#fef3c7', '#92400e'],
+  scheduled: ['Imepangwa', '#eff6ff', '#075985'],
+  sending: ['Inatumwa', '#eff6ff', '#075985'],
+  sent: ['Imetumwa', '#dcfce7', '#166534'],
+  rejected: ['Imekataliwa', '#fee2e2', '#b91c1c'],
+  cancelled: ['Imesitishwa', '#f1f5f9', '#475569'],
 };
+const INK = '#0f172a';
+const MUTED = '#64748b';
+const LINE = '#e2e8f0';
+const card = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18 };
+const input = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${LINE}`, fontSize: 14, boxSizing: 'border-box', fontFamily: 'inherit', color: INK, background: '#fff' };
+const label = { display: 'block', fontSize: 13, fontWeight: 700, color: INK, margin: '0 0 6px' };
+const btn = (primary) => ({ border: primary ? 'none' : `1px solid ${LINE}`, background: primary ? INK : '#fff', color: primary ? '#fff' : INK, borderRadius: 20, padding: '9px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' });
+const when = (d) => (d ? new Date(d).toLocaleString('sw-TZ', { dateStyle: 'medium', timeStyle: 'short' }) : '');
+const tzs = (n) => `TZS ${Number(n || 0).toLocaleString('en-US')}`;
 
-const PRIORITY_LABELS = {
-  info:    { label: 'ℹ️ Habari',    bg: '#dbeafe', color: '#1d4ed8' },
-  success: { label: 'Mafanikio', bg: '#dcfce7', color: '#16a34a' },
-  warning: { label: 'Onyo',      bg: '#fef9c3', color: '#ca8a04' },
-  urgent:  { label: 'Dharura',   bg: '#fee2e2', color: '#dc2626' },
-};
+const empty = { mode: 'group', audience: 'all', targetUserId: null, targetName: '', title: '', message: '', link: 'none', param: '', linkUrl: '', sendSms: false, later: false, scheduledAt: '' };
 
-const emptyForm = {
-  title: '', message: '', audience: 'all', priority: 'info',
-  linkUrl: '', linkLabel: '', sendSms: false, expiresAt: '',
-  targetUserId: null, targetUserName: '',
-  thresholdEntity: 'seller', thresholdOperator: 'gte', thresholdAmount: '',
-};
+export default function Announcements({ activePage, onNavigate, onLogout, targetUserId, targetName }) {
+  const rc = useOptionalRoleContext();
+  const roleType = rc?.activeContext?.roleType || 'admin';
+  const myId = rc?.user?.id;
+  const isAdmin = roleType === 'admin';
+  const onlyOne = roleType === 'customer_care';
+  const [form, setForm] = useState(() => ({ ...empty, ...(targetUserId || onlyOne ? { mode: 'one', targetUserId: targetUserId || null, targetName: targetName || '' } : {}) }));
+  const [list, setList] = useState([]);
+  const [tab, setTab] = useState('all');
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState(null); // { ok, text }
+  const [people, setPeople] = useState([]);
+  const [query, setQuery] = useState('');
+  const [rejecting, setRejecting] = useState(null); // { id, reason }
 
-const Announcements = ({ activePage, onNavigate, onLogout }) => {
-  const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm]         = useState(emptyForm);
-  const [saving, setSaving]     = useState(false);
-  const [message, setMessage]   = useState('');
-  const [error, setError]       = useState('');
-  const [targetMode, setTargetMode] = useState('broadcast'); // 'broadcast' | 'user' | 'threshold'
-  const [allUsers, setAllUsers]     = useState([]);
-  const [userSearch, setUserSearch] = useState('');
-  const [usersLoaded, setUsersLoaded] = useState(false);
+  const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+  const chosen = MESSAGE_LINKS.find((l) => l.key === form.link) || MESSAGE_LINKS[0];
 
-  useEffect(() => { fetchAll(); }, []);
+  const payload = useMemo(() => ({
+    title: form.title, message: form.message,
+    audience: form.mode === 'group' ? form.audience : undefined,
+    targetUserId: form.mode === 'one' ? form.targetUserId : undefined,
+    actionPage: chosen.page || undefined,
+    actionParam: chosen.param ? form.param.trim() || undefined : undefined,
+    linkUrl: chosen.key === 'external' ? form.linkUrl.trim() || undefined : undefined,
+    sendSms: form.sendSms,
+    scheduledAt: form.later && form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
+  }), [form, chosen]);
 
-  const loadUsersOnce = async () => {
-    if (usersLoaded) return;
+  const load = useCallback(() => {
+    api.get('/announcements/messages').then((r) => setList(r.data || [])).catch(() => setList([]));
+  }, []);
+  useEffect(load, [load]);
+
+  // Count people and SMS cost while writing (after a short pause).
+  const ready = form.title.trim() && form.message.trim() && (form.mode === 'group' || form.targetUserId);
+  useEffect(() => {
+    if (!ready) { setPreview(null); return undefined; }
+    const t = setTimeout(() => {
+      api.post('/announcements/messages/preview', payload).then((r) => setPreview(r.data)).catch(() => setPreview(null));
+    }, 500);
+    return () => clearTimeout(t);
+  }, [ready, payload]);
+
+  const findPeople = async (q) => {
+    setQuery(q);
+    if (q.trim().length < 2) { setPeople([]); return; }
     try {
-      const res = await api.get('/users');
-      setAllUsers(res.data || []);
-      setUsersLoaded(true);
-    } catch { /* search list just stays empty */ }
+      if (!findPeople.all) findPeople.all = (await api.get('/users')).data || [];
+      const s = q.toLowerCase();
+      setPeople(findPeople.all.filter((u) => [u.name, u.phone, u.email, String(u.id)].some((v) => String(v || '').toLowerCase().includes(s))).slice(0, 8));
+    } catch { setPeople([]); }
   };
 
-  const matchingUsers = userSearch.trim().length < 2 ? [] : allUsers.filter(u => {
-    const q = userSearch.toLowerCase();
-    return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) ||
-      u.phone?.toLowerCase().includes(q) || String(u.id).includes(q);
-  }).slice(0, 8);
+  const say = (ok, text) => { setNote({ ok, text }); setTimeout(() => setNote(null), 6000); };
+  const fail = (e) => say(false, e?.response?.data?.message || 'Imeshindwa. Jaribu tena.');
 
-  const fetchAll = async () => {
+  const send = async () => {
+    setBusy(true);
     try {
-      setLoading(true);
-      const res = await api.get('/announcements/admin/all');
-      setAnnouncements(res.data || []);
-    } catch { setError('Imeshindwa kupakia matangazo'); }
-    finally { setLoading(false); }
+      const { data } = await api.post('/announcements/messages', payload);
+      say(true, data.status === 'pending_approval' ? 'Imetumwa kwa admin kuidhinisha.' : data.status === 'scheduled' ? `Imepangwa: ${when(data.scheduledAt)}.` : `Imetumwa kwa watu ${data.recipientCount}.`);
+      setForm({ ...empty, mode: onlyOne ? 'one' : 'group' });
+      setPreview(null);
+      load();
+    } catch (e) { fail(e); } finally { setBusy(false); }
   };
 
-  const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 4000); };
-  const showErr = (m) => { setError(m);   setTimeout(() => setError(''),   4000); };
-
-  const handleCreate = async () => {
-    if (!form.title.trim() || !form.message.trim()) {
-      showErr('Weka kichwa na ujumbe'); return;
-    }
-    if (targetMode === 'user' && !form.targetUserId) {
-      showErr('Chagua mtumiaji mahususi'); return;
-    }
-    if (targetMode === 'threshold' && (!form.thresholdAmount || Number(form.thresholdAmount) < 0)) {
-      showErr('Weka kiasi sahihi cha deni'); return;
-    }
-    try {
-      setSaving(true);
-      await api.post('/announcements/admin', {
-        ...form,
-        targetUserId: targetMode === 'user' ? form.targetUserId : undefined,
-        targetUserName: targetMode === 'user' ? form.targetUserName : undefined,
-        thresholdEntity: targetMode === 'threshold' ? form.thresholdEntity : undefined,
-        thresholdOperator: targetMode === 'threshold' ? form.thresholdOperator : undefined,
-        thresholdAmount: targetMode === 'threshold' ? Number(form.thresholdAmount) : undefined,
-        expiresAt: form.expiresAt || undefined,
-        sendSms:   form.sendSms,
-      });
-      showMsg(`Tangazo limetumwa${form.sendSms ? ' + SMS' : ''}`);
-      setShowForm(false);
-      setForm(emptyForm);
-      setTargetMode('broadcast');
-      setUserSearch('');
-      fetchAll();
-    } catch (err) {
-      showErr(err?.response?.data?.message || 'Imeshindwa kutuma');
-    } finally { setSaving(false); }
+  const test = async () => {
+    setBusy(true);
+    try { await api.post('/announcements/messages/test', payload); say(true, 'Nakala imetumwa kwako. Fungua Taarifa uone inavyoonekana.'); } catch (e) { fail(e); } finally { setBusy(false); }
   };
 
-  const handleToggle = async (id, isActive) => {
-    await api.patch(`/announcements/admin/${id}`, { isActive: !isActive });
-    fetchAll();
+  const act = async (id, what, body) => {
+    try { await api.post(`/announcements/messages/${id}/${what}`, body || {}); setRejecting(null); load(); } catch (e) { fail(e); }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Futa tangazo hili?')) return;
-    await api.delete(`/announcements/admin/${id}`);
-    showMsg('Tangazo limefutwa');
-    fetchAll();
-  };
-
-  const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' };
-  const labelStyle = { display: 'block', fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 };
+  const waiting = list.filter((m) => m.status === 'pending_approval');
+  const shown = tab === 'waiting' ? waiting : list;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', color: INK }}>
       <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
-      <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
+      <main style={{ marginLeft: 250, flex: 1, padding: 32, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1100 }}>
+        <header>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Tuma taarifa</h1>
+          <p style={{ margin: '4px 0 0', color: MUTED, fontSize: 14 }}>
+            Ujumbe unafika kwenye Taarifa za mtu na kwenye simu yake, na unafungua ukurasa wa KenteXa unaouchagua.
+            {!isAdmin && !onlyOne && ' Ujumbe kwa watu zaidi ya 100, au wenye SMS, unasubiri admin aidhinishe.'}
+            {onlyOne && ' Huduma kwa wateja wanatuma kwa mtu mmoja.'}
+          </p>
+        </header>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Matangazo</h1>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Tuma ujumbe kwa wauzaji, agents na wanunuzi</p>
-          </div>
-          <button onClick={() => setShowForm(true)}
-            style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-            Tangazo Jipya
-          </button>
-        </div>
+        {note && <div role={note.ok ? 'status' : 'alert'} style={{ padding: '12px 14px', borderRadius: 10, fontSize: 14, fontWeight: 600, background: note.ok ? '#dcfce7' : '#fee2e2', color: note.ok ? '#166534' : '#b91c1c' }}>{note.text}</div>}
 
-        {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{message}</div>}
-        {error   && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600 }}>{error}</div>}
-
-        {/* Quick stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
-          {[
-            { label: 'Matangazo Yote',    value: announcements.length,                                    color: '#6366f1', bg: '#ede9fe' },
-            { label: 'Yanayotumika',      value: announcements.filter(a => a.isActive).length,             color: '#16a34a', bg: '#dcfce7' },
-            { label: 'SMS Zilizotumwa',   value: announcements.filter(a => a.smsSent).length,              color: '#ca8a04', bg: '#fef9c3' },
-            { label: 'Yaliyokwisha',      value: announcements.filter(a => !a.isActive).length,            color: '#94a3b8', bg: '#f1f5f9' },
-          ].map(s => (
-            <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: 16 }}>
-              <div style={{ fontSize: 24, fontWeight:800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: s.color, fontWeight: 600, marginTop: 2 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* List */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
-        ) : announcements.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 14, color: '#94a3b8' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>Hakuna matangazo bado</div>
-            <div style={{ fontSize: 13 }}>Bonyeza "Tangazo Jipya" kuandika ujumbe wa kwanza</div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {announcements.map(a => {
-              const ps = PRIORITY_LABELS[a.priority] || PRIORITY_LABELS.info;
-              const as_ = AUDIENCE_LABELS[a.audience] || AUDIENCE_LABELS.all;
-              const readCount = a.readByUserIds?.length || 0;
-              return (
-                <div key={a.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', opacity: a.isActive ? 1 : 0.6, borderLeft: `4px solid ${ps.color}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: ps.bg, color: ps.color }}>{ps.label}</span>
-                        {a.targetUserId ? (
-                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>{a.targetUserName || `User #${a.targetUserId}`}</span>
-                        ) : a.thresholdEntity ? (
-                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>
-                            {a.thresholdEntity === 'seller' ? 'Wauzaji' : 'Ofisi'} {a.thresholdOperator === 'gte' ? '≥' : '≤'} TZS {Number(a.thresholdAmount).toLocaleString()}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: as_.color }}>{as_.label}</span>
-                        )}
-                        {!a.isActive && <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>IMEZIMWA</span>}
-                        {a.smsSent && <span style={{ fontSize: 11, fontWeight: 700, color: '#ca8a04' }}>SMS Imetumwa</span>}
-                      </div>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{a.title}</div>
-                      <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.6 }}>{a.message}</div>
-                      {a.linkUrl && (
-                        <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4 }}>{a.linkUrl}</div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, marginLeft: 16, flexShrink: 0 }}>
-                      <button onClick={() => handleToggle(a.id, a.isActive)}
-                        style={{ backgroundColor: a.isActive ? '#fef9c3' : '#dcfce7', color: a.isActive ? '#ca8a04' : '#16a34a', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                        {a.isActive ? 'Simamisha' : '▶️ Amilisha'}
-                      </button>
-                      <button onClick={() => handleDelete(a.id)}
-                        style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-            Futa
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#94a3b8', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
-                    <span>{new Date(a.createdAt).toLocaleString('sw-TZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                    <span>Wamesoma: {readCount}</span>
-                    {a.expiresAt && <span>Inaisha: {new Date(a.expiresAt).toLocaleDateString('sw-TZ')}</span>}
-                    <span>{a.createdBy?.name || 'Admin'}</span>
-                  </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(260px, 2fr)', gap: 16, alignItems: 'start' }}>
+          <section style={{ ...card, display: 'flex', flexDirection: 'column', gap: 14 }} data-testid="composer">
+            <div>
+              <span style={label}>Kwa nani</span>
+              {!onlyOne && (
+                <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  {[['group', 'Kundi'], ['one', 'Mtu mmoja']].map(([k, t]) => (
+                    <button key={k} type="button" role="tab" aria-selected={form.mode === k} onClick={() => set({ mode: k })} style={{ ...btn(form.mode === k), padding: '7px 14px' }}>{t}</button>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
-
-      {/* Create modal */}
-      {showForm && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
-          <div style={{ width: 480, backgroundColor: '#fff', height: '100%', overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Tangazo Jipya</h2>
-              <button onClick={() => { setShowForm(false); setForm(emptyForm); setTargetMode('broadcast'); setUserSearch(''); }}
-                style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#94a3b8' }}>×</button>
-            </div>
-
-            {/* Broadcast vs specific-user vs threshold mode */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              {[
-                { key: 'broadcast', label: 'Broadcast' },
-                { key: 'user',      label: 'Mtumiaji' },
-                { key: 'threshold', label: 'Kiwango cha Deni' },
-              ].map(m => (
-                <button key={m.key} type="button"
-                  onClick={() => { setTargetMode(m.key); if (m.key === 'user') loadUsersOnce(); }}
-                  style={{ flex: 1, padding: '9px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 11.5, fontWeight: 700,
-                    border: targetMode === m.key ? '2px solid #6366f1' : '2px solid #e2e8f0',
-                    backgroundColor: targetMode === m.key ? '#eef2ff' : '#fff',
-                    color: targetMode === m.key ? '#4f46e5' : '#64748b' }}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-
-            {targetMode === 'threshold' && (
-              <div style={{ marginBottom: 14, backgroundColor: '#f8fafc', borderRadius: 8, padding: 12 }}>
-                <label style={labelStyle}>Lenga Kwa Deni Lililobaki</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <select value={form.thresholdEntity} onChange={e => setForm({...form, thresholdEntity: e.target.value})}
-                    style={{ ...inputStyle, flex: 1 }}>
-                    <option value="seller">Wauzaji</option>
-                    <option value="super_agent">Ofisi</option>
-                  </select>
-                  <select value={form.thresholdOperator} onChange={e => setForm({...form, thresholdOperator: e.target.value})}
-                    style={{ ...inputStyle, flex: '0 0 90px' }}>
-                    <option value="gte">≥ zaidi</option>
-                    <option value="lte">≤ chini</option>
-                  </select>
+              )}
+              {form.mode === 'group' ? (
+                <select aria-label="Kundi" value={form.audience} onChange={(e) => set({ audience: e.target.value })} style={input}>
+                  {AUDIENCES.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+                </select>
+              ) : form.targetUserId ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...input }}>
+                  <span><b>{form.targetName || `Mtumiaji #${form.targetUserId}`}</b></span>
+                  <button type="button" onClick={() => set({ targetUserId: null, targetName: '' })} style={{ background: 'none', border: 'none', color: '#1d4ed8', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>Badilisha</button>
                 </div>
-                <input type="number" min="0" placeholder="Kiasi (TZS), e.g. 10000" value={form.thresholdAmount}
-                  onChange={e => setForm({...form, thresholdAmount: e.target.value})}
-                  style={{ ...inputStyle, marginTop: 8 }} />
-                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, marginBottom: 0 }}>
-                  Itamlenga kila {form.thresholdEntity === 'seller' ? 'muuzaji' : 'ofisi'} ambayo deni lake (outstanding balance) ni {form.thresholdOperator === 'gte' ? 'kubwa kuliko au sawa na' : 'kidogo kuliko au sawa na'} kiasi hiki — inahesabiwa upya kila wakati, si picha ya zamani.
-                </p>
-              </div>
-            )}
-
-            {targetMode === 'user' && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>Tafuta Mtumiaji *</label>
-                {form.targetUserId ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    backgroundColor: '#eef2ff', borderRadius: 8, padding: '10px 12px' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>{form.targetUserName}</span>
-                    <button onClick={() => { setForm({...form, targetUserId: null, targetUserName: ''}); setUserSearch(''); }}
-                      style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                      Badilisha
+              ) : (
+                <div>
+                  <input aria-label="Tafuta mtu" placeholder="Jina, simu au namba ya mtumiaji" value={query} onChange={(e) => findPeople(e.target.value)} style={input} />
+                  {people.map((u) => (
+                    <button key={u.id} type="button" onClick={() => { set({ targetUserId: u.id, targetName: u.name || u.phone || `#${u.id}` }); setPeople([]); setQuery(''); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', borderBottom: `1px solid ${LINE}`, padding: '8px 4px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, color: INK }}>
+                      {u.name || '—'} <span style={{ color: MUTED }}>{u.phone || u.email || ''} · #{u.id}</span>
                     </button>
-                  </div>
-                ) : (
-                  <>
-                    <input placeholder="Tafuta kwa jina, simu, email..." value={userSearch}
-                      onChange={e => setUserSearch(e.target.value)} style={inputStyle} />
-                    {matchingUsers.length > 0 && (
-                      <div style={{ marginTop: 6, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
-                        {matchingUsers.map(u => (
-                          <div key={u.id} onClick={() => { setForm({...form, targetUserId: u.id, targetUserName: u.name || u.phone || u.email}); }}
-                            style={{ padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 12 }}>
-                            <div style={{ fontWeight: 700, color: '#1e293b' }}>{u.name || '—'}</div>
-                            <div style={{ color: '#94a3b8' }}>{u.phone || u.email} · {u.role}</div>
-                          </div>
-                        ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="msg-title" style={label}>Kichwa <span style={{ color: MUTED, fontWeight: 500 }}>({form.title.length}/80)</span></label>
+              <input id="msg-title" maxLength={80} value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="Mfano: POS sasa inahesabu madeni" style={input} />
+            </div>
+            <div>
+              <label htmlFor="msg-body" style={label}>Ujumbe <span style={{ color: MUTED, fontWeight: 500 }}>({form.message.length}/600)</span></label>
+              <textarea id="msg-body" maxLength={600} rows={4} value={form.message} onChange={(e) => set({ message: e.target.value })} placeholder="Eleza kwa ufupi, kwa Kiswahili rahisi." style={{ ...input, resize: 'vertical' }} />
+            </div>
+
+            <div>
+              <label htmlFor="msg-link" style={label}>Kiungo</label>
+              <select id="msg-link" value={form.link} onChange={(e) => set({ link: e.target.value, param: '', linkUrl: '' })} style={input}>
+                {MESSAGE_LINKS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
+              </select>
+              {chosen.param && <input aria-label={chosen.param} placeholder={chosen.param} value={form.param} onChange={(e) => set({ param: e.target.value.replace(/[^A-Za-z0-9_-]/g, '') })} style={{ ...input, marginTop: 8 }} />}
+              {chosen.key === 'external' && <input aria-label="Kiungo cha nje" placeholder="https://" value={form.linkUrl} onChange={(e) => set({ linkUrl: e.target.value })} style={{ ...input, marginTop: 8 }} />}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
+              <span style={label}>Njia</span>
+              <span style={{ color: MUTED }}>Taarifa kwenye app na kwenye simu (push) — kila mara, bila gharama.</span>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+                <input type="checkbox" checked={form.sendSms} onChange={(e) => set({ sendSms: e.target.checked })} /> Tuma pia SMS (ina gharama)
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
+              <span style={label}>Lini</span>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}><input type="radio" checked={!form.later} onChange={() => set({ later: false })} /> Sasa hivi</label>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}><input type="radio" checked={form.later} onChange={() => set({ later: true })} /> Baadaye</label>
+              {form.later && <input type="datetime-local" aria-label="Muda wa kutuma" value={form.scheduledAt} onChange={(e) => set({ scheduledAt: e.target.value })} style={input} />}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button type="button" data-testid="msg-send" disabled={!ready || busy} onClick={send} style={{ ...btn(true), opacity: !ready || busy ? 0.5 : 1 }}>
+                {preview?.needsApproval ? 'Tuma kwa admin aidhinishe' : form.later ? 'Panga kutuma' : 'Tuma'}
+              </button>
+              <button type="button" data-testid="msg-test" disabled={!form.title.trim() || !form.message.trim() || busy} onClick={test} style={btn(false)}>Nitumie nakala kwanza</button>
+            </div>
+          </section>
+
+          <aside style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <section style={card} data-testid="msg-preview">
+              <span style={label}>Inavyoonekana kwenye simu</span>
+              <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, background: '#f8fafc' }}>
+                <div style={{ fontSize: 12, color: MUTED, fontWeight: 700 }}>KenteXa · sasa hivi</div>
+                <div style={{ fontWeight: 800, marginTop: 4 }}>{form.title || 'Kichwa'}</div>
+                <div style={{ color: '#334155', marginTop: 2, whiteSpace: 'pre-wrap', fontSize: 14 }}>{form.message || 'Ujumbe utaonekana hapa.'}</div>
+                {(chosen.page || form.linkUrl) && <div style={{ marginTop: 8, fontSize: 13, color: '#1d4ed8', fontWeight: 700 }}>Inafungua: {chosen.page ? linkLabel(chosen.page, form.param) : form.linkUrl}</div>}
+              </div>
+            </section>
+            <section style={card}>
+              <span style={label}>Itawafikia</span>
+              {preview ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
+                  <div><b style={{ fontSize: 22 }}>{preview.recipients.toLocaleString('en-US')}</b> watu</div>
+                  {form.sendSms && <div>SMS: {preview.withPhone.toLocaleString('en-US')} wenye simu × sehemu {preview.smsParts} = <b>{tzs(preview.smsCostTzs)}</b></div>}
+                  {preview.needsApproval && <div style={{ color: '#92400e' }}>Inahitaji idhini ya admin kabla ya kutumwa.</div>}
+                </div>
+              ) : <div style={{ color: MUTED, fontSize: 14 }}>Andika kichwa na ujumbe, kisha uchague anayepokea.</div>}
+            </section>
+          </aside>
+        </div>
+
+        <section style={card}>
+          <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button type="button" role="tab" aria-selected={tab === 'all'} onClick={() => setTab('all')} style={{ ...btn(tab === 'all'), padding: '7px 14px' }}>Zote</button>
+            <button type="button" role="tab" aria-selected={tab === 'waiting'} onClick={() => setTab('waiting')} style={{ ...btn(tab === 'waiting'), padding: '7px 14px' }}>Zinasubiri idhini ({waiting.length})</button>
+          </div>
+          {shown.length === 0 ? <p style={{ color: MUTED, margin: 0 }}>Hakuna taarifa bado.</p> : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} data-testid="msg-list">
+              {shown.map((m) => {
+                const [st, bg, fg] = STATUS[m.status] || STATUS.sent;
+                const mine = !!myId && m.createdBy?.id === myId;
+                return (
+                  <li key={m.id} data-testid={`msg-${m.id}`} style={{ borderTop: `1px solid ${LINE}`, padding: '12px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <b style={{ fontSize: 15 }}>{m.title}</b>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 10, background: bg, color: fg }}>{st}</span>
+                      {m.sendSms && <span style={{ fontSize: 12, color: MUTED }}>+ SMS</span>}
+                    </div>
+                    <div style={{ fontSize: 14, color: '#334155' }}>{m.message}</div>
+                    <div style={{ fontSize: 13, color: MUTED }}>
+                      {[`Kwa: ${m.audienceLabel}`, m.actionPage ? `Inafungua: ${linkLabel(m.actionPage, m.actionParam)}` : null,
+                        m.createdBy?.name ? `Ameandika: ${m.createdBy.name}` : null, m.approvedBy && m.status !== 'rejected' ? `Ameidhinisha: ${m.approvedBy}` : null,
+                        m.status === 'scheduled' ? `Itatumwa ${when(m.scheduledAt)}` : when(m.sentAt || m.createdAt)].filter(Boolean).join(' · ')}
+                    </div>
+                    {m.status === 'sent' && (
+                      <div style={{ fontSize: 13 }}>
+                        Imefika kwa <b>{m.recipientCount.toLocaleString('en-US')}</b> · imefunguliwa na <b>{m.openedCount.toLocaleString('en-US')}</b>
+                        {m.recipientCount > 0 ? ` (${Math.round((m.openedCount / m.recipientCount) * 100)}%)` : ''}
+                        {m.sendSms ? ` · SMS ${m.smsCount}` : ''}
                       </div>
                     )}
-                  </>
-                )}
-              </div>
-            )}
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Kichwa *</label>
-              <input placeholder="e.g. Mabadiliko ya Ada ya Van" value={form.title}
-                onChange={e => setForm({...form, title: e.target.value})} style={inputStyle} />
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Ujumbe *</label>
-              <textarea placeholder="Andika ujumbe wako hapa..." value={form.message}
-                onChange={e => setForm({...form, message: e.target.value})} rows={5}
-                style={{ ...inputStyle, resize: 'vertical' }} />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: targetMode === 'broadcast' ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 14 }}>
-              {targetMode === 'broadcast' && (
-                <div>
-                  <label style={labelStyle}>Walengwa</label>
-                  <select value={form.audience} onChange={e => setForm({...form, audience: e.target.value})} style={inputStyle}>
-                    {Object.entries(AUDIENCE_LABELS).map(([k, v]) => (
-                      <option key={k} value={k}>{v.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label style={labelStyle}>Aina</label>
-                <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} style={inputStyle}>
-                  {Object.entries(PRIORITY_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <div>
-                <label style={labelStyle}>Kiungo (Optional)</label>
-                <input placeholder="e.g. VanToday au https://..." value={form.linkUrl}
-                  onChange={e => setForm({...form, linkUrl: e.target.value})} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Lebo ya Kiungo</label>
-                <input placeholder="e.g. Angalia Hapa" value={form.linkLabel}
-                  onChange={e => setForm({...form, linkLabel: e.target.value})} style={inputStyle} />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Inaisha Tarehe (Optional)</label>
-              <input type="datetime-local" value={form.expiresAt}
-                onChange={e => setForm({...form, expiresAt: e.target.value})} style={inputStyle} />
-            </div>
-
-            {/* SMS option */}
-            <div style={{ backgroundColor: form.sendSms ? '#fef9c3' : '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 20, cursor: 'pointer' }}
-              onClick={() => setForm({...form, sendSms: !form.sendSms})}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${form.sendSms ? '#ca8a04' : '#e2e8f0'}`, backgroundColor: form.sendSms ? '#ca8a04' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {form.sendSms && <span style={{ color: '#fff', fontSize: 12, fontWeight: 800 }}>✓</span>}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Tuma SMS pia</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>SMS itatumwa kwa wote waliolengwa wanazo namba za simu</div>
-                </div>
-              </div>
-              {form.sendSms && (
-                <div style={{ marginTop: 8, fontSize: 11, color: '#92400e', fontWeight: 600 }}>
-                  Hii itatumia credits za Africa's Talking. Hakikisha una credit ya kutosha.
-                </div>
-              )}
-            </div>
-
-            {/* Preview */}
-            {form.title && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={labelStyle}>Mfano wa Tangazo</label>
-                <div style={{ backgroundColor: (PRIORITY_LABELS[form.priority] || PRIORITY_LABELS.info).bg, borderRadius: 10, padding: 14, border: `1px solid ${(PRIORITY_LABELS[form.priority] || PRIORITY_LABELS.info).color}40` }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: (PRIORITY_LABELS[form.priority] || PRIORITY_LABELS.info).color, marginBottom: 4 }}>
-                    {(PRIORITY_LABELS[form.priority] || PRIORITY_LABELS.info).label} {form.title}
-                  </div>
-                  <div style={{ fontSize: 12, color: (PRIORITY_LABELS[form.priority] || PRIORITY_LABELS.info).color, lineHeight: 1.5 }}>
-                    {form.message || '...'}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setShowForm(false); setForm(emptyForm); }}
-                style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                Ghairi
-              </button>
-              <button onClick={handleCreate} disabled={saving}
-                style={{ flex: 2, background: saving ? '#a5b4fc' : 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
-                {saving ? 'Inatuma...' : `Tuma${form.sendSms ? ' + SMS' : ''}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                    {m.status === 'rejected' && m.rejectReason && <div style={{ fontSize: 13, color: '#b91c1c' }}>Sababu: {m.rejectReason}</div>}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {isAdmin && m.status === 'pending_approval' && rejecting?.id !== m.id && (
+                        <>
+                          <button type="button" data-testid={`approve-${m.id}`} onClick={() => act(m.id, 'approve')} style={{ ...btn(true), padding: '6px 14px', fontSize: 13 }}>Idhinisha na tuma</button>
+                          <button type="button" onClick={() => setRejecting({ id: m.id, reason: '' })} style={{ ...btn(false), padding: '6px 14px', fontSize: 13 }}>Kataa</button>
+                        </>
+                      )}
+                      {rejecting?.id === m.id && (
+                        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                          <input aria-label="Sababu ya kukataa" placeholder="Sababu (ataiona aliyeandika)" value={rejecting.reason} onChange={(e) => setRejecting({ id: m.id, reason: e.target.value })} style={{ ...input, flex: 1 }} />
+                          <button type="button" onClick={() => act(m.id, 'reject', { reason: rejecting.reason })} style={{ ...btn(true), padding: '6px 14px', fontSize: 13 }}>Kataa</button>
+                          <button type="button" onClick={() => setRejecting(null)} style={{ ...btn(false), padding: '6px 14px', fontSize: 13 }}>Acha</button>
+                        </div>
+                      )}
+                      {['pending_approval', 'scheduled'].includes(m.status) && (isAdmin || mine) && rejecting?.id !== m.id && (
+                        <button type="button" onClick={() => act(m.id, 'cancel')} style={{ ...btn(false), padding: '6px 14px', fontSize: 13 }}>Sitisha</button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </main>
     </div>
   );
-};
-
-export default Announcements;
+}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 import BusinessApplications from '../components/BusinessApplications';
@@ -59,7 +60,7 @@ export default function Businesses({ activePage, onNavigate, onLogout }) {
               style={{ background: 'none', border: 'none', padding: 0, color: '#1d4ed8', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textAlign: 'left' }}>
               {business.tradingName || business.legalName}
             </button></td><td>{business.status}</td>
-          <td><button disabled={busy !== null} onClick={() => change(business, business.status === 'suspended' ? 'restore' : 'suspend')}>
+          <td><SendMessageButton small userId={business.user?.id || business.userId} name={business.tradingName || business.legalName} />{' '}<button disabled={busy !== null} onClick={() => change(business, business.status === 'suspended' ? 'restore' : 'suspend')}>
             {business.status === 'suspended' ? 'Restore' : 'Suspend'}
           </button></td>
         </tr>)}</tbody>

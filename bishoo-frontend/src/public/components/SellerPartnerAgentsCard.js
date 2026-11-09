@@ -11,8 +11,8 @@ const STATUS = {
   expired: ['Muda umekwisha', '#b91c1c'], ended: ['Imesitishwa', '#94a3b8'],
 };
 const AGENT = {
-  approved: ['Wakala mshirika', '#15803d'], pending: ['Ombi la wakala linakaguliwa', '#b45309'],
-  not_applied: ['Bado hajajaza ombi la wakala', '#b45309'], suspended: ['Wakala amesimamishwa', '#b91c1c'],
+  approved: ['Wakala mshirika', '#16a34a'], pending: ['Ombi la wakala linakaguliwa', '#d97706'],
+  not_applied: ['Bado hajajaza ombi la wakala', '#d97706'], suspended: ['Wakala amesimamishwa', '#b91c1c'],
   rejected: ['Ombi la wakala limekataliwa', '#b91c1c'],
 };
 const inp = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, marginBottom: 8 };
@@ -75,7 +75,7 @@ const SellerPartnerAgentsCard = () => {
       {open && (
         <div style={{ marginTop: 12 }}>
           {unavailable ? (
-            <div style={{ fontSize: 13, color: '#b45309' }}>Huduma hii bado haijawashwa. Jaribu tena baadaye.</div>
+            <div style={{ fontSize: 13, color: '#d97706' }}>Huduma hii bado haijawashwa. Jaribu tena baadaye.</div>
           ) : (
             <>
               <div style={{ fontSize: 12, color: '#475569', marginBottom: 10, lineHeight: 1.5 }}>

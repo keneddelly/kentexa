@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri',     dot: '#ca8a04' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri',     dot: '#d97706' },
   approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Ameidhinishwa', dot: '#16a34a' },
   rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Alikataliwa',   dot: '#dc2626' },
   suspended: { bg: '#f1f5f9', color: '#64748b', label: 'Imesimamishwa', dot: '#64748b' },
@@ -214,25 +215,25 @@ const Agents = ({ onNavigate }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
           {[
             { label: 'Wote',           value: agents.length,           color: '#1d4ed8', bg: '#dbeafe' },
-            { label: 'Wanasubiri',     value: counts.pending   || 0,   color: '#ca8a04', bg: '#fef9c3' },
+            { label: 'Wanasubiri',     value: counts.pending   || 0,   color: '#d97706', bg: '#fffbeb' },
             { label: 'Wanaofanya kazi', value: counts.approved  || 0,  color: '#16a34a', bg: '#dcfce7' },
             { label: 'Waliositamishwa', value: counts.suspended || 0,  color: '#dc2626', bg: '#fee2e2' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '14px 16px' }}>
               <div style={{ fontSize: 24, fontWeight:800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: s.color, fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* Pending alert */}
         {(counts.pending || 0) > 0 && (
-          <div style={{ backgroundColor: '#fff7ed', border: '2px solid #fed7aa', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: '#c2410c', fontWeight: 700 }}>
+          <div style={{ backgroundColor: '#fffbeb', border: '2px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13, color: '#d97706', fontWeight: 700 }}>
               Kuna maombi {counts.pending} yanayosubiri idhini yako
             </span>
             <button onClick={() => setFilterStatus('pending')}
-              style={{ backgroundColor: '#c2410c', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+              style={{ backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
               Angalia Sasa
             </button>
           </div>
@@ -287,7 +288,7 @@ const Agents = ({ onNavigate }) => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                             <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{agent.fullName}</span>
                             {agent.agentCode && (
-                              <span style={{ fontSize: 10, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
+                              <span style={{ fontSize: 12, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
                                 {agent.agentCode}
                               </span>
                             )}
@@ -298,11 +299,11 @@ const Agents = ({ onNavigate }) => {
                           <IdentityBadge status={agent.identityStatus} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: st.bg, color: st.color }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: st.bg, color: st.color }}>
                             {st.label}
                           </span>
                           {agent.tier && (
-                            <span style={{ fontSize: 10, color: '#94a3b8' }}>{TIER_LABEL[agent.tier]}</span>
+                            <span style={{ fontSize: 12, color: '#94a3b8' }}>{TIER_LABEL[agent.tier]}</span>
                           )}
                         </div>
                       </div>
@@ -313,20 +314,20 @@ const Agents = ({ onNavigate }) => {
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
                             {[
                               { l: 'Zimefishwa', v: agent.totalDeliveriesCompleted || 0, c: '#1d4ed8' },
-                              { l: 'Makusanyo',  v: agent.totalCollectionsCompleted || 0, c: '#7c3aed' },
+                              { l: 'Makusanyo',  v: agent.totalCollectionsCompleted || 0, c: '#0f1419' },
                               { l: 'Rating',     v: agent.rating ? `${Number(agent.rating).toFixed(1)}` : '5.0', c: '#f59e0b' },
                               { l: 'Mapato',     v: `TZS ${Number(agent.totalEarnings || 0).toLocaleString()}`, c: '#16a34a' },
                             ].map(s => (
                               <div key={s.l} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
                                 <div style={{ fontSize: 13, fontWeight: 800, color: s.c }}>{s.v}</div>
-                                <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{s.l}</div>
+                                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{s.l}</div>
                               </div>
                             ))}
                           </div>
 
                           {/* Earnings breakdown */}
                           <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginTop: 10 }}>
-                            <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>Mgawanyo wa Mapato</div>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>Mgawanyo wa Mapato</div>
                             {[
                               { label: 'Utoaji wa Bidhaa', value: agent.totalEarningsDeliveries || 0, icon: '' },
                               { label: 'Ukusanyaji wa Malipo', value: agent.totalEarningsPayments || 0, icon: '' },
@@ -334,7 +335,7 @@ const Agents = ({ onNavigate }) => {
                               { label: 'Inayosubiri Kulipwa', value: agent.pendingEarnings || 0, icon: '' },
                             ].map(e => (
                               <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #dcfce7' }}>
-                                <span style={{ fontSize: 11, color: '#475569' }}>{e.label}</span>
+                                <span style={{ fontSize: 12, color: '#475569' }}>{e.label}</span>
                                 <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>TZS {Number(e.value).toLocaleString()}</span>
                               </div>
                             ))}
@@ -356,16 +357,17 @@ const Agents = ({ onNavigate }) => {
                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
                   {selected.city || selected.district || '—'} · {selected.phone}
                 </div>
+                <div style={{ marginBottom: 12 }}><SendMessageButton userId={selected.user?.id} name={selected.fullName} label="Tuma taarifa kwa agent" /></div>
 
                 <div style={{ marginBottom: 10 }}><IdentityBadge status={selected.identityStatus} /></div>
                 {/* ID info */}
                 {selected.idNumber && (
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>KITAMBULISHO (nakala ya zamani iliyoandikwa na wakala)</div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>KITAMBULISHO (nakala ya zamani iliyoandikwa na wakala)</div>
                     <div style={{ fontSize: 12, color: '#1e293b' }}>{selected.idType}: {selected.idNumber}</div>
                     {selected.idPhotoUrl && (
                       <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"
-                        style={{ fontSize: 11, color: '#1d4ed8', display: 'block', marginTop: 4 }}>
+                        style={{ fontSize: 12, color: '#1d4ed8', display: 'block', marginTop: 4 }}>
                         Angalia picha ya ID
                       </a>
                     )}
@@ -375,21 +377,21 @@ const Agents = ({ onNavigate }) => {
                 {/* Address */}
                 {selected.address && (
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 2 }}>ANWANI</div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 2 }}>ANWANI</div>
                     <div style={{ fontSize: 12, color: '#1e293b' }}>{selected.address}</div>
                   </div>
                 )}
 
                 {/* Settings preview */}
                 <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '10px 12px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>MIPANGILIO</div>
+                  <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>MIPANGILIO</div>
                   {[
                     ['Kamisheni (Malipo)', `${selected.commissionRate || 2.5}%`],
                     ['Ada ya Uwasilishaji', `TZS ${Number(selected.deliveryCommission || 500).toLocaleString()}`],
                     ['Ukusanyaji Mjini', `TZS ${Number(selected.collectionFeeUrban || 1500).toLocaleString()}`],
                     ['Ukusanyaji Vijijini', `TZS ${Number(selected.collectionFeeRural || 3000).toLocaleString()}`],
                   ].map(([l, v]) => (
-                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
+                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
                       <span style={{ color: '#64748b' }}>{l}</span>
                       <span style={{ fontWeight: 700, color: '#1d4ed8' }}>{v}</span>
                     </div>
@@ -442,7 +444,7 @@ const Agents = ({ onNavigate }) => {
                   {selected.status === 'pending' && (
                     <>
                       <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
-                        style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                        style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                         {actionLoading ? '' : 'Idhinisha Wakala'}
                       </button>
                       <button onClick={() => { setShowRejectModal(true); setError(''); }} disabled={actionLoading}
@@ -455,7 +457,7 @@ const Agents = ({ onNavigate }) => {
                   {/* Approved — show Suspend + Edit */}
                   {selected.status === 'approved' && (
                     <button onClick={() => handleSuspend(selected.id)} disabled={actionLoading}
-                      style={{ width: '100%', backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                      style={{ width: '100%', backgroundColor: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
                       Simamisha
                     </button>
                   )}
@@ -463,7 +465,7 @@ const Agents = ({ onNavigate }) => {
                   {/* Suspended/Rejected — show Reactivate */}
                   {(selected.status === 'suspended' || selected.status === 'rejected') && (
                     <button onClick={() => handleReactivate(selected.id)} disabled={actionLoading}
-                      style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                      style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                       Anza Tena
                     </button>
                   )}
@@ -563,14 +565,14 @@ const Agents = ({ onNavigate }) => {
 
 // The account's identity (one per person, reused everywhere). Approval needs "verified".
 const IDENTITY_LABEL = {
-  verified: ['✔ Kitambulisho kimethibitishwa', '#166534', '#dcfce7'],
-  pending: ['Kitambulisho kinasubiri uthibitisho', '#854d0e', '#fef9c3'],
-  rejected: ['Kitambulisho kilikataliwa', '#991b1b', '#fee2e2'],
+  verified: ['✓ Kitambulisho kimethibitishwa', '#166534', '#dcfce7'],
+  pending: ['Kitambulisho kinasubiri uthibitisho', '#92400e', '#fffbeb'],
+  rejected: ['Kitambulisho kilikataliwa', '#b91c1c', '#fee2e2'],
   not_submitted: ['— Hakuna kitambulisho', '#475569', '#f1f5f9'],
 };
 function IdentityBadge({ status }) {
   const [text, color, bg] = IDENTITY_LABEL[status] || IDENTITY_LABEL.not_submitted;
-  return <span data-testid="identity-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, color, backgroundColor: bg }}>{text}</span>;
+  return <span data-testid="identity-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 700, color, backgroundColor: bg }}>{text}</span>;
 }
 
 export default Agents;

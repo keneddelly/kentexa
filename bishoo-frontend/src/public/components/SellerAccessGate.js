@@ -17,6 +17,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from './BackBar';
 import VerifyIdentityModal from './VerifyIdentityModal';
+import LineIcon from './LineIcon';
 
 const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
   const { t } = useTranslation();
@@ -31,7 +32,7 @@ const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
       <div style={{ maxWidth: 480, margin: '40px auto', padding: '0 16px' }}>
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24,
           boxShadow: '0 1px 4px rgba(0,0,0,0.06)', textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🪪</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="idcard" size={40} /></div>
           <div style={{ fontSize: 17, fontWeight:800, color: '#1e293b', marginBottom: 10 }}>
             {waiting ? t('identity_state.waiting_title') : rejected ? t('become_seller.identity_rejected_title') : t('seller_access_gate.title')}
           </div>
@@ -46,7 +47,7 @@ const SellerAccessGate = ({ onNavigate, identityStatus, onVerified }) => {
             </div>
           )}
           {!waiting && <button onClick={() => setShowVerify(true)}
-            style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', border: 'none',
+            style={{ background: 'linear-gradient(135deg,#0f1419,#0f1419)', color: '#fff', border: 'none',
               padding: '13px 28px', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800,
               boxShadow: '0 4px 12px rgba(102,126,234,0.4)' }}>
             {t('seller_access_gate.verify_button')}

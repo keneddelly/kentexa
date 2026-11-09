@@ -98,4 +98,43 @@ export class AdminMirrorService {
     ]);
     return { business, capabilities, members, counts: { products, orders, services, offices }, recentOrders, events };
   }
+
+  // ── Inbox chats (owner 2026-11-09: "kentexa should see what is chatting between users"; owner
+  // chose: admin reads all chats). Who talks with whom, how much, and the messages themselves.
+  // Every opened chat is recorded with who opened it (ADMIN_CHAT_VIEWED). ──
+  async chats(f: { q?: string; userId?: number; before?: number; limit?: number }) {
+    const where: string[] = []; const params: unknown[] = [];
+    const add = (build: (p: string) => string, v: unknown) => { params.push(v); where.push(build(`$${params.length}`)); };
+    if (f.userId) add((p) => `(c.seller_id = ${p} OR bc.user_id = ${p})`, f.userId);
+    if (f.q) add((p) => `(su.name ILIKE ${p} OR su.phone ILIKE ${p} OR bc.name ILIKE ${p} OR bc.phone ILIKE ${p} OR c."lastMessagePreview" ILIKE ${p})`, `%${String(f.q).slice(0, 60)}%`);
+    if (f.before) add((p) => `c.id < ${p}`, f.before);
+    const limit = Math.min(100, Math.max(1, Number(f.limit) || 40));
+    const items = await this.rows(
+      `SELECT c.id, c.channel, c.status, c."messageCount", c."lastMessageAt", c."lastMessagePreview", c."linkedOrderId", c."commerceProfileId", c."createdAt",
+              c.seller_id AS "sellerId", su.name AS "sellerName", su.phone AS "sellerPhone",
+              bc.user_id AS "customerUserId", bc.name AS "customerName", bc.phone AS "customerPhone"
+         FROM public.conversation c
+         LEFT JOIN public."user" su ON su.id = c.seller_id
+         LEFT JOIN public.business_customer bc ON bc.id = c.customer_id
+        ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+        ORDER BY c.id DESC LIMIT ${limit}`, params);
+    return { items, nextBefore: items.length === limit ? items[items.length - 1].id : null };
+  }
+
+  async chat(conversationId: number) {
+    const [conversation] = await this.rows(
+        `SELECT c.id, c.channel, c.status, c."messageCount", c."lastMessageAt", c."linkedOrderId", c."commerceProfileId", c."createdAt",
+                c.seller_id AS "sellerId", su.name AS "sellerName", su.phone AS "sellerPhone",
+                bc.user_id AS "customerUserId", bc.name AS "customerName", bc.phone AS "customerPhone"
+           FROM public.conversation c
+           LEFT JOIN public."user" su ON su.id = c.seller_id
+           LEFT JOIN public.business_customer bc ON bc.id = c.customer_id
+          WHERE c.id = $1`, [conversationId]);
+    if (!conversation) throw new NotFoundException('Mazungumzo hayapo');
+    const messages = await this.rows(
+      `SELECT m.id, m."senderType", m.sender_id AS "senderId", u.name AS "senderName", m.type, m.content, m."imageUrl", m."isNote", m."createdAt"
+         FROM public.conversation_message m LEFT JOIN public."user" u ON u.id = m.sender_id
+        WHERE m.conversation_id = $1 ORDER BY m.id ASC LIMIT 1000`, [conversationId]);
+    return { conversation, messages };
+  }
 }

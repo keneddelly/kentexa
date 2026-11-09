@@ -28,7 +28,7 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
     switch (status) {
       case 'success': return { backgroundColor: '#dcfce7', color: '#16a34a' };
       case 'failed': return { backgroundColor: '#fee2e2', color: '#dc2626' };
-      default: return { backgroundColor: '#fef9c3', color: '#ca8a04' };
+      default: return { backgroundColor: '#fffbeb', color: '#d97706' };
     }
   };
 
@@ -37,8 +37,8 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
       case 'vodacom': return { backgroundColor: '#dbeafe', color: '#2563eb' };
       case 'airtel': return { backgroundColor: '#fee2e2', color: '#dc2626' };
       case 'tigo': return { backgroundColor: '#dcfce7', color: '#16a34a' };
-      case 'halopesa': return { backgroundColor: '#ede9fe', color: '#7c3aed' };
-      case 'selcom': return { backgroundColor: '#e0f2fe', color: '#0284c7' };
+      case 'halopesa': return { backgroundColor: '#f7f9f9', color: '#0f1419' };
+      case 'selcom': return { backgroundColor: '#eff6ff', color: '#1d4ed8' };
       case 'mock': return { backgroundColor: '#f1f5f9', color: '#64748b' };
       default: return { backgroundColor: '#f1f5f9', color: '#64748b' };
     }
@@ -73,7 +73,7 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
           <button
             onClick={fetchPayments}
             style={{
-              backgroundColor: '#6366f1',
+              backgroundColor: '#0f1419',
               color: '#fff',
               border: 'none',
               padding: '10px 20px',
@@ -96,10 +96,10 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
         {/* Stats Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           {[
-            { label: 'Total', value: payments.length, color: '#6366f1', icon: '' },
-            { label: 'Success', value: payments.filter(p => p.status === 'success').length, color: '#10b981', icon: '' },
+            { label: 'Total', value: payments.length, color: '#0f1419', icon: '' },
+            { label: 'Success', value: payments.filter(p => p.status === 'success').length, color: '#16a34a', icon: '' },
             { label: 'Pending', value: payments.filter(p => p.status === 'pending').length, color: '#f59e0b', icon: '' },
-            { label: 'Failed', value: payments.filter(p => p.status === 'failed').length, color: '#ef4444', icon: '' },
+            { label: 'Failed', value: payments.filter(p => p.status === 'failed').length, color: '#dc2626', icon: '' },
             { label: 'Revenue (TZS)', value: totalSuccess.toLocaleString(), color: '#0ea5e9', icon: '' },
           ].map(stat => (
             <div key={stat.label} style={{
@@ -150,7 +150,7 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
                 cursor: 'pointer',
                 fontSize: '13px',
                 fontWeight: '600',
-                backgroundColor: filter === status ? '#6366f1' : '#f1f5f9',
+                backgroundColor: filter === status ? '#0f1419' : '#f1f5f9',
                 color: filter === status ? '#ffffff' : '#64748b',
               }}
             >
@@ -200,12 +200,12 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
                     <td style={{ padding: '14px 16px', borderTop: '1px solid #f1f5f9', color: '#94a3b8', fontSize: '13px' }}>
                       {index + 1}
                     </td>
-                    <td style={{ padding: '14px 16px', borderTop: '1px solid #f1f5f9', fontSize: '14px', color: '#6366f1', fontWeight: '600' }}>
+                    <td style={{ padding: '14px 16px', borderTop: '1px solid #f1f5f9', fontSize: '14px', color: '#0f1419', fontWeight: '600' }}>
                       #{payment.order?.id || '—'}
                     </td>
                     <td style={{ padding: '14px 16px', borderTop: '1px solid #f1f5f9', fontSize: '14px', color: '#64748b' }}>
                       <div>{payment.phone}</div>
-                      {payment.user?.name && <div style={{ fontSize: 11, color: '#94a3b8' }}>{payment.user.name}</div>}
+                      {payment.user?.name && <div style={{ fontSize: 12, color: '#94a3b8' }}>{payment.user.name}</div>}
                     </td>
                     <td style={{ padding: '14px 16px', borderTop: '1px solid #f1f5f9', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
                       {Number(payment.amount).toLocaleString()}

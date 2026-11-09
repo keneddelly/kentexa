@@ -137,11 +137,11 @@ const Disputes = ({ onNavigate, activePage }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 100,
+                        <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 100,
                           backgroundColor: sc.bg, color: sc.text }}>
                           {sc.label}
                         </span>
-                        <span style={{ fontSize: 11, color: '#94a3b8' }}>#{d.id} · {fmtDt(d.createdAt)}</span>
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>#{d.id} · {fmtDt(d.createdAt)}</span>
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>
                         {d.order?.product?.name || d.order?.manualProductName || `Agizo #${d.orderId}`}
@@ -169,7 +169,7 @@ const Disputes = ({ onNavigate, activePage }) => {
               boxShadow: '0 4px 20px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
 
               {/* Header */}
-              <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '16px 20px', color: '#fff' }}>
+              <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', padding: '16px 20px', color: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 15, fontWeight:800 }}>Shauri #{selected.id}</div>
                   <button onClick={() => setSelected(null)}
@@ -188,7 +188,7 @@ const Disputes = ({ onNavigate, activePage }) => {
 
                   {/* Order info */}
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>MAELEZO YA AGIZO</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>MAELEZO YA AGIZO</div>
                     {[
                       ['Bidhaa',   detail.order?.product?.name || detail.order?.manualProductName || '—'],
                       ['Kiasi',    `TZS ${fmt(detail.order?.totalAmount)}`],
@@ -205,7 +205,7 @@ const Disputes = ({ onNavigate, activePage }) => {
 
                   {/* Buyer claim */}
                   <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: 12, marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#dc2626', marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#dc2626', marginBottom: 6 }}>
                       DAI LA MNUNUZI — {detail.order?.buyer?.name || '—'} ({detail.order?.buyer?.phone || '—'})
                     </div>
                     <div style={{ fontSize: 12, color: '#1e293b', marginBottom: 6 }}>
@@ -215,14 +215,14 @@ const Disputes = ({ onNavigate, activePage }) => {
                       <img src={detail.buyerEvidence} alt="Ushahidi wa mnunuzi"
                         style={{ width: '100%', borderRadius: 8, marginTop: 6 }} />
                     )}
-                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                       Iliwasilishwa: {fmtDt(detail.createdAt)}
                     </div>
                   </div>
 
                   {/* Seller response */}
-                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 6 }}>
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 6 }}>
                       JIBU LA MUUZAJI — {detail.order?.seller?.storeName || detail.order?.seller?.name || '—'}
                     </div>
                     {detail.sellerResponse ? (
@@ -232,7 +232,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                           <img src={detail.sellerEvidence} alt="Ushahidi wa muuzaji"
                             style={{ width: '100%', borderRadius: 8, marginTop: 6 }} />
                         )}
-                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                           Ilijibiwa: {fmtDt(detail.sellerRespondedAt)}
                         </div>
                       </>
@@ -246,7 +246,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   {/* Previous resolution */}
                   {detail.status === 'resolved' && (
                     <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>UAMUZI ULIOTOLEWA</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>UAMUZI ULIOTOLEWA</div>
                       <div style={{ fontSize: 12, color: '#1e293b', marginBottom: 4 }}>
                         {RESOLUTION_OPTIONS.find(r => r.value === detail.resolution)?.label || detail.resolution}
                       </div>
@@ -263,7 +263,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   {detail.status === 'open' && !detail.arbitratorId && (
                     <button onClick={handleAssign}
                       style={{ width: '100%', backgroundColor: '#f0fdf4', color: '#16a34a',
-                        border: '1px solid #86efac', borderRadius: 10, padding: '10px 0',
+                        border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 0',
                         cursor: 'pointer', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
                       Jibu Huu Mimi — Nishughulikiwe
                     </button>
@@ -289,7 +289,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                               style={{ marginTop: 2 }} />
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{r.label}</div>
-                              <div style={{ fontSize: 11, color: '#64748b' }}>{r.desc}</div>
+                              <div style={{ fontSize: 12, color: '#64748b' }}>{r.desc}</div>
                             </div>
                           </label>
                         ))}
@@ -320,7 +320,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                       </div>
 
                       <button onClick={handleResolve} disabled={resolving}
-                        style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                        style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#0f1419)',
                           color: '#fff', border: 'none', borderRadius: 10, padding: '12px 0',
                           cursor: resolving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 800 }}>
                         {resolving ? 'Inahifadhi...' : 'Hifadhi Uamuzi'}

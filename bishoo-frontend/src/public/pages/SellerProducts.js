@@ -684,7 +684,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const SERIAL_STATUS_META = {
     in_stock:        { label: t('seller_products.serial_status_in_stock'),        color: '#64748b', bg: '#f1f5f9' },
     sold:            { label: t('seller_products.serial_status_sold'),            color: '#16a34a', bg: '#f0fdf4' },
-    reported_lost:   { label: t('seller_products.serial_status_reported_lost'),   color: '#ca8a04', bg: '#fef9c3' },
+    reported_lost:   { label: t('seller_products.serial_status_reported_lost'),   color: '#d97706', bg: '#fffbeb' },
     reported_stolen: { label: t('seller_products.serial_status_reported_stolen'), color: '#dc2626', bg: '#fee2e2' },
     deactivated:     { label: t('seller_products.serial_status_deactivated'),     color: '#94a3b8', bg: '#f1f5f9' },
   };
@@ -730,7 +730,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <div key={s.label} style={{ backgroundColor: '#fff', border: '1px solid #eff3f4', borderRadius: 16, padding: '14px 12px', textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={22} color={s.color} /></div>
               <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -767,24 +767,24 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
                 {!product.isZipo && (
                   <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', textAlign: 'center', padding: 4 }}>
+                    alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', textAlign: 'center', padding: 4 }}>
                     {t('seller_products.hidden_badge')}
                   </div>
                 )}
 
-                <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 10, fontWeight: 800, color: '#fff',
+                <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 12, fontWeight: 800, color: '#fff',
                   backgroundColor: 'rgba(15,23,42,0.65)', padding: '2px 6px', borderRadius: 6, maxWidth: 'calc(100% - 30px)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   TZS {Number(product.displayPrice || product.price || 0).toLocaleString()}
                 </div>
 
                 {product.productType !== 'digital' && Number(product.stock) <= 0 ? (
-                  <span data-testid="sold-out-badge" style={{ position: 'absolute', top: 4, left: 4, fontSize: 10, fontWeight: 800, color: '#fff',
+                  <span data-testid="sold-out-badge" style={{ position: 'absolute', top: 4, left: 4, fontSize: 12, fontWeight: 800, color: '#fff',
                     backgroundColor: '#dc2626', padding: '2px 6px', borderRadius: 6 }}>
                     {t('seller_products.sold_out_badge')}
                   </span>
                 ) : lowStock && (
-                  <span style={{ position: 'absolute', top: 4, left: 4, fontSize: 12 }} title={t('seller_products.low_stock_badge')}><LineIcon name="alert" size={14} color="#b45309" /></span>
+                  <span style={{ position: 'absolute', top: 4, left: 4, fontSize: 12 }} title={t('seller_products.low_stock_badge')}><LineIcon name="alert" size={14} color="#d97706" /></span>
                 )}
 
                 <button
@@ -868,7 +868,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   style={{
                     flex: 1, padding: '10px 12px', borderRadius: 8, cursor: editProduct ? 'default' : 'pointer', fontSize: 13, fontWeight: 700,
                     border: form.productType === 'digital' ? '2px solid #0f1419' : '1px solid #e2e8f0',
-                    backgroundColor: form.productType === 'digital' ? '#faf5ff' : '#fff',
+                    backgroundColor: form.productType === 'digital' ? '#f7f9f9' : '#fff',
                     color: form.productType === 'digital' ? '#0f1419' : '#64748b',
                   }}>
                   {`${t('seller_products.product_type_digital')}`}
@@ -879,13 +879,13 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             {/* Images */}
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>{t('seller_products.images')}{mediaRules.minImages > 0 ? ' *' : ''}</label>
-              <p style={{ color: '#64748b', fontSize: 11, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
+              <p style={{ color: '#64748b', fontSize: 12, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
               {imagePreviews.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                   {imagePreviews.map((preview, i) => (
                     <div key={i} style={{ position: 'relative' }}>
                       <img src={preview} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '2px solid #e2e8f0' }} />
-                      <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                      <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                     </div>
                   ))}
                 </div>
@@ -896,7 +896,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   <label htmlFor="productImages" style={{ background: '#0f1419', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? `${t('seller_products.uploading')}` : `${t('seller_products.choose_images')}`}
                   </label>
-                  <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
+                  <p style={{ color: '#94a3b8', fontSize: 12, margin: '6px 0 0' }}>
                     {imagePreviews.length}/{mediaRules.maxImages} · {t('seller_products.min_recommended_images', { min: mediaRules.minImages, recommended: mediaRules.recommendedImages })}
                   </p>
                 </div>
@@ -915,8 +915,8 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               <div>
                 <label style={labelStyle}>
                   {t('seller_products.category')} *
-                  {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_products.category_detecting')}</span>}
-                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#0f1419', fontWeight: 700 }}>{t('seller_products.category_suggested')}</span>}
+                  {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>{t('seller_products.category_detecting')}</span>}
+                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 12, color: '#0f1419', fontWeight: 700 }}>{t('seller_products.category_suggested')}</span>}
                 </label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {visibleCategories.map(([key, cat]) => (
@@ -1014,7 +1014,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <button type="button" onClick={generateDescription}
                   disabled={descGenerating || !form.name || !form.images.length}
                   title={!form.images.length ? t('seller_products.ai_description_needs_photo') : ''}
-                  style={{ fontSize: 11, fontWeight: 800, color: '#0f1419', background: 'none',
+                  style={{ fontSize: 12, fontWeight: 800, color: '#0f1419', background: 'none',
                     border: '1px solid #cfd9de', borderRadius: 8, padding: '4px 10px',
                     cursor: (descGenerating || !form.name || !form.images.length) ? 'not-allowed' : 'pointer',
                     opacity: (!form.name || !form.images.length) ? 0.5 : 1 }}>
@@ -1034,7 +1034,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
                   {`${t('seller_products.specs')}`}
-                  <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.specs_hint')}</span>
+                  <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.specs_hint')}</span>
                 </div>
                 {attrFields.some(a => !a.required && a.key !== 'condition') && (
                   <button type="button" onClick={() => setShowOptionalDetails(v => !v)}
@@ -1068,7 +1068,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {attr.allowedValues.map(v => (
                                 <button type="button" key={v} onClick={() => toggleMultiSpec(attr.key, v)}
-                                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                                     border: selected.includes(v) ? '2px solid #2563eb' : '1px solid #e2e8f0',
                                     background: selected.includes(v) ? '#dbeafe' : '#fff', color: selected.includes(v) ? '#1d4ed8' : '#64748b' }}>
                                   {v}
@@ -1110,7 +1110,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <details style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
               <summary style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 10, cursor: 'pointer' }}>
                 {`${t('seller_products.features')}`}
-                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.features_hint')}</span>
+                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.features_hint')}</span>
               </summary>
               {(form.features || []).map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e2e8f0' }}>
@@ -1125,7 +1125,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   style={{ ...inputStyle, flex: 1, padding: '10px 12px', fontSize: 16 }} />
                 <button onClick={addFeature} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{`+ ${t('seller_products.add_feature')}`}</button>
               </div>
-              <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.feature_hint')}</p>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.feature_hint')}</p>
             </details>
 
             {/* Price fields */}
@@ -1149,11 +1149,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             </div>
 
             {form.productType === 'digital' && (
-              <div style={{ backgroundColor: '#faf5ff', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e9d5ff' }}>
+              <div style={{ backgroundColor: '#f7f9f9', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #eff3f4' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`${t('seller_products.digital_file_section')}`}</div>
 
                 {editProduct ? (
-                  <div style={{ fontSize: 12, color: '#0f1419', backgroundColor: '#fff', borderRadius: 8, padding: 10, border: '1px solid #e9d5ff' }}>
+                  <div style={{ fontSize: 12, color: '#0f1419', backgroundColor: '#fff', borderRadius: 8, padding: 10, border: '1px solid #eff3f4' }}>
                     {`${t('seller_products.digital_file_locked')}`}
                   </div>
                 ) : (
@@ -1164,7 +1164,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                       {uploadingDigitalFile ? `${t('seller_products.uploading')}` : `${t('seller_products.choose_digital_file')}`}
                     </label>
                     {form.digitalFile && (
-                      <div style={{ fontSize: 11, color: '#16a34a', marginTop: 8, fontWeight: 600 }}>
+                      <div style={{ fontSize: 12, color: '#16a34a', marginTop: 8, fontWeight: 600 }}>
                         {`${form.digitalFile.fileName} (${(form.digitalFile.sizeBytes / 1024 / 1024).toFixed(2)} MB)`}
                       </div>
                     )}
@@ -1209,13 +1209,13 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   <label style={labelStyle}>{t('seller_products.cost_price')}</label>
                   <input type="number" placeholder="e.g. 50000" value={form.costPrice}
                     onChange={e => setForm({ ...form, costPrice: e.target.value })} style={inputStyle} />
-                  <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.cost_price_hint')}</p>
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.cost_price_hint')}</p>
                 </div>
                 <div>
                   <label style={labelStyle}>{t('seller_products.min_stock_threshold')}</label>
                   <input type="number" placeholder="e.g. 3" value={form.minStockThreshold}
                     onChange={e => setForm({ ...form, minStockThreshold: e.target.value })} style={inputStyle} />
-                  <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.min_stock_threshold_hint')}</p>
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.min_stock_threshold_hint')}</p>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 20 }}>
@@ -1239,7 +1239,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     style={{ width: 16, height: 16, cursor: 'pointer' }} />
                   {t('seller_products.allow_cod')}
                 </label>
-                <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0 22px' }}>{t('seller_products.allow_cod_hint')}</p>
+                <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0 22px' }}>{t('seller_products.allow_cod_hint')}</p>
               </div>
             </div>
 
@@ -1277,7 +1277,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   }}
                 />
                 {form.sellerCity && (
-                  <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>{form.sellerCity}</div>
+                  <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>{form.sellerCity}</div>
                 )}
               </div>
             </div>
@@ -1287,12 +1287,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             {/* Buyer price preview */}
             {Number(form.basePrice) > 0 && (
               <div style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>{t('seller_products.buyer_sees')}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{t('seller_products.buyer_sees')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 18, fontWeight:800, color: '#ffd200' }}>
                     TZS {Number(form.basePrice || 0).toLocaleString()}
                   </span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>+ usafiri (KenteXa)</span>
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>+ usafiri (KenteXa)</span>
                 </div>
               </div>
             )}
@@ -1339,7 +1339,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             </div>
 
             {variantAttrFields.length === 0 ? (
-              <div style={{ padding: 14, backgroundColor: '#fef9c3', borderRadius: 10, fontSize: 12, color: '#92400e', marginBottom: 14 }}>
+              <div style={{ padding: 14, backgroundColor: '#fffbeb', borderRadius: 10, fontSize: 12, color: '#92400e', marginBottom: 14 }}>
                 {t('seller_products.no_variant_attrs')}
               </div>
             ) : (
@@ -1408,7 +1408,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     <div key={serial.id} style={{ border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>{serial.serialNumber}</div>
-                        <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, color: meta.color, backgroundColor: meta.bg }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 20, color: meta.color, backgroundColor: meta.bg }}>
                           {meta.label}
                         </span>
                       </div>
@@ -1416,21 +1416,21 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                         {serial.status === 'in_stock' && (
                           <>
                             <button onClick={() => handleAssignSerial(serial)}
-                              style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #93c5fd', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer' }}>
+                              style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #93c5fd', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer' }}>
                               {t('seller_products.assign_to_order')}
                             </button>
                             <button onClick={() => handleReportSerial(serial, 'reported_lost')}
-                              style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #fde68a', backgroundColor: '#fef9c3', color: '#92400e', cursor: 'pointer' }}>
+                              style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #fde68a', backgroundColor: '#fffbeb', color: '#92400e', cursor: 'pointer' }}>
                               {t('seller_products.report_lost')}
                             </button>
                             <button onClick={() => handleReportSerial(serial, 'reported_stolen')}
-                              style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #fecaca', backgroundColor: '#fee2e2', color: '#dc2626', cursor: 'pointer' }}>
+                              style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #fecaca', backgroundColor: '#fee2e2', color: '#dc2626', cursor: 'pointer' }}>
                               {t('seller_products.report_stolen')}
                             </button>
                           </>
                         )}
                         <button onClick={() => setQrForSerial(id => id === serial.id ? null : serial.id)}
-                          style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#334155', cursor: 'pointer' }}>
+                          style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#334155', cursor: 'pointer' }}>
                           {t('seller_products.show_qr')}
                         </button>
                       </div>
@@ -1441,7 +1441,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                             alt="QR Code"
                             style={{ borderRadius: 8, border: '1px solid #f1f5f9' }}
                           />
-                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6, wordBreak: 'break-all' }}>{verifyUrl}</div>
+                          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6, wordBreak: 'break-all' }}>{verifyUrl}</div>
                         </div>
                       )}
                     </div>

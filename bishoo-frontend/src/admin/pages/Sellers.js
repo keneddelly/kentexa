@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri' },
   approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Imeidhinishwa' },
   rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Imekataliwa' },
   suspended: { bg: '#fee2e2', color: '#dc2626', label: 'Imesimamishwa' },
@@ -278,16 +279,16 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={handleRunBusinessBackfill} disabled={backfillLoading}
               title="Unda Business kwa wauzaji wote wenye sellerType=business ambao bado hawajaunganishwa"
-              style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: backfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
+              style={{ backgroundColor: '#f8fafc', color: '#0f1419', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: backfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
               {backfillLoading ? '...' : 'Business Backfill'}
             </button>
             <button onClick={handleRunCapabilityBackfill} disabled={capabilityBackfillLoading}
               title="Toa ruhusa ya SELL_PHYSICAL kwa wauzaji wote walioidhinishwa ambao bado hawana ruhusa hiyo"
-              style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: capabilityBackfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
+              style={{ backgroundColor: '#f8fafc', color: '#0f1419', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: capabilityBackfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
               {capabilityBackfillLoading ? '...' : 'Selling Capability Backfill'}
             </button>
             <button onClick={fetchSellers}
-              style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
               Onyesha Upya
             </button>
           </div>
@@ -300,8 +301,8 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
         {/* Stat tabs */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           {[
-            { key: 'all',       label: 'Wote',          count: counts.all,       color: '#6366f1' },
-            { key: 'pending',   label: 'Wanaosubiri', count: counts.pending,   color: '#ca8a04' },
+            { key: 'all',       label: 'Wote',          count: counts.all,       color: '#0f1419' },
+            { key: 'pending',   label: 'Wanaosubiri', count: counts.pending,   color: '#d97706' },
             { key: 'approved',  label: 'Walioidhinishwa', count: counts.approved, color: '#16a34a' },
             { key: 'rejected',  label: 'Waliokataliwa', count: counts.rejected, color: '#dc2626' },
             { key: 'suspended', label: 'Waliositamishwa', count: counts.suspended, color: '#dc2626' },
@@ -325,7 +326,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
 
         {/* Pending alert */}
         {counts.pending > 0 && (
-          <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e', fontWeight: 600, cursor: 'pointer' }}
+          <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e', fontWeight: 600, cursor: 'pointer' }}
             onClick={() => setFilter('pending')}>
             Kuna wauzaji <strong>{counts.pending}</strong> wanaosubiri idhini yako — bonyeza hapa kuangalia
           </div>
@@ -344,7 +345,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Muuzaji', 'Mawasiliano', 'Eneo', 'Hali', 'Tarehe', 'Vitendo'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>
                       {h}
                     </th>
                   ))}
@@ -373,7 +374,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                         {seller.businessLocation || seller.city || '—'}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>
                           {ss.label}
                         </span>
                       </td>
@@ -385,29 +386,29 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                           {seller.status === 'pending' && (
                             <>
                               <button onClick={e => { e.stopPropagation(); handleApprove(seller.id); }} disabled={actionLoading}
-                                style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                 Idhinisha
                               </button>
                               <button onClick={e => { e.stopPropagation(); setSelected(seller); setShowRejectModal(true); }}
-                                style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                 Kataa
                               </button>
                             </>
                           )}
                           {seller.status === 'approved' && (
                             <button onClick={e => { e.stopPropagation(); setSelected(seller); setShowSuspendModal(true); }}
-                              style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Simamisha
                             </button>
                           )}
                           {['rejected','suspended'].includes(seller.status) && (
                             <button onClick={e => { e.stopPropagation(); seller.status === 'suspended' ? handleRestore(seller) : handleApprove(seller.id); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Amilisha
                             </button>
                           )}
                           <button onClick={e => { e.stopPropagation(); setSelected(seller); }}
-                            style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                            style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                             Angalia
                           </button>
                         </div>
@@ -440,6 +441,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               </div>
             ); })()}
 
+            <div style={{ marginBottom: 14 }}><SendMessageButton userId={selected.user?.id} name={selected.storeName || selected.businessName || selected.user?.name} label="Tuma taarifa kwa muuzaji" /></div>
             {/* Fields */}
             {[
               { label: 'Jina la Duka',     value: selected.storeName },
@@ -461,7 +463,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Tarehe ya Ombi',   value: selected.createdAt ? new Date(selected.createdAt).toLocaleDateString('sw-TZ') : null },
             ].filter(f => f.value).map(field => (
               <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
                 <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{field.value}</div>
               </div>
             ))}
@@ -469,7 +471,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
             {/* Documents */}
             {selected.idDocument && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>HATI YA UTAMBULISHO</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>HATI YA UTAMBULISHO</div>
                 <a href={selected.idDocument} target="_blank" rel="noreferrer"
                   style={{ display: 'block', backgroundColor: '#eff6ff', color: '#2563eb', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                   Angalia Hati →
@@ -485,7 +487,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               </div>
               {selected.idPhotoUrl ? (
                 <div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
                     Aina: <strong>{selected.idType || 'Kitambulisho'}</strong> ·
                     Namba: <strong>{selected.idNumber || '—'}</strong>
                   </div>
@@ -494,7 +496,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                       style={{ width: '100%', borderRadius: 10, border: '2px solid #e2e8f0',
                         cursor: 'pointer', marginBottom: 8 }} />
                   </a>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
                     Bonyeza picha kuona ukubwa kamili
                   </div>
                 </div>
@@ -514,12 +516,12 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
             {/* Business Documents (Phase 2) — only for sellerType='business' */}
             {selected.sellerType === 'business' && (
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16,
-                border: selected.businessDocumentsStatus === 'pending' ? '2px solid #ca8a04' : '1px solid #e2e8f0' }}>
+                border: selected.businessDocumentsStatus === 'pending' ? '2px solid #d97706' : '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Business Documents</div>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[selected.businessDocumentsStatus] || '#f1f5f9',
-                    color: { not_submitted: '#64748b', pending: '#ca8a04', verified: '#16a34a', rejected: '#dc2626' }[selected.businessDocumentsStatus] || '#64748b' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fffbeb', verified: '#dcfce7', rejected: '#fee2e2' }[selected.businessDocumentsStatus] || '#f1f5f9',
+                    color: { not_submitted: '#64748b', pending: '#d97706', verified: '#16a34a', rejected: '#dc2626' }[selected.businessDocumentsStatus] || '#64748b' }}>
                     {selected.businessDocumentsStatus || 'not_submitted'}
                   </span>
                 </div>
@@ -537,7 +539,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                     {businessDocs.map(doc => (
                       <a key={doc.id} href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
-                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: 700 }}>{doc.documentType}</div>
+                        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: 700 }}>{doc.documentType}</div>
                         <img src={doc.url} alt={doc.documentType}
                           style={{ width: '100%', borderRadius: 8, border: '2px solid #e2e8f0', cursor: 'pointer' }} />
                       </a>
@@ -557,7 +559,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   </div>
                 )}
                 {selected.businessDocumentsStatus === 'rejected' && selected.rejectionReason && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: '#dc2626' }}>Reason: {selected.rejectionReason}</div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626' }}>Reason: {selected.rejectionReason}</div>
                 )}
               </div>
             )}
@@ -591,14 +593,14 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                     </span>
                   </div>
                   {isBlocked && (
-                    <div style={{ marginTop: 8, backgroundColor: '#fef2f2', borderRadius: 6, padding: '8px 10px', fontSize: 11.5, color: '#b91c1c', fontWeight: 700 }}>
+                    <div style={{ marginTop: 8, backgroundColor: '#fef2f2', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>
                       This seller is blocked from new manual shipments until the balance is paid down.
                     </div>
                   )}
                   {billingError && <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', fontWeight: 700 }}>{billingError}</div>}
 
                   <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Set free orders granted</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Set free orders granted</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input type="number" min="0" value={grantCount} onChange={e => setGrantCount(e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
@@ -610,7 +612,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   </div>
 
                   <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Record billing payment</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Record billing payment</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input type="number" min="0" placeholder="Amount (TZS)" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
@@ -646,12 +648,12 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                     </select>
                   </div>
                   <button onClick={() => handleApprove(selected.id, approveTier)} disabled={actionLoading}
-                    style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
+                    style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                     {actionLoading ? '...' : 'Idhinisha Muuzaji'}
                   </button>
                   {beforeIdGate(selected) && (
                     <button data-testid="approve-without-id" onClick={() => handleApproveWithoutId(selected, approveTier)} disabled={actionLoading}
-                      style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                      style={{ backgroundColor: '#fffbeb', color: '#92400e', border: '1px solid #fde68a', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                       Hana kitambulisho: kiweke kimeangaliwa + idhinisha
                     </button>
                   )}
@@ -663,19 +665,19 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               )}
               {selected.status === 'approved' && (
                 <button onClick={() => setShowSuspendModal(true)}
-                  style={{ backgroundColor: '#fef9c3', color: '#92400e', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
+                  style={{ backgroundColor: '#fffbeb', color: '#92400e', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
                   Simamisha Akaunti
                 </button>
               )}
               {selected.status === 'suspended' && beforeIdGate(selected) && (
                 <button data-testid="restore-without-id" onClick={() => handleApproveWithoutId(selected)} disabled={actionLoading}
-                  style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                  style={{ backgroundColor: '#fffbeb', color: '#92400e', border: '1px solid #fde68a', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                   Hana kitambulisho: kiweke kimeangaliwa + rejesha
                 </button>
               )}
               {['rejected','suspended'].includes(selected.status) && (
                 <button onClick={() => selected.status === 'suspended' ? handleRestore(selected) : handleApprove(selected.id)} disabled={actionLoading}
-                  style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                  style={{ background: 'linear-gradient(135deg,#0f1419,#0f1419)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                   Amilisha Tena
                 </button>
               )}

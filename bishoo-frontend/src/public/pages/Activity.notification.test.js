@@ -35,3 +35,15 @@ test('unavailable or wrong-role notification does not redirect to a dashboard', 
   expect(await findByRole('alert')).toHaveTextContent(/kazi nyingine ya akaunti yako/i);
   expect(onNavigate).not.toHaveBeenCalled();
 });
+
+// Tuma taarifa (owner 2026-11-09): a KenteXa message says where it is from and opens its page.
+test('a message from KenteXa is marked and opens the page it links to', async () => {
+  const { fireEvent, screen } = require('@testing-library/react');
+  const onNavigate = jest.fn();
+  api.get.mockResolvedValue({ data: { items: [{ id: 70, type: 'kentexa_message', title: 'POS mpya', body: 'Madeni sasa yapo', actionPage: 'ProductDetail', actionParam: '12', isRead: false, createdAt: new Date().toISOString() }] } });
+  api.patch.mockResolvedValue({});
+  render(<Activity onNavigate={onNavigate} isLoggedIn contextEpoch={1} />);
+  expect(await screen.findByTestId('from-kentexa-70')).toHaveTextContent('Kutoka KenteXa');
+  fireEvent.click(screen.getByTestId('activity-70'));
+  expect(onNavigate).toHaveBeenCalledWith('ProductDetail-12', undefined);
+});

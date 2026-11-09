@@ -99,7 +99,7 @@ export const tone = (status) => {
   const m = MILESTONE_OF[status];
   if (status === 'returned' || status === 'disputed' || status === 'cancelled') return ['#fef2f2', '#b91c1c'];
   if (m === 4) return ['#fffbeb', '#92400e'];
-  if (m === 6) return ['#ecfdf3', '#166534'];
+  if (m === 6) return ['#f0fdf4', '#166534'];
   return ['#eff6ff', BLUE];
 };
 
@@ -298,7 +298,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, trackingNumber: propTracking, ord
             </button>
           </div>
           {error && <div role="alert" style={{ backgroundColor: '#fef2f2', color: '#b91c1c', padding: '10px 12px', borderRadius: 12, fontSize: 14 }}>{error}</div>}
-          {notice && <div data-testid="track-notice" style={{ backgroundColor: '#fffbeb', color: '#854d0e', padding: '10px 12px', borderRadius: 12, fontSize: 14, lineHeight: 1.45 }}>{notice}</div>}
+          {notice && <div data-testid="track-notice" style={{ backgroundColor: '#fffbeb', color: '#92400e', padding: '10px 12px', borderRadius: 12, fontSize: 14, lineHeight: 1.45 }}>{notice}</div>}
         </form>
 
         {/* ── Result ── */}
@@ -341,7 +341,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, trackingNumber: propTracking, ord
             )}
 
             {problem && (
-              <section role="status" style={{ margin: '0 16px 16px', padding: 14, borderRadius: 16, backgroundColor: '#fef2f2', color: '#7f1d1d', display: 'flex', gap: 10, fontSize: 14, lineHeight: 1.45 }}>
+              <section role="status" style={{ margin: '0 16px 16px', padding: 14, borderRadius: 16, backgroundColor: '#fef2f2', color: '#b91c1c', display: 'flex', gap: 10, fontSize: 14, lineHeight: 1.45 }}>
                 <Icon d={IC.alert} color="#b91c1c" />
                 <span>{status === 'returned' ? 'Mzigo huu umerudishwa kwa mtumaji.' : status === 'cancelled' ? 'Ombi hili limeghairiwa.' : 'Tatizo limeripotiwa kuhusu mzigo huu.'} Uliza KenteXa kwa msaada.</span>
               </section>

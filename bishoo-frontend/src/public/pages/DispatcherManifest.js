@@ -21,20 +21,20 @@ import api from '../../api/api';
 
 const getStatusColor = (t) => ({
   open:        { bg: '#dcfce7', color: '#16a34a', label: t('dispatcher_manifest.status_open') },
-  cutoff:      { bg: '#fef9c3', color: '#ca8a04', label: t('dispatcher_manifest.status_cutoff') },
+  cutoff:      { bg: '#fffbeb', color: '#d97706', label: t('dispatcher_manifest.status_cutoff') },
   departed:    { bg: '#dbeafe', color: '#2563eb', label: t('dispatcher_manifest.status_departed') },
-  in_progress: { bg: '#e0f2fe', color: '#0284c7', label: t('dispatcher_manifest.status_in_progress') },
-  completed:   { bg: '#f0fdf4', color: '#15803d', label: t('dispatcher_manifest.status_completed') },
+  in_progress: { bg: '#eff6ff', color: '#1d4ed8', label: t('dispatcher_manifest.status_in_progress') },
+  completed:   { bg: '#f0fdf4', color: '#16a34a', label: t('dispatcher_manifest.status_completed') },
   cancelled:   { bg: '#fee2e2', color: '#dc2626', label: t('dispatcher_manifest.status_cancelled') },
 });
 
 const PARCEL_STATUS_COLOR = {
-  awaiting_handover: { bg: '#fef9c3', color: '#ca8a04' },
+  awaiting_handover: { bg: '#fffbeb', color: '#d97706' },
   at_hub:            { bg: '#dbeafe', color: '#2563eb' },
-  on_van:            { bg: '#e0f2fe', color: '#0284c7' },
+  on_van:            { bg: '#eff6ff', color: '#1d4ed8' },
   at_zone:           { bg: '#f7f9f9', color: '#0f1419' },
   out_for_delivery:  { bg: '#dcfce7', color: '#16a34a' },
-  delivered:         { bg: '#f0fdf4', color: '#15803d' },
+  delivered:         { bg: '#f0fdf4', color: '#16a34a' },
   returned:          { bg: '#fee2e2', color: '#dc2626' },
 };
 
@@ -169,7 +169,7 @@ const DispatcherManifest = ({ onNavigate }) => {
         <div style={{
           position: 'fixed', top: 60, left: 0, right: 0, zIndex: 9999,
           backgroundColor: messageIsError ? '#fee2e2' : '#dcfce7',
-          color: messageIsError ? '#dc2626' : '#15803d',
+          color: messageIsError ? '#dc2626' : '#16a34a',
           padding: '12px 16px', textAlign: 'center', fontSize: 13, fontWeight: 700,
         }}>
           {message}
@@ -231,13 +231,13 @@ const DispatcherManifest = ({ onNavigate }) => {
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, outline: '1px solid #eff3f4', marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('dispatcher_manifest.batch_today_label')}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('dispatcher_manifest.batch_today_label')}</div>
                   <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b' }}>
                     {new Date(batch.runDate).toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' })}
                   </div>
                 </div>
                 <span style={{
-                  fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 20,
+                  fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 20,
                   backgroundColor: (STATUS_COLOR[batch.status] || { bg: '#f1f5f9' }).bg,
                   color: (STATUS_COLOR[batch.status] || { color: '#64748b' }).color,
                 }}>
@@ -255,13 +255,13 @@ const DispatcherManifest = ({ onNavigate }) => {
                   <div key={s.label} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={20} /></div>
                     <div style={{ fontSize: 18, fontWeight:800, color: '#1e293b' }}>{s.value}</div>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{s.label.toUpperCase()}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{s.label.toUpperCase()}</div>
                   </div>
                 ))}
               </div>
 
               {/* Cutoff info */}
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
+              <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
                 <span style={{ fontWeight: 700, color: '#92400e' }}>{t('dispatcher_manifest.cutoff_label')}</span>
                 <span style={{ color: '#92400e' }}>
                   {new Date(batch.cutoffTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
@@ -315,7 +315,7 @@ const DispatcherManifest = ({ onNavigate }) => {
               {batch.status === 'completed' && (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, textAlign: 'center' }}>
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}><LineIcon name="check" size={30} color="#16a34a" /></div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#15803d' }}>{t('dispatcher_manifest.batch_completed_title')}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#16a34a' }}>{t('dispatcher_manifest.batch_completed_title')}</div>
                   <div style={{ fontSize: 12, color: '#16a34a' }}>{t('dispatcher_manifest.batch_completed_desc', { count: totalParcels })}</div>
                 </div>
               )}
@@ -343,11 +343,11 @@ const DispatcherManifest = ({ onNavigate }) => {
                         {zone.zoneName}
                         {allDelivered && <span style={{ marginLeft: 8, fontSize: 12, color: '#16a34a' }}>{t('dispatcher_manifest.zone_completed_badge')}</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                         {t('dispatcher_manifest.zone_meta', { agent: zone.zoneAgent, count: zone.parcels.length, eta: zone.etaMinutes })}
                       </div>
                       <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#dcfce7', color: '#16a34a' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#dcfce7', color: '#16a34a' }}>
                           {t('dispatcher_manifest.zone_delivered_ratio', { delivered: deliveredCount, total: zone.parcels.length })}
                         </span>
                       </div>
@@ -378,20 +378,20 @@ const DispatcherManifest = ({ onNavigate }) => {
                               <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {parcel.recipientName}
                               </div>
-                              <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
+                              <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>
                                 {parcel.productName}
                               </div>
-                              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
+                              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 1 }}>
                                 {parcel.deliveryAddress}
                               </div>
                               {parcel.recipientPhone && (
-                                <a href={`tel:${parcel.recipientPhone}`} style={{ fontSize: 11, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+                                <a href={`tel:${parcel.recipientPhone}`} style={{ fontSize: 12, color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
                                   {parcel.recipientPhone}
                                 </a>
                               )}
                             </div>
                             <span style={{
-                              fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, flexShrink: 0, marginLeft: 8,
+                              fontSize: 12, fontWeight: 700, padding: '3px 8px', borderRadius: 20, flexShrink: 0, marginLeft: 8,
                               backgroundColor: (PARCEL_STATUS_COLOR[parcel.status] || { bg: '#f1f5f9' }).bg,
                               color: (PARCEL_STATUS_COLOR[parcel.status] || { color: '#64748b' }).color,
                             }}>
@@ -460,7 +460,7 @@ const DispatcherManifest = ({ onNavigate }) => {
               </div>
             ))}
 
-            <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+            <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
               {t('dispatcher_manifest.depart_warning', { count: totalParcels })}
             </div>
 
@@ -490,7 +490,7 @@ const DispatcherManifest = ({ onNavigate }) => {
               <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 2 }}>{confirmParcel.recipientName}</div>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>{confirmParcel.productName}</div>
               <div style={{ fontSize: 12, color: '#64748b' }}>{confirmParcel.deliveryAddress}</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#2563eb', marginTop: 6 }}>{confirmParcel.trackingNumber}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#2563eb', marginTop: 6 }}>{confirmParcel.trackingNumber}</div>
             </div>
 
             <div style={{ backgroundColor: '#dcfce7', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#166534', fontWeight: 600 }}>

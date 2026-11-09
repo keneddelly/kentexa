@@ -8,7 +8,7 @@ import api from '../../api/api';
 
 const STATUS = {
   sent: ['Imetumwa', '#64748b'], opened: ['Imefunguliwa', '#1d4ed8'], joined: ['Amejiunga', '#16a34a'],
-  confirmed: ['Umethibitisha', '#15803d'], expired: ['Muda umekwisha', '#b91c1c'],
+  confirmed: ['Umethibitisha', '#16a34a'], expired: ['Muda umekwisha', '#b91c1c'],
 };
 const ROLE = { transport_provider: 'Msafirishaji', super_agent: 'Ofisi ya mizigo' };
 const inp = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, marginBottom: 8 };
@@ -53,10 +53,10 @@ const PartnerInvitePanel = ({ parcel, defaultPhone = '', defaultName = '' }) => 
   };
 
   return (
-    <div data-testid="partner-invite-panel" style={{ border: '1px dashed #bfdbfe', borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: '#f8fbff' }}>
+    <div data-testid="partner-invite-panel" style={{ border: '1px dashed #bfdbfe', borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: '#eff6ff' }}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 14, fontWeight: 800, color: '#1d4ed8', width: '100%', textAlign: 'left' }}>
-        🤝 Mwalike ajiunge KenteXa {open ? '▲' : '▼'}
+        Mwalike ajiunge KenteXa {open ? '▲' : '▼'}
       </button>
       {open && (
         <div style={{ marginTop: 10 }}>
@@ -99,7 +99,7 @@ const PartnerInvitePanel = ({ parcel, defaultPhone = '', defaultName = '' }) => 
                     </div>
                     {inv.status === 'joined' && (
                       <button type="button" onClick={() => confirm(inv.id)}
-                        style={{ minHeight: 36, padding: '0 12px', borderRadius: 8, border: 'none', backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
+                        style={{ minHeight: 36, padding: '0 12px', borderRadius: 8, border: 'none', backgroundColor: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
                         Thibitisha
                       </button>
                     )}

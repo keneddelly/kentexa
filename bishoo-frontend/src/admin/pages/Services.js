@@ -15,7 +15,7 @@ import api from '../../api/api';
 
 const STATUS = {
   active:   { bg: '#dcfce7', color: '#16a34a', label: 'Inafanya kazi' },
-  paused:   { bg: '#fef9c3', color: '#ca8a04', label: 'Imesimamishwa' },
+  paused:   { bg: '#fffbeb', color: '#d97706', label: 'Imesimamishwa' },
   inactive: { bg: '#f1f5f9', color: '#64748b', label: 'Haifanyi kazi' },
 };
 
@@ -121,7 +121,7 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
                       {s.images?.[0] ? (
                         <img src={s.images[0]} alt={s.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
                       ) : <span style={{ fontSize: '40px' }}></span>}
-                      <span style={{ position: 'absolute', top: 8, left: 8, backgroundColor: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>
+                      <span style={{ position: 'absolute', top: 8, left: 8, backgroundColor: sc.bg, color: sc.color, padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 800 }}>
                         {sc.label}
                       </span>
                     </div>
@@ -129,14 +129,14 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ padding: '14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0, flex: 1 }}>{s.title}</h3>
-                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#ede9fe', color: '#6366f1', fontSize: 11, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
+                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#f7f9f9', color: '#0f1419', fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
                           {s.category?.replace(/_/g, ' ')}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
                         <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>{s.provider?.storeName || s.provider?.name || '—'}</span>
-                        <span style={{ fontSize: 11, color: '#94a3b8' }}>· {s.provider?.phone || s.provider?.email || '—'}</span>
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>· {s.provider?.phone || s.provider?.email || '—'}</span>
                       </div>
 
                       <p style={{ fontSize: 12, color: '#64748b', marginBottom: 10, lineHeight: 1.5 }}>
@@ -157,7 +157,7 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
                         )}
                         {s.status !== 'paused' && (
                           <button onClick={() => handleSetStatus(s, 'paused')}
-                            style={{ flex: 1, backgroundColor: '#fef9c3', color: '#ca8a04', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                            style={{ flex: 1, backgroundColor: '#fffbeb', color: '#d97706', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                             Simamisha
                           </button>
                         )}

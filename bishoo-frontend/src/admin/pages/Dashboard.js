@@ -62,13 +62,13 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
     { key: 'reported', title: 'Moments zilizoripotiwa (siku 7)', value: act.momentsReportedWeek, page: 'AdminReports' },
   ];
   const statCards = [
-    { title: 'Watumiaji', value: n(o.users?.total), sub: `+${n(o.users?.today)} leo · +${n(o.users?.week)} siku 7`, color: '#10b981', page: 'Users' },
-    { title: 'Biashara', value: n(o.businesses?.total), sub: `+${n(o.businesses?.week)} siku 7`, color: '#6366f1', page: 'Businesses' },
+    { title: 'Watumiaji', value: n(o.users?.total), sub: `+${n(o.users?.today)} leo · +${n(o.users?.week)} siku 7`, color: '#16a34a', page: 'Users' },
+    { title: 'Biashara', value: n(o.businesses?.total), sub: `+${n(o.businesses?.week)} siku 7`, color: '#0f1419', page: 'Businesses' },
     { title: 'Oda leo', value: n(o.orders?.today), sub: tzs(o.orders?.todayValue), color: '#f59e0b', page: 'Orders' },
     { title: 'Oda siku 7', value: n(o.orders?.week), sub: tzs(o.orders?.weekValue), color: '#f59e0b', page: 'Orders' },
     { title: 'Mizigo inayoendelea', value: n(o.shipments?.open), sub: `${n(o.shipments?.today)} leo · ${n(o.shipments?.week)} siku 7`, color: '#0ea5e9', page: 'AdminShipments' },
-    { title: 'Bidhaa', value: n(o.products?.active), sub: `+${n(o.products?.week)} siku 7`, color: '#8b5cf6', page: 'Products' },
-    { title: 'Matangazo', value: n(o.classifieds?.active), sub: `+${n(o.classifieds?.week)} siku 7`, color: '#ef4444', page: 'Classifieds' },
+    { title: 'Bidhaa', value: n(o.products?.active), sub: `+${n(o.products?.week)} siku 7`, color: '#0f1419', page: 'Products' },
+    { title: 'Matangazo', value: n(o.classifieds?.active), sub: `+${n(o.classifieds?.week)} siku 7`, color: '#dc2626', page: 'Classifieds' },
     { title: 'Huduma', value: n(o.services?.active), sub: `+${n(o.services?.week)} siku 7`, color: '#14b8a6', page: 'AdminServices' },
     { title: 'Ofisi', value: n(o.offices?.active), sub: 'zinazofanya kazi', color: '#334155', page: 'SuperAgents' },
     { title: 'Mawakala', value: n(o.agents?.total), sub: `${n(o.agents?.online)} mtandaoni sasa`, color: '#334155', page: 'Agents' },
@@ -78,7 +78,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
   const orderStatusColor = (status) => {
     switch (status) {
       case 'delivered':  return { backgroundColor: '#dcfce7', color: '#16a34a' };
-      case 'pending':    return { backgroundColor: '#fef9c3', color: '#ca8a04' };
+      case 'pending':    return { backgroundColor: '#fffbeb', color: '#d97706' };
       case 'cancelled':  return { backgroundColor: '#fee2e2', color: '#dc2626' };
       default:           return { backgroundColor: '#dbeafe', color: '#2563eb' };
     }
@@ -98,7 +98,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
             </p>
           </div>
           <button onClick={fetchStats}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
             Onyesha upya
           </button>
         </div>
@@ -106,7 +106,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
         {/* Batch Delivery Banner */}
         {batchStatus?.batch && (
           <div onClick={() => onNavigate('DispatcherManifest')}
-            style={{ backgroundColor: '#1e1b4b', borderRadius: 14, padding: '16px 20px', marginBottom: 24, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            style={{ backgroundColor: '#0f1419', borderRadius: 14, padding: '16px 20px', marginBottom: 24, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#a5b4fc', marginBottom: 4 }}>Dar es Salaam Batch Delivery — Leo</div>
               <div style={{ fontSize: 22, fontWeight:800, color: '#fff' }}>
@@ -117,7 +117,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20, backgroundColor: '#7c3aed', color: '#fff', marginBottom: 4 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, backgroundColor: '#0f1419', color: '#fff', marginBottom: 4 }}>
                 {batchStatus.batch.status?.toUpperCase().replace(/_/g, ' ')}
               </div>
               <div style={{ fontSize: 12, color: '#94a3b8' }}>Angalia Manifest →</div>
@@ -134,8 +134,8 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                 const hot = Number(c.value) > 0;
                 return (
                   <button key={c.key} type="button" data-testid={`action-${c.key}`} onClick={() => onNavigate(c.page)}
-                    style={{ textAlign: 'left', background: hot ? '#fff7ed' : '#fff', border: `1px solid ${hot ? '#fdba74' : '#e2e8f0'}`, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: hot ? '#9a3412' : '#0f172a' }}>{n(c.value)}</div>
+                    style={{ textAlign: 'left', background: hot ? '#fffbeb' : '#fff', border: `1px solid ${hot ? '#fde68a' : '#e2e8f0'}`, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: hot ? '#92400e' : '#0f172a' }}>{n(c.value)}</div>
                     <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{c.title}</div>
                   </button>
                 );
@@ -148,7 +148,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Inapakia...</div>
         ) : !overview ? (
-          <div role="alert" style={{ padding: 16, borderRadius: 12, background: '#fef2f2', color: '#991b1b', marginBottom: 24 }}>Muhtasari haukupatikana. Bonyeza "Onyesha upya".</div>
+          <div role="alert" style={{ padding: 16, borderRadius: 12, background: '#fef2f2', color: '#b91c1c', marginBottom: 24 }}>Muhtasari haukupatikana. Bonyeza "Onyesha upya".</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '32px' }}>
             {statCards.map((stat) => (
@@ -185,7 +185,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
               ].map(item => (
                 <div key={item.label} style={{ backgroundColor: '#f8fafc', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '20px', fontWeight:'800', color: '#0f172a' }}>{item.value}</div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{item.label}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{item.label}</div>
                 </div>
               ))}
             </div>
@@ -205,7 +205,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
               ) : network.fastGrowingBusinesses.map(b => (
                 <div key={b.businessId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }}>
                   <span style={{ color: '#0f172a', fontWeight: 600 }}>{b.displayName || `Profile #${b.businessId}`}</span>
-                  <span style={{ color: '#6366f1', fontWeight: 700 }}>{b.activityCount} shughuli</span>
+                  <span style={{ color: '#0f1419', fontWeight: 700 }}>{b.activityCount} shughuli</span>
                 </div>
               ))}
             </div>
@@ -241,7 +241,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#0f172a', margin: 0 }}>Oda za karibuni</h2>
               <button onClick={() => onNavigate('Orders')}
-                style={{ backgroundColor: 'transparent', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+                style={{ backgroundColor: 'transparent', border: 'none', color: '#0f1419', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
                 Ona zote →
               </button>
             </div>
@@ -255,10 +255,10 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{order.buyerName || order.buyer?.name || '—'}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#6366f1' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#0f1419' }}>
                       TZS {Number(order.totalAmount).toLocaleString()}
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px', ...orderStatusColor(order.status) }}>
+                    <span style={{ fontSize: '12px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px', ...orderStatusColor(order.status) }}>
                       {order.status}
                     </span>
                   </div>
@@ -272,25 +272,25 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
             <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#0f172a', marginBottom: '16px', marginTop: 0 }}>Njia za haraka</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {[
-                { label: 'Bidhaa',      page: 'Products',          color: '#ede9fe', text: '#6366f1' },
+                { label: 'Bidhaa',      page: 'Products',          color: '#f7f9f9', text: '#0f1419' },
                 { label: 'Matangazo',       page: 'Classifieds',       color: '#dcfce7', text: '#16a34a' },
                 { label: 'Watumiaji',      page: 'Users',             color: '#dbeafe', text: '#2563eb' },
-                { label: 'Oda',       page: 'Orders',            color: '#fef9c3', text: '#ca8a04' },
+                { label: 'Oda',       page: 'Orders',            color: '#fffbeb', text: '#d97706' },
                 { label: 'Malipo',          page: 'Payments',          color: '#fee2e2', text: '#dc2626' },
-                { label: 'Matangazo',         page: 'Announcements',     color: '#ede9fe', text: '#6366f1' },
-                { label: 'Ujumbe',            page: 'ContactMessages',   color: '#fef9c3', text: '#ca8a04' },
+                { label: 'Matangazo',         page: 'Announcements',     color: '#f7f9f9', text: '#0f1419' },
+                { label: 'Ujumbe',            page: 'ContactMessages',   color: '#fffbeb', text: '#d97706' },
                 { label: 'Fedha',             page: 'FinancialDashboard', color: '#dcfce7', text: '#16a34a' },
                 { label: 'Njia',              page: 'RouteManagement',   color: '#dbeafe', text: '#1d4ed8' },
                 { label: 'Wasafirishaji',     page: 'TransportAdmin',    color: '#fef3c7', text: '#d97706' },
                 { label: 'Vituo / Hubs',      page: 'HubAdmin',          color: '#f0fdf4', text: '#16a34a' },
-                { label: 'Ramani ya Njia',   page: 'RouteCoverageMap',  color: '#f0f9ff', text: '#0284c7' },
+                { label: 'Ramani ya Njia',   page: 'RouteCoverageMap',  color: '#eff6ff', text: '#1d4ed8' },
                 { label: 'Maeneo ya Kupokelea', page: 'PickupPoints', color: '#f0fdf4', text: '#16a34a' },
-                { label: 'Flash Sales',          page: 'FlashSales',   color: '#fff5f5', text: '#dc2626' },
+                { label: 'Flash Sales',          page: 'FlashSales',   color: '#fef2f2', text: '#dc2626' },
                 { label: 'Malipo Wauzaji',    page: 'Payouts',           color: '#dcfce7', text: '#16a34a' },
                 { label: 'My Profile',        page: 'Profile',           color: '#f1f5f9', text: '#64748b' },
-                { label: 'Analytics',         page: 'Analytics',         color: '#e0f2fe', text: '#0284c7' },
-                { label: 'Maeneo ya Van',     page: 'ZoneManagement',    color: '#ede9fe', text: '#7c3aed' },
-                { label: 'Bei za Boda',        page: 'BodaRates',         color: '#fef9c3', text: '#92400e' },
+                { label: 'Analytics',         page: 'Analytics',         color: '#eff6ff', text: '#1d4ed8' },
+                { label: 'Maeneo ya Van',     page: 'ZoneManagement',    color: '#f7f9f9', text: '#0f1419' },
+                { label: 'Bei za Boda',        page: 'BodaRates',         color: '#fffbeb', text: '#92400e' },
                 { label: 'Manifest ya Leo',   page: 'DispatcherManifest', color: '#dbeafe', text: '#1d4ed8' },
               ].map(action => (
                 <button key={action.page} onClick={() => onNavigate(action.page)}
@@ -308,8 +308,8 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
               {[
                 { label: 'Backend API',        status: 'Online',    color: '#16a34a' },
                 { label: 'Database',           status: 'Connected', color: '#16a34a' },
-                { label: 'Malipo',           status: 'Sandbox',   color: '#ca8a04' },
-                { label: 'Dar Batch Delivery', status: batchStatus?.batch ? `${batchStatus.totalParcels} vifurushi leo` : 'Hakuna batch', color: batchStatus?.batch ? '#7c3aed' : '#94a3b8' },
+                { label: 'Malipo',           status: 'Sandbox',   color: '#d97706' },
+                { label: 'Dar Batch Delivery', status: batchStatus?.batch ? `${batchStatus.totalParcels} vifurushi leo` : 'Hakuna batch', color: batchStatus?.batch ? '#0f1419' : '#94a3b8' },
               ].map(item => (
                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ fontSize: '13px', color: '#64748b' }}>{item.label}</span>

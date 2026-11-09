@@ -81,7 +81,7 @@ const Ticks = ({ read }) => (
     <path d={read ? 'M2 12.5l4 4L14 8M10 16.5l1 1L22 8' : 'M5 12.5l4.5 4.5L19 7'} />
   </svg>
 );
-const TINTS = ['#0f766e', '#9a3412', '#7c3aed', '#334155', '#1d4ed8', '#b45309', '#0e7490', '#be123c'];
+const TINTS = ['#1d4ed8', '#92400e', '#0f1419', '#334155', '#1d4ed8', '#d97706', '#1d4ed8', '#dc2626'];
 const Avatar = ({ photo, name, size = 52 }) => {
   const tint = TINTS[(name || '?').charCodeAt(0) % TINTS.length];
   return (
@@ -117,7 +117,7 @@ const ConversationRow = ({ convo, onClick, t, menuOpen, onOpenMenu, onCloseMenu,
         <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3, borderBottom: `1px solid ${LINE}`, paddingBottom: 10 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 16, fontWeight: unread ? 700 : 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-            {convo.channel && convo.channel !== 'kentexa' && <span data-testid="conversation-channel" style={{ flexShrink: 0, borderRadius: 10, padding: '2px 7px', backgroundColor: convo.channel === 'instagram' ? '#fce7f3' : '#eef2ff', color: convo.channel === 'instagram' ? '#9d174d' : '#3730a3', fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>{convo.channel === 'instagram' ? 'Instagram' : convo.channel}</span>}
+            {convo.channel && convo.channel !== 'kentexa' && <span data-testid="conversation-channel" style={{ flexShrink: 0, borderRadius: 10, padding: '2px 7px', backgroundColor: convo.channel === 'instagram' ? '#f7f9f9' : '#f7f9f9', color: convo.channel === 'instagram' ? '#0f1419' : '#0f1419', fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>{convo.channel === 'instagram' ? 'Instagram' : convo.channel}</span>}
             <span style={{ fontSize: 12, color: unread ? BLUE : MUTED, fontWeight: unread ? 700 : 400, flexShrink: 0 }}>{listTime(convo.lastMessageAt)}</span>
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -258,7 +258,7 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
         {isNote && <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 2 }}>{t('seller_inbox.internal_note_label')}</div>}
         {msg.imageUrl && <img src={msg.imageUrl} alt="" style={{ maxWidth: '100%', borderRadius: 10, display: 'block', marginBottom: msg.content ? 4 : 0 }} />}
         {msg.content && <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>}
-        <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 3, fontSize: 11, color: MUTED, marginTop: 2,
+        <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 3, fontSize: 12, color: MUTED, marginTop: 2,
           ...(msg.imageUrl && !msg.content ? { padding: '0 4px 2px' } : {}) }}>
           {msg.createdAt ? hhmm(msg.createdAt) : ''}
           {isMine && !isNote && (isSending ? <Spinner size={12} color={MUTED} /> : !isFailed && <Ticks read={!!(msg.isRead || msg.readAt)} />)}
@@ -846,13 +846,13 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
 
   const TOOLS = [
     { key: 'photo', label: 'Picha', icon: IC.camera, bg: '#eff6ff', fg: BLUE, run: () => { setShowTools(false); fileInputRef.current?.click(); } },
-    isBusinessSeller && { key: 'product', label: 'Tuma bidhaa', icon: IC.bag, bg: '#ecfdf3', fg: '#166534', run: () => { setShowTools(false); setShowOrderForm(false); setShowProducts(true); } },
+    isBusinessSeller && { key: 'product', label: 'Tuma bidhaa', icon: IC.bag, bg: '#f0fdf4', fg: '#166534', run: () => { setShowTools(false); setShowOrderForm(false); setShowProducts(true); } },
     isBusinessSeller && { key: 'invoice', label: 'Tuma ankara', icon: IC.invoice, bg: '#fffbeb', fg: '#92400e', run: () => {
       setShowTools(false); setShowProducts(false);
       setOrderForm(p => ({ ...p, recipientName: p.recipientName || active.customer?.name || '', phone: p.phone || active.customer?.phone || '' }));
       setShowOrderForm(true);
     } },
-    isBusinessSeller && { key: 'ship', label: 'Tuma mzigo', icon: IC.truck, bg: '#f5f3ff', fg: '#6d28d9', run: () => onNavigate('SellerShipment', {
+    isBusinessSeller && { key: 'ship', label: 'Tuma mzigo', icon: IC.truck, bg: '#f7f9f9', fg: '#0f1419', run: () => onNavigate('SellerShipment', {
       name: active?.customer?.name || '', phone: active?.customer?.phone || '', address: active?.customer?.address || '',
       regionId: active?.customer?.regionId || null, region: active?.customer?.region || '',
       districtId: active?.customer?.districtId || null, district: active?.customer?.district || '',
@@ -903,7 +903,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
                   return (
                     <button type="button" key={c.key} aria-pressed={on} onClick={() => setChip(c.key)}
                       style={{ flexShrink: 0, height: 32, padding: '0 14px', borderRadius: 16, border: 'none', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
-                        backgroundColor: on ? '#e8f0fe' : '#f7f9f9', color: on ? BLUE : INK, fontSize: 14, fontWeight: on ? 700 : 600 }}>
+                        backgroundColor: on ? '#eff6ff' : '#f7f9f9', color: on ? BLUE : INK, fontSize: 14, fontWeight: on ? 700 : 600 }}>
                       {c.label}{c.key === 'unread' && unreadTotal > 0 ? ` ${unreadTotal}` : ''}
                     </button>
                   );

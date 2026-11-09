@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import StarRating from '../components/StarRating';
+import LineIcon from '../components/LineIcon';
 
 const ConfirmDelivery = ({ token, trackingNumber }) => {
   const { t } = useTranslation();
@@ -93,7 +94,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
   if (step === 'loading') return (
     <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', color: '#94a3b8' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📦</div>
+        <div style={{ fontSize: 48, marginBottom: 16 }}><LineIcon name="box" size={40} /></div>
         <div style={{ fontSize: 16 }}>{t('confirm_delivery.loading')}</div>
       </div>
     </div>
@@ -102,7 +103,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
   if (step === 'error') return (
     <div style={card}>
       <div style={{ ...box, textAlign: 'center', padding: 32 }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>❌</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }}><LineIcon name="cross" size={40} /></div>
         <div style={{ fontSize: 18, fontWeight: 800, color: '#dc2626', marginBottom: 8 }}>{t('confirm_delivery.something_wrong_title')}</div>
         <div style={{ fontSize: 14, color: '#64748b' }}>{error}</div>
       </div>
@@ -112,7 +113,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
   if (step === 'already') return (
     <div style={card}>
       <div style={{ ...box, textAlign: 'center', padding: 32 }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }}><LineIcon name="check" size={40} /></div>
         <div style={{ fontSize: 20, fontWeight:800, color: '#16a34a', marginBottom: 8 }}>
           {t('confirm_delivery.already_confirmed_title')}
         </div>
@@ -120,7 +121,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
           {t('confirm_delivery.already_confirmed_desc', { product: order?.productName })}
         </div>
         {order?.rating && (
-          <div style={{ fontSize: 28 }}>{'⭐'.repeat(order.rating)}</div>
+          <div style={{ fontSize: 28 }}>{'★'.repeat(order.rating)}</div>
         )}
       </div>
     </div>
@@ -129,7 +130,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
   if (step === 'done') return (
     <div style={card}>
       <div style={{ ...box, textAlign: 'center', padding: 32 }}>
-        <div style={{ fontSize: 64, marginBottom: 12 }}>🎉</div>
+        <div style={{ fontSize: 64, marginBottom: 12 }}><LineIcon name="check" size={40} /></div>
         <div style={{ fontSize: 22, fontWeight:800, color: '#16a34a', marginBottom: 8 }}>
           {t('confirm_delivery.thank_you_title')}
         </div>
@@ -137,7 +138,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
           {t('confirm_delivery.thank_you_desc')}
         </div>
         {rating > 0 && (
-          <div style={{ fontSize: 32, margin: '12px 0' }}>{'⭐'.repeat(rating)}</div>
+          <div style={{ fontSize: 32, margin: '12px 0' }}>{'★'.repeat(rating)}</div>
         )}
         <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 16 }}>
           {t('confirm_delivery.payout_note')}
@@ -164,7 +165,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
   if (step === 'problem') return (
     <div style={card}>
       <div style={{ ...box, textAlign: 'center', padding: 32 }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }}><LineIcon name="help" size={40} /></div>
         <div style={{ fontSize: 20, fontWeight:800, color: '#dc2626', marginBottom: 8 }}>
           {t('confirm_delivery.problem_reported_title')}
         </div>
@@ -189,9 +190,9 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
       {/* Order info */}
       <div style={box}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ fontSize: 36 }}>📦</div>
+          <div style={{ fontSize: 36 }}><LineIcon name="box" size={36} /></div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8',
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8',
               marginBottom: 4, letterSpacing: 0.5 }}>{t('confirm_delivery.your_item_label')}</div>
             <div style={{ fontSize: 17, fontWeight:800, color: '#1e293b', marginBottom: 4 }}>
               {order?.productName || order?.description || t('confirm_delivery.default_item_name')}
@@ -200,7 +201,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
               {t('confirm_delivery.from_label')} <strong>{order?.storeName || t('confirm_delivery.default_seller_name')}</strong>
             </div>
             {order?.trackingNumber && (
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4,
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4,
                 fontFamily: 'monospace' }}>
                 {order.trackingNumber}
               </div>
@@ -331,7 +332,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
             style={{ ...btn('#dc2626'), opacity: (!report.trim() || saving) ? 0.5 : 1 }}>
             {saving ? t('confirm_delivery.reporting_button') : t('confirm_delivery.report_problem_button')}
           </button>
-          <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>
             {t('confirm_delivery.payment_safe_note')}
           </div>
         </div>

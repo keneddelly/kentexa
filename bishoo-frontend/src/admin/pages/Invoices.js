@@ -16,7 +16,7 @@ const PhoneCell = ({ phone }) => {
         {phone}
       </a>
       <a href={WA(phone)} target="_blank" rel="noreferrer"
-        style={{ fontSize: 9, backgroundColor: '#25D366', color: '#fff', padding: '2px 5px',
+        style={{ fontSize: 12, backgroundColor: '#25D366', color: '#fff', padding: '2px 5px',
           borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
         WA
       </a>
@@ -25,7 +25,7 @@ const PhoneCell = ({ phone }) => {
 };
 
 const STATUS = {
-  awaiting_payment:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri Malipo' },
+  awaiting_payment:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri Malipo' },
   payment_processing: { bg: '#dbeafe', color: '#2563eb', label: 'Inashughulikiwa' },
   paid:               { bg: '#dcfce7', color: '#16a34a', label: 'Imelipwa' },
   expired:            { bg: '#fee2e2', color: '#dc2626', label: 'Imekwisha Muda' },
@@ -36,7 +36,7 @@ const STATUS = {
 // a seller-composed invoice for a classified ad, not an auto-generated
 // online-order one).
 const CLS_STATUS = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri' },
   sent:      { bg: '#dbeafe', color: '#2563eb', label: 'Imetumwa' },
   paid:      { bg: '#dcfce7', color: '#16a34a', label: 'Imelipwa' },
   cancelled: { bg: '#f1f5f9', color: '#64748b', label: 'Imefutwa' },
@@ -165,18 +165,18 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
           {[
             { label: 'Zote',         value: invoices.length,
-              sub: '', bg: '#ede9fe', color: '#7c3aed' },
+              sub: '', bg: '#f7f9f9', color: '#0f1419' },
             { label: 'Zimelipwa',    value: invoices.filter(i => i.status === 'paid').length,
               sub: `TZS ${totalPaid.toLocaleString()}`, bg: '#dcfce7', color: '#16a34a' },
             { label: 'Zinasubiri',   value: invoices.filter(i => i.status === 'awaiting_payment').length,
-              sub: `TZS ${totalPending.toLocaleString()}`, bg: '#fef9c3', color: '#ca8a04' },
+              sub: `TZS ${totalPending.toLocaleString()}`, bg: '#fffbeb', color: '#d97706' },
             { label: 'Mapato Yote',  value: `TZS ${totalPaid.toLocaleString()}`,
               sub: 'Zilizolipwa', bg: '#dbeafe', color: '#2563eb' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: 16, textAlign: 'center' }}>
               <div style={{ fontSize: 20, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
-              {s.sub && <div style={{ fontSize: 11, color: s.color, marginTop: 2 }}>{s.sub}</div>}
+              {s.sub && <div style={{ fontSize: 12, color: s.color, marginTop: 2 }}>{s.sub}</div>}
             </div>
           ))}
         </div>
@@ -211,7 +211,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                   {['Ankara #','Agizo','Bidhaa','Muuzaji','Mnunuzi / Simu','Kiasi','Hali','Tarehe'].map(h => (
                     <th key={h} style={{ padding: '14px 16px', textAlign: 'left',
                       backgroundColor: '#f1f5f9', color: '#64748b',
-                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                      fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -231,12 +231,12 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                     <tr key={inv.id}
                       onClick={() => setSelected(inv)}
                       style={{ borderTop: '1px solid #f1f5f9', cursor: 'pointer',
-                        backgroundColor: statusMismatch ? '#fff7ed' : 'transparent' }}>
+                        backgroundColor: statusMismatch ? '#fffbeb' : 'transparent' }}>
                       <td style={{ padding: '12px 16px', fontFamily: 'monospace',
                         fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
                         {inv.invoiceNumber}
                         {statusMismatch && (
-                          <div style={{ fontSize: 9, color: '#c2410c', fontWeight: 800 }}>
+                          <div style={{ fontSize: 12, color: '#d97706', fontWeight: 800 }}>
                             AGIZO LIMELIPWA
                           </div>
                         )}
@@ -265,7 +265,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         TZS {Number(inv.amount).toLocaleString()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
+                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12,
                           fontWeight: 700, backgroundColor: sc.bg, color: sc.color,
                           whiteSpace: 'nowrap' }}>
                           {sc.label}
@@ -319,7 +319,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                       {sc.label}
                     </div>
                     {mismatch && (
-                      <div style={{ backgroundColor: '#fff7ed', color: '#c2410c', padding: '10px 14px',
+                      <div style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '10px 14px',
                         borderRadius: 10, fontSize: 12, fontWeight: 700, marginBottom: 16 }}>
                         Agizo limelipwa lakini ankara bado inaonyesha "Inasubiri Malipo".
                         Hii itatoka punde tu unapobonyeza Onyesha Upya.
@@ -331,7 +331,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Seller section */}
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8',
                   marginBottom: 8, letterSpacing: 0.5 }}>MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {selected.order?.seller?.businessName || selected.order?.seller?.user?.name || '—'}
@@ -346,7 +346,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Buyer section */}
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a',
                   marginBottom: 8, letterSpacing: 0.5 }}>MNUNUZI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {selected.buyer?.name || selected.order?.buyer?.name || selected.order?.manualBuyerName || '—'}
@@ -356,7 +356,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Invoice details */}
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                   marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Bidhaa',     selected.order?.product?.name || selected.order?.manualProductName || '—'],
@@ -424,7 +424,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                   {['Ankara #','Tangazo','Muuzaji','Mnunuzi / Simu','Kiasi','Hali','Tarehe'].map(h => (
                     <th key={h} style={{ padding: '14px 16px', textAlign: 'left',
                       backgroundColor: '#f1f5f9', color: '#64748b',
-                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                      fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -464,7 +464,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         TZS {Number(inv.amount || 0).toLocaleString()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
+                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12,
                           fontWeight: 700, backgroundColor: sc.bg, color: sc.color,
                           whiteSpace: 'nowrap' }}>
                           {sc.label}
@@ -517,7 +517,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               })()}
 
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8',
                   marginBottom: 8, letterSpacing: 0.5 }}>MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {clsSelected.seller?.storeName || clsSelected.seller?.name || '—'}
@@ -531,7 +531,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               </div>
 
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a',
                   marginBottom: 8, letterSpacing: 0.5 }}>MNUNUZI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {clsSelected.buyer?.name || '—'}
@@ -545,7 +545,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               </div>
 
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                   marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Tangazo',    clsSelected.classified?.title || '—'],

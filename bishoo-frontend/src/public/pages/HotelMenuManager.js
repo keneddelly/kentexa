@@ -224,7 +224,7 @@ export default function HotelMenuManager({ businessId: routeBusinessId, activeCo
           )}
         </section>
 
-        {notice && <div role="status" style={{ margin: '0 16px 12px', padding: '10px 14px', borderRadius: 12, background: '#ecfdf3', color: '#166534', fontSize: 14 }}>{notice}</div>}
+        {notice && <div role="status" style={{ margin: '0 16px 12px', padding: '10px 14px', borderRadius: 12, background: '#f0fdf4', color: '#166534', fontSize: 14 }}>{notice}</div>}
         {error && <div role="alert" style={{ margin: '0 16px 12px', padding: '10px 14px', borderRadius: 12, background: '#fef2f2', color: C.red, fontSize: 14 }}>{error}</div>}
 
         {editing && <ItemForm key={editing.id || 'new'} item={editing} sections={sections} busy={busy} onSave={saveItem} onRemove={removeItem} onCancel={() => setEditing(null)} />}
@@ -240,7 +240,7 @@ export default function HotelMenuManager({ businessId: routeBusinessId, activeCo
                 <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <strong style={{ fontSize: 15 }}>{it.name}</strong>
                   <span style={{ fontSize: 14, color: C.muted, fontVariantNumeric: 'tabular-nums' }}>{tzs(it.price)} · {it.section}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: it.availableToday ? C.green : '#b45309' }}>{it.availableToday ? 'Kipo leo' : 'Imeisha leo'}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: it.availableToday ? C.green : '#d97706' }}>{it.availableToday ? 'Kipo leo' : 'Imeisha leo'}</span>
                 </span>
               </button>
               <Switch on={it.availableToday} onChange={() => toggleToday(it)} label={`${it.name} kipo leo`} testId={`food-today-${it.id}`} disabled={busy} />

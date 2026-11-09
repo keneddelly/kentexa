@@ -25,6 +25,7 @@ import { loadCashiers, loadOnDuty, saveCashiers, saveOnDuty } from '../../utils/
 import PosStock from '../components/PosStock';
 import PosDebts from '../components/PosDebts';
 import api from '../../api/api';
+import { shareReceiptPdf, downloadReceiptPdf, PAY_LABEL } from '../../utils/receiptPdf';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import { isAppleMobile } from '../utils/isAppleMobile';
@@ -39,10 +40,10 @@ const LINE = '#eff3f4';
 const BORDER = '#cfd9de';
 const BLUE = '#1d4ed8';
 const BLUE_SOFT = '#eff6ff';
-const GREEN = '#15803d';
-const AMBER = '#b45309';
+const GREEN = '#16a34a';
+const AMBER = '#d97706';
 const RED = '#b91c1c';
-const TINTS = ['#fef3c7', '#ecfccb', '#e0f2fe', '#fee2e2', '#ede9fe', '#ffedd5'];
+const TINTS = ['#fef3c7', '#f0fdf4', '#eff6ff', '#fee2e2', '#f7f9f9', '#fffbeb'];
 const tzs = (n) => `TZS ${Math.round(Number(n || 0)).toLocaleString('en-US')}`;
 const num = (v) => Math.round(Number(String(v ?? '').replace(/[^\d.]/g, '')) || 0);
 
@@ -81,12 +82,63 @@ export function receiptText(r) {
   return lines.join('\n');
 }
 
+// One printed layout for every printer (owner 2026-11-09: "even the computer receipt should look
+// professional"): an 80 mm slip that also fills a 58 mm roll and sits neatly at the top of A4.
 const printCss = `@media print {
+  @page { margin: 4mm; }
   body * { visibility: hidden !important; }
   #pos-receipt, #pos-receipt * { visibility: visible !important; }
-  #pos-receipt { position: absolute; left: 0; top: 0; width: 58mm; border: none !important; font-size: 11px; }
+  #pos-receipt { position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; width: 100%; max-width: 80mm; border: none !important; box-shadow: none !important; padding: 0 !important; }
   .pos-no-print { display: none !important; }
 }`;
+
+const rcpt = {
+  row: { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 },
+  label: { color: '#536471' },
+  value: { fontWeight: 700, textAlign: 'right', overflowWrap: 'anywhere' },
+  rule: { borderTop: '1px solid #cfd9de', margin: '8px 0' },
+};
+const money = (v) => Math.round(Number(v || 0)).toLocaleString('en-US');
+
+/** The receipt on screen and on paper: the same layout as the PDF (utils/receiptPdf). */
+export const ReceiptSlip = ({ receipt: r }) => (
+  <section id="pos-receipt" data-testid="pos-receipt"
+    style={{ padding: '18px 16px', border: '1px solid #eff3f4', borderRadius: 14, background: '#fff', color: '#0f1419', display: 'flex', flexDirection: 'column', gap: 4,
+      fontFamily: "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif", width: '100%', maxWidth: 380, margin: '0 auto', boxSizing: 'border-box', boxShadow: '0 1px 3px rgba(15,20,25,0.08)' }}>
+    <strong style={{ fontSize: 18, textAlign: 'center' }}>{r.shopName}</strong>
+    <span style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#536471', letterSpacing: 0.6 }}>RISITI YA MAUZO</span>
+    <span style={rcpt.rule} />
+    <span style={rcpt.row}><span style={rcpt.label}>Namba ya risiti</span><span style={rcpt.value}>Risiti {r.receiptNumber}</span></span>
+    <span style={rcpt.row}><span style={rcpt.label}>Tarehe</span><span style={rcpt.value}>{new Date(r.at).toLocaleString('sw-TZ')}</span></span>
+    {r.cashier && <span style={rcpt.row}><span style={rcpt.label}>Mhudumu</span><span style={rcpt.value}>{r.cashier}</span></span>}
+    {r.customer?.name && <span style={rcpt.row}><span style={rcpt.label}>Mteja</span><span style={rcpt.value}>{r.customer.name}</span></span>}
+    {r.customer?.phone && <span style={rcpt.row}><span style={rcpt.label}>Simu ya mteja</span><span style={rcpt.value}>{r.customer.phone}</span></span>}
+    <span style={rcpt.rule} />
+    <span style={{ ...rcpt.row, fontSize: 12, fontWeight: 700, color: '#536471', letterSpacing: 0.4 }}><span>BIDHAA</span><span>JUMLA</span></span>
+    {r.items.map((i) => (
+      <span key={i.productId ?? i.name} style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '4px 0' }}>
+        <span style={{ ...rcpt.row, fontSize: 14 }}><span style={{ fontWeight: 700, minWidth: 0, overflowWrap: 'anywhere' }}>{i.name}</span><span style={{ fontWeight: 700 }}>{money(i.unitPrice * i.quantity)}</span></span>
+        <span style={{ fontSize: 12, color: '#536471' }}>{i.quantity} x {money(i.unitPrice)}</span>
+      </span>
+    ))}
+    <span style={rcpt.rule} />
+    {Number(r.discount) > 0 && (
+      <>
+        <span style={rcpt.row}><span style={rcpt.label}>Jumla ndogo</span><span style={rcpt.value}>{money(r.subtotal)}</span></span>
+        <span style={rcpt.row}><span style={rcpt.label}>Punguzo</span><span style={rcpt.value}>-{money(r.discount)}</span></span>
+      </>
+    )}
+    <span style={{ ...rcpt.row, fontSize: 18, fontWeight: 800, margin: '4px 0' }}><span>JUMLA</span><span>TZS {money(r.total)}</span></span>
+    {r.payments.map((p, i) => (
+      <span key={i} style={rcpt.row}><span style={rcpt.label}>{PAY_LABEL[String(p.method).toLowerCase()] || methodLabel(p.method)}</span><span style={rcpt.value}>{money(p.amount)}</span></span>
+    ))}
+    {r.change > 0 && <span style={rcpt.row}><span style={rcpt.label}>Chenji</span><span style={rcpt.value}>{money(r.change)}</span></span>}
+    {r.balanceDue > 0 && <span style={{ ...rcpt.row, fontWeight: 800 }}><span>Deni</span><span>TZS {money(r.balanceDue)}</span></span>}
+    <span style={rcpt.rule} />
+    <span style={{ textAlign: 'center', fontSize: 13 }}>Asante kwa kununua {r.shopName}.</span>
+    <span style={{ textAlign: 'center', fontSize: 12, color: '#536471' }}>Imetolewa na KenteXa POS</span>
+  </section>
+);
 
 const chip = (on) => ({
   height: 38, padding: '0 16px', borderRadius: 19, fontFamily: 'inherit', fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -373,7 +425,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
       ...(onDuty?.userId ? { cashierUserId: onDuty.userId } : {}),
     };
     const local = {
-      shopName, cashier, items: cart, total, payments, change: totals.change,
+      shopName, cashier, items: cart, total, subtotal, discount: num(discount), payments, change: totals.change,
       balanceDue: owes ? total - amountPaid : 0, customer, at: new Date().toISOString(),
     };
     const keepOffline = async () => {
@@ -488,7 +540,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
 
       {(error || notice) && (
         <div className="pos-no-print" role={error ? 'alert' : 'status'} style={{ margin: '10px 16px 0', padding: '10px 14px', borderRadius: 12, fontSize: 14,
-          background: error ? '#fef2f2' : '#ecfdf3', color: error ? RED : '#166534', display: 'flex', gap: 10 }}>
+          background: error ? '#fef2f2' : '#f0fdf4', color: error ? RED : '#166534', display: 'flex', gap: 10 }}>
           <span style={{ flex: 1 }}>{error || notice}</span>
           <button type="button" aria-label="Funga" onClick={() => { setError(''); setNotice(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'inherit' }}>×</button>
         </div>
@@ -637,7 +689,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
             </div>
           )}
           <div data-testid="pos-pay-state" style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 14,
-            background: totals.left > 0 ? (credit || cod ? '#fffbeb' : '#fef2f2') : '#ecfdf3', color: totals.left > 0 ? (credit || cod ? AMBER : RED) : '#166534', fontWeight: 700, fontSize: 15 }}>
+            background: totals.left > 0 ? (credit || cod ? '#fffbeb' : '#fef2f2') : '#f0fdf4', color: totals.left > 0 ? (credit || cod ? AMBER : RED) : '#166534', fontWeight: 700, fontSize: 15 }}>
             <span>{totals.left > 0 ? (credit ? `Deni ${tzs(totals.left)}` : cod ? `Atalipa akipokea ${tzs(totals.left)}` : `Bado ${tzs(totals.left)}`) : 'Imelipwa yote'}</span>
             <span>Chenji {tzs(totals.change)}</span>
           </div>
@@ -654,28 +706,12 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
         <div style={{ maxWidth: 520, width: '100%', margin: '0 auto', padding: 16, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <strong className="pos-no-print" style={{ fontSize: 22 }}>{receipt.offline ? 'Imehifadhiwa kwenye kompyuta hii' : 'Mauzo yamekamilika'}</strong>
           {receipt.offline && <span className="pos-no-print" style={{ fontSize: 14, color: AMBER }}>Yatatumwa yenyewe mtandao ukirudi. Namba ya risiti ya KenteXa itatoka hapo.</span>}
-          <section id="pos-receipt" data-testid="pos-receipt" style={{ padding: 14, border: `1px dashed ${BORDER}`, borderRadius: 14, background: '#fff', display: 'flex', flexDirection: 'column', gap: 4,
-            fontFamily: "'SFMono-Regular', Menlo, Consolas, monospace", fontSize: 13 }}>
-            <strong style={{ fontSize: 16, textAlign: 'center', fontFamily: 'inherit' }}>{receipt.shopName}</strong>
-            <span style={{ textAlign: 'center', color: MUTED }}>Risiti {receipt.receiptNumber} · {new Date(receipt.at).toLocaleString('sw-TZ')}{receipt.cashier ? ` · ${receipt.cashier}` : ''}</span>
-            <span style={{ borderTop: `1px dashed ${BORDER}`, margin: '4px 0' }} />
-            {receipt.items.map((i) => (
-              <span key={i.productId} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span>{i.quantity} x {i.name}</span><span>{Math.round(i.unitPrice * i.quantity).toLocaleString('en-US')}</span></span>
-            ))}
-            <span style={{ borderTop: `1px dashed ${BORDER}`, margin: '4px 0' }} />
-            <span style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}><span>JUMLA</span><span>{Math.round(receipt.total).toLocaleString('en-US')}</span></span>
-            {receipt.payments.map((p, i) => (
-              <span key={i} style={{ display: 'flex', justifyContent: 'space-between' }}><span>{methodLabel(p.method)}</span><span>{Math.round(p.amount).toLocaleString('en-US')}</span></span>
-            ))}
-            {receipt.change > 0 && <span style={{ display: 'flex', justifyContent: 'space-between' }}><span>Chenji</span><span>{Math.round(receipt.change).toLocaleString('en-US')}</span></span>}
-            {receipt.balanceDue > 0 && <span style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}><span>Deni</span><span>{Math.round(receipt.balanceDue).toLocaleString('en-US')}</span></span>}
-            <span style={{ borderTop: `1px dashed ${BORDER}`, margin: '4px 0' }} />
-            <span style={{ textAlign: 'center' }}>Asante kwa kununua {receipt.shopName}. Tufuate kwenye KenteXa.</span>
-          </section>
-          <div className="pos-no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
+          <ReceiptSlip receipt={receipt} />
+          <div className="pos-no-print" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
             <button type="button" style={{ ...pill, justifyContent: 'center' }} onClick={() => window.print()}>Chapisha</button>
-            <a style={{ ...pill, justifyContent: 'center', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer"
-              href={`https://wa.me/${waPhone}?text=${encodeURIComponent(receiptText(receipt))}`}>WhatsApp</a>
+            <button type="button" data-testid="pos-whatsapp" style={{ ...pill, justifyContent: 'center' }}
+              onClick={() => { shareReceiptPdf(receipt, waPhone).catch(() => setError('Imeshindwa kutuma risiti. Jaribu tena.')); }}>WhatsApp (PDF)</button>
+            <button type="button" data-testid="pos-pdf" style={{ ...pill, justifyContent: 'center' }} onClick={() => downloadReceiptPdf(receipt)}>Pakua PDF</button>
             <span style={{ ...pill, justifyContent: 'center', cursor: 'default', color: MUTED }}>
               {receipt.offline ? 'SMS mtandao ukirudi' : customer.phone ? 'SMS imetumwa' : 'SMS: hakuna simu'}
             </span>

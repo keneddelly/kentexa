@@ -75,7 +75,7 @@ export default function AdminAdvertisers({ activePage, onNavigate, onLogout }) {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button style={btn('#15803d', busy)} disabled={busy}
+                        <button style={btn('#16a34a', busy)} disabled={busy}
                           onClick={() => run(() => api.post(`/advertisers/applications/${ap.id}/accept`), `${ap.name} amekubaliwa. Kiungo chake kipo kwenye jedwali hapa chini na kwenye ukurasa wake.`)}>Kubali</button>
                         <button style={btn('#475569', busy)} disabled={busy} onClick={() => { setRejecting(ap.id); setReason(''); }}>Kataa</button>
                       </div>
@@ -96,7 +96,7 @@ export default function AdminAdvertisers({ activePage, onNavigate, onLogout }) {
                 <button style={btn('#1d4ed8', busy)} disabled={busy}
                   onClick={async () => { const ok = await run(() => api.put('/advertisers/rates', Object.fromEntries(Object.entries(rates).map(([k, v]) => [k, Number(v) || 0]))), 'Viwango vimehifadhiwa.'); setRatesSaved(ok); }}>
                   {busy ? 'Inahifadhi...' : 'Hifadhi'}</button>
-                {ratesSaved && <span style={{ fontSize: 13, color: '#15803d', fontWeight: 700, alignSelf: 'center' }}>Imehifadhiwa</span>}
+                {ratesSaved && <span style={{ fontSize: 13, color: '#16a34a', fontWeight: 700, alignSelf: 'center' }}>Imehifadhiwa</span>}
               </div>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>Kiwango kipya kinahusu kamisheni zinazopatikana kuanzia sasa.</div>
             </div>
@@ -117,7 +117,7 @@ export default function AdminAdvertisers({ activePage, onNavigate, onLogout }) {
                 <tbody>
                   {data.advertisers.map((a) => (
                     <tr key={a.id} data-testid={`adv-row-${a.id}`}>
-                      <td style={td}><strong>{a.name}</strong><div style={{ color: '#64748b' }}>{a.phone}</div>{!a.active && <div style={{ color: '#b45309' }}>Kimesimamishwa</div>}</td>
+                      <td style={td}><strong>{a.name}</strong><div style={{ color: '#64748b' }}>{a.phone}</div>{!a.active && <div style={{ color: '#d97706' }}>Kimesimamishwa</div>}</td>
                       <td style={{ ...td, wordBreak: 'break-all', maxWidth: 280 }}>
                         <div>{a.link}</div>
                         <button type="button" onClick={() => copy(a)} style={{ marginTop: 4, padding: 0, border: 0, background: 'none', color: '#1d4ed8', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -130,12 +130,12 @@ export default function AdminAdvertisers({ activePage, onNavigate, onLogout }) {
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {confirmPay === a.id ? (
                             <>
-                              <button style={btn('#15803d', busy)} disabled={busy}
+                              <button style={btn('#16a34a', busy)} disabled={busy}
                                 onClick={async () => { await run(() => api.post(`/advertisers/${a.id}/paid`), `Imewekwa: ${a.name} amelipwa ${tzs(a.unpaid)}.`); setConfirmPay(null); }}>Ndiyo, nimemlipa {tzs(a.unpaid)}</button>
                               <button style={btn('#475569', busy)} disabled={busy} onClick={() => setConfirmPay(null)}>Ghairi</button>
                             </>
                           ) : a.unpaid > 0 ? (
-                            <button style={btn('#15803d', busy)} disabled={busy} onClick={() => setConfirmPay(a.id)}>Nimelipa</button>
+                            <button style={btn('#16a34a', busy)} disabled={busy} onClick={() => setConfirmPay(a.id)}>Nimelipa</button>
                           ) : (
                             <span style={{ fontSize: 12, color: '#64748b', alignSelf: 'center' }}>Hakuna deni</span>
                           )}

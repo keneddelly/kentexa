@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { KENTEXA_SUPPORT } from '../utils/whatsapp-link';
+import LineIcon from './LineIcon';
 
 const Footer = ({ onNavigate }) => {
   const { t } = useTranslation();
@@ -14,12 +15,12 @@ const Footer = ({ onNavigate }) => {
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, marginBottom: 10 }}>
             <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
           <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7, margin: '0 0 12px' }}>
             {t('footer.tagline')}
           </p>
-          <div style={{ fontSize: 11, color: '#475569' }}>{t('footer.made_in_tanzania')}</div>
+          <div style={{ fontSize: 12, color: '#475569' }}>{t('footer.made_in_tanzania')}</div>
         </div>
 
         {/* Marketplace */}
@@ -81,25 +82,25 @@ const Footer = ({ onNavigate }) => {
         {/* Contact */}
         <div>
           <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('footer.contact_title')}</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>📧 support@kentexa.com</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>🌐 kentexa.com</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>support@kentexa.com</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>kentexa.com</div>
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{t('footer.contact_company')}</div>
           {/* Social */}
           <div style={{ display: 'flex', gap: 10 }}>
             <a href={`https://wa.me/${KENTEXA_SUPPORT}`} target="_blank" rel="noreferrer"
-              style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, textDecoration: 'none' }}>💬</a>
+              style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, textDecoration: 'none', color: '#fff' }} aria-label="WhatsApp"><LineIcon name="chat" size={18} /></a>
             <a href="mailto:support@kentexa.com"
-              style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, textDecoration: 'none' }}>📧</a>
+              style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, textDecoration: 'none', color: '#fff' }} aria-label="Barua pepe"><LineIcon name="mail" size={18} /></a>
           </div>
         </div>
       </div>
 
       {/* Payment badges */}
       <div style={{ borderTop: '1px solid #1e293b', padding: '16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, color: '#475569', marginBottom: 10 }}>{t('footer.accepted_payments')}</div>
+        <div style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>{t('footer.accepted_payments')}</div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {['📱 M-Pesa', '📱 Airtel', '📱 Tigo', '📱 HaloPesa', '🤝 Agent'].map(p => (
-            <span key={p} style={{ fontSize: 11, backgroundColor: '#1e293b', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>{p}</span>
+          {['M-Pesa', 'Airtel', 'Tigo', 'HaloPesa', 'Agent'].map(p => (
+            <span key={p} style={{ fontSize: 12, backgroundColor: '#1e293b', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>{p}</span>
           ))}
         </div>
       </div>

@@ -76,7 +76,7 @@ const PROVIDER_TYPE_ICON = {
 
 const getTiers = t => [
   {min:900,name:t('my_profile.tier_elite'),  icon:'trophy',color:'#dc2626',bg:'#fee2e2'},
-  {min:600,name:t('my_profile.tier_partner'),icon:'gem',color:'#7c3aed',bg:'#ede9fe'},
+  {min:600,name:t('my_profile.tier_partner'),icon:'gem',color:'#0f1419',bg:'#f7f9f9'},
   {min:300,name:t('my_profile.tier_loyal'),  icon:'star',color:'#1d4ed8',bg:'#dbeafe'},
   {min:100,name:t('my_profile.tier_trusted'),icon:'star',color:'#16a34a',bg:'#dcfce7'},
   {min:0,  name:t('my_profile.tier_new'),    icon:'sprout',color:'#64748b',bg:'#f1f5f9'},
@@ -89,7 +89,7 @@ const Action = ({ icon, label, onClick, color=B, bg='#eff6ff' }) => (
       gap:4, backgroundColor:bg, border:'none', borderRadius:14,
       padding:'14px 12px', cursor:'pointer', flex:1, minWidth:0 }}>
     <LineIcon name={icon} size={22} />
-    <span style={{ fontSize:11, fontWeight:700, color, textAlign:'center', lineHeight:1.3 }}>
+    <span style={{ fontSize:12, fontWeight:700, color, textAlign:'center', lineHeight:1.3 }}>
       {label}
     </span>
   </button>
@@ -102,39 +102,39 @@ const RoleActions = ({ role, onNavigate }) => {
     seller: [
       {icon:'box',label:t('commerce_profile.action_orders'),    page:'SellerOrders',     bg:'#eff6ff', color:B},
       {icon:'tag',label:t('commerce_profile.action_products'),    page:'SellerClassifieds', bg:'#f0fdf4', color:'#16a34a'},
-      {icon:'chart',label:t('commerce_profile.action_analytics'),  page:'SellerAnalytics',  bg:'#f5f3ff', color:'#7c3aed'},
-      {icon:'megaphone',label:t('commerce_profile.action_listing'),    page:'CommerceProfile',  bg:'#fff7ed', color:'#ea580c'},
-      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'chart',label:t('commerce_profile.action_analytics'),  page:'SellerAnalytics',  bg:'#f7f9f9', color:'#0f1419'},
+      {icon:'megaphone',label:t('commerce_profile.action_listing'),    page:'CommerceProfile',  bg:'#fffbeb', color:'#d97706'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#eff6ff', color:'#1d4ed8'},
     ],
     agent: [
-      {icon:'moto',label:t('commerce_profile.action_my_jobs'), page:'AgentDashboard',   bg:'#fdf2f8', color:'#a21caf'},
+      {icon:'moto',label:t('commerce_profile.action_my_jobs'), page:'AgentDashboard',   bg:'#f7f9f9', color:'#0f1419'},
       {icon:'money',label:t('commerce_profile.action_earnings'),     page:'AgentEarnings',    bg:'#f0fdf4', color:'#16a34a'},
       {icon:'chart',label:t('commerce_profile.action_scorecard'),  page:'AgentScorecard',   bg:'#eff6ff', color:B},
-      {icon:'box',label:t('commerce_profile.action_parcels'),  page:'AgentDashboard',   bg:'#fff7ed', color:'#ea580c'},
-      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'box',label:t('commerce_profile.action_parcels'),  page:'AgentDashboard',   bg:'#fffbeb', color:'#d97706'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#eff6ff', color:'#1d4ed8'},
     ],
     super_agent: [
-      {icon:'office',label:t('commerce_profile.action_my_hub'),  page:'SuperAgentDashboard',bg:'#f5f3ff',color:'#7c3aed'},
+      {icon:'office',label:t('commerce_profile.action_my_hub'),  page:'SuperAgentDashboard',bg:'#f7f9f9',color:'#0f1419'},
       {icon:'box',label:t('commerce_profile.action_parcels'),  page:'SuperAgentDashboard',bg:'#eff6ff',color:B},
-      {icon:'bus',label:t('commerce_profile.action_transport'),    page:'SuperAgentDashboard',bg:'#fff7ed',color:'#ea580c'},
+      {icon:'bus',label:t('commerce_profile.action_transport'),    page:'SuperAgentDashboard',bg:'#fffbeb',color:'#d97706'},
       {icon:'chart',label:t('commerce_profile.action_analytics'),  page:'SuperAgentDashboard',bg:'#f0fdf4',color:'#16a34a'},
-      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#eff6ff', color:'#1d4ed8'},
     ],
     transport_provider: [
-      {icon:'bus',label:t('commerce_profile.action_my_routes'),page:'TransportProviderDashboard',bg:'#fff7ed',color:'#ea580c'},
+      {icon:'bus',label:t('commerce_profile.action_my_routes'),page:'TransportProviderDashboard',bg:'#fffbeb',color:'#d97706'},
       {icon:'calendar',label:t('commerce_profile.action_availability'),page:'TransportProviderDashboard',bg:'#f0fdf4',color:'#16a34a'},
       {icon:'box',label:t('commerce_profile.action_orders'),    page:'TransportProviderDashboard',bg:'#eff6ff',color:B},
-      {icon:'map',label:t('commerce_profile.action_my_routes'), page:'RouteCoverageMap',          bg:'#f5f3ff',color:'#7c3aed'},
-      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'map',label:t('commerce_profile.action_my_routes'), page:'RouteCoverageMap',          bg:'#f7f9f9',color:'#0f1419'},
+      {icon:'people',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#eff6ff', color:'#1d4ed8'},
     ],
   };
 
   // Buyer actions (everyone)
   const buyerActions = [
     {icon:'box',label:t('commerce_profile.action_my_orders'),page:'MyOrders',       bg:'#eff6ff', color:B},
-    {icon:'heart',label:t('commerce_profile.action_saved'),page:'Wishlist',     bg:'#fff1f2', color:'#e11d48'},
+    {icon:'heart',label:t('commerce_profile.action_saved'),page:'Wishlist',     bg:'#fef2f2', color:'#dc2626'},
     {icon:'search',label:t('commerce_profile.action_discover'),        page:'Search',        bg:'#f0fdf4', color:'#16a34a'},
-    {icon:'tag',label:t('commerce_profile.action_list_item'),       page:'SellerClassifieds',bg:'#fef9c3',color:'#ca8a04'},
+    {icon:'tag',label:t('commerce_profile.action_list_item'),       page:'SellerClassifieds',bg:'#fffbeb',color:'#d97706'},
   ];
 
   const roleActions = actions[role] || [];
@@ -655,8 +655,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     { value: fmt(score), label: `Alama · ${tier.name}` },
   ].filter(Boolean);
   const trustBadges = [
-    isOfficialKentexa ? { label: 'KenteXa rasmi', bg:'#eff6ff', color:'#1e40af' } : null,
-    !isOfficialKentexa && isVerifiedIdentity ? { label: 'Imethibitishwa na KenteXa', bg:'#eff6ff', color:'#1e40af' } : null,
+    isOfficialKentexa ? { label: 'KenteXa rasmi', bg:'#eff6ff', color:'#1d4ed8' } : null,
+    !isOfficialKentexa && isVerifiedIdentity ? { label: 'Imethibitishwa na KenteXa', bg:'#eff6ff', color:'#1d4ed8' } : null,
     isBusinessProfile && profile?.verificationTier === 'verified_business' ? { label: t('commerce_profile.tier_verified_business'), bg:'#fef3c7', color:'#92400e' } : null,
     isBusinessProfile && profile?.verificationTier === 'verified_seller' ? { label: t('commerce_profile.tier_verified_seller'), bg:'#f0fdf4', color:'#166534' } : null,
     isTransportProfile && publicTransportData ? (publicTransportData.isVerified
@@ -799,7 +799,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             {isBusinessProfile && (ratingCount > 0 || Number(profile?.completedOrders) > 0) && (
               <div data-testid="business-record" style={{ fontSize:14, color:MUTED, marginTop:4, display:'flex', flexWrap:'wrap', gap:'2px 6px', alignItems:'center' }}>
                 {ratingCount > 0 && (
-                  <span><b style={{ color:'#b45309' }}>{ratingNum.toFixed(1)}</b> kutoka maoni {fmt(ratingCount)}</span>
+                  <span><b style={{ color:'#d97706' }}>{ratingNum.toFixed(1)}</b> kutoka maoni {fmt(ratingCount)}</span>
                 )}
                 {ratingCount > 0 && Number(profile?.completedOrders) > 0 && <span aria-hidden="true">·</span>}
                 {Number(profile?.completedOrders) > 0 && <span>oda {fmt(profile.completedOrders)} zimekamilika</span>}
@@ -1002,7 +1002,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       {item.kind==='product' && item.available===false && (
                         <div style={{ position:'absolute', inset:0, backgroundColor:'rgba(15,23,42,0.55)',
                           display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize:10, fontWeight:800, color:WH }}>
+                          fontSize:12, fontWeight:800, color:WH }}>
                           {t('commerce_profile.out_of_stock')}
                         </div>
                       )}
@@ -1106,7 +1106,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         <div style={{ fontSize:13, fontWeight:700, color:DK }}>
                           {o.product?.name || o.manualProductName || t('commerce_profile.product_fallback')}
                         </div>
-                        <div style={{ fontSize:11, color:GR, marginTop:2 }}>
+                        <div style={{ fontSize:12, color:GR, marginTop:2 }}>
                           {o.trackingNumber} · {new Date(o.createdAt).toLocaleDateString('sw-TZ')}
                         </div>
                       </div>
@@ -1114,7 +1114,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         <div style={{ fontSize:14, fontWeight:800, color:B }}>
                           TZS {fmt(o.totalAmount)}
                         </div>
-                        <div style={{ fontSize:11, fontWeight:700, marginTop:2,
+                        <div style={{ fontSize:12, fontWeight:700, marginTop:2,
                           color:o.status==='completed'?'#16a34a':'#d97706',
                           textTransform:'capitalize' }}>
                           {o.status}
@@ -1148,7 +1148,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       onClick={()=>onNavigate(`ServiceDetail-${s.id}`)}
                       style={{ backgroundColor:WH, borderRadius:14, padding:16,
                         cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-                      <span style={{ fontSize:11, fontWeight:700,
+                      <span style={{ fontSize:12, fontWeight:700,
                         backgroundColor:'#f0fdf4', color:'#16a34a',
                         padding:'3px 10px', borderRadius:100,
                         display:'inline-block', marginBottom:8 }}>
@@ -1214,12 +1214,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 </div>
                 {publicAgentData.coverageAreas?.length > 0 && (
                   <div style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:11, fontWeight:800, color:GR, marginBottom:6 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:GR, marginBottom:6 }}>
                       {t('commerce_profile.service_areas_label')}
                     </div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       {publicAgentData.coverageAreas.map(a => (
-                        <span key={a} style={{ fontSize:11, fontWeight:700, color:B,
+                        <span key={a} style={{ fontSize:12, fontWeight:700, color:B,
                           backgroundColor:'#EFF6FF', padding:'4px 10px', borderRadius:100 }}>
                           {a}
                         </span>
@@ -1247,7 +1247,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <div>
             {isOwnProfile ? (
               <button onClick={()=>onNavigate('SuperAgentDashboard')}
-                style={{ width:'100%', backgroundColor:'#7c3aed', color:WH,
+                style={{ width:'100%', backgroundColor:'#0f1419', color:WH,
                   border:'none', borderRadius:12, padding:'14px 0',
                   cursor:'pointer', fontSize:15, fontWeight:800 }}>
                 {t('commerce_profile.go_to_hub_dashboard')}
@@ -1270,13 +1270,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 </div>
                 {publicHubData.coverageCitiesDestination?.length > 0 && (
                   <div style={{ marginBottom:14 }}>
-                    <div style={{ fontSize:11, fontWeight:800, color:GR, marginBottom:6 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:GR, marginBottom:6 }}>
                       {t('commerce_profile.delivers_to_label')}
                     </div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       {publicHubData.coverageCitiesDestination.map(c => (
-                        <span key={c} style={{ fontSize:11, fontWeight:700, color:'#7C3AED',
-                          backgroundColor:'#F5F3FF', padding:'4px 10px', borderRadius:100 }}>
+                        <span key={c} style={{ fontSize:12, fontWeight:700, color:'#0f1419',
+                          backgroundColor:'#f7f9f9', padding:'4px 10px', borderRadius:100 }}>
                           {c}
                         </span>
                       ))}
@@ -1284,7 +1284,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   </div>
                 )}
                 {[
-                  [t('commerce_profile.parcels_handled_label'), fmt(publicHubData.totalParcelsHandled||0), '#7C3AED'],
+                  [t('commerce_profile.parcels_handled_label'), fmt(publicHubData.totalParcelsHandled||0), '#0f1419'],
                   [t('commerce_profile.parcels_delivered_label'), fmt(publicHubData.totalParcelsDelivered||0), '#16A34A'],
                   [t('commerce_profile.rating_label'), `${Number(publicHubData.rating||0).toFixed(1)} (${publicHubData.totalRatings||0})`, '#D97706'],
                 ].map(([l,v,c]) => (
@@ -1304,7 +1304,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <div>
             {isOwnProfile ? (
               <button onClick={()=>onNavigate('TransportProviderDashboard')}
-                style={{ width:'100%', backgroundColor:'#ea580c', color:WH,
+                style={{ width:'100%', backgroundColor:'#d97706', color:WH,
                   border:'none', borderRadius:12, padding:'14px 0',
                   cursor:'pointer', fontSize:15, fontWeight:800 }}>
                 {t('commerce_profile.go_to_transport_dashboard')}
@@ -1328,7 +1328,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                     </div>
                   </div>
                   {!publicTransportData.isVerified && (
-                    <div style={{ fontSize:11, fontWeight:700, color:'#D97706',
+                    <div style={{ fontSize:12, fontWeight:700, color:'#D97706',
                       backgroundColor:'#FEF3C7', padding:'6px 10px', borderRadius:8, marginBottom:10 }}>
                       {t('commerce_profile.transport_pending_verification')}
                     </div>
@@ -1365,14 +1365,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                               <div style={{ fontSize:14, fontWeight:800, color:DK }}>
                                 {first && last ? `${first} → ${last}` : `Run #${run.id}`}
                               </div>
-                              <div style={{ fontSize:11, color:GR, marginTop:2 }}>
+                              <div style={{ fontSize:12, color:GR, marginTop:2 }}>
                                 {new Date(run.scheduledDeparture).toLocaleString('sw-TZ')} · {run.status}
                               </div>
                             </div>
-                            <span style={{ fontSize:11, fontWeight:800, color:B }}>Tuma</span>
+                            <span style={{ fontSize:12, fontWeight:800, color:B }}>Tuma</span>
                           </div>
                           {stops.length > 2 && (
-                            <div style={{ fontSize:11, color:GR, marginTop:7, paddingLeft:26 }}>
+                            <div style={{ fontSize:12, color:GR, marginTop:7, paddingLeft:26 }}>
                               Stops: {stops.map(s => s.locationLabel).join(' → ')}
                             </div>
                           )}
@@ -1402,13 +1402,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                           <div style={{ fontSize:13, fontWeight:700, color:DK }}>
                             {trip.fromCity} → {trip.toCity}
                           </div>
-                          <div style={{ fontSize:11, color:GR, marginTop:2 }}>
+                          <div style={{ fontSize:12, color:GR, marginTop:2 }}>
                             {new Date(trip.date).toLocaleDateString('sw-TZ')}
                             {trip.departureTime ? ` · ${trip.departureTime}` : ''}
                             {' · '}{t('commerce_profile.slots_available', { count: trip.slotsAvailable })}
                           </div>
                         </div>
-                        <span style={{ fontSize:11, fontWeight:700, color:'#EA580C' }}>{t('commerce_profile.ship_button')}</span>
+                        <span style={{ fontSize:12, fontWeight:700, color:'#d97706' }}>{t('commerce_profile.ship_button')}</span>
                       </div>
                     ))}
                   </div>
@@ -1438,7 +1438,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                             ? `${r.coverageCity || ''} — ${r.coverageWards.slice(0,3).join(', ')}`
                             : t('commerce_profile.route_fallback')}
                         </div>
-                        <span style={{ fontSize:11, fontWeight:700, color:'#EA580C' }}>{t('commerce_profile.ship_button')}</span>
+                        <span style={{ fontSize:12, fontWeight:700, color:'#d97706' }}>{t('commerce_profile.ship_button')}</span>
                       </div>
                     ))}
                   </div>
@@ -1451,7 +1451,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         {/* Analytics */}
         {tab==='analytics' && (
           <button onClick={()=>onNavigate('SellerAnalytics')}
-            style={{ width:'100%', backgroundColor:'#7c3aed', color:WH,
+            style={{ width:'100%', backgroundColor:'#0f1419', color:WH,
               border:'none', borderRadius:12, padding:'14px 0',
               cursor:'pointer', fontSize:15, fontWeight:800 }}>
             {t('commerce_profile.view_full_analytics_button')}
@@ -1482,7 +1482,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         textTransform:'capitalize' }}>
                         {e.eventType.replace(/_/g,' ')}
                       </div>
-                      <div style={{ fontSize:10, color:'#94a3b8' }}>
+                      <div style={{ fontSize:12, color:'#94a3b8' }}>
                         {new Date(e.createdAt).toLocaleDateString('sw-TZ')}
                       </div>
                     </div>
@@ -1491,7 +1491,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         color:e.points>0?'#16a34a':'#dc2626' }}>
                         {e.points>0?'+':''}{e.points}
                       </div>
-                      <div style={{ fontSize:10, color:'#94a3b8' }}>{e.scoreAfter}</div>
+                      <div style={{ fontSize:12, color:'#94a3b8' }}>{e.scoreAfter}</div>
                     </div>
                   </div>
                 ))}
@@ -1515,7 +1515,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       onClick={()=>onNavigate(`ServiceDetail-${s.id}`)}
                       style={{ backgroundColor:WH, borderRadius:14, padding:16,
                         cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-                      <span style={{ fontSize:11, fontWeight:700,
+                      <span style={{ fontSize:12, fontWeight:700,
                         backgroundColor:'#f0fdf4', color:'#16a34a',
                         padding:'3px 10px', borderRadius:100,
                         display:'inline-block', marginBottom:8 }}>
@@ -1577,7 +1577,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 into the other's. */}
             {siblingProfiles.length > 0 && (
               <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
-                <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
+                <div style={{ fontSize:12, fontWeight:800, color:GR, textTransform:'uppercase',
                   letterSpacing:0.5, marginBottom:10 }}>
                   {t('commerce_profile.also_on_kentexa')}
                 </div>
@@ -1594,11 +1594,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                           ? <img src={sp.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : (sp.displayName||'?').charAt(0).toUpperCase()}
                       </div>
-                      <div style={{ fontSize:11, fontWeight:700, color:DK, textAlign:'center',
+                      <div style={{ fontSize:12, fontWeight:700, color:DK, textAlign:'center',
                         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', width:'100%' }}>
                         {sp.displayName}
                       </div>
-                      <div style={{ fontSize:10, color:GR }}>
+                      <div style={{ fontSize:12, color:GR }}>
                         {fmtM(sp.followersCount||0)} {t('commerce_profile.stat_followers')}
                       </div>
                     </button>
@@ -1617,7 +1617,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               if (!owner) return null;
               return (
                 <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
-                  <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
+                  <div style={{ fontSize:12, fontWeight:800, color:GR, textTransform:'uppercase',
                     letterSpacing:0.5, marginBottom:10 }}>
                     {t('commerce_profile.people_behind_this')}
                   </div>
@@ -1633,7 +1633,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                     </div>
                     <div>
                       <div style={{ fontSize:13, fontWeight:800, color:DK }}>{owner.displayName}</div>
-                      <div style={{ fontSize:11, color:GR }}>{t('commerce_profile.founder_owner_label')}</div>
+                      <div style={{ fontSize:12, color:GR }}>{t('commerce_profile.founder_owner_label')}</div>
                     </div>
                   </button>
                 </div>
@@ -1750,7 +1750,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         <div style={{ fontSize:12, fontWeight:800, color:DK }}>
                           {rv.reviewerName || t('commerce_profile.reviewer_fallback')}
                         </div>
-                        <div style={{ fontSize:10, color:'#94a3b8' }}>
+                        <div style={{ fontSize:12, color:'#94a3b8' }}>
                           {new Date(rv.createdAt).toLocaleDateString('sw-TZ')}
                         </div>
                       </div>

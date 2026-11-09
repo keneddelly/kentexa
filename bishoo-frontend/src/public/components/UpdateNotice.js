@@ -115,7 +115,7 @@ export default function UpdateNotice({
       style={{ position: 'fixed', left: 12, right: 12, top: 12, zIndex: 10000, maxWidth: 480, margin: '0 auto',
         background: '#1d4ed8', color: '#fff', borderRadius: 12, padding: '10px 14px',
         boxShadow: '0 6px 20px rgba(0,0,0,0.25)', fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>
-      🔄 {t('app_update.after_form', 'Toleo jipya la KenteXa litawekwa lenyewe ukimaliza fomu hii.')}{' '}
+      {t('app_update.after_form', 'Toleo jipya la KenteXa litawekwa lenyewe ukimaliza fomu hii.')}{' '}
       <button type="button" onClick={() => doReload(latest)}
         style={{ background: 'none', border: 'none', color: '#fff', textDecoration: 'underline',
           fontSize: 13, fontWeight: 800, cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>

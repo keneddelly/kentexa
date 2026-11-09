@@ -27,7 +27,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         .cart-qty { display: flex; align-items: center; border: 1.5px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
         .cart-qty-btn { width: 30px; height: 30px; background: #f8fafc; border: none; cursor: pointer; font-size: 16px; font-weight: 700; color: #1d4ed8; display: flex; align-items: center; justify-content: center; }
         .cart-qty-num { width: 28px; text-align: center; font-size: 13px; font-weight: 800; color: #0f172a; }
-        .cart-remove { background: none; border: none; cursor: pointer; font-size: 11px; font-weight: 700; color: #ef4444; padding: 4px 8px; border-radius: 6px; background: #fee2e2; }
+        .cart-remove { background: none; border: none; cursor: pointer; font-size: 12px; font-weight: 700; color: #dc2626; padding: 4px 8px; border-radius: 6px; background: #fee2e2; }
 
         /* Summary card */
         .cart-summary { background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
@@ -44,7 +44,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       `}</style>
 
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '16px 16px 20px' }}>
+      <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', padding: '16px 16px 20px' }}>
         <button onClick={() => onNavigate('Home')}
           style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
           ← Home
@@ -76,7 +76,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <h2 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: 0 }}>{t('cart.items_col_title', { count: cart.length })}</h2>
                 <button onClick={clearCart}
-                  style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                  style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                   {t('cart.clear_all')}
                 </button>
               </div>
@@ -98,7 +98,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                       {/* Info */}
                       <div className="cart-item-info">
                         <div className="cart-item-name">{item.name}</div>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, backgroundColor: '#ede9fe', color: '#7c3aed' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 7px', borderRadius: 6, backgroundColor: '#f7f9f9', color: '#0f1419' }}>
                           {item.category?.replace(/_/g, ' ')}
                         </span>
                         <div className="cart-item-price">TZS {itemPrice.toLocaleString()}</div>
@@ -171,7 +171,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   {isLoggedIn ? t('cart.checkout') : t('cart.login_checkout')}
                 </button>
 
-                <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8', marginTop: 10 }}>
+                <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 10 }}>
                   {t('cart.secure_note')}
                 </div>
               </div>

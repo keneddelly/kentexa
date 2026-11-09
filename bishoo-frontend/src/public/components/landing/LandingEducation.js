@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import LineIcon from '../LineIcon';
 
 /**
  * Landing Localization L2 — the public product-education body of Welcome.js.
@@ -80,10 +81,10 @@ const LandingEducation = ({ intent, onNavigate }) => {
   const orderedFeatures = leadFeature ? [leadFeature, ...FEATURES.filter((f) => f !== leadFeature)] : FEATURES;
 
   const featureCopy = {
-    sell: { title: t('landing.features.sell_title'), desc: t('landing.features.sell_desc'), icon: '🏪' },
-    service: { title: t('landing.features.service_title'), desc: t('landing.features.service_desc'), icon: '🛠️' },
-    classifieds: { title: t('landing.features.classifieds_title'), desc: t('landing.features.classifieds_desc'), icon: '📋' },
-    moments: { title: t('landing.features.moments_title'), desc: t('landing.features.moments_desc'), icon: '⚡' },
+    sell: { title: t('landing.features.sell_title'), desc: t('landing.features.sell_desc'), icon: 'store' },
+    service: { title: t('landing.features.service_title'), desc: t('landing.features.service_desc'), icon: 'wrench' },
+    classifieds: { title: t('landing.features.classifieds_title'), desc: t('landing.features.classifieds_desc'), icon: 'list' },
+    moments: { title: t('landing.features.moments_title'), desc: t('landing.features.moments_desc'), icon: 'bolt' },
   };
 
   const whatIsChips = [
@@ -102,7 +103,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
   // of steps" even with different copy).
   const businessItems = [1, 2, 3, 4, 5, 6].map((n) => ({
     title: t(`landing.business.item${n}_title`), desc: t(`landing.business.item${n}_desc`),
-    icon: ['🏢', '📦', '⚡', '💬', '🧾', '🛠️'][n - 1],
+    icon: ['office', 'box', 'bolt', 'chat', 'receipt', 'wrench'][n - 1],
   }));
 
   const howItWorksSteps = [1, 2, 3, 4, 5].map((n) => ({
@@ -147,7 +148,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14, marginTop: 20 }}>
             {orderedFeatures.map((key) => (
               <div key={key} style={cardStyle}>
-                <div style={{ fontSize: 26, marginBottom: 8 }}>{featureCopy[key].icon}</div>
+                <div style={{ marginBottom: 8 }}><LineIcon name={featureCopy[key].icon} size={26} /></div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{featureCopy[key].title}</div>
                 <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{featureCopy[key].desc}</div>
               </div>
@@ -177,7 +178,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
           {businessItems.map((item) => (
             <div key={item.title} style={cardStyle}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>{item.icon}</div>
+              <div style={{ marginBottom: 6 }}><LineIcon name={item.icon} size={22} /></div>
               <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>{item.title}</div>
               <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6 }}>{item.desc}</div>
             </div>
@@ -191,13 +192,13 @@ const LandingEducation = ({ intent, onNavigate }) => {
           <h2 style={sectionHeading}>{t('landing.personal_vs_business.heading')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 14, marginTop: 20 }}>
             <div style={cardStyle}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>🙋</div>
+              <div style={{ fontSize: 24, marginBottom: 8 }}><LineIcon name="person" size={24} /></div>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{t('landing.personal_vs_business.personal_title')}</div>
               <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 8 }}>{t('landing.personal_vs_business.personal_desc')}</div>
               <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>{t('landing.personal_vs_business.personal_example')}</div>
             </div>
             <div style={cardStyle}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>🏪</div>
+              <div style={{ fontSize: 24, marginBottom: 8 }}><LineIcon name="store" size={24} /></div>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{t('landing.personal_vs_business.business_title')}</div>
               <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 8 }}>{t('landing.personal_vs_business.business_desc')}</div>
               <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>{t('landing.personal_vs_business.business_example')}</div>
@@ -262,7 +263,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
           {momentsExamples.map((ex) => (
             <span key={ex} style={{ backgroundColor: '#fef3c7', color: '#92400e', fontSize: 12, fontWeight: 700,
               padding: '8px 14px', borderRadius: 100, border: '1px solid #fde68a' }}>
-              ⚡ {ex}
+              {ex}
             </span>
           ))}
         </div>
@@ -318,7 +319,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {trustPoints.map((point, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 15, flexShrink: 0, color: '#16a34a', fontWeight:800, marginTop: 1 }}>✓</span>
+                <span style={{ fontSize: 15, flexShrink: 0, color: '#16a34a', fontWeight:800, marginTop: 1 }}><LineIcon name="check" size={16} /></span>
                 <span style={{ fontSize: 13, color: '#334155', lineHeight: 1.6 }}>{point}</span>
               </div>
             ))}
@@ -327,7 +328,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
       </section>
 
       {/* ── Final CTA ── */}
-      <section style={{ ...sectionWrap, background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', maxWidth: 'none', textAlign: 'center' }}>
+      <section style={{ ...sectionWrap, background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', maxWidth: 'none', textAlign: 'center' }}>
         <h2 style={{ ...sectionHeading, color: '#fff' }}>{t('landing.final_cta.heading')}</h2>
         <p style={{ ...sectionBody, color: 'rgba(255,255,255,0.8)' }}>{t('landing.final_cta.desc')}</p>
         <button onClick={() => onNavigate('Register')}

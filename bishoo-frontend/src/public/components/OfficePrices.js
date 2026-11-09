@@ -167,7 +167,7 @@ const OfficePrices = () => {
     } finally { setRateSaving(false); }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳</div>;
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>;
 
   return (
     <>
@@ -176,7 +176,7 @@ const OfficePrices = () => {
           <div data-testid="bei-card" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginTop: 16 }}>
             <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 12 }}>
-              📋 {t('super_agent_settings.rates_title')}
+              {t('super_agent_settings.rates_title')}
             </div>
             {rule && <ChargeRuleSection rule={rule} form={ruleForm} onChange={setRuleForm} />}
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
@@ -187,7 +187,7 @@ const OfficePrices = () => {
             {rateError && (
               <div style={{ color: '#dc2626', backgroundColor: '#fee2e2',
                 padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
-                ❌ {rateError}
+                {rateError}
               </div>
             )}
             {rateMessage && (
@@ -207,7 +207,7 @@ const OfficePrices = () => {
                 gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 8, marginBottom: 10,
                 paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_destination_label')}
                   </label>
@@ -218,14 +218,14 @@ const OfficePrices = () => {
                     {regionNames.map(n => <option key={n} value={n} disabled={taken.has(n)}>{n}</option>)}
                   </select>
                   {legacy && (
-                    <div data-testid="route-legacy-warning" style={{ fontSize: 11, color: '#b45309',
+                    <div data-testid="route-legacy-warning" style={{ fontSize: 12, color: '#d97706',
                       backgroundColor: '#fef3c7', padding: '6px 10px', borderRadius: 8, marginTop: 6 }}>
-                      ⚠️ {t('super_agent_settings.rate_destination_unknown', { city: r.destinationCity.trim() })}
+                      {t('super_agent_settings.rate_destination_unknown', { city: r.destinationCity.trim() })}
                     </div>
                   )}
                 </div>
                 {byKg && <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_per_kg_label')}
                   </label>
@@ -233,7 +233,7 @@ const OfficePrices = () => {
                     onChange={e => updateRate(i, 'ratePerKg', e.target.value)} style={inp} />
                 </div>}
                 {byKg && <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_minimum_label')}
                   </label>
@@ -241,7 +241,7 @@ const OfficePrices = () => {
                     onChange={e => updateRate(i, 'minimumCharge', e.target.value)} style={inp} />
                 </div>}
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
                     color: '#475569', marginBottom: 4 }}>
                     {t('super_agent_settings.rate_days_label')}
                   </label>

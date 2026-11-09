@@ -37,12 +37,12 @@ export const ADMIN_SECTIONS = Object.freeze([
 ]);
 export const ADMIN_NAVIGATION = Object.freeze([
   ['Dashboard', 'Muhtasari', 'dashboard', 'overview'], ['AdminActivity', 'Shughuli', 'clock', 'overview'], ['Analytics', 'Takwimu', 'analytics', 'overview'], ['Reports', 'Ripoti', 'reports', 'overview'],
-  ['Users', 'Watumiaji', 'users', 'people'], ['IdentityVerifications', 'Vitambulisho', 'identity', 'people'],
+  ['Users', 'Watumiaji', 'users', 'people'], ['AdminOnboarding', 'Karibu: wanaojiunga', 'analytics', 'people'], ['IdentityVerifications', 'Vitambulisho', 'identity', 'people'],
   ['Businesses', 'Biashara', 'business', 'business'], ['Sellers', 'Wauzaji', 'seller', 'business'], ['AdminAdvertisers', 'Watangazaji', 'announce', 'business'],
   ['AdminTeamInvitations', 'Mialiko ya timu', 'users', 'business'], ['AdminInstagram', 'Instagram', 'chat', 'business'], ['AdminPosSales', 'Mauzo ya POS', 'payments', 'business'], ['AdminHotelOrders', 'Oda za hoteli', 'orders', 'business'],
   ['Products', 'Bidhaa', 'products', 'catalog'], ['OfficialProducts', 'Katalogi rasmi', 'catalog', 'catalog'], ['AdminBrands', 'Chapa', 'brand', 'catalog'],
   ['AdminBrandAuthorizations', 'Idhini za chapa', 'verified', 'catalog'], ['AdminWarrantyClaims', 'Madai ya dhamana', 'warranty', 'catalog'],
-  ['AdminServices', 'Huduma', 'services', 'catalog'], ['Classifieds', 'Matangazo', 'listings', 'catalog'], ['Announcements', 'Matangazo ya KenteXa', 'announce', 'catalog'],
+  ['AdminServices', 'Huduma', 'services', 'catalog'], ['Classifieds', 'Matangazo', 'listings', 'catalog'],
   ['AdminMoments', 'Moments', 'listings', 'catalog'], ['AdminReports', 'Moments zilizoripotiwa', 'warning', 'catalog'], ['AdminCommunities', 'Jumuiya', 'users', 'catalog'], ['AdminReviews', 'Maoni', 'verified', 'catalog'],
   ['Orders', 'Oda', 'orders', 'orders'],
   ['AdminShipments', 'Mizigo', 'shipments', 'logistics'], ['AdminShippingCheck', 'Kwa nini hakuna?', 'search', 'logistics'],
@@ -52,7 +52,7 @@ export const ADMIN_NAVIGATION = Object.freeze([
   ['ZoneManagement', 'Kanda za Dar', 'zones', 'logistics'], ['BodaRates', 'Bei za boda', 'collection', 'logistics'], ['CollectionFees', 'Ada za kukusanya', 'collection', 'logistics'],
   ['FinancialDashboard', 'Fedha', 'finance', 'finance'], ['Payments', 'Malipo', 'payments', 'finance'], ['Payouts', 'Malipo kwa wauzaji', 'payouts', 'finance'],
   ['Invoices', 'Ankara', 'invoices', 'finance'], ['AdminKentexaFees', 'Ada ya KenteXa', 'payments', 'finance'],
-  ['ContactMessages', 'Ujumbe wa wateja', 'chat', 'support'], ['AdminNotifications', 'Taarifa zilizotumwa', 'announce', 'support'], ['Disputes', 'Migogoro', 'warning', 'support'],
+  ['ContactMessages', 'Ujumbe wa wateja', 'chat', 'support'], ['AdminChats', 'Mazungumzo', 'chat', 'support'], ['Announcements', 'Tuma taarifa', 'announce', 'support'], ['AdminNotifications', 'Taarifa zilizotumwa', 'announce', 'support'], ['Disputes', 'Migogoro', 'warning', 'support'],
   ['AdminStaff', 'Wafanyakazi', 'users', 'system'], ['Profile', 'Wasifu', 'profile', 'system'],
 ].map(([destination, label, iconId, section]) => ({ id: `admin.${destination}`, destination, label, iconId, section, placements: ['admin'] })));
 
@@ -68,7 +68,8 @@ export function adminMenuFor(roleType) {
     manager: (e) => e.destination !== 'AdminStaff' && e.destination !== 'AdminKentexaFees',
     customer_care: (e) => e.section !== 'finance' && !FINANCE_PAGES.has(e.destination) && e.destination !== 'AdminStaff',
     finance: (e) => ['overview', 'orders', 'finance'].includes(e.section) || FINANCE_PAGES.has(e.destination) || e.destination === 'Profile',
-    moderator: (e) => (['overview', 'people', 'business', 'catalog', 'support'].includes(e.section) && !FINANCE_PAGES.has(e.destination)) || e.destination === 'Profile',
+    // Tuma taarifa: admin, manager and customer care only (the server refuses finance and moderator).
+    moderator: (e) => (['overview', 'people', 'business', 'catalog', 'support'].includes(e.section) && !FINANCE_PAGES.has(e.destination) && e.destination !== 'Announcements') || e.destination === 'Profile',
   }[roleType];
   return keep ? ADMIN_NAVIGATION.filter(keep) : [];
 }

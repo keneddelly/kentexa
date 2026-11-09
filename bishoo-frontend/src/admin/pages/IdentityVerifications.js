@@ -4,7 +4,7 @@ import api from '../../api/api';
 
 const STATUS_STYLE = {
   not_submitted: { bg: '#f1f5f9', color: '#64748b', label: '— Not submitted' },
-  pending:       { bg: '#fef9c3', color: '#ca8a04', label: 'Pending' },
+  pending:       { bg: '#fffbeb', color: '#d97706', label: 'Pending' },
   verified:      { bg: '#dcfce7', color: '#16a34a', label: 'Verified' },
   rejected:      { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
 };
@@ -81,7 +81,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Review submitted NIDA/identity information</p>
           </div>
           <button onClick={() => fetchProfiles(filter)}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             Refresh
           </button>
         </div>
@@ -91,8 +91,8 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           {[
-            { key: 'pending', label: 'Pending', color: '#ca8a04' },
-            { key: 'all',     label: 'All',        color: '#6366f1' },
+            { key: 'pending', label: 'Pending', color: '#d97706' },
+            { key: 'all',     label: 'All',        color: '#0f1419' },
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -116,7 +116,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Legal Name', 'Account', 'ID Type', 'ID Number', 'Status', 'Submitted', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -135,7 +135,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{ID_TYPE_LABEL[p.idType] || '—'}</td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{p.idNumber || '—'}</td>
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#94a3b8' }}>
                         {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}
@@ -144,11 +144,11 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
                         {p.status === 'pending' && (
                           <div style={{ display: 'flex', gap: 6 }}>
                             <button onClick={e => { e.stopPropagation(); handleApprove(p.id); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Approve
                             </button>
                             <button onClick={e => { e.stopPropagation(); setSelected(p); setShowRejectModal(true); }}
-                              style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Reject
                             </button>
                           </div>
@@ -192,14 +192,14 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Submitted',     value: selected.createdAt ? new Date(selected.createdAt).toLocaleString() : null },
             ].filter(f => f.value).map(field => (
               <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
                 <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{field.value}</div>
               </div>
             ))}
 
             {selected.idDocumentImageUrl && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>ID DOCUMENT</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>ID DOCUMENT</div>
                 <a href={selected.idDocumentImageUrl} target="_blank" rel="noreferrer">
                   <img src={selected.idDocumentImageUrl} alt="ID Document"
                     style={{ width: '100%', borderRadius: 10, border: '2px solid #e2e8f0', cursor: 'pointer' }} />
@@ -210,7 +210,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
             {selected.status === 'pending' && (
               <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
-                  style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
+                  style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                   {actionLoading ? '...' : 'Verify Identity'}
                 </button>
                 <button onClick={() => setShowRejectModal(true)}

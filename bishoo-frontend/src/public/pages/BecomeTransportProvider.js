@@ -118,7 +118,7 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn = true, currentUser, a
       <div data-testid="transport-form" style={card}>
         {error && <div role="alert" style={{ backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{error}</div>}
         {identityState(identityStatus) === 'waiting' && (
-          <div role="status" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
+          <div role="status" style={{ backgroundColor: '#fffbeb', color: '#92400e', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13, lineHeight: 1.5 }}>
             <strong>{t('identity_state.waiting_title')}</strong><br />{t('transport_signup.identity_waiting_note')}
           </div>
         )}

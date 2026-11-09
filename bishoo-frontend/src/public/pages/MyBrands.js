@@ -10,12 +10,13 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04' },
+  pending:   { bg: '#fffbeb', color: '#d97706' },
   approved:  { bg: '#dcfce7', color: '#16a34a' },
   rejected:  { bg: '#fee2e2', color: '#dc2626' },
-  suspended: { bg: '#ffedd5', color: '#c2410c' },
+  suspended: { bg: '#fffbeb', color: '#d97706' },
   expired:   { bg: '#f1f5f9', color: '#64748b' },
   revoked:   { bg: '#fee2e2', color: '#dc2626' },
 };
@@ -119,7 +120,7 @@ const MyBrands = ({ onNavigate, activeProfileId }) => {
             {a.brand?.logoUrl && <img src={a.brand.logoUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />}
             <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{a.brand?.name}</div>
           </div>
-          <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20, backgroundColor: sc.bg, color: sc.color, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 20, backgroundColor: sc.bg, color: sc.color, textTransform: 'uppercase' }}>
             {t(`my_brands.status_${a.status}`)}
           </span>
         </div>
@@ -146,7 +147,7 @@ const MyBrands = ({ onNavigate, activeProfileId }) => {
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('my_brands.loading')}</div>
         ) : authorizations.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 50, backgroundColor: '#fff', borderRadius: 16 }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>🏷️</div>
+            <div style={{ fontSize: 40, marginBottom: 10 }}><LineIcon name="tag" size={40} /></div>
             <p style={{ color: '#64748b', fontSize: 13 }}>{t('my_brands.empty_state')}</p>
           </div>
         ) : (
@@ -159,7 +160,7 @@ const MyBrands = ({ onNavigate, activeProfileId }) => {
             )}
             {grouped.pending.length > 0 && (
               <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#ca8a04', marginBottom: 8, textTransform: 'uppercase' }}>{t('my_brands.section_pending')}</div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#d97706', marginBottom: 8, textTransform: 'uppercase' }}>{t('my_brands.section_pending')}</div>
                 {grouped.pending.map(renderCard)}
               </div>
             )}
@@ -231,7 +232,7 @@ const MyBrands = ({ onNavigate, activeProfileId }) => {
             <label style={{ fontSize: 12, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>{t('my_brands.evidence_label')}</label>
             <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setEvidenceFile(e.target.files?.[0] || null)}
               style={{ width: '100%', marginBottom: 4, fontSize: 13 }} />
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>{t('my_brands.evidence_hint')}</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 16 }}>{t('my_brands.evidence_hint')}</div>
 
             <button onClick={handleSubmit} disabled={submitting || !selectedBrand}
               style={{ width: '100%', padding: 14, background: !selectedBrand ? '#94a3b8' : '#1d4ed8', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight:800 }}>

@@ -37,7 +37,7 @@ describe('LandingEducation — generic (no intent)', () => {
   test('Moments education explains the concept with examples, not just "post updates"', () => {
     render(<LandingEducation intent={null} onNavigate={jest.fn()} />);
     expect(screen.getByText('landing.moments.body')).toBeInTheDocument();
-    [1, 2, 3, 4, 5].forEach((n) => expect(screen.getByText(`⚡ landing.moments.example${n}`)).toBeInTheDocument());
+    [1, 2, 3, 4, 5].forEach((n) => expect(screen.getByText(`landing.moments.example${n}`)).toBeInTheDocument());
   });
 
   test('Business section renders all 6 capability items', () => {

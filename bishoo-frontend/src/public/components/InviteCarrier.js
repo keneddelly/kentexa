@@ -56,7 +56,7 @@ export default function InviteCarrier({ shopName, destCity }) {
       <input id="invite-phone" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0712 345 678"
         style={{ height: 48, border: '1px solid #cbd5e1', borderRadius: 12, padding: '0 14px', fontSize: 16, fontFamily: 'inherit' }} />
       <a data-testid="invite-carrier-send" href={inviteUrl({ phone, text })} target="_blank" rel="noopener noreferrer"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 48, borderRadius: 12, background: '#15803d', color: '#ffffff', fontWeight: 800, textDecoration: 'none' }}>
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 48, borderRadius: 12, background: '#16a34a', color: '#ffffff', fontWeight: 800, textDecoration: 'none' }}>
         Tuma mwaliko kwa WhatsApp
       </a>
     </div>

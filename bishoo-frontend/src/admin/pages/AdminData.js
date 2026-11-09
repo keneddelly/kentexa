@@ -105,7 +105,7 @@ export default function AdminData({ dataset, activePage, onNavigate, onLogout })
           <input aria-label="Hali" placeholder="Hali (mf. open, active)" value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...input, width: 200 }} />
         </div>
         {error && <p role="alert" style={{ color: '#b91c1c' }}>{error}</p>}
-        {data?.unavailable && <p style={{ color: '#b45309' }}>Data hii haipatikani sasa kwenye server.</p>}
+        {data?.unavailable && <p style={{ color: '#d97706' }}>Data hii haipatikani sasa kwenye server.</p>}
         {!data && !error ? <p style={{ color: '#64748b' }}>Inapakia...</p> : (
           <div style={{ overflowX: 'auto', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14 }}>
             <table data-testid={`data-${dataset}`} style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>

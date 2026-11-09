@@ -4,7 +4,7 @@ import api from '../../api/api';
 
 const STATUS_STYLE = {
   active:    { bg: '#dcfce7', color: '#16a34a', label: 'Hai' },
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri' },
   suspended: { bg: '#fee2e2', color: '#dc2626', label: 'Imesimamishwa' },
   blocked:   { bg: '#f1f5f9', color: '#64748b', label: 'Imezuiwa' },
 };
@@ -17,7 +17,7 @@ const StarRating = ({ rating }) => {
       {''.repeat(full)}
       {half ? '½' : ''}
       {''.repeat(5 - full - (half ? 1 : 0))}
-      <span style={{ fontSize: 11, color: '#64748b', marginLeft: 4 }}>{Number(rating).toFixed(1)}</span>
+      <span style={{ fontSize: 12, color: '#64748b', marginLeft: 4 }}>{Number(rating).toFixed(1)}</span>
     </span>
   );
 };
@@ -25,8 +25,8 @@ const StarRating = ({ rating }) => {
 const Stat = ({ label, value, color = '#1e293b', sub }) => (
   <div style={{ textAlign: 'center' }}>
     <div style={{ fontSize: 20, fontWeight:800, color }}>{value}</div>
-    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
-    {sub && <div style={{ fontSize: 10, color }}>{sub}</div>}
+    <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
+    {sub && <div style={{ fontSize: 12, color }}>{sub}</div>}
   </div>
 );
 
@@ -90,12 +90,12 @@ const AgentPerformance = ({ onNavigate }) => {
             {[
               { label: 'Ofisi',            value: agents.length,    color: '#1d4ed8', bg: '#dbeafe' },
               { label: 'Wanaofanya kazi',  value: agents.filter(a => a.status === 'active').length, color: '#16a34a', bg: '#dcfce7' },
-              { label: 'Vifurushi Jumla',  value: agents.reduce((s,a) => s + a.totalParcelsDelivered, 0), color: '#7c3aed', bg: '#ede9fe' },
+              { label: 'Vifurushi Jumla',  value: agents.reduce((s,a) => s + a.totalParcelsDelivered, 0), color: '#0f1419', bg: '#f7f9f9' },
               { label: 'Malalamiko',       value: agents.reduce((s,a) => s + a.totalComplaints, 0), color: '#dc2626', bg: '#fee2e2' },
             ].map(c => (
               <div key={c.label} style={{ backgroundColor: c.bg, borderRadius: 12, padding: '14px 16px' }}>
                 <div style={{ fontSize: 22, fontWeight:800, color: c.color }}>{c.value}</div>
-                <div style={{ fontSize: 11, color: c.color, fontWeight: 600 }}>{c.label}</div>
+                <div style={{ fontSize: 12, color: c.color, fontWeight: 600 }}>{c.label}</div>
               </div>
             ))}
           </div>
@@ -140,7 +140,7 @@ const AgentPerformance = ({ onNavigate }) => {
                           <div style={{ fontSize: 12, color: '#64748b' }}>{agent.city} · {agent.agentCode || '—'}</div>
                           <div style={{ marginTop: 4 }}><StarRating rating={agent.rating} /></div>
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: st.bg, color: st.color }}>{st.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: st.bg, color: st.color }}>{st.label}</span>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
                         <Stat label="Vifurushi" value={agent.totalParcelsDelivered} color="#1d4ed8" />
@@ -175,18 +175,18 @@ const AgentPerformance = ({ onNavigate }) => {
                         { l: 'Vilivopotea', v: detail.totalParcelsLost, c: detail.totalParcelsLost > 0 ? '#dc2626' : '#16a34a' },
                         { l: 'Vilichelewa', v: detail.totalParcelsDelayed, c: detail.totalParcelsDelayed > 0 ? '#f59e0b' : '#16a34a' },
                         { l: 'Malalamiko', v: detail.totalComplaints, c: detail.totalComplaints > 0 ? '#dc2626' : '#16a34a' },
-                        { l: 'Muda wa Saa', v: detail.onTimeRate != null ? `${detail.onTimeRate}%` : '—', c: '#7c3aed' },
+                        { l: 'Muda wa Saa', v: detail.onTimeRate != null ? `${detail.onTimeRate}%` : '—', c: '#0f1419' },
                       ].map(item => (
                         <div key={item.l} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px' }}>
                           <div style={{ fontSize: 16, fontWeight:800, color: item.c }}>{item.v}</div>
-                          <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{item.l}</div>
+                          <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{item.l}</div>
                         </div>
                       ))}
                     </div>
 
                     <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>MAPATO</div>
-                      <div style={{ fontSize: 16, fontWeight:800, color: '#15803d' }}>TZS {Number(detail.totalEarnings).toLocaleString()}</div>
+                      <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>MAPATO</div>
+                      <div style={{ fontSize: 16, fontWeight:800, color: '#16a34a' }}>TZS {Number(detail.totalEarnings).toLocaleString()}</div>
                       {Number(detail.pendingEarnings) > 0 && (
                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
                           Inayosubiri: TZS {Number(detail.pendingEarnings).toLocaleString()}
@@ -195,9 +195,9 @@ const AgentPerformance = ({ onNavigate }) => {
                     </div>
 
                     <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: 12 }}>
-                      <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>COMMISSION RATE</div>
+                      <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>COMMISSION RATE</div>
                       <div style={{ fontSize: 20, fontWeight:800, color: '#1d4ed8' }}>{detail.commissionRate}%</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>ya ada ya usafirishaji</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>ya ada ya usafirishaji</div>
                     </div>
                   </>
                 ) : null}

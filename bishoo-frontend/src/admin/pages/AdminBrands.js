@@ -123,7 +123,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
           {[{ key: 'brands', label: 'Brands' }, { key: 'distributors', label: 'Distributors' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                backgroundColor: tab === t.key ? '#6366f1' : '#fff', color: tab === t.key ? '#fff' : '#64748b',
+                backgroundColor: tab === t.key ? '#0f1419' : '#fff', color: tab === t.key ? '#fff' : '#64748b',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
               {t.label}
             </button>
@@ -138,7 +138,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Name', 'Country', 'Verification', 'Active', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -148,7 +148,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
                     <td style={{ padding: '14px 16px', fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{b.name}</td>
                     <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{b.countryOfOrigin || '—'}</td>
                     <td style={{ padding: '14px 16px' }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                         backgroundColor: b.verificationStatus === 'verified' ? '#dcfce7' : '#f1f5f9',
                         color: b.verificationStatus === 'verified' ? '#16a34a' : '#64748b' }}>
                         {b.verificationStatus === 'verified' ? 'Verified' : 'Unverified'}
@@ -157,15 +157,15 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
                     <td style={{ padding: '14px 16px', fontSize: 12, color: b.isActive ? '#16a34a' : '#dc2626' }}>{b.isActive ? 'Active' : 'Inactive'}</td>
                     <td style={{ padding: '14px 16px', display: 'flex', gap: 6 }}>
                       <button onClick={() => verifyBrand(b)}
-                        style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                        style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                         {b.verificationStatus === 'verified' ? 'Unverify' : 'Verify'}
                       </button>
                       <button onClick={() => toggleBrandActive(b)}
-                        style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                        style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                         {b.isActive ? 'Deactivate' : 'Activate'}
                       </button>
                       <button onClick={() => { setOwnerBrand(b); setOwnerUserId(''); }}
-                        style={{ backgroundColor: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                        style={{ backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                         Assign Owner
                       </button>
                     </td>
@@ -180,7 +180,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Name', 'Contact', 'Verification', 'Active'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -250,7 +250,7 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
               <button onClick={() => { setOwnerBrand(null); setOwnerUserId(''); }}
                 style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'pointer', fontWeight: 700 }}>Cancel</button>
               <button onClick={assignOwner} disabled={saving}
-                style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
+                style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#0f1419', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
                 {saving ? 'Assigning...' : 'Assign'}
               </button>
             </div>

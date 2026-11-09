@@ -9,7 +9,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
 const STATUS_META = {
-  submitted:    { color: '#ca8a04', bg: '#fef9c3' },
+  submitted:    { color: '#d97706', bg: '#fffbeb' },
   under_review: { color: '#1d4ed8', bg: '#eff6ff' },
   approved:     { color: '#16a34a', bg: '#f0fdf4' },
   rejected:     { color: '#dc2626', bg: '#fee2e2' },
@@ -87,7 +87,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <BackBar onBack={() => onNavigate('back')} title={`🛡️ ${t('seller_warranty_claims.title')}`} top={0} />
+      <BackBar onBack={() => onNavigate('back')} title={`${t('seller_warranty_claims.title')}`} top={0} />
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>{t('seller_warranty_claims.intro')}</p>
 
@@ -111,7 +111,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
         {registration && (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>{t('seller_warranty_claims.order_label', { id: registration.orderId })}</div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
               {t('seller_warranty_claims.expires_label', { date: new Date(registration.expiresAt).toLocaleDateString() })}
             </div>
           </div>
@@ -123,7 +123,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
             <div key={claim.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                 <div style={{ fontSize: 13, color: '#0f172a', flex: 1 }}>{claim.reason}</div>
-                <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 20, color: meta.color, backgroundColor: meta.bg, whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 10px', borderRadius: 20, color: meta.color, backgroundColor: meta.bg, whiteSpace: 'nowrap' }}>
                   {t(`seller_warranty_claims.status_${claim.status}`)}
                 </span>
               </div>
@@ -136,7 +136,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
                 </div>
               )}
               {claim.resolution && (
-                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 8 }}>{t('seller_warranty_claims.resolution_label')}: {claim.resolution}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{t('seller_warranty_claims.resolution_label')}: {claim.resolution}</div>
               )}
               {!['approved', 'rejected', 'resolved'].includes(claim.status) && (
                 <button onClick={() => openReview(claim)}
@@ -164,7 +164,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
                 <button key={s} onClick={() => setReviewStatus(s)}
                   style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: reviewStatus === s ? '2px solid #1d4ed8' : '1px solid #e2e8f0',
                     backgroundColor: reviewStatus === s ? '#eff6ff' : '#fff', color: reviewStatus === s ? '#1d4ed8' : '#64748b',
-                    fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                   {t(`seller_warranty_claims.status_${s}`)}
                 </button>
               ))}

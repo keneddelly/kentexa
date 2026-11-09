@@ -180,7 +180,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
                   </div>
 
                   <div style={{ padding:12 }}>
-                    <div style={{ fontSize:9, fontWeight:800, color:GR, textTransform:'uppercase',
+                    <div style={{ fontSize:12, fontWeight:800, color:GR, textTransform:'uppercase',
                       letterSpacing:0.4, marginBottom:4 }}>
                       {meta.label}
                     </div>
@@ -195,7 +195,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
                       </div>
                     )}
                     {item.business?.name && (
-                      <div style={{ fontSize:11, color:GR, overflow:'hidden',
+                      <div style={{ fontSize:12, color:GR, overflow:'hidden',
                         textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                         {item.business.name}
                       </div>
