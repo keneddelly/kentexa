@@ -7,7 +7,7 @@
 
 ## 1. Executive decision
 
-Kentexa POS should use a **free core + paid add-ons + optional business subscriptions** model.
+Kentexa POS should use a **free core + prepaid credits + optional one-time paid add-ons** model. The preferred payment approach is pay-as-you-go credit top-ups, not monthly subscriptions.
 
 The owner's current growth priority is daily active users and adoption, not maximizing revenue per user. POS must therefore be useful enough that a small business can operate its everyday shop without paying Kentexa.
 
@@ -15,7 +15,7 @@ Monetization should happen when a business voluntarily chooses additional conven
 
 **Core principle: Never force a business to pay just to continue its normal daily POS operations.**
 
-This is the preferred commercial direction. Do not replace it with a mandatory trial, compulsory subscription, or paywall around essential POS workflows without explicit owner approval.
+This is the preferred commercial direction. Do not introduce monthly or annual recurring subscriptions as the default monetization model. Do not replace it with a mandatory trial, compulsory recurring payment, or paywall around essential POS workflows without explicit owner approval.
 
 ## 2. Keep essential POS free
 
@@ -51,9 +51,9 @@ Rules:
 - Basic reports remain viewable inside Kentexa POS for free.
 - Never charge merely because a user opens or views their own report.
 - Charge only when the business explicitly chooses an SMS delivery or another clearly priced SMS service.
-- Show the number of messages and the applicable cost before sending or enabling a recurring SMS automation.
+- Show the number of messages and the credit cost before sending or enabling a recurring SMS automation. Recurring automation must consume credits transparently only when messages are actually sent.
 - Make recurring messages opt-in, configurable, and easy to pause.
-- Show credit balance, message history, delivery status where available, and clear deductions.
+- Let businesses buy credits in advance, see their balance, review a clear transaction/usage history, and understand each deduction. Show delivery status where available.
 - Do not claim a message was delivered when the SMS provider only accepted or queued it.
 - Define fair handling for failed, rejected, duplicate, or uncertain provider submissions before billing is implemented. Use provider delivery evidence and idempotency; do not silently double-charge.
 - SMS unit costs and prices must be country- and provider-aware. Tanzania and DRC may have different routes, costs, currencies, and delivery behavior.
@@ -80,23 +80,28 @@ Possible opt-in add-ons:
 
 Any customer-facing communication must respect consent, frequency controls, and applicable local rules. AI or automation must not send consequential or sensitive messages without the appropriate authorization and controls.
 
-## 4. Optional business subscriptions
+## 4. Credit-based purchases and optional business add-ons
 
-Subscriptions may package higher-level capabilities for businesses that have grown beyond a single small shop.
+The preferred commercial experience is a prepaid wallet/credit balance that a business tops up when it wants to use paid Kentexa services. Avoid forcing merchants into monthly or annual subscriptions.
 
-Potential subscription value:
-- Multi-branch management.
-- Consolidated branch reporting.
-- Advanced staff and operational controls.
-- More advanced analytics.
-- Higher automation capacity or bundled add-on allowances.
-- Centralized management across locations.
+Possible credit-funded services include:
+- SMS messages and other metered third-party services.
+- Scheduled report delivery and premium report exports where there is a clear incremental cost or value.
+- Optional automation runs or message campaigns.
+- Other clearly described pay-as-you-go services.
 
-These are candidate capabilities, not a finalized pricing or packaging commitment. Validate demand with real merchants before fixing tiers, limits, or prices.
+For larger-business capabilities such as multi-branch management, consolidated reporting, or advanced staff controls, first validate the best one-time or credit-based purchase model. Do not silently turn these into recurring subscriptions. If a capability needs ongoing infrastructure costs, explain the cost and obtain the owner's approval for its pricing model before implementation.
 
-A subscription must remain optional. A business that does not subscribe must still be able to use the free core POS.
+Credit rules:
+- Show the credit price before a purchase or action.
+- Let the merchant choose when and how much to top up; no automatic recurring recharge by default.
+- Show the balance, top-up history, usage ledger, and reason for every deduction.
+- Use country-aware pricing and currency handling.
+- Handle payment confirmation, duplicate callbacks, refunds, failed actions, and uncertain provider outcomes safely and idempotently.
+- Do not deduct credits twice for a single action.
+- Define expiry/refund policy transparently and obtain owner approval before setting one.
 
-Avoid charging twice for the same capability: clearly distinguish included subscription allowances from separately purchased add-ons.
+Credits are for optional paid services. They must never be required to record ordinary sales, manage essential stock, or view basic business records.
 
 ## 5. International-ready product direction
 
@@ -120,10 +125,10 @@ International readiness does not mean every country is automatically supported o
 
 ## 6. Guardrails for pricing and user trust
 
-1. No mandatory subscription for core POS use.
+1. No mandatory subscription or recurring payment for core POS use.
 2. No hidden deductions or surprise billing.
 3. Show the price before an optional paid action.
-4. Make recurring paid services explicitly opt-in.
+4. Make recurring automations explicitly opt-in; charge credits only for the usage the merchant authorized.
 5. Allow users to see balances, usage, and transaction history.
 6. Explain what is free and what is paid in plain language.
 7. Do not make basic access to business records conditional on payment.
@@ -137,9 +142,9 @@ When POS monetization work is actually prioritized:
 
 1. Validate the existing free POS workflows and identify their true infrastructure costs.
 2. Measure merchant demand for SMS reports, alerts, reminders, and advanced reports.
-3. Design transparent SMS credits and country-specific provider-cost handling.
-4. Test voluntary add-ons with real businesses before introducing broad subscriptions.
-5. Validate which larger-business capabilities justify optional subscriptions.
+3. Design transparent prepaid credits and country-specific provider-cost handling, starting with SMS.
+4. Test voluntary credit-funded add-ons with real businesses and validate credit pricing against actual costs.
+5. Validate which larger-business capabilities merit one-time purchases or other non-recurring credit-funded options.
 6. Introduce international country configurations progressively, starting with markets where real demand and provider coverage exist.
 
 Do not introduce monetization complexity ahead of product usefulness and merchant adoption.
@@ -153,7 +158,8 @@ When asked to work on POS in the future:
 - Read this decision note together with `docs/CLAUDE_KENTEXA_ROADMAP.md` and inspect the current repository state.
 - Confirm the current POS implementation, existing entitlements, billing/payment records, notification/SMS integrations, reporting, business/branch model, and role permissions before proposing architecture or code.
 - Do not assume the candidate features above already exist.
-- Do not implement billing, subscriptions, SMS credits, migrations, or payment changes solely because this note exists.
+- Do not implement billing, credit wallets, top-ups, SMS credits, migrations, or payment changes solely because this note exists.
+- Treat prepaid credits/pay-as-you-go as the approved direction; do not design monthly subscriptions unless the owner explicitly changes this decision.
 - When the owner reaches the POS architecture/development stage, prepare a repository-grounded architecture first, including domain boundaries, data model, authorization, country configuration, provider adapters, accounting/idempotency, failure handling, and migration strategy.
 - Preserve the free-core principle and voluntary nature of all paid capabilities.
 - Any concrete pricing, tier limits, paid feature boundary, or rollout country requires owner validation.
@@ -172,6 +178,6 @@ Evaluate POS using:
 - Sales processed successfully.
 - Use and perceived value of optional paid add-ons.
 - SMS cost recovery and delivery quality.
-- Voluntary subscription conversion and retention, once subscriptions exist.
+- Credit purchase, usage, repeat top-ups, and paid add-on adoption.
 
-**Product promise:** A business can start and keep using Kentexa POS for its essential daily operations for free. It pays Kentexa only when it chooses additional value or a clearly priced service.
+**Product promise:** A business can start and keep using Kentexa POS for its essential daily operations for free. It buys credits only when it chooses additional value or a clearly priced service, then uses those credits as needed.
