@@ -13,6 +13,19 @@ export class ResaleController {
     return this.svc.publicOffer(id);
   }
 
+  // ── Members (owner 2026-11-10) ──
+  @Get('membership')
+  @UseGuards(JwtAuthGuard)
+  membership(@Request() req) {
+    return this.svc.membership(req.user.id);
+  }
+
+  @Post('join')
+  @UseGuards(JwtAuthGuard)
+  join(@Request() req, @Body() body: any) {
+    return this.svc.join(req.user, body || {});
+  }
+
   @Get('mine')
   @UseGuards(JwtAuthGuard)
   mine(@Request() req) {

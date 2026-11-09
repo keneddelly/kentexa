@@ -40,3 +40,19 @@ test('not shown for a product that is not open; the link carries the offer', asy
   expect(container).toBeEmptyDOMElement();
   expect(resaleLink(product, 7)).toMatch(/\/product\/3-simu-samsung-a15\?offer=7$/);
 });
+
+test('members only (owner 2026-11-10): a non-member sees an invitation, no price; a buyer from a link sees nothing', async () => {
+  api.get.mockResolvedValue({ data: { open: true, own: false, productId: 3, member: false } });
+  const onNavigate = jest.fn();
+  await act(async () => { render(<ResalePanel product={product} isLoggedIn onNavigate={onNavigate} />); });
+  expect(screen.getByTestId('resale-join')).not.toHaveTextContent('TZS');
+  fireEvent.click(screen.getByText('Jiunge na Uza tena'));
+  expect(onNavigate).toHaveBeenCalledWith('MyResales', { tab: 'open' });
+});
+
+test('a buyer who opened a reseller link never sees the reseller box', async () => {
+  api.get.mockResolvedValue({ data: { open: true, own: false, productId: 3, member: true, supplierPrice: 42000, publicPrice: 50000, floor: 42000, offer: null } });
+  let container;
+  await act(async () => { ({ container } = render(<ResalePanel product={product} isLoggedIn onNavigate={jest.fn()} buyerView />)); });
+  expect(container).toBeEmptyDOMElement();
+});

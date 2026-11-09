@@ -2,11 +2,12 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { ResaleService } from './resale.service';
 
 /** "Uza tena" (owner 2026-11-09): who may resell, and what each screen shows. */
-function build(product: any, extra: Record<string, any[]> = {}) {
+function build(product: any, extra: Record<string, any[]> = {}, member = true) {
   const calls: any[] = [];
   const db: any = {
     query: jest.fn(async (sql: string, params: any[]) => {
       calls.push([sql, params]);
+      if (/resale_member/.test(sql) && /SELECT 1/.test(sql)) return member ? [{ ok: 1 }] : [];
       if (/FROM public\.product p WHERE p\.id/.test(sql)) return product ? [product] : [];
       if (/INSERT INTO public\.resale_offer/.test(sql)) return [{ id: 7, price: String(params[2]), note: params[3], isActive: true }];
       for (const [k, v] of Object.entries(extra)) if (sql.includes(k)) return v;
@@ -111,6 +112,7 @@ describe('Uza tena: the catalogue (owner 2026-11-10)', () => {
     const items = Array.from({ length: 31 }, (_, i) => ({ id: i + 1, name: `Simu ${i}`, images: 'a.jpg', category: 'electronics', basePrice: '50000',
       resalePrice: '42000', resaleMinPrice: null, stock: 3, sellerId: 9, supplierName: 'BIS' }));
     const db: any = { query: jest.fn(async (sql: string, params: any[]) => {
+      if (/resale_member/.test(sql)) return [{ ok: 1 }];
       calls.push([sql, params]);
       return /GROUP BY p.category/.test(sql) ? [{ category: 'electronics', n: 31 }] : items;
     }) };
@@ -130,5 +132,25 @@ describe('Uza tena: the catalogue (owner 2026-11-10)', () => {
   it('a shop page asks how many of its products are open', async () => {
     const db: any = { query: jest.fn(async () => [{ n: 4 }]) };
     await expect(new ResaleService(db, { record: jest.fn() } as any).supplierOpenCount(9)).resolves.toEqual({ supplierId: 9, count: 4 });
+  });
+});
+
+describe('Uza tena members (owner 2026-11-10): prices only for people who joined', () => {
+  const phone2 = { resaleOpen: true, resalePrice: '42000.00', resaleMinPrice: null, basePrice: '50000.00', sellerId: 9, isActive: true, id: 3, name: 'Simu' };
+  it('a non-member sees that it can be resold, never a price; cannot save an offer or open the catalogue', async () => {
+    const { svc } = build(phone2, {}, false);
+    const t: any = await svc.terms(3, 20);
+    expect(t).toEqual({ open: true, productId: 3, own: false, member: false });
+    expect(JSON.stringify(t)).not.toContain('42000');
+    await expect(svc.saveOffer({ id: 20, isVerified: true }, { productId: 3, price: 55000 })).rejects.toThrow('Jiunge na Uza tena');
+    await expect(svc.openProducts(20)).rejects.toThrow('Jiunge na Uza tena');
+  });
+  it('joining needs a verified phone and the rules accepted; it is recorded', async () => {
+    const { svc, events, calls } = build(phone2, { '"rulesAcceptedAt", "isActive" FROM public.resale_member': [{ joinedAt: 'x', rulesAcceptedAt: 'y', isActive: true }] });
+    await expect(svc.join({ id: 20, isVerified: false }, { acceptRules: true })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(svc.join({ id: 20, isVerified: true }, {})).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.join({ id: 20, isVerified: true }, { acceptRules: true })).resolves.toEqual({ member: true, joinedAt: 'x', rulesAccepted: true });
+    expect(calls.some(([sql]: any) => /INSERT INTO public.resale_member/.test(sql))).toBe(true);
+    expect(events.record).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'RESELLER_JOINED', actorId: 20 }));
   });
 });

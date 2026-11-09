@@ -74,6 +74,7 @@ export default function AdminResale({ activePage, onNavigate, onLogout }) {
             <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }} data-testid="resale-network">
               <Stat label="Maduka yaliyofungua bidhaa" value={fmt(n?.suppliers)} />
               <Stat label="Bidhaa za kuuza tena" value={fmt(n?.products)} />
+              <Stat label="Wanachama wa Uza tena" value={fmt(n?.members)} />
               <Stat label="Wauzaji wenye ofa" value={fmt(n?.resellers)} />
               <Stat label="Ofa zilizo wazi" value={fmt(n?.offers)} />
             </section>

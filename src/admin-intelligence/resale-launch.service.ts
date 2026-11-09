@@ -25,7 +25,8 @@ export class ResaleLaunchService {
         (SELECT count(DISTINCT p."sellerId") FROM public.product p WHERE p."resaleOpen" = true AND p."resalePrice" > 0)::int AS suppliers,
         (SELECT count(*) FROM public.product p WHERE p."resaleOpen" = true AND p."resalePrice" > 0 AND p."isActive" = true)::int AS products,
         (SELECT count(DISTINCT o."resellerUserId") FROM public.resale_offer o WHERE o."isActive" = true)::int AS resellers,
-        (SELECT count(*) FROM public.resale_offer o WHERE o."isActive" = true)::int AS offers`)) || [null];
+        (SELECT count(*) FROM public.resale_offer o WHERE o."isActive" = true)::int AS offers,
+        (SELECT count(*) FROM public.resale_member m WHERE m."isActive" = true AND m."rulesAcceptedAt" IS NOT NULL)::int AS members`)) || [null];
 
     const since = new Date(now - WEEKS * 7 * DAY);
     const rows = (await this.q(

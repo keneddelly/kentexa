@@ -28,7 +28,7 @@ const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(/[^0
 /** The link a reseller shares: the product page with their offer on it. */
 export const resaleLink = (product, offerId) => `${productLink(product.id, product.name)}?offer=${offerId}`;
 
-export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate }) {
+export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate, buyerView = false }) {
   const [terms, setTerms] = useState(null);
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState('');
@@ -114,6 +114,18 @@ export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate }
 
   // ── Anyone else: "Uza tena" ───────────────────────────────────────────────
   if (!showForReseller) return null;
+  // A buyer who came through a reseller's link never sees reseller prices or this box (owner 2026-11-10).
+  if (buyerView) return null;
+  // Not a member yet: no prices, only the invitation to join (one tap, no fee).
+  if (isLoggedIn && terms && terms.member === false) {
+    return (
+      <section data-testid="resale-join" style={box}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: DK }}>Uza bidhaa hii upate faida</div>
+        <div style={{ fontSize: 14, color: GR }}>Jiunge na Uza tena uone bei ya wauzaji. Ni bure, hakuna ada.</div>
+        <button type="button" onClick={() => onNavigate('MyResales', { tab: 'open' })} style={btn(DK)}>Jiunge na Uza tena</button>
+      </section>
+    );
+  }
   if (!isLoggedIn) {
     return (
       <section style={box}>
