@@ -48,7 +48,7 @@ const label = { fontSize: 13, color: GR, fontWeight: 600, display: 'flex', flexD
 
 const Shell = ({ children, onBack, title, right }) => (
   <div style={{ minHeight: '100vh', background: WH, color: DK }}>
-    <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}`, paddingBottom: 96 }}>
+    <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}`, paddingBottom: isLoggedIn ? 160 : 96 }}>
       <header style={{ position: 'sticky', top: 'env(safe-area-inset-top, 0px)', zIndex: 20, height: 52, display: 'flex', alignItems: 'center', gap: 4, padding: '0 6px',
         background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${LINE}` }}>
         <IconBtn label="Rudi" onClick={onBack}><Icon d={IC.back} size={22} /></IconBtn>
@@ -243,8 +243,13 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
         {Number.isFinite(Number(ad.views)) && <p style={{ margin: '12px 0 0', fontSize: 13, color: GR }}>{t('service_detail.views_count', { count: Number(ad.views) + 1 })}</p>}
       </section>
 
+      <style>{`.sd-actions{bottom:0}.sd-actions-nav{bottom:calc(60px + env(safe-area-inset-bottom, 0px))}@media (min-width:1024px){.sd-actions-nav{bottom:0}}`}</style>
       {!sent && !isOwner && (
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, background: WH, borderTop: `1px solid ${LINE}`,
+        // Above the phone's bottom menu (owner 2026-11-09: "the request service button is lost": the
+        // menu bar, 60px at zIndex 1000, covered this bar for signed-in people). On a computer the
+        // menu is a side bar, so the bar sits at the very bottom.
+        <div data-testid="service-actions" className={isLoggedIn ? 'sd-actions sd-actions-nav' : 'sd-actions'}
+          style={{ position: 'fixed', left: 0, right: 0, zIndex: 1100, background: WH, borderTop: `1px solid ${LINE}`,
           padding: '10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))' }}>
           <div style={{ maxWidth: 568, margin: '0 auto', display: 'flex', gap: 8 }}>
             {ad.provider?.id && (
@@ -262,7 +267,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
 
       {showForm && (
         <div role="dialog" aria-label={t('service_detail.request_service_button')} onClick={() => setShowForm(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(15,20,25,0.4)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          style={{ position: 'fixed', inset: 0, zIndex: 2100, background: 'rgba(15,20,25,0.4)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()}
             style={{ width: '100%', maxWidth: 600, background: WH, borderRadius: '18px 18px 0 0', padding: '18px 16px calc(18px + env(safe-area-inset-bottom, 0px))',
               boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90vh', overflowY: 'auto' }}>
