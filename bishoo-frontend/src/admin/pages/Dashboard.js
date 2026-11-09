@@ -59,7 +59,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
     { key: 'contact', title: 'Ujumbe wa wateja', value: act.contactOpen, page: 'ContactMessages' },
     { key: 'disputes', title: 'Migogoro wazi', value: act.disputesOpen, page: 'Disputes' },
     { key: 'pickups', title: 'Kazi za mawakala zinasubiri', value: act.pickupsWaiting, page: 'AdminShipments' },
-    { key: 'reported', title: 'Moments zilizoripotiwa (siku 7)', value: act.momentsReportedWeek, page: 'Dashboard' },
+    { key: 'reported', title: 'Moments zilizoripotiwa (siku 7)', value: act.momentsReportedWeek, page: 'AdminReports' },
   ];
   const statCards = [
     { title: 'Watumiaji', value: n(o.users?.total), sub: `+${n(o.users?.today)} leo · +${n(o.users?.week)} siku 7`, color: '#10b981', page: 'Users' },
