@@ -424,6 +424,42 @@ export class Order {
   @Column({ type: 'boolean', nullable: true })
   platformFeePaid: boolean | null;
 
+  // ── "Uza tena" (resell), owner 2026-11-09, migration 1795800000000 ──────────
+  // The order is the supplier's own order (its product, its seller). When it came through a
+  // reseller's offer it also carries who resold it and the amounts fixed at order time:
+  // the buyer paid resaleUnitPrice, the supplier keeps supplierUnitPrice, and owes the
+  // reseller resellerProfit = (resaleUnitPrice - supplierUnitPrice) x quantity after delivery.
+  @Column({ type: 'int', nullable: true })
+  resaleOfferId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  resellerUserId: number | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  resaleUnitPrice: number | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  supplierUnitPrice: number | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  resellerProfit: number | null;
+
+  // The profit record: the supplier paid (with its mobile money reference), the reseller confirmed or disputed.
+  @Column({ type: 'timestamptz', nullable: true })
+  resellerPaidAt: Date | null;
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  resellerPaidRef: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  resellerConfirmedAt: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  resellerDisputedAt: Date | null;
+
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  resellerDisputeNote: string | null;
+
   // ── Dispute ───────────────────────────────────────────────────────────────
   @Column({ type: 'text', nullable: true })
   disputeReason: string | null;

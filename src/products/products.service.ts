@@ -36,6 +36,7 @@ import { validateAttributes, validateVariantAttributes } from '../categories/cat
 import { ProductVariantGroup } from './entities/product-variant-group.entity';
 import { ProductSerial, ProductSerialStatus } from './entities/product-serial.entity';
 import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
+import { assertResaleTerms } from '../resale/resale-rules';
 import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 
 @Injectable()
@@ -866,6 +867,17 @@ export class ProductsService {
       if (attributeErrors.length) {
         throw new BadRequestException(attributeErrors.join('; '));
       }
+    }
+
+    // "Uza tena": the resale terms are checked together (the supplier price is never loaded with
+    // the product, so the stored one is read here when only part of the terms changes).
+    if (dto.resaleOpen !== undefined || dto.resalePrice !== undefined || dto.resaleMinPrice !== undefined) {
+      const [stored] = await this.repo.query(`SELECT "resalePrice" FROM public.product WHERE id = $1::int`, [id]);
+      assertResaleTerms({
+        resaleOpen: dto.resaleOpen ?? product.resaleOpen,
+        resalePrice: dto.resalePrice !== undefined ? dto.resalePrice : stored?.resalePrice ?? null,
+        resaleMinPrice: dto.resaleMinPrice !== undefined ? dto.resaleMinPrice : product.resaleMinPrice,
+      }, dto.basePrice ?? product.basePrice);
     }
 
     // Recalculate displayPrice if pricing changed

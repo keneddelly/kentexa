@@ -25,6 +25,11 @@ export class CheckoutItemDto {
   @IsNumber()
   @Min(1)
   quantity: number;
+
+  // "Uza tena": the reseller's offer this item came from (see CreateOrderDto.resaleOfferId).
+  @IsOptional()
+  @IsInt()
+  resaleOfferId?: number;
 }
 
 /**

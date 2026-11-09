@@ -106,6 +106,7 @@ import BrandDashboard from './public/pages/BrandDashboard';
 import BrandCatalog from './public/pages/BrandCatalog';
 import VerifyProduct from './public/pages/VerifyProduct';
 import MyWarranties from './public/pages/MyWarranties';
+import MyResales from './public/pages/MyResales';
 import SellerWarrantyClaims from './public/pages/SellerWarrantyClaims';
 import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
@@ -962,6 +963,7 @@ function App() {
       case 'ProductDetail':        return <ProductDetail {...publicProps} />;
       case 'VerifyProduct':        return <VerifyProduct {...publicProps} code={navParams?.code} />;
       case 'MyWarranties':         return requireLogin(<MyWarranties {...publicProps} />);
+      case 'MyResales':            return requireLogin(<MyResales {...publicProps} />);
       case 'SellerWarrantyClaims': return requireLogin(<SellerWarrantyClaims {...publicProps} />);
       case 'OrderTracking':        return requireLogin(<OrderTracking {...publicProps} />);
 

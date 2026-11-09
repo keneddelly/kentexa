@@ -15,6 +15,12 @@ export class CreateOrderDto {
   @Min(1)
   quantity: number;
 
+  // "Uza tena" (owner 2026-11-09): the reseller's offer this line was bought through. The price
+  // and the reseller are read from the saved offer on the server, never from the browser.
+  @IsOptional()
+  @IsInt()
+  resaleOfferId?: number;
+
   @IsOptional()
   @IsString()
   deliveryAddress?: string;
