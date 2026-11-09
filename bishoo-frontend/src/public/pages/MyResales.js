@@ -44,7 +44,7 @@ const RULES = [
   'Uza unachoweza kufikisha: mteja apate alichoagiza.',
   'Hakuna ada ya kujiunga. Faida yako ni kwa kila mauzo yaliyofika tu.',
 ];
-function JoinResale({ onJoined }) {
+export function JoinResale({ onJoined }) {
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');

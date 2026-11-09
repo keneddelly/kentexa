@@ -17,6 +17,9 @@ describe('OnboardingFunnelService', () => {
     expect(r.steps.find((s: any) => s.key === 'community')).toMatchObject({ count: null, percent: null });
     expect(r.goals).toHaveLength(GOAL_KEYS.length);
     expect(r.goals.find((g: any) => g.key === 'sell').count).toBe(4);
+    // The new welcome: of those who chose a goal, how many did it (owner 2026-11-10).
+    expect(r.goals.find((g: any) => g.key === 'sell').acted).toBe(4);
+    expect(r.goals.find((g: any) => g.key === 'business').acted).toBeNull();
     const since = (db.query.mock.calls[0] as any)[1][0] as Date;
     expect(Date.now() - since.getTime()).toBeGreaterThanOrEqual(7 * 86400000 - 1000);
   });

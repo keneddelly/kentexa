@@ -21,7 +21,22 @@ export const FUNNEL_STEPS: { key: string; label: string; sql: string }[] = [
   { key: 'role', label: 'Waliomba kazi (uza, ofisi, agent...)', sql: `SELECT count(*) FROM public."user" u WHERE u."createdAt" >= $1 AND EXISTS (SELECT 1 FROM public.account_role r WHERE r."userId" = u.id AND r."roleType"::text <> 'buyer')` },
 ];
 
-export const GOAL_KEYS = ['buy', 'sell', 'resell', 'service', 'business', 'office', 'agent', 'transport', 'send'];
+export const GOAL_KEYS = ['resell', 'buy', 'sell', 'service', 'business', 'office', 'agent', 'transport', 'send'];
+
+/**
+ * The new welcome (owner 2026-11-10): each goal has its own next step. "Acted" = of the people who
+ * chose that goal, how many did it (the first real record for it). Unknown or unreadable = null.
+ */
+const ROLE = (t: string) => `EXISTS (SELECT 1 FROM public.account_role r WHERE r."userId" = u.id AND r."roleType"::text = '${t}')`;
+export const GOAL_ACTION: Record<string, string> = {
+  resell: `EXISTS (SELECT 1 FROM public.resale_offer o WHERE o."resellerUserId" = u.id)`,
+  buy: `EXISTS (SELECT 1 FROM public."order" o WHERE o."buyerId" = u.id)`,
+  sell: ROLE('seller'),
+  service: ROLE('service_provider'),
+  office: ROLE('super_agent'),
+  agent: ROLE('agent'),
+  transport: ROLE('transport_provider'),
+};
 
 @Injectable()
 export class OnboardingFunnelService {
@@ -36,9 +51,11 @@ export class OnboardingFunnelService {
     const since = new Date(Date.now() - d * 86400000);
     const steps = await Promise.all(FUNNEL_STEPS.map(async (s) => ({ key: s.key, label: s.label, count: await this.count(s.sql, [since]) })));
     const joined = steps[0].count || 0;
+    const chose = `u."createdAt" >= $1 AND COALESCE(u."onboardingState"->'goals', '[]'::jsonb) ? $2`;
     const goals = await Promise.all(GOAL_KEYS.map(async (g) => ({
       key: g,
-      count: await this.count(`SELECT count(*) FROM public."user" u WHERE u."createdAt" >= $1 AND COALESCE(u."onboardingState"->'goals', '[]'::jsonb) ? $2`, [since, g]),
+      count: await this.count(`SELECT count(*) FROM public."user" u WHERE ${chose}`, [since, g]),
+      acted: GOAL_ACTION[g] ? await this.count(`SELECT count(*) FROM public."user" u WHERE ${chose} AND ${GOAL_ACTION[g]}`, [since, g]) : null,
     })));
     return {
       days: d, since,
