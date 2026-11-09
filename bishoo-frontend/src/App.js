@@ -963,7 +963,7 @@ function App() {
       case 'ProductDetail':        return <ProductDetail {...publicProps} />;
       case 'VerifyProduct':        return <VerifyProduct {...publicProps} code={navParams?.code} />;
       case 'MyWarranties':         return requireLogin(<MyWarranties {...publicProps} />);
-      case 'MyResales':            return requireLogin(<MyResales {...publicProps} startTab={navParams?.tab} />);
+      case 'MyResales':            return requireLogin(<MyResales {...publicProps} startTab={navParams?.tab} supplierId={navParams?.supplierId} />);
       case 'SellerWarrantyClaims': return requireLogin(<SellerWarrantyClaims {...publicProps} />);
       case 'OrderTracking':        return requireLogin(<OrderTracking {...publicProps} />);
 

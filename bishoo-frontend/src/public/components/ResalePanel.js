@@ -154,7 +154,18 @@ export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate }
         <div style={{ fontSize: 16, fontWeight: 800, color: DK }}>Uza tena upate faida</div>
         {!open && !saved && <button type="button" onClick={() => setOpen(true)} data-testid="resale-open" style={btn(B)}>Uza tena</button>}
       </div>
+      {!open && !saved && terms?.open && Number(terms.publicPrice) > sup && (
+        <div data-testid="resale-hint-profit" style={{ fontSize: 15, fontWeight: 700, color: '#166534' }}>
+          Unaweza kuuza hii: faida {tzs(Number(terms.publicPrice) - sup)} kwa bei ya duka, zaidi ukiongeza
+        </div>
+      )}
       {!open && !saved && <div style={{ fontSize: 14, color: GR }}>Huhitaji duka wala mzigo. Weka bei yako juu ya bei ya duka; duka linafikisha na linakulipa faida.</div>}
+      {!open && !saved && (
+        <button type="button" onClick={() => onNavigate('MyResales', { tab: 'open' })}
+          style={{ padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', fontFamily: 'inherit' }}>
+          Bidhaa zote za kuuza tena
+        </button>
+      )}
       {(open || saved) && terms?.open && (
         <>
           <div style={{ fontSize: 14, color: DK }}>Unalipa duka: <b>{tzs(sup)}</b> kwa kila moja{terms.minPrice ? ` · usiuze chini ya ${tzs(terms.minPrice)}` : ''}</div>

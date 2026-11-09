@@ -725,6 +725,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         {!searched && (
           <nav aria-label={t('search.search_by_type')} style={{ display:'flex', gap:8, overflowX:'auto', scrollbarWidth:'none', marginTop:10 }}>
             <button type="button" style={chip(false)} onClick={() => onNavigate('FlashSales')}>{t('search.flash_sales_title')}</button>
+            {/* "Uza tena" (owner 2026-11-10): the catalogue of products anyone can resell for a profit. */}
+            <button type="button" data-testid="search-resale" style={chip(false)} onClick={() => onNavigate('MyResales', { tab: 'open' })}>Bidhaa za kuuza tena</button>
             {CATEGORIES.map(c => (
               <button type="button" key={c.q} style={chip(false)} onClick={() => runCategory(c.label)}>{c.label}</button>
             ))}

@@ -321,6 +321,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [isFollowedBy, setIsFollowedBy] = useState(false);
   // Phase F (owner approved 2026-11-02): undo a mute from the muted profile's own page.
   const [mutedProfile, setMutedProfile] = useState(false);
+  // "Uza tena" (owner 2026-11-10): how many of this shop's products anyone may resell.
+  const [resaleCount, setResaleCount] = useState(0);
   // New profiles: post count and the topics this profile talks about (from its real posts).
   const [talk, setTalk] = useState(null);
   // New profiles part 2: Majibu and Jumuiya, read when their tab opens.
@@ -522,6 +524,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       .catch(() => {});
     return () => { alive = false; };
   }, [isLoggedIn, isOwnProfile, activeProfile?.id]);
+  const shopOwnerId = activeProfile?.ownerId;
+  useEffect(() => {
+    setResaleCount(0);
+    if (isOwnProfile || !shopOwnerId) return undefined;
+    let alive = true;
+    api.get(`/resale/suppliers/${shopOwnerId}/count`)
+      .then((r) => { if (alive) setResaleCount(Number(r?.data?.count) || 0); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isOwnProfile, shopOwnerId]);
   const handleUnmute = async () => {
     try {
       const r = await api.post('/feed/mute', { commerceProfileId: activeProfile.id });
@@ -925,6 +937,15 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             padding:'10px 12px', border:`1px dashed ${LINE}`, borderRadius:12, background:WH, cursor:'pointer', fontFamily:'inherit', fontSize:14 }}>
           <span style={{ color:MUTED }}>Hii ni biashara yako: oda, takwimu na zana zipo Kazi</span>
           <span style={{ color:B, fontWeight:700, whiteSpace:'nowrap' }}>Fungua Kazi</span>
+        </button>
+      )}
+
+      {resaleCount > 0 && (
+        <button type="button" data-testid="profile-resale" onClick={() => onNavigate('MyResales', { tab: 'open', supplierId: shopOwnerId })}
+          style={{ margin:'0 16px 12px', width:'calc(100% - 32px)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+            padding:'10px 12px', border:`1px solid ${LINE}`, borderRadius:12, background:WH, cursor:'pointer', fontFamily:'inherit', fontSize:14 }}>
+          <span style={{ color:'#0f1419' }}>Duka hili linaruhusu wauzaji: bidhaa {resaleCount}</span>
+          <span style={{ color:B, fontWeight:700, whiteSpace:'nowrap' }}>Uza upate faida</span>
         </button>
       )}
 

@@ -11,6 +11,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
 import { resaleLink } from '../components/ResalePanel';
+import ResaleCatalogue from '../components/ResaleCatalogue';
 
 const B = '#1d4ed8';
 const DK = '#0f1419';
@@ -37,10 +38,9 @@ const StateTag = ({ state }) => {
   return <span data-testid={`state-${state}`} style={{ fontSize: 13, fontWeight: 700, color }}>{text}</span>;
 };
 
-export default function MyResales({ onNavigate, startTab }) {
-  const [tab, setTab] = useState(startTab || 'mine');
+export default function MyResales({ onNavigate, startTab, supplierId }) {
+  const [tab, setTab] = useState(startTab || (supplierId ? 'open' : 'mine'));
   const [mine, setMine] = useState(null);
-  const [open, setOpen] = useState(null);
   const [profits, setProfits] = useState(null);
   const [supplier, setSupplier] = useState(null);
   const [refs, setRefs] = useState({});
@@ -61,11 +61,13 @@ export default function MyResales({ onNavigate, startTab }) {
   const dispute = (o) => act(async () => { await api.post(`/resale/orders/${o.orderId}/dispute`, {}); await loadProfits(); }, 'Duka limeambiwa hujapokea.');
 
   const loadMine = () => api.get('/resale/mine').then((r) => setMine(r.data || [])).catch(() => setMine([]));
-  useEffect(() => { loadMine(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once on open
+  // A person with no offers yet starts on the catalogue (owner 2026-11-10: easy to find).
   useEffect(() => {
-    if (tab !== 'open' || open) return;
-    api.get('/resale/products').then((r) => setOpen(r.data || [])).catch(() => setOpen([]));
-  }, [tab, open]);
+    loadMine().then(() => {}).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once on open
+  useEffect(() => {
+    if (!startTab && !supplierId && Array.isArray(mine) && mine.length === 0) setTab('open');
+  }, [mine]); // eslint-disable-line react-hooks/exhaustive-deps -- only when the offers first arrive
 
   const share = async (o) => {
     const link = resaleLink({ id: o.productId, name: o.name }, o.id);
@@ -94,9 +96,9 @@ export default function MyResales({ onNavigate, startTab }) {
         </p>
       </header>
       <div role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, padding: '0 4px' }}>
+        {tabBtn('open', 'Bidhaa za kuuza')}
         {tabBtn('mine', 'Ofa zangu')}
         {tabBtn('profits', 'Faida zangu')}
-        {tabBtn('open', 'Bidhaa za kuuza')}
         {(supplier?.items?.length > 0 || startTab === 'supplier') && tabBtn('supplier', 'Wauzaji wangu')}
       </div>
       {msg && <div role="status" style={{ margin: 16, fontSize: 14, color: '#166534', fontWeight: 600, overflowWrap: 'anywhere' }}>{msg}</div>}
@@ -199,25 +201,7 @@ export default function MyResales({ onNavigate, startTab }) {
         </div>
       )}
 
-      {tab === 'open' && (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }} data-testid="resale-open-products">
-          {open === null && <li style={{ padding: 16, color: GR }}>Inapakia...</li>}
-          {open?.length === 0 && <li style={{ padding: 16, color: GR, fontSize: 15 }}>Bado hakuna duka lililofungua bidhaa kwa wauzaji.</li>}
-          {(open || []).map((p) => (
-            <li key={p.id}>
-              <button type="button" onClick={() => onNavigate(`ProductDetail-${p.id}`)}
-                style={{ width: '100%', display: 'flex', gap: 12, padding: '12px 16px', border: 'none', borderBottom: `1px solid ${LINE}`, background: WH, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', color: DK }}>
-                {p.image ? <img src={p.image} alt="" style={thumb} /> : <span style={thumb} />}
-                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700 }}>{p.name}</span>
-                  <span style={{ fontSize: 14, color: GR }}>{p.supplierName || 'Duka'} · unalipa {tzs(p.supplierPrice)}</span>
-                  <span style={{ fontSize: 14, color: '#166534', fontWeight: 600 }}>Ukiuza kwa {tzs(p.publicPrice)} unapata {tzs(p.profitAtShopPrice)}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {tab === 'open' && <ResaleCatalogue onNavigate={onNavigate} supplierId={supplierId || null} onSaved={loadMine} />}
     </div>
   );
 }
