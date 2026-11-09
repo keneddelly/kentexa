@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-09 (Uza tena, resell):** the pin is now `MIGRATION_RUN_UPTO=1795800000000`. The next deploy
+runs `1795800000000-AddResale` itself (product: resaleOpen, resalePrice, resaleMinPrice; new table resale_offer; order: the reseller, the amounts and the profit record). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-09 (Smart Post, Uzoefu):** the pin is now `MIGRATION_RUN_UPTO=1795700000000`. The next deploy
 runs `1795700000000-AddExperiencePostIntent` itself (adds 'experience' to business_feed_item_intent_enum). Check: `/version/migrations` shows `pending: []`.
 

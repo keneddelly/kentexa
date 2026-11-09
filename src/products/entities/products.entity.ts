@@ -224,6 +224,20 @@ export class Product {
   @Column({ type: 'date', nullable: true })
   viewsResetDate: Date | null;
 
+  // ── "Uza tena" (resell), owner 2026-11-09, migration 1795800000000 ──
+  // Open for reselling: any person with a verified phone may repost it with their own price.
+  @Column({ type: 'boolean', default: false })
+  resaleOpen: boolean;
+
+  // What a reseller pays the supplier for one. Never sent to the public: select:false, read
+  // only by the resale service (signed-in "Uza tena" screen) and by checkout.
+  @Column('decimal', { precision: 10, scale: 2, nullable: true, select: false })
+  resalePrice: number | null;
+
+  // The lowest price a reseller may sell at (protects the supplier's own shop). Null = none.
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  resaleMinPrice: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

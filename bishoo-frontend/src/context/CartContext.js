@@ -64,6 +64,13 @@ export const CartProvider = ({ children }) => {
     if (product.productType !== 'digital' && Number(product.stock) <= 0) return false;
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
+      // "Uza tena": one line per product. Bought through a different reseller's link (or the shop
+      // itself), the line takes the new price and offer instead of adding to the old one.
+      if (existing && (existing.resaleOfferId || null) !== (product.resaleOfferId || null)) {
+        return prev.map(item => (item.id === product.id
+          ? { ...product, quantity: product.productType === 'digital' ? quantity : Math.min(quantity, Number(product.stock)) }
+          : item));
+      }
       if (existing) {
         return prev.map(item =>
           item.id === product.id

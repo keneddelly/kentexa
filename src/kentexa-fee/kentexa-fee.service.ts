@@ -173,8 +173,11 @@ export class KentexaFeeService implements OnModuleInit {
 
   private async sellerJobs(em: any, startAt: Date): Promise<Job[]> {
     // Marketplace (checkout) orders only: POS, own sales, seller shipments and classifieds are free.
+    // "Uza tena" (owner 2026-11-09): on a resold order the supplier keeps the price less the
+    // reseller's profit, so its 2% is on what it keeps; the reseller pays nothing during launch.
     const rows: any[] = await em.query(`
-      SELECT o.id, o."sellerId" AS "accountId", o."sellerId" AS "accountUserId", COALESCE(o."baseAmount", 0) AS base,
+      SELECT o.id, o."sellerId" AS "accountId", o."sellerId" AS "accountUserId",
+             GREATEST(COALESCE(o."baseAmount", 0) - COALESCE(o."resellerProfit", 0), 0) AS base,
              NULL::text AS ref, COALESCE(o."completedAt", o."deliveredAt") AS "doneAt"
         FROM public."order" o
        WHERE o.source::text = 'online' AND o.status::text IN ('delivered', 'completed') AND o."sellerId" IS NOT NULL

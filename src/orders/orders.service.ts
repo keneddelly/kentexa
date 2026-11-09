@@ -96,6 +96,7 @@ import { formatWaybill, normalizeWaybill } from '../shipments/waybill';
 import { parseOrderIdParam } from '../common/utils/order-id.util';
 import { ensureOrderParcel, ensureOrderParcelWithin } from './order-parcel';
 import { LIPA_PROOF_REF, signedLipaProofUrl } from './lipa-proof';
+import { resaleForOrder, resellerProfit } from '../resale/resale-rules';
 // Timed jobs run on Tanzania time (owner 2026-11-09; the server runs on UTC).
 import { TANZANIA_TZ } from '../dispatch-reminders/dispatch-reminders.config';
 
@@ -413,10 +414,16 @@ export class OrdersService {
       ? (await this.brandRepo.findOne({ where: { id: brandId } }))?.name ?? null
       : null;
 
+    // "Uza tena" (owner 2026-11-09): bought through a reseller's offer. The order stays the
+    // supplier's own order; the buyer pays the reseller's price, checked again here.
+    const resale = await resaleForOrder((sql, params) => this.repo.manager.query(sql, params),
+      dto.resaleOfferId, product.id, user?.id ?? null);
+    const pricedProduct = resale ? { ...product, basePrice: resale.resaleUnitPrice } : product;
+
     const {
       direct, chosenMethod, needsCollection, isRuralCollection, collectionFee, totalAmount,
       baseAmount, deliveryAmount, commission, isCod, codUpfrontAmount, codRemainingBalance, codSkipsPayment, shippingQuote,
-    } = await this.priceOrder(product, dto, opts);
+    } = await this.priceOrder(pricedProduct, dto, opts);
 
     const order = this.repo.create({
       buyer: user,
@@ -475,6 +482,10 @@ export class OrdersService {
       sellerPickupAddress: needsCollection
         ? (dto as any).sellerPickupAddress || null
         : null,
+      ...(resale ? {
+        ...resale,
+        resellerProfit: resellerProfit(resale.resaleUnitPrice, resale.supplierUnitPrice, dto.quantity),
+      } : {}),
     } as any);
 
     const saved = (await this.repo.save(order)) as unknown as Order;
@@ -830,7 +841,7 @@ export class OrdersService {
     for (const { item, product } of lines) {
       try {
         orders.push(await this.create(
-          { ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto,
+          { ...shared, productId: item.productId, quantity: item.quantity, resaleOfferId: item.resaleOfferId ?? undefined } as CreateOrderDto,
           user,
           { checkout: true, lipaProof: proofs.get(product.seller?.id) ?? null, place },
         ));
@@ -870,8 +881,11 @@ export class OrdersService {
     const lines = await this.checkCheckoutItems(items);
     const sellers = new Map<number, any>();
     for (const { item, product } of lines) {
+      // "Uza tena": the amount asked by Lipa Namba is the reseller's price, exactly as create() charges it.
+      const resale = await resaleForOrder((sql, params) => this.repo.manager.query(sql, params),
+        item.resaleOfferId, product.id, _user?.id ?? null);
       const price = await this.priceOrder(
-        product,
+        resale ? { ...product, basePrice: resale.resaleUnitPrice } : product,
         { ...shared, productId: item.productId, quantity: item.quantity } as CreateOrderDto,
         { quote: true, place },
       );

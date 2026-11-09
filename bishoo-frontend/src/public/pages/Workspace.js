@@ -179,6 +179,17 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
         {/* Invitations to a business's team and the businesses I work for (owner 2026-11-03). */}
         <TeamWork onNavigate={onNavigate} />
 
+        {/* "Uza tena" (owner 2026-11-09): anyone can resell shop products for a profit, no shop needed. */}
+        <button type="button" data-testid="workspace-resale" onClick={() => onNavigate('MyResales')}
+          style={{ minHeight: 56, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', border: `1px solid ${LINE}`,
+            borderRadius: 14, background: '#fff', textAlign: 'left', fontFamily: 'inherit', color: INK, cursor: 'pointer' }}>
+          <span style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>Uza tena</span>
+            <span style={{ fontSize: 13, color: MUTED }}>Uza bidhaa za maduka kwa bei yako, upate faida</span>
+          </span>
+          <Chevron />
+        </button>
+
         {/* The workspace switcher: Binafsi and each business. Choosing one shows its tools;
             the active role on the server changes only when a tool of another role is opened. */}
         {current && (

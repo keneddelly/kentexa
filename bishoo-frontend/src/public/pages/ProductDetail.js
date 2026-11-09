@@ -8,6 +8,16 @@ import CommerceCommentSection from '../components/CommerceCommentSection';
 import { Spinner, PageLoading } from '../components/Loading';
 import { useTranslation } from 'react-i18next';
 import { productLink } from '../utils/shareLinks';
+import ResalePanel from '../components/ResalePanel';
+
+/** "Uza tena": the reseller's offer in a shared link (/product/42-name?offer=7) for this product. */
+const offerIdFromUrl = (productId) => {
+  try {
+    if (!new RegExp(`/product/${productId}(?:-|/|$)`).test(window.location.pathname)) return null;
+    const v = new URLSearchParams(window.location.search).get('offer');
+    return /^\d+$/.test(v || '') ? Number(v) : null;
+  } catch { return null; }
+};
 
 /**
  * ProductDetail — one shop product (owner 2026-10-26 redesign): photo, price and
@@ -76,7 +86,7 @@ const Stars = ({ rating, size = 12, interactive = false, onRate }) => (
   </span>
 );
 
-const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment, initialTab, activeProfileId, activeProfile }) => {
+const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment, initialTab, activeProfileId, activeProfile, offerId }) => {
   const { t } = useTranslation();
   const [product, setProduct]           = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -88,6 +98,18 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   const [recommended, setRecommended]   = useState([]);
   const [sharingMoment, setSharingMoment] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  // "Uza tena" (owner 2026-11-09): bought through a reseller's link, the price is the reseller's.
+  const [offer, setOffer] = useState(null);
+  useEffect(() => {
+    setOffer(null);
+    const id = offerId || offerIdFromUrl(productId);
+    if (!id) return undefined;
+    let alive = true;
+    api.get(`/resale/offers/${id}`)
+      .then((r) => { if (alive && Number(r?.data?.productId) === Number(productId)) setOffer(r.data); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [productId, offerId]);
 
   const [reviews, setReviews]           = useState([]);
   const [reviewRating, setReviewRating] = useState(5);
@@ -166,6 +188,8 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
     } catch (err) {
       if (err?.response?.status === 404) current = { ...product, stock: 0 };
     }
+    // A reseller's offer: the line carries it, and the server charges the offer's price.
+    if (offer) current = { ...current, displayPrice: offer.price, basePrice: offer.price, resaleOfferId: offer.id, resellerName: offer.reseller?.name || null };
     if (!addToCart(current, Math.min(quantity, Math.max(Number(current.stock), 1)))) {
       setProduct(p => ({ ...p, stock: 0, isAvailable: false }));
       setMessage(`${product.name}: ${t('commerce_profile.out_of_stock')}`);
@@ -256,7 +280,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   );
 
   // Only real numbers: no invented "was" price, rating or free delivery (CLAUDE.md: never invent activity).
-  const displayPrice  = Number(product.displayPrice || product.basePrice || product.price || 0);
+  const displayPrice  = offer ? Number(offer.price) : Number(product.displayPrice || product.basePrice || product.price || 0);
   const hasSpecs      = product.specs && Object.keys(product.specs).length > 0;
 
   // Orders/labels the specs using the category's AttributeDef schema
@@ -415,6 +439,12 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
             <section style={{ padding:16, borderBottom:`1px solid ${LINE}`, display:'flex', flexDirection:'column', gap:8 }}>
               <div data-testid="pd-price" style={{ fontSize:28, fontWeight:800, letterSpacing:-0.3 }}>TZS {displayPrice.toLocaleString('en-US')}</div>
               <h1 style={{ fontSize:18, fontWeight:600, margin:0, lineHeight:1.35 }}>{product.name}</h1>
+              {offer && (
+                <div data-testid="pd-reseller" style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, color:GR }}>
+                  <Avatar src={offer.reseller?.photo} name={offer.reseller?.name} size={24} />
+                  <span>Unanunua kupitia <b style={{ color:DK }}>{offer.reseller?.name}</b>{offer.note ? ` · ${offer.note}` : ''}</span>
+                </div>
+              )}
               {(product.brand || product.model) && (
                 <div style={{ fontSize:14, color:GR }}>
                   {[product.brand?.name, product.model && `${t('product_detail.model_label')}: ${product.model}`].filter(Boolean).join(' · ')}
@@ -509,6 +539,9 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                 <button type="button" onClick={openSeller} style={{ ...pill(WH, DK), flex:1, border:'1px solid #cfd9de' }}>{t('product_detail.visit_store')}</button>
               </div>
             </section>
+
+            {/* "Uza tena": the supplier opens the product for resellers; anyone else resells it. */}
+            <ResalePanel product={product} isOwner={isOwner} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
 
             {/* ── Tabs ── */}
             <div role="tablist" style={{ display:'flex', overflowX:'auto', borderBottom:`1px solid ${LINE}`, scrollbarWidth:'none', padding:'0 8px' }}>
