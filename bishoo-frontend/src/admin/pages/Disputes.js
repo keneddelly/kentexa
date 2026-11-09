@@ -169,7 +169,7 @@ const Disputes = ({ onNavigate, activePage }) => {
               boxShadow: '0 4px 20px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
 
               {/* Header */}
-              <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '16px 20px', color: '#fff' }}>
+              <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', padding: '16px 20px', color: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 15, fontWeight:800 }}>Shauri #{selected.id}</div>
                   <button onClick={() => setSelected(null)}
@@ -221,7 +221,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   </div>
 
                   {/* Seller response */}
-                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: 12, marginBottom: 14 }}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 6 }}>
                       JIBU LA MUUZAJI — {detail.order?.seller?.storeName || detail.order?.seller?.name || '—'}
                     </div>
@@ -263,7 +263,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                   {detail.status === 'open' && !detail.arbitratorId && (
                     <button onClick={handleAssign}
                       style={{ width: '100%', backgroundColor: '#f0fdf4', color: '#16a34a',
-                        border: '1px solid #86efac', borderRadius: 10, padding: '10px 0',
+                        border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 0',
                         cursor: 'pointer', fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
                       Jibu Huu Mimi — Nishughulikiwe
                     </button>
@@ -320,7 +320,7 @@ const Disputes = ({ onNavigate, activePage }) => {
                       </div>
 
                       <button onClick={handleResolve} disabled={resolving}
-                        style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                        style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#0f1419)',
                           color: '#fff', border: 'none', borderRadius: 10, padding: '12px 0',
                           cursor: resolving ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 800 }}>
                         {resolving ? 'Inahifadhi...' : 'Hifadhi Uamuzi'}

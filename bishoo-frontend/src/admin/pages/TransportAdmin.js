@@ -16,12 +16,12 @@ import api    from '../../api/api';
 // by an admin. "all" (no status filter) is new too — there was no way to
 // see every provider in one view before.
 const STATUS = {
-  all:       { bg: '#e0e7ff', text: '#4338ca', label: 'Zote' },
+  all:       { bg: '#eff3f4', text: '#4338ca', label: 'Zote' },
   pending:   { bg: '#fef3c7', text: '#d97706', label: 'Inasubiri' },
   verified:  { bg: '#dcfce7', text: '#16a34a', label: 'Imehakikiwa' },
   active:    { bg: '#dcfce7', text: '#16a34a', label: 'Inafanya kazi' },
   inactive:  { bg: '#f1f5f9', text: '#64748b', label: 'Haifanyi kazi' },
-  testing:   { bg: '#e0f2fe', text: '#0284c7', label: 'Inajaribiwa' },
+  testing:   { bg: '#eff6ff', text: '#1d4ed8', label: 'Inajaribiwa' },
   rejected:  { bg: '#fee2e2', text: '#dc2626', label: 'Imekataliwa' },
   suspended: { bg: '#f1f5f9', text: '#64748b', label: 'Imesimamishwa' },
 };
@@ -173,7 +173,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
               overflow: 'hidden' }}>
 
               {/* Header */}
-              <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
+              <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)',
                 padding: '16px 20px', color: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div style={{ fontSize: 24 }}>{TYPE_ICON[selected.type] || ''}</div>

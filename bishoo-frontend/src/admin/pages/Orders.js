@@ -4,12 +4,12 @@ import api from '../../api/api';
 
 const STATUS_STYLE = {
   pending:         { bg: '#f1f5f9', color: '#64748b',  label: 'Inasubiri' },
-  pending_payment: { bg: '#fef9c3', color: '#ca8a04',  label: 'Inasubiri Malipo' },
+  pending_payment: { bg: '#fffbeb', color: '#d97706',  label: 'Inasubiri Malipo' },
   paid:            { bg: '#dbeafe', color: '#2563eb',  label: 'Imelipwa' },
-  preparing:       { bg: '#ede9fe', color: '#7c3aed',  label: 'Inaandaliwa' },
-  in_transit:      { bg: '#e0f2fe', color: '#0284c7',  label: 'Inasafirishwa' },
+  preparing:       { bg: '#f7f9f9', color: '#0f1419',  label: 'Inaandaliwa' },
+  in_transit:      { bg: '#eff6ff', color: '#1d4ed8',  label: 'Inasafirishwa' },
   delivered:       { bg: '#dcfce7', color: '#16a34a',  label: 'Imetolewa' },
-  confirmed:       { bg: '#f0fdf4', color: '#15803d',  label: 'Imethibitishwa' },
+  confirmed:       { bg: '#f0fdf4', color: '#16a34a',  label: 'Imethibitishwa' },
   cancelled:       { bg: '#fee2e2', color: '#dc2626',  label: 'Imefutwa' },
   disputed:        { bg: '#fef3c7', color: '#d97706',  label: 'Inabishaniwa' },
   refunded:        { bg: '#fee2e2', color: '#9f1239',  label: '↩️ Imerudishwa' },
@@ -25,8 +25,8 @@ const STATUS_STYLE = {
 const SOURCE_STYLE = {
   online:            { bg: '#eff6ff', color: '#2563eb', label: 'Mtandaoni', short: 'Mtandaoni' },
   offline:           { bg: '#f1f5f9', color: '#64748b', label: 'Mauzo ya Nje', short: 'Nje' },
-  offline_intercity: { bg: '#f5f3ff', color: '#7c3aed', label: 'Ofisi', short: 'Ofisi' },
-  seller_shipment:   { bg: '#fff7ed', color: '#c2410c', label: 'Muuzaji-Msafirishaji', short: 'Msafirishaji' },
+  offline_intercity: { bg: '#f7f9f9', color: '#0f1419', label: 'Ofisi', short: 'Ofisi' },
+  seller_shipment:   { bg: '#fffbeb', color: '#d97706', label: 'Muuzaji-Msafirishaji', short: 'Msafirishaji' },
 };
 const sourceStyleOf = (s) => SOURCE_STYLE[s] || { bg: '#f1f5f9', color: '#64748b', label: s || '—', short: s || '—' };
 
@@ -119,7 +119,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Angalia na simamia maagizo yote ya mfumo</p>
           </div>
           <button onClick={fetchOrders}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             Onyesha Upya
           </button>
         </div>
@@ -130,11 +130,11 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Maagizo Yote',  value: orders.length,          color: '#6366f1', bg: '#ede9fe', icon: '' },
-            { label: 'Inasubiri',     value: counts.pending_payment || 0, color: '#ca8a04', bg: '#fef9c3', icon: '' },
-            { label: 'Inasafirishwa', value: counts.in_transit || 0, color: '#0284c7', bg: '#e0f2fe', icon: '' },
+            { label: 'Maagizo Yote',  value: orders.length,          color: '#0f1419', bg: '#f7f9f9', icon: '' },
+            { label: 'Inasubiri',     value: counts.pending_payment || 0, color: '#d97706', bg: '#fffbeb', icon: '' },
+            { label: 'Inasafirishwa', value: counts.in_transit || 0, color: '#1d4ed8', bg: '#eff6ff', icon: '' },
             { label: 'Yaliyotolewa',  value: (counts.delivered || 0) + (counts.confirmed || 0), color: '#16a34a', bg: '#dcfce7', icon: '' },
-            { label: 'Mapato (TZS)',  value: totalRevenue.toLocaleString(), color: '#15803d', bg: '#f0fdf4', icon: '' },
+            { label: 'Mapato (TZS)',  value: totalRevenue.toLocaleString(), color: '#16a34a', bg: '#f0fdf4', icon: '' },
           ].map(c => (
             <div key={c.label} style={{ backgroundColor: c.bg, borderRadius: 12, padding: '14px 16px' }}>
               <div style={{ fontSize: 18, fontWeight:800, color: c.color }}>{c.value}</div>
@@ -173,14 +173,14 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <button onClick={() => setFilter('all')}
             style={{ padding: '6px 14px', borderRadius: 16, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-              backgroundColor: filter === 'all' ? '#6366f1' : '#fff', color: filter === 'all' ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              backgroundColor: filter === 'all' ? '#0f1419' : '#fff', color: filter === 'all' ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
             Yote ({orders.length})
           </button>
           {Object.entries(STATUS_STYLE).map(([key, ss]) => (
             counts[key] > 0 && (
               <button key={key} onClick={() => setFilter(key)}
                 style={{ padding: '6px 14px', borderRadius: 16, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                  backgroundColor: filter === key ? '#6366f1' : '#fff', color: filter === key ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  backgroundColor: filter === key ? '#0f1419' : '#fff', color: filter === key ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                 {ss.label} ({counts[key]})
               </button>
             )
@@ -212,7 +212,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                   return (
                     <tr key={order.id} onClick={() => setSelected(order)}
                       style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}>
-                      <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: 12, color: '#6366f1', fontWeight: 700 }}>
+                      <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: 12, color: '#0f1419', fontWeight: 700 }}>
                         #{order.id}
                       </td>
                       <td style={{ padding: '11px 14px' }}>
@@ -280,19 +280,19 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
 
             {/* Manual/offline order banner — appears above status, impossible to miss */}
             {selected.source === 'offline' && (
-              <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#92400e', lineHeight: 1.6 }}>
+              <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#92400e', lineHeight: 1.6 }}>
                 <strong>MAUZO YA NJE — HAKUNA MALIPO YA KENTEXA</strong><br/>
                 Agizo hili liliundwa na muuzaji kwa mteja aliyelipa nje ya mfumo (M-Pesa, taslimu). KenteXa haikushika pesa hii — hakuna ada wala malipo yanayohitajika kutoka KenteXa.
               </div>
             )}
             {selected.source === 'offline_intercity' && (
-              <div style={{ backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#5b21b6', lineHeight: 1.6 }}>
+              <div style={{ backgroundColor: '#f7f9f9', border: '1px solid #eff3f4', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#0f1419', lineHeight: 1.6 }}>
                 <strong>SUPER AGENT — MAUZO YA KAUNTA</strong><br/>
                 Mteja alilipa taslimu kwa {selected.handlingSuperAgent?.businessName || 'ofisi'} kaunta ya intercity. Hakuna muuzaji (seller) kwenye agizo hili — ofisi ndiyo iliyopokea malipo na kusajili kifurushi.
               </div>
             )}
             {selected.source === 'seller_shipment' && (
-              <div style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#9a3412', lineHeight: 1.6 }}>
+              <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#92400e', lineHeight: 1.6 }}>
                 <strong>MUUZAJI — USAFIRISHAJI WA KIBINAFSI</strong><br/>
                 Muuzaji tayari alipokea malipo kutoka kwa mteja nje ya mfumo — anatumia mtandao wa KenteXa kusafirisha tu. KenteXa hutoza ada ya ufuatiliaji pekee (TZS 1,000), si asilimia ya mauzo.
               </div>
@@ -357,7 +357,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
 
                 {!['in_transit','cancelled','refunded'].includes(selected.status) && (
                   <button onClick={() => handleForceStatus(selected.id, 'in_transit')} disabled={actionLoading}
-                    style={{ backgroundColor: '#e0f2fe', color: '#0284c7', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
+                    style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
                     Weka kama Inasafirishwa
                   </button>
                 )}
@@ -370,7 +370,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                     </div>
                   ) : (
                     <button onClick={() => handleForceStatus(selected.id, 'confirmed')} disabled={actionLoading}
-                      style={{ backgroundColor: '#f0fdf4', color: '#15803d', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
+                      style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, textAlign: 'left' }}>
                       Thibitisha na Toa Malipo kwa Muuzaji
                     </button>
                   )

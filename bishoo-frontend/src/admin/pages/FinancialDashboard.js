@@ -38,7 +38,7 @@ const BarChart = ({ data, color = '#1d4ed8', label }) => {
           return (
             <g key={i}>
               <rect x={x} y={y} width={barW} height={barH} rx={3}
-                fill={isLast ? `url(#g-${color.slice(1)})` : '#e0e7ff'}
+                fill={isLast ? `url(#g-${color.slice(1)})` : '#eff3f4'}
               />
               {isLast && d.value > 0 && (
                 <text x={x + barW / 2} y={y - 4} textAnchor="middle"
@@ -141,7 +141,7 @@ const FinancialDashboard = ({ onNavigate }) => {
   // Channel breakdown
   const channels = [
     { label: 'Online',  value: onlineOrders,  color: '#1d4ed8' },
-    { label: 'Manual',  value: offlineOrders, color: '#7c3aed' },
+    { label: 'Manual',  value: offlineOrders, color: '#0f1419' },
     { label: 'Invoice', value: data.invoiceOrders || 0, color: '#16a34a' },
   ];
   const totalCh = channels.reduce((s, c) => s + c.value, 0) || 1;
@@ -171,7 +171,7 @@ const FinancialDashboard = ({ onNavigate }) => {
       </div>
 
       {/* Hero GMV card */}
-      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b)',
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#0f1419)',
         borderRadius: 20, padding: 24, marginBottom: 20, color: '#fff' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)',
           marginBottom: 6, letterSpacing: 1 }}>JUMLA YA MAUZO (GMV)</div>
@@ -201,7 +201,7 @@ const FinancialDashboard = ({ onNavigate }) => {
         <StatCard icon="" label="Ada za Platform"
           value={`TZS ${fmt(platformFees)}`}
           sub={`TZS 1,000 × ${totalOrders} maagizo`}
-          color="#7c3aed" bg="#f5f3ff" />
+          color="#0f1419" bg="#f7f9f9" />
         <StatCard icon="" label="Escrow Inayosubiri"
           value={`TZS ${fmt(pendingEscrow)}`}
           sub="Itatolewa baada ya uthibitisho"
@@ -248,7 +248,7 @@ const FinancialDashboard = ({ onNavigate }) => {
           </div>
           {[
             { label: 'GMV (Jumla ya Mauzo)',      value: gmv,          color: '#1d4ed8' },
-            { label: 'Ada za Platform (10×1,000)', value: platformFees, color: '#7c3aed' },
+            { label: 'Ada za Platform (10×1,000)', value: platformFees, color: '#0f1419' },
             { label: 'Escrow Inayosubiri',         value: pendingEscrow,color: '#f59e0b' },
             { label: 'Ilitolewa kwa Wauzaji',      value: gmv - platformFees - pendingEscrow, color: '#16a34a' },
           ].map(r => (
@@ -329,7 +329,7 @@ const FinancialDashboard = ({ onNavigate }) => {
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12,
               padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
               <div style={{ width: 32, height: 32, borderRadius: '50%',
-                background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                background: 'linear-gradient(135deg,#1d4ed8,#0f1419)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', fontSize: 13, fontWeight:800, flexShrink: 0 }}>
                 {i + 1}

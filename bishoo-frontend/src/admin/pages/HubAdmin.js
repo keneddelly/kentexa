@@ -237,7 +237,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
               <div style={{ width:340, flexShrink:0, backgroundColor:'#fff',
                 borderRadius:16, boxShadow:'0 4px 20px rgba(0,0,0,0.08)',
                 overflow:'hidden' }}>
-                <div style={{ background:'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
+                <div style={{ background:'linear-gradient(135deg,#0f1419,#1d4ed8)',
                   padding:'16px 20px', color:'#fff' }}>
                   <div style={{ display:'flex', justifyContent:'space-between' }}>
                     <div style={{ fontSize:15, fontWeight:800 }}>Pewa Kituo</div>
@@ -297,7 +297,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
 
                   <button onClick={handleAssign} disabled={saving}
                     style={{ width:'100%',
-                      background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                      background:'linear-gradient(135deg,#1d4ed8,#0f1419)',
                       color:'#fff', border:'none', borderRadius:10, padding:'12px 0',
                       cursor:saving?'not-allowed':'pointer',
                       fontSize:14, fontWeight:800 }}>

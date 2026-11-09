@@ -3,7 +3,7 @@ import { describeEvent, CATEGORY_LABEL } from '../utils/describeEvent';
 
 /** A list of recorded events: when, who (opens their page), what, as which role. */
 const when = (d) => (d ? new Date(d).toLocaleString('sw-TZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
-const TONE = { warning: '#b45309', notice: '#1d4ed8' };
+const TONE = { warning: '#d97706', notice: '#1d4ed8' };
 
 export default function ActivityList({ items = [], onOpenPerson, showActor = true }) {
   if (!items.length) return <p style={{ color: '#64748b', fontSize: 14, margin: '12px 0' }}>Hakuna shughuli bado.</p>;

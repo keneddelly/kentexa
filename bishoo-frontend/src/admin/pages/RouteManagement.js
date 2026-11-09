@@ -124,11 +124,11 @@ const RouteManagement = ({ onNavigate }) => {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={handleSeed} disabled={seeding}
-              style={{ background: seeding ? '#64748b' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: seeding ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
+              style={{ background: seeding ? '#64748b' : 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: seeding ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
               {seeding ? 'Inajaza...' : 'Jaza Njia za Tanzania'}
             </button>
             <button onClick={handleSeedLocations} disabled={seeding}
-              style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff',
+              style={{ background: 'linear-gradient(135deg,#0f1419,#0f1419)', color: '#fff',
                 border: 'none', padding: '10px 18px', borderRadius: 10,
                 cursor: seeding ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
               {seeding ? 'Inajaza...' : 'Jaza Maeneo ya Tanzania'}
@@ -145,7 +145,7 @@ const RouteManagement = ({ onNavigate }) => {
 
         {/* Seed result summary */}
         {seedResult && (
-          <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '14px 16px', marginBottom: 16, display: 'flex', gap: 20, alignItems: 'center' }}>
+          <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '14px 16px', marginBottom: 16, display: 'flex', gap: 20, alignItems: 'center' }}>
             {[
               { label: 'Njia Mpya Zilizoongezwa', value: seedResult.seeded, color: '#16a34a' },
               { label: 'Zilizokuwepo (Hazikubadilishwa)', value: seedResult.skipped, color: '#64748b' },
@@ -246,7 +246,7 @@ const RouteManagement = ({ onNavigate }) => {
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handleSave} disabled={saving}
-                style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                 {saving ? 'Inahifadhi...' : 'Hifadhi Route'}
               </button>
               <button onClick={() => setShowForm(false)}
@@ -289,7 +289,7 @@ const RouteManagement = ({ onNavigate }) => {
                   <tr key={route.id} style={{ borderBottom: '1px solid #f8fafc' }}>
                     <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
                       {route.originCity} → {route.destinationCity}
-                      {route.transitCity && <div style={{ fontSize: 12, color: '#ca8a04', marginTop: 2 }}>Via {route.transitCity}</div>}
+                      {route.transitCity && <div style={{ fontSize: 12, color: '#d97706', marginTop: 2 }}>Via {route.transitCity}</div>}
                     {route.notes && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{route.notes}</div>}
                     </td>
                     <td style={{ padding: '12px 14px', fontSize: 13, color: '#475569' }}>

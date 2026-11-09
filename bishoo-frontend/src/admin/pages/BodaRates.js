@@ -89,7 +89,7 @@ const BodaRates = ({ onNavigate }) => {
       </div>
 
       {message && (
-        <div style={{ backgroundColor: message.startsWith('') ? '#fee2e2' : '#dcfce7', color: message.startsWith('') ? '#dc2626' : '#15803d', padding: '10px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
+        <div style={{ backgroundColor: message.startsWith('') ? '#fee2e2' : '#dcfce7', color: message.startsWith('') ? '#dc2626' : '#16a34a', padding: '10px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
           {message}
         </div>
       )}
@@ -115,7 +115,7 @@ const BodaRates = ({ onNavigate }) => {
                   MUUZAJI ↓ / MNUNUZI →
                 </th>
                 {ZONES.map(z => (
-                  <th key={z.rank} style={{ padding: '8px 6px', textAlign: 'center', fontSize: 12, color: '#7c3aed', fontWeight: 700, borderBottom: '2px solid #f1f5f9', minWidth: 80 }}>
+                  <th key={z.rank} style={{ padding: '8px 6px', textAlign: 'center', fontSize: 12, color: '#0f1419', fontWeight: 700, borderBottom: '2px solid #f1f5f9', minWidth: 80 }}>
                     {z.short}
                   </th>
                 ))}
@@ -144,17 +144,17 @@ const BodaRates = ({ onNavigate }) => {
                                 if (e.key === 'Escape') setEditCell(null);
                               }}
                               autoFocus
-                              style={{ width: 65, padding: '3px 5px', borderRadius: 6, border: '2px solid #7c3aed', fontSize: 12, textAlign: 'center' }}
+                              style={{ width: 65, padding: '3px 5px', borderRadius: 6, border: '2px solid #0f1419', fontSize: 12, textAlign: 'center' }}
                             />
                             <button onClick={() => handleSaveCell(key, editCell.value)}
-                              style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              style={{ background: '#0f1419', color: '#fff', border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               {saving[key] ? '' : '✓'}
                             </button>
                           </div>
                         ) : (
                           <button
                             onClick={() => setEditCell({ key, value: String(matrix[key] || DEFAULT_MATRIX[key] || 5000) })}
-                            style={{ background: 'none', border: '1px solid transparent', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 800, color: isSame ? '#15803d' : '#1e293b', width: '100%' }}
+                            style={{ background: 'none', border: '1px solid transparent', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 800, color: isSame ? '#16a34a' : '#1e293b', width: '100%' }}
                             onMouseEnter={e => e.currentTarget.style.border = '1px solid #e2e8f0'}
                             onMouseLeave={e => e.currentTarget.style.border = '1px solid transparent'}>
                             {(matrix[key] || DEFAULT_MATRIX[key] || 0).toLocaleString()}
@@ -178,7 +178,7 @@ const BodaRates = ({ onNavigate }) => {
           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>Maeneo</div>
           {ZONES.map(z => (
             <div key={z.rank} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f8fafc' }}>
-              <span style={{ fontSize: 12, fontWeight:800, color: '#7c3aed', width: 20 }}>{z.rank}</span>
+              <span style={{ fontSize: 12, fontWeight:800, color: '#0f1419', width: 20 }}>{z.rank}</span>
               <span style={{ fontSize: 12, color: '#1e293b' }}>{z.label}</span>
             </div>
           ))}
@@ -208,7 +208,7 @@ const BodaRates = ({ onNavigate }) => {
 
           {testResult && !testResult.error && (
             <div style={{ marginTop: 12, backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight:800, color: '#15803d' }}>
+              <div style={{ fontSize: 24, fontWeight:800, color: '#16a34a' }}>
                 TZS {Number(testResult.fee || 0).toLocaleString()}
               </div>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{testResult.desc}</div>

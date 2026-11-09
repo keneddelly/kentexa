@@ -76,7 +76,7 @@ export default function SendMessageButton({ userId, name, label = 'Tuma taarifa'
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Tuma taarifa</h3>
               <div style={{ color: MUTED, fontSize: 14, marginTop: 2 }}>Kwa: <b style={{ color: INK }}>{name || `Mtumiaji #${userId}`}</b> · inafika kwenye Taarifa zake na simu yake</div>
             </div>
-            {note && <div role={note.ok ? 'status' : 'alert'} style={{ padding: '10px 12px', borderRadius: 10, fontSize: 14, fontWeight: 600, background: note.ok ? '#dcfce7' : '#fee2e2', color: note.ok ? '#166534' : '#991b1b' }}>{note.text}</div>}
+            {note && <div role={note.ok ? 'status' : 'alert'} style={{ padding: '10px 12px', borderRadius: 10, fontSize: 14, fontWeight: 600, background: note.ok ? '#dcfce7' : '#fee2e2', color: note.ok ? '#166534' : '#b91c1c' }}>{note.text}</div>}
             <input aria-label="Kichwa cha taarifa" maxLength={80} placeholder="Kichwa" value={title} onChange={(e) => setTitle(e.target.value)} style={input} />
             <textarea aria-label="Ujumbe wa taarifa" maxLength={600} rows={4} placeholder="Ujumbe, kwa Kiswahili rahisi" value={message} onChange={(e) => setMessage(e.target.value)} style={{ ...input, resize: 'vertical' }} />
             <select aria-label="Kiungo cha taarifa" value={link} onChange={(e) => { setLink(e.target.value); setParam(''); setLinkUrl(''); }} style={input}>

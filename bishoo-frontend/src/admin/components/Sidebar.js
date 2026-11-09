@@ -105,7 +105,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, items: givenItems }) => {
           <Icon id="menu" color="#fff" />
         </button>
         <span style={{ color: '#fff', fontSize: 14, fontWeight: 800 }}>
-          Kente<span style={{ color: '#3b82f6' }}>Xa</span> Admin
+          Kente<span style={{ color: '#1d4ed8' }}>Xa</span> Admin
         </span>
       </div>
 
@@ -120,7 +120,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, items: givenItems }) => {
         <div onClick={() => navigate('Home')} style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
             <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
           <div style={{ fontSize: 12, color: '#64748b', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Usimamizi{STAFF_TITLE[roleType] ? ` · ${STAFF_TITLE[roleType]}` : ''}</div>
         </div>
@@ -139,7 +139,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, items: givenItems }) => {
                       marginBottom: 1, textAlign: 'left', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
                       backgroundColor: on ? 'rgba(29,78,216,0.4)' : 'transparent',
                       color: on ? '#bfdbfe' : '#94a3b8',
-                      borderLeft: on ? '3px solid #3b82f6' : '3px solid transparent',
+                      borderLeft: on ? '3px solid #1d4ed8' : '3px solid transparent',
                     }}
                     onMouseEnter={(e) => { if (!on) e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.06)'; }}
                     onMouseLeave={(e) => { if (!on) e.currentTarget.style.backgroundColor = 'transparent'; }}
@@ -159,8 +159,8 @@ const Sidebar = ({ activePage, onNavigate, onLogout, items: givenItems }) => {
             <Icon id="store" color="#64748b" /> Fungua KenteXa
           </button>
           <button type="button" onClick={onLogout}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', backgroundColor: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
-            <Icon id="logout" color="#f87171" /> Toka
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
+            <Icon id="logout" color="#dc2626" /> Toka
           </button>
         </div>
       </aside>

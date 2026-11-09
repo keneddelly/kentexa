@@ -25,7 +25,7 @@ const PhoneCell = ({ phone }) => {
 };
 
 const STATUS = {
-  awaiting_payment:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri Malipo' },
+  awaiting_payment:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri Malipo' },
   payment_processing: { bg: '#dbeafe', color: '#2563eb', label: 'Inashughulikiwa' },
   paid:               { bg: '#dcfce7', color: '#16a34a', label: 'Imelipwa' },
   expired:            { bg: '#fee2e2', color: '#dc2626', label: 'Imekwisha Muda' },
@@ -36,7 +36,7 @@ const STATUS = {
 // a seller-composed invoice for a classified ad, not an auto-generated
 // online-order one).
 const CLS_STATUS = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri' },
   sent:      { bg: '#dbeafe', color: '#2563eb', label: 'Imetumwa' },
   paid:      { bg: '#dcfce7', color: '#16a34a', label: 'Imelipwa' },
   cancelled: { bg: '#f1f5f9', color: '#64748b', label: 'Imefutwa' },
@@ -165,11 +165,11 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
           {[
             { label: 'Zote',         value: invoices.length,
-              sub: '', bg: '#ede9fe', color: '#7c3aed' },
+              sub: '', bg: '#f7f9f9', color: '#0f1419' },
             { label: 'Zimelipwa',    value: invoices.filter(i => i.status === 'paid').length,
               sub: `TZS ${totalPaid.toLocaleString()}`, bg: '#dcfce7', color: '#16a34a' },
             { label: 'Zinasubiri',   value: invoices.filter(i => i.status === 'awaiting_payment').length,
-              sub: `TZS ${totalPending.toLocaleString()}`, bg: '#fef9c3', color: '#ca8a04' },
+              sub: `TZS ${totalPending.toLocaleString()}`, bg: '#fffbeb', color: '#d97706' },
             { label: 'Mapato Yote',  value: `TZS ${totalPaid.toLocaleString()}`,
               sub: 'Zilizolipwa', bg: '#dbeafe', color: '#2563eb' },
           ].map(s => (
@@ -231,12 +231,12 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                     <tr key={inv.id}
                       onClick={() => setSelected(inv)}
                       style={{ borderTop: '1px solid #f1f5f9', cursor: 'pointer',
-                        backgroundColor: statusMismatch ? '#fff7ed' : 'transparent' }}>
+                        backgroundColor: statusMismatch ? '#fffbeb' : 'transparent' }}>
                       <td style={{ padding: '12px 16px', fontFamily: 'monospace',
                         fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
                         {inv.invoiceNumber}
                         {statusMismatch && (
-                          <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 800 }}>
+                          <div style={{ fontSize: 12, color: '#d97706', fontWeight: 800 }}>
                             AGIZO LIMELIPWA
                           </div>
                         )}
@@ -319,7 +319,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                       {sc.label}
                     </div>
                     {mismatch && (
-                      <div style={{ backgroundColor: '#fff7ed', color: '#c2410c', padding: '10px 14px',
+                      <div style={{ backgroundColor: '#fffbeb', color: '#d97706', padding: '10px 14px',
                         borderRadius: 10, fontSize: 12, fontWeight: 700, marginBottom: 16 }}>
                         Agizo limelipwa lakini ankara bado inaonyesha "Inasubiri Malipo".
                         Hii itatoka punde tu unapobonyeza Onyesha Upya.

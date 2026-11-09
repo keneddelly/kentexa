@@ -150,10 +150,10 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   };
 
   const statusStyle = (status) => ({
-    pending:   { bg: '#fef9c3', color: '#ca8a04' },
+    pending:   { bg: '#fffbeb', color: '#d97706' },
     active:    { bg: '#dcfce7', color: '#16a34a' },
     suspended: { bg: '#fee2e2', color: '#dc2626' },
-    blocked:   { bg: '#fecaca', color: '#991b1b' },
+    blocked:   { bg: '#fecaca', color: '#b91c1c' },
   }[status] || { bg: '#f1f5f9', color: '#64748b' });
 
   const filtered = filter === 'all' ? agents : agents.filter(a => a.status === filter);
@@ -177,8 +177,8 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
           {[
-            { label: 'Total',     value: counts.all,       bg: '#ede9fe', color: '#7c3aed' },
-            { label: 'Pending',   value: counts.pending,   bg: '#fef9c3', color: '#ca8a04' },
+            { label: 'Total',     value: counts.all,       bg: '#f7f9f9', color: '#0f1419' },
+            { label: 'Pending',   value: counts.pending,   bg: '#fffbeb', color: '#d97706' },
             { label: 'Active',    value: counts.active,    bg: '#dcfce7', color: '#16a34a' },
             { label: 'Suspended', value: counts.suspended, bg: '#fee2e2', color: '#dc2626' },
           ].map(s => (
@@ -223,7 +223,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                         <div style={{ fontSize: 12, color: '#64748b' }}>{agent.user?.email || agent.user?.phone}</div>
                         {agent.isTrainingOffice && (
                           <span data-testid="training-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 20,
-                            fontSize: 12, fontWeight: 800, backgroundColor: '#ede9fe', color: '#6d28d9' }}>Mafunzo</span>
+                            fontSize: 12, fontWeight: 800, backgroundColor: '#f7f9f9', color: '#0f1419' }}>Mafunzo</span>
                         )}
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 13, color: '#64748b' }}>{agent.city}</td>
@@ -250,20 +250,20 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                           )}
                           {agent.status === 'pending' && (
                             <button onClick={() => { setSelected(agent); setSuspendIsReject(true); setShowSuspendModal(true); }}
-                              style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Reject
                             </button>
                           )}
                           {agent.status === 'active' && (
                             <button onClick={() => { setSelected(agent); setSuspendIsReject(false); setShowSuspendModal(true); }}
-                              style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Suspend
                             </button>
                           )}
                           {agent.status !== 'pending' && (
                             <button onClick={() => handleTraining(agent, !agent.isTrainingOffice)} disabled={actionLoading}
                               title={agent.isTrainingOffice ? 'Show this office to customers again' : 'Hide from customers; for staff testing and training only; no real SMS'}
-                              style={{ backgroundColor: agent.isTrainingOffice ? '#f5f3ff' : '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe',
+                              style={{ backgroundColor: agent.isTrainingOffice ? '#f7f9f9' : '#f7f9f9', color: '#0f1419', border: '1px solid #eff3f4',
                                 padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               {agent.isTrainingOffice ? '↩️ Ondoa mafunzo' : 'Mafunzo'}
                             </button>
@@ -301,7 +301,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', minHeight: 80, marginBottom: 20, outline: 'none' }} />
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => { setShowSuspendModal(false); setSuspendReason(''); setSuspendIsReject(false); }} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-              <button onClick={handleSuspend} disabled={actionLoading} style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
+              <button onClick={handleSuspend} disabled={actionLoading} style={{ flex: 1, backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
                 {actionLoading ? '' : suspendIsReject ? 'Reject' : 'Suspend'}
               </button>
             </div>
@@ -362,8 +362,8 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Identity Verification</div>
                 {applicantIdentity && (
                   <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[applicantIdentity.status] || '#f1f5f9',
-                    color: { not_submitted: '#64748b', pending: '#ca8a04', verified: '#16a34a', rejected: '#dc2626' }[applicantIdentity.status] || '#64748b' }}>
+                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fffbeb', verified: '#dcfce7', rejected: '#fee2e2' }[applicantIdentity.status] || '#f1f5f9',
+                    color: { not_submitted: '#64748b', pending: '#d97706', verified: '#16a34a', rejected: '#dc2626' }[applicantIdentity.status] || '#64748b' }}>
                     {applicantIdentity.status}
                   </span>
                 )}
@@ -397,7 +397,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                   <div style={{ fontSize: 12, color: '#94a3b8' }}>No referrals yet</div>
                 ) : (
                   agentReferrals.map(r => {
-                    const badge = { registered: ['', '#ca8a04'], qualified: ['', '#16a34a'], rejected_fraud: ['', '#dc2626'] }[r.status] || ['?', '#64748b'];
+                    const badge = { registered: ['', '#d97706'], qualified: ['', '#16a34a'], rejected_fraud: ['', '#dc2626'] }[r.status] || ['?', '#64748b'];
                     return (
                       <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
                         <span style={{ color: '#475569' }}>{r.referredUser?.name || '—'}</span>
@@ -486,7 +486,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                     Approve
                   </button>
                   <button onClick={() => { setSelected(detailAgent); setSuspendIsReject(true); setShowSuspendModal(true); setDetailAgent(null); }}
-                    style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
+                    style={{ flex: 1, backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
                     Reject
                   </button>
                 </>
