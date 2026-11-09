@@ -127,7 +127,7 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
     shipmentRepo.manager = {
       transaction: async (cb: any) => {
         const tx = { undo: new Map<number, any>(), mine: new Set<number>(), held: [] as Array<() => void>, slotUndo: new Map<number, Slot>() };
-        const em: any = { __tx: tx, getRepository: (cls: any) => (cls === Shipment ? makeRepo(tx) : ({} as any)) };
+        const em: any = { __tx: tx, getRepository: (cls: any) => (cls === Shipment ? makeRepo(tx) : cls?.name === 'Parcel' ? parcelRepo : ({} as any)) };
         txDepth++;
         try {
           return await cb(em);

@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { MakeShipmentProviderTenderGenerationSafe1788289200000 } from '../database/migrations/1788289200000-MakeShipmentProviderTenderGenerationSafe';
 import { Client } from 'pg';
 import { DataSource, Repository } from 'typeorm';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -172,6 +173,18 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       "updatedBy" varchar, "handlerPhone" varchar, "handlerLocation" varchar, "handlerType" varchar,
       "createdAt" timestamp NOT NULL DEFAULT now()
     )`);
+    // The movement tender the service now reads and writes (added after this suite was written;
+    // same fixture as van-pilot-c8, owner 2026-11-09: repair the baseline).
+    await ds.query(`CREATE TABLE public.parcel_movement_tender (
+      id SERIAL PRIMARY KEY, "parcelId" integer NOT NULL, "transportProviderId" integer NOT NULL,
+      "runId" integer NULL, "loadRunStopId" integer NULL, "releasingSuperAgentId" integer NULL,
+      source varchar(32) NOT NULL, status varchar(16) NOT NULL DEFAULT 'open',
+      "issuedByUserId" integer NULL, "issuedByRoleType" varchar(32) NULL,
+      "idempotencyKey" varchar(128) NOT NULL UNIQUE, "expiresAt" timestamp NULL,
+      "consumedByParcelRunAssignmentId" integer NULL UNIQUE, "consumedAt" timestamp NULL,
+      "createdAt" timestamp NOT NULL DEFAULT now()
+    )`);
+    await new MakeShipmentProviderTenderGenerationSafe1788289200000().up(ds.createQueryRunner() as any);
 
     providers = ds.getRepository(TransportProvider);
     routes = ds.getRepository(TransportRoute);
@@ -179,8 +192,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     runs = ds.getRepository(TransportRun);
     runStops = ds.getRepository(TransportRunStop);
 
-    const args: any[] = new Array(15).fill({});
-    args[0] = providers; args[1] = routes; args[14] = ds;
+    const args: any[] = new Array(16).fill({}); // searchIndex was added before dataSource
+    args[0] = providers; args[1] = routes; args[15] = ds; // dataSource moved to 15 when searchIndex was added at 14
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);

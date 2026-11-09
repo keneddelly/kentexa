@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { MakeShipmentProviderTenderGenerationSafe1788289200000 } from '../database/migrations/1788289200000-MakeShipmentProviderTenderGenerationSafe';
 import { Client } from 'pg';
 import { DataSource, Repository } from 'typeorm';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
@@ -174,16 +175,9 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
       "consumedByParcelRunAssignmentId" integer NULL UNIQUE, "consumedAt" timestamp NULL,
       "createdAt" timestamp NOT NULL DEFAULT now()
     )`);
-    await ds.query(`
-      CREATE OR REPLACE FUNCTION public.allocate_shipment_provider_tender_generation()
-      RETURNS trigger LANGUAGE plpgsql AS $
-      DECLARE
-        base_key text;
-        existing_row public.parcel_movement_tender%ROWTYPE;
-        next_generation integer;
-      BEGIN
-        IF NEW.source <> 'shipment_provider_booking' THEN RETURN NEW; END IF;
-        base_key := regexp_replace(NEW."idempotencyKey", ':g[0-9]+
+    // The tender-generation trigger, exactly as live has it (the inline copy of this SQL was cut
+    // short when the file was saved, so the suite never compiled; owner 2026-11-09: repair the baseline).
+    await new MakeShipmentProviderTenderGenerationSafe1788289200000().up(ds.createQueryRunner() as any);
     // Stage 3S-C7 tables -- registered only so invariant #16 can positively
     // assert they stay EMPTY after a full C8 journey, never to exercise them.
     await ds.query(`CREATE TABLE public.super_agent_settlement_proposal (id SERIAL PRIMARY KEY)`);
@@ -197,8 +191,8 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
     runStops = ds.getRepository(TransportRunStop);
     vehicles = ds.getRepository(Vehicle);
 
-    const args: any[] = new Array(15).fill({});
-    args[0] = providers; args[1] = routes; args[14] = ds;
+    const args: any[] = new Array(16).fill({});
+    args[0] = providers; args[1] = routes; args[15] = ds; // dataSource moved to 15 when searchIndex was added at 14
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds, vehicles);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);
@@ -763,8 +757,8 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
     runStops = ds.getRepository(TransportRunStop);
     vehicles = ds.getRepository(Vehicle);
 
-    const args: any[] = new Array(15).fill({});
-    args[0] = providers; args[1] = routes; args[14] = ds;
+    const args: any[] = new Array(16).fill({});
+    args[0] = providers; args[1] = routes; args[15] = ds; // dataSource moved to 15 when searchIndex was added at 14
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds, vehicles);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);
@@ -1272,8 +1266,8 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
     runStops = ds.getRepository(TransportRunStop);
     vehicles = ds.getRepository(Vehicle);
 
-    const args: any[] = new Array(15).fill({});
-    args[0] = providers; args[1] = routes; args[14] = ds;
+    const args: any[] = new Array(16).fill({});
+    args[0] = providers; args[1] = routes; args[15] = ds; // dataSource moved to 15 when searchIndex was added at 14
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds, vehicles);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);
@@ -1793,8 +1787,8 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
     runStops = ds.getRepository(TransportRunStop);
     vehicles = ds.getRepository(Vehicle);
 
-    const args: any[] = new Array(15).fill({});
-    args[0] = providers; args[1] = routes; args[14] = ds;
+    const args: any[] = new Array(16).fill({});
+    args[0] = providers; args[1] = routes; args[15] = ds; // dataSource moved to 15 when searchIndex was added at 14
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds, vehicles);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);

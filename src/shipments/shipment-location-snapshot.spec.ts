@@ -44,7 +44,8 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
       find: jest.fn(),
     };
     shipmentRepo.manager = {
-      transaction: (cb: any) => cb({ getRepository: () => shipmentRepo }),
+      // The Parcel is created inside the same transaction (ensureParcelForShipment).
+      transaction: (cb: any) => cb({ getRepository: (cls: any) => (cls?.name === 'Parcel' ? parcelRepo : shipmentRepo) }),
     };
     parcelRepo = {
       findOne: jest.fn(),
@@ -96,11 +97,13 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
   const snapshotKeys = new Set(SHIPMENT_LOCATION_SNAPSHOT_COLUMNS);
   const touchesSnapshot = (obj: any) => Object.keys(obj || {}).some((k) => snapshotKeys.has(k));
 
+  // Confirmation reads the Shipment again inside the Parcel transaction (ensureParcelForShipment),
+  // so after the first read every later read returns the CONFIRMED row.
   // 6 ─────────────────────────────────────────────────────────────────────
   it('confirmation retry is idempotent and never writes a snapshot column', async () => {
     shipmentRepo.findOne
       .mockResolvedValueOnce(pendingShipment())
-      .mockResolvedValueOnce({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
+      .mockResolvedValue({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const first = await service.confirmShipment(7, 1, { providerId: 5 });
 
@@ -157,7 +160,7 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
     };
     shipmentRepo.findOne
       .mockResolvedValueOnce(legacy)
-      .mockResolvedValueOnce({ ...legacy, status: ShipmentStatus.CONFIRMED, ...DECIDED });
+      .mockResolvedValue({ ...legacy, status: ShipmentStatus.CONFIRMED, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const result = await service.confirmShipment(7, 9, {});
     expect(result.parcel.originCity).toBe('Arusha');
@@ -196,7 +199,7 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
   it('a personal (non-commerce) shipment still confirms with no Order or payment evidence', async () => {
     shipmentRepo.findOne
       .mockResolvedValueOnce(pendingShipment())
-      .mockResolvedValueOnce({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
+      .mockResolvedValue({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const { parcel } = await service.confirmShipment(7, 1, { providerId: 5 });
     expect(parcel.order).toBeNull();
@@ -216,7 +219,7 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
   it("Stage 1's UQ_parcel_shipmentId recovery is intact: an unrelated 23505 is not misread as the shipment race", async () => {
     shipmentRepo.findOne
       .mockResolvedValueOnce(pendingShipment())
-      .mockResolvedValueOnce({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
+      .mockResolvedValue({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
     parcelRepo.findOne.mockResolvedValue(null);
     const other: any = new Error('duplicate key value violates unique constraint "UQ_parcel_trackingNumber"');
     other.code = '23505';

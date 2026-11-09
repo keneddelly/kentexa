@@ -33,9 +33,10 @@ export class LocationIntelligenceService {
   // of it) without any interface or consumer change.
   private readonly providers: LocationProvider[];
 
-  constructor(tzSeedProvider: TzSeedLocationProvider, googlePlacesProvider: GooglePlacesLocationProvider) {
+  constructor(tzSeedProvider: TzSeedLocationProvider, googlePlacesProvider?: GooglePlacesLocationProvider) {
     // Prefer street/place precision when Google is configured; tz_seed remains a zero-cost fallback.
-    this.providers = [googlePlacesProvider, tzSeedProvider];
+    // A missing provider (tests that build the service with tz_seed only) is skipped.
+    this.providers = [googlePlacesProvider, tzSeedProvider].filter(Boolean) as any;
   }
 
   /**
