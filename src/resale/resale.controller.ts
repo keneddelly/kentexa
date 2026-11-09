@@ -21,8 +21,15 @@ export class ResaleController {
 
   @Get('products')
   @UseGuards(JwtAuthGuard)
-  openProducts(@Request() req, @Query('page') page?: string) {
-    return this.svc.openProducts(req.user.id, Number(page) || 1);
+  openProducts(@Request() req, @Query('page') page?: string, @Query('q') q?: string, @Query('category') category?: string,
+    @Query('supplierId') supplierId?: string, @Query('sort') sort?: string) {
+    return this.svc.openProducts(req.user.id, { page: Number(page) || 1, q, category, supplierId: Number(supplierId) || undefined, sort });
+  }
+
+  /** Public: how many of a shop's products are open for reselling (shop page door). */
+  @Get('suppliers/:id/count')
+  supplierCount(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.supplierOpenCount(id);
   }
 
   @Get('products/:id')

@@ -104,3 +104,31 @@ describe('Uza tena R3: the profit record', () => {
     expect(r.items.map((i: any) => i.state)).toEqual(['waiting', 'owed', 'confirmed']);
   });
 });
+
+describe('Uza tena: the catalogue (owner 2026-11-10)', () => {
+  it('search, category, one shop and profit sort, with category chips and "more"', async () => {
+    const calls: any[] = [];
+    const items = Array.from({ length: 31 }, (_, i) => ({ id: i + 1, name: `Simu ${i}`, images: 'a.jpg', category: 'electronics', basePrice: '50000',
+      resalePrice: '42000', resaleMinPrice: null, stock: 3, sellerId: 9, supplierName: 'BIS' }));
+    const db: any = { query: jest.fn(async (sql: string, params: any[]) => {
+      calls.push([sql, params]);
+      return /GROUP BY p.category/.test(sql) ? [{ category: 'electronics', n: 31 }] : items;
+    }) };
+    const svc = new ResaleService(db, { record: jest.fn() } as any);
+    const r = await svc.openProducts(20, { q: 'sim_u%', category: 'electronics', supplierId: 9, sort: 'profit', page: 2 });
+    expect(r.items).toHaveLength(30);
+    expect(r).toMatchObject({ hasMore: true, page: 2, categories: [{ key: 'electronics', count: 31 }] });
+    expect(r.items[0]).toMatchObject({ supplierPrice: 42000, profitAtShopPrice: 8000, supplierId: 9, category: 'electronics' });
+    const [listSql, listParams] = calls[0];
+    expect(listSql).toContain('ILIKE');
+    expect(listSql).toContain('(p."basePrice" - p."resalePrice") DESC');
+    expect(listParams).toEqual([20, '%sim\\_u\\%%', 9, 'electronics', 30]);
+    // The chips count every category under the same search, not only the chosen one.
+    expect(calls[1][1]).toEqual([20, '%sim\\_u\\%%', 9]);
+  });
+
+  it('a shop page asks how many of its products are open', async () => {
+    const db: any = { query: jest.fn(async () => [{ n: 4 }]) };
+    await expect(new ResaleService(db, { record: jest.fn() } as any).supplierOpenCount(9)).resolves.toEqual({ supplierId: 9, count: 4 });
+  });
+});

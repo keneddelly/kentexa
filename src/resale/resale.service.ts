@@ -132,21 +132,69 @@ export class ResaleService {
     };
   }
 
-  /** "Bidhaa za kuuza": products open for reselling, newest first, with the profit at the shop price. */
-  async openProducts(userId: number, page = 1) {
+  /**
+   * "Bidhaa za kuuza" (owner 2026-11-10: a dedicated place where resellers find every product
+   * open for reselling): search by name, a category, one shop, sorted by newest or by profit at the
+   * shop price. Also returns the categories that have products, with counts, for the chips.
+   * Shops that left a reseller's profit unpaid 7 days are left out.
+   */
+  async openProducts(userId: number, f: { page?: number; q?: string; category?: string; supplierId?: number; sort?: string } = {}) {
     const size = 30;
+    const page = Math.max(1, Math.floor(Number(f.page) || 1));
+    const where = [
+      `p."resaleOpen" = true`, `p."resalePrice" > 0`, `p."isActive" = true`, `p."isAvailable" = true`, `p.stock > 0`,
+      `p."sellerId" <> $1::int`, `${UNPAID_LATE_SQL} = 0`,
+    ];
+    const params: any[] = [userId];
+    const q = String(f.q ?? '').trim().slice(0, 80);
+    if (q.length >= 2) {
+      params.push(`%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
+      where.push(`(p.name ILIKE $${params.length} OR p.model ILIKE $${params.length})`);
+    }
+    if (Number.isInteger(Number(f.supplierId)) && Number(f.supplierId) > 0) {
+      params.push(Number(f.supplierId));
+      where.push(`p."sellerId" = $${params.length}::int`);
+    }
+    const base = where.join(' AND ');
+    const catParams = [...params];
+    const category = String(f.category ?? '').trim().slice(0, 60);
+    let filtered = base;
+    if (category) {
+      params.push(category);
+      filtered = `${base} AND p.category = $${params.length}`;
+    }
+    const order = f.sort === 'profit'
+      ? `(p."basePrice" - p."resalePrice") DESC, p.id DESC`
+      : `p."updatedAt" DESC, p.id DESC`;
+    params.push((page - 1) * size);
     const rows: any[] = await this.db.query(
-      `SELECT p.id, p.name, p.images, p."basePrice", p."resalePrice", p."resaleMinPrice", p.stock,
+      `SELECT p.id, p.name, p.images, p.category, p."basePrice", p."resalePrice", p."resaleMinPrice", p.stock, p."sellerId",
               COALESCE(u."storeName", u.name) AS "supplierName"
          FROM public.product p LEFT JOIN public."user" u ON u.id = p."sellerId"
-        WHERE p."resaleOpen" = true AND p."resalePrice" > 0 AND p."isActive" = true AND p."isAvailable" = true
-          AND p.stock > 0 AND p."sellerId" <> $1::int AND ${UNPAID_LATE_SQL} = 0
-        ORDER BY p."updatedAt" DESC LIMIT ${size} OFFSET $2::int`, [userId, (Math.max(1, page) - 1) * size]);
-    return rows.map((r) => ({
-      id: r.id, name: r.name, image: firstImage(r.images), supplierName: r.supplierName,
-      publicPrice: money(r.basePrice), supplierPrice: money(r.resalePrice), floor: sellingFloor(r),
-      profitAtShopPrice: money(money(r.basePrice) - money(r.resalePrice)), stock: Number(r.stock) || 0,
-    }));
+        WHERE ${filtered}
+        ORDER BY ${order} LIMIT ${size + 1} OFFSET $${params.length}::int`, params);
+    const cats: any[] = await this.db.query(
+      `SELECT p.category, COUNT(*)::int AS n FROM public.product p
+        WHERE ${base} AND p.category IS NOT NULL GROUP BY p.category ORDER BY n DESC, p.category LIMIT 20`, catParams);
+    return {
+      items: rows.slice(0, size).map((r) => ({
+        id: r.id, name: r.name, image: firstImage(r.images), category: r.category, supplierId: r.sellerId, supplierName: r.supplierName,
+        publicPrice: money(r.basePrice), supplierPrice: money(r.resalePrice), floor: sellingFloor(r),
+        profitAtShopPrice: money(money(r.basePrice) - money(r.resalePrice)), stock: Number(r.stock) || 0,
+      })),
+      categories: cats.map((c) => ({ key: c.category, count: Number(c.n) || 0 })),
+      hasMore: rows.length > size,
+      page,
+    };
+  }
+
+  /** How many of one shop's products are open for reselling (the "Uza bidhaa za duka hili" door). */
+  async supplierOpenCount(supplierUserId: number) {
+    const [r] = await this.db.query(
+      `SELECT COUNT(*)::int AS n FROM public.product p
+        WHERE p."sellerId" = $1::int AND p."resaleOpen" = true AND p."resalePrice" > 0 AND p."isActive" = true
+          AND p."isAvailable" = true AND p.stock > 0 AND ${UNPAID_LATE_SQL} = 0`, [supplierUserId]);
+    return { supplierId: supplierUserId, count: Number(r?.n) || 0 };
   }
 
   // ── R3: the profit record (owner 2026-11-09) ──────────────────────────────
