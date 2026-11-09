@@ -9,7 +9,7 @@ export const REQUIRED_CAPABILITIES = 'required_capabilities';
  */
 export const ROLE_CAPABILITY_REGISTRY: Record<AccountRoleType, string[]> = {
   buyer: [], seller: [], agent: [], super_agent: [], transport_provider: [],
-  service_provider: [], customer_care: [], manager: [], admin: [], arbitrator: [],
+  service_provider: [], customer_care: [], manager: [], admin: [], arbitrator: [], finance: [], moderator: [],
 };
 
 export const RequireCapabilities = (...capabilities: string[]) =>
