@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { openDocumentPdf } from '../../utils/documentPdf';
 import api from '../../api/api';
 import { BUYER_TABS, ORDER_STEPS, PAYMENT_STATUS, STATUS_TONE, statusLabel, stepIndex } from '../utils/orderStatus';
 import { PageLoading, Spinner } from '../components/Loading';
@@ -8,10 +9,8 @@ import { LineIcon } from '../components/LineIcon';
 import { DirectPaymentNotice } from '../components/DirectPayment';
 import LipaPaymentReview from '../components/LipaPaymentReview';
 import { isDirectPaymentOrder, usePaymentMode } from '../../utils/paymentMode';
-import { API_BASE_URL } from '../../api/baseUrl';
 import OrderAgentPanel from '../components/OrderAgentPanel';
 
-const API_URL = API_BASE_URL;
 
 const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
   const { t } = useTranslation();
@@ -947,10 +946,10 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
 
                         {inv.invoiceNumber && (
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <a href={`${API_URL}/invoices/number/${inv.invoiceNumber}/pdf`} target="_blank" rel="noreferrer"
-                              style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', textDecoration: 'none', padding: '9px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                            <button type="button" onClick={() => openDocumentPdf('invoice', inv.invoiceNumber).catch(() => {})}
+                              style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', cursor: 'pointer', padding: '9px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                               {t('my_orders.download_invoice_button')}
-                            </a>
+                            </button>
                           </div>
                         )}
                       </div>

@@ -7,6 +7,8 @@ import {
   UseGuards,
   Request,
   Res,
+  Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -18,6 +20,12 @@ import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { Response } from 'express';
+import { signPdfQuery, verifyPdfQuery } from './invoice-pdf-link';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import type { RoleContext } from '../role-context/role-context.types';
+
+// KenteXa staff who may open any invoice or receipt (admin mirror, support, finance).
+const STAFF = new Set(['admin', 'manager', 'customer_care', 'finance']);
 
 @Controller('invoices')
 export class InvoicesController {
@@ -30,11 +38,15 @@ export class InvoicesController {
   }
 
   // Download Receipt PDF — public
+  // Signed link only (owner 2026-11-09 audit): ?e=&k= from GET receipt/:n/pdf-link.
   @Get('receipt/:receiptNumber/pdf')
   async downloadReceipt(
     @Param('receiptNumber') receiptNumber: string,
+    @Query('e') e: string,
+    @Query('k') k: string,
     @Res() res: Response,
   ) {
+    if (!verifyPdfQuery('receipt', receiptNumber, e, k)) throw new ForbiddenException('Kiungo hiki kimekwisha muda. Fungua risiti tena kwenye KenteXa.');
     const buffer = await this.invoicesService.generateReceiptPDF(receiptNumber);
     res.set({
       'Content-Type': 'application/pdf',
@@ -42,6 +54,23 @@ export class InvoicesController {
       'Content-Length': buffer.length,
     });
     res.end(buffer);
+  }
+
+  // A 15-minute download link for the buyer, the seller or KenteXa staff (owner 2026-11-09 audit).
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get('number/:invoiceNumber/pdf-link')
+  async invoicePdfLink(@Param('invoiceNumber') invoiceNumber: string, @Request() req, @CurrentRoleContext() role: RoleContext) {
+    const invoice = await this.invoicesService.findByInvoiceNumber(invoiceNumber);
+    if (!STAFF.has(String(role?.roleType))) this.invoicesService.assertInvoiceOwner(invoice, req.user);
+    return { url: `/invoices/number/${encodeURIComponent(invoiceNumber)}/pdf?${signPdfQuery('invoice', invoiceNumber)}` };
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get('receipt/:receiptNumber/pdf-link')
+  async receiptPdfLink(@Param('receiptNumber') receiptNumber: string, @Request() req, @CurrentRoleContext() role: RoleContext) {
+    const invoice = await this.invoicesService.findByReceiptNumber(receiptNumber);
+    if (!STAFF.has(String(role?.roleType))) this.invoicesService.assertInvoiceOwner(invoice, req.user);
+    return { url: `/invoices/receipt/${encodeURIComponent(receiptNumber)}/pdf?${signPdfQuery('receipt', receiptNumber)}` };
   }
 
   // My Invoices
@@ -69,15 +98,17 @@ export class InvoicesController {
     return this.invoicesService.assertInvoiceOwner(invoice, req.user);
   }
 
-  // ✅ Download Invoice PDF — public, same as receipt.
-  // Invoice number itself acts as the access key (same trust model as receipts).
-  // Frontend links use plain <a href> tags which can't attach auth tokens,
-  // so this must be public to actually work when clicked from the browser.
+  // Download Invoice PDF: signed link only (owner 2026-11-09 audit). Plain <a href> links cannot
+  // carry a sign-in, so the app first asks GET number/:n/pdf-link (signed in, buyer / seller /
+  // staff only) and opens the 15-minute link it returns.
   @Get('number/:invoiceNumber/pdf')
   async downloadInvoice(
     @Param('invoiceNumber') invoiceNumber: string,
+    @Query('e') e: string,
+    @Query('k') k: string,
     @Res() res: Response,
   ) {
+    if (!verifyPdfQuery('invoice', invoiceNumber, e, k)) throw new ForbiddenException('Kiungo hiki kimekwisha muda. Fungua ankara tena kwenye KenteXa.');
     const buffer = await this.invoicesService.generateInvoicePDF(invoiceNumber);
     res.set({
       'Content-Type': 'application/pdf',

@@ -745,7 +745,8 @@ export class PaymentsService {
   // anything by itself; it only identifies which Payment to go re-verify
   // with the provider's own authoritative query (Decision 3). ───────────
   async handleCallback(body: any, providerName: string) {
-    this.logger.log(`Callback from ${providerName}`, JSON.stringify(body));
+    // Field names only: the body carries phone numbers and names (owner 2026-11-09 audit).
+    this.logger.log(`Callback from ${providerName} (fields: ${Object.keys(body || {}).join(',')})`);
     const provider = this.getProviderSafe(providerName);
     if (!provider) return { message: 'OK' };
 
@@ -947,7 +948,8 @@ export class PaymentsService {
   }
 
   async agentPaymentCallback(body: any, providerName: string) {
-    this.logger.log(`Agent callback from ${providerName}`, JSON.stringify(body));
+    // Field names only: the body carries phone numbers and names (owner 2026-11-09 audit).
+    this.logger.log(`Agent callback from ${providerName} (fields: ${Object.keys(body || {}).join(',')})`);
     const providerService = this.getProviderSafe(providerName);
     if (!providerService) return { message: 'OK' };
 
