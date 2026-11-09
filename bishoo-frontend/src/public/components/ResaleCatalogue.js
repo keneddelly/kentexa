@@ -80,7 +80,7 @@ function Row({ p, onNavigate, onSaved }) {
       )}
       {offer && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 14, color: GREEN, fontWeight: 700 }}>Tayari kwa {tzs(offer.price)}.</span>
+          <span style={{ fontSize: 14, color: GREEN, fontWeight: 700 }}>Tayari kwa {tzs(offer.price)}. Iko kwenye wasifu wako (Anauza).</span>
           <button type="button" onClick={share} data-testid={`catalogue-share-${p.id}`} style={btn(B)}>Shiriki kiungo</button>
           {offer.copied === true && <span style={{ fontSize: 13, color: GR }}>Kiungo kimenakiliwa.</span>}
           {typeof offer.copied === 'string' && <span style={{ fontSize: 13, color: GR, overflowWrap: 'anywhere' }}>{offer.copied}</span>}

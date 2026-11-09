@@ -154,7 +154,7 @@ export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate, 
       setBusy(true);
       const r = await api.post('/resale/offers', { productId: product.id, price: mine, note: note.trim() || undefined });
       setSaved(r.data);
-      setMsg('Tayari. Shiriki kiungo chako.');
+      setMsg('Tayari. Iko kwenye wasifu wako (Anauza); shiriki kiungo chako.');
     } catch (e) {
       setErr(e?.response?.data?.message || 'Imeshindikana kuhifadhi.');
     } finally { setBusy(false); }

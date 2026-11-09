@@ -39,6 +39,12 @@ export class ResaleController {
     return this.svc.openProducts(req.user.id, { page: Number(page) || 1, q, category, supplierId: Number(supplierId) || undefined, sort });
   }
 
+  /** Public: a reseller's shelf on their profile (their prices only). */
+  @Get('sellers/:id/offers')
+  shelf(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.resellerShelf(id);
+  }
+
   /** Public: how many of a shop's products are open for reselling (shop page door). */
   @Get('suppliers/:id/count')
   supplierCount(@Param('id', ParseIntPipe) id: number) {

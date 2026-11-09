@@ -323,6 +323,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [mutedProfile, setMutedProfile] = useState(false);
   // "Uza tena" (owner 2026-11-10): how many of this shop's products anyone may resell.
   const [resaleCount, setResaleCount] = useState(0);
+  // A person's reposted products at their own price (owner 2026-11-10); a buyer can buy from here.
+  const [shelf, setShelf] = useState([]);
   // New profiles: post count and the topics this profile talks about (from its real posts).
   const [talk, setTalk] = useState(null);
   // New profiles part 2: Majibu and Jumuiya, read when their tab opens.
@@ -525,6 +527,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     return () => { alive = false; };
   }, [isLoggedIn, isOwnProfile, activeProfile?.id]);
   const shopOwnerId = activeProfile?.ownerId;
+  const isPersonalProfile = activeProfile?.type === 'personal';
+  useEffect(() => {
+    setShelf([]);
+    if (!isPersonalProfile || !shopOwnerId) return undefined;
+    let alive = true;
+    api.get(`/resale/sellers/${shopOwnerId}/offers`)
+      .then((r) => { if (alive) setShelf(Array.isArray(r?.data) ? r.data : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isPersonalProfile, shopOwnerId]);
   useEffect(() => {
     setResaleCount(0);
     if (isOwnProfile || !shopOwnerId) return undefined;
@@ -589,12 +601,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const tier      = getTier(score);
   // New profiles part 3: a business shows Bidhaa only when it has products or listings, and
   // Huduma only when it offers services (the owner always sees both, to add the first one).
-  const profileTabs = tabs(activeProfile.type, isOwnProfile, t).filter((x) => {
+  const baseTabs = tabs(activeProfile.type, isOwnProfile, t).filter((x) => {
     if (activeProfile.type !== 'business' || isOwnProfile) return true;
     if (x.key === 'posts') return products.length > 0 || classifieds.length > 0;
     if (x.key === 'services_pub') return providerServices.length > 0;
     return true;
   });
+  // "Anauza": the person's reposted products, right after Machapisho, when they have any.
+  const profileTabs = shelf.length > 0
+    ? [baseTabs[0], { key: 'resale', label: 'Anauza' }, ...baseTabs.slice(1)].filter(Boolean)
+    : baseTabs;
 
   // `profile` comes from GET /seller/public/:uid — a SELLER/business-shaped
   // payload (storeDescription, businessLocation, storeWhatsApp, isOfficialStore,
@@ -1477,6 +1493,23 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               cursor:'pointer', fontSize:15, fontWeight:800 }}>
             {t('commerce_profile.view_full_analytics_button')}
           </button>
+        )}
+
+        {/* "Uza tena": what this person resells, at their price (owner 2026-11-10). */}
+        {tab==='resale' && (
+          <div data-testid="profile-shelf" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(150px, 1fr))', gap:12 }}>
+            {shelf.map((o) => (
+              <button key={o.offerId} type="button" data-testid={`shelf-${o.offerId}`} onClick={() => onNavigate(`ProductDetail-${o.productId}`, { offerId: o.offerId })}
+                style={{ display:'flex', flexDirection:'column', gap:6, padding:0, border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', color:'#0f1419', minWidth:0 }}>
+                <span style={{ aspectRatio:'1 / 1', borderRadius:12, overflow:'hidden', background:'#f7f9f9', display:'block' }}>
+                  {o.image && <img src={o.image} alt={o.name} loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />}
+                </span>
+                <span style={{ fontSize:15, fontWeight:800 }}>TZS {Math.round(o.price).toLocaleString('en-US')}</span>
+                <span style={{ fontSize:14, lineHeight:1.3, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{o.name}</span>
+                {o.note && <span style={{ fontSize:13, color:MUTED }}>{o.note}</span>}
+              </button>
+            ))}
+          </div>
         )}
 
         {/* Reputation */}

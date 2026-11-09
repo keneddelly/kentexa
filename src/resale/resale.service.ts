@@ -223,6 +223,23 @@ export class ResaleService {
     };
   }
 
+  /**
+   * A reseller's own shelf (owner 2026-11-10: "when he reposts a product it appears on his account
+   * with his price; a buyer can buy it"). Public: the products and the reseller's prices only,
+   * never the supplier price. Only offers that can still be bought.
+   */
+  async resellerShelf(resellerUserId: number) {
+    const rows: any[] = await this.db.query(
+      `SELECT o.id, o."productId", o.price, o.note, p.name, p.images, p.stock, p."resalePrice", p."resaleMinPrice"
+         FROM public.resale_offer o JOIN public.product p ON p.id = o."productId"
+        WHERE o."resellerUserId" = $1::int AND o."isActive" = true AND p."resaleOpen" = true AND p."isActive" = true
+          AND p."isAvailable" = true AND p.stock > 0 AND ${UNPAID_LATE_SQL} = 0
+        ORDER BY o."updatedAt" DESC LIMIT 100`, [resellerUserId]);
+    return rows
+      .filter((r) => money(r.price) >= sellingFloor(r))
+      .map((r) => ({ offerId: r.id, productId: r.productId, name: r.name, image: firstImage(r.images), price: money(r.price), note: r.note, stock: Number(r.stock) || 0 }));
+  }
+
   /** How many of one shop's products are open for reselling (the "Uza bidhaa za duka hili" door). */
   async supplierOpenCount(supplierUserId: number) {
     const [r] = await this.db.query(

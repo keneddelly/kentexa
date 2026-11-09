@@ -154,3 +154,16 @@ describe('Uza tena members (owner 2026-11-10): prices only for people who joined
     expect(events.record).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'RESELLER_JOINED', actorId: 20 }));
   });
 });
+
+describe('Uza tena: the shelf on the reseller profile (owner 2026-11-10)', () => {
+  it('shows their products at their price, never the supplier price; drops offers below a new floor', async () => {
+    const rows = [
+      { id: 7, productId: 3, price: '55000.00', note: null, name: 'Simu', images: 'a.jpg', stock: 4, resalePrice: '42000.00', resaleMinPrice: null },
+      { id: 8, productId: 4, price: '30000.00', note: null, name: 'Taa', images: null, stock: 2, resalePrice: '31000.00', resaleMinPrice: null },
+    ];
+    const db: any = { query: jest.fn(async () => rows) };
+    const shelf = await new ResaleService(db, { record: jest.fn() } as any).resellerShelf(20);
+    expect(shelf).toEqual([{ offerId: 7, productId: 3, name: 'Simu', image: 'a.jpg', price: 55000, note: null, stock: 4 }]);
+    expect(JSON.stringify(shelf)).not.toContain('42000');
+  });
+});

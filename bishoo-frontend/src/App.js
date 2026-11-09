@@ -824,7 +824,7 @@ function App() {
     if (page.startsWith('ProductDetail-')) {
       const [rawId, suffix] = page.split('ProductDetail-')[1].split('-');
       return <ProductDetail {...publicProps} productId={Number(rawId)} track={track}
-        initialTab={suffix === 'comments' ? 'reviews' : null} />;
+        initialTab={suffix === 'comments' ? 'reviews' : null} offerId={navParams?.offerId || null} />;
     }
     // Deep-links from a warranty-claim notification (WarrantyService's own
     // actionPage/actionParam) straight to the relevant registration —
