@@ -123,7 +123,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Brand', 'Business Profile', 'Scope', 'Status', 'Submitted', 'Actions'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -139,7 +139,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                         {r.categoryScope || 'All categories'}{r.geographicScope?.length ? ` · ${r.geographicScope.join(', ')}` : ''}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#94a3b8' }}>
                         {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}
@@ -147,7 +147,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '14px 16px' }}>
                         {r.status === 'pending' && (
                           <button onClick={e => { e.stopPropagation(); runAction('approve', null, r); }} disabled={actionLoading}
-                            style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                            style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                             Approve
                           </button>
                         )}
@@ -191,14 +191,14 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Submitted',           value: selected.createdAt ? new Date(selected.createdAt).toLocaleString() : null },
             ].filter(f => f.value).map(field => (
               <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
                 <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{field.value}</div>
               </div>
             ))}
 
             {evidence.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>EVIDENCE</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>EVIDENCE</div>
                 {evidence.map(ev => (
                   <button key={ev.id} onClick={() => viewEvidence(ev)}
                     style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', marginBottom: 6, backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
@@ -213,7 +213,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                 written for this authorization, oldest first. */}
             {auditLog.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>AUDIT HISTORY</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>AUDIT HISTORY</div>
                 {auditLog.map(entry => (
                   <div key={entry.id} style={{ padding: '10px 14px', marginBottom: 6, backgroundColor: '#f8fafc', borderRadius: 8, fontSize: 12 }}>
                     <div style={{ fontWeight: 700, color: '#1e293b' }}>

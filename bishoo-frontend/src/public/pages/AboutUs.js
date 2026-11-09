@@ -31,13 +31,13 @@ const AboutUs = ({ onNavigate }) => {
       <BackBar onBack={() => onNavigate('back')} title="About Us" top={0} />
 
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#1d4ed8 100%)', padding: '60px 16px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#0f1419 50%,#1d4ed8 100%)', padding: '60px 16px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: -80, right: -80, width: 300, height: 300, borderRadius: '50%', backgroundColor: 'rgba(29,78,216,0.15)' }} />
         <div style={{ position: 'absolute', bottom: -60, left: -60, width: 200, height: 200, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)' }} />
         <div style={{ position: 'relative' }}>
           <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 0, marginBottom: 16 }}>
             <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 48, fontWeight: 900, color: '#60a5fa', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 48, fontWeight: 900, color: '#bfdbfe', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20 }}>{t('about_us.hero_tagline')}</p>
           <h1 style={{ fontSize: 28, fontWeight:800, color: '#fff', margin: '0 0 16px', fontFamily:'inherit', lineHeight: 1.3 }}>
@@ -93,7 +93,7 @@ const AboutUs = ({ onNavigate }) => {
           {milestones.map((m, i) => (
             <div key={i} style={{ display: 'flex', gap: 16, marginBottom: i < milestones.length - 1 ? 20 : 0 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#1d4ed8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight:800, flexShrink: 0 }}>{m.year}</div>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#1d4ed8', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight:800, flexShrink: 0 }}>{m.year}</div>
                 {i < milestones.length - 1 && <div style={{ width: 2, flex: 1, backgroundColor: '#e2e8f0', margin: '4px 0' }} />}
               </div>
               <div style={{ paddingTop: 10, paddingBottom: 16 }}>
@@ -111,7 +111,7 @@ const AboutUs = ({ onNavigate }) => {
               <div key={m.name} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '20px 16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
                 <div style={{ marginBottom: 10 }}><LineIcon name={m.emoji} size={40} /></div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{m.name}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>{m.role}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>{m.role}</div>
                 <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>{m.desc}</div>
               </div>
             ))}
@@ -119,7 +119,7 @@ const AboutUs = ({ onNavigate }) => {
         </div>
 
         {/* Stats */}
-        <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', borderRadius: 16, padding: '28px 24px', marginBottom: 16 }}>
+        <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', borderRadius: 16, padding: '28px 24px', marginBottom: 16 }}>
           <h2 style={{ fontSize: 18, fontWeight:800, color: '#fff', margin: '0 0 20px', textAlign: 'center', fontFamily:'inherit' }}>{t('about_us.stats_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
             {[
@@ -131,7 +131,7 @@ const AboutUs = ({ onNavigate }) => {
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center', padding: '16px 8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 }}>
                 <div style={{ fontSize: 24, fontWeight:800, color: '#fff', fontFamily:'inherit' }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -151,7 +151,7 @@ const AboutUs = ({ onNavigate }) => {
               <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 10 }}>
                 <span style={{ display: 'inline-flex' }}><LineIcon name={c.icon} size={20} /></span>
                 <div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{c.label}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{c.label}</div>
                   {c.href
                     ? <a href={c.href} style={{ fontSize: 14, fontWeight: 700, color: '#1d4ed8', textDecoration: 'none' }}>{c.value}</a>
                     : <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{c.value}</div>

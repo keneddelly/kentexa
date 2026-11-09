@@ -205,7 +205,7 @@ const Payments = ({ activePage, onNavigate, onLogout }) => {
                     </td>
                     <td style={{ padding: '14px 16px', borderTop: '1px solid #f1f5f9', fontSize: '14px', color: '#64748b' }}>
                       <div>{payment.phone}</div>
-                      {payment.user?.name && <div style={{ fontSize: 11, color: '#94a3b8' }}>{payment.user.name}</div>}
+                      {payment.user?.name && <div style={{ fontSize: 12, color: '#94a3b8' }}>{payment.user.name}</div>}
                     </td>
                     <td style={{ padding: '14px 16px', borderTop: '1px solid #f1f5f9', fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
                       {Number(payment.amount).toLocaleString()}

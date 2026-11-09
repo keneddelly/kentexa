@@ -39,10 +39,10 @@ const LINE = '#eff3f4';
 const BORDER = '#cfd9de';
 const BLUE = '#1d4ed8';
 const BLUE_SOFT = '#eff6ff';
-const GREEN = '#15803d';
-const AMBER = '#b45309';
+const GREEN = '#16a34a';
+const AMBER = '#d97706';
 const RED = '#b91c1c';
-const TINTS = ['#fef3c7', '#ecfccb', '#e0f2fe', '#fee2e2', '#ede9fe', '#ffedd5'];
+const TINTS = ['#fef3c7', '#f0fdf4', '#eff6ff', '#fee2e2', '#f7f9f9', '#fffbeb'];
 const tzs = (n) => `TZS ${Math.round(Number(n || 0)).toLocaleString('en-US')}`;
 const num = (v) => Math.round(Number(String(v ?? '').replace(/[^\d.]/g, '')) || 0);
 
@@ -488,7 +488,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
 
       {(error || notice) && (
         <div className="pos-no-print" role={error ? 'alert' : 'status'} style={{ margin: '10px 16px 0', padding: '10px 14px', borderRadius: 12, fontSize: 14,
-          background: error ? '#fef2f2' : '#ecfdf3', color: error ? RED : '#166534', display: 'flex', gap: 10 }}>
+          background: error ? '#fef2f2' : '#f0fdf4', color: error ? RED : '#166534', display: 'flex', gap: 10 }}>
           <span style={{ flex: 1 }}>{error || notice}</span>
           <button type="button" aria-label="Funga" onClick={() => { setError(''); setNotice(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'inherit' }}>×</button>
         </div>
@@ -637,7 +637,7 @@ const POS = ({ onNavigate, currentUser, activeProfileId, activeContext, offlineB
             </div>
           )}
           <div data-testid="pos-pay-state" style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 14,
-            background: totals.left > 0 ? (credit || cod ? '#fffbeb' : '#fef2f2') : '#ecfdf3', color: totals.left > 0 ? (credit || cod ? AMBER : RED) : '#166534', fontWeight: 700, fontSize: 15 }}>
+            background: totals.left > 0 ? (credit || cod ? '#fffbeb' : '#fef2f2') : '#f0fdf4', color: totals.left > 0 ? (credit || cod ? AMBER : RED) : '#166534', fontWeight: 700, fontSize: 15 }}>
             <span>{totals.left > 0 ? (credit ? `Deni ${tzs(totals.left)}` : cod ? `Atalipa akipokea ${tzs(totals.left)}` : `Bado ${tzs(totals.left)}`) : 'Imelipwa yote'}</span>
             <span>Chenji {tzs(totals.change)}</span>
           </div>

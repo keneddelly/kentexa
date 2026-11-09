@@ -138,7 +138,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
           <label style={labelStyle}>Namba ya WhatsApp ya Duka <span style={{ fontWeight: 400, color: '#94a3b8' }}>(kwa ufuatiliaji wa wateja)</span></label>
           <input type="tel" value={form.storeWhatsApp} onChange={e => setForm({ ...form, storeWhatsApp: e.target.value })}
             placeholder="e.g. 0788075633" style={inputStyle} />
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
             Wateja wataweza kufuatilia agizo kwa kubonyeza kitufe cha WhatsApp — kitaenda kwenye namba hii badala ya namba ya KenteXa
           </div>
         </div>
@@ -211,7 +211,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
             }}
           />
           {form.businessLocation ? (
-            <div style={{ fontSize: 11, color: '#16a34a', marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: '#16a34a', marginTop: 6 }}>
               {form.businessLocation}
             </div>
           ) : null}
@@ -224,7 +224,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
           <textarea value={form.sellerPickupAddress} onChange={e => setForm({ ...form, sellerPickupAddress: e.target.value })}
             rows={3} placeholder="e.g. Nyumba ya Rangi ya Njano, Mtaa wa Geita, karibu na kanisa la KKKT — namba ya simu: 0788..."
             style={{ ...inputStyle, resize: 'vertical' }} />
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
             Maelekezo mazuri husaidia wakala kukupata haraka. Weka alama muhimu karibu nawe.
           </div>
         </div>
@@ -249,7 +249,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
               style={{ width: 18, height: 18, accentColor: '#1d4ed8' }} />
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{opt.label}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>{opt.desc}</div>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>{opt.desc}</div>
             </div>
           </label>
         ))}
@@ -265,7 +265,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
             <div key={i} style={{ position: 'relative', width: 80, height: 80 }}>
               <img src={img} alt={`gallery-${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
               <button onClick={() => removeGalleryImage(i)}
-                style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', backgroundColor: '#ef4444', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight:800, lineHeight: 1 }}>×</button>
+                style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', backgroundColor: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight:800, lineHeight: 1 }}>×</button>
             </div>
           ))}
         </div>

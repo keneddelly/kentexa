@@ -8,7 +8,7 @@ import api from '../../api/api';
 const STATE = {
   not_confirmed: ['Sender has not confirmed yet', '#64748b'],
   awaiting_parcel: ['Not at the load hub yet', '#92400E'],
-  ready_to_assign: ['At the load hub — ready', '#065F46'],
+  ready_to_assign: ['At the load hub — ready', '#166534'],
   assigned: ['On the manifest', '#1d4ed8'],
   loaded: ['On board', '#1d4ed8'],
   unloaded: ['Off-loaded', '#475569'],

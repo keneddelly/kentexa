@@ -81,4 +81,4 @@ export function parseMenuPath(pathname, search) {
   return { page: `HotelMenu-${m[1]}`, navParams: place };
 }
 
-export const FOOD_COLORS = { ink: '#0f1419', muted: '#536471', line: '#eff3f4', border: '#cfd9de', blue: '#1d4ed8', blueSoft: '#eff6ff', green: '#15803d', amber: '#92400e', amberSoft: '#fffbeb', red: '#b91c1c' };
+export const FOOD_COLORS = { ink: '#0f1419', muted: '#536471', line: '#eff3f4', border: '#cfd9de', blue: '#1d4ed8', blueSoft: '#eff6ff', green: '#16a34a', amber: '#92400e', amberSoft: '#fffbeb', red: '#b91c1c' };

@@ -16,7 +16,7 @@ const PhoneCell = ({ phone }) => {
         {phone}
       </a>
       <a href={WA(phone)} target="_blank" rel="noreferrer"
-        style={{ fontSize: 9, backgroundColor: '#25D366', color: '#fff', padding: '2px 5px',
+        style={{ fontSize: 12, backgroundColor: '#25D366', color: '#fff', padding: '2px 5px',
           borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
         WA
       </a>
@@ -176,7 +176,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: 16, textAlign: 'center' }}>
               <div style={{ fontSize: 20, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
-              {s.sub && <div style={{ fontSize: 11, color: s.color, marginTop: 2 }}>{s.sub}</div>}
+              {s.sub && <div style={{ fontSize: 12, color: s.color, marginTop: 2 }}>{s.sub}</div>}
             </div>
           ))}
         </div>
@@ -211,7 +211,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                   {['Ankara #','Agizo','Bidhaa','Muuzaji','Mnunuzi / Simu','Kiasi','Hali','Tarehe'].map(h => (
                     <th key={h} style={{ padding: '14px 16px', textAlign: 'left',
                       backgroundColor: '#f1f5f9', color: '#64748b',
-                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                      fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -236,7 +236,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
                         {inv.invoiceNumber}
                         {statusMismatch && (
-                          <div style={{ fontSize: 9, color: '#c2410c', fontWeight: 800 }}>
+                          <div style={{ fontSize: 12, color: '#c2410c', fontWeight: 800 }}>
                             AGIZO LIMELIPWA
                           </div>
                         )}
@@ -265,7 +265,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         TZS {Number(inv.amount).toLocaleString()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
+                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12,
                           fontWeight: 700, backgroundColor: sc.bg, color: sc.color,
                           whiteSpace: 'nowrap' }}>
                           {sc.label}
@@ -331,7 +331,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Seller section */}
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8',
                   marginBottom: 8, letterSpacing: 0.5 }}>MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {selected.order?.seller?.businessName || selected.order?.seller?.user?.name || '—'}
@@ -346,7 +346,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Buyer section */}
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a',
                   marginBottom: 8, letterSpacing: 0.5 }}>MNUNUZI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {selected.buyer?.name || selected.order?.buyer?.name || selected.order?.manualBuyerName || '—'}
@@ -356,7 +356,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
 
               {/* Invoice details */}
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                   marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Bidhaa',     selected.order?.product?.name || selected.order?.manualProductName || '—'],
@@ -424,7 +424,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                   {['Ankara #','Tangazo','Muuzaji','Mnunuzi / Simu','Kiasi','Hali','Tarehe'].map(h => (
                     <th key={h} style={{ padding: '14px 16px', textAlign: 'left',
                       backgroundColor: '#f1f5f9', color: '#64748b',
-                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                      fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -464,7 +464,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                         TZS {Number(inv.amount || 0).toLocaleString()}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
+                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12,
                           fontWeight: 700, backgroundColor: sc.bg, color: sc.color,
                           whiteSpace: 'nowrap' }}>
                           {sc.label}
@@ -517,7 +517,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               })()}
 
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8',
                   marginBottom: 8, letterSpacing: 0.5 }}>MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {clsSelected.seller?.storeName || clsSelected.seller?.name || '—'}
@@ -531,7 +531,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               </div>
 
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a',
                   marginBottom: 8, letterSpacing: 0.5 }}>MNUNUZI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                   {clsSelected.buyer?.name || '—'}
@@ -545,7 +545,7 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               </div>
 
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                   marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Tangazo',    clsSelected.classified?.title || '—'],

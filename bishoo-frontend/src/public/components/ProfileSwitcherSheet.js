@@ -62,10 +62,10 @@ const ProfileRow = ({ profile, isActive, disabled, onClick, label, icon, transla
         {label}
       </div>
       {profile?.status && profile.status !== 'active' && (
-        <div style={{ fontSize:10, color:GR, marginTop:1 }}>{profile.status}</div>
+        <div style={{ fontSize:12, color:GR, marginTop:1 }}>{profile.status}</div>
       )}
     </div>
-    {isActive && <span style={{ fontSize:11, fontWeight:800, color:B }}>{translatedActiveLabel}</span>}
+    {isActive && <span style={{ fontSize:12, fontWeight:800, color:B }}>{translatedActiveLabel}</span>}
   </button>
 );
 
@@ -103,7 +103,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           WebkitOverflowScrolling:appleMobile ? 'touch' : undefined,
           overscrollBehavior:appleMobile ? 'contain' : undefined, padding:'8px 16px 16px' }}>
           {error && <div role="alert" style={{ margin:'4px 0 10px', padding:'9px 10px', borderRadius:10,
-            backgroundColor:'#FEE2E2', color:'#B91C1C', fontSize:11, fontWeight:700 }}>{error}</div>}
+            backgroundColor:'#FEE2E2', color:'#B91C1C', fontSize:12, fontWeight:700 }}>{error}</div>}
 
           {personal && (
             <ProfileRow profile={personal} isActive={isActive(personal)} disabled={rowDisabled(personal)}
@@ -113,7 +113,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           )}
 
           {businesses.length > 0 && (
-            <div style={{ fontSize:10, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
+            <div style={{ fontSize:12, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
               {t('profile_switcher.my_businesses_header')}
             </div>
           )}
@@ -143,7 +143,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           ))}
 
           {other.length > 0 && (
-            <div style={{ fontSize:10, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
+            <div style={{ fontSize:12, fontWeight:800, color:GR, letterSpacing:0.6, margin:'14px 4px 6px' }}>
               {t('profile_switcher.other_roles_header')}
             </div>
           )}

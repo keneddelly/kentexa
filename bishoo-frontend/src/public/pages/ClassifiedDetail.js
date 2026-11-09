@@ -70,7 +70,7 @@ const Verified = () => (
     <circle cx="12" cy="12" r="10" fill={B} /><path d="M8 12.5l3 3 5-6" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" />
   </svg>
 );
-const CHIP = { green: ['#ecfdf3', '#166534'], red: ['#fef2f2', '#b91c1c'], blue: ['#eff6ff', '#1e40af'], grey: ['#f7f9f9', GR] };
+const CHIP = { green: ['#f0fdf4', '#166534'], red: ['#fef2f2', '#b91c1c'], blue: ['#eff6ff', '#1d4ed8'], grey: ['#f7f9f9', GR] };
 const Chip = ({ tone = 'grey', children }) => (
   <span style={{ height:28, padding:'0 10px', borderRadius:14, backgroundColor:CHIP[tone][0], color:CHIP[tone][1], fontSize:13, fontWeight:600, display:'inline-flex', alignItems:'center', textTransform:'capitalize' }}>{children}</span>
 );
@@ -410,7 +410,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
               <h2 style={{ ...sectionTitle, display:'flex', alignItems:'center', gap:8, color:'#92400e', margin:'0 0 8px' }}>
                 <Icon d={IC.shield} size={18} color="#92400e" />{t('classified_detail.safety_tips')}
               </h2>
-              <ul style={{ margin:0, paddingLeft:18, color:'#78350f', fontSize:14, lineHeight:1.7 }}>
+              <ul style={{ margin:0, paddingLeft:18, color:'#92400e', fontSize:14, lineHeight:1.7 }}>
                 <li>{t('classified_detail.tip1')}</li>
                 <li>{t('classified_detail.tip2')}</li>
                 <li>{t('classified_detail.tip3')}</li>

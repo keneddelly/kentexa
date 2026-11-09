@@ -42,7 +42,7 @@ const PhoneNudgeBanner = ({ userId, onSaved }) => {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="M7 2h10v20H7zM11 18h2" /></svg>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>{t('phone_nudge.add_phone_title')}</div>
-            <div style={{ fontSize: 11, color: '#92400e' }}>{t('phone_nudge.add_phone_desc')}</div>
+            <div style={{ fontSize: 12, color: '#92400e' }}>{t('phone_nudge.add_phone_desc')}</div>
           </div>
           <button onClick={() => setEditing(true)}
             style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>

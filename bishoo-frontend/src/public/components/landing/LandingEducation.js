@@ -328,7 +328,7 @@ const LandingEducation = ({ intent, onNavigate }) => {
       </section>
 
       {/* ── Final CTA ── */}
-      <section style={{ ...sectionWrap, background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', maxWidth: 'none', textAlign: 'center' }}>
+      <section style={{ ...sectionWrap, background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', maxWidth: 'none', textAlign: 'center' }}>
         <h2 style={{ ...sectionHeading, color: '#fff' }}>{t('landing.final_cta.heading')}</h2>
         <p style={{ ...sectionBody, color: 'rgba(255,255,255,0.8)' }}>{t('landing.final_cta.desc')}</p>
         <button onClick={() => onNavigate('Register')}

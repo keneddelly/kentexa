@@ -464,7 +464,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   const notices = (
     <>
       {message && (
-        <div role="status" style={{ margin: '12px 16px 0', backgroundColor: '#ecfdf3', color: '#166534', padding: '12px 14px', borderRadius: 12, fontSize: 14, display: 'flex', gap: 10 }}>
+        <div role="status" style={{ margin: '12px 16px 0', backgroundColor: '#f0fdf4', color: '#166534', padding: '12px 14px', borderRadius: 12, fontSize: 14, display: 'flex', gap: 10 }}>
           <span style={{ flex: 1 }}>{message}</span>
           <button type="button" aria-label="Funga" onClick={() => setMessage('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', fontSize: 18, padding: 0 }}>×</button>
         </div>
@@ -515,7 +515,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           </span>
         </section>
 
-        <section data-testid="next-step" style={{ margin: '0 16px', padding: 16, borderRadius: 16, background: step.tone === 'red' ? '#fef2f2' : step.tone === 'green' ? '#ecfdf3' : '#eff6ff', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <section data-testid="next-step" style={{ margin: '0 16px', padding: 16, borderRadius: 16, background: step.tone === 'red' ? '#fef2f2' : step.tone === 'green' ? '#f0fdf4' : '#eff6ff', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: TONE[step.tone] }}>Hatua inayofuata</span>
           <strong style={{ fontSize: 17 }}>{step.label}</strong>
           {o.status === 'disputed' && o.disputeReason && <span style={{ fontSize: 14, color: MUTED }}>{o.disputeReason}</span>}
@@ -668,7 +668,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                           <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                             <span style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: '1px solid #cfd9de', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{isManualOrder(o) ? 'Mauzo yangu' : 'Sokoni'}</span>
                             {payLabel(o) && (
-                              <span data-testid="row-pay" style={{ fontSize: 12, fontWeight: 700, color: TONE[payLabel(o).tone], background: payLabel(o).tone === 'green' ? '#ecfdf3' : '#fffbeb', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{payLabel(o).text}</span>
+                              <span data-testid="row-pay" style={{ fontSize: 12, fontWeight: 700, color: TONE[payLabel(o).tone], background: payLabel(o).tone === 'green' ? '#f0fdf4' : '#fffbeb', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{payLabel(o).text}</span>
                             )}
                             <span data-testid="row-next" style={{ fontSize: 13, fontWeight: 700, color: TONE[step.tone] }}>{step.label}</span>
                           </span>
@@ -705,7 +705,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
                 {/* Show buyer's chosen method prominently — seller doesn't re-choose */}
                 <div style={{ backgroundColor: '#dbeafe', border: '2px solid #93c5fd', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>{t('seller_orders.buyer_chosen_method_label')}</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>{t('seller_orders.buyer_chosen_method_label')}</div>
                   <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b' }}>
                     {selectedOrder.shippingMethod === 'boda' ? t('seller_orders.method_name_boda') :
                      selectedOrder.shippingMethod === 'kentexa_delivery' ? t('seller_orders.method_name_van_dar') :
@@ -735,7 +735,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left', border: shippingMethodKey === method.key ? '2px solid #1d4ed8' : '2px solid #e2e8f0', backgroundColor: shippingMethodKey === method.key ? '#eff6ff' : '#fff' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: shippingMethodKey === method.key ? '#1d4ed8' : '#1e293b' }}>{method.label}</div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>{method.desc}</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>{method.desc}</div>
                       </div>
                       {shippingMethodKey === method.key && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}
                     </button>
@@ -771,9 +771,9 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
                 {/* Order number to give agent */}
                 <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 12, padding: '14px 16px', marginBottom: 14, textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.show_to_agent')}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.show_to_agent')}</div>
                   <div style={{ fontSize: 24, fontWeight:800, color: '#fff', fontFamily: 'monospace' }}>#{selectedOrder.id}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{t('seller_orders.agent_scan_note')}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{t('seller_orders.agent_scan_note')}</div>
                 </div>
 
                 {/* Hub selection list — seller picks before continuing */}
@@ -781,7 +781,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {loadingHubs ? (
                   <div style={{ textAlign: 'center', padding: 20, color: '#64748b', fontSize: 13 }}>{t('seller_orders.loading_hubs')}</div>
                 ) : superAgentHubs.length === 0 ? (
-                  <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 14, fontSize: 13, color: '#92400e', marginBottom: 14 }}>
+                  <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 14, fontSize: 13, color: '#92400e', marginBottom: 14 }}>
                     {t('seller_orders.no_hubs_msg')}
                   </div>
                 ) : (
@@ -792,8 +792,8 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{hub.businessName || hub.user?.name || 'Ofisi'}</div>
-                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{hub.city || hub.region || '—'}</div>
-                            <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 600 }}>{hub.user?.phone || hub.phone || '—'}</div>
+                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{hub.city || hub.region || '—'}</div>
+                            <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 600 }}>{hub.user?.phone || hub.phone || '—'}</div>
                           </div>
                           {selectedHub?.id === hub.id && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}
                         </div>
@@ -802,7 +802,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   </div>
                 )}
 
-                <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
+                <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
                   {t('seller_orders.after_dropoff_note')}
                 </div>
 
@@ -810,7 +810,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   <button onClick={() => setModalStep('method')}
                     style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('seller_orders.back_button')}</button>
                   <button onClick={() => { setModalStep('proof'); setError(''); }} disabled={!selectedHub}
-                    style={{ flex: 2, background: !selectedHub ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: !selectedHub ? '#94a3b8' : '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: !selectedHub ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
+                    style={{ flex: 2, background: !selectedHub ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#16a34a)', color: !selectedHub ? '#94a3b8' : '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: !selectedHub ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
                     {selectedHub ? t('seller_orders.drop_at_hub_button') : t('seller_orders.select_hub_first')}
                   </button>
                 </div>
@@ -841,11 +841,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {/* Tracking number — only if needed */}
                 {/* Permanent tracking number — always show, never editable */}
                 <div style={{ backgroundColor: '#0f172a', borderRadius: 12, padding: '12px 16px', marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>{t('seller_orders.tracking_number_permanent_label')}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>{t('seller_orders.tracking_number_permanent_label')}</div>
                   <div style={{ fontSize: 18, fontWeight:800, color: '#f7c948', fontFamily: 'monospace' }}>
                     {selectedOrder?.trackingNumber || `KTX-ORD-${selectedOrder?.id}`}
                   </div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{t('seller_orders.tracking_number_note')}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{t('seller_orders.tracking_number_note')}</div>
                 </div>
 
                 {/* External ref — only for bus/courier */}
@@ -879,7 +879,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                       <div style={{ position: 'relative', display: 'inline-block' }}>
                         <img src={shipForm.shippingProductImage} alt="item" style={{ width: 100, height: 80, objectFit: 'cover', borderRadius: 8 }} />
                         <button onClick={() => setShipForm(p => ({ ...p, shippingProductImage: '' }))}
-                          style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 11 }}>×</button>
+                          style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 11 }}>×</button>
                       </div>
                     ) : (
                       <>
@@ -889,7 +889,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                           style={{ display: 'inline-block', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                           {uploading.product ? t('seller_orders.uploading') : t('seller_orders.choose_photo')}
                         </label>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>{t('seller_orders.from_gallery')}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 5 }}>{t('seller_orders.from_gallery')}</div>
                       </>
                     )}
                   </div>
@@ -906,7 +906,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         <div style={{ position: 'relative', display: 'inline-block' }}>
                           <img src={shipForm.shippingReceiptImage} alt="receipt" style={{ width: 100, height: 80, objectFit: 'cover', borderRadius: 8 }} />
                           <button onClick={() => setShipForm(p => ({ ...p, shippingReceiptImage: '' }))}
-                            style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 11 }}>×</button>
+                            style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#dc2626', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 11 }}>×</button>
                         </div>
                       ) : (
                         <>
@@ -916,7 +916,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                             style={{ display: 'inline-block', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                             {uploading.receipt ? t('seller_orders.uploading') : t('seller_orders.choose_photo')}
                           </label>
-                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>{t('seller_orders.from_gallery')}</div>
+                          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 5 }}>{t('seller_orders.from_gallery')}</div>
                         </>
                       )}
                     </div>
@@ -967,7 +967,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>{t('seller_orders.via_bus_label')}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>{t('seller_orders.via_bus_hint')}</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>{t('seller_orders.via_bus_hint')}</div>
               <input type="text" placeholder={t('seller_orders.bus_company_placeholder')}
                 value={transportForm.busCompany} onChange={e => setTransportForm(f => ({ ...f, busCompany: e.target.value }))}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
@@ -979,7 +979,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
             </div>
 
-            <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, margin: '8px 0' }}>{t('seller_orders.or_divider')}</div>
+            <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 12, margin: '8px 0' }}>{t('seller_orders.or_divider')}</div>
 
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>{t('seller_orders.via_courier_label')}</div>
@@ -994,7 +994,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handleSaveTransport}
                 disabled={savingTransport || (!transportForm.busTicketNumber && !transportForm.courierName)}
-                style={{ flex: 2, background: (!transportForm.busTicketNumber && !transportForm.courierTrackingRef) ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#15803d)',
+                style={{ flex: 2, background: (!transportForm.busTicketNumber && !transportForm.courierTrackingRef) ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#16a34a)',
                   color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight:800 }}>
                 {savingTransport ? t('seller_orders.saving') : t('seller_orders.save_notify_button')}
               </button>

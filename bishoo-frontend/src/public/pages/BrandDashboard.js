@@ -16,7 +16,7 @@ const StatCard = ({ icon, label, value, color, bg }) => (
   <div style={{ backgroundColor: bg || '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
     <div style={{ marginBottom: 6 }}><LineIcon name={icon} size={20} /></div>
     <div style={{ fontSize: 22, fontWeight:800, color: color || '#0f172a' }}>{value}</div>
-    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginTop: 2 }}>{label}</div>
+    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginTop: 2 }}>{label}</div>
   </div>
 );
 
@@ -56,8 +56,8 @@ const BrandDashboard = ({ onNavigate, activeProfileId, activeProfile }) => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
               <StatCard icon="store" label={t('brand_dashboard.total_label')} value={data.authorizedBusinesses.total} />
               <StatCard icon="check" label={t('brand_dashboard.active_label')} value={data.authorizedBusinesses.approved} color="#16a34a" bg="#f0fdf4" />
-              <StatCard icon="clock" label={t('brand_dashboard.pending_label')} value={data.authorizedBusinesses.pending} color="#ca8a04" bg="#fef9c3" />
-              <StatCard icon="clock" label={t('brand_dashboard.suspended_label')} value={data.authorizedBusinesses.suspended} color="#c2410c" bg="#fff7ed" />
+              <StatCard icon="clock" label={t('brand_dashboard.pending_label')} value={data.authorizedBusinesses.pending} color="#d97706" bg="#fffbeb" />
+              <StatCard icon="clock" label={t('brand_dashboard.suspended_label')} value={data.authorizedBusinesses.suspended} color="#d97706" bg="#fffbeb" />
             </div>
 
             <div style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', marginBottom: 10, textTransform: 'uppercase' }}>

@@ -66,7 +66,7 @@ const ServiceCard = ({ ad, onClick }) => {
       {/* Available now badge */}
       {ad.isAvailableNow && (
         <span style={{ position: 'absolute', top: 8, left: 8,
-          backgroundColor: '#16a34a', color: '#fff', fontSize: 10,
+          backgroundColor: '#16a34a', color: '#fff', fontSize: 12,
           fontWeight: 700, padding: '3px 8px', borderRadius: 100 }}>
           {t('services_page.available_now_badge')}
         </span>
@@ -74,7 +74,7 @@ const ServiceCard = ({ ad, onClick }) => {
       {/* Verified badge */}
       {ad.isVerified && (
         <span style={{ position: 'absolute', top: 8, right: 8,
-          backgroundColor: '#1d4ed8', color: '#fff', fontSize: 10,
+          backgroundColor: '#1d4ed8', color: '#fff', fontSize: 12,
           fontWeight: 700, padding: '3px 8px', borderRadius: 100 }}>
           {t('services_page.verified_badge')}
         </span>
@@ -83,7 +83,7 @@ const ServiceCard = ({ ad, onClick }) => {
 
     <div style={{ padding: '14px 16px' }}>
       {/* Category chip */}
-      <span style={{ fontSize: 10, fontWeight: 700, color: '#1d4ed8',
+      <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8',
         backgroundColor: '#eff6ff', padding: '2px 8px', borderRadius: 100 }}>
         {CATEGORIES.find(c => c.value === ad.category)?.label || ad.category}
       </span>
@@ -110,7 +110,7 @@ const ServiceCard = ({ ad, onClick }) => {
             <>
               <div style={{ width: 24, height: 24, borderRadius: '50%',
                 backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#475569',
+                justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#475569',
                 overflow: 'hidden' }}>
                 {providerPhoto
                   ? <img src={providerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -128,7 +128,7 @@ const ServiceCard = ({ ad, onClick }) => {
       {ad.totalJobs > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <StarRating rating={ad.rating} />
-          <span style={{ fontSize: 11, color: '#94a3b8' }}>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>
             {t('services_page.jobs_count', { count: ad.totalJobs })}
           </span>
         </div>
@@ -138,7 +138,7 @@ const ServiceCard = ({ ad, onClick }) => {
       {/* Transport availability link */}
       {ad.category === 'usafirishaji' && (
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '6px 10px',
-          marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#1d4ed8',
+          marginBottom: 8, fontSize: 12, fontWeight: 700, color: '#1d4ed8',
           display: 'flex', alignItems: 'center', gap: 4 }}>
           {t('services_page.transport_verified_note')}
         </div>
@@ -147,7 +147,7 @@ const ServiceCard = ({ ad, onClick }) => {
         <div style={{ fontSize: 15, fontWeight:800, color: '#0f1419' }}>
           {ad.priceType === 'negotiate' || ad.priceType === 'free_quote'
             ? <span style={{ fontSize: 13, color: '#64748b' }}>{PRICE_LABELS[ad.priceType]}</span>
-            : <>TZS {fmt(ad.price)}<span style={{ fontSize: 11, color: '#94a3b8' }}>{PRICE_LABELS[ad.priceType]}</span></>
+            : <>TZS {fmt(ad.price)}<span style={{ fontSize: 12, color: '#94a3b8' }}>{PRICE_LABELS[ad.priceType]}</span></>
           }
         </div>
         <span style={{ fontSize: 12, color: '#536471' }}>{ad.coverageCity}</span>

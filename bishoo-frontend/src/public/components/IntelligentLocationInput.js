@@ -39,7 +39,7 @@ const IntelligentLocationInput = ({ label='Location', value='', onTextChange, on
         onClick={()=>{onTextChange?.(s.displayLabel);onResolved?.(s);setOpen(false);}}
         style={{width:'100%',border:0,borderBottom:'1px solid #f1f5f9',background:'#fff',padding:'12px 13px',textAlign:'left',cursor:'pointer'}}>
         <div style={{fontSize:14,fontWeight:800,color:'#0f172a'}}>{s.displayLabel}</div>
-        <div style={{fontSize:11,color:'#64748b',marginTop:2}}>{[s.wardName,s.districtName,s.regionName].filter(Boolean).join(' · ')}</div>
+        <div style={{fontSize:12,color:'#64748b',marginTop:2}}>{[s.wardName,s.districtName,s.regionName].filter(Boolean).join(' · ')}</div>
       </button>)}
     </div>}
   </div>;

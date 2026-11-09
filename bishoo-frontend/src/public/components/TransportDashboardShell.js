@@ -6,7 +6,7 @@ import React from 'react';
  *   KAZI   - work coming in: loads from offices to accept, whole-vehicle requests to price.
  *   SAFARI - my trips: everything on a vehicle moves together (Imepakiwa, Njiani, Imefika).
  */
-export const TRANSPORT_COLORS = { kazi: '#0f766e', safari: '#0f1419', ink: '#0f1419', grey: '#536471', line: '#cfd9de' };
+export const TRANSPORT_COLORS = { kazi: '#1d4ed8', safari: '#0f1419', ink: '#0f1419', grey: '#536471', line: '#cfd9de' };
 const FONT = 'inherit';
 
 const Icon = ({ d, color = TRANSPORT_COLORS.ink, size = 22, width = 2 }) => (
@@ -44,7 +44,7 @@ export function TransportHome({ name, kind, status, kaziCount, safariCount, onKa
         <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
           <span style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 56, fontWeight: 800, lineHeight: 1 }}>KAZI</span>
-            <span style={{ fontSize: 16, color: '#ccfbf1' }}>Mizigo kutoka ofisi, maombi ya gari zima</span>
+            <span style={{ fontSize: 16, color: '#eff6ff' }}>Mizigo kutoka ofisi, maombi ya gari zima</span>
           </span>
           <Icon d="M12 4v14M6 12l6 6 6-6" color="#ffffff" size={36} width={2.2} />
         </span>

@@ -15,12 +15,12 @@ const Footer = ({ onNavigate }) => {
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, marginBottom: 10 }}>
             <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
           <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7, margin: '0 0 12px' }}>
             {t('footer.tagline')}
           </p>
-          <div style={{ fontSize: 11, color: '#475569' }}>{t('footer.made_in_tanzania')}</div>
+          <div style={{ fontSize: 12, color: '#475569' }}>{t('footer.made_in_tanzania')}</div>
         </div>
 
         {/* Marketplace */}
@@ -97,10 +97,10 @@ const Footer = ({ onNavigate }) => {
 
       {/* Payment badges */}
       <div style={{ borderTop: '1px solid #1e293b', padding: '16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, color: '#475569', marginBottom: 10 }}>{t('footer.accepted_payments')}</div>
+        <div style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>{t('footer.accepted_payments')}</div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
           {['M-Pesa', 'Airtel', 'Tigo', 'HaloPesa', 'Agent'].map(p => (
-            <span key={p} style={{ fontSize: 11, backgroundColor: '#1e293b', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>{p}</span>
+            <span key={p} style={{ fontSize: 12, backgroundColor: '#1e293b', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>{p}</span>
           ))}
         </div>
       </div>

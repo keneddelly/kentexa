@@ -46,12 +46,12 @@ const ProductTrail = ({ trail, onNavigate, onAddToCart, onSeen }) => {
               {item.image
                 ? <img src={item.image} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name={item.entityType === 'product' ? 'box' : 'list'} size={32} color="#94a3b8" /></div>}
-              <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, color: '#fff',
-                backgroundColor: item.entityType === 'product' ? '#1d4ed8' : '#db2777' }}>
+              <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 12, fontWeight: 800, padding: '2px 6px', borderRadius: 6, color: '#fff',
+                backgroundColor: item.entityType === 'product' ? '#1d4ed8' : '#0f1419' }}>
                 {item.entityType === 'product' ? t('product_trail.store') : t('product_trail.ad')}
               </span>
               {item.codEnabled && (
-                <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+                <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 12, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
                   {t('product_trail.cod')}
                 </span>
               )}
@@ -60,17 +60,17 @@ const ProductTrail = ({ trail, onNavigate, onAddToCart, onSeen }) => {
               <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>{item.name}</div>
               <div style={{ fontSize: 13, fontWeight:800, color: '#1d4ed8', marginBottom: 4 }}>TZS {item.price.toLocaleString()}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 9, color: '#16a34a', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.freeDelivery ? t('product_trail.free_delivery') : item.codEnabled || item.delivery ? t('product_trail.delivery') : ''}
                 </span>
                 {item.cartable ? (
                   <button type="button" aria-label={t('product_trail.add_to_cart')}
                     onClick={(e) => { e.stopPropagation(); onAddToCart?.(item.raw); }}
-                    style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
+                    style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                     <LineIcon name="cart" size={14} />
                   </button>
                 ) : (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#1d4ed8', flexShrink: 0 }}>{t('product_trail.view')} →</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', flexShrink: 0 }}>{t('product_trail.view')} →</span>
                 )}
               </div>
             </div>

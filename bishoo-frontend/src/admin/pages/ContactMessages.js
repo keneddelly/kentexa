@@ -86,7 +86,7 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
                       {!msg.isRead && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: '#dc2626', marginRight: 6 }} />}
                       {msg.name || 'Asiyejulikana'}
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8' }}>
                       {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString('sw-TZ') : '—'}
                     </div>
                   </div>
@@ -113,12 +113,12 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
                   { label: 'Tarehe', value: selected.createdAt ? new Date(selected.createdAt).toLocaleString('sw-TZ') : null },
                 ].filter(f => f.value).map(f => (
                   <div key={f.label} style={{ marginBottom: 10, padding: '8px 12px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 2 }}>{f.label.toUpperCase()}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, marginBottom: 2 }}>{f.label.toUpperCase()}</div>
                     <div style={{ fontSize: 13, color: '#1e293b', fontWeight: 600 }}>{f.value}</div>
                   </div>
                 ))}
                 <div style={{ marginTop: 12, padding: 14, backgroundColor: '#f8fafc', borderRadius: 10 }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 6 }}>UJUMBE</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 700, marginBottom: 6 }}>UJUMBE</div>
                   <div style={{ fontSize: 13, color: '#1e293b', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{selected.message}</div>
                 </div>
                 {selected.email && (

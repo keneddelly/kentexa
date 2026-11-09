@@ -221,7 +221,7 @@ const Agents = ({ onNavigate }) => {
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '14px 16px' }}>
               <div style={{ fontSize: 24, fontWeight:800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: s.color, fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: s.color, fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -288,7 +288,7 @@ const Agents = ({ onNavigate }) => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                             <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{agent.fullName}</span>
                             {agent.agentCode && (
-                              <span style={{ fontSize: 10, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
+                              <span style={{ fontSize: 12, fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: 4 }}>
                                 {agent.agentCode}
                               </span>
                             )}
@@ -299,11 +299,11 @@ const Agents = ({ onNavigate }) => {
                           <IdentityBadge status={agent.identityStatus} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: st.bg, color: st.color }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: st.bg, color: st.color }}>
                             {st.label}
                           </span>
                           {agent.tier && (
-                            <span style={{ fontSize: 10, color: '#94a3b8' }}>{TIER_LABEL[agent.tier]}</span>
+                            <span style={{ fontSize: 12, color: '#94a3b8' }}>{TIER_LABEL[agent.tier]}</span>
                           )}
                         </div>
                       </div>
@@ -320,14 +320,14 @@ const Agents = ({ onNavigate }) => {
                             ].map(s => (
                               <div key={s.l} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
                                 <div style={{ fontSize: 13, fontWeight: 800, color: s.c }}>{s.v}</div>
-                                <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{s.l}</div>
+                                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{s.l}</div>
                               </div>
                             ))}
                           </div>
 
                           {/* Earnings breakdown */}
                           <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginTop: 10 }}>
-                            <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>Mgawanyo wa Mapato</div>
+                            <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>Mgawanyo wa Mapato</div>
                             {[
                               { label: 'Utoaji wa Bidhaa', value: agent.totalEarningsDeliveries || 0, icon: '' },
                               { label: 'Ukusanyaji wa Malipo', value: agent.totalEarningsPayments || 0, icon: '' },
@@ -335,7 +335,7 @@ const Agents = ({ onNavigate }) => {
                               { label: 'Inayosubiri Kulipwa', value: agent.pendingEarnings || 0, icon: '' },
                             ].map(e => (
                               <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #dcfce7' }}>
-                                <span style={{ fontSize: 11, color: '#475569' }}>{e.label}</span>
+                                <span style={{ fontSize: 12, color: '#475569' }}>{e.label}</span>
                                 <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>TZS {Number(e.value).toLocaleString()}</span>
                               </div>
                             ))}
@@ -363,11 +363,11 @@ const Agents = ({ onNavigate }) => {
                 {/* ID info */}
                 {selected.idNumber && (
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>KITAMBULISHO (nakala ya zamani iliyoandikwa na wakala)</div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 4 }}>KITAMBULISHO (nakala ya zamani iliyoandikwa na wakala)</div>
                     <div style={{ fontSize: 12, color: '#1e293b' }}>{selected.idType}: {selected.idNumber}</div>
                     {selected.idPhotoUrl && (
                       <a href={selected.idPhotoUrl} target="_blank" rel="noreferrer"
-                        style={{ fontSize: 11, color: '#1d4ed8', display: 'block', marginTop: 4 }}>
+                        style={{ fontSize: 12, color: '#1d4ed8', display: 'block', marginTop: 4 }}>
                         Angalia picha ya ID
                       </a>
                     )}
@@ -377,21 +377,21 @@ const Agents = ({ onNavigate }) => {
                 {/* Address */}
                 {selected.address && (
                   <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, marginBottom: 2 }}>ANWANI</div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 700, marginBottom: 2 }}>ANWANI</div>
                     <div style={{ fontSize: 12, color: '#1e293b' }}>{selected.address}</div>
                   </div>
                 )}
 
                 {/* Settings preview */}
                 <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '10px 12px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>MIPANGILIO</div>
+                  <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 6 }}>MIPANGILIO</div>
                   {[
                     ['Kamisheni (Malipo)', `${selected.commissionRate || 2.5}%`],
                     ['Ada ya Uwasilishaji', `TZS ${Number(selected.deliveryCommission || 500).toLocaleString()}`],
                     ['Ukusanyaji Mjini', `TZS ${Number(selected.collectionFeeUrban || 1500).toLocaleString()}`],
                     ['Ukusanyaji Vijijini', `TZS ${Number(selected.collectionFeeRural || 3000).toLocaleString()}`],
                   ].map(([l, v]) => (
-                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
+                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
                       <span style={{ color: '#64748b' }}>{l}</span>
                       <span style={{ fontWeight: 700, color: '#1d4ed8' }}>{v}</span>
                     </div>
@@ -572,7 +572,7 @@ const IDENTITY_LABEL = {
 };
 function IdentityBadge({ status }) {
   const [text, color, bg] = IDENTITY_LABEL[status] || IDENTITY_LABEL.not_submitted;
-  return <span data-testid="identity-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, color, backgroundColor: bg }}>{text}</span>;
+  return <span data-testid="identity-badge" style={{ display: 'inline-block', marginTop: 4, padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 700, color, backgroundColor: bg }}>{text}</span>;
 }
 
 export default Agents;

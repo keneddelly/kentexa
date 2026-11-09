@@ -22,7 +22,7 @@ const BarChart = ({ data, color = '#1d4ed8', label }) => {
 
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>{label}</div>
       <svg width="100%" viewBox={`0 0 ${W} ${H + PAD}`}>
         <defs>
           <linearGradient id={`g-${color.slice(1)}`} x1="0" y1="0" x2="0" y2="1">
@@ -67,7 +67,7 @@ const StatCard = ({ label, value, sub, color, bg, icon, trend }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <div style={{ fontSize: 22 }}>{icon}</div>
       {trend !== undefined && (
-        <span style={{ fontSize: 10, fontWeight: 700,
+        <span style={{ fontSize: 12, fontWeight: 700,
           color: trend >= 0 ? '#16a34a' : '#dc2626',
           backgroundColor: trend >= 0 ? '#dcfce7' : '#fee2e2',
           padding: '2px 6px', borderRadius: 100 }}>
@@ -78,8 +78,8 @@ const StatCard = ({ label, value, sub, color, bg, icon, trend }) => (
     <div style={{ fontSize: 20, fontWeight:800, color: color || '#1e293b', marginTop: 8 }}>
       {value}
     </div>
-    <div style={{ fontSize: 11, color: '#64748b', marginTop: 3, fontWeight: 600 }}>{label}</div>
-    {sub && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
+    <div style={{ fontSize: 12, color: '#64748b', marginTop: 3, fontWeight: 600 }}>{label}</div>
+    {sub && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
   </div>
 );
 
@@ -187,7 +187,7 @@ const FinancialDashboard = ({ onNavigate }) => {
           ].map(s => (
             <div key={s.label}>
               <div style={{ fontSize: 15, fontWeight:800 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
                 {s.label}
               </div>
             </div>
@@ -339,7 +339,7 @@ const FinancialDashboard = ({ onNavigate }) => {
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {s.storeName || s.name || 'Muuzaji'}
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>
+                <div style={{ fontSize: 12, color: '#64748b' }}>
                   {s.ordersCount || 0} maagizo
                 </div>
               </div>

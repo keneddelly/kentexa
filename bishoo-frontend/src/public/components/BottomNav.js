@@ -243,7 +243,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
           }}>
           <span style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
             backgroundColor: '#1E293B', overflow: 'hidden', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+            alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
             {activeProfile.photoUrl
               ? <img src={activeProfile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
               : (
@@ -316,14 +316,14 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
                   position: 'absolute', top: 2, right: '26%',
                   minWidth: 18, height: 18, padding: '0 4px', borderRadius: 100, boxSizing: 'border-box',
                   backgroundColor: '#ff3040', color: '#fff', border: '2px solid #fff',
-                  fontSize: 10, fontWeight: 700, lineHeight: '14px', textAlign: 'center',
+                  fontSize: 12, fontWeight: 700, lineHeight: '14px', textAlign: 'center',
                 }}>
                   {inboxUnread > 99 ? '99+' : inboxUnread}
                 </span>
               )}
               {/* Small words under the bold icons (owner 2026-10-26: "keep small words"). */}
               {tab.label ? (
-                <span style={{ fontSize: 11, lineHeight: '13px', fontWeight: isActive ? 700 : 500, color: INK, opacity: isActive ? 1 : 0.75 }}>
+                <span style={{ fontSize: 12, lineHeight: '13px', fontWeight: isActive ? 700 : 500, color: INK, opacity: isActive ? 1 : 0.75 }}>
                   {tab.label}
                 </span>
               ) : null}

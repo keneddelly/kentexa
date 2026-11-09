@@ -32,12 +32,12 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
   const nextStep = checks.find(c => !c.done);
 
   return (
-    <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', border: '1.5px solid #e0e7ff' }}>
+    <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', border: '1.5px solid #eff3f4' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
           {t('profile_completion_banner.title', { percent })}
         </div>
-        <div style={{ fontSize: 12, fontWeight:800, color: percent >= 75 ? '#16a34a' : percent >= 40 ? '#f59e0b' : '#ef4444' }}>
+        <div style={{ fontSize: 12, fontWeight:800, color: percent >= 75 ? '#16a34a' : percent >= 40 ? '#f59e0b' : '#dc2626' }}>
           {percent}%
         </div>
       </div>
@@ -46,7 +46,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
       <div style={{ height: 8, backgroundColor: '#f1f5f9', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
         <div style={{
           width: `${percent}%`, height: '100%', borderRadius: 8,
-          background: percent >= 75 ? 'linear-gradient(90deg,#16a34a,#22c55e)' : percent >= 40 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#ef4444,#f87171)',
+          background: percent >= 75 ? 'linear-gradient(90deg,#16a34a,#16a34a)' : percent >= 40 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#dc2626,#dc2626)',
           transition: 'width 0.4s ease',
         }} />
       </div>
@@ -54,7 +54,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
       {/* Checklist - compact dots */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         {checks.map(c => (
-          <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: c.done ? '#16a34a' : '#94a3b8', fontWeight: 600 }}>
+          <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: c.done ? '#16a34a' : '#94a3b8', fontWeight: 600 }}>
             <span style={{ display: 'inline-flex', width: 16, height: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 4, border: c.done ? 'none' : '1.5px solid #cfd9de', color: '#16a34a' }}>{c.done ? '✓' : ''}</span>
             <span>{c.label}</span>
           </div>

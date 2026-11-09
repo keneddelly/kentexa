@@ -90,7 +90,7 @@ const VerifyReceipt = ({ onNavigate }) => {
             <div style={{ border: `1px solid ${LINE}`, borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 13, color: MUTED }}>{t('verify_receipt.amount_paid_label')}</span>
               <span style={{ fontSize: 30, fontWeight: 800 }}>TZS {Number(result.amount || 0).toLocaleString('en-US')}</span>
-              <span style={{ alignSelf: 'flex-start', marginTop: 4, padding: '4px 10px', borderRadius: 14, background: '#ecfdf3', color: GREEN, fontSize: 13, fontWeight: 700 }}>{t('verify_receipt.paid_badge')}</span>
+              <span style={{ alignSelf: 'flex-start', marginTop: 4, padding: '4px 10px', borderRadius: 14, background: '#f0fdf4', color: GREEN, fontSize: 13, fontWeight: 700 }}>{t('verify_receipt.paid_badge')}</span>
             </div>
             <div>
               {rows.map(([k, v]) => (

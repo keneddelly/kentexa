@@ -189,7 +189,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               <LineIcon name="chat" size={22} color={INK} />
               {inboxUnread > 0 && (
                 <span style={{ position: 'absolute', top: -6, right: -8, minWidth: 14, height: 14, padding: '0 3px', borderRadius: 100,
-                  backgroundColor: '#DC2626', color: '#fff', fontSize: 8, fontWeight: 800, lineHeight: '14px', textAlign: 'center' }}>
+                  backgroundColor: '#DC2626', color: '#fff', fontSize: 12, fontWeight: 800, lineHeight: '14px', textAlign: 'center' }}>
                   {inboxUnread > 99 ? '99+' : inboxUnread}
                 </span>
               )}
@@ -213,7 +213,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
         <div style={{ padding: '0 16px' }}>
         {profile?.status === 'approved' && !isOnline && profile?.onlineRequired === true && (
-          <div role="status" data-testid="agent-offline-banner" style={{ backgroundColor: '#fef9c3', color: '#854d0e', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, lineHeight: 1.5 }}>
+          <div role="status" data-testid="agent-offline-banner" style={{ backgroundColor: '#fffbeb', color: '#92400e', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, lineHeight: 1.5 }}>
             <strong>{t('agent_presence.offline_title')}</strong><br />
             {profile?.offlineReason === 'inactive'
               ? t('agent_presence.offline_inactive', { m: profile?.onlineExpiryMinutes || 60 })
@@ -234,7 +234,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           </div>
         )}
         {success && (
-          <div role="status" style={{ margin: '0 16px 12px', backgroundColor: '#ecfdf3', color: '#166534', padding: '12px 14px', borderRadius: 12, fontSize: 14, display: 'flex', gap: 10 }}>
+          <div role="status" style={{ margin: '0 16px 12px', backgroundColor: '#f0fdf4', color: '#166534', padding: '12px 14px', borderRadius: 12, fontSize: 14, display: 'flex', gap: 10 }}>
             <span style={{ flex: 1 }}>{success}</span>
             <button type="button" aria-label="Funga" onClick={() => setSuccess('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', fontSize: 18, padding: 0 }}>×</button>
           </div>
@@ -338,38 +338,38 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             <div style={{ marginBottom: 10 }}>
                               {!showTransportForm ? (
                                 <div>
-                                  <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#92400e', marginBottom: 8 }}>
+                                  <div style={{ backgroundColor: '#fffbeb', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#92400e', marginBottom: 8 }}>
                                     {t('agent_dashboard.transport_notice')}
                                   </div>
                                   <div style={{ display: 'flex', gap: 8 }}>
                                     <button onClick={() => setShowTransportForm('bus')}
-                                      style={{ flex: 1, backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                      style={{ flex: 1, backgroundColor: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                       {t('agent_dashboard.bus_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm('hub')}
-                                      style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                      style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                       {t('agent_dashboard.hub_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm('courier')}
-                                      style={{ flex: 1, backgroundColor: '#faf5ff', color: '#7c3aed', border: '1px solid #e9d5ff', padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                      style={{ flex: 1, backgroundColor: '#f7f9f9', color: '#0f1419', border: '1px solid #eff3f4', padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                       {t('agent_dashboard.courier_button')}
                                     </button>
                                   </div>
                                 </div>
                               ) : showTransportForm === 'bus' ? (
-                                <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: 12 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#c2410c', marginBottom: 8 }}>{t('agent_dashboard.bus_details_title')}</div>
+                                <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>{t('agent_dashboard.bus_details_title')}</div>
                                   {[
                                     { key: 'busCompany', label: t('agent_dashboard.field_bus_company'), placeholder: 'e.g. Scandinavian' },
                                     { key: 'busTicketNumber', label: t('agent_dashboard.field_ticket_number'), placeholder: 'e.g. KE-12345' },
                                     { key: 'departureTime', label: t('agent_dashboard.field_departure_time'), placeholder: 'e.g. Jumanne 6am' },
                                   ].map(f => (
                                     <div key={f.key} style={{ marginBottom: 8 }}>
-                                      <div style={{ fontSize: 11, color: '#92400e', marginBottom: 3 }}>{f.label}</div>
+                                      <div style={{ fontSize: 12, color: '#92400e', marginBottom: 3 }}>{f.label}</div>
                                       <input type="text" placeholder={f.placeholder}
                                         value={transportData[f.key] || ''}
                                         onChange={e => setTransportData(d => ({ ...d, [f.key]: e.target.value }))}
-                                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #fed7aa', fontSize: 12, boxSizing: 'border-box' }} />
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #fde68a', fontSize: 12, boxSizing: 'border-box' }} />
                                     </div>
                                   ))}
                                   <div style={{ display: 'flex', gap: 8 }}>
@@ -382,7 +382,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                         fetchWork(profile);
                                       } catch {} finally { setSavingTransport(null); }
                                     }} disabled={savingTransport === parcel.trackingNumber}
-                                      style={{ flex: 1, backgroundColor: '#c2410c', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                                      style={{ flex: 1, backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                       {savingTransport ? 'Inahifadhi' : t('agent_dashboard.save_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm(false)}
@@ -392,18 +392,18 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                   </div>
                                 </div>
                               ) : showTransportForm === 'courier' ? (
-                                <div style={{ backgroundColor: '#faf5ff', borderRadius: 10, padding: 12 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 8 }}>{t('agent_dashboard.courier_details_title')}</div>
+                                <div style={{ backgroundColor: '#f7f9f9', borderRadius: 10, padding: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0f1419', marginBottom: 8 }}>{t('agent_dashboard.courier_details_title')}</div>
                                   {[
                                     { key: 'courierName', label: t('agent_dashboard.field_courier_name'), placeholder: 'e.g. DHL, EMS' },
                                     { key: 'courierTrackingRef', label: t('agent_dashboard.field_tracking_ref'), placeholder: 'e.g. DHL1234567890' },
                                   ].map(f => (
                                     <div key={f.key} style={{ marginBottom: 8 }}>
-                                      <div style={{ fontSize: 11, color: '#6b21a8', marginBottom: 3 }}>{f.label}</div>
+                                      <div style={{ fontSize: 12, color: '#0f1419', marginBottom: 3 }}>{f.label}</div>
                                       <input type="text" placeholder={f.placeholder}
                                         value={transportData[f.key] || ''}
                                         onChange={e => setTransportData(d => ({ ...d, [f.key]: e.target.value }))}
-                                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #e9d5ff', fontSize: 12, boxSizing: 'border-box' }} />
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #eff3f4', fontSize: 12, boxSizing: 'border-box' }} />
                                     </div>
                                   ))}
                                   <div style={{ display: 'flex', gap: 8 }}>
@@ -416,7 +416,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                         fetchWork(profile);
                                       } catch {} finally { setSavingTransport(null); }
                                     }} disabled={savingTransport === parcel.trackingNumber}
-                                      style={{ flex: 1, backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                                      style={{ flex: 1, backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                       {savingTransport ? 'Inahifadhi' : t('agent_dashboard.save_button')}
                                     </button>
                                     <button onClick={() => setShowTransportForm(false)}
@@ -429,7 +429,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                 <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: 12, fontSize: 12, color: '#1d4ed8' }}>
                                   {t('agent_dashboard.hub_auto_update_notice')}
                                   <button onClick={() => setShowTransportForm(false)}
-                                    style={{ display: 'block', marginTop: 8, padding: '6px 12px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#fff', cursor: 'pointer', fontSize: 11, color: '#1d4ed8' }}>
+                                    style={{ display: 'block', marginTop: 8, padding: '6px 12px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#fff', cursor: 'pointer', fontSize: 12, color: '#1d4ed8' }}>
                                     {t('agent_dashboard.ok_button')}
                                   </button>
                                 </div>
@@ -460,7 +460,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             <div style={{ backgroundColor: '#fef3c7', padding: 10, borderRadius: 8, fontSize: 16 }}>
                               <div style={{ marginBottom: 8 }}>Pokea pesa ya lipa ukipokea, kisha muombe mpokeaji namba yake wakati wa kumkabidhi.</div>
                               <button onClick={() => handleIssueDeliveryCode(parcel.trackingNumber)} disabled={actionLoading}
-                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 16 }}>
+                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 16 }}>
                                 Tuma namba kwa mpokeaji
                               </button>
                               <input value={deliveryCodes[parcel.trackingNumber] || ''}
@@ -486,7 +486,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             <div style={{ backgroundColor: '#f0fdf4', padding: 10, borderRadius: 8 }}>
                               <div style={{ fontSize: 16, marginBottom: 8 }}>Mpokeaji akupe namba yake wakati unapomkabidhi kifurushi.</div>
                               <button onClick={() => handleIssueDeliveryCode(parcel.trackingNumber)} disabled={actionLoading}
-                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 16 }}>
+                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#16a34a', color: '#fff', fontWeight: 700, fontSize: 16 }}>
                                 Tuma namba kwa mpokeaji
                               </button>
                               <input value={deliveryCodes[parcel.trackingNumber] || ''}

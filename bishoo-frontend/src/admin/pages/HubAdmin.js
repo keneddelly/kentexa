@@ -143,9 +143,9 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                   </div>
                   <div style={{ fontSize:22, fontWeight:800, color:'#1d4ed8',
                     marginBottom:8 }}>{h.count}</div>
-                  <div style={{ fontSize:11, color:'#64748b' }}>Ofisi</div>
+                  <div style={{ fontSize:12, color:'#64748b' }}>Ofisi</div>
                   {h.agents.slice(0,2).map(a => (
-                    <div key={a.id} style={{ fontSize:11, color:'#475569',
+                    <div key={a.id} style={{ fontSize:12, color:'#475569',
                       marginTop:4, padding:'3px 0',
                       borderTop:'1px solid #f1f5f9' }}>
                       {a.name} — {a.hubName}
@@ -161,7 +161,7 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                   <div style={{ fontSize:13, fontWeight:700, color:'#94a3b8', marginBottom:4 }}>
                     {c}
                   </div>
-                  <div style={{ fontSize:11, color:'#cbd5e1' }}>Hakuna ofisi</div>
+                  <div style={{ fontSize:12, color:'#cbd5e1' }}>Hakuna ofisi</div>
                 </div>
               ))}
             </div>
@@ -213,16 +213,16 @@ const HubAdmin = ({ onNavigate, activePage }) => {
                           {sa.city} · {sa.user?.phone}
                         </div>
                         {hasHub ? (
-                          <div style={{ fontSize:11, marginTop:4, color:'#16a34a', fontWeight:700 }}>
+                          <div style={{ fontSize:12, marginTop:4, color:'#16a34a', fontWeight:700 }}>
                             {sa.hubName} — {sa.hubCity}
                           </div>
                         ) : (
-                          <div style={{ fontSize:11, marginTop:4, color:'#d97706' }}>
+                          <div style={{ fontSize:12, marginTop:4, color:'#d97706' }}>
                             Kituo hakijapewa
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize:11, fontWeight:700, padding:'3px 10px',
+                      <span style={{ fontSize:12, fontWeight:700, padding:'3px 10px',
                         borderRadius:100, backgroundColor:sc.bg, color:sc.text }}>
                         {sc.label}
                       </span>

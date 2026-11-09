@@ -35,7 +35,7 @@ const SetupProgressCard = ({ journeyKey, context = {}, onNavigate }) => {
 
   if (percent === 100) {
     return (
-      <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 14,
+      <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #bbf7d0', borderRadius: 14,
         padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12.5, fontWeight: 700, color: '#166534' }}>
           {t('onboarding.setup_complete')}
@@ -71,7 +71,7 @@ const SetupProgressCard = ({ journeyKey, context = {}, onNavigate }) => {
       {nextStep && (
         <button onClick={() => onNavigate?.(nextStep.targetPage)}
           style={{ width: '100%', padding: '10px 0', borderRadius: 10, border: 'none',
-            background: `linear-gradient(135deg,${B},#7C3AED)`, color: WH,
+            background: `linear-gradient(135deg,${B},#0f1419)`, color: WH,
             cursor: 'pointer', fontSize: 12.5, fontWeight: 800 }}>
           {t('onboarding.continue_setup')} ({percent}%)
         </button>

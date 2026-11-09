@@ -46,7 +46,7 @@ const ContactUs = ({ onNavigate, currentUser }) => {
       <BackBar onBack={() => onNavigate('back')} title={t('contact_us.page_title')} top={0} />
 
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
+      <div style={{ background: 'linear-gradient(135deg,#0f1419,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 8 }}><LineIcon name="chat" size={40} /></div>
         <h1 style={{ fontSize: 22, fontWeight:800, color: '#fff', margin: '0 0 6px', fontFamily:'inherit' }}>{t('contact_us.hero_title')}</h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('contact_us.hero_subtitle')}</p>
@@ -59,13 +59,13 @@ const ContactUs = ({ onNavigate, currentUser }) => {
             style={{ backgroundColor: '#dcfce7', borderRadius: 14, padding: '16px 12px', textAlign: 'center', textDecoration: 'none', display: 'block' }}>
             <div style={{ fontSize: 28, marginBottom: 6 }}><LineIcon name="chat" size={28} /></div>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a' }}>{t('contact_us.whatsapp_label')}</div>
-            <div style={{ fontSize: 11, color: '#166534', marginTop: 2 }}>{t('contact_us.whatsapp_desc')}</div>
+            <div style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>{t('contact_us.whatsapp_desc')}</div>
           </a>
           <a href="mailto:support@kentexa.com"
             style={{ backgroundColor: '#eff6ff', borderRadius: 14, padding: '16px 12px', textAlign: 'center', textDecoration: 'none', display: 'block' }}>
             <div style={{ fontSize: 28, marginBottom: 6 }}><LineIcon name="mail" size={28} /></div>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8' }}>{t('contact_us.email_label')}</div>
-            <div style={{ fontSize: 11, color: '#1e40af', marginTop: 2 }}>support@kentexa.com</div>
+            <div style={{ fontSize: 12, color: '#1d4ed8', marginTop: 2 }}>support@kentexa.com</div>
           </a>
         </div>
       </div>

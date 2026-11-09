@@ -8,9 +8,9 @@ import { WORK_ROLES, workRoleStatus, openWorkRole, serviceRecordFromAds, adverti
 // directly (no role-picker page in between).
 const STATUS_STYLE = {
   none:       { color: '#64748b', bg: '#f1f5f9' },
-  waiting:    { color: '#a16207', bg: '#fef9c3' },
-  waiting_id: { color: '#a16207', bg: '#fef9c3' },
-  active:     { color: '#15803d', bg: '#dcfce7' },
+  waiting:    { color: '#d97706', bg: '#fffbeb' },
+  waiting_id: { color: '#d97706', bg: '#fffbeb' },
+  active:     { color: '#16a34a', bg: '#dcfce7' },
   suspended:  { color: '#b91c1c', bg: '#fee2e2' },
   rejected:   { color: '#b91c1c', bg: '#fee2e2' },
 };
@@ -47,7 +47,7 @@ export default function WorkWithKentexa({ onNavigate, onSwitchAccountRole, avail
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{t(`work_roles.${role.key}`)}</div>
               {status && (
-                <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, fontWeight: 700, color: s.color, backgroundColor: s.bg,
+                <span style={{ display: 'inline-block', marginTop: 4, fontSize: 12, fontWeight: 700, color: s.color, backgroundColor: s.bg,
                   borderRadius: 999, padding: '2px 8px', lineHeight: 1.4 }}>
                   {t(`work_roles.status_${status}`)}
                 </span>

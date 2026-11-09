@@ -60,7 +60,7 @@ export default function BusinessTodayCard({ businessId, onNavigate }) {
       </div>
       {(thinking || insight) && (
         <div data-testid="business-insight" style={{ marginTop: 12, borderTop: `1px solid ${LINE}`, paddingTop: 12, fontSize: 14, lineHeight: 1.5 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#6d28d9', marginBottom: 4 }}>Ushauri wa KenteXa AI</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0f1419', marginBottom: 4 }}>Ushauri wa KenteXa AI</div>
           {!insight ? <span style={{ color: GR }}>Inaandaa ushauri...</span> : (
             <>
               <div>{insight.insight}</div>

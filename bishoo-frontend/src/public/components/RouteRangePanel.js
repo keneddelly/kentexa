@@ -30,7 +30,7 @@ const RouteRangePanel = ({ destinationCity, weightKg }) => {
   if (!data) return null;
   return (
     <div data-testid="route-range" style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: '#f8fafc' }}>
-      <div style={{ fontSize: 11, fontWeight: 800, color: '#475569', letterSpacing: 0.5, marginBottom: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#475569', letterSpacing: 0.5, marginBottom: 6 }}>
         BEI SOKONI · {data.destinationCity} · {data.weightKg} kg
       </div>
       {data.range ? (
@@ -44,7 +44,7 @@ const RouteRangePanel = ({ destinationCity, weightKg }) => {
       ) : (
         <div style={{ fontSize: 12, color: '#64748b' }}>Ofisi chache mno kwenye njia hii kuonyesha bei ya soko.</div>
       )}
-      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Ni mwongozo tu: unaweza kuandika ada yoyote.</div>
+      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Ni mwongozo tu: unaweza kuandika ada yoyote.</div>
     </div>
   );
 };

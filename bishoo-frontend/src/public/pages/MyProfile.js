@@ -28,7 +28,7 @@ const fmtD = d => d ? new Date(d).toLocaleDateString('sw-TZ') : '—';
 
 const getTiers = t => [
   { min:900, name:t('my_profile.tier_elite'),   icon:'trophy', color:'#DC2626', bg:'#FEE2E2' },
-  { min:600, name:t('my_profile.tier_partner'), icon:'gem', color:'#7C3AED', bg:'#EDE9FE' },
+  { min:600, name:t('my_profile.tier_partner'), icon:'gem', color:'#0f1419', bg:'#f7f9f9' },
   { min:300, name:t('my_profile.tier_loyal'),   icon:'star', color:B,          bg:'#DBEAFE' },
   { min:100, name:t('my_profile.tier_trusted'), icon:'star', color:'#16A34A',  bg:'#DCFCE7' },
   { min:0,   name:t('my_profile.tier_new'),     icon:'sprout', color:GR,         bg:'#F1F5F9' },
@@ -37,8 +37,8 @@ const getTiers = t => [
 const getRoleMeta = t => ({
   user:               { icon:'person', label:t('my_profile.role_buyer'),            color:'#475569', bg:'#F1F5F9' },
   seller:             { icon:'store', label:t('my_profile.role_seller'),           color:B,          bg:'#EFF6FF' },
-  agent:              { icon:'moto', label:t('my_profile.role_agent'),            color:'#A21CAF',  bg:'#FDF2F8' },
-  super_agent:        { icon:'office', label:t('my_profile.role_super_agent'),      color:'#7C3AED',  bg:'#F5F3FF' },
+  agent:              { icon:'moto', label:t('my_profile.role_agent'),            color:'#0f1419',  bg:'#f7f9f9' },
+  super_agent:        { icon:'office', label:t('my_profile.role_super_agent'),      color:'#0f1419',  bg:'#f7f9f9' },
   transport_provider: { icon:'bus', label:t('my_profile.role_transporter'),      color:'#D97706',  bg:'#FEF3C7' },
   service_provider:   { icon:'wrench', label:t('my_profile.role_service_provider'), color:'#16A34A',  bg:'#F0FDF4' },
 });
@@ -348,7 +348,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               (networkOpen==='followers'?followers:followingPeople).map(person=><button key={person.profileId || person.ownerId} onClick={()=>person.profileId && onNavigate(`CommerceProfile-${person.profileId}`,{commerceProfileId:person.profileId})} style={{display:'flex',alignItems:'center',gap:9,width:'100%',border:'none',background:'none',color:'#0f1419',padding:7,cursor:person.profileId?'pointer':'default',textAlign:'left'}}>
                 {person.photoUrl ? <img src={person.photoUrl} alt="" style={{width:32,height:32,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.2)',display:'grid',placeItems:'center'}}><LineIcon name="person" size={18} color="#fff" /></span>}
                 <span style={{fontSize:12,fontWeight:800}}>{person.displayName}</span>
-                {person.isFollowedBy && networkOpen==='followers' && <span style={{fontSize:10,opacity:.75}}>Follows you</span>}
+                {person.isFollowedBy && networkOpen==='followers' && <span style={{fontSize:12,opacity:.75}}>Follows you</span>}
               </button>)}
           </div>}
         </div>
@@ -381,7 +381,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <span style={{ width:26, display:'flex', justifyContent:'center', flexShrink:0 }}><LineIcon name={n.icon} size={22} /></span>
                 <span style={{ flex:1, fontSize:15, fontWeight:400, color:'#0f1419' }}>{n.label}</span>
                 {n.badge > 0 && (
-                  <span style={{ backgroundColor:'#EF4444', color:WH, fontSize:10,
+                  <span style={{ backgroundColor:'#dc2626', color:WH, fontSize:12,
                     fontWeight:800, borderRadius:100, padding:'2px 8px', flexShrink:0 }}>
                     {t('my_profile.badge_new', { count: n.badge })}
                   </span>
@@ -444,7 +444,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   : identityStatus?.status === 'pending' ? t('my_profile.identity_pending')
                   : identityStatus?.status === 'rejected' ? t('my_profile.identity_rejected')
                   : t('my_profile.identity_not_verified')}
-                color={identityStatus?.status === 'verified' ? '#16A34A' : identityStatus?.status === 'pending' ? '#CA8A04' : '#DC2626'}
+                color={identityStatus?.status === 'verified' ? '#16A34A' : identityStatus?.status === 'pending' ? '#d97706' : '#DC2626'}
                 onAction={needsIdentityStep(identityStatus) ? () => setShowVerifyIdentity(true) : undefined} />
               <Row icon="check" label={t('my_profile.account_setup_label')}
                 value={profile?.onboardingCompleted ? t('my_profile.account_completed_label') : t('my_profile.incomplete_status')}
@@ -471,7 +471,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   <div style={{ fontSize:12, color:GR, lineHeight:1.6, marginBottom:10 }}>
                     {t('my_profile.qr_invite_desc')}
                   </div>
-                  <div style={{ fontSize:11, fontWeight:700, color:B,
+                  <div style={{ fontSize:12, fontWeight:700, color:B,
                     backgroundColor:'#EFF6FF', padding:'4px 10px', borderRadius:8,
                     display:'inline-block' }}>
                     {profile?.kentexaId || '—'}
@@ -503,7 +503,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       <div style={{ fontSize:14, fontWeight:800, color:m.color }}>
                         {m.label}
                       </div>
-                      <div style={{ fontSize:11, color:GR, marginTop:2 }}>
+                      <div style={{ fontSize:12, color:GR, marginTop:2 }}>
                         {t('my_profile.active_working_badge')}
                       </div>
                     </div>
@@ -540,7 +540,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                     <LineIcon name={m.icon} size={24} />
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:13, fontWeight:700, color:DK }}>{m.label}</div>
-                      <div style={{ fontSize:11, color:GR }}>{t('my_profile.tap_to_register')}</div>
+                      <div style={{ fontSize:12, color:GR }}>{t('my_profile.tap_to_register')}</div>
                     </div>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                       stroke={GR} strokeWidth="2"><polyline points="9,18 15,12 9,6"/></svg>
@@ -596,13 +596,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   {[
                     { label:t('my_profile.revenue_stat'), value:`TZS ${fmt(sellerStats.stats?.totalRevenue||0)}`, color:'#16A34A' },
                     { label:t('my_profile.my_orders_stat'),  value:fmt(sellerStats.stats?.needsShipping||0),           color:B },
-                    { label:t('my_profile.all_products_stat'),    value:fmt(sellerStats.stats?.totalProducts||0),            color:'#7C3AED' },
+                    { label:t('my_profile.all_products_stat'),    value:fmt(sellerStats.stats?.totalProducts||0),            color:'#0f1419' },
                     { label:t('my_profile.customers_stat'),         value:fmt(sellerStats.stats?.totalCustomers||0),           color:'#D97706' },
                   ].map(s => (
                     <div key={s.label} style={{ backgroundColor:'#F8FAFC', borderRadius:10,
                       padding:'12px 14px' }}>
                       <div style={{ fontSize:18, fontWeight:800, color:s.color }}>{s.value}</div>
-                      <div style={{ fontSize:11, color:GR, marginTop:2 }}>{s.label}</div>
+                      <div style={{ fontSize:12, color:GR, marginTop:2 }}>{s.label}</div>
                     </div>
                   ))}
                 </div>
@@ -624,7 +624,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   : identityStatus?.status === 'rejected' ? t('my_profile.identity_rejected')
                   : t('my_profile.identity_not_verified')
                 }
-                color={identityStatus?.status === 'verified' ? '#16a34a' : identityStatus?.status === 'pending' ? '#ca8a04' : GR}
+                color={identityStatus?.status === 'verified' ? '#16a34a' : identityStatus?.status === 'pending' ? '#d97706' : GR}
                 onAction={needsIdentityStep(identityStatus) ? () => setShowVerifyIdentity(true) : undefined} />
               {sellerProfile?.sellerType === 'business' && (
                 <Row icon="office" label={t('my_profile.business_verification_label')}
@@ -634,7 +634,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                     : sellerProfile.businessDocumentsStatus === 'rejected' ? t('my_profile.identity_rejected')
                     : t('my_profile.identity_not_verified')
                   }
-                  color={sellerProfile.businessDocumentsStatus === 'verified' ? '#16a34a' : sellerProfile.businessDocumentsStatus === 'pending' ? '#ca8a04' : GR} />
+                  color={sellerProfile.businessDocumentsStatus === 'verified' ? '#16a34a' : sellerProfile.businessDocumentsStatus === 'pending' ? '#d97706' : GR} />
               )}
             </SCard>
 
@@ -670,7 +670,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       <div style={{ fontSize:12, fontWeight:700, color:DK }}>
                         {o.product?.name || o.manualProductName || t('my_profile.product_fallback')}
                       </div>
-                      <div style={{ fontSize:10, color:GR }}>
+                      <div style={{ fontSize:12, color:GR }}>
                         {o.trackingNumber} · {fmtD(o.createdAt)}
                       </div>
                     </div>
@@ -678,7 +678,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       <div style={{ fontSize:13, fontWeight:800, color:B }}>
                         TZS {fmt(o.totalAmount)}
                       </div>
-                      <div style={{ fontSize:10, fontWeight:700, marginTop:2, textTransform:'capitalize',
+                      <div style={{ fontSize:12, fontWeight:700, marginTop:2, textTransform:'capitalize',
                         color: o.status==='completed'?'#16A34A':o.status==='cancelled'?'#DC2626':'#D97706' }}>
                         {o.status}
                       </div>
@@ -800,7 +800,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       <div style={{ fontSize:12, fontWeight:700, color:DK }}>
                         {p.description || p.type || t('my_profile.payment_fallback')}
                       </div>
-                      <div style={{ fontSize:10, color:GR }}>{fmtD(p.createdAt)}</div>
+                      <div style={{ fontSize:12, color:GR }}>{fmtD(p.createdAt)}</div>
                     </div>
                     <div style={{ fontSize:13, fontWeight:800,
                       color: p.status==='success'?'#16A34A':'#D97706' }}>
@@ -847,12 +847,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   <LineIcon name={tier.icon} size={22} color={tier.color} />
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:13, fontWeight:700, color:tier.color }}>{tier.name}</div>
-                    <div style={{ fontSize:10, color:GR }}>{t('my_profile.score_plus_label', { min: tier.min })}</div>
+                    <div style={{ fontSize:12, color:GR }}>{t('my_profile.score_plus_label', { min: tier.min })}</div>
                   </div>
                   {score >= tier.min
-                    ? <span style={{ fontSize:10, fontWeight:800, backgroundColor:tier.bg,
+                    ? <span style={{ fontSize:12, fontWeight:800, backgroundColor:tier.bg,
                         color:tier.color, padding:'2px 8px', borderRadius:100 }}>{t('my_profile.achieved_badge')}</span>
-                    : <span style={{ fontSize:10, color:GR }}>{t('my_profile.more_needed', { count: tier.min - score })}</span>}
+                    : <span style={{ fontSize:12, color:GR }}>{t('my_profile.more_needed', { count: tier.min - score })}</span>}
                 </div>
               ))}
             </SCard>
@@ -891,14 +891,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                         textTransform:'capitalize' }}>
                         {e.eventType.replace(/_/g,' ')}
                       </div>
-                      <div style={{ fontSize:10, color:GR }}>{fmtD(e.createdAt)}</div>
+                      <div style={{ fontSize:12, color:GR }}>{fmtD(e.createdAt)}</div>
                     </div>
                     <div style={{ textAlign:'right' }}>
                       <div style={{ fontSize:13, fontWeight:800,
                         color:e.points>0?'#16A34A':'#DC2626' }}>
                         {e.points>0?'+':''}{e.points}
                       </div>
-                      <div style={{ fontSize:10, color:GR }}>{e.scoreAfter}</div>
+                      <div style={{ fontSize:12, color:GR }}>{e.scoreAfter}</div>
                     </div>
                   </div>
                 ))}
@@ -917,7 +917,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <Row icon="mail" label={t('my_profile.inbox_label')} sub={t('my_profile.business_inbox_sub')}
                 onAction={() => onNavigate('SellerInbox')} />
               <Row icon="bell" label={t('my_profile.notifications_label')} value={unread > 0 ? t('my_profile.new_count', { count: unread }) : t('my_profile.all_read')}
-                color={unread>0?'#EF4444':GR}
+                color={unread>0?'#dc2626':GR}
                 onAction={() => onNavigate('Activity')} />
               <Row icon="megaphone" label={t('my_profile.business_updates_label')}
                 sub={t('my_profile.new_products_sub')}
@@ -940,7 +940,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                       <div style={{ fontSize:12, fontWeight: n.isRead ? 600 : 800, color:DK }}>
                         {n.title}
                       </div>
-                      <div style={{ fontSize:11, color:GR }}>{n.body}</div>
+                      <div style={{ fontSize:12, color:GR }}>{n.body}</div>
                     </div>
                     {!n.isRead && (
                       <div style={{ width:8, height:8, borderRadius:'50%',

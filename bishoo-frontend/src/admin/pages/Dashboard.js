@@ -117,7 +117,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20, backgroundColor: '#7c3aed', color: '#fff', marginBottom: 4 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, backgroundColor: '#7c3aed', color: '#fff', marginBottom: 4 }}>
                 {batchStatus.batch.status?.toUpperCase().replace(/_/g, ' ')}
               </div>
               <div style={{ fontSize: 12, color: '#94a3b8' }}>Angalia Manifest →</div>
@@ -185,7 +185,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
               ].map(item => (
                 <div key={item.label} style={{ backgroundColor: '#f8fafc', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '20px', fontWeight:'800', color: '#0f172a' }}>{item.value}</div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{item.label}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{item.label}</div>
                 </div>
               ))}
             </div>
@@ -258,7 +258,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#6366f1' }}>
                       TZS {Number(order.totalAmount).toLocaleString()}
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px', ...orderStatusColor(order.status) }}>
+                    <span style={{ fontSize: '12px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px', ...orderStatusColor(order.status) }}>
                       {order.status}
                     </span>
                   </div>

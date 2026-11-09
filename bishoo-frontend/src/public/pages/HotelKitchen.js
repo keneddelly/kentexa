@@ -257,7 +257,7 @@ export default function HotelKitchen({ businessId: routeBusinessId, activeContex
   const open = (data.orders || []).filter((o) => ['new', 'cooking', 'ready'].includes(o.status));
   const cols = [
     { key: 'new', title: 'Mpya', color: C.blue },
-    { key: 'cooking', title: 'Inapikwa', color: '#b45309' },
+    { key: 'cooking', title: 'Inapikwa', color: '#d97706' },
     { key: 'ready', title: 'Tayari', color: C.green },
   ];
   const tiles = [

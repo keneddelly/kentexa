@@ -182,11 +182,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
   };
 
   const statusBadge = (status) => ({
-    pending:   { bg: '#fef9c3', color: '#ca8a04' },
+    pending:   { bg: '#fffbeb', color: '#d97706' },
     sent:      { bg: '#dbeafe', color: '#2563eb' },
     paid:      { bg: '#dcfce7', color: '#16a34a' },
-    shipping:  { bg: '#ffedd5', color: '#0f1419' },
-    delivered: { bg: '#d1fae5', color: '#065f46' },
+    shipping:  { bg: '#fffbeb', color: '#0f1419' },
+    delivered: { bg: '#f0fdf4', color: '#166534' },
     cancelled: { bg: '#fee2e2', color: '#dc2626' },
   }[status] || { bg: '#f1f5f9', color: '#64748b' });
 
@@ -268,12 +268,12 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
 
         {/* Manual Invoice Result */}
         {manualResult && (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, outline: '1px solid #eff3f4', marginBottom: 16, border: '2px solid #7c3aed', textAlign: 'center' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, outline: '1px solid #eff3f4', marginBottom: 16, border: '2px solid #0f1419', textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}></div>
             <h2 style={{ fontSize: 18, fontWeight:800, color: '#1e293b', marginBottom: 6 }}>{t('seller_invoices.invoice_created_title')}</h2>
             <p style={{ color: '#64748b', marginBottom: 16, fontSize: 13 }}>{t('seller_invoices.invoice_created_desc')}</p>
             <div style={{ background: '#0f1419', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>{t('seller_invoices.invoice_number_label')}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>{t('seller_invoices.invoice_number_label')}</div>
               <div style={{ fontSize: 22, fontWeight:800, color: '#fff', fontFamily: 'monospace', letterSpacing: 1 }}>{manualResult.invoiceNumber}</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16, textAlign: 'left' }}>
@@ -284,7 +284,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 { label: t('seller_invoices.field_amount'),  value: `TZS ${Number(manualResult.amount).toLocaleString()}` },
               ].map(item => (
                 <div key={item.label} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: 10 }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 3 }}>{item.label}</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 3 }}>{item.label}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{item.value}</div>
                 </div>
               ))}
@@ -321,28 +321,28 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
             const trackingNum = req.shipment?.trackingNumber || null;
 
             return (
-              <div key={req.id} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 10, border: needsShipping ? '2px solid #f97316' : '1px solid #f1f5f9' }}>
+              <div key={req.id} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 10, border: needsShipping ? '2px solid #d97706' : '1px solid #f1f5f9' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {req.classifiedTitle || req.invoiceDescription || t('seller_invoices.manual_invoice_fallback')}
                     </div>
                     <div style={{ fontSize: 12, color: '#64748b' }}> {parsedName} ·  {parsedPhone}</div>
-                    {req.invoiceNumber && <div style={{ fontSize: 11, color: '#0f1419', fontWeight: 700, marginTop: 2 }}>{req.invoiceNumber}</div>}
+                    {req.invoiceNumber && <div style={{ fontSize: 12, color: '#0f1419', fontWeight: 700, marginTop: 2 }}>{req.invoiceNumber}</div>}
                     {/* Show tracking number if order was created */}
                     {trackingNum && (
-                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 800, marginTop: 3 }}>
+                      <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 800, marginTop: 3 }}>
                          {trackingNum}
                         <button onClick={() => onNavigate(`TrackParcel-${trackingNum}`)}
-                          style={{ marginLeft: 8, fontSize: 10, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
+                          style={{ marginLeft: 8, fontSize: 12, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '1px 6px', borderRadius: 4, cursor: 'pointer', fontWeight: 700 }}>
                           {t('seller_invoices.track_link')}
                         </button>
                       </div>
                     )}
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{new Date(req.createdAt).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{new Date(req.createdAt).toLocaleDateString()}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: badge.bg, color: badge.color }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: badge.bg, color: badge.color }}>
                       {req.status.toUpperCase()}
                     </span>
                     {req.amount && (
@@ -353,11 +353,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
 
                 {/* ── PAID — needs shipping ── */}
                 {needsShipping && (
-                  <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid #fed7aa' }}>
+                  <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid #fde68a' }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: '#0f1419', marginBottom: 6 }}>
                       {t('seller_invoices.paid_needs_shipping_title')}
                     </div>
-                    <div style={{ fontSize: 12, color: '#9a3412', marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, color: '#92400e', marginBottom: 10 }}>
                       {t('seller_invoices.paid_needs_shipping_desc', { amount: `TZS ${Number(req.amount).toLocaleString()}` })}
                     </div>
                     <button onClick={() => { setShippingInvoice(req); setShippingMethod(''); setShippingNote(''); }}
@@ -395,20 +395,20 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 {/* ── PENDING — create invoice ── */}
                 {req.status === 'pending' && (
                   showForm === req.id ? (
-                    <div style={{ backgroundColor: '#fff', borderRadius: 10, padding: 14, border: '2px solid #7c3aed' }}>
+                    <div style={{ backgroundColor: '#fff', borderRadius: 10, padding: 14, border: '2px solid #0f1419' }}>
                       <h4 style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('seller_invoices.create_invoice_for', { name: parsedName })}</h4>
                       <div style={{ marginBottom: 10 }}>
-                        <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.amount_label')}</label>
+                        <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.amount_label')}</label>
                         <input type="number" placeholder={String(req.listingPrice || '')} value={form.amount}
                           onChange={e => setForm({ ...form, amount: e.target.value })} style={inputStyle} />
                       </div>
                       <div style={{ marginBottom: 10 }}>
-                        <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.description_label')}</label>
+                        <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.description_label')}</label>
                         <input placeholder={req.classifiedTitle} value={form.invoiceDescription}
                           onChange={e => setForm({ ...form, invoiceDescription: e.target.value })} style={inputStyle} />
                       </div>
                       <div style={{ marginBottom: 10 }}>
-                        <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.shipping_amount_label')}</label>
+                        <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.shipping_amount_label')}</label>
                         <input type="number" placeholder="0" value={form.shippingAmount}
                           onChange={e => setForm({ ...form, shippingAmount: e.target.value })} style={inputStyle} />
                       </div>
@@ -417,7 +417,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                           backgroundColor: form.isCod ? '#eff6ff' : '#f8fafc', border: `1px solid ${form.isCod ? '#2563eb' : '#e2e8f0'}` }}>
                         <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${form.isCod ? '#2563eb' : '#94a3b8'}`,
                           backgroundColor: form.isCod ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {form.isCod && <span style={{ color: '#fff', fontSize: 10 }}></span>}
+                          {form.isCod && <span style={{ color: '#fff', fontSize: 12 }}></span>}
                         </div>
                         <div style={{ fontSize: 12, color: form.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}> {t('seller_invoices.cod_toggle')}</div>
                       </div>
@@ -442,12 +442,12 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 {isPaid && req.invoiceNumber && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <button type="button" onClick={() => openDocumentPdf('invoice', req.invoiceNumber).catch(() => {})}
-                      style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
+                      style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                       {t('seller_invoices.invoice_pdf')}
                     </button>
                     {trackingNum && (
                       <button onClick={() => onNavigate(`TrackParcel-${trackingNum}`)}
-                        style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                        style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                         {t('seller_invoices.track_order')}
                       </button>
                     )}
@@ -497,14 +497,14 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                     icon:  '',
                     title: t('seller_invoices.method_bus'),
                     desc:  t('seller_invoices.method_bus_desc'),
-                    color: '#0f1419', bg: '#fff7ed', border: '#fed7aa',
+                    color: '#0f1419', bg: '#fffbeb', border: '#fde68a',
                   },
                   {
                     key:   'courier',
                     icon:  '',
                     title: t('seller_invoices.method_courier'),
                     desc:  t('seller_invoices.method_courier_desc'),
-                    color: '#16a34a', bg: '#f0fdf4', border: '#86efac',
+                    color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0',
                   },
                   {
                     key:   'boda',
@@ -525,7 +525,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                     icon:  '',
                     title: t('seller_invoices.method_buyer_pickup'),
                     desc:  t('seller_invoices.method_buyer_pickup_desc'),
-                    color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc',
+                    color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe',
                   },
               ].map(opt => (
                 <div key={opt.key} onClick={() => setShippingMethod(opt.key)}
@@ -546,7 +546,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
               <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>{t('seller_invoices.notes_label')}</label>
               {/* Bus details — shown when bus selected */}
               {shippingMethod === 'bus' && (
-                <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+                <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#0f1419', marginBottom: 8 }}>{t('seller_invoices.bus_details_title')}</div>
                   <input placeholder={t('seller_invoices.bus_company_placeholder')}
                     value={shippingNote.busCompany || ''}
@@ -622,7 +622,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                       style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: selectedClassified?.id === c.id ? '#f7f9f9' : '#fff', borderBottom: '1px solid #f1f5f9' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{c.title}</div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>{c.category} · {c.status}</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>{c.category} · {c.status}</div>
                       </div>
                       <div style={{ fontSize: 13, fontWeight: 800, color: '#0f1419', flexShrink: 0, marginLeft: 10 }}>TZS {Number(c.price).toLocaleString()}</div>
                     </div>
@@ -633,7 +633,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 <div style={{ backgroundColor: '#f7f9f9', borderRadius: 8, padding: '10px 12px', marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 800, color: '#0f1419' }}> {selectedClassified.title}</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>TZS {Number(selectedClassified.price).toLocaleString()}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>TZS {Number(selectedClassified.price).toLocaleString()}</div>
                   </div>
                   <button onClick={() => setSelectedClassified(null)} style={{ background: 'none', border: 'none', color: '#0f1419', cursor: 'pointer', fontSize: 18 }}>×</button>
                 </div>
@@ -648,7 +648,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 { label: t('seller_invoices.buyer_phone_label'),        key: 'buyerPhone',      placeholder: '255712345678',                   type: 'tel' },
               ].map(field => (
                 <div key={field.key} style={{ marginBottom: 10 }}>
-                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{field.label}</label>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{field.label}</label>
                   <input type={field.type} placeholder={field.placeholder} value={manualForm[field.key]}
                     onChange={e => setManualForm({ ...manualForm, [field.key]: e.target.value })} style={inputStyle} />
                 </div>
@@ -664,7 +664,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 />
               </div>
               <div style={{ marginBottom: 10 }}>
-                <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.delivery_address_label')}</label>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.delivery_address_label')}</label>
                 <input type="text" placeholder={t('seller_invoices.delivery_address_placeholder')} value={manualForm.deliveryAddress}
                   onChange={e => setManualForm({ ...manualForm, deliveryAddress: e.target.value })} style={inputStyle} />
               </div>
@@ -675,18 +675,18 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
               <label style={{ display: 'block', fontSize: 13, color: '#1e293b', marginBottom: 12, fontWeight: 700 }}>{t('seller_invoices.step3_label')}</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.amount_tzs_label')}</label>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.amount_tzs_label')}</label>
                   <input type="number" placeholder="500000" value={manualForm.amount}
                     onChange={e => setManualForm({ ...manualForm, amount: e.target.value })} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.due_days_label')}</label>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.due_days_label')}</label>
                   <input type="number" value={manualForm.dueDays}
                     onChange={e => setManualForm({ ...manualForm, dueDays: e.target.value })} style={inputStyle} />
                 </div>
               </div>
               <div style={{ marginBottom: 10 }}>
-                <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.shipping_amount_label')}</label>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.shipping_amount_label')}</label>
                 <input type="number" placeholder="0" value={manualForm.shippingAmount}
                   onChange={e => setManualForm({ ...manualForm, shippingAmount: e.target.value })} style={inputStyle} />
               </div>
@@ -695,7 +695,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                   backgroundColor: manualForm.isCod ? '#eff6ff' : '#f8fafc', border: `1px solid ${manualForm.isCod ? '#2563eb' : '#e2e8f0'}` }}>
                 <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${manualForm.isCod ? '#2563eb' : '#94a3b8'}`,
                   backgroundColor: manualForm.isCod ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {manualForm.isCod && <span style={{ color: '#fff', fontSize: 10 }}></span>}
+                  {manualForm.isCod && <span style={{ color: '#fff', fontSize: 12 }}></span>}
                 </div>
                 <div style={{ fontSize: 12, color: manualForm.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}> {t('seller_invoices.cod_toggle')}</div>
               </div>

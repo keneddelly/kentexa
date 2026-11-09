@@ -72,7 +72,7 @@ const LanguageSwitcher = ({ variant = 'dropdown', onChange }) => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         }}>
         {current.short}
-        <span style={{ fontSize: 10, color: '#94A3B8' }}>▾</span>
+        <span style={{ fontSize: 12, color: '#94A3B8' }}>▾</span>
       </button>
       {open && (
         <>

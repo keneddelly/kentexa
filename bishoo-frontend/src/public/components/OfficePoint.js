@@ -43,13 +43,13 @@ export default function OfficePoint({ officePointSet, officePointByGps, onSaved,
     );
   }
   return (
-    <div data-testid="office-point" style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12, padding: 14, marginBottom: 14 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, color: '#9A3412' }}>{t('office_point.title')}</div>
-      <div style={{ fontSize: 12, color: '#7C2D12', margin: '6px 0 10px' }}>
+    <div data-testid="office-point" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: '#92400e' }}>{t('office_point.title')}</div>
+      <div style={{ fontSize: 12, color: '#92400e', margin: '6px 0 10px' }}>
         {officePointSet ? t('office_point.only_place') : t('office_point.explain')}
       </div>
       <button type="button" onClick={save} disabled={busy}
-        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', background: '#EA580C', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', background: '#d97706', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
         {busy ? t('pickup_pin.locating') : t('office_point.button')}
       </button>
       {note}

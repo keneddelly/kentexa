@@ -167,10 +167,10 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   };
 
   const statusColor = (status) => ({
-    pending:    { backgroundColor: '#FEF9C3', color: '#CA8A04' },
+    pending:    { backgroundColor: '#fffbeb', color: '#d97706' },
     confirmed:  { backgroundColor: '#DBEAFE', color: B },
-    processing: { backgroundColor: '#EDE9FE', color: '#7C3AED' },
-    shipped:    { backgroundColor: '#FFEDD5', color: '#EA580C' },
+    processing: { backgroundColor: '#f7f9f9', color: '#0f1419' },
+    shipped:    { backgroundColor: '#fffbeb', color: '#d97706' },
     delivered:  { backgroundColor: '#DCFCE7', color: '#16A34A' },
     cancelled:  { backgroundColor: '#FEE2E2', color: '#DC2626' },
   }[status] || { backgroundColor: '#F1F5F9', color: GR });
@@ -178,7 +178,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   const getRoleInfo = (role) => ({
     admin:  { icon: 'shield', bg: '#FEE2E2', color: '#DC2626', label: t('profile.role_admin') },
     seller: { icon: 'store', bg: '#EFF6FF', color: B,          label: t('profile.role_seller') },
-    agent:  { icon: 'moto', bg: '#FDF2F8', color: '#A21CAF',  label: t('profile.role_agent') },
+    agent:  { icon: 'moto', bg: '#f7f9f9', color: '#0f1419',  label: t('profile.role_agent') },
     user:   { icon: 'person', bg: '#F1F5F9', color: GR,          label: t('profile.role_user') },
   }[role] || { icon: 'person', bg: '#F1F5F9', color: GR, label: t('profile.role_user') });
 
@@ -225,7 +225,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
       </div>
 
       {/* ── Gradient identity header ── */}
-      <div style={{ background: `linear-gradient(135deg,#1E1B4B,${B})`, padding: '28px 16px', textAlign: 'center' }}>
+      <div style={{ background: `linear-gradient(135deg,#0f1419,${B})`, padding: '28px 16px', textAlign: 'center' }}>
         <label style={{ position: 'relative', display: 'inline-block', width: 80, height: 80, margin: '0 auto 12px', cursor: 'pointer' }}>
           <div style={{ width: 80, height: 80, borderRadius: 22, overflow: 'hidden',
             background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -279,15 +279,15 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {/* Stats — Instagram-style stat row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
           {[
-            { label: t('profile.orders'),    value: orders.length,                                       icon: 'cart', bg: '#EDE9FE', color: '#7C3AED' },
+            { label: t('profile.orders'),    value: orders.length,                                       icon: 'cart', bg: '#f7f9f9', color: '#0f1419' },
             { label: t('profile.delivered'), value: orders.filter(o => o.status === 'delivered').length,  icon: 'box', bg: '#DCFCE7', color: '#16A34A' },
-            { label: t('profile.pending'),   value: orders.filter(o => o.status === 'pending_payment').length,    icon: 'clock', bg: '#FEF9C3', color: '#CA8A04' },
+            { label: t('profile.pending'),   value: orders.filter(o => o.status === 'pending_payment').length,    icon: 'clock', bg: '#fffbeb', color: '#d97706' },
             { label: t('profile.since'),     value: new Date(profile?.createdAt).getFullYear(),           icon: 'calendar', bg: '#DBEAFE', color: B },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '12px 6px', textAlign: 'center' }}>
               <div style={{ display: 'flex', justifyContent: 'center' }}><LineIcon name={s.icon} size={18} color={s.color} /></div>
               <div style={{ fontSize: 16, fontWeight:800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 9.5, color: GR, fontWeight: 700 }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: GR, fontWeight: 700 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -301,7 +301,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   <img src={profile.logo} alt="" style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} />
                 ) : (
                   <div style={{ width: 44, height: 44, borderRadius: 12,
-                    background: `linear-gradient(135deg,#1E1B4B,${B})`,
+                    background: `linear-gradient(135deg,#0f1419,${B})`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 22, color: WH, flexShrink: 0 }}><LineIcon name="store" size={22} color="#fff" /></div>
                 )}
@@ -334,7 +334,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
             <div style={{ display: 'flex', gap: 8 }}>
               {hasAnyRole(userRole, currentUser, ['seller', 'admin']) && (
                 <button onClick={() => onNavigate('StoreSettings')}
-                  style={{ backgroundColor: '#F5F3FF', color: '#7C3AED',
+                  style={{ backgroundColor: '#f7f9f9', color: '#0f1419',
                     border: 'none', padding: '6px 14px', borderRadius: 8,
                     cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                   Mipangilio ya Duka
@@ -497,7 +497,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
                   <div style={{ fontSize: 16, fontWeight: 800, color: B, marginBottom: 3 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, ...statusColor(order.status) }}>{order.status}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 7px', borderRadius: 6, ...statusColor(order.status) }}>{order.status}</span>
                 </div>
               </div>
             ))
@@ -508,9 +508,9 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
           {[
             { label: `${t('profile.stores')}`,     page: 'Stores',            bg: '#EFF6FF', color: B },
-            { label: `${t('profile.classifieds')}`, page: 'ClassifiedsPublic', bg: '#FDF2F8', color: '#A21CAF' },
+            { label: `${t('profile.classifieds')}`, page: 'ClassifiedsPublic', bg: '#f7f9f9', color: '#0f1419' },
             { label: `${t('profile.my_orders')}`,    page: 'MyOrders',          bg: '#F0FDF4', color: '#16A34A' },
-            { label: `${t('profile.cart')}`,         page: 'Cart',              bg: '#FEF9C3', color: '#CA8A04' },
+            { label: `${t('profile.cart')}`,         page: 'Cart',              bg: '#fffbeb', color: '#d97706' },
           ].map(action => (
             <button key={action.label} onClick={() => onNavigate(action.page)}
               style={{ backgroundColor: action.bg, color: action.color, border: 'none', padding: 14, borderRadius: 14,
@@ -561,7 +561,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
         {/* ── Pending reviews ────────────────────────────────────────── */}
         {orders.filter(o => o.status === 'delivered' && !o.buyerRating).length > 0 && (
-          <div style={{ marginBottom: 14, backgroundColor: '#FEF9C3', borderRadius: 16,
+          <div style={{ marginBottom: 14, backgroundColor: '#fffbeb', borderRadius: 16,
             padding: 16, border: '1px solid #FDE68A' }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#92400E', marginBottom: 12 }}>
               Tathmini Zinazokungoja ({orders.filter(o => o.status === 'delivered' && !o.buyerRating).length})

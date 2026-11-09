@@ -76,7 +76,7 @@ export default function PlaceSearchField({ id = 'listing-place', value, onChange
         onChange={(e) => { setText(e.target.value); setPicked(false); setOpen(true); if (!e.target.value.trim()) onChange({ ...EMPTY }); }}
         onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} style={box} />
       {typed && !picked && (
-        <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Chagua mahali kwenye orodha</div>
+        <div style={{ fontSize: 12, color: '#d97706', marginTop: 4 }}>Chagua mahali kwenye orodha</div>
       )}
       {open && !picked && typed.length >= 2 && (
         <div role="listbox" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, background: '#fff', borderRadius: 12,

@@ -132,7 +132,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
                       placeholder="Tafuta eneo, ward au district…"
                       required
                     />
-                    {profile?.locationLabel && !resolvedLocation && <div style={{fontSize:11,color:'#16a34a',marginTop:-8}}>{profile.locationLabel}</div>}
+                    {profile?.locationLabel && !resolvedLocation && <div style={{fontSize:12,color:'#16a34a',marginTop:-8}}>{profile.locationLabel}</div>}
                     <div style={{ marginTop: 12 }}>
                       <OfficePoint officePointSet={profile?.officePointSet} officePointByGps={profile?.officePointByGps}
                         onSaved={(r) => setProfile(p => ({ ...p, officePointSet: r.officePointSet, officePointByGps: r.officePointByGps }))} />

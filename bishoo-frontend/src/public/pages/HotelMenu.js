@@ -27,7 +27,7 @@ const pill = (on) => ({
   alignItems: 'center', justifyContent: 'center', gap: 2, padding: 6,
   border: on ? `2px solid ${C.blue}` : `1px solid ${C.border}`, background: on ? C.blueSoft : '#fff',
 });
-const TINTS = ['#fef3c7', '#ecfccb', '#ffedd5', '#fee2e2', '#e0f2fe', '#ede9fe'];
+const TINTS = ['#fef3c7', '#f0fdf4', '#fffbeb', '#fee2e2', '#eff6ff', '#f7f9f9'];
 
 const Verified = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="Imethibitishwa"><circle cx="12" cy="12" r="10" fill={C.blue} /><path d="M8 12.5l2.5 2.5L16 9.5" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" /></svg>
@@ -284,7 +284,7 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
         <section data-testid="hotel-identity" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
           {hotel.logo
             ? <img src={hotel.logo} alt="" style={{ width: 60, height: 60, borderRadius: 30, objectFit: 'cover', flexShrink: 0 }} />
-            : <span style={{ width: 60, height: 60, borderRadius: 30, background: '#7c2d12', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            : <span style={{ width: 60, height: 60, borderRadius: 30, background: '#92400e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 24, fontWeight: 800, flexShrink: 0 }}>{String(hotel.name || 'H').trim().charAt(0).toUpperCase()}</span>}
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -369,7 +369,7 @@ export default function HotelMenu({ businessId, placeType: qrType, placeNumber: 
                         {q ? `+ ${q}` : '+'}
                       </button>
                     ) : (
-                      <span style={{ position: 'absolute', left: 6, bottom: 6, padding: '2px 8px', borderRadius: 10, background: C.ink, color: '#fff', fontSize: 11, fontWeight: 700 }}>Imeisha leo</span>
+                      <span style={{ position: 'absolute', left: 6, bottom: 6, padding: '2px 8px', borderRadius: 10, background: C.ink, color: '#fff', fontSize: 12, fontWeight: 700 }}>Imeisha leo</span>
                     )}
                   </span>
                 </div>

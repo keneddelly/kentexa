@@ -13,7 +13,7 @@ const getJobStatus = (t) => ({
   accepted:    { bg: '#dcfce7', text: '#16a34a', label: t('my_services.status_accepted')  },
   declined:    { bg: '#fee2e2', text: '#dc2626', label: t('my_services.status_declined')  },
   in_progress: { bg: '#dbeafe', text: '#1d4ed8', label: t('my_services.status_in_progress')  },
-  completed:   { bg: '#f0fdf4', text: '#15803d', label: t('my_services.status_completed')  },
+  completed:   { bg: '#f0fdf4', text: '#16a34a', label: t('my_services.status_completed')  },
   cancelled:   { bg: '#f1f5f9', text: '#64748b', label: t('my_services.status_cancelled')    },
 });
 
@@ -116,7 +116,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '14px 16px' }}>
               <div style={{ marginBottom: 4 }}><LineIcon name={s.icon} size={24} /></div>
               <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -170,7 +170,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
                           {job.buyer?.name || t('my_services.default_buyer_name')} · {job.buyer?.phone || ''}
                         </div>
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px',
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px',
                         borderRadius: 100, backgroundColor: sc.bg, color: sc.text }}>
                         {sc.label}
                       </span>

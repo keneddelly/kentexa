@@ -117,7 +117,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
             <div key={l.label} style={{ display:'flex', alignItems:'center', gap:6 }}>
               <div style={{ width:12, height:12, borderRadius:'50%',
                 backgroundColor:l.color }} />
-              <span style={{ fontSize:11, color:'#64748b' }}>{l.label}</span>
+              <span style={{ fontSize:12, color:'#64748b' }}>{l.label}</span>
             </div>
           ))}
         </div>
@@ -219,11 +219,11 @@ const RouteCoverageMap = ({ onNavigate }) => {
                           <div style={{ fontSize:12, fontWeight:700, color:'#1e293b' }}>
                             {p.provider?.name || t('route_coverage_map.default_provider_name')}
                           </div>
-                          <div style={{ fontSize:10, color:'#64748b' }}>
+                          <div style={{ fontSize:12, color:'#64748b' }}>
                             {p.fromCity} → {p.toCity}
                           </div>
                         </div>
-                        <span style={{ fontSize:10, color:'#16a34a', fontWeight:700 }}>
+                        <span style={{ fontSize:12, color:'#16a34a', fontWeight:700 }}>
                           {t('route_coverage_map.slots_available', { count: p.slotsAvailable||0 })}
                         </span>
                       </div>
@@ -278,7 +278,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
               ].map(s => (
                 <div key={s.label} style={{ display:'flex', justifyContent:'space-between',
                   padding:'6px 0', borderBottom:'1px solid #f8fafc' }}>
-                  <span style={{ fontSize:11, color:'#64748b' }}>{s.label}</span>
+                  <span style={{ fontSize:12, color:'#64748b' }}>{s.label}</span>
                   <span style={{ fontSize:13, fontWeight:800, color:B }}>{s.value}</span>
                 </div>
               ))}

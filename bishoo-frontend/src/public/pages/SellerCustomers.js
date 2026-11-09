@@ -51,7 +51,7 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
             maxWidth: '65%' }}>
             {customer.name}
           </div>
-          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px',
+          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px',
             borderRadius: 100, backgroundColor: seg.bg, color: seg.color,
             flexShrink: 0 }}>
             {seg.label}
@@ -61,10 +61,10 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
           {customer.phone || customer.email || '—'}
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>
              <strong style={{ color: '#1e293b' }}>{customer.totalOrders}</strong> {t('seller_customers.orders_unit')}
           </div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>
              <strong style={{ color: '#16a34a' }}>TZS {fmt(customer.totalSpent)}</strong>
           </div>
         </div>
@@ -183,7 +183,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
                 <div style={{ fontSize: 15, fontWeight:800, color: s.color }}>
                   {s.value}
                 </div>
-                <div style={{ fontSize: 10, color: '#64748b', marginTop: 3, fontWeight: 600 }}>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 3, fontWeight: 600 }}>
                   {s.label}
                 </div>
               </div>
@@ -205,7 +205,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
           {Object.entries(SEGMENTS).map(([key, s]) => (
             <button key={key} onClick={() => setSegment(key)}
               style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 100,
-                border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
                 backgroundColor: segment === key ? s.bg : '#f1f5f9',
                 color: segment === key ? s.color : '#64748b' }}>
               {s.label}
@@ -217,14 +217,14 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
 
         {/* Bulk WhatsApp Campaign */}
         {segment !== 'all' && data.customers.length > 0 && (
-          <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac',
+          <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0',
             borderRadius: 14, padding: 16, marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight:800, color: '#16a34a' }}>
                 {t('seller_customers.whatsapp_campaign')}
               </div>
-              <span style={{ fontSize: 11, backgroundColor: '#dcfce7', color: '#16a34a',
+              <span style={{ fontSize: 12, backgroundColor: '#dcfce7', color: '#16a34a',
                 padding: '3px 10px', borderRadius: 100, fontWeight: 700 }}>
                 {data.customers.filter(c => c.phone).length} {t('seller_customers.with_phone')}
               </span>
@@ -233,7 +233,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
             {/* Message templates — kept in Swahili regardless of seller UI
                 language: these are sent verbatim to Tanzanian customers, not
                 shown to the seller as interface text. */}
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
               {t('seller_customers.quick_templates')}
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -245,8 +245,8 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
               ].map(tmpl => (
                 <button key={tmpl.label}
                   onClick={() => { bulkMsgRef.current && (bulkMsgRef.current.value = tmpl.msg); setBulkMsg(tmpl.msg); }}
-                  style={{ fontSize: 10, padding: '5px 10px', borderRadius: 8,
-                    border: '1px solid #86efac', backgroundColor: '#fff',
+                  style={{ fontSize: 12, padding: '5px 10px', borderRadius: 8,
+                    border: '1px solid #bbf7d0', backgroundColor: '#fff',
                     cursor: 'pointer', fontWeight: 700, color: '#16a34a' }}>
                   {tmpl.label}
                 </button>
@@ -261,11 +261,11 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
               placeholder={t('seller_customers.bulk_message_placeholder')}
               rows={3}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8,
-                border: '1px solid #86efac', fontSize: 12, resize: 'none',
+                border: '1px solid #bbf7d0', fontSize: 12, resize: 'none',
                 boxSizing: 'border-box', marginBottom: 8, outline: 'none',
                 fontFamily: 'inherit' }} />
 
-            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
               {t('seller_customers.tap_customer_hint')}
             </div>
 
@@ -279,7 +279,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
                     href={`https://wa.me/${phone}${msg ? '?text=' + msg : ''}`}
                     target="_blank" rel="noreferrer"
                     style={{ padding: '6px 12px', backgroundColor: '#25D366', color: '#fff',
-                      borderRadius: 8, textDecoration: 'none', fontSize: 11,
+                      borderRadius: 8, textDecoration: 'none', fontSize: 12,
                       fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
                      {c.name.split(' ')[0]}
                   </a>
@@ -316,7 +316,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
               onChange={e => setAddForm(p => ({...p, email: e.target.value}))}
               style={inp} />
             <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
                 {t('seller_customers.customer_location_optional')}
               </div>
               <LocationPicker
@@ -457,7 +457,7 @@ const SellerCustomers = ({ onNavigate, currentUser }) => {
                   });
                 }}
                   style={{ backgroundColor: '#f0fdf4', color: '#16a34a',
-                    border: '1px solid #86efac', padding: 14, borderRadius: 12,
+                    border: '1px solid #bbf7d0', padding: 14, borderRadius: 12,
                     cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
                   {t('seller_customers.ship_item')}
                 </button>

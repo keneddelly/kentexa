@@ -25,7 +25,7 @@ const PhoneCell = ({ phone, name }) => {
           {phone}
         </a>
         <a href={WA(phone)} target="_blank" rel="noreferrer"
-          style={{ fontSize: 9, backgroundColor: '#25D366', color: '#fff',
+          style={{ fontSize: 12, backgroundColor: '#25D366', color: '#fff',
             padding: '2px 5px', borderRadius: 4, textDecoration: 'none', fontWeight: 700 }}>
           WA
         </a>
@@ -167,7 +167,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                   {['Picha','Kichwa','Kategoria','Bei','Muuzaji / Simu','Eneo','Hali','Tarehe','Vitendo'].map(h => (
                     <th key={h} style={{ padding: '13px 14px', textAlign: 'left',
                       backgroundColor: '#f1f5f9', color: '#64748b',
-                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>
+                      fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>
                       {h}
                     </th>
                   ))}
@@ -201,7 +201,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.title}
                         </div>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                        <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                           #{item.id}
                         </div>
                       </td>
@@ -215,7 +215,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '10px 14px' }}>
                         <PhoneCell name={item.seller?.name} phone={item.seller?.phone} />
                         {item.seller?.email && (
-                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
                             {item.seller.email}
                           </div>
                         )}
@@ -225,7 +225,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{ padding: '3px 10px', borderRadius: 20,
-                          fontSize: 11, fontWeight: 700,
+                          fontSize: 12, fontWeight: 700,
                           backgroundColor: sc.bg, color: sc.color }}>
                           {sc.label}
                         </span>
@@ -240,7 +240,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                             <button
                               onClick={e => { e.stopPropagation(); handleStatus(item.id, 'sold'); }}
                               disabled={actionLoading}
-                              style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6,
+                              style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6,
                                 border: 'none', cursor: 'pointer', backgroundColor: '#f1f5f9',
                                 color: '#64748b', fontWeight: 700 }}>
                               Imeuzwa
@@ -250,7 +250,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                             <button
                               onClick={e => { e.stopPropagation(); handleStatus(item.id, 'active'); }}
                               disabled={actionLoading}
-                              style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6,
+                              style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6,
                                 border: 'none', cursor: 'pointer', backgroundColor: '#dcfce7',
                                 color: '#16a34a', fontWeight: 700 }}>
                               Onyesha
@@ -297,7 +297,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
               {/* Seller */}
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12,
                 padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8',
                   marginBottom: 8, letterSpacing: 0.5 }}>ALIYEWEKA</div>
                 <PhoneCell name={selected.seller?.name} phone={selected.seller?.phone} />
                 {selected.seller?.email && (
@@ -306,7 +306,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
                   </div>
                 )}
                 {selected.seller?.id && (
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
                     User ID: {selected.seller.id}
                   </div>
                 )}
@@ -315,7 +315,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
               {/* Details */}
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12,
                 padding: 14, marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                   marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO</div>
                 {[
                   ['Bei',       `TZS ${Number(selected.price).toLocaleString()}`],
@@ -338,7 +338,7 @@ const Classifieds = ({ activePage, onNavigate, onLogout }) => {
               {selected.description && (
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 12,
                   padding: 14, marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#64748b',
                     marginBottom: 8, letterSpacing: 0.5 }}>MAELEZO ZAIDI</div>
                   <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, margin: 0 }}>
                     {selected.description}

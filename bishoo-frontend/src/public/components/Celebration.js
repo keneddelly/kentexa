@@ -12,7 +12,7 @@ import React, { useEffect, useState } from 'react';
  *   ...
  *   {celebrate && <Celebration message="Agizo lako la kwanza!" onDone={() => setCelebrate(false)} />}
  */
-const COLORS = ['#1d4ed8', '#f59e0b', '#16a34a', '#ec4899', '#7c3aed'];
+const COLORS = ['#1d4ed8', '#f59e0b', '#16a34a', '#0f1419', '#0f1419'];
 
 const Celebration = ({ message, onDone, duration = 2500 }) => {
   const [particles] = useState(() =>

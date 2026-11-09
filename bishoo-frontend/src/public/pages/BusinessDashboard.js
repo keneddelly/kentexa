@@ -42,7 +42,7 @@ const Row = ({ icon, label, value, onAction, color = DK, sub, locked }) => (
     <span style={{ flexShrink: 0, width: 28, display: 'flex', justifyContent: 'center' }}><LineIcon name={icon} size={20} /></span>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: DK }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: GR, marginTop: 1 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12, color: GR, marginTop: 1 }}>{sub}</div>}
     </div>
     {locked && <span style={{ fontSize: 14 }}><LineIcon name="lock" size={16} /></span>}
     {value !== undefined && !locked && (
@@ -210,7 +210,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
             <div style={{ fontSize: 13, fontWeight: 800, color: DK, marginBottom: 12 }}>
               {t('business_dashboard.today_title')}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: GR, marginBottom: 8, letterSpacing: 0.4 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: GR, marginBottom: 8, letterSpacing: 0.4 }}>
               {t('business_dashboard.today_commerce_label')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
@@ -221,11 +221,11 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
               ].map(([label, value]) => (
                 <div key={label} style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
                   <div style={{ fontSize: 18, fontWeight:800, color: B }}>{value}</div>
-                  <div style={{ fontSize: 10, color: GR, marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: 12, color: GR, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: GR, marginBottom: 8, letterSpacing: 0.4 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: GR, marginBottom: 8, letterSpacing: 0.4 }}>
               {t('business_dashboard.today_customer_activity_label')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
@@ -237,17 +237,17 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
               ].map(([label, value]) => (
                 <div key={label} style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
                   <div style={{ fontSize: 18, fontWeight:800, color: DK }}>{value}</div>
-                  <div style={{ fontSize: 10, color: GR, marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: 12, color: GR, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
             </div>
 
             {/* AI Insight — Layer 4, real reasoning over the counts above.
                 Same visual language as Search.js's AI summary banner
-                (#F5F3FF / #DDD6FE / sparkle) so it reads as one feature. */}
+                (#f7f9f9 / #eff3f4 / sparkle) so it reads as one feature. */}
             {(insightLoading || insight) && (
-              <div style={{ display: 'flex', gap: 10, backgroundColor: '#F5F3FF',
-                border: '1px solid #DDD6FE', borderRadius: 14, padding: '12px 14px',
+              <div style={{ display: 'flex', gap: 10, backgroundColor: '#f7f9f9',
+                border: '1px solid #eff3f4', borderRadius: 14, padding: '12px 14px',
                 marginTop: 16 }}>
                 <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1 }}><LineIcon name="bolt" size={18} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -261,7 +261,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
                         {insight.insight}
                       </div>
                       {insight.recommendation && (
-                        <div style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, marginTop: 6 }}>
+                        <div style={{ fontSize: 12, color: '#0f1419', fontWeight: 600, marginTop: 6 }}>
                           {insight.recommendation}
                         </div>
                       )}

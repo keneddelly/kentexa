@@ -80,10 +80,10 @@ const BodaRates = ({ onNavigate }) => {
         <button onClick={() => onNavigate('Dashboard')} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Bei za Boda Boda — Dar es Salaam</div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>KenteXa inasimamia bei zote kwa niaba ya wauzaji</div>
+          <div style={{ fontSize: 12, color: '#94a3b8' }}>KenteXa inasimamia bei zote kwa niaba ya wauzaji</div>
         </div>
         <button onClick={handleResetDefaults}
-          style={{ fontSize: 11, color: '#94a3b8', background: 'none', border: '1px solid #e2e8f0', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
+          style={{ fontSize: 12, color: '#94a3b8', background: 'none', border: '1px solid #e2e8f0', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
           Chaguo-Msingi
         </button>
       </div>
@@ -108,14 +108,14 @@ const BodaRates = ({ onNavigate }) => {
             Jedwali la Bei (TZS) — Muuzaji → Mnunuzi
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                <th style={{ padding: '8px 6px', textAlign: 'left', fontSize: 10, color: '#94a3b8', fontWeight: 700, borderBottom: '2px solid #f1f5f9' }}>
+                <th style={{ padding: '8px 6px', textAlign: 'left', fontSize: 12, color: '#94a3b8', fontWeight: 700, borderBottom: '2px solid #f1f5f9' }}>
                   MUUZAJI ↓ / MNUNUZI →
                 </th>
                 {ZONES.map(z => (
-                  <th key={z.rank} style={{ padding: '8px 6px', textAlign: 'center', fontSize: 10, color: '#7c3aed', fontWeight: 700, borderBottom: '2px solid #f1f5f9', minWidth: 80 }}>
+                  <th key={z.rank} style={{ padding: '8px 6px', textAlign: 'center', fontSize: 12, color: '#7c3aed', fontWeight: 700, borderBottom: '2px solid #f1f5f9', minWidth: 80 }}>
                     {z.short}
                   </th>
                 ))}
@@ -124,7 +124,7 @@ const BodaRates = ({ onNavigate }) => {
             <tbody>
               {ZONES.map(seller => (
                 <tr key={seller.rank}>
-                  <td style={{ padding: '8px 6px', fontSize: 11, fontWeight: 700, color: '#1d4ed8', borderBottom: '1px solid #f8fafc', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '8px 6px', fontSize: 12, fontWeight: 700, color: '#1d4ed8', borderBottom: '1px solid #f8fafc', whiteSpace: 'nowrap' }}>
                     {seller.short}
                   </td>
                   {ZONES.map(buyer => {
@@ -144,10 +144,10 @@ const BodaRates = ({ onNavigate }) => {
                                 if (e.key === 'Escape') setEditCell(null);
                               }}
                               autoFocus
-                              style={{ width: 65, padding: '3px 5px', borderRadius: 6, border: '2px solid #7c3aed', fontSize: 11, textAlign: 'center' }}
+                              style={{ width: 65, padding: '3px 5px', borderRadius: 6, border: '2px solid #7c3aed', fontSize: 12, textAlign: 'center' }}
                             />
                             <button onClick={() => handleSaveCell(key, editCell.value)}
-                              style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>
+                              style={{ background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               {saving[key] ? '' : '✓'}
                             </button>
                           </div>
@@ -168,7 +168,7 @@ const BodaRates = ({ onNavigate }) => {
             </tbody>
           </table>
 
-          <div style={{ marginTop: 10, fontSize: 10, color: '#94a3b8' }}>
+          <div style={{ marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
             Gusa bei yoyote ili kuibadilisha · Kisanduku <span style={{ backgroundColor: '#f0fdf4', padding: '0 4px', borderRadius: 3 }}>kijani</span> = muuzaji na mnunuzi wako eneo moja
           </div>
         </div>
@@ -188,14 +188,14 @@ const BodaRates = ({ onNavigate }) => {
         <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>Jaribu Bei</div>
           <div style={{ marginBottom: 8 }}>
-            <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Eneo la Muuzaji</label>
+            <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Eneo la Muuzaji</label>
             <select value={testSeller} onChange={e => setTestSeller(e.target.value)}
               style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13 }}>
               {ZONES.map(z => <option key={z.rank} value={z.short.split('/')[0].trim()}>{z.label}</option>)}
             </select>
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Anwani ya Mnunuzi</label>
+            <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, display: 'block', marginBottom: 4 }}>Anwani ya Mnunuzi</label>
             <input placeholder="e.g. Sinza, Mtaa wa Kijitonyama" value={testAddr}
               onChange={e => setTestAddr(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleTest()}

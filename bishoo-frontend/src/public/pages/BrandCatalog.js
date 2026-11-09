@@ -96,11 +96,11 @@ const BrandCatalog = ({ onNavigate, activeProfileId }) => {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: item.isActive ? '#f0fdf4' : '#fee2e2', color: item.isActive ? '#16a34a' : '#dc2626' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: item.isActive ? '#f0fdf4' : '#fee2e2', color: item.isActive ? '#16a34a' : '#dc2626' }}>
                   {item.isActive ? t('brand_catalog.status_active') : t('brand_catalog.status_inactive')}
                 </span>
                 <button onClick={() => toggleActive(item)}
-                  style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
                   {item.isActive ? t('brand_catalog.deactivate_button') : t('brand_catalog.activate_button')}
                 </button>
               </div>

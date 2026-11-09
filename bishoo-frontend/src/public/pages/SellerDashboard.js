@@ -37,7 +37,7 @@ const I = {
   till: 'M4 4h16v6H4zM6 10v10h12V10M9 14h6M8 7h.01', lock: 'M6 11h12v10H6zM8.5 11V7.5a3.5 3.5 0 017 0V11',
   chev: 'M9 6l6 6-6 6', check: 'M8 12.2l2.7 2.7L16.2 9.4',
 };
-const TONE = { blue: ['#eff6ff', BLUE], amber: ['#fffbeb', '#92400e'], red: ['#fef2f2', '#b91c1c'], green: ['#ecfdf3', '#166534'], muted: ['#f7f9f9', MUTED] };
+const TONE = { blue: ['#eff6ff', BLUE], amber: ['#fffbeb', '#92400e'], red: ['#fef2f2', '#b91c1c'], green: ['#f0fdf4', '#166534'], muted: ['#f7f9f9', MUTED] };
 
 const Section = ({ title, right, children, testId }) => (
   <section data-testid={testId} style={{ borderTop: `8px solid #f7f9f9`, padding: '16px 0 4px' }}>

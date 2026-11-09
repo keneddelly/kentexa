@@ -170,7 +170,7 @@ const HubReceive = ({ onNavigate }) => {
             </div>
           )}
           {success && (
-            <div style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '10px 14px', borderRadius: 8, marginTop: 10, fontSize: 13, fontWeight: 700 }}>
+            <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 8, marginTop: 10, fontSize: 13, fontWeight: 700 }}>
               {success}
             </div>
           )}
@@ -235,13 +235,13 @@ const HubReceive = ({ onNavigate }) => {
             ).map(p => (
               <div key={p.parcelId}
                 onClick={() => { setTrackingInput(p.trackingNumber); setParcel(p); }}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#fef9c3', borderRadius: 10, marginBottom: 8, cursor: 'pointer', border: '1px solid #fde68a' }}>
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#fffbeb', borderRadius: 10, marginBottom: 8, cursor: 'pointer', border: '1px solid #fde68a' }}>
                 <div>
                   <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#92400e' }}>{p.waybill || p.trackingNumber}</div>
-                  <div style={{ fontSize: 12, color: '#78350f', marginTop: 2 }}>{p.recipientName} · {p.zoneName}</div>
+                  <div style={{ fontSize: 12, color: '#92400e', marginTop: 2 }}>{p.recipientName} · {p.zoneName}</div>
                 </div>
                 <button onClick={e => { e.stopPropagation(); setTrackingInput(p.trackingNumber); setParcel(p); }}
-                  style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                  style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                   {t('hub_receive.receive_short_button')}
                 </button>
               </div>
@@ -259,9 +259,9 @@ const HubReceive = ({ onNavigate }) => {
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
                 <div>
                   <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8' }}>{p.waybill || p.trackingNumber}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{p.recipientName} · {p.zone}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{p.recipientName} · {p.zone}</div>
                 </div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>{p.time}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>{p.time}</div>
               </div>
             ))}
           </div>

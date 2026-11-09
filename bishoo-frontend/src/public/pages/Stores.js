@@ -75,10 +75,10 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
       <div style={{ height: large ? 96 : 72, position: 'relative',
         background: seller.coverImage
           ? `url(${seller.coverImage}) center/cover`
-          : 'linear-gradient(135deg,#1E1B4B,#1D4ED8,#7C3AED)',
+          : 'linear-gradient(135deg,#0f1419,#1D4ED8,#0f1419)',
         flexShrink: 0 }}>
         {seller.isOfficialStore && (
-          <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 9,
+          <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 12,
             backgroundColor: '#FBBF24', color: '#1E293B', padding: '2px 8px',
             borderRadius: 100, fontWeight: 800 }}>OFFICIAL</span>
         )}
@@ -91,7 +91,7 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
               onError={e => e.target.style.display = 'none'} />
           ) : (
             <div style={{ width: '100%', height: '100%',
-              background: `linear-gradient(135deg,${B},#7C3AED)`,
+              background: `linear-gradient(135deg,${B},#0f1419)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: large ? 22 : 18, fontWeight:800, color: WH }}>
               {initial}
@@ -109,12 +109,12 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
             {name}
           </div>
           {seller.isVerified && (
-            <span style={{ fontSize: 11, color: B, fontWeight:800, flexShrink: 0 }}></span>
+            <span style={{ fontSize: 12, color: B, fontWeight:800, flexShrink: 0 }}></span>
           )}
         </div>
 
         {seller.storeTagline && (
-          <div style={{ fontSize: 11, color: GR, marginBottom: 6,
+          <div style={{ fontSize: 12, color: GR, marginBottom: 6,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {seller.storeTagline}
           </div>
@@ -122,26 +122,26 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
           {seller.businessCategory && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
+            <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px',
               borderRadius: 100, backgroundColor: '#EFF6FF', color: B }}>
               <LineIcon name={CATEGORIES.find(c => c.key === seller.businessCategory)?.icon || 'store'} size={14} style={{ verticalAlign: 'middle' }} />{' '}
               {seller.businessCategory}
             </span>
           )}
           {(seller.city || seller.district || seller.region) && (
-            <span style={{ fontSize: 9, color: GR, padding: '2px 8px',
+            <span style={{ fontSize: 12, color: GR, padding: '2px 8px',
               borderRadius: 100, backgroundColor: '#F8FAFC' }}>
               {seller.district || seller.city || seller.region}
             </span>
           )}
           {seller.verificationTier === 'verified_business' && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
-              borderRadius: 100, backgroundColor: '#FEF3C7', color: '#B45309' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px',
+              borderRadius: 100, backgroundColor: '#FEF3C7', color: '#d97706' }}>
               {t('stores.tier_verified_business')}
             </span>
           )}
           {seller.verificationTier === 'verified_seller' && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
+            <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px',
               borderRadius: 100, backgroundColor: '#DCFCE7', color: '#16A34A' }}>
               {t('stores.tier_verified_seller')}
             </span>
@@ -152,14 +152,14 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
           alignItems: 'center', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {rating > 0 && (
-              <span style={{ fontSize: 11, color: '#D97706', fontWeight: 700 }}>
+              <span style={{ fontSize: 12, color: '#D97706', fontWeight: 700 }}>
                 {rating.toFixed(1)} / 5
               </span>
             )}
             {repScore > 0 && <ReputationBadge score={repScore} size="xs" />}
           </div>
           {seller.completedOrders > 0 && (
-            <div style={{ fontSize: 10, color: '#16A34A', fontWeight: 700 }}>
+            <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 700 }}>
               {fmt(seller.completedOrders)} {t('stores.sold_suffix')}
             </div>
           )}
@@ -242,7 +242,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
       </div>
 
       {/* Header banner */}
-      <div style={{ background: 'linear-gradient(135deg,#1E1B4B,#1D4ED8,#7C3AED)',
+      <div style={{ background: 'linear-gradient(135deg,#0f1419,#1D4ED8,#0f1419)',
         padding: '22px 16px 20px', color: WH }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
           marginBottom: 4 }}>{t('stores.directory_eyebrow')}</div>

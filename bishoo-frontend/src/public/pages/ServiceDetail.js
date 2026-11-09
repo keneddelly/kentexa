@@ -38,7 +38,7 @@ const IconBtn = ({ label, onClick, children }) => (
     style={{ width: 44, height: 44, borderRadius: 22, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{children}</button>
 );
 const Chip = ({ tone = 'grey', children }) => {
-  const c = { green: ['#ecfdf3', '#166534'], blue: ['#eff6ff', '#1e40af'], grey: ['#f7f9f9', GR] }[tone];
+  const c = { green: ['#f0fdf4', '#166534'], blue: ['#eff6ff', '#1d4ed8'], grey: ['#f7f9f9', GR] }[tone];
   return <span style={{ height: 28, padding: '0 10px', borderRadius: 14, background: c[0], color: c[1], fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>{children}</span>;
 };
 const pill = (bg, color = WH, border = 'none') => ({ height: 46, padding: '0 18px', borderRadius: 23, border, background: bg, color, fontSize: 15, fontWeight: 700,
@@ -153,7 +153,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
 
   return (
     <Shell onBack={back} title={title} right={<IconBtn label={t('share.button')} onClick={share}><Icon d={IC.share} /></IconBtn>}>
-      {shareMsg && <div role="status" style={{ padding: '10px 16px', fontSize: 14, color: '#166534', background: '#ecfdf3' }}>{shareMsg}</div>}
+      {shareMsg && <div role="status" style={{ padding: '10px 16px', fontSize: 14, color: '#166534', background: '#f0fdf4' }}>{shareMsg}</div>}
 
       {ad.images?.length > 0 && (
         <div style={{ position: 'relative', aspectRatio: '4 / 3', maxWidth: '100%', background: '#f7f9f9' }}>
@@ -230,7 +230,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
       )}
 
       {sent && (
-        <section role="status" style={{ margin: 16, padding: 14, borderRadius: 14, background: '#ecfdf3', color: '#166534' }}>
+        <section role="status" style={{ margin: 16, padding: 14, borderRadius: 14, background: '#f0fdf4', color: '#166534' }}>
           <b>{t('service_detail.request_sent_title')}</b>
           <div style={{ fontSize: 14, marginTop: 4 }}>{t('service_detail.request_sent_desc')}</div>
         </section>

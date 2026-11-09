@@ -345,7 +345,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
                   {['Muuzaji', 'Mawasiliano', 'Eneo', 'Hali', 'Tarehe', 'Vitendo'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>
                       {h}
                     </th>
                   ))}
@@ -374,7 +374,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                         {seller.businessLocation || seller.city || '—'}
                       </td>
                       <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>
                           {ss.label}
                         </span>
                       </td>
@@ -386,29 +386,29 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                           {seller.status === 'pending' && (
                             <>
                               <button onClick={e => { e.stopPropagation(); handleApprove(seller.id); }} disabled={actionLoading}
-                                style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                 Idhinisha
                               </button>
                               <button onClick={e => { e.stopPropagation(); setSelected(seller); setShowRejectModal(true); }}
-                                style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                                style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                 Kataa
                               </button>
                             </>
                           )}
                           {seller.status === 'approved' && (
                             <button onClick={e => { e.stopPropagation(); setSelected(seller); setShowSuspendModal(true); }}
-                              style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Simamisha
                             </button>
                           )}
                           {['rejected','suspended'].includes(seller.status) && (
                             <button onClick={e => { e.stopPropagation(); seller.status === 'suspended' ? handleRestore(seller) : handleApprove(seller.id); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Amilisha
                             </button>
                           )}
                           <button onClick={e => { e.stopPropagation(); setSelected(seller); }}
-                            style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                            style={{ backgroundColor: '#f1f5f9', color: '#475569', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                             Angalia
                           </button>
                         </div>
@@ -463,7 +463,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Tarehe ya Ombi',   value: selected.createdAt ? new Date(selected.createdAt).toLocaleDateString('sw-TZ') : null },
             ].filter(f => f.value).map(field => (
               <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
                 <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{field.value}</div>
               </div>
             ))}
@@ -471,7 +471,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
             {/* Documents */}
             {selected.idDocument && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>HATI YA UTAMBULISHO</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>HATI YA UTAMBULISHO</div>
                 <a href={selected.idDocument} target="_blank" rel="noreferrer"
                   style={{ display: 'block', backgroundColor: '#eff6ff', color: '#2563eb', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
                   Angalia Hati →
@@ -487,7 +487,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               </div>
               {selected.idPhotoUrl ? (
                 <div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
                     Aina: <strong>{selected.idType || 'Kitambulisho'}</strong> ·
                     Namba: <strong>{selected.idNumber || '—'}</strong>
                   </div>
@@ -496,7 +496,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                       style={{ width: '100%', borderRadius: 10, border: '2px solid #e2e8f0',
                         cursor: 'pointer', marginBottom: 8 }} />
                   </a>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
                     Bonyeza picha kuona ukubwa kamili
                   </div>
                 </div>
@@ -519,7 +519,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                 border: selected.businessDocumentsStatus === 'pending' ? '2px solid #ca8a04' : '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Business Documents</div>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                  <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                     backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[selected.businessDocumentsStatus] || '#f1f5f9',
                     color: { not_submitted: '#64748b', pending: '#ca8a04', verified: '#16a34a', rejected: '#dc2626' }[selected.businessDocumentsStatus] || '#64748b' }}>
                     {selected.businessDocumentsStatus || 'not_submitted'}
@@ -539,7 +539,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                     {businessDocs.map(doc => (
                       <a key={doc.id} href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
-                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: 700 }}>{doc.documentType}</div>
+                        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: 700 }}>{doc.documentType}</div>
                         <img src={doc.url} alt={doc.documentType}
                           style={{ width: '100%', borderRadius: 8, border: '2px solid #e2e8f0', cursor: 'pointer' }} />
                       </a>
@@ -559,7 +559,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   </div>
                 )}
                 {selected.businessDocumentsStatus === 'rejected' && selected.rejectionReason && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: '#dc2626' }}>Reason: {selected.rejectionReason}</div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626' }}>Reason: {selected.rejectionReason}</div>
                 )}
               </div>
             )}
@@ -593,14 +593,14 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                     </span>
                   </div>
                   {isBlocked && (
-                    <div style={{ marginTop: 8, backgroundColor: '#fef2f2', borderRadius: 6, padding: '8px 10px', fontSize: 11.5, color: '#b91c1c', fontWeight: 700 }}>
+                    <div style={{ marginTop: 8, backgroundColor: '#fef2f2', borderRadius: 6, padding: '8px 10px', fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>
                       This seller is blocked from new manual shipments until the balance is paid down.
                     </div>
                   )}
                   {billingError && <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', fontWeight: 700 }}>{billingError}</div>}
 
                   <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Set free orders granted</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Set free orders granted</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input type="number" min="0" value={grantCount} onChange={e => setGrantCount(e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
@@ -612,7 +612,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                   </div>
 
                   <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Record billing payment</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Record billing payment</div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <input type="number" min="0" placeholder="Amount (TZS)" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
                         style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
