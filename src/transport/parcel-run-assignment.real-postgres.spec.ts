@@ -214,11 +214,16 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     const assignWithoutTender = assignmentService.createAssignment.bind(assignmentService);
     (assignmentService as any).createAssignment = async (userId: number, dto: any, ...rest: any[]) => {
       const [run] = await ds.query(`SELECT "providerId" FROM public.transport_run WHERE id = $1`, [dto?.runId]);
-      if (run && dto?.parcelId) {
+      const [stop] = await ds.query(`SELECT "superAgentId" FROM public.transport_run_stop WHERE id = $1`, [dto?.loadRunStopId]);
+      const [open] = run && dto?.parcelId ? await ds.query(
+        `SELECT id FROM public.parcel_movement_tender WHERE "parcelId" = $1 AND "transportProviderId" = $2 AND status = 'open'`,
+        [dto.parcelId, run.providerId]) : [];
+      if (run && dto?.parcelId && !open) {
+        // Released by the hub at the load stop (or by no hub at a plain stop), like a real release.
         await ds.query(
-          `INSERT INTO public.parcel_movement_tender ("parcelId", "transportProviderId", source, status, "idempotencyKey")
-           VALUES ($1, $2, 'super_agent_release', 'open', $3) ON CONFLICT ("idempotencyKey") DO NOTHING`,
-          [dto.parcelId, run.providerId, `test-release:${dto.parcelId}:${run.providerId}`],
+          `INSERT INTO public.parcel_movement_tender ("parcelId", "transportProviderId", "releasingSuperAgentId", source, status, "idempotencyKey")
+           VALUES ($1, $2, $3, 'super_agent_release', 'open', $4)`,
+          [dto.parcelId, run.providerId, stop?.superAgentId ?? null, `test-release:${dto.parcelId}:${run.providerId}:${Date.now()}:${Math.random()}`],
         );
       }
       return assignWithoutTender(userId, dto, ...rest);

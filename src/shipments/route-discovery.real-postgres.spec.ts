@@ -1,4 +1,9 @@
 import 'reflect-metadata';
+// Discovery also offers bookable Runs (run-supply.ts), so the Run tables must exist.
+import { RouteStop } from '../transport/entities/route-stop.entity';
+import { TransportRun } from '../transport/entities/transport-run.entity';
+import { TransportRunStop } from '../transport/entities/transport-run-stop.entity';
+import { Vehicle } from '../transport/entities/vehicle.entity';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
 import { BadRequestException } from '@nestjs/common';
@@ -60,7 +65,7 @@ suite('Route discovery — real PostgreSQL, production-shaped data', () => {
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, TzRegion, TzDistrict, TzWard, ProviderAvailability, TransportRoute, Shipment],
+      entities: [...B5B_BASE_ENTITIES, TzRegion, TzDistrict, TzWard, ProviderAvailability, TransportRoute, Shipment, RouteStop, TransportRun, TransportRunStop, Vehicle],
     });
     await ds.initialize();
 

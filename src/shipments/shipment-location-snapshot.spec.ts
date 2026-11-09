@@ -242,6 +242,8 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
       join(root, 'shipments', 'entities', 'shipment.entity.ts'),
       join(root, 'shipments', 'shipment-location-snapshot.ts'),
       join(root, 'database', 'migrations', '1788271200000-AddShipmentLocationSnapshot.ts'),
+      // Reads the pickup place label for the agent's SMS (never writes the snapshot).
+      join(root, 'shipments', 'shipment-activation.service.ts'),
     ]);
     const files: string[] = [];
     const walk = (dir: string) => {
