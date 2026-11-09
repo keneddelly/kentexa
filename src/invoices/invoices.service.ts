@@ -249,6 +249,12 @@ export class InvoicesService {
     return invoice;
   }
 
+  async findByReceiptNumber(receiptNumber: string): Promise<Invoice> {
+    const invoice = await this.invoiceRepo.findOne({ where: { receiptNumber } });
+    if (!invoice || invoice.status !== InvoiceStatus.PAID) throw new NotFoundException('Receipt not found');
+    return invoice;
+  }
+
   async findMyInvoices(userId: number): Promise<Invoice[]> {
     return this.invoiceRepo.find({
       where: { buyer: { id: userId } },
@@ -511,7 +517,6 @@ export class InvoicesService {
       amount: invoice.amount,
       paidAt: invoice.paidAt,
       paymentMethod: invoice.paymentMethod,
-      orderId: invoice.order?.id,
     };
   }
 

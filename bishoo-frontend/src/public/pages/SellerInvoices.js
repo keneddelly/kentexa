@@ -2,10 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
+import { openDocumentPdf } from '../../utils/documentPdf';
 import api from '../../api/api';
-import { API_BASE_URL } from '../../api/baseUrl';
 
-const API_URL = API_BASE_URL;
 
 const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, activeProfileId }) => {
   const { t } = useTranslation();
@@ -442,10 +441,10 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                 {/* Download buttons for paid invoices */}
                 {isPaid && req.invoiceNumber && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <a href={`${API_URL}/invoices/number/${req.invoiceNumber}/pdf`} target="_blank" rel="noreferrer"
-                      style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', textDecoration: 'none', padding: '8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
+                    <button type="button" onClick={() => openDocumentPdf('invoice', req.invoiceNumber).catch(() => {})}
+                      style={{ flex: 1, display: 'block', textAlign: 'center', backgroundColor: '#f7f9f9', color: '#0f1419', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
                       {t('seller_invoices.invoice_pdf')}
-                    </a>
+                    </button>
                     {trackingNum && (
                       <button onClick={() => onNavigate(`TrackParcel-${trackingNum}`)}
                         style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>

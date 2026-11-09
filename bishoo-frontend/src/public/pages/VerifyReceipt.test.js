@@ -16,7 +16,9 @@ test('a real receipt: amount and facts from the server (owner 2026-11-02 new loo
   const box = screen.getByTestId('receipt-valid');
   expect(box).toHaveTextContent('TZS 45,000');
   expect(box).toHaveTextContent('INV-4');
-  expect(box).toHaveTextContent('#12');
+  // The public check no longer shows the order number or a PDF link (owner 2026-11-09 audit).
+  expect(box).not.toHaveTextContent('#12');
+  expect(screen.queryByText('verify_receipt.download_pdf_button')).toBeNull();
 });
 
 test('not a real receipt: the server reason; empty number is asked for first', async () => {

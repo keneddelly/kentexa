@@ -41,7 +41,6 @@ const VerifyReceipt = ({ onNavigate }) => {
   const rows = valid ? [
     [t('verify_receipt.receipt_number_label'), result.receiptNumber],
     [t('verify_receipt.label_invoice_number'), result.invoiceNumber],
-    [t('verify_receipt.label_order_id'), result.orderId != null ? `#${result.orderId}` : null],
     [t('verify_receipt.label_payment_method'), result.paymentMethod || t('verify_receipt.not_available')],
     [t('verify_receipt.label_paid_on'), result.paidAt
       ? new Date(result.paidAt).toLocaleString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -101,9 +100,6 @@ const VerifyReceipt = ({ onNavigate }) => {
               ))}
             </div>
             <p style={{ margin: 0, fontSize: 13, color: MUTED }}>{t('verify_receipt.verified_by_desc')}</p>
-            <a href={`${process.env.REACT_APP_API_URL || ''}/invoices/receipt/${result.receiptNumber}/pdf`} target="_blank" rel="noreferrer" style={pill(true)}>
-              {t('verify_receipt.download_pdf_button')}
-            </a>
             <button type="button" onClick={again} style={pill(false)}>{t('verify_receipt.verify_another_button')}</button>
           </section>
         )}

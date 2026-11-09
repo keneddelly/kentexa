@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { openDocumentPdf } from '../../utils/documentPdf';
 import api from '../../api/api';
 import { DirectPaymentNotice } from '../components/DirectPayment';
 import { isDirectPaymentOrder } from '../../utils/paymentMode';
 import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
-import { API_BASE_URL } from '../../api/baseUrl';
 import { PageLoading, Spinner } from '../components/Loading';
 import OrderAgentPanel from '../components/OrderAgentPanel';
 
@@ -188,7 +188,6 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
   const currentIdx   = getCurrentIndex(currentSteps);
   const payment      = paymentBadge(order?.paymentStatus);
 
-  const API_URL = API_BASE_URL;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
@@ -498,15 +497,15 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             </div>
             {invoice.invoiceNumber && (
               <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <a href={`${API_URL}/invoices/number/${invoice.invoiceNumber}/pdf`} target="_blank" rel="noopener noreferrer"
-                  style={{ display: 'inline-block', background: '#0f1419', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                <button type="button" onClick={() => openDocumentPdf('invoice', invoice.invoiceNumber).catch(() => {})}
+                  style={{ display: 'inline-block', background: '#0f1419', color: '#fff', border: 'none', cursor: 'pointer', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                   {t('order_tracking.download_invoice')}
-                </a>
+                </button>
                 {invoice.receiptNumber && (
-                  <a href={`${API_URL}/invoices/receipt/${invoice.receiptNumber}/pdf`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-block', background: '#0f1419', color: '#fff', textDecoration: 'none', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  <button type="button" onClick={() => openDocumentPdf('receipt', invoice.receiptNumber).catch(() => {})}
+                    style={{ display: 'inline-block', background: '#0f1419', color: '#fff', border: 'none', cursor: 'pointer', padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
                     {t('order_tracking.download_receipt')}
-                  </a>
+                  </button>
                 )}
               </div>
             )}
