@@ -17,7 +17,7 @@ import {
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { Referral, ReferralStatus } from './entities/referral.entity';
 import { ReferralReward } from './entities/referral-reward.entity';
-import { Feature, FEATURE_REQUIREMENTS } from './verification.constants';
+import { Feature, FEATURE_REQUIREMENTS, FEATURES_ALLOWING_PENDING_ID } from './verification.constants';
 import type { IdentityVerificationProvider } from './providers/identity-verification-provider.interface';
 import { IDENTITY_VERIFICATION_PROVIDER } from './identity.tokens';
 import { ActivityEventService } from '../activity/activity-event.service';
@@ -113,6 +113,9 @@ export class VerificationService {
 
     if (level === 0) {
       const identity = await this.getIdentityProfile(userId);
+      // Sent and waiting is enough for these (asking to sell); approval still needs it checked.
+      if (FEATURES_ALLOWING_PENDING_ID.has(feature) && requiredLevel <= 1
+        && identity?.status === IdentityVerificationStatus.PENDING) return;
       if (identity?.status === IdentityVerificationStatus.REJECTED) {
         throw new ForbiddenException({
           code: 'VERIFICATION_REJECTED',
@@ -262,6 +265,46 @@ export class VerificationService {
       }),
     );
 
+    return saved;
+  }
+
+  /**
+   * Admin marks a person's ID as checked without a document (owner 2026-11-09, chosen for the
+   * sellers who asked to sell before the ID gate). The caller decides eligibility. Recorded in the
+   * verification audit and as an IDENTITY activity event, with the admin and the reason.
+   */
+  async adminMarkChecked(userId: number, admin: User, reason: string, context: Record<string, unknown> = {}): Promise<IdentityProfile> {
+    const why = String(reason || '').trim();
+    if (why.length < 3) throw new ConflictException('Andika sababu (angalau herufi 3).');
+    let profile = await this.identityRepo.findOne({ where: { user: { id: userId } }, relations: { user: true } });
+    if (profile?.status === IdentityVerificationStatus.VERIFIED) return profile;
+    const previousStatus = profile?.status || IdentityVerificationStatus.NOT_SUBMITTED;
+    if (!profile) profile = this.identityRepo.create({ user: { id: userId } as User });
+    profile.status = IdentityVerificationStatus.VERIFIED;
+    profile.rejectionReason = null;
+    profile.reviewedBy = admin.id;
+    profile.reviewedAt = new Date();
+    const saved = await this.identityRepo.save(profile);
+    await this.auditRepo.save(this.auditRepo.create({
+      user: { id: userId } as User,
+      verificationType: 'identity',
+      previousStatus,
+      newStatus: IdentityVerificationStatus.VERIFIED,
+      reviewedBy: admin.id,
+      reason: `Admin marked ID as checked without a document: ${why}`,
+    }));
+    try {
+      void this.activityEvents.record({
+        eventType: 'IDENTITY_MARKED_CHECKED_BY_ADMIN',
+        category: ActivityCategory.IDENTITY,
+        severity: 'warning',
+        actorId: admin.id,
+        relatedUserId: userId,
+        targetType: 'identity_profile',
+        targetId: saved.id,
+        metadata: { reason: why, previousStatus, ...context },
+      } as any);
+    } catch { /* the audit row above is the record */ }
     return saved;
   }
 

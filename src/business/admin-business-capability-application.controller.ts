@@ -44,6 +44,14 @@ export class AdminBusinessCapabilityApplicationController {
     return this.capabilityApplications.approveApplication(id, req.user);
   }
 
+  // Owner 2026-11-09: a seller who asked before the ID gate (no ID sent): mark the ID as checked
+  // (recorded, with the reason) and approve.
+  @Post(':id/approve-legacy-without-id')
+  @Roles(UserRole.ADMIN)
+  approveLegacyWithoutId(@Param('id', ParseIntPipe) id: number, @Request() req, @Body() dto: { reason?: string }) {
+    return this.capabilityApplications.approveLegacyWithoutId(id, req.user, String(dto?.reason ?? ''));
+  }
+
   @Post(':id/reject')
   @Roles(UserRole.ADMIN)
   reject(

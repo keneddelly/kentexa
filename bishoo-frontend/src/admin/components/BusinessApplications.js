@@ -10,6 +10,19 @@ const CAPABILITY = {
 const STATUSES = [['pending', 'Pending'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['cancelled', 'Cancelled']];
 const cell = { padding: '8px 10px', borderTop: '1px solid #e2e8f0', verticalAlign: 'top', fontSize: 14 };
 const when = (d) => (d ? new Date(d).toLocaleString() : '—');
+const ID_STATUS = { verified: 'ID checked', pending: 'ID sent, waiting', rejected: 'ID rejected', not_submitted: 'No ID sent' };
+
+// The server sends { application, business, workspace, applicant, operationalProfile }; the table
+// used to read flat fields, so names showed blank and Approve went to a wrong address (owner
+// 2026-11-09: "I cannot accept their roles").
+export const flatApplication = (r) => (r && r.application ? {
+  id: r.application.id, capabilityCode: r.application.capabilityCode, status: r.application.status,
+  submittedAt: r.application.submittedAt, rejectionReason: r.application.rejectionReason,
+  applicationData: r.application.applicationData,
+  businessId: r.business?.id, businessName: r.business?.name, businessStatus: r.business?.status,
+  applicantName: r.applicant?.name, applicantPhone: r.applicant?.phone, identityStatus: r.applicant?.identityStatus || null,
+  profileStatus: r.operationalProfile?.status, legacyWithoutId: Boolean(r.legacyWithoutId),
+} : r);
 
 export default function BusinessApplications() {
   const [status, setStatus] = useState('pending');
@@ -22,7 +35,7 @@ export default function BusinessApplications() {
     setLoading(true); setError('');
     try {
       const { data } = await api.get('/admin/business-capability-applications', { params: { status } });
-      setRows(Array.isArray(data) ? data : []);
+      setRows(Array.isArray(data) ? data.map(flatApplication) : []);
     } catch (err) {
       setRows([]);
       setError(err?.response?.data?.message || 'Could not load applications');
@@ -34,6 +47,20 @@ export default function BusinessApplications() {
     if (!window.confirm(`Approve ${CAPABILITY[row.capabilityCode] || row.capabilityCode} for ${row.businessName} (#${row.id})?`)) return;
     try { setBusy(row.id); setError(''); await api.post(`/admin/business-capability-applications/${row.id}/approve`); await load(); }
     catch (err) { setError(err?.response?.data?.message || 'Could not approve'); }
+    finally { setBusy(null); }
+  }
+
+  // Owner 2026-11-09: a seller who asked before the ID gate never sent an ID; the admin marks it
+  // checked (recorded, with the reason) and approves. Only offered for those (server-checked too).
+  async function approveWithoutId(row) {
+    const reason = window.prompt(`Mark the ID of ${row.applicantName || 'this applicant'} as checked (no document) and approve ${row.businessName}? Reason:`);
+    if (reason === null) return;
+    if (reason.trim().length < 3) { setError('Enter a reason of at least 3 characters.'); return; }
+    try {
+      setBusy(row.id); setError('');
+      await api.post(`/admin/business-capability-applications/${row.id}/approve-legacy-without-id`, { reason: reason.trim() });
+      await load();
+    } catch (err) { setError(err?.response?.data?.message || 'Could not approve'); }
     finally { setBusy(null); }
   }
 
@@ -80,13 +107,19 @@ export default function BusinessApplications() {
                 <td style={cell}>{row.businessName}<div style={{ fontSize: 12, color: '#64748b' }}>Business #{row.businessId} · {row.businessStatus}</div></td>
                 <td style={cell}>{CAPABILITY[row.capabilityCode] || row.capabilityCode}</td>
                 <td style={cell}>{details(row)}</td>
-                <td style={cell}>{row.applicantName || '—'}{row.applicantPhone && <div><a href={`tel:${row.applicantPhone}`}>{row.applicantPhone}</a></div>}</td>
+                <td style={cell}>{row.applicantName || '—'}{row.applicantPhone && <div><a href={`tel:${row.applicantPhone}`}>{row.applicantPhone}</a></div>}
+                  {row.identityStatus && <div data-testid={`id-status-${row.id}`} style={{ fontSize: 12, color: row.identityStatus === 'verified' ? '#05603a' : '#b45309' }}>{ID_STATUS[row.identityStatus] || row.identityStatus}</div>}</td>
                 <td style={cell}>{when(row.submittedAt)}</td>
                 <td style={cell}>{row.status}{row.profileStatus ? <div style={{ fontSize: 12, color: '#64748b' }}>profile: {row.profileStatus}</div> : null}
                   {row.rejectionReason && <div style={{ fontSize: 12, color: '#b91c1c' }}>{row.rejectionReason}</div>}</td>
                 <td style={cell}>{row.status === 'pending' ? (
                   <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <button type="button" disabled={busy !== null} onClick={() => approve(row)}>Approve</button>
+                    {row.legacyWithoutId && (
+                      <button type="button" data-testid={`approve-without-id-${row.id}`} disabled={busy !== null} onClick={() => approveWithoutId(row)}>
+                        Mark ID checked + approve
+                      </button>
+                    )}
                     <button type="button" disabled={busy !== null} onClick={() => reject(row)}>Reject</button>
                   </span>
                 ) : '—'}</td>

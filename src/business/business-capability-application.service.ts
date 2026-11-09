@@ -29,7 +29,7 @@ import {
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
 import { VerificationService } from '../identity/verification.service';
-import { Feature } from '../identity/verification.constants';
+import { Feature, SELLER_ID_GATE_STARTED_AT } from '../identity/verification.constants';
 import { assertCapabilityOwnerVerified } from './capability-owner-identity';
 import type { RoleContext } from '../role-context/role-context.types';
 import { TzLocationService } from '../tz-location/tz-location.service';
@@ -185,6 +185,38 @@ export class BusinessCapabilityApplicationService {
   /** True only for a row whose status is still PENDING -- guards against Stage B1 mission §15's "casually treat APPROVED/REJECTED/CANCELLED as PENDING." */
   isPending(application: BusinessCapabilityApplication): boolean {
     return application.status === BusinessCapabilityApplicationStatus.PENDING;
+  }
+
+  private isLegacyWithoutId(r: { capabilityCode?: string; status?: string; submittedAt?: any; applicantIdentityStatus?: string | null }) {
+    return r.capabilityCode === BusinessCapabilityCode.COMMERCE
+      && r.status === BusinessCapabilityApplicationStatus.PENDING
+      && r.submittedAt != null && new Date(r.submittedAt).getTime() < SELLER_ID_GATE_STARTED_AT.getTime()
+      && r.applicantIdentityStatus !== 'verified';
+  }
+
+  /**
+   * Owner 2026-11-09: sellers who asked to sell through their Business before the ID gate never
+   * sent an ID, so they could not be approved. The admin marks the applicant's ID as checked
+   * (recorded with the admin and the reason), then the normal approval runs, with every check.
+   * Only for those: a Selling application, still pending, sent before the gate.
+   */
+  async approveLegacyWithoutId(applicationId: number, admin: User, reason: string) {
+    const application = await this.applicationRepo.findOne({ where: { id: applicationId } });
+    if (!application) throw new NotFoundException({ code: 'CAPABILITY_APPLICATION_NOT_FOUND', message: 'CAPABILITY_APPLICATION_NOT_FOUND' });
+    const identity = await this.verification.getIdentityProfile(application.requestedByUserId);
+    const legacy = this.isLegacyWithoutId({
+      capabilityCode: application.capabilityCode, status: application.status, submittedAt: application.submittedAt,
+      applicantIdentityStatus: identity?.status ?? 'not_submitted',
+    });
+    if (!legacy) {
+      throw new BadRequestException({
+        code: 'NOT_LEGACY_WITHOUT_ID',
+        message: 'Hii ni kwa maombi ya kuuza yaliyotumwa kabla ya sharti la kitambulisho tu, na bado yanasubiri.',
+      });
+    }
+    await this.verification.adminMarkChecked(application.requestedByUserId, admin, reason,
+      { applicationId: application.id, businessId: application.businessId, path: 'legacy_seller_without_id' });
+    return this.approveApplication(applicationId, admin);
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -453,6 +485,15 @@ export class BusinessCapabilityApplicationService {
       [status],
     );
 
+    // Each applicant's ID status (the admin's "mark ID as checked", owner 2026-11-09). Read apart:
+    // a database without identity_profile (tests) still lists the applications.
+    const userIds = [...new Set(rows.map((r: any) => Number(r.applicantUserId)).filter((n) => n > 0))];
+    const ids: any[] = userIds.length
+      ? await this.dataSource.query(`SELECT "userId", status::text AS status FROM identity_profile WHERE "userId" = ANY($1::int[])`, [userIds]).catch(() => [])
+      : [];
+    const idStatus = new Map(ids.map((x) => [Number(x.userId), String(x.status)]));
+    for (const r of rows) r.applicantIdentityStatus = idStatus.get(Number(r.applicantUserId)) ?? 'not_submitted';
+
     return rows.map((r: any) => ({
       application: {
         id: r.id, capabilityCode: r.capabilityCode, status: r.status,
@@ -462,7 +503,9 @@ export class BusinessCapabilityApplicationService {
       },
       business: { id: r.businessId, name: r.businessName, verificationStatus: r.businessVerificationStatus, status: r.businessStatus },
       workspace: { id: r.workspaceId, name: r.workspaceName, status: r.workspaceStatus },
-      applicant: { userId: r.applicantUserId, name: r.applicantName, phone: r.applicantPhone },
+      applicant: { userId: r.applicantUserId, name: r.applicantName, phone: r.applicantPhone, identityStatus: r.applicantIdentityStatus ?? null },
+      // A seller who asked before the ID gate and has no checked ID: the admin may mark it checked.
+      legacyWithoutId: this.isLegacyWithoutId(r),
       operationalProfile: { type: r.operationalProfileType, id: r.operationalProfileId, status: r.profileStatus },
     }));
   }
