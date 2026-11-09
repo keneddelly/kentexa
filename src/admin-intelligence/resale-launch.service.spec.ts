@@ -16,7 +16,7 @@ describe('Uza tena launch numbers', () => {
   const build = (fail = false) => {
     const db: any = { query: jest.fn(async (sql: string) => {
       if (fail) throw new Error('missing table');
-      if (sql.includes('count(DISTINCT p."sellerId")')) return [{ suppliers: 2, products: 15, resellers: 7, offers: 11 }];
+      if (sql.includes('count(DISTINCT p."sellerId")')) return [{ suppliers: 2, products: 15, resellers: 7, offers: 11, members: 9 }];
       return rows;
     }) };
     return new ResaleLaunchService(db);
@@ -24,7 +24,7 @@ describe('Uza tena launch numbers', () => {
 
   it('network, weeks, profit states, pay speed, problems and leaders', async () => {
     const r: any = await build().launch(now);
-    expect(r.network).toEqual({ suppliers: 2, products: 15, resellers: 7, offers: 11 });
+    expect(r.network).toEqual({ suppliers: 2, products: 15, resellers: 7, offers: 11, members: 9 });
     expect(r.weeks).toHaveLength(8);
     expect(r.weeks.find((w: any) => w.weekAgo === 0)).toMatchObject({ orders: 3, delivered: 2, profit: 26000 });
     expect(r.weeks.find((w: any) => w.weekAgo === 1)).toMatchObject({ orders: 2, delivered: 2 });

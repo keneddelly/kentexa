@@ -39,7 +39,37 @@ export class ResaleService {
     return p;
   }
 
-  /** The "Uza tena" screen: the supplier price, the floor and the person's own offer. Signed in only. */
+  // ── Members (owner 2026-11-10): reseller prices show only to people who joined ──
+  /** A member joined and accepted the three rules. */
+  async isMember(userId: number): Promise<boolean> {
+    const [m] = await this.db.query(
+      `SELECT 1 FROM public.resale_member WHERE "userId" = $1::int AND "isActive" = true AND "rulesAcceptedAt" IS NOT NULL`, [userId]);
+    return !!m;
+  }
+
+  private async assertMember(userId: number) {
+    if (!(await this.isMember(userId))) throw new ForbiddenException('Jiunge na Uza tena kwanza ili uone bei za wauzaji.');
+  }
+
+  async membership(userId: number) {
+    const [m] = await this.db.query(
+      `SELECT "joinedAt", "rulesAcceptedAt", "isActive" FROM public.resale_member WHERE "userId" = $1::int`, [userId]);
+    return { member: !!(m && m.isActive && m.rulesAcceptedAt), joinedAt: m?.joinedAt ?? null, rulesAccepted: !!m?.rulesAcceptedAt };
+  }
+
+  /** One tap: a verified phone and the three rules accepted. No admin approval, no fee. */
+  async join(user: { id: number; isVerified?: boolean }, body: { acceptRules?: unknown }) {
+    if (!user?.isVerified) throw new ForbiddenException('Thibitisha namba yako ya simu kwanza ili ujiunge na Uza tena.');
+    if (body?.acceptRules !== true) throw new BadRequestException('Kubali kanuni za Uza tena ili ujiunge.');
+    await this.db.query(
+      `INSERT INTO public.resale_member ("userId", "rulesAcceptedAt", "isActive") VALUES ($1::int, now(), true)
+       ON CONFLICT ("userId") DO UPDATE SET "rulesAcceptedAt" = COALESCE(public.resale_member."rulesAcceptedAt", now()), "isActive" = true`,
+      [user.id]);
+    void this.events.record({ eventType: 'RESELLER_JOINED', category: ActivityCategory.COMMERCE, actorId: user.id, actorType: 'user', targetType: 'resale_member', targetId: user.id });
+    return this.membership(user.id);
+  }
+
+  /** The "Uza tena" screen: the supplier price, the floor and the person's own offer. Members only. */
   async terms(productId: number, userId: number) {
     const p = await this.product(productId);
     const own = Number(p.sellerId) === Number(userId);
@@ -49,6 +79,8 @@ export class ResaleService {
         supplierPrice: p.resalePrice == null ? null : money(p.resalePrice), minPrice: p.resaleMinPrice == null ? null : money(p.resaleMinPrice) };
     }
     if (!p.resaleOpen || !(money(p.resalePrice) > 0)) return { open: false, productId: p.id };
+    // Not a member: only that the product can be resold, never a price (owner 2026-11-10).
+    if (!(await this.isMember(userId))) return { open: true, productId: p.id, own: false, member: false };
     const [mine] = await this.db.query(
       `SELECT id, price, note, "isActive" FROM public.resale_offer WHERE "productId" = $1::int AND "resellerUserId" = $2::int`,
       [p.id, userId]);
@@ -56,6 +88,7 @@ export class ResaleService {
       open: true,
       productId: p.id,
       own: false,
+      member: true,
       publicPrice: money(p.basePrice),
       supplierPrice: money(p.resalePrice),
       minPrice: p.resaleMinPrice == null ? null : money(p.resaleMinPrice),
@@ -67,6 +100,7 @@ export class ResaleService {
   /** Save (or reopen) the person's offer for one product. */
   async saveOffer(user: { id: number; isVerified?: boolean }, body: { productId?: unknown; price?: unknown; note?: unknown }) {
     if (!user?.isVerified) throw new ForbiddenException('Thibitisha namba yako ya simu kwanza ili uuze tena.');
+    await this.assertMember(user.id);
     const productId = Number(body?.productId);
     if (!Number.isInteger(productId) || productId <= 0) throw new BadRequestException('Chagua bidhaa.');
     const p = await this.product(productId);
@@ -139,6 +173,7 @@ export class ResaleService {
    * Shops that left a reseller's profit unpaid 7 days are left out.
    */
   async openProducts(userId: number, f: { page?: number; q?: string; category?: string; supplierId?: number; sort?: string } = {}) {
+    await this.assertMember(userId);
     const size = 30;
     const page = Math.max(1, Math.floor(Number(f.page) || 1));
     const where = [
@@ -186,6 +221,23 @@ export class ResaleService {
       hasMore: rows.length > size,
       page,
     };
+  }
+
+  /**
+   * A reseller's own shelf (owner 2026-11-10: "when he reposts a product it appears on his account
+   * with his price; a buyer can buy it"). Public: the products and the reseller's prices only,
+   * never the supplier price. Only offers that can still be bought.
+   */
+  async resellerShelf(resellerUserId: number) {
+    const rows: any[] = await this.db.query(
+      `SELECT o.id, o."productId", o.price, o.note, p.name, p.images, p.stock, p."resalePrice", p."resaleMinPrice"
+         FROM public.resale_offer o JOIN public.product p ON p.id = o."productId"
+        WHERE o."resellerUserId" = $1::int AND o."isActive" = true AND p."resaleOpen" = true AND p."isActive" = true
+          AND p."isAvailable" = true AND p.stock > 0 AND ${UNPAID_LATE_SQL} = 0
+        ORDER BY o."updatedAt" DESC LIMIT 100`, [resellerUserId]);
+    return rows
+      .filter((r) => money(r.price) >= sellingFloor(r))
+      .map((r) => ({ offerId: r.id, productId: r.productId, name: r.name, image: firstImage(r.images), price: money(r.price), note: r.note, stock: Number(r.stock) || 0 }));
   }
 
   /** How many of one shop's products are open for reselling (the "Uza bidhaa za duka hili" door). */

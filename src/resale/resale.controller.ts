@@ -13,6 +13,19 @@ export class ResaleController {
     return this.svc.publicOffer(id);
   }
 
+  // ── Members (owner 2026-11-10) ──
+  @Get('membership')
+  @UseGuards(JwtAuthGuard)
+  membership(@Request() req) {
+    return this.svc.membership(req.user.id);
+  }
+
+  @Post('join')
+  @UseGuards(JwtAuthGuard)
+  join(@Request() req, @Body() body: any) {
+    return this.svc.join(req.user, body || {});
+  }
+
   @Get('mine')
   @UseGuards(JwtAuthGuard)
   mine(@Request() req) {
@@ -24,6 +37,12 @@ export class ResaleController {
   openProducts(@Request() req, @Query('page') page?: string, @Query('q') q?: string, @Query('category') category?: string,
     @Query('supplierId') supplierId?: string, @Query('sort') sort?: string) {
     return this.svc.openProducts(req.user.id, { page: Number(page) || 1, q, category, supplierId: Number(supplierId) || undefined, sort });
+  }
+
+  /** Public: a reseller's shelf on their profile (their prices only). */
+  @Get('sellers/:id/offers')
+  shelf(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.resellerShelf(id);
   }
 
   /** Public: how many of a shop's products are open for reselling (shop page door). */

@@ -32,3 +32,18 @@ test('the shop pays a late profit with its M-Pesa reference', async () => {
   expect(api.post).toHaveBeenCalledWith('/resale/orders/50/paid', { ref: 'QK71X2' });
   expect(screen.getByRole('status')).toHaveTextContent('Muuzaji ataambiwa');
 });
+
+test('joining is one tap after accepting the rules; then the catalogue opens', async () => {
+  api.get.mockImplementation(async (url) => {
+    if (url === '/resale/membership') return { data: { member: false } };
+    if (url === '/resale/products') return { data: { items: [], categories: [], hasMore: false } };
+    return { data: [] };
+  });
+  api.post.mockResolvedValue({ data: { member: true } });
+  await act(async () => { render(<MyResales onNavigate={jest.fn()} startTab="open" />); });
+  expect(screen.getByTestId('resale-join-btn')).toBeDisabled();
+  fireEvent.click(screen.getByTestId('resale-rules'));
+  await act(async () => { fireEvent.click(screen.getByTestId('resale-join-btn')); });
+  expect(api.post).toHaveBeenCalledWith('/resale/join', { acceptRules: true });
+  expect(screen.getByTestId('resale-open-products')).toBeInTheDocument();
+});

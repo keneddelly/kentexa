@@ -38,6 +38,39 @@ const StateTag = ({ state }) => {
   return <span data-testid={`state-${state}`} style={{ fontSize: 13, fontWeight: 700, color }}>{text}</span>;
 };
 
+/** One tap to join (owner 2026-11-10): a verified phone, three rules, no fee, no waiting. */
+const RULES = [
+  'Sema ukweli kuhusu bidhaa: picha na maelezo ni ya duka.',
+  'Uza unachoweza kufikisha: mteja apate alichoagiza.',
+  'Hakuna ada ya kujiunga. Faida yako ni kwa kila mauzo yaliyofika tu.',
+];
+function JoinResale({ onJoined }) {
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const join = async () => {
+    setErr('');
+    try { setBusy(true); const r = await api.post('/resale/join', { acceptRules: true }); onJoined(r.data); }
+    catch (e) { setErr(e?.response?.data?.message || 'Imeshindikana.'); } finally { setBusy(false); }
+  };
+  return (
+    <section data-testid="resale-join-card" style={{ margin: 16, padding: 16, border: `1px solid ${LINE}`, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Jiunge na Uza tena</h2>
+      <p style={{ margin: 0, fontSize: 14, color: GR, lineHeight: 1.45 }}>Ukijiunga utaona bei ya wauzaji kwa kila bidhaa, uweke bei yako, na upate faida kwa kila mauzo. Bure, bila kusubiri.</p>
+      <ol style={{ margin: 0, paddingLeft: 20, fontSize: 15, color: DK, lineHeight: 1.5 }}>{RULES.map((r) => <li key={r}>{r}</li>)}</ol>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 600 }}>
+        <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} data-testid="resale-rules" style={{ width: 20, height: 20 }} />
+        Nakubali kanuni hizi
+      </label>
+      {err && <div role="alert" style={{ fontSize: 14, color: '#b91c1c', fontWeight: 600 }}>{err}</div>}
+      <button type="button" onClick={join} disabled={!ok || busy} data-testid="resale-join-btn"
+        style={{ height: 44, borderRadius: 22, border: 'none', background: ok ? DK : '#cfd9de', color: WH, fontSize: 15, fontWeight: 700, cursor: ok ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+        {busy ? 'Inajiunga...' : 'Jiunge'}
+      </button>
+    </section>
+  );
+}
+
 export default function MyResales({ onNavigate, startTab, supplierId }) {
   const [tab, setTab] = useState(startTab || (supplierId ? 'open' : 'mine'));
   const [mine, setMine] = useState(null);
@@ -45,6 +78,11 @@ export default function MyResales({ onNavigate, startTab, supplierId }) {
   const [supplier, setSupplier] = useState(null);
   const [refs, setRefs] = useState({});
   const [msg, setMsg] = useState('');
+  // Members only see reseller prices (owner 2026-11-10). null = not known yet.
+  const [member, setMember] = useState(null);
+  useEffect(() => {
+    api.get('/resale/membership').then((r) => setMember(!!r?.data?.member)).catch(() => setMember(false));
+  }, []);
 
   const loadProfits = () => api.get('/resale/profits').then((r) => setProfits(r.data || { items: [] })).catch(() => setProfits({ items: [] }));
   const loadSupplier = () => api.get('/resale/supplier-orders').then((r) => setSupplier(r.data || { items: [] })).catch(() => setSupplier({ items: [] }));
@@ -201,7 +239,8 @@ export default function MyResales({ onNavigate, startTab, supplierId }) {
         </div>
       )}
 
-      {tab === 'open' && <ResaleCatalogue onNavigate={onNavigate} supplierId={supplierId || null} onSaved={loadMine} />}
+      {tab === 'open' && member === false && <JoinResale onJoined={(m) => { setMember(!!m?.member); setMsg('Karibu Uza tena.'); }} />}
+      {tab === 'open' && member && <ResaleCatalogue onNavigate={onNavigate} supplierId={supplierId || null} onSaved={loadMine} />}
     </div>
   );
 }
