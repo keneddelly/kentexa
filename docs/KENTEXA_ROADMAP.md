@@ -5,6 +5,13 @@
 - KenteXa is a network, not isolated features. Every feature connects to the network, the waybill and the other roles.
 - Audit the existing code first, then propose. Never design without checking what already exists.
 - KenteXa never holds money; a payment provider holds it.
+- Workflow: audit → design → owner approval → build. Ask before a change that could do more than the owner meant.
+- Claude does the engineering; merge only after the owner says "push", and only with no new CI failures (the baseline is the 14 known failing logistics suites).
+- Migrations are additive only. Raise `MIGRATION_RUN_UPTO` in `start:prod` and update `docs/PENDING_MIGRATIONS.md`.
+- Simple Swahili in the app, "ofisi" never "Super Agent", no emoji, Twitter-style look, no text under 12px.
+- Verify before claiming: a commit is not a deploy, and a green build is not proof that live works. Never invent data.
+- The frontend router is the hand-written one in `App.js` (not React Router); the backend is NestJS + TypeORM + PostgreSQL.
+- The live branch is `worktree-service-provider-profiles` (it deploys to Render).
 
 ## Roles (owner 2026-10-26)
 
@@ -29,7 +36,15 @@
 11. **Other agreed items (not built):** re-openable receipts; 22:00 reminder for parcels without dispatch info; loud pickup-request alerts; hire a whole vehicle; types of goods per office (containers vs parcels); rename "Super Agent" to "ofisi" in the rest of the app.
 12. **Hotel food ordering:** part 1 built (PR #211: menu, table QR, kitchen board, menu manager); part 2 Letewa (wakala delivery, paid on delivery, fee from the Dar rate card) built. Migrations 1793400000000 and 1793500000000 to apply on live; see docs/PENDING_MIGRATIONS.md.
 
+13. **Checkout and seller shipping (Nov 9):** checkout shows one real office's exact price ("best office"); the seller is asked about pickup for intercity; an unaccepted agent job stays offered 5 minutes (PRs #300–#302).
+14. **Admin as KenteXa's mirror (Nov 9):** every action recorded, person and business pages, all datasets, staff roles manager / customer care / finance / moderator (PRs #308–#312).
+15. **Tuma taarifa and Mazungumzo (Nov 9):** messages to users with an in-app link (approval over 100 people or any SMS), from every admin screen; admin reads inbox chats, each view recorded (PR #315).
+16. **Full-site cleanup (Nov 9):** invoice/receipt PDFs only for buyer, seller or staff (#313); old pages removed and pages say why they did not open (#316); no emoji, no text under 12px, fewer colours (#317, #318).
+
 ## Open
+
+- Onboarding (owner 2026-11-09: still to do after the cleanup).
+- Smart Post, BrandDashboard keep or remove, the BiS inbox / staff hub: waiting for owner decisions.
 
 - Migrations are applied on live by the owner with the guarded script; MIGRATION_RUN_UPTO pins auto-run. New code checks a column or table exists before using it.
 
@@ -38,14 +53,14 @@
 
 The product discovery and Claude handoff are maintained in [docs/SOCIAL_ENGAGEMENT_ROADMAP.md](SOCIAL_ENGAGEMENT_ROADMAP.md).
 
-**Status:** Discovery/design handoff only; not approved for implementation. Claude's first task is a read-only audit of the existing feed, composer, post formats, Moments, engagement, comments, identity context and analytics. No code, migrations, branch changes or deployment until the product owner approves the designs and technical specification. See `CLAUDE.md` for the mandatory handoff rule.
+**Status (2026-11-09):** the social Home plan was approved by the owner on 2026-11-02 and built (topics, Jumuiya / communities, Home rebalance, "Leo kwako", new profile and business pages). Further changes to these surfaces still follow audit → design → owner approval → build.
 
 
 ## Experience & Tools Product Architecture
 
 The product-owner decisions and architecture/navigation proposal are maintained in [docs/KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md](KENTEXA_EXPERIENCE_TOOLS_ARCHITECTURE.md).
 
-**Agreed decisions:** all users land on Home after login; operational tools are accessed through a dedicated My Workspace hub. Experience and Tools share identity, permissions and intelligence foundations. Inbox is accessible from both. This is product direction and design/audit handoff only — not implementation authorization. Claude must perform the read-only audit and wait for explicit approval of designs and technical specifications before coding. See the architecture document for boundaries, navigation, business context switching, privacy rules and acceptance criteria.
+**Agreed decisions:** all users land on Home after login; operational tools are accessed through a dedicated My Workspace hub. Experience and Tools share identity, permissions and intelligence foundations. Inbox is accessible from both. **Status (2026-11-09):** approved and built: Home for everyone after login, the "Kazi" hub, the bottom bar Mwanzo / Tafuta / + / Inbox / Kazi (owner 2026-11-01). Further changes still follow audit → design → owner approval → build. See the architecture document for boundaries, navigation, business context switching, privacy rules and acceptance criteria.
 
 
 ### Demand Intelligence & Opportunity Discovery
