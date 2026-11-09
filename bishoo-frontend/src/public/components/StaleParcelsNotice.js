@@ -69,10 +69,10 @@ export default function StaleParcelsNotice({ onAddToShehena }) {
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button onClick={() => onAddToShehena && onAddToShehena(p)} style={btn('#eff6ff', '#1d4ed8', '#bfdbfe')}>
-                  {p.bulkShipmentCode ? '📦 Fungua shehena' : '📦 Ongeza kwenye shehena'}
+                  {p.bulkShipmentCode ? 'Fungua shehena' : 'Ongeza kwenye shehena'}
                 </button>
                 <button onClick={() => stillHere(p.parcelId)} disabled={busyId === p.parcelId} style={btn('#fff', '#334155', '#cbd5e1')}>
-                  {busyId === p.parcelId ? '⏳' : '✋ Bado kiko hapa'}
+                  {busyId === p.parcelId ? '...' : 'Bado kiko hapa'}
                 </button>
               </div>
             </div>

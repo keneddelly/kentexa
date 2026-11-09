@@ -1,6 +1,6 @@
 /**
  * TransportProviderSettings.js — Transport provider profile settings
- * Accessed via ⚙️ gear icon on TransportProviderDashboard
+ * Accessed via gear icon on TransportProviderDashboard
  *
  * Only exposes fields TransportService.updateProfile() actually persists
  * (name, contactPhone, whatsappPhone, contactEmail, description,
@@ -11,6 +11,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const inp = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
@@ -91,7 +92,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}><LineIcon name="clock" size={22} /></div>
         ) : (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
@@ -107,7 +108,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
 
             {error && (
               <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
-                ❌ {error}
+                {error}
               </div>
             )}
             {success && (
@@ -121,7 +122,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
               <div style={{ width: 76, height: 76, borderRadius: 18, margin: '0 auto 10px',
                 backgroundColor: '#f1f5f9', overflow: 'hidden', display: 'flex',
                 alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>
-                {form.logoUrl ? <img src={form.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🚚'}
+                {form.logoUrl ? <img src={form.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <LineIcon name="truck" size={32} />}
               </div>
               <label style={{ display: 'inline-block', backgroundColor: '#f1f5f9', color: '#1d4ed8',
                 padding: '7px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>

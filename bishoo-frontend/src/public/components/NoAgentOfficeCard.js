@@ -21,12 +21,12 @@ export default function NoAgentOfficeCard({ office }) {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
               {office.phone && (
                 <a href={`tel:${office.phone}`} style={{ padding: '8px 12px', borderRadius: 10, backgroundColor: '#EFF6FF',
-                  color: '#1D4ED8', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>📞 {office.phone}</a>
+                  color: '#1D4ED8', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>{office.phone}</a>
               )}
               {office.mapsUrl && (
                 <a href={office.mapsUrl} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 12px', borderRadius: 10,
                   backgroundColor: '#2563EB', color: '#FFFFFF', fontWeight: 800, fontSize: 13, textDecoration: 'none' }}>
-                  📍 {t('send_shipment.no_agent_open_map')}
+                  {t('send_shipment.no_agent_open_map')}
                 </a>
               )}
             </div>

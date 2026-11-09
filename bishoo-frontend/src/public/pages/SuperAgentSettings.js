@@ -10,6 +10,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import OfficePoint from '../components/OfficePoint';
+import LineIcon from '../components/LineIcon';
 
 const inp = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
@@ -85,7 +86,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
         width: '100%', boxSizing: 'border-box', paddingBottom: BOTTOM_NAV_CLEARANCE }}>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}><LineIcon name="clock" size={22} /></div>
         ) : (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -101,7 +102,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
             {error && (
               <div style={{ color: '#dc2626', backgroundColor: '#fee2e2',
                 padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
-                ❌ {error}
+                {error}
               </div>
             )}
             {success && (
@@ -131,7 +132,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
                       placeholder="Tafuta eneo, ward au district…"
                       required
                     />
-                    {profile?.locationLabel && !resolvedLocation && <div style={{fontSize:11,color:'#16a34a',marginTop:-8}}>📍 {profile.locationLabel}</div>}
+                    {profile?.locationLabel && !resolvedLocation && <div style={{fontSize:11,color:'#16a34a',marginTop:-8}}>{profile.locationLabel}</div>}
                     <div style={{ marginTop: 12 }}>
                       <OfficePoint officePointSet={profile?.officePointSet} officePointByGps={profile?.officePointByGps}
                         onSaved={(r) => setProfile(p => ({ ...p, officePointSet: r.officePointSet, officePointByGps: r.officePointByGps }))} />

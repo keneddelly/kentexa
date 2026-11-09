@@ -11,9 +11,9 @@
  */
 
 export const SUPPORTED_LANGUAGES = [
-  { code: 'en', label: 'English',   short: 'EN', flag: '🇬🇧' },
-  { code: 'sw', label: 'Kiswahili', short: 'SW', flag: '🇹🇿' },
-  { code: 'fr', label: 'Français',  short: 'FR', flag: '🇫🇷' },
+  { code: 'en', label: 'English',   short: 'EN', flag: '' },
+  { code: 'sw', label: 'Kiswahili', short: 'SW', flag: '' },
+  { code: 'fr', label: 'Français',  short: 'FR', flag: '' },
 ];
 
 export const SUPPORTED_LANGUAGE_CODES = SUPPORTED_LANGUAGES.map((l) => l.code);

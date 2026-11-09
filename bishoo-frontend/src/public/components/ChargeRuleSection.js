@@ -23,7 +23,7 @@ const ChargeRuleSection = ({ rule, form, onChange }) => {
 
   return (
     <div data-testid="office-price-rule" style={{ paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid #e2e8f0' }}>
-      <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>💰 {t('office_price_rule.title')}</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{t('office_price_rule.title')}</div>
       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
         {t('office_price_rule.desc')}
         {rule?.source === 'default' && <> {t('office_price_rule.default_note')}</>}

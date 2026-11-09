@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const SellerStore = ({ onNavigate, sellerId }) => {
   const { t } = useTranslation();
@@ -49,7 +50,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
       <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
         <BackBar onBack={() => onNavigate('Stores')} title={t('seller_store.loading_store')} top={0} />
         <div style={{ textAlign: 'center', padding: '80px', color: '#64748b' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}><LineIcon name="clock" size={40} /></div>
           <p>{t('seller_store.loading_store')}</p>
         </div>
       </div>
@@ -61,7 +62,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
       <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
         <BackBar onBack={() => onNavigate('Stores')} title={t('seller_store.store_not_found')} top={0} />
         <div style={{ textAlign: 'center', padding: '80px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>😕</div>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}><LineIcon name="help" size={40} /></div>
           <p style={{ color: '#64748b' }}>{t('seller_store.store_not_found')}</p>
           <button onClick={() => onNavigate('Stores')} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', marginTop: '16px', fontWeight: '700' }}>
             {t('seller_store.browse_stores')}
@@ -93,7 +94,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
             }}>
               {seller.logo ? (
                 <img src={seller.logo} alt={seller.businessName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : '🏪'}
+              ) : <LineIcon name="store" size={32} />}
             </div>
 
             {/* Store Info */}
@@ -113,10 +114,10 @@ const SellerStore = ({ onNavigate, sellerId }) => {
               )}
               <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
                 {seller.address && (
-                  <span style={{ fontSize: '13px', color: '#64748b' }}>📍 {seller.address}</span>
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>{seller.address}</span>
                 )}
                 {seller.phone && (
-                  <span style={{ fontSize: '13px', color: '#64748b' }}>📞 {seller.phone}</span>
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>{seller.phone}</span>
                 )}
               </div>
             </div>
@@ -124,11 +125,11 @@ const SellerStore = ({ onNavigate, sellerId }) => {
             {/* Store Stats */}
             <div style={{ display: 'flex', gap: '16px' }}>
               {[
-                { label: t('seller_store.stat_products'), value: products.length, icon: '📦' },
-                { label: t('seller_store.stat_listings'), value: classifieds.length, icon: '📋' },
+                { label: t('seller_store.stat_products'), value: products.length, icon: 'box' },
+                { label: t('seller_store.stat_listings'), value: classifieds.length, icon: 'list' },
               ].map(stat => (
                 <div key={stat.label} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px 20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ fontSize: '22px', marginBottom: '4px' }}>{stat.icon}</div>
+                  <div style={{ marginBottom: '4px', display: 'flex', justifyContent: 'center' }}><LineIcon name={stat.icon} size={22} /></div>
                   <div style={{ fontSize: '22px', fontWeight:'800', color: '#fff' }}>{stat.value}</div>
                   <div style={{ fontSize: '12px', color: '#64748b' }}>{stat.label}</div>
                 </div>
@@ -174,7 +175,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
           <>
             {filteredProducts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '16px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}><LineIcon name="box" size={40} /></div>
                 <p style={{ color: '#64748b' }}>{t('seller_store.no_products_found')}</p>
               </div>
             ) : (
@@ -191,7 +192,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                     <div style={{ height: '180px', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                       {product.images?.[0] ? (
                         <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : <span style={{ fontSize: '48px' }}>📦</span>}
+                      ) : <span style={{ fontSize: '48px' }}><LineIcon name="box" size={40} /></span>}
                     </div>
                     <div style={{ padding: '16px' }}>
                       <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff' }}>
@@ -239,7 +240,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
           <>
             {filteredClassifieds.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '16px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}><LineIcon name="list" size={40} /></div>
                 <p style={{ color: '#64748b' }}>{t('seller_store.no_classifieds_found')}</p>
               </div>
             ) : (
@@ -256,7 +257,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                     <div style={{ height: '160px', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                       {item.images?.[0] ? (
                         <img src={item.images[0]} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : <span style={{ fontSize: '48px' }}>📋</span>}
+                      ) : <span style={{ fontSize: '48px' }}><LineIcon name="list" size={40} /></span>}
                     </div>
                     <div style={{ padding: '14px' }}>
                       <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: '#fff' }}>
@@ -265,7 +266,7 @@ const SellerStore = ({ onNavigate, sellerId }) => {
                       <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '8px 0 4px' }}>{item.title}</h3>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '16px', fontWeight: '800', color: '#7c3aed' }}>TZS {Number(item.price).toLocaleString()}</span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>📍 {item.location || t('seller_store.default_location')}</span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>{item.location || t('seller_store.default_location')}</span>
                       </div>
                     </div>
                   </div>

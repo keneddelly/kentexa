@@ -29,7 +29,7 @@ export default function PickupPinFields({ pin, onPin, landmark, onLandmark, plac
 
       {pin ? (
         <div style={{ fontSize: 13, color: '#166534', fontWeight: 700 }}>
-          ✅ {t('pickup_pin.found', { m: pin.accuracyM })}
+          {t('pickup_pin.found', { m: pin.accuracyM })}
           {pin.accuracyM > WEAK_ACCURACY_M && (
             <div style={{ fontSize: 12, color: '#B45309', fontWeight: 600, marginTop: 4 }}>{t('pickup_pin.weak')}</div>
           )}

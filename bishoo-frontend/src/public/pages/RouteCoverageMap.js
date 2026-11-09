@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api     from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const B = '#2563EB';
 
@@ -202,7 +203,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
                 <div style={{ padding:'16px 16px 12px',
                   borderBottom:'1px solid #f1f5f9' }}>
                   <div style={{ fontSize:16, fontWeight:800, color:'#1e293b' }}>
-                    📍 {selected}
+                    {selected}
                   </div>
                   <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>
                     {t('route_coverage_map.providers_available', { count: cityStatus[selected] || 0 })}
@@ -237,7 +238,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
                   </div>
                 ) : (
                   <div style={{ padding:20, textAlign:'center', color:'#94a3b8' }}>
-                    <div style={{ fontSize:24, marginBottom:8 }}>🚌</div>
+                    <div style={{ fontSize:24, marginBottom:8 }}><LineIcon name="bus" size={24} /></div>
                     <div style={{ fontSize:12 }}>
                       {t('route_coverage_map.no_providers')}
                     </div>
@@ -254,7 +255,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
             ) : (
               <div style={{ backgroundColor:'#fff', borderRadius:16, padding:20,
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)', textAlign:'center' }}>
-                <div style={{ fontSize:32, marginBottom:8 }}>👆</div>
+                <div style={{ fontSize:32, marginBottom:8 }}><LineIcon name="pin" size={32} /></div>
                 <div style={{ fontSize:13, fontWeight:700, color:'#1e293b', marginBottom:4 }}>
                   {t('route_coverage_map.tap_city_title')}
                 </div>

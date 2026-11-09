@@ -10,7 +10,7 @@ import React, { useEffect, useState } from 'react';
  *
  *   const [celebrate, setCelebrate] = useState(false);
  *   ...
- *   {celebrate && <Celebration message="Agizo lako la kwanza! 🎉" onDone={() => setCelebrate(false)} />}
+ *   {celebrate && <Celebration message="Agizo lako la kwanza!" onDone={() => setCelebrate(false)} />}
  */
 const COLORS = ['#1d4ed8', '#f59e0b', '#16a34a', '#ec4899', '#7c3aed'];
 

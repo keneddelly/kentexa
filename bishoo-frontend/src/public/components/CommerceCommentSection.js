@@ -21,6 +21,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { commenterIdentity } from '../utils/publicActor';
+import LineIcon from './LineIcon';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -119,7 +120,7 @@ const AiSummaryCard = ({ pinned }) => {
     <div style={{ margin: '12px 14px', padding: '14px 16px', borderRadius: 14,
       background: 'linear-gradient(135deg,#EFF6FF,#F5F3FF)', border: '1px solid #DBEAFE' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 14 }}>✨</span>
+        <span style={{ fontSize: 14 }}><LineIcon name="bolt" size={16} /></span>
         <span style={{ fontSize: 11, fontWeight: 800, color: B, textTransform: 'uppercase',
           letterSpacing: 0.4 }}>{t('comment_section.ai_summary_label')}</span>
       </div>
@@ -403,7 +404,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
             <label style={{ width: 48, height: 48, borderRadius: 8, border: '1.5px dashed #CBD5E1',
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
               fontSize: 18, color: GR }}>
-              {uploading ? '⏳' : '+'}
+              {uploading ? '...' : '+'}
               <input type="file" accept="image/*,video/*" multiple hidden
                 onChange={handleFileSelect} disabled={uploading} />
             </label>
@@ -414,7 +415,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
       {error && (
         <div style={{ fontSize: 12, color: RED, marginTop: 8, fontWeight: 600,
           backgroundColor: '#FEF2F2', borderRadius: 8, padding: '8px 10px' }}>
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
@@ -522,7 +523,7 @@ const CommerceCommentSection = ({
           <div style={{ padding: 30, textAlign: 'center', color: GR, fontSize: 12 }}>{t('comment_section.loading')}</div>
         ) : loadError ? (
           <div style={{ padding: '30px 20px', textAlign: 'center', color: RED, fontSize: 12 }}>
-            ⚠️ {loadError}
+            {loadError}
           </div>
         ) : items.length === 0 ? (
           <div style={{ padding: '30px 20px', textAlign: 'center', color: GR, fontSize: 12 }}>

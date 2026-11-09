@@ -16,6 +16,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import { getMyBusinesses, createBusiness } from '../../api/business';
+import LineIcon from '../components/LineIcon';
 
 const B = '#2563EB';
 const DK = '#0F172A';
@@ -70,7 +71,7 @@ const MyBusinesses = ({ onNavigate, isLoggedIn }) => {
 
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto' }}>
         {businesses === null && !error && (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>⏳ {t('common.loading')}</div>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>{t('common.loading')}</div>
         )}
 
         {error && (
@@ -90,7 +91,7 @@ const MyBusinesses = ({ onNavigate, isLoggedIn }) => {
         {businesses && businesses.length === 0 && (
           <Card>
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <div style={{ fontSize: 44, marginBottom: 10 }}>🏢</div>
+              <div style={{ fontSize: 44, marginBottom: 10 }}><LineIcon name="office" size={40} /></div>
               <div style={{ fontSize: 14, fontWeight: 800, color: DK, marginBottom: 6 }}>{t('my_businesses.empty_title')}</div>
               <div style={{ fontSize: 12, color: GR }}>{t('my_businesses.empty_desc')}</div>
             </div>
@@ -102,7 +103,7 @@ const MyBusinesses = ({ onNavigate, isLoggedIn }) => {
             <div onClick={() => onNavigate(`BusinessHome-${b.id}`)} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, backgroundColor: '#EFF6FF',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                {b.logo ? <img src={b.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 22 }}>🏢</span>}
+                {b.logo ? <img src={b.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 22 }}><LineIcon name="office" size={22} /></span>}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: DK }}>{b.tradingName || b.legalName}</div>

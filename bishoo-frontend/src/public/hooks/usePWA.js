@@ -54,7 +54,7 @@ export const subscribeToPush = async (apiBase = '') => {
     });
     if (!saved.ok) return null;
 
-    console.log('✅ Push subscription saved');
+    console.log('Push subscription saved');
     return subscription;
   } catch (err) {
     console.warn('Push subscription failed:', err);
