@@ -272,7 +272,6 @@ const RouteManagement = ({ onNavigate }) => {
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>Hakuna routes bado. Ongeza route ya kwanza!</div>
           </div>
         ) : (

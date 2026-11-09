@@ -115,7 +115,6 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading...</div>
         ) : rows.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>No authorization requests here</div>
           </div>
         ) : (

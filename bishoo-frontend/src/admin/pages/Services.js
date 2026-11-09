@@ -135,7 +135,6 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                        <span style={{ fontSize: 12 }}></span>
                         <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>{s.provider?.storeName || s.provider?.name || '—'}</span>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>· {s.provider?.phone || s.provider?.email || '—'}</span>
                       </div>

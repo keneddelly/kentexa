@@ -204,6 +204,10 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                               Thibitisha
                             </button>
                           )}
+                          <button type="button" data-testid={`open-person-${user.id}`} onClick={e => { e.stopPropagation(); onNavigate('AdminPerson', { userId: user.id }); }}
+                            style={{ backgroundColor: '#e0f2fe', color: '#075985', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                            Ona yote
+                          </button>
                           <button onClick={e => { e.stopPropagation(); setSelected(user); setShowRoleModal(true); setNewRole(user.role); }}
                             style={{ backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                             Jukumu
@@ -211,7 +215,7 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                           {!['admin','manager'].includes(user.role) && (
                             <button onClick={e => { e.stopPropagation(); handleDelete(user.id, user.name); }}
                               style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-
+            Futa
                             </button>
                           )}
                         </div>

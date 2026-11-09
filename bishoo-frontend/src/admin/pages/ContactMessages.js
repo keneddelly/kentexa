@@ -70,7 +70,6 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}></div>
             <div>Hakuna ujumbe</div>
           </div>
         ) : (

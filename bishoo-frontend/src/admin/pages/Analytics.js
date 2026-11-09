@@ -108,7 +108,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
             ))}
             <button onClick={fetchStats}
               style={{ padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, backgroundColor: '#f1f5f9', color: '#64748b' }}>
-
+            Onyesha upya
             </button>
           </div>
         </div>
@@ -125,7 +125,6 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             Inapakia data za analytics...
           </div>
         ) : stats && (
@@ -242,7 +241,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
                   </div>
                   <button onClick={fetchLive}
                     style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer', color: '#64748b' }}>
-
+            Onyesha upya
                   </button>
                 </div>
                 <div style={{ maxHeight: 320, overflowY: 'auto' }}>

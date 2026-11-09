@@ -156,6 +156,9 @@ import QuoteInbox from './public/pages/QuoteInbox';
 import AdminAdvertisers from './admin/pages/AdminAdvertisers';
 import AdminKentexaFees from './admin/pages/AdminKentexaFees';
 import AdminShippingCheck from './admin/pages/AdminShippingCheck';
+import AdminActivity from './admin/pages/AdminActivity';
+import AdminPerson from './admin/pages/AdminPerson';
+import AdminBusinessView from './admin/pages/AdminBusinessView';
 import { rememberReferral } from './utils/referralLink';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
@@ -1044,6 +1047,10 @@ function App() {
       case 'AdminAdvertisers': return requireAdmin(<AdminAdvertisers activePage={page} {...adminProps} />);
       case 'AdminKentexaFees': return requireAdmin(<AdminKentexaFees activePage={page} {...adminProps} />);
       case 'AdminShippingCheck': return requireAdmin(<AdminShippingCheck activePage={page} {...adminProps} />);
+      // Owner 2026-11-09: the admin mirror. Every action, and one page per person / business.
+      case 'AdminActivity': return requireAdmin(<AdminActivity activePage={page} {...adminProps} />);
+      case 'AdminPerson': return requireAdmin(<AdminPerson activePage="Users" userId={navParams?.userId} {...adminProps} />);
+      case 'AdminBusinessView': return requireAdmin(<AdminBusinessView activePage="Businesses" businessId={navParams?.businessId} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return activeContext?.roleType === 'admin'

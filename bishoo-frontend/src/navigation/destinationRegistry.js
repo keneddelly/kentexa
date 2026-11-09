@@ -15,7 +15,7 @@ const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','Selle
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
 const TRANSPORT_PAGES = ['TransportProviderDashboard','TransportProviderSettings'];
-const ADMIN_PAGES = ['Profile','Dashboard','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin',
+const ADMIN_PAGES = ['Profile','Dashboard','AdminActivity','AdminPerson','AdminBusinessView','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin',
   // In the admin menu but missing here, so a click went back to the Dashboard (2026-10-24).
   'Businesses','AdminShipments','AdminDispatchReminders','AdminAdvertisers','AdminKentexaFees','AdminShippingCheck'];
 

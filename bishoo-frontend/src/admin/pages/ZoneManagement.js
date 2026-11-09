@@ -252,7 +252,6 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
           <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Inapakia maeneo...</div>
         ) : zones.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>Hakuna maeneo bado</div>
             <div style={{ fontSize: 13 }}>Bonyeza "Unda Maeneo 3 Yote" kuanza mara moja au unda moja kwa moja.</div>
           </div>

@@ -268,7 +268,6 @@ const Agents = ({ onNavigate }) => {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}></div>
                 <div>Hakuna mawakala wanaolingana</div>
               </div>
             ) : (

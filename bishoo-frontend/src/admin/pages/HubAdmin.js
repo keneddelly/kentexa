@@ -133,7 +133,6 @@ const HubAdmin = ({ onNavigate, activePage }) => {
               {hubSummary.length === 0 ? (
                 <div style={{ gridColumn:'1/-1', textAlign:'center', padding:40,
                   backgroundColor:'#fff', borderRadius:14, color:'#94a3b8' }}>
-                  <div style={{ fontSize:40, marginBottom:8 }}></div>
                   <div>Bado hakuna vituo vilivyopewa</div>
                 </div>
               ) : hubSummary.map(h => (
@@ -193,7 +192,6 @@ const HubAdmin = ({ onNavigate, activePage }) => {
               ) : superAgents.length === 0 ? (
                 <div style={{ textAlign:'center', padding:60, backgroundColor:'#fff',
                   borderRadius:16, color:'#94a3b8' }}>
-                  <div style={{ fontSize:40, marginBottom:8 }}></div>
                   <div>Hakuna ofisi</div>
                 </div>
               ) : superAgents.map(sa => {

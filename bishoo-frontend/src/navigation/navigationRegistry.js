@@ -33,7 +33,7 @@ export const ADMIN_SECTIONS = Object.freeze([
   ['orders', 'Oda'], ['logistics', 'Usafirishaji'], ['finance', 'Fedha'], ['support', 'Msaada'], ['system', 'Mfumo'],
 ]);
 export const ADMIN_NAVIGATION = Object.freeze([
-  ['Dashboard', 'Muhtasari', 'dashboard', 'overview'], ['Analytics', 'Takwimu', 'analytics', 'overview'], ['Reports', 'Ripoti', 'reports', 'overview'],
+  ['Dashboard', 'Muhtasari', 'dashboard', 'overview'], ['AdminActivity', 'Shughuli', 'clock', 'overview'], ['Analytics', 'Takwimu', 'analytics', 'overview'], ['Reports', 'Ripoti', 'reports', 'overview'],
   ['Users', 'Watumiaji', 'users', 'people'], ['IdentityVerifications', 'Vitambulisho', 'identity', 'people'],
   ['Businesses', 'Biashara', 'business', 'business'], ['Sellers', 'Wauzaji', 'seller', 'business'], ['AdminAdvertisers', 'Watangazaji', 'announce', 'business'],
   ['Products', 'Bidhaa', 'products', 'catalog'], ['OfficialProducts', 'Katalogi rasmi', 'catalog', 'catalog'], ['AdminBrands', 'Chapa', 'brand', 'catalog'],

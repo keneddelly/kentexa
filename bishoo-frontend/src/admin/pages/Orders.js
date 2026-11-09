@@ -254,7 +254,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                       <td style={{ padding: '11px 14px' }}>
                         <button onClick={e => { e.stopPropagation(); setSelected(order); }}
                           style={{ backgroundColor: '#eff6ff', color: '#2563eb', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-
+            Ona
                         </button>
                       </td>
                     </tr>

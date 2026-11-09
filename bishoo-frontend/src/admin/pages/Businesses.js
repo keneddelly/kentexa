@@ -54,7 +54,11 @@ export default function Businesses({ activePage, onNavigate, onLogout }) {
       <table style={{ width: '100%', textAlign: 'left', marginTop: 20 }}>
         <thead><tr><th>ID</th><th>Business</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>{businesses.map(business => <tr key={business.id}>
-          <td>{business.id}</td><td>{business.legalName}</td><td>{business.status}</td>
+          <td>{business.id}</td><td>
+            <button type="button" data-testid={`open-business-${business.id}`} onClick={() => onNavigate('AdminBusinessView', { businessId: business.id })}
+              style={{ background: 'none', border: 'none', padding: 0, color: '#1d4ed8', cursor: 'pointer', fontFamily: 'inherit', fontSize: 'inherit', textAlign: 'left' }}>
+              {business.tradingName || business.legalName}
+            </button></td><td>{business.status}</td>
           <td><button disabled={busy !== null} onClick={() => change(business, business.status === 'suspended' ? 'restore' : 'suspend')}>
             {business.status === 'suspended' ? 'Restore' : 'Suspend'}
           </button></td>

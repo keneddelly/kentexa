@@ -153,7 +153,6 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
         ) : announcements.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 14, color: '#94a3b8' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}></div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 6 }}>Hakuna matangazo bado</div>
             <div style={{ fontSize: 13 }}>Bonyeza "Tangazo Jipya" kuandika ujumbe wa kwanza</div>
           </div>
@@ -194,7 +193,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                       </button>
                       <button onClick={() => handleDelete(a.id)}
                         style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-
+            Futa
                       </button>
                     </div>
                   </div>
