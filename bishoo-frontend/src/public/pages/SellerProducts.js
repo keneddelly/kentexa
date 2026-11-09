@@ -454,7 +454,8 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       };
       const touchedResale = form.resaleOpen || form.resalePrice !== '' || (editProduct && editProduct.resaleOpen);
       if (editProduct) {
-        await api.patch(`/products/${editProduct.id}`, { ...payload, ...(touchedResale ? resaleTerms : {}) });
+        if (touchedResale) Object.assign(payload, resaleTerms);
+        await api.patch(`/products/${editProduct.id}`, payload);
         setMessage(t('seller_products.updated'));
       } else {
         const created = await api.post('/products', payload);
