@@ -155,7 +155,7 @@ This document records a product decision for future POS planning. It is **not a 
 
 When asked to work on POS in the future:
 
-- Read this decision note together with `docs/CLAUDE_KENTEXA_ROADMAP.md` and inspect the current repository state.
+- Read this decision note together with `docs/KENTEXA_ROADMAP.md` and inspect the current repository state.
 - Confirm the current POS implementation, existing entitlements, billing/payment records, notification/SMS integrations, reporting, business/branch model, and role permissions before proposing architecture or code.
 - Do not assume the candidate features above already exist.
 - Do not implement billing, credit wallets, top-ups, SMS credits, migrations, or payment changes solely because this note exists.

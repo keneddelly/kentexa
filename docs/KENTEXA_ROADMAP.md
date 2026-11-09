@@ -45,6 +45,7 @@
 
 - Onboarding (owner 2026-11-09: still to do after the cleanup).
 - Smart Post, BrandDashboard keep or remove, the BiS inbox / staff hub: waiting for owner decisions.
+- POS credits (owner 2026-11-09, `docs/KENTEXA_POS_FREE_CORE_VOLUNTARY_MONETIZATION.md`): plan approved, not built. Everyday POS stays free; prepaid credits only for chosen extras, SMS first; no subscriptions. To decide when it is built: the customer receipt SMS (and the "balance paid" SMS) that KenteXa now sends at its own cost (TZS 22 each) stays free or moves to credits. POS amounts are TZS-only today (country support is future work).
 
 - Migrations are applied on live by the owner with the guarded script; MIGRATION_RUN_UPTO pins auto-run. New code checks a column or table exists before using it.
 
