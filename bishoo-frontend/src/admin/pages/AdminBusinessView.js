@@ -4,6 +4,7 @@
  * GET /activity/admin/businesses/:businessId. Read-only.
  */
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import ActivityList from '../components/ActivityList';
 import api from '../../api/api';
@@ -39,6 +40,7 @@ export default function AdminBusinessView({ businessId, activePage, onNavigate, 
                   {b.ownerName || `#${b.ownerId}`}
                 </button>{b.ownerPhone ? ` · ${b.ownerPhone}` : ''}
               </div>
+              <div style={{ marginTop: 10 }}><SendMessageButton userId={b.ownerId} name={b.tradingName || b.legalName} label="Tuma taarifa kwa biashara" /></div>
               <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {(data.capabilities || []).map((x) => (
                   <span key={`${x.workspaceId}-${x.capabilityCode}`} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 12, background: x.status === 'active' ? '#dcfce7' : '#f1f5f9' }}>

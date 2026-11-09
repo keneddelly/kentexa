@@ -4,6 +4,7 @@
  * every recorded action by or about them. GET /activity/admin/people/:userId. Read-only.
  */
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import ActivityList from '../components/ActivityList';
 import api from '../../api/api';
@@ -48,8 +49,7 @@ export default function AdminPerson({ userId, activePage, onNavigate, onLogout }
                 ))}
               </div>
               <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }} data-testid="person-contact">
-                <button type="button" data-testid="person-message" onClick={() => onNavigate('Announcements', { targetUserId: u.id, targetName: u.name || u.phone || `#${u.id}` })}
-                  style={{ ...contactBtn, background: '#0f172a', color: '#fff', border: 'none' }}>Tuma taarifa</button>
+                <SendMessageButton testId="person-message" userId={u.id} name={u.name || u.phone || `#${u.id}`} />
                 {u.phone && (
                   <>
                     <a href={`tel:${u.phone}`} style={contactBtn}>Piga</a>

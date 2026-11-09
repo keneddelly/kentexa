@@ -3,6 +3,7 @@
  * Place at: src/admin/pages/TransportAdmin.js
  */
 import React, { useState, useEffect } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api    from '../../api/api';
 
@@ -189,6 +190,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
               </div>
 
               <div style={{ padding: 20 }}>
+                <div style={{ marginBottom: 14 }}><SendMessageButton userId={selected.user?.id || selected.userId} name={selected.name || selected.businessName || selected.user?.name} label="Tuma taarifa kwa usafiri" /></div>
                 {/* Details */}
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14 }}>
                   {[

@@ -28,6 +28,9 @@ export class AdminBusinessController {
       .select('business.id', 'id')
       .addSelect('business.legalName', 'legalName')
       .addSelect('business.status', 'status')
+      // The owner, so admin can send a taarifa from the list (owner 2026-11-09).
+      .addSelect('"business"."userId"', 'userId')
+      .addSelect('business.tradingName', 'tradingName')
       .orderBy('business.id', 'DESC').limit(100);
     if (status) rows.andWhere('business.status = :status', { status });
     if (query) rows.andWhere('business.legalName ILIKE :query', { query: `%${query.replace(/[\\%_]/g, '\\$&')}%` });

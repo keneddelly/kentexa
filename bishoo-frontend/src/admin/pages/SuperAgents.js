@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SendMessageButton from '../components/SendMessageButton';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
@@ -322,6 +323,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
             <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, marginBottom: 16, ...statusStyle(detailAgent.status) }}>
               {detailAgent.status?.toUpperCase()}
             </span>
+            <div style={{ marginBottom: 16 }}><SendMessageButton userId={detailAgent.user?.id} name={detailAgent.businessName} label="Tuma taarifa kwa ofisi" /></div>
 
             {[
               ['Agent Code', detailAgent.agentCode],

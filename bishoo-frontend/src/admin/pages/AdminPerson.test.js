@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import AdminPerson, { waNumber } from './AdminPerson';
 import api from '../../api/api';
 
-jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn() } }));
+jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
 jest.mock('../components/Sidebar', () => () => null);
 jest.mock('../components/ActivityList', () => () => null);
 
@@ -17,6 +17,6 @@ test('contact buttons: message in KenteXa, call, WhatsApp, SMS', async () => {
   expect(screen.getByText('WhatsApp').closest('a')).toHaveAttribute('href', 'https://wa.me/255712345678');
   expect(box).toHaveTextContent('SMS ya simu yako');
   fireEvent.click(screen.getByTestId('person-message'));
-  expect(onNavigate).toHaveBeenCalledWith('Announcements', { targetUserId: 44, targetName: 'Asha' });
+  expect(screen.getByRole('dialog', { name: 'Tuma taarifa kwa Asha' })).toBeInTheDocument();
   expect(waNumber('+255 755 000 111')).toBe('255755000111');
 });
