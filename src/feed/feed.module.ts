@@ -40,6 +40,7 @@ import { AiModule } from '../ai/ai.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { ActivityModule } from '../activity/activity.module';
 import { SearchModule } from '../search/search.module';
+import { PostSuggestService } from './post-suggest.service';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { SearchModule } from '../search/search.module';
     TopicsService,
     TodayService,
     CommunitiesService,
+    PostSuggestService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,

@@ -161,3 +161,31 @@ test('Smart Post: closing without posting records where the person stopped, neve
   expect(JSON.stringify(api.post.mock.calls)).not.toContain('Siri yangu');
   expect(onClose).toHaveBeenCalled();
 });
+
+test('Smart Post "Pendekeza": a suggestion only on tap; "Tumia" turns it into a poll with its options', async () => {
+  api.post.mockImplementation(async (url) => (url === '/feed/composer/suggest'
+    ? { data: { suggestion: { kind: 'poll', text: 'Rangi ipi ni nzuri zaidi?', options: ['Nyeusi', 'Nyekundu'], reason: 'Watu hujibu kura haraka.' } } }
+    : { data: {} }));
+  await open();
+  type('Nina viatu rangi nyeusi na nyekundu, ipi nzuri?');
+  expect(api.post).not.toHaveBeenCalledWith('/feed/composer/suggest', expect.anything());
+  await act(async () => { fireEvent.click(screen.getByTestId('suggest')); });
+  expect(api.post).toHaveBeenCalledWith('/feed/composer/suggest', { text: 'Nina viatu rangi nyeusi na nyekundu, ipi nzuri?', kind: 'moment' });
+  expect(screen.getByTestId('suggestion')).toHaveTextContent('Pendekezo: Kura');
+  expect(screen.getByLabelText('Maandishi').value).toBe('Nina viatu rangi nyeusi na nyekundu, ipi nzuri?'); // unchanged until "Tumia"
+  fireEvent.click(screen.getByTestId('suggestion-use'));
+  expect(screen.getByLabelText('Maandishi').value).toBe('Rangi ipi ni nzuri zaidi?');
+  expect(screen.getByTestId('poll-option-0').value).toBe('Nyeusi');
+  expect(screen.getByTestId('poll-option-1').value).toBe('Nyekundu');
+  expect(api.post).toHaveBeenCalledWith('/feed/analytics/composer', { step: 'suggest_used', kind: 'poll' });
+});
+
+test('Smart Post "Pendekeza": no AI means a short note, and posting still works', async () => {
+  api.post.mockImplementation(async (url) => (url === '/feed/composer/suggest' ? { data: { suggestion: null, unavailable: true } } : { data: {} }));
+  await open();
+  type('Habari za leo marafiki wote');
+  await act(async () => { fireEvent.click(screen.getByTestId('suggest')); });
+  expect(screen.getByText(/Pendekezo halipatikani sasa/)).toBeInTheDocument();
+  await share();
+  expect(published()).toBe(true);
+});

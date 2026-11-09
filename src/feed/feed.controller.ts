@@ -31,6 +31,8 @@ import { TopicsService } from './topics.service';
 import { TodayService } from './today.service';
 import { CommunitiesService } from './communities.service';
 import { composerEvent, ComposerEventLimiter } from './composer-events';
+import { PostSuggestService } from './post-suggest.service';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('feed')
 export class FeedController {
@@ -47,6 +49,8 @@ export class FeedController {
     @Optional() private readonly today?: TodayService,
     // Social Home part 3: communities. Optional for the same reason.
     @Optional() private readonly communities?: CommunitiesService,
+    // Smart Post "Pendekeza". Optional for the same reason.
+    @Optional() private readonly suggester?: PostSuggestService,
   ) {}
 
   // ── Discovery (no auth required, but personalized when logged in) ────────
@@ -158,6 +162,15 @@ export class FeedController {
     const ev = composerEvent(body);
     if (ev && this.composerLimiter.allow(req.user.id)) this.svc.recordComposerStep(req.user.id, ev);
     return { ok: true };
+  }
+
+  /** Smart Post "Pendekeza": one suggestion, only when the person taps it (10 a minute). */
+  @Post('composer/suggest')
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async composerSuggest(@Request() req, @Body() body: any) {
+    if (!this.suggester) return { suggestion: null, unavailable: true };
+    return this.suggester.suggest(req.user.id, body || {});
   }
 
   // ── Phase E: Kura ───────────────────────────────────────────────────────────

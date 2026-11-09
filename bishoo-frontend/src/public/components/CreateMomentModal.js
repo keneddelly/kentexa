@@ -147,6 +147,35 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     setKind(key); setError('');
     if (key !== kind) composerEvent('kind', { kind: key });
   };
+  // Smart Post "Pendekeza" (owner 2026-11-09): one AI suggestion, only when the person taps it.
+  // Nothing changes until they tap "Tumia"; a missing suggestion never blocks posting.
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggestNote, setSuggestNote] = useState('');
+  const askSuggestion = async () => {
+    setSuggesting(true); setSuggestion(null); setSuggestNote('');
+    try {
+      const r = await api.post('/feed/composer/suggest', { text: caption.trim(), kind });
+      if (r?.data?.suggestion) setSuggestion(r.data.suggestion);
+      else setSuggestNote(r?.data?.unavailable ? 'Pendekezo halipatikani sasa. Endelea kuandika.' : 'Chapisho lako liko vizuri kama lilivyo.');
+    } catch (e) {
+      setSuggestNote(e?.response?.data?.message || 'Pendekezo halipatikani sasa. Endelea kuandika.');
+    } finally { setSuggesting(false); }
+  };
+  const applySuggestion = () => {
+    const s = suggestion;
+    if (!s) return;
+    setKind(s.kind);
+    if (s.text) setCaption(s.text.slice(0, COMPOSER.text));
+    if (s.kind === 'poll' && s.options?.length >= 2) setPollOptions(s.options.slice(0, POLL.maxOptions));
+    composerEvent('suggest_used', { kind: s.kind });
+    setSuggestion(null); setError('');
+  };
+  const dismissSuggestion = () => {
+    composerEvent('suggest_dismissed', { kind: suggestion?.kind });
+    setSuggestion(null);
+  };
+
   const close = () => {
     if (!isEdit && !postedRef.current) {
       composerEvent('abandoned', { kind, at: step, hasText: !!caption.trim(), photos: photos.length });
@@ -427,9 +456,36 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               maxLength={COMPOSER.text} aria-label="Maandishi"
               style={{ width:'100%', minHeight:96, padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
                 fontSize:16, lineHeight:1.45, resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none', color:DK }} />
-            <div data-testid="char-count" style={{ textAlign:'right', fontSize:12, color: caption.length >= COMPOSER.text ? '#B91C1C' : GR, fontVariantNumeric:'tabular-nums' }}>
-              {caption.length} / {COMPOSER.text}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+              {!isEdit && caption.trim().length >= 15 && !suggestion ? (
+                <button type="button" data-testid="suggest" onClick={askSuggestion} disabled={suggesting}
+                  style={{ padding:'4px 0', border:'none', background:'none', color:B, fontSize:14, fontWeight:700, cursor: suggesting ? 'default' : 'pointer', fontFamily:'inherit' }}>
+                  {suggesting ? 'Inafikiria...' : 'Pendekeza'}
+                </button>
+              ) : <span />}
+              <span data-testid="char-count" style={{ fontSize:12, color: caption.length >= COMPOSER.text ? '#B91C1C' : GR, fontVariantNumeric:'tabular-nums' }}>
+                {caption.length} / {COMPOSER.text}
+              </span>
             </div>
+            {suggestNote && !suggestion && <div role="status" style={{ fontSize:13, color:GR, marginTop:4 }}>{suggestNote}</div>}
+            {suggestion && (
+              <div data-testid="suggestion" style={{ marginTop:8, padding:12, borderRadius:12, border:`1px solid ${B}`, background:'#eff6ff', display:'flex', flexDirection:'column', gap:6 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:B }}>
+                  Pendekezo: {(POST_KINDS.find((k) => k.key === suggestion.kind) || {}).label || suggestion.kind}
+                </div>
+                {suggestion.reason && <div style={{ fontSize:13, color:GR }}>{suggestion.reason}</div>}
+                {suggestion.text && <div style={{ fontSize:15, color:DK, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{suggestion.text}</div>}
+                {suggestion.options?.length > 0 && (
+                  <ul style={{ margin:0, paddingLeft:18, fontSize:14, color:DK }}>{suggestion.options.map((o) => <li key={o}>{o}</li>)}</ul>
+                )}
+                <div style={{ display:'flex', gap:8 }}>
+                  <button type="button" data-testid="suggestion-use" onClick={applySuggestion}
+                    style={{ height:36, padding:'0 16px', borderRadius:18, border:'none', background:DK, color:WH, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Tumia</button>
+                  <button type="button" data-testid="suggestion-dismiss" onClick={dismissSuggestion}
+                    style={{ height:36, padding:'0 16px', borderRadius:18, border:`1px solid ${LN}`, background:WH, color:DK, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Hapana, asante</button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Social Home part 3: where the post goes */}

@@ -16,7 +16,8 @@ export type AiTask =
   | 'search-explain'
   | 'seller-profile-enrich'
   | 'listing-description'
-  | 'business-insight';
+  | 'business-insight'
+  | 'post-suggest';
 
 export type AiTier = 'simple' | 'reasoning' | 'coding';
 
@@ -33,6 +34,8 @@ const TASK_TIER: Record<AiTask, AiTier> = {
   'search-explain': 'simple',
   'business-insight': 'simple',
   'seller-profile-enrich': 'simple',
+  // Smart Post "Pendekeza" (owner 2026-11-09): only when the person taps it.
+  'post-suggest': 'simple',
   // Vision — needs a multimodal-capable model. 'simple' defaults to
   // DeepSeek, which is text-only, so this is the first task to actually
   // use the 'reasoning' tier's default (openai/gpt-4o, vision-capable).
