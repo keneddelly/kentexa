@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { getPhonePosition } from '../../utils/phoneLocation';
 
-// "📍 Weka mahali pa ofisi": the office's exact map point, set once with the
+// "Weka mahali pa ofisi": the office's exact map point, set once with the
 // phone's GPS (same rules as the agent base point: inside Tanzania, accuracy
 // up to 500 m). Customers see it as "Fungua ramani" on the no-agent office card.
 // officePointByGps: set with this button; officePointSet only: an approximate
@@ -36,7 +36,7 @@ export default function OfficePoint({ officePointSet, officePointByGps, onSaved,
         {t('office_point.set_gps')}{' '}
         <button type="button" onClick={save} disabled={busy}
           style={{ background: 'none', border: 'none', padding: 0, color: '#2563eb', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>
-          {busy ? '⏳' : t('office_point.change')}
+          {busy ? '...' : t('office_point.change')}
         </button>
         {note}
       </div>

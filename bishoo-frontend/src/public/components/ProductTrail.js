@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import LineIcon from './LineIcon';
 
 // A 2×2 grid of 4 listing cards between home feed posts (see utils/productTrail.js).
 // Same cards as the "Bidhaa za Duka" grid on ListingsPage, laid out vertically inside a
@@ -44,7 +45,7 @@ const ProductTrail = ({ trail, onNavigate, onAddToCart, onSeen }) => {
             <div style={{ width: '100%', aspectRatio: '1/1', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
               {item.image
                 ? <img src={item.image} alt={item.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>{item.entityType === 'product' ? '📦' : '📋'}</div>}
+                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name={item.entityType === 'product' ? 'box' : 'list'} size={32} color="#94a3b8" /></div>}
               <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, color: '#fff',
                 backgroundColor: item.entityType === 'product' ? '#1d4ed8' : '#db2777' }}>
                 {item.entityType === 'product' ? t('product_trail.store') : t('product_trail.ad')}
@@ -66,7 +67,7 @@ const ProductTrail = ({ trail, onNavigate, onAddToCart, onSeen }) => {
                   <button type="button" aria-label={t('product_trail.add_to_cart')}
                     onClick={(e) => { e.stopPropagation(); onAddToCart?.(item.raw); }}
                     style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                    🛒
+                    <LineIcon name="cart" size={14} />
                   </button>
                 ) : (
                   <span style={{ fontSize: 10, fontWeight: 700, color: '#1d4ed8', flexShrink: 0 }}>{t('product_trail.view')} →</span>

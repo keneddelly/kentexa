@@ -21,6 +21,7 @@ import api from '../../api/api';
 import { getMyBusinesses } from '../../api/business';
 import { resolveBusinessEntry, BUSINESS_ENTRY } from '../../context/businessEntry';
 import BusinessContextMismatch from '../components/BusinessContextMismatch';
+import LineIcon from '../components/LineIcon';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -38,12 +39,12 @@ const Row = ({ icon, label, value, onAction, color = DK, sub, locked }) => (
   <div onClick={onAction}
     style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0',
       borderBottom: '1px solid #F8FAFC', cursor: onAction ? 'pointer' : 'default' }}>
-    <span style={{ fontSize: 20, flexShrink: 0, width: 28, textAlign: 'center' }}>{icon}</span>
+    <span style={{ flexShrink: 0, width: 28, display: 'flex', justifyContent: 'center' }}><LineIcon name={icon} size={20} /></span>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: DK }}>{label}</div>
       {sub && <div style={{ fontSize: 11, color: GR, marginTop: 1 }}>{sub}</div>}
     </div>
-    {locked && <span style={{ fontSize: 14 }}>🔒</span>}
+    {locked && <span style={{ fontSize: 14 }}><LineIcon name="lock" size={16} /></span>}
     {value !== undefined && !locked && (
       <div style={{ fontSize: 13, fontWeight: 700, color, textAlign: 'right' }}>{value}</div>
     )}
@@ -156,7 +157,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: GR }}>
-      ⏳ {t('common.loading')}
+      {t('common.loading')}
     </div>
   );
 
@@ -186,7 +187,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
               display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
               {business.logo
                 ? <img src={business.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <span style={{ fontSize: 26 }}>🏢</span>}
+                : <span style={{ fontSize: 26 }}><LineIcon name="office" size={26} /></span>}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight:800, color: DK }}>
@@ -207,7 +208,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
         {today && (
           <SCard>
             <div style={{ fontSize: 13, fontWeight: 800, color: DK, marginBottom: 12 }}>
-              📊 {t('business_dashboard.today_title')}
+              {t('business_dashboard.today_title')}
             </div>
             <div style={{ fontSize: 11, fontWeight: 800, color: GR, marginBottom: 8, letterSpacing: 0.4 }}>
               {t('business_dashboard.today_commerce_label')}
@@ -248,7 +249,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
               <div style={{ display: 'flex', gap: 10, backgroundColor: '#F5F3FF',
                 border: '1px solid #DDD6FE', borderRadius: 14, padding: '12px 14px',
                 marginTop: 16 }}>
-                <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1 }}>✨</span>
+                <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1 }}><LineIcon name="bolt" size={18} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {!insight ? (
                     <div style={{ fontSize: 12, color: GR, fontStyle: 'italic' }}>
@@ -261,7 +262,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
                       </div>
                       {insight.recommendation && (
                         <div style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, marginTop: 6 }}>
-                          💡 {insight.recommendation}
+                          {insight.recommendation}
                         </div>
                       )}
                     </>
@@ -275,27 +276,27 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
         {/* Business menu — Profile/Brand/Followers/Analytics/Messages only.
             Deliberately no Products/Inventory/Orders/Ship Item here. */}
         <SCard>
-          <Row icon="🏢" label={t('business_dashboard.profile_label')}
+          <Row icon="office" label={t('business_dashboard.profile_label')}
             sub={t('business_dashboard.profile_sub')} onAction={openEdit} />
-          <Row icon="👥" label={t('business_dashboard.followers_label')}
+          <Row icon="people" label={t('business_dashboard.followers_label')}
             value={dash?.followersCount ?? 0} />
-          <Row icon="📊" label={t('business_dashboard.analytics_label')}
-            value={dash?.rating ? `⭐ ${Number(dash.rating).toFixed(1)}` : '—'}
+          <Row icon="chart" label={t('business_dashboard.analytics_label')}
+            value={dash?.rating ? `${Number(dash.rating).toFixed(1)}` : '—'}
             sub={t('business_dashboard.analytics_sub', { count: dash?.reviewsCount || 0 })} />
-          <Row icon="💬" label={t('business_dashboard.messages_label')}
+          <Row icon="chat" label={t('business_dashboard.messages_label')}
             onAction={() => onNavigate('SellerInbox')} />
           {/* Leads has no real backing feature anywhere in the app yet --
               stays locked regardless of Seller status, and never routes an
               already-approved seller to BecomeSeller for a feature that
               doesn't exist either way. */}
-          <Row icon="📥" label={t('business_dashboard.leads_label')}
+          <Row icon="download" label={t('business_dashboard.leads_label')}
             sub={t('business_dashboard.leads_sub')} locked
             onAction={dash?.hasSeller ? undefined : () => onNavigate(activateSellingTarget)} />
           {/* Team management genuinely works once Seller is active
               (SellerScopeService.resolve() already recognizes it) -- this
               was hardcoded locked regardless of hasSeller, which kept
               sending already-approved sellers back into BecomeSeller. */}
-          <Row icon="👔" label={t('business_dashboard.team_label')}
+          <Row icon="people" label={t('business_dashboard.team_label')}
             sub={t('business_dashboard.team_sub')} locked={!dash?.hasSeller}
             onAction={dash?.hasSeller ? () => onNavigate('SellerTeam') : () => onNavigate(activateSellingTarget)} />
         </SCard>
@@ -306,7 +307,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
           <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 16,
             padding: 20, color: '#fff', marginBottom: 12 }}>
             <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>
-              🛍️ {t('business_dashboard.activate_seller_title')}
+              {t('business_dashboard.activate_seller_title')}
             </div>
             <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 14, lineHeight: 1.5 }}>
               {t('business_dashboard.activate_seller_desc')}
@@ -339,7 +340,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }
                 display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 {editForm.logo
                   ? <img src={editForm.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: 22 }}>🏢</span>}
+                  : <span style={{ fontSize: 22 }}><LineIcon name="office" size={22} /></span>}
               </div>
               <input type="file" accept="image/*" style={{ display: 'none' }} id="bizLogoInput"
                 onChange={e => handleLogoUpload(e.target.files?.[0])} />

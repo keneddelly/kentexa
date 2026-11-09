@@ -1,14 +1,14 @@
 const ROLE_PRESENTATION = {
-  buyer: { type: 'personal', icon: '👤', link: 'ownerId' },
-  seller: { type: 'business', icon: '🏪', link: 'sellerProfileId' },
-  agent: { type: 'agent', icon: '🏍️', link: 'agentId' },
-  super_agent: { type: 'hub', icon: '🏢', link: 'superAgentId' },
-  transport_provider: { type: 'transport_provider', icon: '🚌', link: 'transportProviderId' },
-  service_provider: { type: 'service_provider', icon: '🔧', link: null },
-  admin: { type: 'personal', icon: '🛡️', link: 'ownerId' },
-  manager: { type: 'personal', icon: '🛡️', link: 'ownerId' },
-  customer_care: { type: 'personal', icon: '🎧', link: 'ownerId' },
-  arbitrator: { type: 'personal', icon: '⚖️', link: 'ownerId' },
+  buyer: { type: 'personal', icon: 'person', link: 'ownerId' },
+  seller: { type: 'business', icon: 'store', link: 'sellerProfileId' },
+  agent: { type: 'agent', icon: 'moto', link: 'agentId' },
+  super_agent: { type: 'hub', icon: 'office', link: 'superAgentId' },
+  transport_provider: { type: 'transport_provider', icon: 'bus', link: 'transportProviderId' },
+  service_provider: { type: 'service_provider', icon: 'wrench', link: null },
+  admin: { type: 'personal', icon: 'shield', link: 'ownerId' },
+  manager: { type: 'personal', icon: 'shield', link: 'ownerId' },
+  customer_care: { type: 'personal', icon: 'headset', link: 'ownerId' },
+  arbitrator: { type: 'personal', icon: 'shield', link: 'ownerId' },
 };
 
 // Account-level roles are always the person; every OTHER role type is an operational role.

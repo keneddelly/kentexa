@@ -87,7 +87,7 @@ const SellerWarrantyClaims = ({ onNavigate, registrationId: initialRegistrationI
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <BackBar onBack={() => onNavigate('back')} title={`🛡️ ${t('seller_warranty_claims.title')}`} top={0} />
+      <BackBar onBack={() => onNavigate('back')} title={`${t('seller_warranty_claims.title')}`} top={0} />
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>{t('seller_warranty_claims.intro')}</p>
 

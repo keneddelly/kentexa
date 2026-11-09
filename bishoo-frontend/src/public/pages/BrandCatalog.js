@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const EMPTY_FORM = { name: '', category: '', subcategory: '' };
 
@@ -65,7 +66,7 @@ const BrandCatalog = ({ onNavigate, activeProfileId }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <BackBar onBack={() => onNavigate('back')} title={`📋 ${t('brand_catalog.title')}`} top={0} />
+      <BackBar onBack={() => onNavigate('back')} title={`${t('brand_catalog.title')}`} top={0} />
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>{t('brand_catalog.intro')}</p>
@@ -82,7 +83,7 @@ const BrandCatalog = ({ onNavigate, activeProfileId }) => {
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>{t('brand_catalog.loading')}</div>
         ) : items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60 }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
+            <div style={{ fontSize: 40, marginBottom: 8 }}><LineIcon name="list" size={40} /></div>
             <div style={{ fontSize: 13, color: '#64748b' }}>{t('brand_catalog.no_items_desc')}</div>
           </div>
         ) : (

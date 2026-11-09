@@ -38,7 +38,7 @@ const SetupProgressCard = ({ journeyKey, context = {}, onNavigate }) => {
       <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 14,
         padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12.5, fontWeight: 700, color: '#166534' }}>
-          ✅ {t('onboarding.setup_complete')}
+          {t('onboarding.setup_complete')}
         </span>
         <button onClick={() => setCollapsed(true)} aria-label={t('tours.skip')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', fontSize: 16, padding: 0 }}>×</button>

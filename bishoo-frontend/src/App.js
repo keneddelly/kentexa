@@ -181,6 +181,7 @@ import TrainingSmsNotice from './public/components/TrainingSmsNotice';
 import { identityState, afterIdentitySent } from './utils/identityState';
 import useIdentityRefresh from './utils/useIdentityRefresh';
 import useAgentPresence from './utils/useAgentPresence';
+import LineIcon from './public/components/LineIcon';
 
 // Seller's private order link tokens: the long signed form (?sellerCheckout=a.b) and the
 // short one sent since 2026-10-23 (?so=<5 base-36 parts>.<16-char signature>).
@@ -1232,7 +1233,7 @@ function App() {
       {showLangPicker && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: '32px 24px', width: '100%', maxWidth: 340, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🇹🇿</div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="globe" size={40} /></div>
             <h2 style={{ fontSize: 20, fontWeight:800, color: '#1e293b', margin: '0 0 6px', fontFamily:'inherit' }}>{t('welcome.language_picker.title')}</h2>
             <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 24px' }}>{t('welcome.language_picker.subtitle')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

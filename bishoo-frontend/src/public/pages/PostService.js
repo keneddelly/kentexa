@@ -180,7 +180,7 @@ const PostService = ({ onNavigate, isLoggedIn = true, currentUser, activeProfile
 
   let body;
   if (!identityStatus) {
-    body = <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>⏳</div>;
+    body = <div style={{ ...card, textAlign: 'center', color: '#64748b' }}>Inapakia...</div>;
   } else if (sent) {
     body = (
       <div data-testid="service-waiting-id" style={{ ...card, textAlign: 'center' }}>

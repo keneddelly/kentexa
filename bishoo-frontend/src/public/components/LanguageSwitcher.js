@@ -52,7 +52,6 @@ const LanguageSwitcher = ({ variant = 'dropdown', onChange }) => {
               backgroundColor: l.code === current.code ? '#EFF6FF' : '#fff',
               textAlign: 'left', width: '100%',
             }}>
-            <span style={{ fontSize: 22 }}>{l.flag}</span>
             <span style={{ flex: 1, fontSize: 14, fontWeight: 700,
               color: l.code === current.code ? B : '#1E293B' }}>{l.label}</span>
             {l.code === current.code && <span style={{ color: B, fontWeight:800 }}>✓</span>}
@@ -72,7 +71,6 @@ const LanguageSwitcher = ({ variant = 'dropdown', onChange }) => {
           fontSize: 13, fontWeight: 800, color: '#1E293B',
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         }}>
-        <span style={{ fontSize: 16 }}>{current.flag}</span>
         {current.short}
         <span style={{ fontSize: 10, color: '#94A3B8' }}>▾</span>
       </button>
@@ -93,7 +91,6 @@ const LanguageSwitcher = ({ variant = 'dropdown', onChange }) => {
                   fontSize: 13, fontWeight: 700,
                   color: l.code === current.code ? B : '#1E293B', textAlign: 'left',
                 }}>
-                <span style={{ fontSize: 16 }}>{l.flag}</span>
                 {l.label}
                 {l.code === current.code && <span style={{ marginLeft: 'auto', color: B }}>✓</span>}
               </button>

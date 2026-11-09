@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
 import api      from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const getJobStatus = (t) => ({
   pending:     { bg: '#fef3c7', text: '#d97706', label: t('my_services.status_pending')    },
@@ -101,19 +102,19 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
         {actingAsBusinessProvider && (
           <div style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderRadius: 10,
             padding: '9px 14px', marginBottom: 16, fontSize: 12, fontWeight: 700 }}>
-            🏢 {t('my_services.managing_for_business', { business: activeBusinessName || t('my_services.default_business_name') })}
+            {t('my_services.managing_for_business', { business: activeBusinessName || t('my_services.default_business_name') })}
           </div>
         )}
 
         {/* Stats header */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { icon: '📋', label: t('my_services.stat_ads'), value: ads.length,          bg: '#eff6ff', color: '#1d4ed8' },
-            { icon: '⏳', label: t('my_services.stat_pending'), value: pendingJobs.length,  bg: '#fef3c7', color: '#d97706' },
-            { icon: '🔨', label: t('my_services.stat_in_progress'), value: activeJobs.length,  bg: '#dcfce7', color: '#16a34a' },
+            { icon: 'list', label: t('my_services.stat_ads'), value: ads.length,          bg: '#eff6ff', color: '#1d4ed8' },
+            { icon: 'clock', label: t('my_services.stat_pending'), value: pendingJobs.length,  bg: '#fef3c7', color: '#d97706' },
+            { icon: 'wrench', label: t('my_services.stat_in_progress'), value: activeJobs.length,  bg: '#dcfce7', color: '#16a34a' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '14px 16px' }}>
-              <div style={{ fontSize: 24, marginBottom: 4 }}>{s.icon}</div>
+              <div style={{ marginBottom: 4 }}><LineIcon name={s.icon} size={24} /></div>
               <div style={{ fontSize: 22, fontWeight:800, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
             </div>
@@ -148,7 +149,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
               {jobs.filter(j => !['completed','cancelled','declined'].includes(j.status)).length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                   borderRadius: 16, color: '#94a3b8' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="box" size={40} /></div>
                   <div>{t('my_services.no_jobs')}</div>
                 </div>
               ) : jobs.filter(j => !['completed','cancelled','declined'].includes(j.status)).map(job => {
@@ -166,7 +167,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
                           {job.serviceAd?.title || t('my_services.default_service_name')}
                         </div>
                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-                          👤 {job.buyer?.name || t('my_services.default_buyer_name')} · {job.buyer?.phone || ''}
+                          {job.buyer?.name || t('my_services.default_buyer_name')} · {job.buyer?.phone || ''}
                         </div>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px',
@@ -182,11 +183,11 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
 
                     <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#64748b',
                       marginBottom: job.status === 'pending' ? 12 : 0, flexWrap: 'wrap' }}>
-                      {job.jobLocation && <span>📍 {job.jobLocation}</span>}
-                      {job.preferredDate && <span>📅 {job.preferredDate}</span>}
-                      {job.preferredTime && <span>🕐 {job.preferredTime}</span>}
+                      {job.jobLocation && <span>{job.jobLocation}</span>}
+                      {job.preferredDate && <span>{job.preferredDate}</span>}
+                      {job.preferredTime && <span>{job.preferredTime}</span>}
                       {job.agreedPrice   && <span style={{ fontWeight: 700, color: '#16a34a' }}>
-                        💰 TZS {fmt(job.agreedPrice)}
+                        TZS {fmt(job.agreedPrice)}
                       </span>}
                     </div>
 
@@ -213,7 +214,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
                             style={{ backgroundColor: '#f0fdf4', color: '#16a34a',
                               border: 'none', borderRadius: 8, padding: '10px 14px',
                               textDecoration: 'none', fontSize: 16 }}>
-                            📲
+                            <LineIcon name="phone" size={18} />
                           </a>
                         )}
                       </div>
@@ -257,7 +258,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
               {ads.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                   borderRadius: 16, color: '#94a3b8' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>🏷️</div>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="tag" size={40} /></div>
                   <div>{t('my_services.no_ads')}</div>
                 </div>
               ) : ads.map(ad => (
@@ -271,7 +272,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
                         {ad.title}
                       </div>
                       <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-                        👁️ {ad.views} {t('my_services.views_label')} · ⭐ {Number(ad.rating).toFixed(1)} · {ad.totalJobs} {t('my_services.jobs_label')}
+                        {ad.views} {t('my_services.views_label')} · {Number(ad.rating).toFixed(1)} · {ad.totalJobs} {t('my_services.jobs_label')}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -301,7 +302,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
               {jobs.filter(j => j.status === 'completed').length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                   borderRadius: 16, color: '#94a3b8' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="check" size={40} /></div>
                   <div>{t('my_services.no_completed')}</div>
                 </div>
               ) : jobs.filter(j => j.status === 'completed').map(job => (
@@ -311,7 +312,7 @@ const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusiness
                     {job.serviceAd?.title}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
-                    👤 {job.buyer?.name} · {new Date(job.completedAt).toLocaleDateString(dateLocale)}
+                    {job.buyer?.name} · {new Date(job.completedAt).toLocaleDateString(dateLocale)}
                   </div>
                   {job.agreedPrice > 0 && (
                     <div style={{ fontSize: 15, fontWeight:800, color: '#16a34a' }}>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
+import LineIcon from './LineIcon';
 
 /**
  * One human location question backed by Kentexa Location Intelligence.
@@ -30,7 +31,7 @@ const IntelligentLocationInput = ({ label='Location', value='', onTextChange, on
         onChange={e=>{onTextChange?.(e.target.value);onResolved?.(null);setOpen(true);}}
         onFocus={()=>setOpen(true)} onBlur={()=>setTimeout(()=>setOpen(false),160)}
         style={{width:'100%',boxSizing:'border-box',padding:'12px 38px 12px 13px',border:'1px solid #cbd5e1',borderRadius:12,fontSize:15,outline:'none',background:'#fff'}} />
-      <span style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',fontSize:15}}>{loading?'…':'⌖'}</span>
+      <span style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',fontSize:15}}>{loading?'…':<LineIcon name="pin" size={16} color="#94a3b8" />}</span>
     </div>
     {open && items.length>0 && <div style={{position:'absolute',zIndex:80,left:0,right:0,top:'100%',background:'#fff',border:'1px solid #e2e8f0',borderRadius:12,boxShadow:'0 12px 28px rgba(15,23,42,.14)',overflow:'hidden',maxHeight:260,overflowY:'auto'}}>
       {items.map((s,i)=><button type="button" key={s.placeRef?.providerPlaceId||i}

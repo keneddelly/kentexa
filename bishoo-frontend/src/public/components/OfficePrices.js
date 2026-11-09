@@ -167,7 +167,7 @@ const OfficePrices = () => {
     } finally { setRateSaving(false); }
   };
 
-  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳</div>;
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>;
 
   return (
     <>
@@ -176,7 +176,7 @@ const OfficePrices = () => {
           <div data-testid="bei-card" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginTop: 16 }}>
             <div style={{ fontSize: 15, fontWeight:800, color: '#1e293b', marginBottom: 12 }}>
-              📋 {t('super_agent_settings.rates_title')}
+              {t('super_agent_settings.rates_title')}
             </div>
             {rule && <ChargeRuleSection rule={rule} form={ruleForm} onChange={setRuleForm} />}
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
@@ -187,7 +187,7 @@ const OfficePrices = () => {
             {rateError && (
               <div style={{ color: '#dc2626', backgroundColor: '#fee2e2',
                 padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
-                ❌ {rateError}
+                {rateError}
               </div>
             )}
             {rateMessage && (
@@ -220,7 +220,7 @@ const OfficePrices = () => {
                   {legacy && (
                     <div data-testid="route-legacy-warning" style={{ fontSize: 11, color: '#b45309',
                       backgroundColor: '#fef3c7', padding: '6px 10px', borderRadius: 8, marginTop: 6 }}>
-                      ⚠️ {t('super_agent_settings.rate_destination_unknown', { city: r.destinationCity.trim() })}
+                      {t('super_agent_settings.rate_destination_unknown', { city: r.destinationCity.trim() })}
                     </div>
                   )}
                 </div>

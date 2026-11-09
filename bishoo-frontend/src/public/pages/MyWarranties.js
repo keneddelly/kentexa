@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const STATUS_META = {
   active:  { color: '#16a34a', bg: '#f0fdf4' },
@@ -107,7 +108,7 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <BackBar onBack={() => onNavigate('back')} title={`🛡️ ${t('my_warranties.title')}`} top={0} />
+      <BackBar onBack={() => onNavigate('back')} title={`${t('my_warranties.title')}`} top={0} />
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 14px', borderRadius: 10, fontSize: 12, marginBottom: 12 }}>{message}</div>}
         {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, fontSize: 12, marginBottom: 12 }}>{error}</div>}
@@ -116,7 +117,7 @@ const MyWarranties = ({ onNavigate, registrationId: highlightRegistrationId }) =
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>{t('my_warranties.loading')}</div>
         ) : registrations.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60 }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>🛡️</div>
+            <div style={{ fontSize: 40, marginBottom: 8 }}><LineIcon name="shield" size={40} /></div>
             <div style={{ fontSize: 13, color: '#64748b' }}>{t('my_warranties.no_warranties_desc')}</div>
           </div>
         ) : (

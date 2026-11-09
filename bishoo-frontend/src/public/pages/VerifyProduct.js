@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const VerifyProduct = ({ onNavigate, code }) => {
   const { t } = useTranslation();
@@ -72,7 +73,7 @@ const VerifyProduct = ({ onNavigate, code }) => {
 
         {!loading && result && !result.found && (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 24, textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>❓</div>
+            <div style={{ fontSize: 40, marginBottom: 8 }}><LineIcon name="help" size={40} /></div>
             <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>{t('verify_product.not_found_title')}</div>
             <div style={{ fontSize: 13, color: '#64748b' }}>{t('verify_product.not_found_desc')}</div>
           </div>
@@ -86,7 +87,7 @@ const VerifyProduct = ({ onNavigate, code }) => {
               color: isFlagged ? '#dc2626' : '#16a34a',
               fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              {isFlagged ? '⚠️' : '✅'}
+              <LineIcon name={isFlagged ? 'help' : 'check'} size={28} />
               {isFlagged
                 ? t(result.status === 'reported_stolen' ? 'verify_product.flagged_stolen' : 'verify_product.flagged_lost')
                 : t('verify_product.genuine_unit')}

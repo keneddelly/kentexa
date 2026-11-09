@@ -56,7 +56,7 @@ const PartnerInvitePanel = ({ parcel, defaultPhone = '', defaultName = '' }) => 
     <div data-testid="partner-invite-panel" style={{ border: '1px dashed #bfdbfe', borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: '#f8fbff' }}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 14, fontWeight: 800, color: '#1d4ed8', width: '100%', textAlign: 'left' }}>
-        🤝 Mwalike ajiunge KenteXa {open ? '▲' : '▼'}
+        Mwalike ajiunge KenteXa {open ? '▲' : '▼'}
       </button>
       {open && (
         <div style={{ marginTop: 10 }}>

@@ -30,7 +30,7 @@ test('"Add to shehena" hands the parcel to the existing shehena flow', async () 
   const onAdd = jest.fn();
   render(<StaleParcelsNotice onAddToShehena={onAdd} />);
   fireEvent.click(await screen.findByText(/bila taarifa za kusafirisha/));
-  fireEvent.click(screen.getByText('📦 Ongeza kwenye shehena'));
+  fireEvent.click(screen.getByText('Ongeza kwenye shehena'));
   expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ parcelId: 1 }));
 });
 
@@ -39,7 +39,7 @@ test('"Still here" is one tap, then the list reloads (empty list = no red notice
   api.post.mockResolvedValue({ data: { parcelId: 1 } });
   const { container } = render(<StaleParcelsNotice onAddToShehena={() => {}} />);
   fireEvent.click(await screen.findByText(/bila taarifa za kusafirisha/));
-  fireEvent.click(screen.getByText('✋ Bado kiko hapa'));
+  fireEvent.click(screen.getByText('Bado kiko hapa'));
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/dispatch-reminders/parcels/1/still-here'));
   await waitFor(() => expect(container).toBeEmptyDOMElement());
 });

@@ -3,9 +3,9 @@
  * Place at: src/public/pages/HomeFeed.js
  *
  * Post types and their actions:
- *  classified  → Save ❤️ | Ask 💬 | Share ↗ | Contact 📞 | Ship 📦 | Follow 👤
- *  product     → Save ❤️ | Ask 💬 | Share ↗ | Buy Now 🛒 | Cart 🛍️ | Follow 👤
- *  service     → Save ❤️ | Ask 💬 | Share ↗ | Book 📅 | Contact 📞 | Follow 👤
+ *  classified  → Save | Ask | Share ↗ | Contact | Ship | Follow 
+ *  product     → Save | Ask | Share ↗ | Buy Now | Cart | Follow 
+ *  service     → Save | Ask | Share ↗ | Book | Contact | Follow 
  *
  * Engagement tracking:
  *  All saves/shares/views go to POST /engagements (entity-based, works on virtual IDs)

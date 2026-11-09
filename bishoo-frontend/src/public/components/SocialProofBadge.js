@@ -55,7 +55,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         {checks.map(c => (
           <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: c.done ? '#16a34a' : '#94a3b8', fontWeight: 600 }}>
-            <span>{c.done ? '✅' : '⬜'}</span>
+            <span style={{ display: 'inline-flex', width: 16, height: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 4, border: c.done ? 'none' : '1.5px solid #cfd9de', color: '#16a34a' }}>{c.done ? '✓' : ''}</span>
             <span>{c.label}</span>
           </div>
         ))}

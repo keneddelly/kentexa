@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
+import LineIcon from '../components/LineIcon';
 
 const VALID_TABS = ['all', 'products', 'classifieds'];
 
@@ -111,11 +112,11 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
       <div style={{ padding: '12px 16px 80px', flex: 1, maxWidth: 1100, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>{t('listings_page.loading')}
+            <div style={{ fontSize: 36, marginBottom: 12 }}><LineIcon name="clock" size={36} /></div>{t('listings_page.loading')}
           </div>
         ) : totalCount === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 20px', backgroundColor: '#fff', borderRadius: 16 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}><LineIcon name="search" size={40} /></div>
             <p style={{ fontWeight: 700, color: '#1e293b' }}>{t('listings_page.no_results')}</p>
             {search && (
               <button onClick={() => { setSearch(''); setSearchInput(''); }}
@@ -144,11 +145,11 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
                       <div style={{ width: '100%', aspectRatio: '1/1', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
                         {p.images?.[0]
                           ? <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>
+                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name="box" size={32} /></div>
                         }
                         <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#1d4ed8', color: '#fff' }}>{t('listings_page.store_badge')}</span>
                         {p.codEnabled && (
-                          <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>💵 {t('listings_page.cod_badge')}</span>
+                          <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>{t('listings_page.cod_badge')}</span>
                         )}
                         {!p.isAvailable && (
                           <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -164,7 +165,7 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
                           <button onClick={e => { e.stopPropagation(); if (p.isAvailable) addToCart(p); }}
                             disabled={!p.isAvailable}
                             style={{ background: p.isAvailable ? 'linear-gradient(135deg,#1d4ed8,#2563eb)' : '#e2e8f0', color: p.isAvailable ? '#fff' : '#94a3b8', border: 'none', padding: '3px 8px', borderRadius: 6, cursor: p.isAvailable ? 'pointer' : 'not-allowed', fontSize: 10, fontWeight: 700 }}>
-                            🛒
+                            <LineIcon name="cart" size={14} />
                           </button>
                         </div>
                       </div>
@@ -192,7 +193,7 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
                       <div style={{ position: 'relative' }}>
                         {item.images?.[0]
                           ? <img src={item.images[0]} alt={item.title} style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }} />
-                          : <div style={{ width: '100%', aspectRatio: '4/3', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📋</div>
+                          : <div style={{ width: '100%', aspectRatio: '4/3', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}><LineIcon name="list" size={32} /></div>
                         }
                         <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#db2777', color: '#fff' }}>{t('listings_page.ad_badge')}</span>
                         {item.isNegotiable && (
@@ -206,7 +207,7 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
                         <div style={{ fontSize: 13, fontWeight:800, color: '#db2777', marginBottom: 2 }}>
                           TZS {Number(item.price).toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 10, color: '#94a3b8' }}>📍 {item.location || t('listings_page.default_location')}</div>
+                        <div style={{ fontSize: 10, color: '#94a3b8' }}>{item.location || t('listings_page.default_location')}</div>
                       </div>
                     </div>
                   ))}

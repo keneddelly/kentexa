@@ -23,7 +23,7 @@ const AgentPartnerSellersCard = () => {
 
   return (
     <div data-testid="agent-partner-sellers" style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>🤝 Wauzaji washirika</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a' }}>Wauzaji washirika</div>
       <div style={{ fontSize: 12, color: '#64748b', margin: '2px 0 8px', lineHeight: 1.5 }}>
         Kazi zao za kuchukua mizigo zinakufikia wewe kwanza kwa dakika chache.
       </div>

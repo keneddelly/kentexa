@@ -21,6 +21,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
 import { isAppleMobile } from '../utils/isAppleMobile';
+import LineIcon from './LineIcon';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -28,12 +29,12 @@ const GR = '#64748B';
 const WH = '#FFFFFF';
 
 const TYPE_META = {
-  personal:           { icon: '👤', label: 'profile_switcher.type_personal' },
-  business:           { icon: '🏪', label: 'profile_switcher.type_business' },
-  hub:                { icon: '🏢', label: 'profile_switcher.type_hub' },
-  transport_provider: { icon: '🚌', label: 'profile_switcher.type_transport' },
-  agent:              { icon: '🏍️', label: 'profile_switcher.type_agent' },
-  service_provider:   { icon: '🔧', label: 'profile_switcher.type_service' },
+  personal:           { icon: 'person', label: 'profile_switcher.type_personal' },
+  business:           { icon: 'store', label: 'profile_switcher.type_business' },
+  hub:                { icon: 'office', label: 'profile_switcher.type_hub' },
+  transport_provider: { icon: 'bus', label: 'profile_switcher.type_transport' },
+  agent:              { icon: 'moto', label: 'profile_switcher.type_agent' },
+  service_provider:   { icon: 'wrench', label: 'profile_switcher.type_service' },
 };
 
 // Capability-domain label for a role grouped under a Business — deliberately
@@ -53,7 +54,7 @@ const ProfileRow = ({ profile, isActive, disabled, onClick, label, icon, transla
       alignItems:'center', justifyContent:'center', fontSize:19 }}>
       {profile?.photoUrl
         ? <img src={profile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-        : icon}
+        : <LineIcon name={icon} size={20} color="#536471" />}
     </div>
     <div style={{ flex:1, minWidth:0 }}>
       <div style={{ fontSize:13, fontWeight:800, color:DK,
@@ -121,7 +122,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
               <button onClick={() => onOpenBusiness?.(group.businessId)}
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'6px 10px',
                   border:'none', background:'none', cursor:'pointer', textAlign:'left' }}>
-                <span style={{ fontSize:14 }}>🏢</span>
+                <span style={{ fontSize:14 }}><LineIcon name="office" size={16} /></span>
                 <span style={{ fontSize:13, fontWeight:800, color:DK,
                   minWidth:appleMobile ? 0 : undefined, overflow:appleMobile ? 'hidden' : undefined,
                   textOverflow:appleMobile ? 'ellipsis' : undefined,

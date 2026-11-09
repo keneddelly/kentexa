@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
+import LineIcon from '../components/LineIcon';
 
 const getSizes = (t) => [
   { value: 'small',  label: t('super_agent_parcel.size_small'),  desc: t('super_agent_parcel.size_small_desc') },
@@ -18,7 +19,7 @@ const inputStyle = {
 
 const SectionTitle = ({ icon, title }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '20px 0 12px' }}>
-    <span style={{ fontSize: 18 }}>{icon}</span>
+    <span style={{ display: 'inline-flex' }}><LineIcon name={icon} size={18} /></span>
     <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{title}</span>
     <div style={{ flex: 1, height: 1, backgroundColor: '#f1f5f9' }} />
   </div>
@@ -133,7 +134,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
         {/* Ada ya KenteXa (2026-11-03): no payment step here; tracking works at once. */}
           <>
             <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', borderRadius: 20, padding: 28, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
-              <div style={{ fontSize: 52, marginBottom: 12 }}>✅</div>
+              <div style={{ fontSize: 52, marginBottom: 12 }}><LineIcon name="check" size={40} /></div>
               <h2 style={{ fontSize: 20, fontWeight:800, margin: '0 0 6px' }}>{t('super_agent_parcel.parcel_registered_title')}</h2>
               <p style={{ fontSize: 13, opacity: 0.9, margin: 0 }}>{t('super_agent_parcel.parcel_registered_desc')}</p>
             </div>
@@ -200,7 +201,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600 }}>
-            ❌ {error}
+            {error}
             <button onClick={() => setError('')} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16, fontWeight:800 }}>×</button>
           </div>
         )}
@@ -208,7 +209,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
           {/* Sender */}
-          <SectionTitle icon="👤" title={t('super_agent_parcel.section_sender')} />
+          <SectionTitle icon="person" title={t('super_agent_parcel.section_sender')} />
           <Field label={t('super_agent_parcel.sender_name_label')} required>
             <input type="text" placeholder="e.g. Juma Salehe" value={form.senderName}
               onChange={e => set('senderName', e.target.value)} style={inputStyle} />
@@ -219,7 +220,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           </Field>
 
           {/* Recipient */}
-          <SectionTitle icon="📍" title={t('super_agent_parcel.section_recipient')} />
+          <SectionTitle icon="pin" title={t('super_agent_parcel.section_recipient')} />
           <Field label={t('super_agent_parcel.recipient_name_label')} required>
             <input type="text" placeholder="e.g. Amina Hassan" value={form.recipientName}
               onChange={e => set('recipientName', e.target.value)} style={inputStyle} />
@@ -248,7 +249,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
               <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 6 }}>{t('super_agent_parcel.route_details_title')}</div>
               {routeInfo.transitCity && (
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 6, padding: '5px 8px', marginBottom: 6, fontSize: 11, color: '#92400e' }}>
-                  🔄 {t('super_agent_parcel.via_label')} <strong>{routeInfo.transitCity}</strong>
+                  {t('super_agent_parcel.via_label')} <strong>{routeInfo.transitCity}</strong>
                   {routeInfo.leg1Days && routeInfo.leg2Days && (
                     <span>{t('super_agent_parcel.transit_leg_note', { leg1: routeInfo.leg1Days, transit: routeInfo.transitCity, leg2: routeInfo.leg2Days, dest: form.destinationCity })}</span>
                   )}
@@ -283,7 +284,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           </Field>
 
           {/* Parcel */}
-          <SectionTitle icon="📦" title={t('super_agent_parcel.section_parcel')} />
+          <SectionTitle icon="box" title={t('super_agent_parcel.section_parcel')} />
           <Field label={t('super_agent_parcel.contents_label')} required hint={t('super_agent_parcel.contents_hint')}>
             <input type="text" placeholder={t('super_agent_parcel.contents_placeholder')} value={form.description}
               onChange={e => set('description', e.target.value)} style={inputStyle} />
@@ -315,7 +316,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
               its own section so it's never mistaken for the shipping fee
               collected below (a genuinely different number, for a
               genuinely different purpose — this one matters for claims). */}
-          <SectionTitle icon="💰" title={t('super_agent_parcel.section_declared_value')} />
+          <SectionTitle icon="money" title={t('super_agent_parcel.section_declared_value')} />
           <Field label={t('super_agent_parcel.declared_value_label')} required hint={t('super_agent_parcel.declared_value_hint')}>
             <input type="number" min="0" placeholder="e.g. 150000"
               value={form.declaredValue} onChange={e => set('declaredValue', e.target.value)}
@@ -323,7 +324,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
           </Field>
 
           {/* Payment */}
-          <SectionTitle icon="💵" title={t('super_agent_parcel.section_payment')} />
+          <SectionTitle icon="money" title={t('super_agent_parcel.section_payment')} />
           <Field label={t('super_agent_parcel.fee_collected_label')} required hint={t('super_agent_parcel.fee_collected_hint')}>
             <input type="number" min="0" placeholder="e.g. 5000"
               value={form.shippingFeeCollected} onChange={e => set('shippingFeeCollected', e.target.value)}

@@ -835,7 +835,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
                 {/* Info banner based on method */}
                 <div style={{ backgroundColor: selectedMethod.needsTracking ? '#eff6ff' : '#f0fdf4', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: selectedMethod.needsTracking ? '#1d4ed8' : '#16a34a' }}>
-                  ℹ️ {selectedMethod.proofNote}
+                  {selectedMethod.proofNote}
                 </div>
 
                 {/* Tracking number — only if needed */}

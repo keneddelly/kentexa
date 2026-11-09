@@ -11,6 +11,7 @@ import RunBookings from '../components/RunBookings';
 import RoutesAwaitingPrice from '../components/RoutesAwaitingPrice';
 import { TransportHome, TRANSPORT_COLORS } from '../components/TransportDashboardShell';
 import { OfficeScreenHeader, OfficeRow, officeSection } from '../components/OfficeDashboardShell';
+import LineIcon from '../components/LineIcon';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Operational dashboard (posting routes, availability, accepting
@@ -358,7 +359,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🚌</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="bus" size={40} /></div>
           <div>{t('transport_provider_dashboard.loading')}</div>
         </div>
       </div>
@@ -370,7 +371,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}><LineIcon name="bus" size={40} /></div>
           <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
             {t('transport_provider_dashboard.no_account_title')}
           </div>
@@ -398,7 +399,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center', maxWidth: 340 }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}><LineIcon name="bus" size={40} /></div>
           <div style={{ fontSize: 20, fontWeight:800, color: '#1e293b', marginBottom: 8 }}>
             {t('transport_provider_dashboard.registered_title')}
           </div>
@@ -879,7 +880,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
 
             {routes.length === 0 && routesAwaitingPrice > 0 ? null : routes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, color: '#94a3b8' }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
+                <div style={{ fontSize: 40, marginBottom: 12 }}><LineIcon name="map" size={40} /></div>
                 <div>{t('transport_provider_dashboard.no_routes_title')}</div>
                 <div style={{ fontSize: 12, marginTop: 6 }}>{t('transport_provider_dashboard.no_routes_desc')}</div>
               </div>

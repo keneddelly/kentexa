@@ -1,13 +1,14 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import LineIcon from '../components/LineIcon';
 
 const AboutUs = ({ onNavigate }) => {
   const { t } = useTranslation();
   const team = [
-    { name: t('about_us.team1_name'), role: t('about_us.team1_role'), emoji: '👨‍💼', desc: t('about_us.team1_desc') },
-    { name: t('about_us.team2_name'), role: t('about_us.team2_role'), emoji: '👨‍💻', desc: t('about_us.team2_desc') },
-    { name: t('about_us.team3_name'), role: t('about_us.team3_role'), emoji: '🤝', desc: t('about_us.team3_desc') },
+    { name: t('about_us.team1_name'), role: t('about_us.team1_role'), emoji: 'person', desc: t('about_us.team1_desc') },
+    { name: t('about_us.team2_name'), role: t('about_us.team2_role'), emoji: 'person', desc: t('about_us.team2_desc') },
+    { name: t('about_us.team3_name'), role: t('about_us.team3_role'), emoji: 'handshake', desc: t('about_us.team3_desc') },
   ];
 
   const milestones = [
@@ -17,12 +18,12 @@ const AboutUs = ({ onNavigate }) => {
   ];
 
   const values = [
-    { icon: '🛡️', title: t('about_us.value1_title'), desc: t('about_us.value1_desc') },
-    { icon: '🇹🇿', title: t('about_us.value2_title'), desc: t('about_us.value2_desc') },
-    { icon: '🤝', title: t('about_us.value3_title'), desc: t('about_us.value3_desc') },
-    { icon: '🚀', title: t('about_us.value4_title'), desc: t('about_us.value4_desc') },
-    { icon: '💯', title: t('about_us.value5_title'), desc: t('about_us.value5_desc') },
-    { icon: '📦', title: t('about_us.value6_title'), desc: t('about_us.value6_desc') },
+    { icon: 'shield', title: t('about_us.value1_title'), desc: t('about_us.value1_desc') },
+    { icon: 'globe', title: t('about_us.value2_title'), desc: t('about_us.value2_desc') },
+    { icon: 'handshake', title: t('about_us.value3_title'), desc: t('about_us.value3_desc') },
+    { icon: 'bolt', title: t('about_us.value4_title'), desc: t('about_us.value4_desc') },
+    { icon: 'check', title: t('about_us.value5_title'), desc: t('about_us.value5_desc') },
+    { icon: 'box', title: t('about_us.value6_title'), desc: t('about_us.value6_desc') },
   ];
 
   return (
@@ -78,7 +79,7 @@ const AboutUs = ({ onNavigate }) => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14 }}>
             {values.map(v => (
               <div key={v.title} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '16px 14px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>{v.icon}</div>
+                <div style={{ marginBottom: 8 }}><LineIcon name={v.icon} size={24} /></div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{v.title}</div>
                 <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{v.desc}</div>
               </div>
@@ -108,7 +109,7 @@ const AboutUs = ({ onNavigate }) => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 14 }}>
             {team.map(m => (
               <div key={m.name} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '20px 16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>{m.emoji}</div>
+                <div style={{ marginBottom: 10 }}><LineIcon name={m.emoji} size={40} /></div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{m.name}</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>{m.role}</div>
                 <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>{m.desc}</div>
@@ -142,13 +143,13 @@ const AboutUs = ({ onNavigate }) => {
           <p style={{ fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 1.7 }}>{t('about_us.contact_desc')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { icon: '📧', label: t('about_us.contact_email_label'), value: 'support@kentexa.com', href: 'mailto:support@kentexa.com' },
-              { icon: '🌐', label: t('about_us.contact_website_label'), value: 'kentexa.com', href: 'https://kentexa.com' },
-              { icon: '🏢', label: t('about_us.contact_company_label'), value: t('about_us.contact_company_value'), href: null },
-              { icon: '🇹🇿', label: t('about_us.contact_location_label'), value: t('about_us.contact_location_value'), href: null },
+              { icon: 'mail', label: t('about_us.contact_email_label'), value: 'support@kentexa.com', href: 'mailto:support@kentexa.com' },
+              { icon: 'globe', label: t('about_us.contact_website_label'), value: 'kentexa.com', href: 'https://kentexa.com' },
+              { icon: 'office', label: t('about_us.contact_company_label'), value: t('about_us.contact_company_value'), href: null },
+              { icon: 'globe', label: t('about_us.contact_location_label'), value: t('about_us.contact_location_value'), href: null },
             ].map(c => (
               <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 10 }}>
-                <span style={{ fontSize: 20 }}>{c.icon}</span>
+                <span style={{ display: 'inline-flex' }}><LineIcon name={c.icon} size={20} /></span>
                 <div>
                   <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{c.label}</div>
                   {c.href

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar       from '../components/BackBar';
 import WishlistHeart from '../components/WishlistHeart';
 import api           from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const DK = '#0F172A';
 const GR = '#64748B';
@@ -114,7 +115,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
           ? <img src={item.images[0]} alt={item.title}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={e => e.target.style.display = 'none'} />
-          : <span style={{ fontSize: 40 }}>🔥</span>}
+          : <span style={{ fontSize: 40 }}><LineIcon name="bolt" size={40} /></span>}
       </div>
 
       <div style={{ padding: '12px 14px 14px' }}>
@@ -270,7 +271,7 @@ const FlashSales = ({ onNavigate, isLoggedIn }) => {
           </div>
         ) : items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🔥</div>
+            <div style={{ fontSize: 48, marginBottom: 12 }}><LineIcon name="bolt" size={40} /></div>
             <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 8 }}>
               {t('flash_sales.no_sales_title')}
             </div>

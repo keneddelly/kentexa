@@ -1,5 +1,5 @@
 /**
- * TourTrigger.js — "❓ New to this? Take a quick tour" button. Drop this
+ * TourTrigger.js — "New to this? Take a quick tour" button. Drop this
  * on any page that has a FeatureTour mounted to let a user replay it,
  * regardless of whether they already completed or skipped it.
  */

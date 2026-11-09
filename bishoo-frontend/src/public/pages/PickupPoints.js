@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api     from '../../api/api';
 import { hasAnyRole } from '../utils/roles';
+import LineIcon from '../components/LineIcon';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -165,12 +166,12 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
 
             {loading ? (
               <div style={{ textAlign:'center', padding:60, color:GR }}>
-                <div style={{ fontSize:32, marginBottom:8 }}>📍</div>
+                <div style={{ fontSize:32, marginBottom:8 }}><LineIcon name="pin" size={32} /></div>
                 <div>{t('pickup_points.searching')}</div>
               </div>
             ) : points.length === 0 ? (
               <div style={{ textAlign:'center', padding:60 }}>
-                <div style={{ fontSize:48, marginBottom:12 }}>📍</div>
+                <div style={{ fontSize:48, marginBottom:12 }}><LineIcon name="pin" size={40} /></div>
                 <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
                   {t('pickup_points.no_points_title', { city: city ? ` huko ${city}` : '' })}
                 </div>
@@ -204,7 +205,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
                             {pt.name}
                           </div>
                           <div style={{ fontSize:12, color:GR }}>
-                            📍 {pt.address}
+                            {pt.address}
                             {pt.city && `, ${pt.city}`}
                           </div>
                           {pt.landmark && (
@@ -222,10 +223,10 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
 
                       <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:10 }}>
                         {pt.phone && (
-                          <div style={{ fontSize:11, color:GR }}>📱 {pt.phone}</div>
+                          <div style={{ fontSize:11, color:GR }}>{pt.phone}</div>
                         )}
                         {pt.openHours && (
-                          <div style={{ fontSize:11, color:GR }}>⏰ {pt.openHours}</div>
+                          <div style={{ fontSize:11, color:GR }}>{pt.openHours}</div>
                         )}
                         {pt.totalPickups > 0 && (
                           <div style={{ fontSize:11, color:GR }}>
@@ -233,7 +234,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
                           </div>
                         )}
                         {pt.rating > 0 && (
-                          <div style={{ fontSize:11, color:GR }}>⭐ {pt.rating}</div>
+                          <div style={{ fontSize:11, color:GR }}>{pt.rating}</div>
                         )}
                       </div>
 
@@ -323,7 +324,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
 
             {myPoints.length === 0 && !showForm ? (
               <div style={{ textAlign:'center', padding:'40px 0' }}>
-                <div style={{ fontSize:40, marginBottom:12 }}>📍</div>
+                <div style={{ fontSize:40, marginBottom:12 }}><LineIcon name="pin" size={40} /></div>
                 <div style={{ fontSize:14, fontWeight:700, color:DK, marginBottom:6 }}>
                   {t('pickup_points.no_my_points_title')}
                 </div>
@@ -347,7 +348,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
                             {pt.name}
                           </div>
                           <div style={{ fontSize:11, color:GR, marginTop:2 }}>
-                            📍 {pt.address}, {pt.city}
+                            {pt.address}, {pt.city}
                           </div>
                         </div>
                         <span style={{ fontSize:10, fontWeight:700, padding:'3px 8px',
@@ -357,7 +358,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
                       </div>
                       {pt.openHours && (
                         <div style={{ fontSize:11, color:GR, marginBottom:8 }}>
-                          ⏰ {pt.openHours}
+                          {pt.openHours}
                         </div>
                       )}
                       <div style={{ fontSize:11, color:GR, marginBottom:12 }}>
@@ -380,7 +381,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
                           style={{ backgroundColor:'#FEF2F2', color:'#DC2626',
                             border:'none', borderRadius:8, padding:'8px 12px',
                             cursor:'pointer', fontSize:12 }}>
-                          🗑️
+                          Futa
                         </button>
                       </div>
                     </div>

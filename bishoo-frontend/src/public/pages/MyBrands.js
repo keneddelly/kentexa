@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import LineIcon from '../components/LineIcon';
 
 const STATUS_STYLE = {
   pending:   { bg: '#fef9c3', color: '#ca8a04' },
@@ -146,7 +147,7 @@ const MyBrands = ({ onNavigate, activeProfileId }) => {
           <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('my_brands.loading')}</div>
         ) : authorizations.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 50, backgroundColor: '#fff', borderRadius: 16 }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>🏷️</div>
+            <div style={{ fontSize: 40, marginBottom: 10 }}><LineIcon name="tag" size={40} /></div>
             <p style={{ color: '#64748b', fontSize: 13 }}>{t('my_brands.empty_state')}</p>
           </div>
         ) : (
