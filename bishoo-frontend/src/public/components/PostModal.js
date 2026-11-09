@@ -51,7 +51,7 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
   const type = activeProfile?.type || 'personal';
   const isBusiness = type === 'business';
   const [showListChoice, setShowListChoice] = useState(false);
-  const go = (page, params) => { onNavigate(page, params); onClose(); };
+  const go = (page, params) => { if (params) onNavigate(page, params); else onNavigate(page); onClose(); };
 
   const main = [
     { key: 'moment', icon: ICON.moment, title: 'Moment', sub: 'Picha au habari ya leo kwa wanaokufuata',
