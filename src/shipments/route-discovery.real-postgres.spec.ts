@@ -68,6 +68,10 @@ suite('Route discovery — real PostgreSQL, production-shaped data', () => {
       entities: [...B5B_BASE_ENTITIES, TzRegion, TzDistrict, TzWard, ProviderAvailability, TransportRoute, Shipment, RouteStop, TransportRun, TransportRunStop, Vehicle],
     });
     await ds.initialize();
+    // Run load (run-supply.ts) reads these; bare stand-ins, as in the Run suites.
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.journey_leg (id serial PRIMARY KEY, "journeySelectionId" integer, "runId" integer)`);
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.parcel (id serial PRIMARY KEY, "weightKg" decimal(8,2), "shipmentId" integer)`);
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.parcel_run_assignment (id serial PRIMARY KEY, "runId" integer, "parcelId" integer, status varchar)`);
 
     const tz = new TzLocationService(ds.getRepository(TzRegion), ds.getRepository(TzDistrict), ds.getRepository(TzWard));
     await seedTzLocations(ds); // production parity: union of both idempotent loaders
