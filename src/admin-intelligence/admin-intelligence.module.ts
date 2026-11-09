@@ -14,6 +14,7 @@ import { Parcel } from '../super-agents/entities/parcel.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { AdminIntelligenceService } from './admin-intelligence.service';
 import { AdminOverviewService } from './admin-overview.service';
+import { AdminDataService } from './admin-data.service';
 import { AdminIntelligenceController } from './admin-intelligence.controller';
 import { ActivityModule } from '../activity/activity.module';
 
@@ -36,7 +37,7 @@ import { ActivityModule } from '../activity/activity.module';
     ActivityModule,
   ],
   controllers: [AdminIntelligenceController],
-  providers: [AdminIntelligenceService, AdminOverviewService],
+  providers: [AdminIntelligenceService, AdminOverviewService, AdminDataService],
   exports: [AdminIntelligenceService],
 })
 export class AdminIntelligenceModule {}

@@ -159,6 +159,7 @@ import AdminShippingCheck from './admin/pages/AdminShippingCheck';
 import AdminActivity from './admin/pages/AdminActivity';
 import AdminPerson from './admin/pages/AdminPerson';
 import AdminBusinessView from './admin/pages/AdminBusinessView';
+import AdminData, { PAGE_DATASET } from './admin/pages/AdminData';
 import { rememberReferral } from './utils/referralLink';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
@@ -1051,6 +1052,11 @@ function App() {
       case 'AdminActivity': return requireAdmin(<AdminActivity activePage={page} {...adminProps} />);
       case 'AdminPerson': return requireAdmin(<AdminPerson activePage="Users" userId={navParams?.userId} {...adminProps} />);
       case 'AdminBusinessView': return requireAdmin(<AdminBusinessView activePage="Businesses" businessId={navParams?.businessId} {...adminProps} />);
+      // Stage 3: every kind of data that had no admin page (one screen, the menu item picks the list).
+      case 'AdminMoments': case 'AdminReports': case 'AdminCommunities': case 'AdminHotelOrders': case 'AdminPosSales':
+      case 'AdminTeamInvitations': case 'AdminInstagram': case 'AdminOfficePrices': case 'AdminAgentJobs': case 'AdminReviews':
+      case 'AdminNotifications':
+        return requireAdmin(<AdminData key={page} dataset={PAGE_DATASET[page]} activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return activeContext?.roleType === 'admin'
