@@ -37,7 +37,7 @@ export const ADMIN_SECTIONS = Object.freeze([
 ]);
 export const ADMIN_NAVIGATION = Object.freeze([
   ['Dashboard', 'Muhtasari', 'dashboard', 'overview'], ['AdminActivity', 'Shughuli', 'clock', 'overview'], ['Analytics', 'Takwimu', 'analytics', 'overview'], ['Reports', 'Ripoti', 'reports', 'overview'],
-  ['Users', 'Watumiaji', 'users', 'people'], ['IdentityVerifications', 'Vitambulisho', 'identity', 'people'],
+  ['Users', 'Watumiaji', 'users', 'people'], ['AdminOnboarding', 'Karibu: wanaojiunga', 'analytics', 'people'], ['IdentityVerifications', 'Vitambulisho', 'identity', 'people'],
   ['Businesses', 'Biashara', 'business', 'business'], ['Sellers', 'Wauzaji', 'seller', 'business'], ['AdminAdvertisers', 'Watangazaji', 'announce', 'business'],
   ['AdminTeamInvitations', 'Mialiko ya timu', 'users', 'business'], ['AdminInstagram', 'Instagram', 'chat', 'business'], ['AdminPosSales', 'Mauzo ya POS', 'payments', 'business'], ['AdminHotelOrders', 'Oda za hoteli', 'orders', 'business'],
   ['Products', 'Bidhaa', 'products', 'catalog'], ['OfficialProducts', 'Katalogi rasmi', 'catalog', 'catalog'], ['AdminBrands', 'Chapa', 'brand', 'catalog'],

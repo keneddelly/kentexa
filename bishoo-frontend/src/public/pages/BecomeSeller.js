@@ -97,7 +97,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
 
   const handleSubmit = async () => {
     if (!isLoggedIn) { localStorage.setItem('kentexa_after_login', 'BecomeSeller'); onNavigate('PublicLogin'); return; }
-    if (isBusiness && (!businessDocs.brela || !businessDocs.tin)) { setError(t('become_seller.business_documents_required')); return; }
+    // Papers can follow later (owner 2026-11-09, shorter role applications): admin checks them before business selling.
     try {
       setLoading(true); setError('');
       const picked = changePlace && location.regionName;
