@@ -9,6 +9,10 @@ const STATUS_STYLE = {
   suspended: { bg: '#fee2e2', color: '#dc2626', label: '🚫 Imesimamishwa' },
 };
 
+// Sellers who registered before the ID gate (2026-11-07) may be approved without an ID document.
+const ID_GATE_AT = Date.parse('2026-11-07T00:00:00+03:00');
+export const beforeIdGate = (seller) => Boolean(seller?.createdAt) && Date.parse(seller.createdAt) < ID_GATE_AT;
+
 const Sellers = ({ activePage, onNavigate, onLogout }) => {
   const [sellers, setSellers]       = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -103,6 +107,23 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       setActionLoading(true);
       await api.patch(`/seller/${id}/approve`, tier ? { verificationTier: tier } : {});
       showMsg('✅ Muuzaji ameidhinishwa na ataarifiwa kwa SMS/email');
+      setSelected(null);
+      fetchSellers();
+    } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
+    finally { setActionLoading(false); }
+  };
+
+  // Owner 2026-11-09: sellers who registered before the ID gate never sent an ID, so Approve
+  // said "Thibitisha kitambulisho kwanza". The admin marks the ID as checked (with a reason,
+  // recorded), then the seller is approved (or restored if suspended). Server-checked.
+  const handleApproveWithoutId = async (seller, tier) => {
+    const reason = window.prompt(`Kitambulisho cha ${seller.businessName || seller.user?.name || 'muuzaji huyu'} kiwekwe "kimeangaliwa" bila hati, kisha aidhinishwe. Sababu:`);
+    if (reason === null) return;
+    if (reason.trim().length < 3) { showErr('Weka sababu (herufi 3 au zaidi)'); return; }
+    try {
+      setActionLoading(true);
+      await api.patch(`/seller/${seller.id}/approve-without-id`, { reason: reason.trim(), ...(tier ? { verificationTier: tier } : {}) });
+      showMsg('Kitambulisho kimewekwa kimeangaliwa, na muuzaji ameidhinishwa');
       setSelected(null);
       fetchSellers();
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
@@ -630,6 +651,12 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                     style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                     {actionLoading ? '⏳...' : '✅ Idhinisha Muuzaji'}
                   </button>
+                  {beforeIdGate(selected) && (
+                    <button data-testid="approve-without-id" onClick={() => handleApproveWithoutId(selected, approveTier)} disabled={actionLoading}
+                      style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                      Hana kitambulisho: kiweke kimeangaliwa + idhinisha
+                    </button>
+                  )}
                   <button onClick={() => setShowRejectModal(true)}
                     style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
                     ❌ Kataa Ombi
@@ -640,6 +667,12 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                 <button onClick={() => setShowSuspendModal(true)}
                   style={{ backgroundColor: '#fef9c3', color: '#92400e', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
                   🚫 Simamisha Akaunti
+                </button>
+              )}
+              {selected.status === 'suspended' && beforeIdGate(selected) && (
+                <button data-testid="restore-without-id" onClick={() => handleApproveWithoutId(selected)} disabled={actionLoading}
+                  style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                  Hana kitambulisho: kiweke kimeangaliwa + rejesha
                 </button>
               )}
               {['rejected','suspended'].includes(selected.status) && (

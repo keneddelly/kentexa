@@ -10,6 +10,9 @@ import { BusinessCapabilityCode } from '../business/entities/business-capability
 import { RoleProfileType } from '../role-context/entities/account-role.entity';
 import { SellerStatus } from './entities/seller-profile.entity';
 import { AuditLog } from '../audit-log/entities/audit-log.entity';
+import { Optional } from '@nestjs/common';
+import { VerificationService } from '../identity/verification.service';
+import { SELLER_ID_GATE_STARTED_AT } from '../identity/verification.constants';
 
 /**
  * Compatibility routing for the existing admin Seller Approve/Reject buttons
@@ -32,7 +35,35 @@ export class SellerApprovalBridgeService {
     @InjectRepository(BusinessCapabilityApplication) private readonly applicationRepo: Repository<BusinessCapabilityApplication>,
     private readonly sellerService: SellerService,
     private readonly capabilityApplications: BusinessCapabilityApplicationService,
+    @Optional() private readonly verification?: VerificationService,
   ) {}
+
+  /**
+   * Owner 2026-11-09 ("still the admin is asked to approve ID first"): the admin Sellers page
+   * (this bridge), not only Applications. A seller who registered before the ID gate and never
+   * sent an ID: the admin marks the owner's ID as checked (owner chose this; reason required,
+   * recorded in the verification audit and as an IDENTITY event), then the normal approval runs
+   * for a waiting seller, or the normal restore for a suspended one, with every other check.
+   */
+  async approveWithoutId(profileId: number, admin: User, reason: string, verificationTier?: string) {
+    const why = String(reason || '').trim();
+    if (why.length < 3) throw new BadRequestException('Andika sababu (angalau herufi 3).');
+    if (!this.verification) throw new BadRequestException('Identity check unavailable');
+    const profile = await this.loadProfile(profileId);
+    const created = profile.createdAt ? new Date(profile.createdAt).getTime() : NaN;
+    if (!(created < SELLER_ID_GATE_STARTED_AT.getTime())) {
+      throw new BadRequestException({ code: 'NOT_LEGACY_WITHOUT_ID', message: 'Hii ni kwa wauzaji waliojisajili kabla ya sharti la kitambulisho tu.' });
+    }
+    if (profile.status !== SellerStatus.PENDING && profile.status !== SellerStatus.SUSPENDED) {
+      throw new ConflictException({ code: 'SELLER_NOT_WAITING', message: 'Muuzaji huyu hasubiri kuidhinishwa wala hajasimamishwa.' });
+    }
+    const ownerId = profile.user?.id ?? (profile as any).userId;
+    if (!ownerId) throw new NotFoundException('Seller owner not found');
+    await this.verification.adminMarkChecked(ownerId, admin, why, { sellerProfileId: profile.id, businessId: profile.businessId ?? null, path: 'admin_sellers_page' });
+    return profile.status === SellerStatus.SUSPENDED
+      ? this.restore(profileId, admin, why)
+      : this.approve(profileId, admin, verificationTier);
+  }
 
   async approve(profileId: number, admin: User, verificationTier?: string) {
     const profile = await this.loadProfile(profileId);
