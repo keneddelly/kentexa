@@ -5466,7 +5466,7 @@
     "uploading": "Uploading...",
     "doc_choose": "Choose File",
     "doc_change": "Change",
-    "business_documents_hint": "BRELA and TIN certificates are required for business verification.",
+    "business_documents_hint": "Optional for now: you can add your BRELA and TIN certificates later. Admin checks them before you sell as a company.",
     "business_documents_required": "Please add your BRELA and TIN certificates to continue.",
     "document_upload_failed": "Document upload failed — try again.",
     "field_registration_number_label": "BRELA Registration Number (optional)",

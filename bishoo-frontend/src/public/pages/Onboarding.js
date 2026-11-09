@@ -4,6 +4,8 @@
  * social engagement like jumuiya"). Five short steps in the new look:
  *   1 Mahali    the person's town (local talk, communities and businesses);
  *   2 Mada      at least 3 topics (POST /feed/topics/follow; Home will not ask again);
+ *   2b Malengo  "Unataka kufanya nini?" (owner 2026-11-09): several choices, kept in
+ *               onboardingState.goals; Kazi then lists the ones still to finish (utils/goals);
  *   3 Jumuiya   join communities in those topics (skipped by itself when there are none);
  *   4 Fuata     follow businesses and people (/profiles/onboarding/suggestions);
  *   5 Chapisho  the first post: a strong ask that can be skipped (owner's choice):
@@ -16,10 +18,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import api from '../../api/api';
 import { AUTH } from '../components/AuthShell';
 import { firstPostStart } from '../../utils/firstPost';
+import { GOALS } from '../../utils/goals';
 
 const CITIES = ['Dar es Salaam', 'Mwanza', 'Arusha', 'Dodoma', 'Mbeya', 'Morogoro', 'Tanga', 'Zanzibar', 'Kigoma', 'Shinyanga', 'Tabora', 'Iringa',
   'Mtwara', 'Lindi', 'Musoma', 'Bukoba', 'Sumbawanga', 'Songea', 'Kahama', 'Moshi', 'Geita', 'Singida'];
-const STEPS = ['city', 'topics', 'communities', 'follow', 'post'];
+const STEPS = ['city', 'topics', 'goals', 'communities', 'follow', 'post'];
 export const MIN_TOPICS = 3;
 const initials = (n) => String(n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
@@ -36,6 +39,7 @@ const Onboarding = ({ onNavigate, currentUser, onUserUpdated, onOpenMoment }) =>
   const [allCities, setAllCities] = useState(false);
   const [topics, setTopics] = useState([]);
   const [chosen, setChosen] = useState([]);
+  const [goals, setGoals] = useState(() => (Array.isArray(currentUser?.onboardingState?.goals) ? currentUser.onboardingState.goals : []));
   const [communities, setCommunities] = useState(null);
   const [profiles, setProfiles] = useState(null);
   const [busy, setBusy] = useState(null);
@@ -85,7 +89,7 @@ const Onboarding = ({ onNavigate, currentUser, onUserUpdated, onOpenMoment }) =>
     try {
       await api.post('/feed/topics/follow', { keys: chosen });
       try { localStorage.setItem('kentexa_topics_asked', '1'); } catch { /* storage blocked */ }
-      go('communities');
+      go('goals');
     } catch (err) { setError(err?.response?.data?.message || 'Mada hazikuhifadhiwa. Jaribu tena.'); } finally { setBusy(null); }
   };
 
@@ -109,8 +113,9 @@ const Onboarding = ({ onNavigate, currentUser, onUserUpdated, onOpenMoment }) =>
   const finish = async (then) => {
     setBusy('finish'); setError('');
     try {
-      const res = await api.patch(`/users/${currentUser.id}`, { onboardingCompleted: true, ...(city ? { city } : {}) });
-      onUserUpdated?.({ ...currentUser, ...res.data, onboardingCompleted: true });
+      const onboardingState = { ...(currentUser?.onboardingState || {}), goals, welcomedAt: new Date().toISOString() };
+      const res = await api.patch(`/users/${currentUser.id}`, { onboardingCompleted: true, onboardingState, ...(city ? { city } : {}) });
+      onUserUpdated?.({ ...currentUser, ...res.data, onboardingCompleted: true, onboardingState });
       let intended = null;
       try { intended = localStorage.getItem('kentexa_after_login'); if (intended) localStorage.removeItem('kentexa_after_login'); } catch { /* storage blocked */ }
       if (then) then(); else onNavigate(intended || 'Home');
@@ -170,6 +175,33 @@ const Onboarding = ({ onNavigate, currentUser, onUserUpdated, onOpenMoment }) =>
               style={{ ...pill(), opacity: chosen.length < MIN_TOPICS ? 0.5 : 1 }}>
               {chosen.length < MIN_TOPICS ? `Chagua ${MIN_TOPICS - chosen.length} zaidi` : `Endelea (${chosen.length})`}
             </button>
+          </>
+        )}
+
+        {step === 'goals' && (
+          <>
+            {title('Unataka kufanya nini KenteXa?', 'Chagua yote yanayokuhusu. Tutakuonyesha hatua fupi kwenye Kazi.')}
+            <div role="group" aria-label="Malengo" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {GOALS.map((g) => {
+                const on = goals.includes(g.key);
+                return (
+                  <button key={g.key} type="button" aria-pressed={on} data-testid={`welcome-goal-${g.key}`}
+                    onClick={() => setGoals((cur) => (on ? cur.filter((k) => k !== g.key) : [...cur, g.key]))}
+                    style={{ textAlign: 'left', border: `1px solid ${on ? AUTH.INK : AUTH.LINE}`, borderRadius: 12, padding: '10px 14px', background: on ? '#f7f9f9' : '#fff',
+                      cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 12, color: AUTH.INK }}>
+                    <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, border: on ? 'none' : `1.5px solid ${AUTH.LINE}`, background: on ? AUTH.INK : '#fff',
+                      color: '#fff', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{on ? '✓' : ''}</span>
+                    <span style={{ display: 'flex', flexDirection: 'column' }}>
+                      <b style={{ fontSize: 15 }}>{g.label}</b>
+                      <span style={{ fontSize: 13, color: AUTH.MUTED }}>{g.hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ flex: 1 }} />
+            <button type="button" data-testid="welcome-next" onClick={() => go('communities')} style={pill()}>{goals.length ? `Endelea (${goals.length})` : 'Endelea'}</button>
+            {!goals.length && <button type="button" onClick={() => go('communities')} style={pill(false)}>Ruka</button>}
           </>
         )}
 

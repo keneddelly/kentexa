@@ -30,6 +30,12 @@ test('the welcome (owner approved 2026-11-02): town, 3 topics, communities in th
   await next();
   expect(api.post).toHaveBeenCalledWith('/feed/topics/follow', { keys: ['biashara', 'kilimo', 'usafiri'] });
   expect(localStorage.getItem('kentexa_topics_asked')).toBe('1');
+  // "Unataka kufanya nini?" (owner 2026-11-09): several choices, saved when the welcome ends.
+  expect(screen.getByTestId('welcome-goals')).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('welcome-goal-sell'));
+  fireEvent.click(screen.getByTestId('welcome-goal-office'));
+  expect(screen.getByTestId('welcome-goal-sell')).toHaveAttribute('aria-pressed', 'true');
+  await next();
   await screen.findByTestId('welcome-community-5');
   expect(screen.queryByTestId('welcome-community-6')).toBeNull(); // not in the chosen topics
   await act(async () => { fireEvent.click(screen.getByTestId('welcome-join-5')); });
@@ -42,7 +48,8 @@ test('the welcome (owner approved 2026-11-02): town, 3 topics, communities in th
   expect(api.post).toHaveBeenCalledWith('/profiles/26/follow');
   await next();
   await act(async () => { fireEvent.click(screen.getByTestId('welcome-post-hello')); });
-  expect(api.patch).toHaveBeenCalledWith('/users/7', { onboardingCompleted: true, city: 'Dar es Salaam' });
+  expect(api.patch).toHaveBeenCalledWith('/users/7', { onboardingCompleted: true, city: 'Dar es Salaam',
+    onboardingState: expect.objectContaining({ goals: ['sell', 'office'], welcomedAt: expect.any(String) }) });
   expect(onUserUpdated).toHaveBeenCalledWith(expect.objectContaining({ onboardingCompleted: true }));
   expect(onOpenMoment).toHaveBeenCalledWith('moment', { kind: 'moment', text: 'Habari! Mimi ni Juma kutoka Dar es Salaam. Nimejiunga KenteXa leo.' });
 });
@@ -57,6 +64,7 @@ test('no community in those topics: that step is skipped; "Baadaye" keeps the pl
   await next();
   ['biashara', 'kilimo', 'teknolojia'].forEach((k) => fireEvent.click(screen.getByTestId(`welcome-topic-${k}`)));
   await next();
+  await next(); // goals: none chosen
   await screen.findByTestId('welcome-follow');
   expect(screen.getByTestId('welcome-follow')).toHaveTextContent('Bado hakuna wa kupendekeza Arusha');
   await next();
@@ -71,7 +79,7 @@ test('first post: product and service open their own forms', async () => {
   await act(async () => { render(<Onboarding currentUser={{ id: 7 }} onNavigate={onNavigate} />); });
   fireEvent.click(screen.getByText('Ruka'));
   ['biashara', 'kilimo', 'usafiri'].forEach((k) => fireEvent.click(screen.getByTestId(`welcome-topic-${k}`)));
-  await next(); await screen.findByTestId('welcome-follow'); await next();
+  await next(); await next(); await screen.findByTestId('welcome-follow'); await next();
   await act(async () => { fireEvent.click(screen.getByTestId('welcome-post-product')); });
   expect(onNavigate).toHaveBeenCalledWith('CreateClassified');
 });
@@ -91,4 +99,15 @@ test('Home keeps asking: photo first, then the first post; "Baadaye" hides it fo
   api.get.mockResolvedValue({ data: { postCount: 3 } });
   await act(async () => { rerender(<NewcomerNudge currentUser={{ id: 7, avatarUrl: 'a.jpg' }} activeProfileId={40} onNavigate={onNavigate} onOpenMoment={onOpenMoment} refreshKey={2} />); });
   expect(screen.queryByTestId('nudge-post')).toBeNull();
+});
+
+test('people who joined before the new welcome are invited to it once from Home', async () => {
+  api.get.mockResolvedValue({ data: { postCount: 3 } });
+  const onNavigate = jest.fn();
+  localStorage.removeItem('kentexa_nudge_welcome_8');
+  const { rerender } = await (async () => { let r; await act(async () => { r = render(<NewcomerNudge currentUser={{ id: 8, name: 'Old', avatarUrl: 'x', onboardingCompleted: true }} activeProfileId={41} onNavigate={onNavigate} />); }); return r; })();
+  fireEvent.click(screen.getByTestId('nudge-go'));
+  expect(onNavigate).toHaveBeenCalledWith('Onboarding');
+  rerender(<NewcomerNudge currentUser={{ id: 8, name: 'Old', avatarUrl: 'x', onboardingCompleted: true, onboardingState: { welcomedAt: '2026-11-09' } }} activeProfileId={41} onNavigate={onNavigate} />);
+  expect(screen.queryByTestId('nudge-welcome')).toBeNull();
 });

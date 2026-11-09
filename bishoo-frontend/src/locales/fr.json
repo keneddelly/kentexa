@@ -5449,7 +5449,7 @@
     "uploading": "Téléchargement...",
     "doc_choose": "Choisir un Fichier",
     "doc_change": "Changer",
-    "business_documents_hint": "Les certificats BRELA et TIN sont requis pour la vérification d'entreprise.",
+    "business_documents_hint": "Facultatif pour l'instant : vous pouvez ajouter vos certificats BRELA et TIN plus tard. L'admin les vérifie avant la vente en tant qu'entreprise.",
     "business_documents_required": "Veuillez ajouter vos certificats BRELA et TIN pour continuer.",
     "document_upload_failed": "Échec du téléchargement du document — réessayez.",
     "field_registration_number_label": "Numéro d'enregistrement BRELA (facultatif)",

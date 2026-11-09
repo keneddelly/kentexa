@@ -54,16 +54,17 @@ test('individual, ID waiting: ONE screen; phone and place shown from the account
   expect(screen.getByTestId('seller-status')).toHaveTextContent(sw.work_roles.status_waiting_id);
 });
 
-test('business: one more screen for the papers; BRELA and TIN documents are required', async () => {
+test('business: one more screen for the papers; BRELA and TIN can come later (owner 2026-11-09)', async () => {
   await setup();
   fireEvent.click(btn(new RegExp(sw.become_seller.seller_type_business_title)));
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Juma Traders' } });
   fireEvent.click(btn(sw.stores.cat_hardware));
   fireEvent.click(btn(sw.seller_signup.next_papers));
   expect(screen.getByTestId('seller-papers')).toBeInTheDocument();
+  expect(screen.getByTestId('seller-papers')).toHaveTextContent(sw.become_seller.business_documents_hint);
+  api.post.mockResolvedValue({ data: { id: 9, status: 'pending' } });
   await act(async () => { fireEvent.click(btn(sw.become_seller.submit_button)); });
-  expect(api.post).not.toHaveBeenCalled();
-  expect(screen.getByRole('alert')).toHaveTextContent(sw.become_seller.business_documents_required);
+  expect(api.post).toHaveBeenCalledWith('/seller/apply', expect.objectContaining({ sellerType: 'business', businessName: 'Juma Traders', businessDocuments: [] }));
 });
 
 test('an existing request shows its status instead of the form', async () => {

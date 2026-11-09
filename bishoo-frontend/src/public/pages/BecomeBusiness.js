@@ -62,6 +62,7 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
   // Opened from "Fungua hoteli": the form is shown straight away, as a hotel.
   const isHotel = form.category === 'food' && presetCategory === 'food';
   const [location, setLocation] = useState(draft?.location || {});
+  const [moreDetails, setMoreDetails] = useState(() => !!(draft?.form?.tradingName || draft?.form?.description || draft?.form?.address));
   const goLogin = () => {
     saveBusinessDraft(form, location);
     try { localStorage.setItem('kentexa_after_login', 'BecomeBusiness'); } catch { /* storage unavailable */ }
@@ -149,10 +150,6 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
             <input type="text" placeholder={t('become_business.legal_name_placeholder')}
               value={form.legalName} onChange={e => setForm({ ...form, legalName: e.target.value })} style={inputStyle} />
           </Field>
-          <Field label={noEmoji(t('become_business.trading_name_label'))}>
-            <input type="text" placeholder={t('become_business.trading_name_placeholder')}
-              value={form.tradingName} onChange={e => setForm({ ...form, tradingName: e.target.value })} style={inputStyle} />
-          </Field>
           <Field label={noEmoji(t('become_business.category_label'))}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {CATEGORIES.map(c => (
@@ -163,21 +160,35 @@ const BecomeBusiness = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRol
               ))}
             </div>
           </Field>
+          <LocationPicker label={noEmoji(t('become_business.location_label'))} value={location} onChange={setLocation} />
+          <Field label={noEmoji(t('become_business.phone_label'))}>
+            <input type="tel" placeholder="255712345678" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inputStyle} />
+          </Field>
+          {/* Shorter form (owner 2026-11-09): only the must-haves first; the rest when the person wants. */}
+          {!moreDetails ? (
+            <button type="button" data-testid="business-more" onClick={() => setMoreDetails(true)}
+              style={{ alignSelf: 'flex-start', border: 'none', background: 'none', padding: 0, color: K.BLUE, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 15 }}>
+              Ongeza maelezo zaidi (si lazima)
+            </button>
+          ) : (
+            <>
+              <Field label={noEmoji(t('become_business.trading_name_label'))}>
+            <input type="text" placeholder={t('become_business.trading_name_placeholder')}
+              value={form.tradingName} onChange={e => setForm({ ...form, tradingName: e.target.value })} style={inputStyle} />
+          </Field>
           <Field label={noEmoji(t('become_business.description_label'))}>
             <textarea rows={3} placeholder={t('become_business.description_placeholder')}
               value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
-          <LocationPicker label={noEmoji(t('become_business.location_label'))} value={location} onChange={setLocation} />
           <Field label={noEmoji(t('become_business.address_label'))}>
             <input type="text" placeholder={t('become_business.address_placeholder')}
               value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} style={inputStyle} />
           </Field>
-          <Field label={noEmoji(t('become_business.phone_label'))}>
-            <input type="tel" placeholder="255712345678" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={inputStyle} />
-          </Field>
           <Field label={noEmoji(t('become_business.email_label'))}>
             <input type="email" placeholder="business@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inputStyle} />
           </Field>
+            </>
+          )}
           {!isLoggedIn && (
             <Note tone="amber">
               {noEmoji(t('become_business.login_required_pre'))}{' '}
