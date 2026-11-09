@@ -70,6 +70,19 @@ export class InstagramBusinessConnection {
   @Column({ type: 'boolean', default: false })
   webhookSubscribed: boolean;
 
+  // Facebook Login works through the Page linked to the Instagram account (migration
+  // 1795400000000): accessTokenEncrypted holds that Page's access token, which messages are sent
+  // and the webhook is subscribed with.
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  facebookPageId: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  facebookPageName: string | null;
+
+  /** Why Meta refused the message subscription (Meta's own short message), when it did. */
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  webhookError: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

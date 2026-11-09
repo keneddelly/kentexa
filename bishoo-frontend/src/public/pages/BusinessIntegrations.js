@@ -6,6 +6,16 @@ const BLUE = '#2563eb';
 const INK = '#0f172a';
 const MUTED = '#64748b';
 
+// Why a connection failed, from the server's ?instagramReason= (owner 2026-11-09: one vague
+// message hid the real cause). Plain steps the business can follow.
+export const REASON_TEXT = {
+  cancelled: 'Uliacha kuunganisha kwenye ukurasa wa Meta. Bonyeza Connect Instagram tena na ukubali ruhusa zote.',
+  permission: 'Ruhusa za ujumbe hazikutolewa. Bonyeza Connect Instagram tena na uchague "Allow" kwa ruhusa zote (ujumbe na Page).',
+  no_instagram: 'Hakuna Facebook Page yenye Instagram Professional iliyochaguliwa. Unganisha Instagram yako na Facebook Page yako (Instagram > Settings > Account type and tools), kisha jaribu tena na uchague Page hiyo.',
+  webhook: 'Instagram imeunganishwa, lakini Meta haikuruhusu ujumbe kuja KenteXa bado. Angalia ujumbe chini ya akaunti, kisha bonyeza Add / reconnect.',
+  meta: 'Meta haikujibu vizuri. Subiri kidogo kisha jaribu tena.',
+};
+
 export default function BusinessIntegrations({ businessId, onNavigate, returnTo }) {
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,13 +43,16 @@ export default function BusinessIntegrations({ businessId, onNavigate, returnTo 
     load();
     const params = new URLSearchParams(window.location.search);
     const oauthResult = params.get('instagramOAuth');
+    const reason = params.get('instagramReason');
     if (oauthResult === 'success') {
-      setNotice('Instagram imeunganishwa. Akaunti yako inathibitishwa...');
+      if (reason === 'webhook') setError(REASON_TEXT.webhook);
+      else setNotice('Instagram imeunganishwa. Ujumbe mpya utaingia kwenye Inbox.');
     } else if (oauthResult === 'error') {
-      setError('Instagram haikuweza kuunganishwa. Hakikisha umechagua Instagram Professional account na kutoa ruhusa za ujumbe, kisha jaribu tena.');
+      setError(REASON_TEXT[reason] || 'Instagram haikuweza kuunganishwa. Hakikisha umechagua Facebook Page yenye Instagram Professional na kutoa ruhusa za ujumbe, kisha jaribu tena.');
     }
     if (oauthResult) {
       params.delete('instagramOAuth');
+      params.delete('instagramReason');
       params.delete('businessId');
       const query = params.toString();
       window.history.replaceState(window.history.state, '', window.location.pathname + (query ? '?' + query : '') + window.location.hash);
@@ -116,10 +129,12 @@ export default function BusinessIntegrations({ businessId, onNavigate, returnTo 
                       <div>
                         <div style={{ fontSize: 15, fontWeight: 800 }}>@{connection.instagramUsername || connection.username || 'Instagram account'}</div>
                         <div style={{ color: active ? '#15803d' : '#b45309', fontSize: 13, marginTop: 4 }}>
-                          {active ? 'Connected' : connection.status === 'reauth_required' ? 'Needs reconnection' : connection.status || 'Disconnected'}
+                          {active ? 'Imeunganishwa' : connection.status === 'reauth_required' ? 'Unganisha tena: bonyeza Add / reconnect' : 'Imekatwa'}
                         </div>
-                        <div style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
-                          {connection.webhookSubscribed ? 'Message webhook subscribed' : 'Webhook subscription not confirmed'}
+                        {connection.facebookPageName && <div style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>Kupitia Page: {connection.facebookPageName}</div>}
+                        <div data-testid={`ig-webhook-${connection.id}`} style={{ color: connection.webhookSubscribed ? '#15803d' : '#b45309', fontSize: 12, marginTop: 4 }}>
+                          {connection.webhookSubscribed ? 'Ujumbe unaingia KenteXa' : 'Ujumbe bado hauingii KenteXa'}
+                          {!connection.webhookSubscribed && connection.webhookError ? `: ${connection.webhookError}` : ''}
                         </div>
                       </div>
                       <button type="button" onClick={() => disconnect(connection.id)} disabled={disconnecting === connection.id}

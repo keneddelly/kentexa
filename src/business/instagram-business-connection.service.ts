@@ -28,6 +28,8 @@ export class InstagramBusinessConnectionService {
       connectedAt: row.connectedAt,
       lastVerifiedAt: row.lastVerifiedAt,
       webhookSubscribed: row.webhookSubscribed,
+      facebookPageName: row.facebookPageName ?? null,
+      webhookError: row.webhookError ?? null,
     }));
   }
 

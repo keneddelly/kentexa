@@ -10,7 +10,23 @@ import { InstagramBusinessAccessService } from './instagram-business-access.serv
 import { InstagramTokenCryptoService } from './instagram-token-crypto.service';
 
 type MetaTokenResponse = { access_token?: string; token_type?: string; expires_in?: number };
-type MetaAccount = { id?: string; username?: string };
+type MetaPage = { id?: string; name?: string; access_token?: string; instagram_business_account?: { id?: string; username?: string } };
+
+/** Permissions the Page-based Instagram messaging needs (Meta: Instagram Messaging, Get started). */
+export const REQUIRED_PERMISSIONS = ['instagram_manage_messages', 'pages_manage_metadata', 'pages_show_list'];
+
+/** A connection failure the business can act on; `reason` goes back to the page (no Meta details). */
+export class InstagramConnectError extends BadRequestException {
+  constructor(readonly reason: 'permission' | 'no_instagram', message: string) { super({ code: 'INSTAGRAM_' + reason.toUpperCase(), message }); }
+}
+
+/** Meta's own short error text ("(#200) ..."), never tokens or request details. */
+const metaError = (error: any): string | null => {
+  const e = error?.response?.data?.error;
+  if (!e) return null;
+  return [e.code != null ? `(#${e.code})` : null, typeof e.message === 'string' ? e.message.replace(/access_token=[^&\s]+/g, 'access_token=***') : null]
+    .filter(Boolean).join(' ') || null;
+};
 
 @Injectable()
 export class InstagramOAuthService {
@@ -78,89 +94,107 @@ export class InstagramOAuthService {
     const graph = `https://graph.facebook.com/${version}`;
 
     try {
+      // 1. The code gives a short-lived user token (about 1 to 2 hours) ...
       const tokenResponse = await axios.get<MetaTokenResponse>(`${graph}/oauth/access_token`, {
         params: { client_id: appId, client_secret: appSecret, redirect_uri: redirectUri, code },
         timeout: 15000,
       });
-      const token = tokenResponse.data?.access_token;
-      if (!token) throw new Error('Meta did not return an access token.');
+      const shortToken = tokenResponse.data?.access_token;
+      if (!shortToken) throw new Error('Meta did not return an access token.');
+      // ... 2. exchanged for a long-lived one, so the Page tokens taken from it do not expire
+      // (owner 2026-11-09: the connection kept stopping; the short token was stored before).
+      let userToken = shortToken;
+      try {
+        const long = await axios.get<MetaTokenResponse>(`${graph}/oauth/access_token`, {
+          params: { grant_type: 'fb_exchange_token', client_id: appId, client_secret: appSecret, fb_exchange_token: shortToken },
+          timeout: 15000,
+        });
+        if (long.data?.access_token) userToken = long.data.access_token;
+      } catch {
+        this.logger.warn('Instagram: the long-lived token exchange failed; using the short-lived token.');
+      }
 
-      const [permissionResponse, accountResponse] = await Promise.all([
-        axios.get(`${graph}/me/permissions`, { params: { access_token: token }, timeout: 15000 }),
-        axios.get(`${graph}/me/assigned_instagram_accounts`, {
-          params: { fields: 'id,username', access_token: token }, timeout: 15000,
-        }),
-      ]);
-
+      const permissionResponse = await axios.get(`${graph}/me/permissions`, { params: { access_token: userToken }, timeout: 15000 });
       const permissions: Array<{ permission?: string; status?: string }> = permissionResponse.data?.data || [];
-      const hasMessaging = permissions.some(p =>
-        p.permission === 'instagram_manage_messages' && p.status === 'granted',
-      );
-      if (!hasMessaging) {
-        throw new BadRequestException('Instagram messaging permission was not granted. Check the Meta login configuration and reconnect.');
+      const granted = permissions.filter(p => p.status === 'granted').map(p => p.permission!).filter(Boolean);
+      const missing = REQUIRED_PERMISSIONS.filter(p => !granted.includes(p));
+      if (missing.length) {
+        throw new InstagramConnectError('permission', `Instagram permissions were not granted: ${missing.join(', ')}. Reconnect and allow them.`);
       }
 
-      const accounts: MetaAccount[] = accountResponse.data?.data || [];
-      const validAccounts = accounts.filter(a => /^\d{1,128}$/.test(String(a.id || '')) && typeof a.username === 'string' && a.username.trim());
-      if (!validAccounts.length) {
-        throw new BadRequestException('No Instagram professional accounts were shared with this integration. Check the selected business portfolio and account permissions.');
+      // 3. The Pages this person manages, each with its Page token and its Instagram account
+      // (Meta: GET /me/accounts; the Instagram account is the Page's instagram_business_account).
+      const pages = await this.pagesWithInstagram(graph, userToken);
+      if (!pages.length) {
+        throw new InstagramConnectError('no_instagram',
+          'No Facebook Page with a linked Instagram professional account was shared. Link the Instagram account to a Facebook Page, then reconnect.');
       }
 
-      const encrypted = this.crypto.encrypt(token);
-      const expiresAt = Number(tokenResponse.data.expires_in) > 0
-        ? new Date(Date.now() + Number(tokenResponse.data.expires_in) * 1000)
-        : null;
       const connected: Array<{ id: number; username: string; webhookSubscribed: boolean }> = [];
-
-      for (const account of validAccounts) {
-        const instagramUserId = String(account.id);
+      for (const page of pages) {
+        const instagramUserId = page.instagramId;
         let connection = await this.connections.findOne({ where: { businessId, instagramUserId } });
-        if (!connection) {
-          connection = this.connections.create({
-            businessId,
-            instagramUserId,
-            instagramUsername: String(account.username || '').trim().replace(/^@/, ''),
-            accessTokenEncrypted: encrypted,
-            tokenExpiresAt: expiresAt,
-            grantedScopes: permissions.filter(p => p.status === 'granted').map(p => p.permission!).filter(Boolean),
-            status: InstagramBusinessConnectionStatus.ACTIVE,
-            connectedByUserId: userId,
-            connectedAt: now,
-            lastVerifiedAt: now,
-          });
-        } else {
-          connection.instagramUsername = String(account.username || '').trim().replace(/^@/, '');
-          connection.accessTokenEncrypted = encrypted;
-          connection.tokenExpiresAt = expiresAt;
-          connection.grantedScopes = permissions.filter(p => p.status === 'granted').map(p => p.permission!).filter(Boolean);
-          connection.status = InstagramBusinessConnectionStatus.ACTIVE;
-          connection.connectedByUserId = userId;
-          connection.connectedAt = now;
-          connection.lastVerifiedAt = now;
-        }
+        if (!connection) connection = this.connections.create({ businessId, instagramUserId, connectedAt: now });
+        connection.instagramUsername = page.instagramUsername;
+        connection.facebookPageId = page.pageId;
+        connection.facebookPageName = page.pageName;
+        connection.accessTokenEncrypted = this.crypto.encrypt(page.pageToken);
+        // A Page token from a long-lived user token has no expiry.
+        connection.tokenExpiresAt = null;
+        connection.grantedScopes = granted;
+        connection.status = InstagramBusinessConnectionStatus.ACTIVE;
+        connection.connectedByUserId = userId;
+        connection.connectedAt = now;
+        connection.lastVerifiedAt = now;
         const saved = await this.connections.save(connection);
-        let webhookSubscribed = false;
-        try {
-          await axios.post(
-            `${graph}/${instagramUserId}/subscribed_apps`,
-            {},
-            { params: { subscribed_fields: 'messages', access_token: token }, timeout: 15000 },
-          );
-          webhookSubscribed = true;
-        } catch {
-          // Account connection remains valid, but inbound DMs will not arrive
-          // until the app-level webhook is configured and subscription succeeds.
-          this.logger.warn(`Instagram webhook subscription is pending for connection ${saved.id}.`);
-        }
-        await this.connections.update(saved.id, { webhookSubscribed });
-        connected.push({ id: saved.id, username: saved.instagramUsername, webhookSubscribed });
+
+        // 4. Messages come to Kentexa when the PAGE is subscribed, with the Page token.
+        const subscription = await this.subscribePage(graph, page.pageId, page.pageToken);
+        await this.connections.update(saved.id, { webhookSubscribed: subscription.ok, webhookError: subscription.error });
+        if (!subscription.ok) this.logger.warn(`Instagram: message subscription refused for connection ${saved.id}: ${subscription.error}`);
+        connected.push({ id: saved.id, username: saved.instagramUsername, webhookSubscribed: subscription.ok });
       }
 
       return { connected, businessId };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error('Instagram OAuth exchange or account discovery failed.');
+      this.logger.error(`Instagram OAuth exchange or account discovery failed: ${metaError(error) || 'unknown'}`);
       throw new ServiceUnavailableException('Meta could not complete the Instagram connection. Please retry the connection flow.');
+    }
+  }
+
+  /** Pages the person manages that have an Instagram professional account, with their tokens. */
+  private async pagesWithInstagram(graph: string, userToken: string) {
+    const out: Array<{ pageId: string; pageName: string | null; pageToken: string; instagramId: string; instagramUsername: string }> = [];
+    let url: string | null = `${graph}/me/accounts`;
+    let params: Record<string, unknown> | undefined = {
+      fields: 'id,name,access_token,instagram_business_account{id,username}', limit: 100, access_token: userToken,
+    };
+    for (let i = 0; url && i < 5; i += 1) {
+      const response = await axios.get(url, { params, timeout: 15000 });
+      for (const page of (response.data?.data || []) as MetaPage[]) {
+        const ig = page.instagram_business_account;
+        if (!/^\d{1,128}$/.test(String(page.id || '')) || !page.access_token || !/^\d{1,128}$/.test(String(ig?.id || ''))) continue;
+        out.push({
+          pageId: String(page.id), pageName: page.name ? String(page.name).slice(0, 255) : null, pageToken: String(page.access_token),
+          instagramId: String(ig!.id), instagramUsername: String(ig!.username || page.name || 'instagram').trim().replace(/^@/, '').slice(0, 255),
+        });
+      }
+      url = response.data?.paging?.next || null;
+      params = undefined; // the next link carries its own query
+    }
+    return out;
+  }
+
+  /** POST /{page-id}/subscribed_apps?subscribed_fields=messages with the Page token. */
+  private async subscribePage(graph: string, pageId: string, pageToken: string): Promise<{ ok: boolean; error: string | null }> {
+    try {
+      const response = await axios.post(`${graph}/${pageId}/subscribed_apps`, {}, {
+        params: { subscribed_fields: 'messages', access_token: pageToken }, timeout: 15000,
+      });
+      return response.data?.success === true ? { ok: true, error: null } : { ok: false, error: 'Meta did not confirm the subscription.' };
+    } catch (error) {
+      return { ok: false, error: (metaError(error) || 'Meta refused the message subscription.').slice(0, 300) };
     }
   }
 
