@@ -208,6 +208,21 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     assignmentService = new ParcelRunAssignmentService(
       ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, obligationService,
     );
+    // Movement authority (added after these suites were written): a carrier may only load a parcel
+    // it holds an open tender for. The suites test run/stop rules, so each assignment first gets an
+    // open release tender for the Run's own provider (owner 2026-11-09: repair the baseline).
+    const assignWithoutTender = assignmentService.createAssignment.bind(assignmentService);
+    (assignmentService as any).createAssignment = async (userId: number, dto: any, ...rest: any[]) => {
+      const [run] = await ds.query(`SELECT "providerId" FROM public.transport_run WHERE id = $1`, [dto?.runId]);
+      if (run && dto?.parcelId) {
+        await ds.query(
+          `INSERT INTO public.parcel_movement_tender ("parcelId", "transportProviderId", source, status, "idempotencyKey")
+           VALUES ($1, $2, 'super_agent_release', 'open', $3) ON CONFLICT ("idempotencyKey") DO NOTHING`,
+          [dto.parcelId, run.providerId, `test-release:${dto.parcelId}:${run.providerId}`],
+        );
+      }
+      return assignWithoutTender(userId, dto, ...rest);
+    };
   });
 
   afterAll(async () => { if (ds) await ds.destroy().catch(() => {}); });
@@ -228,6 +243,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ds.query(`DELETE FROM public.parcel_tracking`);
     await ds.query(`DELETE FROM public.parcel`);
     await ds.query(`DELETE FROM public.journey_leg`);
+    await ds.query(`DELETE FROM public.parcel_movement_tender`);
     await ds.query(`DELETE FROM public.journey_selection`);
     await ds.query(`DELETE FROM public.super_agent`);
   });

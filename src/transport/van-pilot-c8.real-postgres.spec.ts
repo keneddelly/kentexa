@@ -180,6 +180,13 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
     await new MakeShipmentProviderTenderGenerationSafe1788289200000().up(ds.createQueryRunner() as any);
     // Direct-booking authority reads Parcel -> Shipment.providerId (a bare stand-in).
     await ds.query(`CREATE TABLE IF NOT EXISTS public.shipment (id SERIAL PRIMARY KEY, "providerId" integer NULL)`);
+    // Journey stand-ins read by assignment (same as parcel-run-assignment's fixture).
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.journey_selection (id integer PRIMARY KEY, status varchar(24) NOT NULL)`);
+    await ds.query(`CREATE TABLE IF NOT EXISTS public.journey_leg (
+      id serial PRIMARY KEY, "journeySelectionId" integer NOT NULL, sequence integer NOT NULL,
+      type varchar(24) NOT NULL, "providerId" integer, "routeId" integer, "runId" integer,
+      "loadRouteStopId" integer, "unloadRouteStopId" integer
+    )`);
     // Stage 3S-C7 tables -- registered only so invariant #16 can positively
     // assert they stay EMPTY after a full C8 journey, never to exercise them.
     await ds.query(`CREATE TABLE public.super_agent_settlement_proposal (id SERIAL PRIMARY KEY)`);
@@ -207,6 +214,21 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
     assignmentService = new ParcelRunAssignmentService(
       ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, obligationService,
     );
+    // Movement authority (added after these suites were written): a carrier may only load a parcel
+    // it holds an open tender for. The suites test run/stop rules, so each assignment first gets an
+    // open release tender for the Run's own provider (owner 2026-11-09: repair the baseline).
+    const assignWithoutTender = assignmentService.createAssignment.bind(assignmentService);
+    (assignmentService as any).createAssignment = async (userId: number, dto: any, ...rest: any[]) => {
+      const [run] = await ds.query(`SELECT "providerId" FROM public.transport_run WHERE id = $1`, [dto?.runId]);
+      if (run && dto?.parcelId) {
+        await ds.query(
+          `INSERT INTO public.parcel_movement_tender ("parcelId", "transportProviderId", source, status, "idempotencyKey")
+           VALUES ($1, $2, 'super_agent_release', 'open', $3) ON CONFLICT ("idempotencyKey") DO NOTHING`,
+          [dto.parcelId, run.providerId, `test-release:${dto.parcelId}:${run.providerId}`],
+        );
+      }
+      return assignWithoutTender(userId, dto, ...rest);
+    };
     journeyService = new ParcelJourneyService(ds, assignmentService);
 
     await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 3600000), createdByUserId: null });

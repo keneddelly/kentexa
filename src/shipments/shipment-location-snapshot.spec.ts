@@ -43,9 +43,15 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
       update: jest.fn(),
       find: jest.fn(),
     };
+    let txChain: Promise<unknown> = Promise.resolve();
     shipmentRepo.manager = {
       // The Parcel is created inside the same transaction (ensureParcelForShipment).
-      transaction: (cb: any) => cb({ getRepository: (cls: any) => (cls?.name === 'Parcel' ? parcelRepo : shipmentRepo) }),
+      // One transaction at a time, like the Shipment row lock the real confirmation takes.
+      transaction: (cb: any) => {
+        const run = txChain.then(() => cb({ getRepository: (cls: any) => (cls?.name === 'Parcel' ? parcelRepo : shipmentRepo) }));
+        txChain = run.catch(() => undefined);
+        return run;
+      },
     };
     parcelRepo = {
       findOne: jest.fn(),
@@ -186,8 +192,11 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
     const tracked = await service.trackShipment('KTX-SHP-1');
 
     expect(Object.keys(tracked).sort()).toEqual(
+      // The waybill fields (number, parcel status, current holder and place) joined public
+      // tracking with the shared waybill; still no snapshot values (checked below).
       ['trackingNumber', 'status', 'originCity', 'destinationCity', 'itemDescription', 'weightKg', 'pickupOption',
-        'deliveryOption', 'receiverName', 'collectedAt', 'deliveredAt', 'completedAt', 'createdAt', 'parcelTrackingNumber'].sort(),
+        'deliveryOption', 'receiverName', 'collectedAt', 'deliveredAt', 'completedAt', 'createdAt', 'parcelTrackingNumber',
+        'waybillNumber', 'parcelStatus', 'holder', 'location'].sort(),
     );
     const json = JSON.stringify(tracked);
     for (const leak of ['SECRET-LABEL', '-6.123456', '39.654321', 'SECRET-REGION', 'SECRET-DISTRICT', 'secret_provider', '0711111111']) {
@@ -204,10 +213,8 @@ describe('Shipment location snapshot: confirmation boundary, immutability, track
     const { parcel } = await service.confirmShipment(7, 1, { providerId: 5 });
     expect(parcel.order).toBeNull();
     expect(parcel.source).toBe('shipment');
-    // The service has no order/payment/wallet collaborator at all: its 7 injected
-    // dependencies are the shipment/route/parcel/hub repositories, transport, tz-location
-    // and (Stage 2D) location intelligence.
-    expect(ShipmentsService.length).toBe(7);
+    // The service has no order/payment/wallet collaborator at all. (Its constructor grew with
+    // later stages, so the old fixed count of 7 was dropped; the source check below is the proof.)
     const src = require('fs')
       .readFileSync(require('path').join(__dirname, 'shipments.service.ts'), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')

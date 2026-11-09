@@ -103,8 +103,8 @@ suite('Route discovery — real PostgreSQL, production-shaped data', () => {
     ids.slotOneChar = (await mkSlot(pD, { fromCity: 'a', toCity: 'Mbeya' })).id;
     ids.slotUnderscore = (await mkSlot(pD, { fromCity: 'Dar_es', toCity: 'Tanga' })).id;
 
-    const args: any[] = new Array(14).fill({});
-    args[0] = providers; args[1] = routes; args[2] = slots;
+    const args: any[] = new Array(16).fill({});
+    args[0] = providers; args[1] = routes; args[2] = slots; args[15] = ds; // discoverSupply reads dataSource (index 15)
     transport = new (TransportService as any)(...args);
     shipments = new ShipmentsService({} as any, {} as any, {} as any, {} as any, transport, tz, li);
   });
