@@ -8,9 +8,8 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
   const [network, setNetwork]   = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading]           = useState(true);
-  const [batchStatus, setBatchStatus]   = useState(null);
 
-  useEffect(() => { fetchStats(); fetchPlatformIntelligence(); fetchBatchStatus(); }, []);
+  useEffect(() => { fetchStats(); fetchPlatformIntelligence(); }, []);
 
   // One call, every number counted in the database (owner 2026-11-09). This used to download
   // every product, order, advert and user to count them here.
@@ -37,13 +36,6 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
     } catch (err) {
       console.error('Failed to load platform intelligence', err);
     }
-  };
-
-  const fetchBatchStatus = async () => {
-    try {
-      const res = await api.get('/daily-batches/manifest/today');
-      setBatchStatus(res.data);
-    } catch { setBatchStatus(null); }
   };
 
   const n = (v) => (v == null ? '—' : Number(v).toLocaleString('en-US'));
@@ -103,27 +95,6 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
           </button>
         </div>
 
-        {/* Batch Delivery Banner */}
-        {batchStatus?.batch && (
-          <div onClick={() => onNavigate('DispatcherManifest')}
-            style={{ backgroundColor: '#0f1419', borderRadius: 14, padding: '16px 20px', marginBottom: 24, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#a5b4fc', marginBottom: 4 }}>Dar es Salaam Batch Delivery — Leo</div>
-              <div style={{ fontSize: 22, fontWeight:800, color: '#fff' }}>
-                {batchStatus.totalParcels} vifurushi
-                <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 400, marginLeft: 8 }}>
-                  · {batchStatus.zones?.length || 0} maeneo · Mbagala → Mbezi → Bunju
-                </span>
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, backgroundColor: '#0f1419', color: '#fff', marginBottom: 4 }}>
-                {batchStatus.batch.status?.toUpperCase().replace(/_/g, ' ')}
-              </div>
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>Angalia Manifest →</div>
-            </div>
-          </div>
-        )}
 
         {/* Waiting for someone at KenteXa */}
         {!loading && overview && (
@@ -289,9 +260,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                 { label: 'Malipo Wauzaji',    page: 'Payouts',           color: '#dcfce7', text: '#16a34a' },
                 { label: 'My Profile',        page: 'Profile',           color: '#f1f5f9', text: '#64748b' },
                 { label: 'Analytics',         page: 'Analytics',         color: '#eff6ff', text: '#1d4ed8' },
-                { label: 'Maeneo ya Van',     page: 'ZoneManagement',    color: '#f7f9f9', text: '#0f1419' },
                 { label: 'Bei za Boda',        page: 'BodaRates',         color: '#fffbeb', text: '#92400e' },
-                { label: 'Manifest ya Leo',   page: 'DispatcherManifest', color: '#dbeafe', text: '#1d4ed8' },
               ].map(action => (
                 <button key={action.page} onClick={() => onNavigate(action.page)}
                   style={{ backgroundColor: action.color, color: action.text, border: 'none', padding: '14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', textAlign: 'left' }}>
@@ -309,7 +278,6 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                 { label: 'Backend API',        status: 'Online',    color: '#16a34a' },
                 { label: 'Database',           status: 'Connected', color: '#16a34a' },
                 { label: 'Malipo',           status: 'Sandbox',   color: '#d97706' },
-                { label: 'Dar Batch Delivery', status: batchStatus?.batch ? `${batchStatus.totalParcels} vifurushi leo` : 'Hakuna batch', color: batchStatus?.batch ? '#0f1419' : '#94a3b8' },
               ].map(item => (
                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ fontSize: '13px', color: '#64748b' }}>{item.label}</span>

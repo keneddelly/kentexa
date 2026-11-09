@@ -193,7 +193,7 @@ const PCard = ({ p, actions = [] }) => (
 const OFFICE_SCREEN_TITLE = { pokea: 'POKEA', tuma: 'TUMA', menu: 'Menyu', historia: 'Historia', mapato: 'Mapato', bei: 'Bei zangu', van: 'Van', washirika: 'Washirika' };
 const MENU_PAGES = ['historia', 'mapato', 'bei', 'van', 'washirika'];
 
-const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKentexa, onInstallKentexa, installEnv, installReady }) => {
+const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKentexa, onInstallKentexa, installEnv, installReady, startTab }) => {
   const { t } = useTranslation();
 
   // ── Core state ────────────────────────────────────────────────────────────
@@ -203,7 +203,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
   const [localAgents, setLocalAgents]   = useState([]);
   const [loading, setLoading]           = useState(true);
   const [profileStatus, setProfileStatus] = useState(null);
-  const [activeTab, setActiveTab]       = useState('home');
+  // "+" -> Pokea mzigo ofisini opens straight on POKEA (owner 2026-11-09).
+  const [activeTab, setActiveTab]       = useState(startTab === 'pokea' || startTab === 'tuma' ? startTab : 'home');
   const [tumaMode, setTumaMode]         = useState('list'); // 'list' | 'shehena'
   const [historiaSearch, setHistoriaSearch] = useState('');
   const [historyModal, setHistoryModal] = useState(null); // { trackingNumber, loading, data, error }

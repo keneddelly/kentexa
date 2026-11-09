@@ -139,15 +139,11 @@ import OfficialProducts from './admin/pages/OfficialProducts';
 import Agents from './admin/pages/Agents';
 import SuperAgentDashboard from './public/pages/SuperAgentDashboard';
 import TrackParcel from './public/pages/TrackParcel';
-import DispatcherManifest from './public/pages/DispatcherManifest';
-import HubReceive from './public/pages/HubReceive';
-import ZoneManagement from './admin/pages/ZoneManagement';
 import BodaRates from './admin/pages/BodaRates';
 import RouteManagement from './admin/pages/RouteManagement';
 import AgentPerformance from './admin/pages/AgentPerformance';
 import FinancialDashboard from './admin/pages/FinancialDashboard';
 import CollectionFees from './admin/pages/CollectionFees';
-import BatchHandoff from './public/pages/BatchHandoff';
 import SuperAgentParcel from './public/pages/SuperAgentParcel';
 import SuperAgentSettings from './public/pages/SuperAgentSettings';
 import MyAdvertising from './public/pages/MyAdvertising';
@@ -911,7 +907,7 @@ function App() {
     if (page.startsWith('BuyerParcelAction-'))
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))
-      return requireLogin(<BatchHandoff {...publicProps} orderId={page.split('BatchHandoff-')[1]} />);
+      return requireLogin(<SuperAgentDashboard {...publicProps} startTab="tuma" />);
     // PayInvoice is hidden for now (owner 2026-11-02): it pays through KenteXa, and KenteXa
     // never holds money. Old links land on the buyer's orders (or Home for a visitor).
     if (page.startsWith('PayInvoice-'))
@@ -1045,10 +1041,12 @@ function App() {
       case 'SellerInvoices':    return requireVerifiedSeller(<SellerInvoices {...publicProps} preSelected={navParams?.preSelected} />);
       case 'AgentDashboard':    return requireLogin(<AgentDashboard {...publicProps} />);
       case 'AgentOrderDashboard': return requireLogin(<AgentDashboard {...publicProps} />); // merged into unified dashboard
-      case 'SuperAgentDashboard':   return requireLogin(<SuperAgentDashboard {...publicProps} />);
-      case 'DispatcherManifest':    return requireLogin(<DispatcherManifest {...publicProps} />);
-      case 'HubReceive':           return requireLogin(<HubReceive {...publicProps} />);
-      case 'BatchHandoff':          return requireLogin(<BatchHandoff {...publicProps} />);
+      case 'SuperAgentDashboard':   return requireLogin(<SuperAgentDashboard {...publicProps} startTab={navParams?.tab} />);
+      // The old daily-batch screens read an API that is not served (owner 2026-11-09 audit, known fault #11):
+      // they open the office's own POKEA / TUMA instead.
+      case 'DispatcherManifest':    return requireLogin(<SuperAgentDashboard {...publicProps} startTab="tuma" />);
+      case 'HubReceive':           return requireLogin(<SuperAgentDashboard {...publicProps} startTab="pokea" />);
+      case 'BatchHandoff':          return requireLogin(<SuperAgentDashboard {...publicProps} startTab="tuma" />);
       case 'SuperAgentParcel':       return requireLogin(<SuperAgentParcel {...publicProps} />);
       case 'SuperAgentSettings':     return requireLogin(<SuperAgentSettings {...publicProps} />);
       case 'SellerShipment':         return requireVerifiedSeller(<SellerShipment {...publicProps} prefill={navParams} />);
@@ -1100,7 +1098,6 @@ function App() {
       case 'ContactMessages': return requireAdmin(<ContactMessages activePage={page} {...adminProps} />);
       case 'Announcements':    return requireAdmin(<Announcements activePage={page} targetUserId={navParams?.targetUserId} targetName={navParams?.targetName} {...adminProps} />);
       case 'Analytics':        return requireAdmin(<Analytics activePage={page} {...adminProps} />);
-      case 'ZoneManagement':    return requireAdmin(<ZoneManagement onNavigate={handleNavigate} onLogout={handleLogout} />);
       case 'BodaRates':         return requireAdmin(<BodaRates onNavigate={handleNavigate} onLogout={handleLogout} />);
       case 'RouteManagement':   return requireAdmin(<RouteManagement onNavigate={handleNavigate} onLogout={handleLogout} />);
       case 'CollectionFees':    return requireAdmin(<CollectionFees onNavigate={handleNavigate} onLogout={handleLogout} />);
