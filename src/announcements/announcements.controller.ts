@@ -15,7 +15,8 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-import { KentexaMessagesService, MessageDraft } from './kentexa-messages.service';
+import { KentexaMessagesService } from './kentexa-messages.service';
+import type { MessageDraft } from './kentexa-messages.service';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
 

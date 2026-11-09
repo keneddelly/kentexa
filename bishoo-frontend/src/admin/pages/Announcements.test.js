@@ -43,7 +43,8 @@ test('admin approves a waiting message', async () => {
   useOptionalRoleContext.mockReturnValue({ activeContext: { roleType: 'admin' }, user: { id: 9 } });
   api.post.mockResolvedValue({ data: {} });
   render(<Announcements activePage="Announcements" onNavigate={jest.fn()} onLogout={jest.fn()} />);
-  await act(async () => { fireEvent.click(await screen.findByTestId('approve-2')); });
+  const approve = await screen.findByTestId('approve-2');
+  await act(async () => { fireEvent.click(approve); });
   expect(api.post).toHaveBeenCalledWith('/announcements/messages/2/approve', {});
 });
 

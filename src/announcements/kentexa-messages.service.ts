@@ -228,7 +228,7 @@ export class KentexaMessagesService {
     if (!claim.affected) return this.get(id);
     const a = await this.get(id);
     try {
-      const list = await this.recipients(a);
+      const list = await this.recipients(a as unknown as MessageDraft);
       const now = new Date();
       const body = this.body(a);
       const delivered: { userId: number; notificationId: number | null }[] = [];
