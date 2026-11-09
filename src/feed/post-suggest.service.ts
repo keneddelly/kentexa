@@ -29,7 +29,7 @@ export function cleanSuggestion(data: any, draft: { text: string; kind: string }
   if (!data || typeof data !== 'object') return null;
   const kind = (SUGGEST_KINDS as readonly string[]).includes(data.kind) ? data.kind : null;
   if (!kind) return null; // 'none' or anything unknown: the draft is fine as it is
-  let text: string | null = typeof data.text === 'string' ? data.text.trim().slice(0, COMPOSER_LIMITS.text) : null;
+  let text: string | null = typeof data.text === 'string' ? data.text.trim().slice(0, COMPOSER_LIMITS.text) || null : null;
   if (text && text === draft.text.trim()) text = null;
   const options = kind === 'poll'
     ? [...new Set((Array.isArray(data.options) ? data.options : []).map((o: unknown) => clip(o, 80)).filter(Boolean))].slice(0, 6) as string[]
