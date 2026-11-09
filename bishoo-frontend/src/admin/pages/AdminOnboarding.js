@@ -72,12 +72,15 @@ export default function AdminOnboarding({ activePage, onNavigate, onLogout }) {
               {data.goals.map((g) => {
                 const meta = GOALS.find((x) => x.key === g.key);
                 return (
-                  <div key={g.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 260px) 1fr 80px', gap: 12, alignItems: 'center', padding: '6px 0' }}>
+                  <div key={g.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 260px) 1fr 110px', gap: 12, alignItems: 'center', padding: '6px 0' }}>
                     <span style={{ fontSize: 14 }}>{meta?.label || g.key}</span>
                     <span style={{ height: 12, background: '#f1f5f9', borderRadius: 6, overflow: 'hidden' }}>
                       <span style={{ display: 'block', height: '100%', width: `${((g.count || 0) / goalMax) * 100}%`, background: '#0f1419', borderRadius: 6 }} />
                     </span>
-                    <b style={{ fontSize: 14, textAlign: 'right' }}>{fmt(g.count)}</b>
+                    <b style={{ fontSize: 14, textAlign: 'right' }} data-testid={`goal-${g.key}`}>
+                      {fmt(g.count)}
+                      {g.acted != null && <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: MUTED }}>walifanya {fmt(g.acted)}</span>}
+                    </b>
                   </div>
                 );
               })}

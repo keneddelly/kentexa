@@ -3,7 +3,8 @@
  * (onboardingState.goals) and has not finished yet: each row opens its short form. Done is read
  * from the person's real roles and businesses (utils/goals). Hidden on this phone with "Ficha".
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '../../api/api';
 import { goalsToFinish } from '../../utils/goals';
 
 const INK = '#0f1419';
@@ -13,7 +14,16 @@ const KEY = 'kentexa_goals_hidden';
 
 export default function GoalsCard({ currentUser, roleOptions, businesses, onNavigate }) {
   const [hidden, setHidden] = useState(() => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } });
-  const left = goalsToFinish(currentUser?.onboardingState?.goals, { roles: roleOptions || [], businesses: businesses || [] });
+  // "Uza tena" is done once the person joined as a reseller (owner 2026-11-10).
+  const wantsResell = (currentUser?.onboardingState?.goals || []).includes('resell');
+  const [resaleMember, setResaleMember] = useState(false);
+  useEffect(() => {
+    if (!wantsResell) return undefined;
+    let alive = true;
+    api.get('/resale/membership').then((r) => { if (alive) setResaleMember(!!r?.data?.member); }).catch(() => {});
+    return () => { alive = false; };
+  }, [wantsResell]);
+  const left = goalsToFinish(currentUser?.onboardingState?.goals, { roles: roleOptions || [], businesses: businesses || [], resaleMember });
   if (hidden || !left.length) return null;
   const hide = () => { try { localStorage.setItem(KEY, '1'); } catch { /* storage blocked */ } setHidden(true); };
   return (

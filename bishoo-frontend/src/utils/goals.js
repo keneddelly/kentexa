@@ -4,10 +4,11 @@
 const has = (roles, type, statuses = ['active', 'pending']) => (roles || []).some((r) => r.roleType === type && statuses.includes(String(r.status || 'active')));
 
 export const GOALS = [
+  // "Uza tena" first (owner 2026-11-10: our door to the market): income without a shop or stock.
+  // Done once the person has joined as a reseller; until then Kazi keeps the reminder.
+  { key: 'resell', label: 'Pata kipato bila duka (Uza tena)', hint: 'Uza bidhaa za maduka kwa bei yako, bila mtaji', page: 'MyResales', done: ({ resaleMember }) => !!resaleMember },
   { key: 'buy', label: 'Kununua na kugundua', hint: 'Bidhaa, huduma na biashara za karibu', page: 'Discover', done: () => true },
   { key: 'sell', label: 'Kuuza bidhaa', hint: 'Fungua duka lako', page: 'BecomeSeller', done: ({ roles }) => has(roles, 'seller') },
-  // "Uza tena" (owner 2026-11-09): no shop needed; the page lists products open for resellers.
-  { key: 'resell', label: 'Kuuza bidhaa za wengine', hint: 'Weka bei yako, pata faida, bila duka', page: 'MyResales', done: () => true },
   { key: 'service', label: 'Kutoa huduma', hint: 'Fundi, usafi, ushauri na zaidi', page: 'PostService', done: ({ roles }) => has(roles, 'service_provider') },
   { key: 'business', label: 'Kufungua biashara', hint: 'Ukurasa wa kampuni au shirika', page: 'BecomeBusiness', done: ({ businesses }) => (businesses || []).length > 0 },
   { key: 'office', label: 'Kufungua ofisi ya mizigo', hint: 'Pokea na tuma mizigo ya wateja', page: 'BecomeSuperAgentInfo', done: ({ roles }) => has(roles, 'super_agent') },
