@@ -562,7 +562,15 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           {Number(o.deliveryFeeAmount) > 0 && fact('Usafiri', money(o.deliveryFeeAmount))}
           {fact('Jumla', money(o.totalAmount))}
           {/* Ada ya KenteXa (2026-11-03): a marketplace order pays 2% of the product price, billed once it is done. */}
-          {o.source === 'online' && fact('Ada ya KenteXa (2%)', money(Math.round(Number(o.baseAmount || 0) * MARKETPLACE_FEE_RATE / 100)))}
+          {/* "Uza tena": the reseller's profit is owed after delivery; the 2% is on what the shop keeps. */}
+          {o.resellerUserId && fact('Faida ya muuzaji (unamlipa)', money(o.resellerProfit))}
+          {o.source === 'online' && fact('Ada ya KenteXa (2%)', money(Math.round((Number(o.baseAmount || 0) - Number(o.resellerProfit || 0)) * MARKETPLACE_FEE_RATE / 100)))}
+          {o.resellerUserId && (
+            <button type="button" data-testid="resale-supplier-link" onClick={() => onNavigate('MyResales', { tab: 'supplier' })}
+              style={{ marginTop: 8, padding: 0, border: 'none', background: 'none', color: BLUE, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Oda hii imeuzwa na muuzaji. Lipa faida yake
+            </button>
+          )}
         </section>
 
         <section style={{ padding: '0 16px 8px' }}>

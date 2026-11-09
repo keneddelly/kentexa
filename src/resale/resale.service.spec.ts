@@ -58,3 +58,49 @@ describe('Uza tena: offers', () => {
     expect(o).toMatchObject({ id: 7, image: 'a.jpg', profitEach: -1000, orders: 2, needsNewPrice: true });
   });
 });
+
+describe('Uza tena R3: the profit record', () => {
+  const order = (over: any = {}) => ({ id: 50, status: 'delivered', quantity: 1, resaleUnitPrice: '55000', supplierUnitPrice: '42000',
+    resellerProfit: '13000', deliveredAt: new Date().toISOString(), completedAt: null, createdAt: null, resellerPaidAt: null,
+    resellerPaidRef: null, resellerConfirmedAt: null, resellerDisputedAt: null, resellerDisputeNote: null,
+    productNameSnapshot: 'Simu', sellerId: 9, resellerUserId: 20, ...over });
+  const make = (row: any) => {
+    const db: any = { query: jest.fn(async (sql: string) => (/WHERE o\.id = \$1::int AND o\."resellerUserId" IS NOT NULL/.test(sql) ? [row] : [])) };
+    const events: any = { record: jest.fn(async () => undefined) };
+    const notifier: any = { notify: jest.fn(async () => ({})) };
+    return { svc: new ResaleService(db, events, notifier), db, events, notifier };
+  };
+
+  it('the supplier marks a delivered profit paid with its reference; the reseller is told', async () => {
+    const { svc, db, notifier, events } = make(order());
+    await expect(svc.markPaid(9, 50, ' QK71X2 ')).resolves.toEqual({ orderId: 50, state: 'paid', paidRef: 'QK71X2' });
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('"resellerPaidAt" = now()'), [50, 'QK71X2']);
+    expect(notifier.notify).toHaveBeenCalledWith(expect.objectContaining({ userId: 20, title: 'Umelipwa faida yako' }));
+    expect(events.record).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'RESELLER_PAID' }));
+  });
+
+  it('refuses: another shop, before delivery, without a reference', async () => {
+    await expect(make(order()).svc.markPaid(8, 50, 'QK71X2')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(make(order({ status: 'in_transit' })).svc.markPaid(9, 50, 'QK71X2')).rejects.toThrow('baada ya mteja kupokea');
+    await expect(make(order()).svc.markPaid(9, 50, '')).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('the reseller confirms or disputes only after the shop says paid; a dispute tells the shop', async () => {
+    await expect(make(order()).svc.confirm(20, 50)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(make(order({ resellerPaidAt: new Date() })).svc.confirm(21, 50)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(make(order({ resellerPaidAt: new Date() })).svc.confirm(20, 50)).resolves.toEqual({ orderId: 50, state: 'confirmed' });
+    const d = make(order({ resellerPaidAt: new Date(), resellerPaidRef: 'QK71X2' }));
+    await expect(d.svc.dispute(20, 50, 'Sijaona pesa')).resolves.toEqual({ orderId: 50, state: 'disputed' });
+    expect(d.notifier.notify).toHaveBeenCalledWith(expect.objectContaining({ userId: 9, title: 'Muuzaji hajapokea faida' }));
+    expect(d.events.record).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'RESELLER_PAY_DISPUTED', severity: 'warning' }));
+  });
+
+  it('totals: coming, owed, received', async () => {
+    const rows = [order({ id: 1, status: 'preparing' }), order({ id: 2 }), order({ id: 3, resellerPaidAt: new Date(), resellerConfirmedAt: new Date() })];
+    const db: any = { query: jest.fn(async () => rows) };
+    const svc = new ResaleService(db, { record: jest.fn() } as any);
+    const r = await svc.myProfits(20);
+    expect(r.totals).toEqual({ coming: 13000, owed: 13000, paid: 0, received: 13000 });
+    expect(r.items.map((i: any) => i.state)).toEqual(['waiting', 'owed', 'confirmed']);
+  });
+});

@@ -1,8 +1,15 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
-import { RESALE_NOTE_MAX, assertSellingPrice, money, sellingFloor } from './resale-rules';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { RESALE_NOTE_MAX, UNPAID_LATE_SQL, assertSellingPrice, money, profitState, sellingFloor } from './resale-rules';
+
+/** One resale order with its profit record, as both sides see it. */
+const RESALE_ORDER_SELECT = `o.id, o.status, o.quantity, o."resaleUnitPrice", o."supplierUnitPrice", o."resellerProfit",
+  o."deliveredAt", o."completedAt", o."createdAt", o."resellerPaidAt", o."resellerPaidRef", o."resellerConfirmedAt",
+  o."resellerDisputedAt", o."resellerDisputeNote", o."productNameSnapshot", o."sellerId", o."resellerUserId"`;
+const PAID_REF = /^[A-Za-z0-9 ._/-]{4,60}$/;
 
 /** product.images is a simple-array column: raw SQL returns "a.jpg,b.jpg". */
 const firstImage = (v: unknown): string | null =>
@@ -17,7 +24,11 @@ const firstImage = (v: unknown): string | null =>
  */
 @Injectable()
 export class ResaleService {
-  constructor(private readonly db: DataSource, private readonly events: ActivityEventService) {}
+  constructor(
+    private readonly db: DataSource,
+    private readonly events: ActivityEventService,
+    @Optional() private readonly notifier?: InAppNotificationService,
+  ) {}
 
   private async product(productId: number) {
     const [p] = await this.db.query(
@@ -129,12 +140,117 @@ export class ResaleService {
               COALESCE(u."storeName", u.name) AS "supplierName"
          FROM public.product p LEFT JOIN public."user" u ON u.id = p."sellerId"
         WHERE p."resaleOpen" = true AND p."resalePrice" > 0 AND p."isActive" = true AND p."isAvailable" = true
-          AND p.stock > 0 AND p."sellerId" <> $1::int
+          AND p.stock > 0 AND p."sellerId" <> $1::int AND ${UNPAID_LATE_SQL} = 0
         ORDER BY p."updatedAt" DESC LIMIT ${size} OFFSET $2::int`, [userId, (Math.max(1, page) - 1) * size]);
     return rows.map((r) => ({
       id: r.id, name: r.name, image: firstImage(r.images), supplierName: r.supplierName,
       publicPrice: money(r.basePrice), supplierPrice: money(r.resalePrice), floor: sellingFloor(r),
       profitAtShopPrice: money(money(r.basePrice) - money(r.resalePrice)), stock: Number(r.stock) || 0,
     }));
+  }
+
+  // ── R3: the profit record (owner 2026-11-09) ──────────────────────────────
+  private row(r: any) {
+    return {
+      orderId: r.id, product: r.productNameSnapshot, quantity: Number(r.quantity) || 1, status: r.status,
+      sellingPrice: money(r.resaleUnitPrice), supplierPrice: money(r.supplierUnitPrice), profit: money(r.resellerProfit),
+      deliveredAt: r.deliveredAt || r.completedAt || null, createdAt: r.createdAt,
+      paidAt: r.resellerPaidAt, paidRef: r.resellerPaidRef, confirmedAt: r.resellerConfirmedAt,
+      disputedAt: r.resellerDisputedAt, disputeNote: r.resellerDisputeNote,
+      state: profitState(r),
+    };
+  }
+
+  private static totals(rows: { state: string; profit: number }[]) {
+    const sum = (states: string[]) => money(rows.filter((r) => states.includes(r.state)).reduce((s, r) => s + r.profit, 0));
+    return { coming: sum(['waiting']), owed: sum(['owed', 'late']), paid: sum(['paid', 'disputed']), received: sum(['confirmed']) };
+  }
+
+  /** The reseller's profits: every order from their offers, newest first. */
+  async myProfits(resellerUserId: number) {
+    const rows: any[] = await this.db.query(
+      `SELECT ${RESALE_ORDER_SELECT}, COALESCE(s."storeName", s.name) AS "supplierName", s.phone AS "supplierPhone"
+         FROM public."order" o LEFT JOIN public."user" s ON s.id = o."sellerId"
+        WHERE o."resellerUserId" = $1::int ORDER BY o.id DESC LIMIT 300`, [resellerUserId]);
+    const items = rows.map((r) => ({ ...this.row(r), supplierName: r.supplierName || 'Duka', supplierPhone: r.supplierPhone || null }));
+    return { totals: ResaleService.totals(items), items };
+  }
+
+  /** The supplier's resale orders: what it owes each reseller. */
+  async supplierOrders(supplierUserId: number) {
+    const rows: any[] = await this.db.query(
+      `SELECT ${RESALE_ORDER_SELECT}, u.name AS "resellerName", u.phone AS "resellerPhone"
+         FROM public."order" o LEFT JOIN public."user" u ON u.id = o."resellerUserId"
+        WHERE o."sellerId" = $1::int AND o."resellerUserId" IS NOT NULL ORDER BY o.id DESC LIMIT 300`, [supplierUserId]);
+    const items = rows.map((r) => ({ ...this.row(r), resellerName: r.resellerName || 'Muuzaji', resellerPhone: r.resellerPhone || null }));
+    return { totals: ResaleService.totals(items), items };
+  }
+
+  private async resaleOrder(orderId: number) {
+    const [r] = await this.db.query(`SELECT ${RESALE_ORDER_SELECT} FROM public."order" o WHERE o.id = $1::int AND o."resellerUserId" IS NOT NULL`, [orderId]);
+    if (!r) throw new NotFoundException('Oda hii haikutoka kwa muuzaji.');
+    return r;
+  }
+
+  /** The supplier paid the reseller's profit by mobile money, with its reference. */
+  async markPaid(supplierUserId: number, orderId: number, ref: unknown) {
+    const r = await this.resaleOrder(orderId);
+    if (Number(r.sellerId) !== Number(supplierUserId)) throw new ForbiddenException('Hii si oda yako.');
+    const state = profitState(r);
+    if (!['owed', 'late', 'disputed'].includes(state)) {
+      throw new BadRequestException(state === 'waiting' ? 'Lipa faida baada ya mteja kupokea mzigo.' : 'Faida ya oda hii haiwezi kulipwa sasa.');
+    }
+    const reference = String(ref ?? '').trim();
+    if (!PAID_REF.test(reference)) throw new BadRequestException('Andika namba ya muamala wa malipo (herufi 4 hadi 60).');
+    await this.db.query(
+      `UPDATE public."order" SET "resellerPaidAt" = now(), "resellerPaidRef" = $2::varchar, "resellerDisputedAt" = NULL, "resellerDisputeNote" = NULL
+        WHERE id = $1::int AND "resellerConfirmedAt" IS NULL`, [orderId, reference]);
+    void this.events.record({
+      eventType: 'RESELLER_PAID', category: ActivityCategory.COMMERCE, actorId: supplierUserId, actorType: 'seller',
+      relatedUserId: Number(r.resellerUserId), targetType: 'order', targetId: orderId, metadata: { profit: money(r.resellerProfit), ref: reference },
+    });
+    this.tell(Number(r.resellerUserId), 'Umelipwa faida yako',
+      `Duka limesema limekulipa TZS ${Math.round(money(r.resellerProfit)).toLocaleString('en-US')} kwa oda #${orderId} (muamala ${reference}). Thibitisha kwenye Uza tena.`, orderId);
+    return { orderId, state: 'paid' as const, paidRef: reference };
+  }
+
+  /** The reseller confirms receiving the profit. */
+  async confirm(resellerUserId: number, orderId: number) {
+    const r = await this.resaleOrder(orderId);
+    if (Number(r.resellerUserId) !== Number(resellerUserId)) throw new ForbiddenException('Hii si oda yako.');
+    if (!r.resellerPaidAt) throw new BadRequestException('Duka bado halijasema limelipa.');
+    await this.db.query(
+      `UPDATE public."order" SET "resellerConfirmedAt" = COALESCE("resellerConfirmedAt", now()), "resellerDisputedAt" = NULL, "resellerDisputeNote" = NULL
+        WHERE id = $1::int`, [orderId]);
+    void this.events.record({
+      eventType: 'RESELLER_PAY_CONFIRMED', category: ActivityCategory.COMMERCE, actorId: resellerUserId, actorType: 'user',
+      relatedUserId: Number(r.sellerId), targetType: 'order', targetId: orderId, metadata: { profit: money(r.resellerProfit) },
+    });
+    return { orderId, state: 'confirmed' as const };
+  }
+
+  /** The reseller says the profit did not arrive. The supplier is told; admin sees the event. */
+  async dispute(resellerUserId: number, orderId: number, note: unknown) {
+    const r = await this.resaleOrder(orderId);
+    if (Number(r.resellerUserId) !== Number(resellerUserId)) throw new ForbiddenException('Hii si oda yako.');
+    if (!r.resellerPaidAt || r.resellerConfirmedAt) throw new BadRequestException('Unaweza kusema "Sijapokea" baada ya duka kusema limelipa.');
+    const text = String(note ?? '').trim().slice(0, 300) || null;
+    await this.db.query(
+      `UPDATE public."order" SET "resellerDisputedAt" = now(), "resellerDisputeNote" = $2::varchar WHERE id = $1::int AND "resellerConfirmedAt" IS NULL`,
+      [orderId, text]);
+    void this.events.record({
+      eventType: 'RESELLER_PAY_DISPUTED', category: ActivityCategory.COMMERCE, actorId: resellerUserId, actorType: 'user',
+      relatedUserId: Number(r.sellerId), targetType: 'order', targetId: orderId, severity: 'warning',
+      metadata: { profit: money(r.resellerProfit), ref: r.resellerPaidRef, note: text },
+    });
+    this.tell(Number(r.sellerId), 'Muuzaji hajapokea faida',
+      `Muuzaji wa oda #${orderId} anasema hajapokea TZS ${Math.round(money(r.resellerProfit)).toLocaleString('en-US')} (muamala ${r.resellerPaidRef}). Angalia na umlipe.`, orderId);
+    return { orderId, state: 'disputed' as const };
+  }
+
+  private tell(userId: number, title: string, body: string, orderId: number) {
+    if (!this.notifier || !userId) return;
+    this.notifier.notify({ userId, type: 'resale_profit', title, body, actionPage: 'MyResales', orderId, sourceType: 'order', sourceId: orderId })
+      .catch(() => undefined);
   }
 }

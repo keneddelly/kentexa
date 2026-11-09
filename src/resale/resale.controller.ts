@@ -37,6 +37,37 @@ export class ResaleController {
     return this.svc.saveOffer(req.user, body || {});
   }
 
+  // ── R3: the profit record ──
+  @Get('profits')
+  @UseGuards(JwtAuthGuard)
+  profits(@Request() req) {
+    return this.svc.myProfits(req.user.id);
+  }
+
+  @Get('supplier-orders')
+  @UseGuards(JwtAuthGuard)
+  supplierOrders(@Request() req) {
+    return this.svc.supplierOrders(req.user.id);
+  }
+
+  @Post('orders/:id/paid')
+  @UseGuards(JwtAuthGuard)
+  paid(@Request() req, @Param('id', ParseIntPipe) id: number, @Body('ref') ref: string) {
+    return this.svc.markPaid(req.user.id, id, ref);
+  }
+
+  @Post('orders/:id/confirm')
+  @UseGuards(JwtAuthGuard)
+  confirm(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.svc.confirm(req.user.id, id);
+  }
+
+  @Post('orders/:id/dispute')
+  @UseGuards(JwtAuthGuard)
+  dispute(@Request() req, @Param('id', ParseIntPipe) id: number, @Body('note') note: string) {
+    return this.svc.dispute(req.user.id, id, note);
+  }
+
   @Delete('offers/:id')
   @UseGuards(JwtAuthGuard)
   close(@Request() req, @Param('id', ParseIntPipe) id: number) {
