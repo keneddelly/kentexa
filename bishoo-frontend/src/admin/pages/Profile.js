@@ -148,7 +148,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                   width: '80px',
                   height: '80px',
                   borderRadius: '50%',
-                  backgroundColor: '#6366f1',
+                  backgroundColor: '#0f1419',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -163,8 +163,8 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                 <span style={{
                   padding: '4px 12px',
                   borderRadius: '20px',
-                  backgroundColor: '#ede9fe',
-                  color: '#6366f1',
+                  backgroundColor: '#f7f9f9',
+                  color: '#0f1419',
                   fontSize: '12px',
                   fontWeight: '600',
                   marginTop: '8px',
@@ -213,7 +213,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                       onClick={handleUpdateProfile}
                       style={{
                         flex: 1,
-                        backgroundColor: '#6366f1',
+                        backgroundColor: '#0f1419',
                         color: '#fff',
                         border: 'none',
                         padding: '10px',
@@ -244,7 +244,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                     onClick={() => setEditing(true)}
                     style={{
                       flex: 1,
-                      backgroundColor: '#6366f1',
+                      backgroundColor: '#0f1419',
                       color: '#fff',
                       border: 'none',
                       padding: '10px',

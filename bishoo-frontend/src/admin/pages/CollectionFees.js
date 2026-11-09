@@ -112,7 +112,7 @@ const CollectionFees = ({ onNavigate }) => {
               return (
                 <div key={city} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                  border: dirty ? '2px solid #f59e0b' : hasCustom ? '1px solid #86efac' : '1px solid #e2e8f0' }}>
+                  border: dirty ? '2px solid #f59e0b' : hasCustom ? '1px solid #bbf7d0' : '1px solid #e2e8f0' }}>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{city}</div>
@@ -122,7 +122,7 @@ const CollectionFees = ({ onNavigate }) => {
                       </span>
                     )}
                     {dirty && (
-                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#fef9c3', color: '#ca8a04' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#fffbeb', color: '#d97706' }}>
                         Mabadiliko
                       </span>
                     )}

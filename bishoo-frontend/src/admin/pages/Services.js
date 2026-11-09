@@ -15,7 +15,7 @@ import api from '../../api/api';
 
 const STATUS = {
   active:   { bg: '#dcfce7', color: '#16a34a', label: 'Inafanya kazi' },
-  paused:   { bg: '#fef9c3', color: '#ca8a04', label: 'Imesimamishwa' },
+  paused:   { bg: '#fffbeb', color: '#d97706', label: 'Imesimamishwa' },
   inactive: { bg: '#f1f5f9', color: '#64748b', label: 'Haifanyi kazi' },
 };
 
@@ -129,7 +129,7 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ padding: '14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0, flex: 1 }}>{s.title}</h3>
-                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#ede9fe', color: '#6366f1', fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
+                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#f7f9f9', color: '#0f1419', fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
                           {s.category?.replace(/_/g, ' ')}
                         </span>
                       </div>
@@ -157,7 +157,7 @@ const Services = ({ activePage, onNavigate, onLogout }) => {
                         )}
                         {s.status !== 'paused' && (
                           <button onClick={() => handleSetStatus(s, 'paused')}
-                            style={{ flex: 1, backgroundColor: '#fef9c3', color: '#ca8a04', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                            style={{ flex: 1, backgroundColor: '#fffbeb', color: '#d97706', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                             Simamisha
                           </button>
                         )}

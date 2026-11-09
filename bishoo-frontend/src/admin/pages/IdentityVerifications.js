@@ -4,7 +4,7 @@ import api from '../../api/api';
 
 const STATUS_STYLE = {
   not_submitted: { bg: '#f1f5f9', color: '#64748b', label: '— Not submitted' },
-  pending:       { bg: '#fef9c3', color: '#ca8a04', label: 'Pending' },
+  pending:       { bg: '#fffbeb', color: '#d97706', label: 'Pending' },
   verified:      { bg: '#dcfce7', color: '#16a34a', label: 'Verified' },
   rejected:      { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
 };
@@ -81,7 +81,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Review submitted NIDA/identity information</p>
           </div>
           <button onClick={() => fetchProfiles(filter)}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             Refresh
           </button>
         </div>
@@ -91,8 +91,8 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
           {[
-            { key: 'pending', label: 'Pending', color: '#ca8a04' },
-            { key: 'all',     label: 'All',        color: '#6366f1' },
+            { key: 'pending', label: 'Pending', color: '#d97706' },
+            { key: 'all',     label: 'All',        color: '#0f1419' },
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -210,7 +210,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
             {selected.status === 'pending' && (
               <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
-                  style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
+                  style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                   {actionLoading ? '...' : 'Verify Identity'}
                 </button>
                 <button onClick={() => setShowRejectModal(true)}

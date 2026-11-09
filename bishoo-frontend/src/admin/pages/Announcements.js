@@ -20,10 +20,10 @@ const AUDIENCES = [
 ];
 const STATUS = {
   pending_approval: ['Inasubiri idhini', '#fef3c7', '#92400e'],
-  scheduled: ['Imepangwa', '#e0f2fe', '#075985'],
-  sending: ['Inatumwa', '#e0f2fe', '#075985'],
+  scheduled: ['Imepangwa', '#eff6ff', '#075985'],
+  sending: ['Inatumwa', '#eff6ff', '#075985'],
   sent: ['Imetumwa', '#dcfce7', '#166534'],
-  rejected: ['Imekataliwa', '#fee2e2', '#991b1b'],
+  rejected: ['Imekataliwa', '#fee2e2', '#b91c1c'],
   cancelled: ['Imesitishwa', '#f1f5f9', '#475569'],
 };
 const INK = '#0f172a';
@@ -132,7 +132,7 @@ export default function Announcements({ activePage, onNavigate, onLogout, target
           </p>
         </header>
 
-        {note && <div role={note.ok ? 'status' : 'alert'} style={{ padding: '12px 14px', borderRadius: 10, fontSize: 14, fontWeight: 600, background: note.ok ? '#dcfce7' : '#fee2e2', color: note.ok ? '#166534' : '#991b1b' }}>{note.text}</div>}
+        {note && <div role={note.ok ? 'status' : 'alert'} style={{ padding: '12px 14px', borderRadius: 10, fontSize: 14, fontWeight: 600, background: note.ok ? '#dcfce7' : '#fee2e2', color: note.ok ? '#166534' : '#b91c1c' }}>{note.text}</div>}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(260px, 2fr)', gap: 16, alignItems: 'start' }}>
           <section style={{ ...card, display: 'flex', flexDirection: 'column', gap: 14 }} data-testid="composer">
@@ -261,7 +261,7 @@ export default function Announcements({ activePage, onNavigate, onLogout, target
                         {m.sendSms ? ` · SMS ${m.smsCount}` : ''}
                       </div>
                     )}
-                    {m.status === 'rejected' && m.rejectReason && <div style={{ fontSize: 13, color: '#991b1b' }}>Sababu: {m.rejectReason}</div>}
+                    {m.status === 'rejected' && m.rejectReason && <div style={{ fontSize: 13, color: '#b91c1c' }}>Sababu: {m.rejectReason}</div>}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {isAdmin && m.status === 'pending_approval' && rejecting?.id !== m.id && (
                         <>

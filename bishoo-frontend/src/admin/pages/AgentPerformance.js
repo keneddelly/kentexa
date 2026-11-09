@@ -4,7 +4,7 @@ import api from '../../api/api';
 
 const STATUS_STYLE = {
   active:    { bg: '#dcfce7', color: '#16a34a', label: 'Hai' },
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri' },
   suspended: { bg: '#fee2e2', color: '#dc2626', label: 'Imesimamishwa' },
   blocked:   { bg: '#f1f5f9', color: '#64748b', label: 'Imezuiwa' },
 };
@@ -90,7 +90,7 @@ const AgentPerformance = ({ onNavigate }) => {
             {[
               { label: 'Ofisi',            value: agents.length,    color: '#1d4ed8', bg: '#dbeafe' },
               { label: 'Wanaofanya kazi',  value: agents.filter(a => a.status === 'active').length, color: '#16a34a', bg: '#dcfce7' },
-              { label: 'Vifurushi Jumla',  value: agents.reduce((s,a) => s + a.totalParcelsDelivered, 0), color: '#7c3aed', bg: '#ede9fe' },
+              { label: 'Vifurushi Jumla',  value: agents.reduce((s,a) => s + a.totalParcelsDelivered, 0), color: '#0f1419', bg: '#f7f9f9' },
               { label: 'Malalamiko',       value: agents.reduce((s,a) => s + a.totalComplaints, 0), color: '#dc2626', bg: '#fee2e2' },
             ].map(c => (
               <div key={c.label} style={{ backgroundColor: c.bg, borderRadius: 12, padding: '14px 16px' }}>
@@ -175,7 +175,7 @@ const AgentPerformance = ({ onNavigate }) => {
                         { l: 'Vilivopotea', v: detail.totalParcelsLost, c: detail.totalParcelsLost > 0 ? '#dc2626' : '#16a34a' },
                         { l: 'Vilichelewa', v: detail.totalParcelsDelayed, c: detail.totalParcelsDelayed > 0 ? '#f59e0b' : '#16a34a' },
                         { l: 'Malalamiko', v: detail.totalComplaints, c: detail.totalComplaints > 0 ? '#dc2626' : '#16a34a' },
-                        { l: 'Muda wa Saa', v: detail.onTimeRate != null ? `${detail.onTimeRate}%` : '—', c: '#7c3aed' },
+                        { l: 'Muda wa Saa', v: detail.onTimeRate != null ? `${detail.onTimeRate}%` : '—', c: '#0f1419' },
                       ].map(item => (
                         <div key={item.l} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px' }}>
                           <div style={{ fontSize: 16, fontWeight:800, color: item.c }}>{item.v}</div>
@@ -186,7 +186,7 @@ const AgentPerformance = ({ onNavigate }) => {
 
                     <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginBottom: 12 }}>
                       <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>MAPATO</div>
-                      <div style={{ fontSize: 16, fontWeight:800, color: '#15803d' }}>TZS {Number(detail.totalEarnings).toLocaleString()}</div>
+                      <div style={{ fontSize: 16, fontWeight:800, color: '#16a34a' }}>TZS {Number(detail.totalEarnings).toLocaleString()}</div>
                       {Number(detail.pendingEarnings) > 0 && (
                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
                           Inayosubiri: TZS {Number(detail.pendingEarnings).toLocaleString()}

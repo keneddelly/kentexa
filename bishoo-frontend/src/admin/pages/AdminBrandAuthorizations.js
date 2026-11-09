@@ -3,10 +3,10 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Pending' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Pending' },
   approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Authorized' },
   rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
-  suspended: { bg: '#ffedd5', color: '#c2410c', label: 'Suspended' },
+  suspended: { bg: '#fffbeb', color: '#d97706', label: 'Suspended' },
   expired:   { bg: '#f1f5f9', color: '#64748b', label: 'Expired' },
   revoked:   { bg: '#fee2e2', color: '#dc2626', label: 'Revoked' },
 };
@@ -87,7 +87,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Review and manage business-to-brand authorization requests</p>
           </div>
           <button onClick={() => fetchRows(filter)}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             Refresh
           </button>
         </div>
@@ -97,9 +97,9 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           {[
-            { key: 'pending',   label: 'Pending',   color: '#ca8a04' },
+            { key: 'pending',   label: 'Pending',   color: '#d97706' },
             { key: 'approved',  label: 'Authorized', color: '#16a34a' },
-            { key: 'all',       label: 'All',           color: '#6366f1' },
+            { key: 'all',       label: 'All',           color: '#0f1419' },
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -232,7 +232,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
               {selected.status === 'pending' && (
                 <>
                   <button onClick={() => runAction('approve')} disabled={actionLoading}
-                    style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
+                    style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                     {actionLoading ? '...' : 'Approve'}
                   </button>
                   <button onClick={() => setReasonModal('reject')}
@@ -244,7 +244,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
               {selected.status === 'approved' && (
                 <>
                   <button onClick={() => setReasonModal('suspend')}
-                    style={{ backgroundColor: '#ffedd5', color: '#c2410c', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
+                    style={{ backgroundColor: '#fffbeb', color: '#d97706', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
                     Suspend
                   </button>
                   <button onClick={() => setReasonModal('revoke')}
@@ -255,7 +255,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
               )}
               {['suspended', 'expired'].includes(selected.status) && (
                 <button onClick={() => runAction('approve')} disabled={actionLoading}
-                  style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
+                  style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                   {actionLoading ? '...' : 'Reinstate'}
                 </button>
               )}

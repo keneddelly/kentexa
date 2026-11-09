@@ -6,7 +6,7 @@ import api from '../../api/api';
 // stays seller-owned (SellerWarrantyClaims.js); this is visibility only,
 // same posture as every other admin oversight page in this codebase.
 const STATUS_STYLE = {
-  submitted:    { bg: '#fef9c3', color: '#ca8a04', label: 'Submitted' },
+  submitted:    { bg: '#fffbeb', color: '#d97706', label: 'Submitted' },
   under_review: { bg: '#eff6ff', color: '#1d4ed8', label: 'Under Review' },
   approved:     { bg: '#dcfce7', color: '#16a34a', label: 'Approved' },
   rejected:     { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
@@ -50,7 +50,7 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Cross-business visibility — claim review itself is owned by the seller</p>
           </div>
           <button onClick={fetchRows}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             Refresh
           </button>
         </div>

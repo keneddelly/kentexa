@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri',     dot: '#ca8a04' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri',     dot: '#d97706' },
   approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Ameidhinishwa', dot: '#16a34a' },
   rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Alikataliwa',   dot: '#dc2626' },
   suspended: { bg: '#f1f5f9', color: '#64748b', label: 'Imesimamishwa', dot: '#64748b' },
@@ -215,7 +215,7 @@ const Agents = ({ onNavigate }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
           {[
             { label: 'Wote',           value: agents.length,           color: '#1d4ed8', bg: '#dbeafe' },
-            { label: 'Wanasubiri',     value: counts.pending   || 0,   color: '#ca8a04', bg: '#fef9c3' },
+            { label: 'Wanasubiri',     value: counts.pending   || 0,   color: '#d97706', bg: '#fffbeb' },
             { label: 'Wanaofanya kazi', value: counts.approved  || 0,  color: '#16a34a', bg: '#dcfce7' },
             { label: 'Waliositamishwa', value: counts.suspended || 0,  color: '#dc2626', bg: '#fee2e2' },
           ].map(s => (
@@ -228,12 +228,12 @@ const Agents = ({ onNavigate }) => {
 
         {/* Pending alert */}
         {(counts.pending || 0) > 0 && (
-          <div style={{ backgroundColor: '#fff7ed', border: '2px solid #fed7aa', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: '#c2410c', fontWeight: 700 }}>
+          <div style={{ backgroundColor: '#fffbeb', border: '2px solid #fde68a', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13, color: '#d97706', fontWeight: 700 }}>
               Kuna maombi {counts.pending} yanayosubiri idhini yako
             </span>
             <button onClick={() => setFilterStatus('pending')}
-              style={{ backgroundColor: '#c2410c', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+              style={{ backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
               Angalia Sasa
             </button>
           </div>
@@ -314,7 +314,7 @@ const Agents = ({ onNavigate }) => {
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
                             {[
                               { l: 'Zimefishwa', v: agent.totalDeliveriesCompleted || 0, c: '#1d4ed8' },
-                              { l: 'Makusanyo',  v: agent.totalCollectionsCompleted || 0, c: '#7c3aed' },
+                              { l: 'Makusanyo',  v: agent.totalCollectionsCompleted || 0, c: '#0f1419' },
                               { l: 'Rating',     v: agent.rating ? `${Number(agent.rating).toFixed(1)}` : '5.0', c: '#f59e0b' },
                               { l: 'Mapato',     v: `TZS ${Number(agent.totalEarnings || 0).toLocaleString()}`, c: '#16a34a' },
                             ].map(s => (
@@ -444,7 +444,7 @@ const Agents = ({ onNavigate }) => {
                   {selected.status === 'pending' && (
                     <>
                       <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
-                        style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                        style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                         {actionLoading ? '' : 'Idhinisha Wakala'}
                       </button>
                       <button onClick={() => { setShowRejectModal(true); setError(''); }} disabled={actionLoading}
@@ -457,7 +457,7 @@ const Agents = ({ onNavigate }) => {
                   {/* Approved — show Suspend + Edit */}
                   {selected.status === 'approved' && (
                     <button onClick={() => handleSuspend(selected.id)} disabled={actionLoading}
-                      style={{ width: '100%', backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                      style={{ width: '100%', backgroundColor: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
                       Simamisha
                     </button>
                   )}
@@ -465,7 +465,7 @@ const Agents = ({ onNavigate }) => {
                   {/* Suspended/Rejected — show Reactivate */}
                   {(selected.status === 'suspended' || selected.status === 'rejected') && (
                     <button onClick={() => handleReactivate(selected.id)} disabled={actionLoading}
-                      style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                      style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                       Anza Tena
                     </button>
                   )}
@@ -565,9 +565,9 @@ const Agents = ({ onNavigate }) => {
 
 // The account's identity (one per person, reused everywhere). Approval needs "verified".
 const IDENTITY_LABEL = {
-  verified: ['✔ Kitambulisho kimethibitishwa', '#166534', '#dcfce7'],
-  pending: ['Kitambulisho kinasubiri uthibitisho', '#854d0e', '#fef9c3'],
-  rejected: ['Kitambulisho kilikataliwa', '#991b1b', '#fee2e2'],
+  verified: ['✓ Kitambulisho kimethibitishwa', '#166534', '#dcfce7'],
+  pending: ['Kitambulisho kinasubiri uthibitisho', '#92400e', '#fffbeb'],
+  rejected: ['Kitambulisho kilikataliwa', '#b91c1c', '#fee2e2'],
   not_submitted: ['— Hakuna kitambulisho', '#475569', '#f1f5f9'],
 };
 function IdentityBadge({ status }) {

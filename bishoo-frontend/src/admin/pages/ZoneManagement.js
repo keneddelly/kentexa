@@ -172,7 +172,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
 
       {/* Flash messages */}
       {message && (
-        <div style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '12px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
+        <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
           {message}
         </div>
       )}
@@ -195,7 +195,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
               {[...zones].sort((a,b) => a.routeOrder - b.routeOrder).map(zone => (
                 <React.Fragment key={zone.id}>
                   <span style={{ color: '#94a3b8' }}>→</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', backgroundColor: zone.isActive ? '#ede9fe' : '#f1f5f9', color: zone.isActive ? '#7c3aed' : '#94a3b8', borderRadius: 20 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', backgroundColor: zone.isActive ? '#f7f9f9' : '#f1f5f9', color: zone.isActive ? '#0f1419' : '#94a3b8', borderRadius: 20 }}>
                     {zone.name} (+{zone.etaMinutesFromDeparture}min)
                   </span>
                 </React.Fragment>
@@ -212,7 +212,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
           </button>
           {zones.length === 0 && (
             <button onClick={handleSeedAll} disabled={seeding}
-              style={{ background: seeding ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: seeding ? '#94a3b8' : '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: seeding ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13 }}>
+              style={{ background: seeding ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#16a34a)', color: seeding ? '#94a3b8' : '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: seeding ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13 }}>
               {seeding ? 'Inaunda...' : 'Unda Maeneo 3 Yote (Mbagala → Mbezi → Bunju)'}
             </button>
           )}
@@ -262,7 +262,7 @@ const ZoneManagement = ({ onNavigate, onLogout }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ fontSize: 20, fontWeight:800, color: '#7c3aed' }}>#{zone.routeOrder}</span>
+                      <span style={{ fontSize: 20, fontWeight:800, color: '#0f1419' }}>#{zone.routeOrder}</span>
                       <span style={{ fontSize: 16, fontWeight:800, color: '#1e293b' }}>{zone.name}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: zone.isActive ? '#dcfce7' : '#fee2e2', color: zone.isActive ? '#16a34a' : '#dc2626' }}>
                         {zone.isActive ? 'Hai' : 'Imezimwa'}

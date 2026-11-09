@@ -58,7 +58,7 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
           ].map(tab => (
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               style={{ padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                backgroundColor: filter === tab.key ? (tab.alert ? '#dc2626' : '#6366f1') : '#fff',
+                backgroundColor: filter === tab.key ? (tab.alert ? '#dc2626' : '#0f1419') : '#fff',
                 color: filter === tab.key ? '#fff' : '#64748b',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
               {tab.label}
@@ -80,7 +80,7 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
                 <div key={msg.id}
                   onClick={() => setSelected(msg)}
                   style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16, cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
-                    border: selected?.id === msg.id ? '2px solid #6366f1' : msg.isRead ? '1px solid #f1f5f9' : '2px solid #fde68a' }}>
+                    border: selected?.id === msg.id ? '2px solid #0f1419' : msg.isRead ? '1px solid #f1f5f9' : '2px solid #fde68a' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
                       {!msg.isRead && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', backgroundColor: '#dc2626', marginRight: 6 }} />}
@@ -123,7 +123,7 @@ const ContactMessages = ({ activePage, onNavigate, onLogout }) => {
                 </div>
                 {selected.email && (
                   <a href={`mailto:${selected.email}?subject=Re: ${selected.subject || 'Swali lako kwa KenteXa'}`}
-                    style={{ display: 'block', marginTop: 14, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', padding: 12, borderRadius: 10, textAlign: 'center', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
+                    style={{ display: 'block', marginTop: 14, background: 'linear-gradient(135deg,#0f1419,#0f1419)', color: '#fff', padding: 12, borderRadius: 10, textAlign: 'center', fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>
                     Jibu kwa Email
                   </a>
                 )}

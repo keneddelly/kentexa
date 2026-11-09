@@ -5,9 +5,9 @@ import api from '../../api/api';
 
 const ROLE_STYLE = {
   buyer:        { bg: '#f1f5f9', color: '#475569',  label: 'Mnunuzi' },
-  seller:       { bg: '#ede9fe', color: '#7c3aed',  label: 'Muuzaji' },
+  seller:       { bg: '#f7f9f9', color: '#0f1419',  label: 'Muuzaji' },
   agent:        { bg: '#dbeafe', color: '#2563eb',  label: 'Agent' },
-  super_agent:  { bg: '#fef9c3', color: '#ca8a04',  label: 'Ofisi' },
+  super_agent:  { bg: '#fffbeb', color: '#d97706',  label: 'Ofisi' },
   admin:        { bg: '#fee2e2', color: '#dc2626',  label: 'Admin' },
   manager:      { bg: '#dcfce7', color: '#16a34a',  label: 'Manager' },
 };
@@ -102,7 +102,7 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Simamia akaunti zote za mfumo</p>
           </div>
           <button onClick={fetchUsers}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
             Onyesha Upya
           </button>
         </div>
@@ -113,7 +113,7 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
         {/* Summary */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 20 }}>
           {[
-            { key: 'all', label: 'Wote', value: users.length, color: '#6366f1', bg: '#ede9fe' },
+            { key: 'all', label: 'Wote', value: users.length, color: '#0f1419', bg: '#f7f9f9' },
             ...Object.entries(ROLE_STYLE).map(([key, s]) => ({
               key, label: s.label, value: counts[key] || 0, color: s.color, bg: s.bg
             })),
@@ -181,12 +181,12 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                           )}
                           {!user.isVerified && (
                             <button onClick={e => { e.stopPropagation(); handleVerifyAccount(user); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#dcfce7', color: '#15803d', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#dcfce7', color: '#16a34a', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Thibitisha
                             </button>
                           )}
                           <button type="button" data-testid={`open-person-${user.id}`} onClick={e => { e.stopPropagation(); onNavigate('AdminPerson', { userId: user.id }); }}
-                            style={{ backgroundColor: '#e0f2fe', color: '#075985', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                            style={{ backgroundColor: '#eff6ff', color: '#075985', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                             Ona yote
                           </button>
                           <SendMessageButton small userId={user.id} name={user.name || user.phone} />

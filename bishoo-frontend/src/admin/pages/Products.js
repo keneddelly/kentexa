@@ -157,7 +157,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ padding: '14px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                         <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: 0, flex: 1 }}>{p.name}</h3>
-                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#ede9fe', color: '#6366f1', fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
+                        <span style={{ padding: '3px 8px', borderRadius: 12, backgroundColor: '#f7f9f9', color: '#0f1419', fontSize: 12, fontWeight: 600, flexShrink: 0, marginLeft: 6 }}>
                           {p.category?.replace(/_/g, ' ')}
                         </span>
                       </div>
@@ -187,7 +187,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                             Approve
                           </button>
                           <button onClick={() => handleReject(p)}
-                            style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
+                            style={{ flex: 1, backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
                             Reject
                           </button>
                         </div>
@@ -196,7 +196,7 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
                       {/* Standard actions */}
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => handleToggleAvailability(p)}
-                          style={{ flex: 1, backgroundColor: p.isAvailable ? '#fef9c3' : '#dcfce7', color: p.isAvailable ? '#ca8a04' : '#16a34a', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                          style={{ flex: 1, backgroundColor: p.isAvailable ? '#fffbeb' : '#dcfce7', color: p.isAvailable ? '#d97706' : '#16a34a', border: 'none', padding: '8px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                           {p.isAvailable ? 'Disable' : '▶ Enable'}
                         </button>
                         <button onClick={() => handleDelete(p.id)}

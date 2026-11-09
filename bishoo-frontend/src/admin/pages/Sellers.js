@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
-  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  pending:   { bg: '#fffbeb', color: '#d97706', label: 'Inasubiri' },
   approved:  { bg: '#dcfce7', color: '#16a34a', label: 'Imeidhinishwa' },
   rejected:  { bg: '#fee2e2', color: '#dc2626', label: 'Imekataliwa' },
   suspended: { bg: '#fee2e2', color: '#dc2626', label: 'Imesimamishwa' },
@@ -279,16 +279,16 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={handleRunBusinessBackfill} disabled={backfillLoading}
               title="Unda Business kwa wauzaji wote wenye sellerType=business ambao bado hawajaunganishwa"
-              style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: backfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
+              style={{ backgroundColor: '#f8fafc', color: '#0f1419', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: backfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
               {backfillLoading ? '...' : 'Business Backfill'}
             </button>
             <button onClick={handleRunCapabilityBackfill} disabled={capabilityBackfillLoading}
               title="Toa ruhusa ya SELL_PHYSICAL kwa wauzaji wote walioidhinishwa ambao bado hawana ruhusa hiyo"
-              style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: capabilityBackfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
+              style={{ backgroundColor: '#f8fafc', color: '#0f1419', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: capabilityBackfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
               {capabilityBackfillLoading ? '...' : 'Selling Capability Backfill'}
             </button>
             <button onClick={fetchSellers}
-              style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
               Onyesha Upya
             </button>
           </div>
@@ -301,8 +301,8 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
         {/* Stat tabs */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
           {[
-            { key: 'all',       label: 'Wote',          count: counts.all,       color: '#6366f1' },
-            { key: 'pending',   label: 'Wanaosubiri', count: counts.pending,   color: '#ca8a04' },
+            { key: 'all',       label: 'Wote',          count: counts.all,       color: '#0f1419' },
+            { key: 'pending',   label: 'Wanaosubiri', count: counts.pending,   color: '#d97706' },
             { key: 'approved',  label: 'Walioidhinishwa', count: counts.approved, color: '#16a34a' },
             { key: 'rejected',  label: 'Waliokataliwa', count: counts.rejected, color: '#dc2626' },
             { key: 'suspended', label: 'Waliositamishwa', count: counts.suspended, color: '#dc2626' },
@@ -326,7 +326,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
 
         {/* Pending alert */}
         {counts.pending > 0 && (
-          <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e', fontWeight: 600, cursor: 'pointer' }}
+          <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e', fontWeight: 600, cursor: 'pointer' }}
             onClick={() => setFilter('pending')}>
             Kuna wauzaji <strong>{counts.pending}</strong> wanaosubiri idhini yako — bonyeza hapa kuangalia
           </div>
@@ -403,7 +403,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                           )}
                           {['rejected','suspended'].includes(seller.status) && (
                             <button onClick={e => { e.stopPropagation(); seller.status === 'suspended' ? handleRestore(seller) : handleApprove(seller.id); }} disabled={actionLoading}
-                              style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              style={{ backgroundColor: '#0f1419', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               Amilisha
                             </button>
                           )}
@@ -516,12 +516,12 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
             {/* Business Documents (Phase 2) — only for sellerType='business' */}
             {selected.sellerType === 'business' && (
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16,
-                border: selected.businessDocumentsStatus === 'pending' ? '2px solid #ca8a04' : '1px solid #e2e8f0' }}>
+                border: selected.businessDocumentsStatus === 'pending' ? '2px solid #d97706' : '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Business Documents</div>
                   <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[selected.businessDocumentsStatus] || '#f1f5f9',
-                    color: { not_submitted: '#64748b', pending: '#ca8a04', verified: '#16a34a', rejected: '#dc2626' }[selected.businessDocumentsStatus] || '#64748b' }}>
+                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fffbeb', verified: '#dcfce7', rejected: '#fee2e2' }[selected.businessDocumentsStatus] || '#f1f5f9',
+                    color: { not_submitted: '#64748b', pending: '#d97706', verified: '#16a34a', rejected: '#dc2626' }[selected.businessDocumentsStatus] || '#64748b' }}>
                     {selected.businessDocumentsStatus || 'not_submitted'}
                   </span>
                 </div>
@@ -648,12 +648,12 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                     </select>
                   </div>
                   <button onClick={() => handleApprove(selected.id, approveTier)} disabled={actionLoading}
-                    style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
+                    style={{ background: 'linear-gradient(135deg,#16a34a,#16a34a)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                     {actionLoading ? '...' : 'Idhinisha Muuzaji'}
                   </button>
                   {beforeIdGate(selected) && (
                     <button data-testid="approve-without-id" onClick={() => handleApproveWithoutId(selected, approveTier)} disabled={actionLoading}
-                      style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                      style={{ backgroundColor: '#fffbeb', color: '#92400e', border: '1px solid #fde68a', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                       Hana kitambulisho: kiweke kimeangaliwa + idhinisha
                     </button>
                   )}
@@ -665,19 +665,19 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               )}
               {selected.status === 'approved' && (
                 <button onClick={() => setShowSuspendModal(true)}
-                  style={{ backgroundColor: '#fef9c3', color: '#92400e', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
+                  style={{ backgroundColor: '#fffbeb', color: '#92400e', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
                   Simamisha Akaunti
                 </button>
               )}
               {selected.status === 'suspended' && beforeIdGate(selected) && (
                 <button data-testid="restore-without-id" onClick={() => handleApproveWithoutId(selected)} disabled={actionLoading}
-                  style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                  style={{ backgroundColor: '#fffbeb', color: '#92400e', border: '1px solid #fde68a', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                   Hana kitambulisho: kiweke kimeangaliwa + rejesha
                 </button>
               )}
               {['rejected','suspended'].includes(selected.status) && (
                 <button onClick={() => selected.status === 'suspended' ? handleRestore(selected) : handleApprove(selected.id)} disabled={actionLoading}
-                  style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
+                  style={{ background: 'linear-gradient(135deg,#0f1419,#0f1419)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                   Amilisha Tena
                 </button>
               )}

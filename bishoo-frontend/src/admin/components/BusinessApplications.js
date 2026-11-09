@@ -108,7 +108,7 @@ export default function BusinessApplications() {
                 <td style={cell}>{CAPABILITY[row.capabilityCode] || row.capabilityCode}</td>
                 <td style={cell}>{details(row)}</td>
                 <td style={cell}>{row.applicantName || '—'}{row.applicantPhone && <div><a href={`tel:${row.applicantPhone}`}>{row.applicantPhone}</a></div>}
-                  {row.identityStatus && <div data-testid={`id-status-${row.id}`} style={{ fontSize: 12, color: row.identityStatus === 'verified' ? '#05603a' : '#b45309' }}>{ID_STATUS[row.identityStatus] || row.identityStatus}</div>}</td>
+                  {row.identityStatus && <div data-testid={`id-status-${row.id}`} style={{ fontSize: 12, color: row.identityStatus === 'verified' ? '#05603a' : '#d97706' }}>{ID_STATUS[row.identityStatus] || row.identityStatus}</div>}</td>
                 <td style={cell}>{when(row.submittedAt)}</td>
                 <td style={cell}>{row.status}{row.profileStatus ? <div style={{ fontSize: 12, color: '#64748b' }}>profile: {row.profileStatus}</div> : null}
                   {row.rejectionReason && <div style={{ fontSize: 12, color: '#b91c1c' }}>{row.rejectionReason}</div>}</td>
