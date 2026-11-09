@@ -67,6 +67,11 @@ describe('ServiceDetail — new look (owner 2026-11-02)', () => {
     render(<ServiceDetail serviceId={3} onNavigate={jest.fn()} isLoggedIn currentUser={{ id: 99 }} />);
     await waitFor(() => expect(screen.getByTestId('service-price')).toHaveTextContent('TZS 20,000'));
     expect(screen.queryByText(/service_detail.ratings_jobs/)).toBeNull(); // no rating shown without jobs
+    // Owner 2026-11-09 ("the request service button is lost"): signed in, the bar sits above the
+    // phone's bottom menu and on top of it.
+    const bar = screen.getByTestId('service-actions');
+    expect(bar).toHaveClass('sd-actions-nav');
+    expect(Number(bar.style.zIndex)).toBeGreaterThan(1000);
     fireEvent.click(screen.getByTestId('service-request'));
     fireEvent.click(screen.getByTestId('service-send'));
     expect(screen.getByRole('alert')).toHaveTextContent('service_detail.description_required');
