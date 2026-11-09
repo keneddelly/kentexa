@@ -45,3 +45,20 @@ test('the admin menu is grouped into sections and includes every built admin pag
   expect(pages).toEqual(expect.arrayContaining(['Analytics', 'Announcements', 'BodaRates', 'HubAdmin', 'ContactMessages']));
   ADMIN_NAVIGATION.forEach((entry) => expect(entry.label).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u));
 });
+
+// Owner 2026-11-09: KenteXa staff roles each see only their own area of the admin.
+test('each staff role sees its own admin menu; only admin sees Wafanyakazi', () => {
+  const { adminMenuFor } = require('./navigationRegistry');
+  const pages = (role) => adminMenuFor(role).map((e) => e.destination);
+  expect(pages('admin')).toEqual(expect.arrayContaining(['AdminStaff', 'AdminKentexaFees', 'Payouts']));
+  expect(pages('manager')).not.toContain('AdminStaff');
+  expect(pages('manager')).not.toContain('AdminKentexaFees');
+  expect(pages('manager')).toContain('Payouts');
+  expect(pages('customer_care')).toEqual(expect.arrayContaining(['ContactMessages', 'Disputes', 'Orders', 'Users']));
+  expect(pages('customer_care')).not.toContain('Payouts');
+  expect(pages('finance')).toEqual(expect.arrayContaining(['Payments', 'Payouts', 'Invoices', 'AdminKentexaFees', 'Orders']));
+  expect(pages('finance')).not.toContain('Sellers');
+  expect(pages('moderator')).toEqual(expect.arrayContaining(['AdminReports', 'IdentityVerifications', 'Sellers', 'Classifieds']));
+  expect(pages('moderator')).not.toContain('Payouts');
+  ['manager', 'customer_care', 'finance', 'moderator'].forEach((role) => expect(homeForRole(role)).toBe('Dashboard'));
+});

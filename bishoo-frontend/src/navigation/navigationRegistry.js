@@ -10,7 +10,7 @@ const discover = item('discover', 'common.search', 'search', 'Search');
 const workspace = item('workspace', 'bottom_nav.workspace', 'work', 'Workspace');
 const bottom = () => [common.home, discover, common.post, common.inbox, workspace];
 
-export const ACCOUNT_ROLE_TYPES = Object.freeze(['buyer','seller','agent','super_agent','transport_provider','service_provider','customer_care','manager','admin','arbitrator']);
+export const ACCOUNT_ROLE_TYPES = Object.freeze(['buyer','seller','agent','super_agent','transport_provider','service_provider','customer_care','manager','admin','arbitrator','finance','moderator']);
 export const ROLE_NAVIGATION = Object.freeze({
   buyer: { home: 'Home', items: bottom() },
   seller: { home: 'SellerDashboard', items: bottom() },
@@ -18,7 +18,10 @@ export const ROLE_NAVIGATION = Object.freeze({
   super_agent: { home: 'SuperAgentDashboard', items: bottom() },
   transport_provider: { home: 'TransportProviderDashboard', items: bottom() },
   service_provider: { home: 'MyServices', items: bottom() },
-  customer_care: { home: 'Home', items: bottom() },
+  // KenteXa staff land on the admin (owner 2026-11-09: staff roles).
+  customer_care: { home: 'Dashboard', items: bottom() },
+  finance: { home: 'Dashboard', items: bottom() },
+  moderator: { home: 'Dashboard', items: bottom() },
   arbitrator: { home: 'Home', items: bottom() },
   manager: { home: 'Dashboard', items: bottom() },
   admin: { home: 'Dashboard', items: bottom() },
@@ -50,8 +53,25 @@ export const ADMIN_NAVIGATION = Object.freeze([
   ['FinancialDashboard', 'Fedha', 'finance', 'finance'], ['Payments', 'Malipo', 'payments', 'finance'], ['Payouts', 'Malipo kwa wauzaji', 'payouts', 'finance'],
   ['Invoices', 'Ankara', 'invoices', 'finance'], ['AdminKentexaFees', 'Ada ya KenteXa', 'payments', 'finance'],
   ['ContactMessages', 'Ujumbe wa wateja', 'chat', 'support'], ['AdminNotifications', 'Taarifa zilizotumwa', 'announce', 'support'], ['Disputes', 'Migogoro', 'warning', 'support'],
-  ['Profile', 'Wasifu', 'profile', 'system'],
+  ['AdminStaff', 'Wafanyakazi', 'users', 'system'], ['Profile', 'Wasifu', 'profile', 'system'],
 ].map(([destination, label, iconId, section]) => ({ id: `admin.${destination}`, destination, label, iconId, section, placements: ['admin'] })));
+
+/**
+ * Which admin menu items each KenteXa staff role sees (owner 2026-11-09: Manager, Customer care,
+ * Finance, Moderator). Mirrors the server's areas (auth/staff-access.ts); the server decides.
+ */
+export const STAFF_ROLE_TYPES = Object.freeze(['manager', 'customer_care', 'finance', 'moderator']);
+const FINANCE_PAGES = new Set(['AdminKentexaFees', 'Payments', 'Payouts', 'Invoices', 'FinancialDashboard', 'AdminPosSales']);
+export function adminMenuFor(roleType) {
+  if (roleType === 'admin' || !roleType) return ADMIN_NAVIGATION;
+  const keep = {
+    manager: (e) => e.destination !== 'AdminStaff' && e.destination !== 'AdminKentexaFees',
+    customer_care: (e) => e.section !== 'finance' && !FINANCE_PAGES.has(e.destination) && e.destination !== 'AdminStaff',
+    finance: (e) => ['overview', 'orders', 'finance'].includes(e.section) || FINANCE_PAGES.has(e.destination) || e.destination === 'Profile',
+    moderator: (e) => (['overview', 'people', 'business', 'catalog', 'support'].includes(e.section) && !FINANCE_PAGES.has(e.destination)) || e.destination === 'Profile',
+  }[roleType];
+  return keep ? ADMIN_NAVIGATION.filter(keep) : [];
+}
 
 export const navigationForRole = (roleType) => ROLE_NAVIGATION[roleType] || ROLE_NAVIGATION.buyer;
 export const homeForRole = (roleType) => navigationForRole(roleType).home;

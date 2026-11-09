@@ -19,6 +19,9 @@ export enum UserRole {
   MANAGER = 'manager',
   ADMIN = 'admin',
   ARBITRATOR = 'arbitrator', // dispute resolver — assigned by admin per dispute
+  // Staff roles (owner 2026-11-09). Granted only as an AccountRole; never written to user.role.
+  FINANCE = 'finance',
+  MODERATOR = 'moderator',
 }
 
 @Entity()

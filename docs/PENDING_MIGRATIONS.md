@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-09 (staff roles):** the pin is now `MIGRATION_RUN_UPTO=1795500000000`. The next deploy
+runs `1795500000000-AddStaffRoleTypes` itself (adds 'finance' and 'moderator' to account_role_type_enum). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-09 (Instagram through the Page):** the pin is now `MIGRATION_RUN_UPTO=1795400000000`. The next deploy
 runs `1795400000000-AddInstagramPageConnection` itself (Page id/name and webhook error on instagram_business_connection; old connections without a Page become reauth_required). Check: `/version/migrations` shows `pending: []`.
 

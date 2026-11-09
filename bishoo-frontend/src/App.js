@@ -160,6 +160,7 @@ import AdminActivity from './admin/pages/AdminActivity';
 import AdminPerson from './admin/pages/AdminPerson';
 import AdminBusinessView from './admin/pages/AdminBusinessView';
 import AdminData, { PAGE_DATASET } from './admin/pages/AdminData';
+import AdminStaff from './admin/pages/AdminStaff';
 import { rememberReferral } from './utils/referralLink';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
@@ -731,7 +732,8 @@ function App() {
     const token = getAccessToken();
     if (!token) return loginPage;
     const role = activeContext?.roleType;
-    if (role === 'admin' || role === 'manager') return component;
+    // Admin and KenteXa staff (owner 2026-11-09); the server limits each staff role to its area.
+    if (['admin', 'manager', 'customer_care', 'finance', 'moderator'].includes(role)) return component;
     return <HomeFeed {...publicProps} />;
   };
 
@@ -1057,9 +1059,10 @@ function App() {
       case 'AdminTeamInvitations': case 'AdminInstagram': case 'AdminOfficePrices': case 'AdminAgentJobs': case 'AdminReviews':
       case 'AdminNotifications':
         return requireAdmin(<AdminData key={page} dataset={PAGE_DATASET[page]} activePage={page} {...adminProps} />);
+      case 'AdminStaff': return requireAdmin(<AdminStaff activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
-      case 'Businesses':  return activeContext?.roleType === 'admin'
+      case 'Businesses':  return ['admin', 'manager', 'customer_care', 'moderator'].includes(activeContext?.roleType)
         ? requireAdmin(<Businesses activePage={page} {...adminProps} />)
         : <HomeFeed {...publicProps} />;
       // 'AdminServices', not 'Services' — that page key is already taken by

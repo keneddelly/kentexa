@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ADMIN_NAVIGATION, ADMIN_SECTIONS } from '../../navigation/navigationRegistry';
+import { ADMIN_SECTIONS, adminMenuFor } from '../../navigation/navigationRegistry';
+import { useOptionalRoleContext } from '../../context/RoleContext';
 
 // Mobile responsiveness — the sidebar was a fixed 250px column + every
 // admin page's <main> hardcoded marginLeft:250 inline. On a phone-width
@@ -77,8 +78,13 @@ const Icon = ({ id, color }) => (
   </svg>
 );
 
-const Sidebar = ({ activePage, onNavigate, onLogout, items = ADMIN_NAVIGATION }) => {
+const STAFF_TITLE = { manager: 'Meneja', customer_care: 'Huduma kwa wateja', finance: 'Fedha', moderator: 'Ukaguzi' };
+
+const Sidebar = ({ activePage, onNavigate, onLogout, items: givenItems }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Each KenteXa staff role sees only its own area (owner 2026-11-09); admin sees everything.
+  const roleType = useOptionalRoleContext()?.activeContext?.roleType || 'admin';
+  const items = givenItems || adminMenuFor(roleType);
 
   const navigate = (page) => {
     setMobileOpen(false);
@@ -116,7 +122,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout, items = ADMIN_NAVIGATION })
             <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
             <span style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
-          <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Usimamizi</div>
+          <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Usimamizi{STAFF_TITLE[roleType] ? ` · ${STAFF_TITLE[roleType]}` : ''}</div>
         </div>
 
         <nav aria-label="Menyu ya usimamizi" style={{ flex: '1 0 auto', padding: '8px 10px 12px' }}>
