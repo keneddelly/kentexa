@@ -23,6 +23,8 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { SmsService } from '../sms/sms.service';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+// Timed jobs run on Tanzania time (owner 2026-11-09; the server runs on UTC).
+import { TANZANIA_TZ } from '../dispatch-reminders/dispatch-reminders.config';
 
 export type BrandBadge = 'brand_authorized' | 'kentexa_verified' | null;
 
@@ -402,7 +404,7 @@ export class BrandAuthorizationsService {
 
   // ── Daily sweep: flip overdue APPROVED rows to EXPIRED, notify. Same
   // @Cron precedent already used in orders.service.ts. ────────────────────
-  @Cron('0 2 * * *')
+  @Cron('0 2 * * *', { timeZone: TANZANIA_TZ })
   async expireOverdueAuthorizations(): Promise<void> {
     const overdue = await this.repo.find({
       where: { status: BrandAuthorizationStatus.APPROVED, expiresAt: LessThan(new Date()) },

@@ -21,6 +21,8 @@ import { BrandsService } from '../brands/brands.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+// Timed jobs run on Tanzania time (owner 2026-11-09; the server runs on UTC).
+import { TANZANIA_TZ } from '../dispatch-reminders/dispatch-reminders.config';
 
 @Injectable()
 export class WarrantyService {
@@ -273,7 +275,7 @@ export class WarrantyService {
   }
 
   // Daily sweep, same shape as BrandAuthorizationsService.expireOverdueAuthorizations().
-  @Cron('0 3 * * *')
+  @Cron('0 3 * * *', { timeZone: TANZANIA_TZ })
   async expireOverdueRegistrations(): Promise<void> {
     const result = await this.repo.update(
       { status: WarrantyRegistrationStatus.ACTIVE, expiresAt: LessThan(new Date()) },

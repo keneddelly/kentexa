@@ -10,9 +10,9 @@ Every item below was checked against the live branch (`worktree-service-provider
 | 4, 7, 8, 12 | Old failing test files | Still open as the CI baseline: 14 logistics test suites (test fakes, not app code). The frontend ones from #8 pass. |
 | 5, 22 | Door pickups never created a job | Fixed: confirming a send-form booking creates the pickup job and alerts agents (same-city and hub-routed). |
 | 6 | "Kentexa will arrange..." wording | Fixed (no such text left). |
-| 9 | Timed jobs have no time zone (server runs on UTC) | Open: 19 of 20 timed jobs still run at UTC times (8 am in code = 11:00 in Tanzania). Changing them needs the owner's decision. |
+| 9 | Timed jobs have no time zone (server runs on UTC) | Fixed 2026-11-09 (owner yes): the daily jobs run on Tanzania time (orders 08:00, shipping 00:00, warranty 03:00, brands 02:00). Jobs every minute/hour are not affected; the weekly fee statement was already written for 08:00 Tanzania. |
 | 10 | Timed jobs ran three times | Fixed (one ScheduleModule set-up, with a test and a start-up check). |
-| 11 | DailyBatchesModule never loaded | Open, owner decision: its escrow jobs belong to the old "KenteXa holds money" model, which no longer applies. Suggest removing the module. |
+| 11 | DailyBatchesModule never loaded | 2026-11-09 (owner yes): its two escrow jobs no longer have a schedule, so they cannot run even if the module is ever loaded (KenteXa never holds money). The module still is not loaded; its admin page "Zone management" has no working API (decide later: remove the page or load the module without the escrow jobs). |
 | 13, 16, 17, 20, 21 | Live outage, walk-in intake, claim | Fixed (marked in each section below). |
 | 14 | "Mizigo Yangu" went to Home | Fixed (in the page list). |
 | 15 | Walk-in receipt could be lost | Fixed (receipt reopen). |

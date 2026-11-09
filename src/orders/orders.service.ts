@@ -96,6 +96,8 @@ import { formatWaybill, normalizeWaybill } from '../shipments/waybill';
 import { parseOrderIdParam } from '../common/utils/order-id.util';
 import { ensureOrderParcel, ensureOrderParcelWithin } from './order-parcel';
 import { LIPA_PROOF_REF, signedLipaProofUrl } from './lipa-proof';
+// Timed jobs run on Tanzania time (owner 2026-11-09; the server runs on UTC).
+import { TANZANIA_TZ } from '../dispatch-reminders/dispatch-reminders.config';
 
 // Ada ya KenteXa (owner approved 2026-11-03): a marketplace order pays 2% of the product
 // price, nothing else (no TZS 1,000 tracking fee, no category %). The seller is billed by
@@ -2948,7 +2950,7 @@ export class OrdersService {
   //   Local/offline: 3 days
   //   Intercity:     5 days
 
-  @Cron('0 8 * * *')
+  @Cron('0 8 * * *', { timeZone: TANZANIA_TZ })
   async autoConfirmDeliveredOrders() {
     // Seller shipments handed over and paid but left open by an older path: complete them.
     await completeSettledSellerShipments(this.repo.manager).catch((e) =>

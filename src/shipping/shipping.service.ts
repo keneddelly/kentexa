@@ -26,6 +26,8 @@ import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import { OrderReleaseService } from '../money-routing/order-release.service';
 import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
+// Timed jobs run on Tanzania time (owner 2026-11-09; the server runs on UTC).
+import { TANZANIA_TZ } from '../dispatch-reminders/dispatch-reminders.config';
 
 @Injectable()
 export class ShippingService {
@@ -265,7 +267,7 @@ export class ShippingService {
   }
 
   // ── Auto-complete delivered orders after 7 days ──
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: TANZANIA_TZ })
   async autoCompleteDelivered() {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
