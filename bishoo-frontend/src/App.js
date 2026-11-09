@@ -18,6 +18,7 @@ import useNavigationShell from './navigation/NavigationShell';
 import { homeForRole } from './navigation/navigationRegistry';
 import { activeBusinessNameFor } from './context/businessGrouping';
 import { evaluateDestination } from './navigation/navigationPolicy';
+import { unavailableNotice } from './navigation/unavailableNotice';
 import HomeFeed           from './public/pages/HomeFeed';
 import PostDetail         from './public/pages/PostDetail';
 import CommunityPage      from './public/pages/CommunityPage';
@@ -463,10 +464,18 @@ function App() {
     if (path) window.history[mode === 'replace' ? 'replaceState' : 'pushState'](state, '', path);
   };
 
+  // A page that cannot open says why (owner 2026-11-09 audit), instead of a silent jump home.
+  const [navNotice, setNavNotice] = useState(null);
+  useEffect(() => {
+    if (!navNotice) return undefined;
+    const t = setTimeout(() => setNavNotice(null), 7000);
+    return () => clearTimeout(t);
+  }, [navNotice]);
+
   const navigation = useNavigationShell({
     page, setPage, navParams, setNavParams, navHistory, setNavHistory,
     isAuthenticated: isLoggedIn, activeContext, capabilities: roleContext.capabilities,
-    contextEpoch, syncUrl,
+    contextEpoch, syncUrl, onUnavailable: (decision) => setNavNotice(unavailableNotice(decision)),
   });
 
   // Direct boot/auth/deep-link state changes pass through the same policy as
@@ -1136,6 +1145,19 @@ function App() {
       <UpdateNotice page={page}
         beforeReload={() => rememberPageForUpdate({ page, navParams, roleType: activeContext?.roleType })} />
       <TrainingSmsNotice />
+      {navNotice && (
+        <div role="status" data-testid="nav-notice"
+          style={{ position: 'fixed', left: 12, right: 12, bottom: 84, zIndex: 3000, maxWidth: 520, margin: '0 auto', background: '#0f1419', color: '#fff',
+            borderRadius: 12, padding: '12px 14px', display: 'flex', gap: 12, alignItems: 'center', fontSize: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+          <span style={{ flex: 1 }}>{navNotice.text}</span>
+          {navNotice.canSwitch && isLoggedIn && (
+            <button type="button" onClick={() => { setNavNotice(null); setShowProfileSwitcher(true); }}
+              style={{ background: '#fff', color: '#0f1419', border: 'none', borderRadius: 16, padding: '6px 12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Badilisha kazi</button>
+          )}
+          <button type="button" aria-label="Funga" onClick={() => setNavNotice(null)}
+            style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 18, lineHeight: 1, fontFamily: 'inherit' }}>×</button>
+        </div>
+      )}
 
       {/* ── Social Commerce Navigation ─────────────────────── */}
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show

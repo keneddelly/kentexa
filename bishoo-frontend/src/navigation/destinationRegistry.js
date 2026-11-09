@@ -27,7 +27,6 @@ export const DESTINATIONS = Object.freeze(Object.fromEntries([
   ...AGENT_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.OPERATIONAL, ['agent'])]),
   ...HUB_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.OPERATIONAL, ['super_agent'])]),
   ...TRANSPORT_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.OPERATIONAL, ['transport_provider'])]),
-  ['VanToday', destination('VanToday', DESTINATION_KIND.OPERATIONAL, ['seller', 'super_agent'])],
   ['BecomeTransportProvider', destination('BecomeTransportProvider', DESTINATION_KIND.ACCOUNT)],
   // Existing MyServices identity/backend behavior remains a documented Phase F dependency.
   ['MyServices', destination('MyServices', DESTINATION_KIND.OPERATIONAL, ['service_provider', 'seller'])],
