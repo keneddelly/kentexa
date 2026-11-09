@@ -21,13 +21,20 @@ const open = async (props = {}) => {
   return onClose;
 };
 const type = (value) => fireEvent.change(screen.getByLabelText('Maandishi'), { target: { value } });
+// Smart Post: "Tuma" opens the preview when the post is ready; "Chapisha" sends it.
+const share = async () => {
+  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  const go = screen.queryByTestId('preview-publish');
+  if (go) await act(async () => { fireEvent.click(go); });
+};
+const published = () => api.post.mock.calls.some((c) => c[0] === '/feed/publish');
 
 test('a question is published as a question, with its audience', async () => {
   await open();
   fireEvent.click(screen.getByTestId('kind-question'));
   type('Nani anajua fundi mzuri wa friji Mwanza?');
   fireEvent.click(screen.getByTestId('audience-followers'));
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({
     type: 'moment', intent: 'question', visibility: 'followers', media: [], body: 'Nani anajua fundi mzuri wa friji Mwanza?',
   }));
@@ -44,12 +51,12 @@ test('"Onyesha bidhaa" needs a real product; its price comes from the product', 
   await open();
   fireEvent.click(screen.getByTestId('kind-showcase'));
   type('Mzigo mpya umefika');
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(screen.getByRole('alert')).toHaveTextContent('Chagua bidhaa');
-  expect(api.post).not.toHaveBeenCalled();
+  expect(published()).toBe(false);
   expect(screen.queryByTestId('link-business-7')).toBeNull(); // only things that are sold
   fireEvent.click(screen.getByTestId('link-product-4'));
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({
     intent: 'sell_available', linkedEntityType: 'product', linkedEntityId: 4, price: 45000,
   }));
@@ -65,7 +72,7 @@ test('editing keeps the photos, changes the text and audience, and sends no new 
   type('Taa mpya');
   await act(async () => { fireEvent.click(screen.getByText('Hifadhi mabadiliko')); });
   expect(api.patch).toHaveBeenCalledWith('/feed/9', { title: 'Taa mpya', body: 'Taa mpya', media: [{ url: 'a.jpg', width: 4, height: 3 }], visibility: 'public' });
-  expect(api.post).not.toHaveBeenCalled();
+  expect(published()).toBe(false);
   await waitFor(() => expect(onEdited).toHaveBeenCalledWith(expect.objectContaining({ id: 9 })));
   expect(onClose).toHaveBeenCalled();
 });
@@ -75,13 +82,13 @@ test('Kura: a question, 2 to 6 options and how long it stays open (phase E)', as
   fireEvent.click(screen.getByTestId('kind-poll'));
   type('Tufungue Jumapili?');
   fireEvent.change(screen.getByTestId('poll-option-0'), { target: { value: 'Ndiyo' } });
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(screen.getByRole('alert')).toHaveTextContent('Jaza kila chaguo');
   fireEvent.change(screen.getByTestId('poll-option-1'), { target: { value: 'Hapana' } });
   fireEvent.click(screen.getByTestId('poll-add-option'));
   fireEvent.change(screen.getByTestId('poll-option-2'), { target: { value: 'Nusu siku' } });
   fireEvent.click(screen.getByTestId('poll-days-7'));
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({
     intent: 'poll', title: 'Tufungue Jumapili?', poll: { options: ['Ndiyo', 'Hapana', 'Nusu siku'], durationDays: 7 },
   }));
@@ -92,11 +99,11 @@ test('Social Home: a post needs a topic when topics exist, and sends it (owner a
   api.get.mockImplementation(async (url) => ({ data: url === '/feed/topics' ? [{ key: 'biashara', label: 'Biashara' }, { key: 'kilimo', label: 'Kilimo' }] : [] }));
   await open();
   type('Bei ya mbolea imepanda Mwanza');
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(screen.getByRole('alert')).toHaveTextContent('Chagua mada');
-  expect(api.post).not.toHaveBeenCalled();
+  expect(published()).toBe(false);
   fireEvent.click(screen.getByTestId('post-topic-kilimo'));
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({ topic: 'kilimo' }));
 });
 
@@ -106,6 +113,51 @@ test('Social Home part 3: "Chapisha kwenye" sends the post into a community (no 
   await open();
   type('Mvua zimeanza kwenu?');
   fireEvent.click(screen.getByTestId('post-where-3'));
-  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  await share();
   expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({ communityId: 3 }));
+});
+
+test('Smart Post: the preview shows the post first; "Rudi kuhariri" keeps the text; nothing is sent until "Chapisha"', async () => {
+  await open();
+  fireEvent.click(screen.getByTestId('kind-experience'));
+  type('Nilianza duka kwa mtaji wa laki moja.');
+  fireEvent.click(screen.getByTestId('audience-followers'));
+  await act(async () => { fireEvent.click(screen.getByText('create_moment_modal.share_moment_button')); });
+  const preview = screen.getByTestId('post-preview');
+  expect(preview).toHaveTextContent('Nilianza duka kwa mtaji wa laki moja.');
+  expect(preview).toHaveTextContent('Uzoefu');
+  expect(preview).toHaveTextContent('Bishoo Electronics');
+  expect(screen.getByTestId('preview-audience')).toHaveTextContent('Wanaofuata tu');
+  expect(published()).toBe(false);
+  expect(api.post).toHaveBeenCalledWith('/feed/analytics/composer', expect.objectContaining({ step: 'preview', kind: 'experience' }));
+  fireEvent.click(screen.getByTestId('preview-back'));
+  expect(screen.getByLabelText('Maandishi').value).toBe('Nilianza duka kwa mtaji wa laki moja.');
+  await share();
+  expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({ intent: 'experience', visibility: 'followers' }));
+});
+
+test('Smart Post: a failed post keeps everything and shows why', async () => {
+  api.post.mockImplementation(async (url) => {
+    if (url === '/feed/publish') throw { response: { data: { message: 'Mtandao umekatika' } } };
+    return { data: {} };
+  });
+  const onClose = await open();
+  type('Habari za leo');
+  await share();
+  expect(screen.getByRole('alert')).toHaveTextContent('Mtandao umekatika');
+  expect(onClose).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByTestId('preview-back'));
+  expect(screen.getByLabelText('Maandishi').value).toBe('Habari za leo');
+});
+
+test('Smart Post: closing without posting records where the person stopped, never the text', async () => {
+  const onClose = await open();
+  expect(api.post).toHaveBeenCalledWith('/feed/analytics/composer', expect.objectContaining({ step: 'opened' }));
+  fireEvent.click(screen.getByTestId('kind-question'));
+  type('Siri yangu');
+  fireEvent.click(screen.getByLabelText('Funga'));
+  const call = api.post.mock.calls.find((c) => c[1]?.step === 'abandoned');
+  expect(call[1]).toEqual({ step: 'abandoned', kind: 'question', at: 'write', hasText: true, photos: 0 });
+  expect(JSON.stringify(api.post.mock.calls)).not.toContain('Siri yangu');
+  expect(onClose).toHaveBeenCalled();
 });

@@ -35,6 +35,7 @@ test('"Hapana, ni Moment tu" keeps it a Moment', async () => {
   fireEvent.change(document.querySelector('textarea'), { target: { value: 'Sofa inauzwa' } });
   fireEvent.click(await screen.findByTestId('keep-moment'));
   fireEvent.click(screen.getByText('create_moment_modal.share_moment_button'));
+  fireEvent.click(await screen.findByTestId('preview-publish')); // Smart Post: the preview comes first
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/feed/publish', expect.objectContaining({ type: 'moment' })));
   expect(onNavigate).not.toHaveBeenCalled();
 });

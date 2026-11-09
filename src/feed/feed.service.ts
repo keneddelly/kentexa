@@ -36,6 +36,7 @@ import { ProviderStatus } from '../transport/entities/transport-provider.entity'
 import { SellerStatus } from '../seller/entities/seller-profile.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import type { ComposerEvent } from './composer-events';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 import { SearchIndexService } from '../search/search-index.service';
 import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
@@ -74,6 +75,10 @@ export function deriveIntent(type: FeedItemType): MomentIntent {
       return MomentIntent.UPDATE;
   }
 }
+
+/** A post everyone may see: no visibility set (older rows) or 'public'. */
+export const isPublicPost = (item: { visibility?: MomentVisibility | string | null }): boolean =>
+  !item.visibility || item.visibility === MomentVisibility.PUBLIC;
 
 @Injectable()
 export class FeedService {
@@ -289,13 +294,28 @@ export class FeedService {
     // NEED-matching — the one genuinely new piece of business logic here,
     // deliberately isolated in its own method behind its own try/catch so
     // it can be disabled or reworked without touching publish() itself.
-    if (intent === MomentIntent.NEED) {
+    // Smart Post step 1 (owner 2026-11-09): only a public Natafuta post alerts sellers. A
+    // followers-only need is never shown to strangers (spec section 6).
+    if (intent === MomentIntent.NEED && isPublicPost(item)) {
       this.matchNeedToSellers(item).catch((err) =>
         this.logger.warn('NEED-match failed:' + err),
       );
     }
 
     return item;
+  }
+
+  /** Smart Post: one composer step (already checked by composerEvent()). Never throws. */
+  recordComposerStep(userId: number, ev: ComposerEvent): void {
+    // record() never throws (activity-event.service.ts); not awaited, so the composer never waits.
+    void this.activityEvents.record({
+      eventType: ev.eventType,
+      category: ActivityCategory.CONTENT,
+      actorId: userId,
+      actorType: 'user',
+      targetType: 'composer',
+      metadata: ev.metadata,
+    });
   }
 
   // ── NEED-matching (Moment spec Stage 6) ─────────────────────────────────
@@ -309,7 +329,7 @@ export class FeedService {
   // (not per NEED post) so a category with many open NEEDs can't flood one
   // seller's notifications.
   private async matchNeedToSellers(item: BusinessFeedItem): Promise<void> {
-    if (!item.category) return;
+    if (!item.category || !isPublicPost(item)) return;
 
     const MAX_MATCHES = 10;
     const RATE_LIMIT_PER_DAY = 5;
@@ -336,9 +356,8 @@ export class FeedService {
         .notify({
           userId: profile.ownerId,
           type: 'need_match',
-          title: '🙋 A customer is looking for what you offer',
-          body: `"${item.title}" matches your ${item.category} category`,
-          icon: '🙋',
+          title: 'Mteja anatafuta unachouza',
+          body: `"${item.title}" inalingana na aina yako: ${item.category}`,
           actionPage: 'CommerceProfile',
           actionParam: `${item.businessId}-feed-${item.id}`,
           actionCommerceProfileId: profile.id,
