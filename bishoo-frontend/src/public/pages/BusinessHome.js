@@ -25,6 +25,7 @@ import { tilesForWorkspace, TILE_STATE, capabilityCtaState, CTA_STATE, CTA_CAPAB
 import { resolveBusinessEntry, BUSINESS_ENTRY } from '../../context/businessEntry';
 import BusinessContextMismatch from '../components/BusinessContextMismatch';
 import LineIcon from '../components/LineIcon';
+import BusinessTodayCard from '../components/BusinessTodayCard';
 
 const B = '#2563EB';
 const DK = '#0F172A';
@@ -113,6 +114,8 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
 
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto' }}>
         {mismatch && <BusinessContextMismatch contextBusinessId={mismatch.contextBusinessId} onNavigate={onNavigate} />}
+
+        {business?.id && workspaces && !mismatch && <BusinessTodayCard businessId={business.id} onNavigate={onNavigate} />}
 
         {business?.id && workspaces && !mismatch && (
           <button type="button" data-testid="business-integrations" onClick={() => onNavigate('BusinessIntegrations', { businessId: business.id })}
