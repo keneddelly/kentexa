@@ -40,8 +40,12 @@ describe('Kazi workspace model (owner 2026-11-01)', () => {
   });
 
   it('offers to start only roles not held yet; a pending one is held', () => {
-    expect(startOptionsFor([role(1, 'buyer')]).map((o) => o.key)).toEqual(['seller', 'service_provider', 'agent', 'super_agent', 'hotel', 'business', 'community']);
-    expect(startOptionsFor([role(1, 'buyer'), role(3, 'agent', { status: 'pending' })]).map((o) => o.key)).not.toContain('agent');
+    const all = ['seller', 'service_provider', 'agent', 'super_agent', 'transport_provider', 'hotel', 'business', 'community'];
+    expect(startOptionsFor([role(1, 'buyer')]).map((o) => o.key)).toEqual(all);
+    // Owner 2026-11-09: every option always shows; a held role is only marked.
+    const withAgent = startOptionsFor([role(1, 'buyer'), role(3, 'agent', { status: 'pending' }), role(4, 'seller')]);
+    expect(withAgent.map((o) => o.key)).toEqual(all);
+    expect(withAgent.filter((o) => o.held).map((o) => o.key)).toEqual(['seller', 'agent']);
   });
 
   it('every tool opens a registered page', () => {

@@ -291,6 +291,7 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
                       <Icon d={s.icon} color={BLUE} />
                       <span style={{ fontSize: 15, fontWeight: 800 }}>{s.label}</span>
                       <span style={{ fontSize: 13, color: MUTED }}>{s.note}</span>
+                      {s.held && <span style={{ fontSize: 12, color: '#05603a', fontWeight: 700 }}>Unayo tayari: ongeza nyingine</span>}
                     </button>
                   ))}
                 </div>

@@ -126,7 +126,9 @@ export const START_OPTIONS = Object.freeze([
   { key: 'seller', label: 'Uza', note: 'Fungua duka lako', destination: 'BecomeSeller', icon: ICON.store },
   { key: 'service_provider', label: 'Toa huduma', note: 'Fundi, mtaalamu', destination: 'PostService', icon: ICON.wrench },
   { key: 'agent', label: 'Kuwa wakala', note: 'Chukua na peleka mizigo', destination: 'BecomeAgent', icon: ICON.bike },
-  { key: 'super_agent', label: 'Fungua ofisi', note: 'Pokea na tuma mizigo', destination: 'BecomeSuperAgentInfo', icon: ICON.office },
+  { key: 'super_agent', label: 'Fungua ofisi ya usafirishaji', note: 'Pokea na tuma mizigo', destination: 'BecomeSuperAgentInfo', icon: ICON.office },
+  // Owner 2026-11-09: "sajili usafiri" was missing.
+  { key: 'transport_provider', label: 'Sajili usafiri', note: 'Basi, gari au boda: beba mizigo', destination: 'BecomeTransportProvider', icon: ICON.truck },
   // Owner 2026-11-02: "a hotel need to open that business will be hard to find". A hotel is a
   // business whose category is food; this opens the same business form with that chosen.
   { key: 'hotel', label: 'Fungua hoteli', note: 'Hoteli au mgahawa: menyu, QR ya meza, jiko', destination: 'BecomeBusiness', params: { category: 'food' }, icon: ICON.order },
@@ -205,10 +207,14 @@ export function initialWorkspaceKey(workspaces = [], activeAccountRoleId = null)
   return (holding || workspaces[0] || { key: 'personal' }).key;
 }
 
-/** Roles not held yet, for "Fanya kazi na KenteXa" (a pending one counts as held: its card shows instead). */
+/**
+ * "Fanya kazi na KenteXa": EVERY option, always (owner 2026-11-09, emergency: "it shows only a few
+ * things ... KenteXa works on user level and business level"). A role already held is still
+ * offered (another business can open its own shop, office or transport) and is marked `held`.
+ */
 export function startOptionsFor(roles = []) {
   const held = new Set((roles || []).map((r) => r.roleType));
-  return START_OPTIONS.filter((o) => !held.has(o.key));
+  return START_OPTIONS.map((o) => ({ ...o, held: held.has(o.key) }));
 }
 
 // ── Recently used: kept on this device only, a convenience, never authority ──

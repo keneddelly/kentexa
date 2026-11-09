@@ -37,7 +37,10 @@ test('Binafsi: personal tools open directly; a pending role shows its state, nev
   expect(screen.getByTestId('role-state-3')).toHaveTextContent('Inasubiri idhini');
   expect(screen.queryByTestId('tool-agent.jobs')).toBeNull();
   expect(screen.getByTestId('start-super_agent')).toBeInTheDocument();
-  expect(screen.queryByTestId('start-agent')).toBeNull();
+  // Owner 2026-11-09: every option always shows (user and business level); a held one is marked.
+  expect(screen.getByTestId('start-agent')).toHaveTextContent('Unayo tayari');
+  expect(screen.getByTestId('start-transport_provider')).toHaveTextContent('Sajili usafiri');
+  expect(screen.getByTestId('start-seller')).toBeInTheDocument();
 });
 
 test('a business tool of another role switches once, straight to that tool', async () => {
