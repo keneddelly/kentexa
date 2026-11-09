@@ -22,7 +22,8 @@ export enum Feature {
 
 // Business/store creation can happen before identity verification, but activating
 // selling requires at least Level 1 identity (ID submitted). Pending review is
-// sufficient to apply; admin approval remains a separate activation decision.
+// sufficient to apply (FEATURES_ALLOWING_PENDING_ID); admin approval remains a separate
+// activation decision and still needs the ID VERIFIED (capability-owner-identity.ts).
 // RoleContext and capability checks remain independent at their service boundaries.
 export const FEATURE_REQUIREMENTS: Record<Feature, number> = {
   [Feature.VIEW_LISTING]: 0,
@@ -40,3 +41,12 @@ export const FEATURE_REQUIREMENTS: Record<Feature, number> = {
   [Feature.CREATE_SHIPMENT]: 1,
   [Feature.ACCESS_SELLER_WALLET]: 2,
 };
+
+// Features a person may use while their ID is sent and waiting for review (owner 2026-11-09:
+// "when a business needs to start selling the ID is asked"): asking to sell needs the ID SENT,
+// not yet checked. Before this, a sent ID still showed the ID form again and again.
+export const FEATURES_ALLOWING_PENDING_ID: ReadonlySet<Feature> = new Set([Feature.CREATE_STORE]);
+
+// Sellers who asked to sell through their Business before the ID gate (2026-11-06) never sent an
+// ID. An admin may mark their ID as checked (owner 2026-11-09 chose this), recorded with who/why.
+export const SELLER_ID_GATE_STARTED_AT = new Date('2026-11-07T00:00:00+03:00');

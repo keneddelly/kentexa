@@ -39,3 +39,40 @@ test('a load failure is shown, not a blank page', async () => {
   render(<BusinessApplications />);
   expect(await screen.findByRole('alert')).toBeTruthy();
 });
+
+// Owner 2026-11-09: the real server shape (nested), and the old sellers without an ID.
+const nested = {
+  application: { id: 9, capabilityCode: 'commerce', status: 'pending', submittedAt: '2026-10-20T08:00:00Z', applicationData: null, rejectionReason: null },
+  business: { id: 4, name: 'Duka la Baraka', status: 'active' }, workspace: { id: 2 },
+  applicant: { userId: 40, name: 'Baraka', phone: '255713000002', identityStatus: 'not_submitted' },
+  operationalProfile: { type: 'seller_profile', id: 8, status: 'pending' }, legacyWithoutId: true,
+};
+
+test('the server\'s nested rows show names and approve the right application', async () => {
+  api.get.mockResolvedValue({ data: [nested] });
+  api.post.mockResolvedValue({ data: {} });
+  render(<BusinessApplications />);
+  expect(await screen.findByText('Duka la Baraka')).toBeTruthy();
+  expect(screen.getByText('Selling (Seller)')).toBeTruthy();
+  expect(screen.getByTestId('id-status-9')).toHaveTextContent('No ID sent');
+  fireEvent.click(screen.getByText('Approve'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/admin/business-capability-applications/9/approve'));
+});
+
+test('an old seller without an ID: mark ID checked + approve, with a reason', async () => {
+  api.get.mockResolvedValue({ data: [nested] });
+  api.post.mockResolvedValue({ data: {} });
+  window.prompt = jest.fn(() => 'Aliomba kabla ya sharti la kitambulisho');
+  render(<BusinessApplications />);
+  fireEvent.click(await screen.findByTestId('approve-without-id-9'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/admin/business-capability-applications/9/approve-legacy-without-id',
+    { reason: 'Aliomba kabla ya sharti la kitambulisho' }));
+});
+
+test('the button is only offered for old sellers without an ID', async () => {
+  api.get.mockResolvedValue({ data: [{ ...nested, legacyWithoutId: false, applicant: { ...nested.applicant, identityStatus: 'pending' } }] });
+  render(<BusinessApplications />);
+  expect(await screen.findByText('Duka la Baraka')).toBeTruthy();
+  expect(screen.queryByTestId('approve-without-id-9')).toBeNull();
+  expect(screen.getByTestId('id-status-9')).toHaveTextContent('ID sent, waiting');
+});
