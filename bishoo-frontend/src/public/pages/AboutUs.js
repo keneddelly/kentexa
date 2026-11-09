@@ -122,14 +122,14 @@ const AboutUs = ({ onNavigate }) => {
           <h2 style={{ fontSize: 18, fontWeight:800, color: '#fff', margin: '0 0 20px', textAlign: 'center', fontFamily:'inherit' }}>{t('about_us.stats_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
             {[
-              { value: '21', label: t('about_us.stat1_label'), icon: '🇹🇿' },
-              { value: '100%', label: t('about_us.stat2_label'), icon: '🔒' },
-              { value: '3', label: t('about_us.stat3_label'), icon: '💳' },
-              { value: '24/7', label: t('about_us.stat4_label'), icon: '⏰' },
+              // What Kentexa does, not invented numbers (owner 2026-11-09: never invent data).
+              { value: t('about_us.stat1_value', 'Nunua'), label: t('about_us.stat1_label') },
+              { value: t('about_us.stat2_value', 'Simamia'), label: t('about_us.stat2_label') },
+              { value: t('about_us.stat3_value', 'Ungana'), label: t('about_us.stat3_label') },
+              { value: t('about_us.stat4_value', 'Safirisha'), label: t('about_us.stat4_label') },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center', padding: '16px 8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 }}>
-                <div style={{ fontSize: 28 }}>{s.icon}</div>
-                <div style={{ fontSize: 28, fontWeight:800, color: '#fff', fontFamily:'inherit' }}>{s.value}</div>
+                <div style={{ fontSize: 24, fontWeight:800, color: '#fff', fontFamily:'inherit' }}>{s.value}</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{s.label}</div>
               </div>
             ))}
