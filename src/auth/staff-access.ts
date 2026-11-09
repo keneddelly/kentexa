@@ -35,7 +35,7 @@ const AREAS: Record<string, Area> = {
   },
   [UserRole.MODERATOR]: {
     read: (r) => !MONEY.test(r) && !STAFF_ADMIN.test(r),
-    write: (r) => /^(admin-intelligence\/reports|identity|seller|admin\/business-capability-applications|classifieds|products|official-products|services|feed|communities|brands|brand-authorizations|warranty|commerce-profiles|announcements)(\/|$)/.test(r),
+    write: (r) => /^(admin-intelligence\/reports|identity|seller|admin\/business-capability-applications|classifieds|products|official-products|services|feed|communities|brands|brand-authorizations|warranty|commerce-profiles)(\/|$)/.test(r),
   },
 };
 

@@ -82,7 +82,7 @@ export class AnnouncementsService {
   // outstandingBalance is >= or <= the configured amount, mapped to their
   // linked User. Shared by sendSmsBlast() (at send time) and getForUser()
   // (evaluated live per recipient, so it never freezes a stale snapshot).
-  private async resolveThresholdUsers(
+  async resolveThresholdUsers(
     announcement: Announcement,
   ): Promise<{ id: number; phone: string | null; name: string | null }[]> {
     if (!announcement.thresholdEntity || !announcement.thresholdOperator || announcement.thresholdAmount == null) {

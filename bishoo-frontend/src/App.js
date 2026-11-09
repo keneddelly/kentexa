@@ -1084,7 +1084,7 @@ function App() {
       case 'Invoices':    return requireAdmin(<Invoices    activePage={page} {...adminProps} />);
       case 'Reports':        return requireAdmin(<Reports     activePage={page} {...adminProps} />);
       case 'ContactMessages': return requireAdmin(<ContactMessages activePage={page} {...adminProps} />);
-      case 'Announcements':    return requireAdmin(<Announcements activePage={page} {...adminProps} />);
+      case 'Announcements':    return requireAdmin(<Announcements activePage={page} targetUserId={navParams?.targetUserId} targetName={navParams?.targetName} {...adminProps} />);
       case 'Analytics':        return requireAdmin(<Analytics activePage={page} {...adminProps} />);
       case 'ZoneManagement':    return requireAdmin(<ZoneManagement onNavigate={handleNavigate} onLogout={handleLogout} />);
       case 'BodaRates':         return requireAdmin(<BodaRates onNavigate={handleNavigate} onLogout={handleLogout} />);
