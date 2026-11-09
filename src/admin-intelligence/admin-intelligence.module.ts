@@ -15,6 +15,7 @@ import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.
 import { AdminIntelligenceService } from './admin-intelligence.service';
 import { AdminOverviewService } from './admin-overview.service';
 import { OnboardingFunnelService } from './onboarding-funnel.service';
+import { ResaleLaunchService } from './resale-launch.service';
 import { AdminDataService } from './admin-data.service';
 import { StaffService } from './staff.service';
 import { StaffController } from './staff.controller';
@@ -40,7 +41,7 @@ import { ActivityModule } from '../activity/activity.module';
     ActivityModule,
   ],
   controllers: [AdminIntelligenceController, StaffController],
-  providers: [AdminIntelligenceService, AdminOverviewService, AdminDataService, StaffService, OnboardingFunnelService],
+  providers: [AdminIntelligenceService, AdminOverviewService, AdminDataService, StaffService, OnboardingFunnelService, ResaleLaunchService],
   exports: [AdminIntelligenceService],
 })
 export class AdminIntelligenceModule {}

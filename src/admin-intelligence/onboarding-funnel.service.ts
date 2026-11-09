@@ -21,7 +21,7 @@ export const FUNNEL_STEPS: { key: string; label: string; sql: string }[] = [
   { key: 'role', label: 'Waliomba kazi (uza, ofisi, agent...)', sql: `SELECT count(*) FROM public."user" u WHERE u."createdAt" >= $1 AND EXISTS (SELECT 1 FROM public.account_role r WHERE r."userId" = u.id AND r."roleType"::text <> 'buyer')` },
 ];
 
-export const GOAL_KEYS = ['buy', 'sell', 'service', 'business', 'office', 'agent', 'transport', 'send'];
+export const GOAL_KEYS = ['buy', 'sell', 'resell', 'service', 'business', 'office', 'agent', 'transport', 'send'];
 
 @Injectable()
 export class OnboardingFunnelService {
