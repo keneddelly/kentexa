@@ -160,7 +160,7 @@ const AgentPerformance = ({ onNavigate }) => {
             <div style={{ width: 300, flexShrink: 0 }}>
               <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', position: 'sticky', top: 24 }}>
                 {detailLoading ? (
-                  <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}></div>
+                  <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>Inapakia...</div>
                 ) : detail ? (
                   <>
                     <h3 style={{ fontSize: 16, fontWeight:800, color: '#1e293b', margin: '0 0 4px' }}>{detail.businessName}</h3>

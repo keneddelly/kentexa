@@ -119,7 +119,6 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
             ) : providers.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                 borderRadius: 16 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}></div>
                 <div style={{ color: '#64748b' }}>Hakuna wasafirishaji wenye hali ya "{STATUS[filter]?.label}"</div>
               </div>
             ) : providers.map(p => {
@@ -180,7 +179,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                   <button onClick={() => setSelected(null)}
                     style={{ background: 'rgba(255,255,255,0.2)', border: 'none',
                       color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
-
+            Funga
                   </button>
                 </div>
                 <div style={{ fontSize: 16, fontWeight:800, marginTop: 8 }}>{selected.name}</div>

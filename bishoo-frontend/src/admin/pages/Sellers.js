@@ -336,7 +336,6 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Inapakia...</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}></div>
             <div>Hakuna wauzaji wanaolingana na utafutaji wako</div>
           </div>
         ) : (
@@ -501,7 +500,6 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>
-                  <div style={{ fontSize: 32, marginBottom: 6 }}></div>
                   <div style={{ fontSize: 12 }}>Hakuna nyaraka zilizopakiwa</div>
                 </div>
               )}

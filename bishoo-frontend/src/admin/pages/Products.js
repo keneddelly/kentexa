@@ -164,7 +164,6 @@ const Products = ({ activePage, onNavigate, onLogout }) => {
 
                       {/* Seller info — who posted it */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-                        <span style={{ fontSize: 12 }}></span>
                         <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>{p.seller?.name || p.seller?.businessName || '—'}</span>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>· {p.seller?.phone || p.seller?.email || '—'}</span>
                       </div>

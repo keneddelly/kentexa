@@ -155,7 +155,7 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                   fontSize: '32px',
                   margin: '0 auto 12px',
                 }}>
-
+            A
                 </div>
                 <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>
                   {profile?.name || 'Admin'}

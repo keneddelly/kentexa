@@ -98,7 +98,6 @@ const FinancialDashboard = ({ onNavigate }) => {
 
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}></div>
       <div>Inapakia takwimu za fedha...</div>
     </div>
   );

@@ -124,7 +124,6 @@ const Disputes = ({ onNavigate, activePage }) => {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
             ) : disputes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16 }}>
-                <div style={{ fontSize: 40, marginBottom: 12 }}></div>
                 <div style={{ color: '#64748b' }}>Hakuna migogoro ya "{STATUS_COLOR[filter]?.label}"</div>
               </div>
             ) : disputes.map(d => {
