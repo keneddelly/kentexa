@@ -79,6 +79,6 @@ describe('CreateMomentModal (Posting as)', () => {
     expect((await screen.findAllByText('actor_label.unresolved')).length).toBeGreaterThan(0);
     const post = screen.getByText(/create_moment_modal\.(share_moment_button|post_request_button)/);
     expect(post.closest('button')).toBeDisabled();
-    await waitFor(() => expect(api.post).not.toHaveBeenCalled());
+    await waitFor(() => expect(api.post).not.toHaveBeenCalledWith('/feed/publish', expect.anything()));
   });
 });

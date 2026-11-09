@@ -43,6 +43,9 @@ export function assertPublishInput(dto: any): void {
   oneOf(dto.actionType, MomentActionType, 'actionType');
   oneOf(dto.urgencyLevel, MomentUrgencyLevel, 'urgencyLevel');
   oneOf(dto.visibility, MomentVisibility, 'visibility');
+  // Smart Post (owner 2026-11-09): new posts are for everyone or for followers. 'limited' stays
+  // readable on old rows (treated like followers) but is not offered for new ones.
+  if (dto.visibility === MomentVisibility.LIMITED) throw new BadRequestException('Chagua "Wote" au "Wanaofuata".');
   if (typeof dto.title !== 'string' || !dto.title.trim()) throw new BadRequestException('Andika kitu kwenye chapisho.');
   text(dto.title, PUBLISH_LIMITS.title, 'title');
   text(dto.body, PUBLISH_LIMITS.body, 'body');

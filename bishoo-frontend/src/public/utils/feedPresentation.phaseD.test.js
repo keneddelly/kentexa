@@ -11,6 +11,7 @@ describe('phase D presentation (owner approved 2026-11-02)', () => {
     expect(formatTag('question')).toBe('Swali');
     expect(formatTag('discussion')).toBe('Mjadala');
     expect(formatTag('offer')).toBe('Ofa');
+    expect(formatTag('experience')).toBe('Uzoefu');
     expect(formatTag('update')).toBe('');
   });
   it('only the author, only within 15 minutes, only a real post', () => {
@@ -22,7 +23,7 @@ describe('phase D presentation (owner approved 2026-11-02)', () => {
     expect(canEditPost({ ...post, id: 'prd-7' }, 3, now)).toBe(false);
   });
   it('the composer offers seven kinds, Kura included (phase E)', () => {
-    expect(POST_KINDS.map((k) => k.label)).toEqual(['Moment', 'Swali', 'Mjadala', 'Onyesha bidhaa', 'Ofa', 'Kura', 'Natafuta']);
+    expect(POST_KINDS.map((k) => k.label)).toEqual(['Moment', 'Swali', 'Mjadala', 'Onyesha bidhaa', 'Ofa', 'Kura', 'Uzoefu', 'Natafuta']);
   });
 });
 

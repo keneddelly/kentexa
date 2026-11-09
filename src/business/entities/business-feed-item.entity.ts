@@ -44,6 +44,8 @@ export enum MomentIntent {
   DISCUSSION = 'discussion',
   // Phase E (2026-11-02): a poll; its question and options live in post_poll.
   POLL = 'poll',
+  // Smart Post (owner 2026-11-09): Uzoefu, a story, review or lesson from the person's own experience.
+  EXPERIENCE = 'experience',
 }
 
 /** Phase D: one photo of a post, with its own size so the card keeps its shape. */

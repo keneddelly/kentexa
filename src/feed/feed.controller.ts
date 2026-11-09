@@ -30,6 +30,7 @@ import { SocialSafetyService } from './social-safety.service';
 import { TopicsService } from './topics.service';
 import { TodayService } from './today.service';
 import { CommunitiesService } from './communities.service';
+import { composerEvent, ComposerEventLimiter } from './composer-events';
 
 @Controller('feed')
 export class FeedController {
@@ -146,6 +147,17 @@ export class FeedController {
       }
     }
     return item;
+  }
+
+  // ── Smart Post: the composer's steps (no text kept; see composer-events.ts) ──
+  private readonly composerLimiter = new ComposerEventLimiter();
+
+  @Post('analytics/composer')
+  @UseGuards(JwtAuthGuard)
+  composerStep(@Request() req, @Body() body: any) {
+    const ev = composerEvent(body);
+    if (ev && this.composerLimiter.allow(req.user.id)) this.svc.recordComposerStep(req.user.id, ev);
+    return { ok: true };
   }
 
   // ── Phase E: Kura ───────────────────────────────────────────────────────────

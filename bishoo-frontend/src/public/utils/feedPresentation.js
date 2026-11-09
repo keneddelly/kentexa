@@ -45,6 +45,8 @@ export const POST_KINDS = Object.freeze([
   { key: 'showcase', label: 'Onyesha bidhaa', intent: 'sell_available', needsItem: true },
   { key: 'offer', label: 'Ofa', intent: 'offer', needsItem: true },
   { key: 'poll', label: 'Kura', intent: 'poll' },
+  // Smart Post (owner 2026-11-09): a story, review or lesson from the person's own experience.
+  { key: 'experience', label: 'Uzoefu', intent: 'experience' },
   { key: 'looking_for', label: 'Natafuta' },
 ]);
 
@@ -56,7 +58,7 @@ export const postPhotos = (post) => {
 };
 
 /** The tag a post shows for its format (empty for a plain Moment). */
-export const formatTag = (intent) => ({ question: 'Swali', discussion: 'Mjadala', offer: 'Ofa', poll: 'Kura' }[intent] || '');
+export const formatTag = (intent) => ({ question: 'Swali', discussion: 'Mjadala', offer: 'Ofa', poll: 'Kura', experience: 'Uzoefu' }[intent] || '');
 
 /** Phase E (owner approved 2026-11-02): poll limits, the same as the server's. */
 export const POLL = Object.freeze({ minOptions: 2, maxOptions: 6, optionLength: 80, days: [1, 3, 7] });

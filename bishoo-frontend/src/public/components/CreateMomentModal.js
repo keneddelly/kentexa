@@ -10,13 +10,16 @@
  *    the price comes from that record, never typed.
  *  - Audience: Wote or Wanaofuata. The server decides who sees what.
  *  - The posting identity is the server-resolved active context (shown, never chosen here).
+ *  - Smart Post (owner 2026-11-09): a new post is shown as it will look before "Chapisha"; the
+ *    text stays if posting fails. Uzoefu is a kind. The composer's steps are recorded (opened,
+ *    kind, preview, closed without posting) with no text, so we learn where people stop.
  */
 import { actorLabelParts } from '../utils/publicActor';
 import React, { useState, useEffect, useRef } from 'react';
 import { saleIntent } from '../utils/saleIntent';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { COMPOSER, POST_KINDS, POLL, postPhotos } from '../utils/feedPresentation';
+import { COMPOSER, POST_KINDS, POLL, postPhotos, formatTag, photoAspect } from '../utils/feedPresentation';
 
 const B  = '#2563EB';
 const DK = '#0F1419';
@@ -53,6 +56,12 @@ const KIND_ICON = {
   offer: 'M20 12l-8 8-9-9V3h8zM7.5 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
   looking_for: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5',
   poll: 'M5 20V10M12 20V4M19 20v-7',
+  experience: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
+};
+
+/** Records one composer step. Never blocks or fails the composer. */
+const composerEvent = (step, data = {}) => {
+  try { Promise.resolve(api.post('/feed/analytics/composer', { step, ...data })).catch(() => {}); } catch { /* offline */ }
 };
 const Icon = ({ d, color = 'currentColor', size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
@@ -65,6 +74,7 @@ const PLACEHOLDER = {
   showcase: 'Eleza bidhaa au huduma unayoonyesha...',
   offer: 'Eleza ofa yako...',
   poll: 'Andika swali la kura...',
+  experience: 'Shiriki uzoefu wako: hadithi, maoni au somo ulilojifunza...',
 };
 
 /** Reads a picked photo's own width and height (null when the browser cannot tell). */
@@ -129,6 +139,20 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const intent = !isEdit && kind === 'moment' ? saleIntent(caption, { tagged: !!tagged && tagged.type !== 'business' }) : { sale: false, price: null };
   const asAd = intent.sale && !keepMoment && !!onNavigate;
   const fileRef = useRef(null);
+  // Smart Post: 'write' then 'preview'. Editing and "Endelea kama tangazo" skip the preview.
+  const [step, setStep] = useState('write');
+  const postedRef = useRef(false);
+  useEffect(() => { if (!isEdit) composerEvent('opened', { kind }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const chooseKind = (key) => {
+    setKind(key); setError('');
+    if (key !== kind) composerEvent('kind', { kind: key });
+  };
+  const close = () => {
+    if (!isEdit && !postedRef.current) {
+      composerEvent('abandoned', { kind, at: step, hasText: !!caption.trim(), photos: photos.length });
+    }
+    onClose();
+  };
 
   useEffect(() => {
     if (isEdit) return;
@@ -227,25 +251,44 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     return photos.map((p) => ({ url: p.file ? urls[k++] : p.url, width: p.width ?? null, height: p.height ?? null }));
   };
 
-  const handlePost = async () => {
-    if (actorUnresolved) { setError(t('actor_label.unresolved')); return; }
+  /** What is still missing before the post can go out ('' when it is ready). */
+  const problem = () => {
+    if (actorUnresolved) return t('actor_label.unresolved');
     const text = caption.trim();
     if (mode === 'moment') {
-      if (!photos.length && !text) { setError('Weka picha au andika kitu.'); return; }
-      if ((kind === 'question' || kind === 'discussion') && !text) { setError('Andika swali au mada ya mjadala.'); return; }
+      if (!photos.length && !text) return 'Weka picha au andika kitu.';
+      if ((kind === 'question' || kind === 'discussion') && !text) return 'Andika swali au mada ya mjadala.';
+      if (kind === 'experience' && !text) return 'Andika uzoefu wako.';
       if (kind === 'poll') {
-        if (!text) { setError('Andika swali la kura.'); return; }
+        if (!text) return 'Andika swali la kura.';
         const opts = pollOptions.map((o) => o.trim());
-        if (opts.some((o) => !o)) { setError('Jaza kila chaguo, au liondoe.'); return; }
-        if (new Set(opts.map((o) => o.toLowerCase())).size !== opts.length) { setError('Machaguo mawili yanafanana.'); return; }
+        if (opts.some((o) => !o)) return 'Jaza kila chaguo, au liondoe.';
+        if (new Set(opts.map((o) => o.toLowerCase())).size !== opts.length) return 'Machaguo mawili yanafanana.';
       }
-      if (kindInfo.needsItem && !tagged) { setError('Chagua bidhaa, tangazo au huduma unayoonyesha.'); return; }
-      if (askTopic && !topicList.some((tp) => tp.key === topicKey)) { setError('Chagua mada ya chapisho hili.'); return; }
+      if (kindInfo.needsItem && !tagged) return 'Chagua bidhaa, tangazo au huduma unayoonyesha.';
+      if (askTopic && !topicList.some((tp) => tp.key === topicKey)) return 'Chagua mada ya chapisho hili.';
     } else {
-      if (!text) { setError(t('create_moment_modal.validate_describe')); return; }
-      if (!category) { setError(t('create_moment_modal.validate_pick_category')); return; }
+      if (!text) return t('create_moment_modal.validate_describe');
+      if (!category) return t('create_moment_modal.validate_pick_category');
     }
-    if (text.length > COMPOSER.text) { setError(`Maandishi yasizidi herufi ${COMPOSER.text}.`); return; }
+    if (text.length > COMPOSER.text) return `Maandishi yasizidi herufi ${COMPOSER.text}.`;
+    return '';
+  };
+
+  /** The main button: a new post goes to the preview first; an edit or an ad goes straight on. */
+  const handleNext = () => {
+    if (isEdit || asAd) { handlePost(); return; }
+    const p = problem();
+    if (p) { setError(p); return; }
+    setError('');
+    setStep('preview');
+    composerEvent('preview', { kind, photos: photos.length, audience });
+  };
+
+  const handlePost = async () => {
+    const p = problem();
+    if (p) { setError(p); setStep('write'); return; }
+    const text = caption.trim();
     try {
       setPosting(true);
       setError('');
@@ -306,9 +349,11 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         });
       }
 
+      postedRef.current = true;
       onPosted?.();
       onClose();
     } catch (err) {
+      // The text, photos and choices stay as they were; the person can try again.
       setError(err?.response?.data?.message || err?.message || t('create_moment_modal.post_failed'));
     } finally {
       setPosting(false);
@@ -329,10 +374,10 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
 
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'10px 12px', borderBottom:`1px solid ${LN}`, flexShrink:0 }}>
-          <button type="button" onClick={onClose} aria-label="Funga" style={{ background:'none', border:'none',
+          <button type="button" onClick={close} aria-label="Funga" style={{ background:'none', border:'none',
             cursor:'pointer', fontSize:22, color:DK, padding:4, width:34 }}>×</button>
           <div style={{ fontSize:16, fontWeight:800, color:DK }}>
-            {isEdit ? 'Hariri chapisho' : mode === 'moment' ? 'Chapisho jipya' : t('create_moment_modal.title_looking_for')}
+            {isEdit ? 'Hariri chapisho' : step === 'preview' ? 'Kagua kabla ya kuchapisha' : mode === 'moment' ? 'Chapisho jipya' : t('create_moment_modal.title_looking_for')}
           </div>
           <div style={{ width:34 }} />
         </div>
@@ -349,7 +394,14 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           </div>
         )}
 
-        <div style={{ flex:1, overflowY:'auto', padding:16, minHeight:0, display:'flex', flexDirection:'column', gap:14 }}>
+        {step === 'preview' && (
+          <PostPreview actor={actor} kind={kind} kindInfo={kindInfo} text={caption.trim()} photos={photos}
+            pollOptions={pollOptions} pollDays={pollDays} tagged={tagged} audience={audience} category={category}
+            topic={topicList.find((tp) => tp.key === topicKey)?.label || ''}
+            community={myCommunities.find((c) => c.id === communityId)?.name || ''} error={error} />
+        )}
+
+        <div style={{ flex:1, overflowY:'auto', padding:16, minHeight:0, display: step === 'preview' ? 'none' : 'flex', flexDirection:'column', gap:14 }}>
           {/* The type grid: what kind of post this is. Not offered when editing. */}
           {!isEdit && (
             <div role="radiogroup" aria-label="Aina ya chapisho" style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:6 }}>
@@ -357,7 +409,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                 const on = kind === k.key;
                 return (
                   <button key={k.key} type="button" role="radio" aria-checked={on} data-testid={`kind-${k.key}`}
-                    onClick={() => { setKind(k.key); setError(''); }}
+                    onClick={() => chooseKind(k.key)}
                     style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, padding:'8px 4px', borderRadius:12,
                       border:`1px solid ${on ? B : LN}`, background: on ? '#eff6ff' : WH, color: on ? B : DK,
                       fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
@@ -545,16 +597,29 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
             </div>
           )}
 
-          {error && (
+          {error && step === 'write' && (
             <div role="alert" style={{ fontSize:13, color:'#B91C1C', fontWeight:600 }}>
               {error}
             </div>
           )}
         </div>
 
+        {step === 'preview' ? (
+          <div style={{ flexShrink:0, padding:'12px 16px max(12px, env(safe-area-inset-bottom))', borderTop:`1px solid ${LN}`, display:'flex', gap:8 }}>
+            <button type="button" data-testid="preview-back" onClick={() => { setStep('write'); setError(''); }} disabled={posting}
+              style={{ flex:1, height:48, background:WH, color:DK, border:`1px solid ${LN}`, borderRadius:24, cursor:'pointer', fontSize:15, fontWeight:700, fontFamily:'inherit' }}>
+              Rudi kuhariri
+            </button>
+            <button type="button" data-testid="preview-publish" onClick={handlePost} disabled={posting}
+              style={{ flex:1, height:48, background: posting ? '#93C5FD' : DK, color:WH, border:'none', borderRadius:24,
+                cursor: posting ? 'not-allowed' : 'pointer', fontSize:15, fontWeight:700, fontFamily:'inherit' }}>
+              {posting ? t('create_moment_modal.posting') : 'Chapisha'}
+            </button>
+          </div>
+        ) : (
         <div style={{ flexShrink:0, padding:'12px 16px max(12px, env(safe-area-inset-bottom))',
           borderTop:`1px solid ${LN}` }}>
-          <button type="button" onClick={handlePost} disabled={posting || actorUnresolved}
+          <button type="button" onClick={handleNext} disabled={posting || actorUnresolved}
             style={{ width:'100%', height:48, background: posting ? '#93C5FD' : DK,
               color:WH, border:'none', borderRadius:24,
               cursor: posting ? 'not-allowed' : 'pointer', fontSize:15, fontWeight:700, fontFamily:'inherit' }}>
@@ -564,9 +629,66 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               : mode === 'moment' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
           </button>
         </div>
+        )}
       </div>
     </div>
   );
 };
+
+/**
+ * The post as the feed card will show it: who posts, the kind, the text, the photos, the poll,
+ * the linked item and who will see it. Nothing here is sent; "Chapisha" sends it.
+ */
+function PostPreview({ actor, kind, kindInfo, text, photos, pollOptions, pollDays, tagged, audience, category, topic, community, error }) {
+  const tag = kind === 'looking_for' ? 'Natafuta' : formatTag(kindInfo.intent);
+  const one = photos.length === 1 ? photos[0] : null;
+  const where = [
+    audience === 'followers' ? 'Wanaofuata tu' : 'Wote',
+    community ? `Jumuiya: ${community}` : topic ? `Mada: ${topic}` : '',
+    kind === 'looking_for' && category ? `Aina: ${category}` : '',
+  ].filter(Boolean).join(' · ');
+  return (
+    <div data-testid="post-preview" style={{ flex:1, overflowY:'auto', padding:16, minHeight:0, display:'flex', flexDirection:'column', gap:12 }}>
+      <div style={{ fontSize:13, color:GR }}>Hivi ndivyo chapisho lako litakavyoonekana.</div>
+      <article style={{ border:`1px solid ${LN}`, borderRadius:16, padding:14, display:'flex', flexDirection:'column', gap:10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <b style={{ fontSize:15, color:DK }}>{actor?.title || 'Wewe'}</b>
+          {actor?.subtitle && <span style={{ fontSize:13, color:GR }}>{actor.subtitle}</span>}
+          {tag && <span style={{ fontSize:12, fontWeight:700, color:B, border:`1px solid ${B}`, borderRadius:10, padding:'1px 8px' }}>{tag}</span>}
+        </div>
+        {text && <div style={{ fontSize:15, lineHeight:1.45, color:DK, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{text}</div>}
+        {one && (
+          <img src={one.preview || one.url} alt="" style={{ width:'100%', aspectRatio: photoAspect(one.width && one.height ? one.width / one.height : null), objectFit:'cover', borderRadius:12, display:'block' }} />
+        )}
+        {photos.length > 1 && (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:4, borderRadius:12, overflow:'hidden' }}>
+            {photos.map((p) => (
+              <img key={p.preview || p.url} src={p.preview || p.url} alt="" style={{ width:'100%', aspectRatio:'1 / 1', objectFit:'cover', display:'block' }} />
+            ))}
+          </div>
+        )}
+        {kind === 'poll' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {pollOptions.map((o, i) => (
+              <div key={i} style={{ border:`1px solid ${LN}`, borderRadius:10, padding:'8px 12px', fontSize:14, color:DK }}>{o.trim()}</div>
+            ))}
+            <div style={{ fontSize:12, color:GR }}>Kura inafungwa baada ya siku {pollDays}</div>
+          </div>
+        )}
+        {tagged && (
+          <div style={{ display:'flex', alignItems:'center', gap:10, border:`1px solid ${LN}`, borderRadius:10, padding:'8px 10px' }}>
+            {tagged.image && <img src={tagged.image} alt="" style={{ width:32, height:32, borderRadius:8, objectFit:'cover' }} />}
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:DK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{tagged.title}</div>
+              {tagged.price ? <div style={{ fontSize:12, color:GR }}>TZS {Number(tagged.price).toLocaleString('en-US')}</div> : null}
+            </div>
+          </div>
+        )}
+      </article>
+      <div data-testid="preview-audience" style={{ fontSize:13, color:GR }}>Wanaoona: {where}</div>
+      {error && <div role="alert" style={{ fontSize:13, color:'#B91C1C', fontWeight:600 }}>{error}</div>}
+    </div>
+  );
+}
 
 export default CreateMomentModal;
