@@ -1,4 +1,31 @@
-# Known faults — not fixed yet
+# Known faults — status checked against the code on 2026-11-09
+
+Every item below was checked against the live branch (`worktree-service-provider-profiles`) on 2026-11-09.
+
+| # | Fault | Status 2026-11-09 |
+|---|---|---|
+| 1 | Same-city price comes from one agent | Partly changed: the price is now the nearest agent's fee, but any nearby agent may take the job (owner 2026-10-25: nearby agents see the job). Open question: should the price be fixed per area instead of per agent? |
+| 2 | Any agent in the city can claim a pickup | Now intended (owner 2026-10-25 and 2026-11-08: nearby agents see the job; a seller's partner agents get it first). Not a fault any more. |
+| 3 | Dead code in the offer file | Fixed 2026-11-09 (removed). |
+| 4, 7, 8, 12 | Old failing test files | Still open as the CI baseline: 14 logistics test suites (test fakes, not app code). The frontend ones from #8 pass. |
+| 5, 22 | Door pickups never created a job | Fixed: confirming a send-form booking creates the pickup job and alerts agents (same-city and hub-routed). |
+| 6 | "Kentexa will arrange..." wording | Fixed (no such text left). |
+| 9 | Timed jobs have no time zone (server runs on UTC) | Open: 19 of 20 timed jobs still run at UTC times (8 am in code = 11:00 in Tanzania). Changing them needs the owner's decision. |
+| 10 | Timed jobs ran three times | Fixed (one ScheduleModule set-up, with a test and a start-up check). |
+| 11 | DailyBatchesModule never loaded | Open, owner decision: its escrow jobs belong to the old "KenteXa holds money" model, which no longer applies. Suggest removing the module. |
+| 13, 16, 17, 20, 21 | Live outage, walk-in intake, claim | Fixed (marked in each section below). |
+| 14 | "Mizigo Yangu" went to Home | Fixed (in the page list). |
+| 15 | Walk-in receipt could be lost | Fixed (receipt reopen). |
+| 18 | "KenteXa van" label | Fixed 2026-11-09 in the remaining texts: "van ya mtaa" / "local van". |
+| 19 | Handover hidden inside "Sasisha" | Fixed (visible handover). |
+| 23 | Dar es Salaam ward list incomplete | Open (data): wards are still hidden from agents (`SHOW_PIN_WARD = false`) until the list is complete. |
+| 24 | English error with no agent | Fixed: Swahili card and the nearest office. |
+
+The original notes follow, unchanged, for history.
+
+---
+
+# Known faults — original notes (October 2026)
 
 Found while planning the `marketplace-basic` work (October 2026, on commit 4d692ee).
 These are written down on purpose. They are **not** fixed in step 1.
