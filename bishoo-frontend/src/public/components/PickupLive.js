@@ -5,6 +5,9 @@
  *   waiting   the agents told about the job, nearest first: name, km from the shop, Piga (owner:
  *             the sender may call any of them); "Waambie tena" every 2 minutes; a clear
  *             "Hakuna wakala" with the office to bring it to when none is near or none accepts.
+ *             The job is offered for 5 minutes (owner 2026-11-09, task.offerEndsAt): a countdown,
+ *             then "Hakuna aliyekubali": the job left the agents' lists and the sender decides
+ *             (Piga, "Waambie tena" for a new window, or the office).
  *   accepted  "<name> amekubali, anakuja" with km and Piga.
  *   office    intercity / drop-off: the office, its place, km, Piga ofisi, Ramani; "Imepokelewa".
  * Live from GET /shipments/:id/pickup-task (every 8 s while open). Only real records are shown.
@@ -25,6 +28,14 @@ const pill = (dark) => ({ height: 38, padding: '0 16px', borderRadius: 19, borde
 const box = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 16, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' };
 
 export const minutesSince = (at, now = Date.now()) => (at ? Math.max(0, Math.floor((now - new Date(at).getTime()) / 60000)) : 0);
+/** "4:05" left of the offer, or null when it has ended / is unknown. */
+export const timeLeft = (endsAt, now = Date.now()) => {
+  if (!endsAt) return null;
+  const ms = new Date(endsAt).getTime() - now;
+  if (!(ms > 0)) return null;
+  const sec = Math.ceil(ms / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+};
 
 const Person = ({ name, sub, phone, testId }) => (
   <div data-testid={testId} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -52,10 +63,21 @@ export default function PickupLive({ shipmentId, pollMs = 8000 }) {
     const t = setInterval(load, pollMs);
     return () => clearInterval(t);
   }, [shipmentId, pollMs, load]);
+  // The countdown ticks every second while a job waits.
+  const waiting = data?.task?.status === 'requested' && Boolean(data?.task?.offerEndsAt);
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [waiting]);
 
   const remind = async () => {
     setMsg('');
-    try { const r = await api.post(`/shipments/${shipmentId}/pickup-task/remind`); setMsg(`Mawakala ${r?.data?.told ?? 0} wameambiwa tena.`); }
+    try {
+      const r = await api.post(`/shipments/${shipmentId}/pickup-task/remind`);
+      setMsg(`Mawakala ${r?.data?.told ?? 0} wameambiwa tena.`);
+      if (r?.data?.offerEndsAt) setData((d) => (d?.task ? { ...d, task: { ...d.task, offerEndsAt: r.data.offerEndsAt } } : d));
+    }
     catch (e) { setMsg(e?.response?.data?.message || 'Imeshindikana. Jaribu tena.'); }
   };
 
@@ -82,20 +104,25 @@ export default function PickupLive({ shipmentId, pollMs = 8000 }) {
   let body;
   if (task.status === 'requested') {
     const list = task.nearby || [];
-    const long = waited >= NO_ONE_MINUTES;
+    const left = timeLeft(task.offerEndsAt, now);
+    // Ended: the job left the agents' lists (server time); without it, the old 10-minute hint.
+    const ended = task.offerEndsAt ? !left : false;
+    const long = ended || (!task.offerEndsAt && waited >= NO_ONE_MINUTES);
     body = (
       <div data-testid="live-waiting" style={box}>
-        <b style={{ fontSize: 16 }}>{list.length ? 'Tunatafuta wakala' : 'Hakuna wakala karibu sasa hivi'}</b>
+        <b style={{ fontSize: 16 }}>{ended ? 'Hakuna aliyekubali' : list.length ? 'Tunatafuta wakala' : 'Hakuna wakala karibu sasa hivi'}</b>
         <span style={{ fontSize: 13, color: MUTED }}>
-          {list.length ? `Mawakala ${list.length} wa karibu wameambiwa · dakika ${waited}` : 'KenteXa itakuambia mmoja akipatikana. Unaweza kupeleka mzigo ofisini.'}
+          {ended ? 'Kazi imeondolewa kwa mawakala. Mpigie mmoja, waambie tena, au peleka mzigo ofisini.'
+            : list.length ? `Mawakala ${list.length} wa karibu wameambiwa${left ? '' : ` · dakika ${waited}`}` : 'KenteXa itakuambia mmoja akipatikana. Unaweza kupeleka mzigo ofisini.'}
         </span>
+        {left && <span data-testid="live-countdown" style={{ fontSize: 14, fontWeight: 700, color: AMBER }}>Muda wa kukubali: {left}</span>}
         {list.map((a) => (
           <Person key={a.id} testId={`live-agent-${a.id}`} name={a.name} phone={a.phone}
             sub={[a.distanceKm != null ? `${km(a.distanceKm)} kutoka dukani` : 'hajaweka kituo', a.isOnline ? 'yuko mtandaoni' : null].filter(Boolean).join(' · ')} />
         ))}
-        {long && <span data-testid="live-no-one" style={{ fontSize: 14, fontWeight: 700, color: AMBER }}>Hakuna aliyekubali kwa dakika {waited}. Mpigie mmoja, au waambie tena.</span>}
+        {long && !ended && <span data-testid="live-no-one" style={{ fontSize: 14, fontWeight: 700, color: AMBER }}>Hakuna aliyekubali kwa dakika {waited}. Mpigie mmoja, au waambie tena.</span>}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" data-testid="live-remind" onClick={remind} style={pill(false)}>Waambie tena</button>
+          <button type="button" data-testid="live-remind" onClick={remind} style={pill(ended)}>Waambie tena</button>
         </div>
         {msg && <span role="status" style={{ fontSize: 13, color: MUTED }}>{msg}</span>}
       </div>

@@ -70,6 +70,16 @@ export function partnerGateSql(agentUserIdSql: string, minutes = sellerPartnerFi
     + ` OR ${partner(` AND sap."agentUserId" = ${agentUserIdSql}`)})`;
 }
 
+/**
+ * SQL: minutes the seller's partner agents have the job alone (0 when the seller has no accepted
+ * partner, or the gate is off). The offer window to all agents starts after it (pickup-offer-window.ts).
+ */
+export function partnerHeadStartSql(minutes = sellerPartnerFirstMinutes()): string {
+  if (!tableReady || minutes <= 0) return '0';
+  return `(CASE WHEN EXISTS (SELECT 1 FROM ${SELLER_PARTNER_TABLE} hs WHERE hs."sellerUserId" = t."requestedByUserId"
+    AND hs.status = 'accepted') THEN ${Math.round(minutes)} ELSE 0 END)`;
+}
+
 export const PARTNER_JOB_MESSAGE = 'Kazi hii imepewa kwanza wakala mshirika wa muuzaji. Itafunguka kwa wakala wote baada ya dakika chache.';
 
 /** The partner agent's job SMS: from the seller, one part, plain characters. */
