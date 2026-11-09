@@ -4596,7 +4596,7 @@
     "fee_you_receive": "Utapata",
     "dispute_raised": "Mgogoro umeripotiwa: {{reason}}",
     "start_shipping_button": "Anza Kutuma",
-    "van_chosen_note": "Mnunuzi alichagua KenteXa Van — pangilia kwenye van ya leo",
+    "van_chosen_note": "Mnunuzi alichagua van ya mtaa — pangilia kwenye van ya leo",
     "assign_van_button": "Pangilia kwenye Van ya Leo",
     "van_assigned_note": "Imepangiliwa kwenye Van — {{tracking}}",
     "notify_buyer_whatsapp": "Mjulishe Mteja",

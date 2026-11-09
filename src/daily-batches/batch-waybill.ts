@@ -86,7 +86,7 @@ export async function mirrorBatchStep(
       await manager.transaction(async (m) => {
         await m.query(`UPDATE public.parcel SET status = $2 WHERE id = $1`, [r.id, next]);
         await m.query(`INSERT INTO public.parcel_tracking ("parcelId", status, city, note, "updatedBy", "handlerType")
-          VALUES ($1, $2, $3, $4, 'KenteXa Van', 'system')`,
+          VALUES ($1, $2, $3, $4, 'Van ya mtaa', 'system')`,
         [r.id, next, next === 'received_at_hub' ? 'Kariakoo' : (r.zoneName ?? 'Dar es Salaam'), NOTES[next] ?? null]);
       });
       moved++;
