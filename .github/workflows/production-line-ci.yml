@@ -207,6 +207,7 @@ jobs:
           cat summary.md
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
           if [ ! -s jest-logistics.json ]; then tail -n 60 jest-logistics.log; fi
+          node -e 'const r=require("./jest-logistics.json");for(const t of r.testResults){if(t.status!=="failed")continue;console.log("### "+t.name);if(t.message&&!t.assertionResults.length)console.log(t.message.slice(0,3000));for(const a of t.assertionResults.filter(a=>a.status==="failed").slice(0,3))console.log("-- "+a.fullName+"\n"+a.failureMessages.join("\n").slice(0,2500));}' || true
           exit $STATUS
       - name: Post the result on the pull request
         if: always() && github.event_name == 'pull_request'

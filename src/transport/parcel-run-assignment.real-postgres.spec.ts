@@ -157,6 +157,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       status varchar DEFAULT 'pending', "destinationSuperAgentId" integer, "arrivedAtHubTime" timestamp,
       "weightKg" decimal(8,2), "journeySelectionId" integer NULL, "shipmentId" integer NULL
     )`);
+    // Direct-booking authority reads Parcel -> Shipment.providerId (a bare stand-in, like parcel).
+    await ds.query(`CREATE TABLE public.shipment (id SERIAL PRIMARY KEY, "providerId" integer NULL)`);
     await ds.query(`CREATE TABLE public.journey_selection (
       id integer PRIMARY KEY, status varchar(24) NOT NULL
     )`);
