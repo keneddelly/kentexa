@@ -2,19 +2,21 @@ plugins {
     id 'com.android.application'
 }
 
-// The Play Store needs a higher versionCode for every upload; CI passes its run number.
-def ciVersionCode = (System.getenv('VERSION_CODE') ?: '1') as int
+// KenteXa ships as the update of the old "Bishoo Tanzania" Play Store app (com.app.bishoo,
+// owner 2026-11-10): same app, same users. Its last version code was 88, so KenteXa counts
+// from 100 plus the CI run number; every upload must be higher than the one before.
+def ciVersionCode = 100 + ((System.getenv('VERSION_CODE') ?: '0') as int)
 
 android {
     namespace 'com.kentexa.app'
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.kentexa.app'
+        applicationId 'com.app.bishoo'
         minSdk 21
         targetSdk 35
         versionCode ciVersionCode
-        versionName "1.0.${ciVersionCode}"
+        versionName "2.0.${ciVersionCode}"
     }
 
     buildTypes {
