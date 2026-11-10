@@ -70,6 +70,14 @@ export class AuthController {
     return this.authService.register(body);
   }
 
+  // Buying without signing up first (owner 2026-11-10): the account is made from the phone at checkout.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @Post('checkout-phone')
+  checkoutPhone(@Body() body: any) {
+    return this.authService.checkoutPhone(body || {});
+  }
+
   // Verify OTP (phone or email)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 15, ttl: 3600000 } })

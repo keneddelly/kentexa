@@ -168,12 +168,10 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
                 <button className="cart-checkout-btn"
                   onClick={() => {
-                    if (isLoggedIn) { onNavigate('Checkout'); return; }
-                    // Back to checkout after signing in or signing up (owner 2026-11-10); the cart stays.
-                    try { localStorage.setItem('kentexa_after_login', 'Checkout'); } catch { /* storage blocked */ }
-                    onNavigate('PublicLogin');
+                    // Signed out: buy with a phone number, no sign-up first (owner 2026-11-10); the cart stays.
+                    onNavigate(isLoggedIn ? 'Checkout' : 'GuestCheckout');
                   }}>
-                  {isLoggedIn ? t('cart.checkout') : t('cart.login_checkout')}
+                  {t('cart.checkout')}
                 </button>
 
                 <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 10 }}>

@@ -7,7 +7,8 @@ export const evaluateDestination = ({ page, isAuthenticated, roleType, capabilit
   const home = homeForRole(roleType);
   if (!destination) return { allowed: false, reason: 'UNKNOWN_DESTINATION', page: home, destination: null };
   if (destination.kind === DESTINATION_KIND.PUBLIC) return { allowed: true, page, destination };
-  if (!isAuthenticated) return { allowed: false, reason: 'AUTHENTICATION_REQUIRED', page: 'PublicLogin', destination };
+  // Signed out at the checkout: buy with a phone number, no sign-up first (owner 2026-11-10).
+  if (!isAuthenticated) return { allowed: false, reason: 'AUTHENTICATION_REQUIRED', page: page === 'Checkout' ? 'GuestCheckout' : 'PublicLogin', destination };
   if (destination.kind === DESTINATION_KIND.ACCOUNT) return { allowed: true, page, destination };
   if (!destination.roles.includes(roleType)) return { allowed: false, reason: 'WRONG_CONTEXT', page: home, destination };
   const missing = destination.capabilities.filter((capability) => !capabilities.includes(capability));

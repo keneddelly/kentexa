@@ -29,6 +29,7 @@ import RoleActivation     from './public/pages/RoleActivation';
 import Onboarding          from './public/pages/Onboarding';
 import AddProfilePhoto     from './public/pages/AddProfilePhoto';
 import { photoSkipped }   from './utils/photoLater';
+import { holdWelcomeSteps, isCheckoutBuyer } from './utils/checkoutBuyer';
 import FlashSales          from './public/pages/FlashSales';
 import PickupPoints        from './public/pages/PickupPoints';
 import RouteCoverageMap   from './public/pages/RouteCoverageMap';
@@ -98,6 +99,7 @@ import BecomeAgent from './public/pages/BecomeAgent';
 import AgentDashboard from './public/pages/AgentDashboard';
 import Cart from './public/pages/Cart';
 import Checkout from './public/pages/Checkout';
+import GuestCheckout from './public/pages/GuestCheckout';
 import Search from './public/pages/Search';
 import VerifyReceipt from './public/pages/VerifyReceipt';
 import SellerProducts from './public/pages/SellerProducts';
@@ -541,11 +543,13 @@ function App() {
           localStorage.setItem('kentexa_user', JSON.stringify(profile));
         } catch {}
         setNavParams(null);
-        if (profile && !profile.avatarUrl && !photoSkipped(profile.id)) {
+        // Signed in from the checkout: straight on to the order; photo and welcome wait for Home.
+        const fromCheckout = isCheckoutBuyer();
+        if (!fromCheckout && profile && !profile.avatarUrl && !photoSkipped(profile.id)) {
           setPage('AddProfilePhoto');
           return;
         }
-        if (profile && profile.onboardingCompleted === false) {
+        if (!fromCheckout && profile && profile.onboardingCompleted === false) {
           setPage('Onboarding');
           return;
         }
@@ -604,6 +608,7 @@ function App() {
       api.get('/auth/profile').then(res => {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
+        if (isCheckoutBuyer()) return; // signed in from the checkout: these wait for Home
         if (!res.data.avatarUrl && !photoSkipped(res.data.id)) setPage('AddProfilePhoto');
         else if (res.data.onboardingCompleted === false) setPage('Onboarding');
       }).catch(() => {});
@@ -788,9 +793,10 @@ function App() {
   };
 
   // The photo is optional (owner approved 2026-11-02): "Ruka kwa sasa" is remembered on this phone.
-  const needsProfilePhoto = isLoggedIn && !!currentUser && !currentUser.avatarUrl && !photoSkipped(currentUser.id);
+  const welcomeHeld = holdWelcomeSteps(page);
+  const needsProfilePhoto = isLoggedIn && !!currentUser && !currentUser.avatarUrl && !photoSkipped(currentUser.id) && !welcomeHeld;
 
-  const needsOnboarding = isLoggedIn && currentUser?.onboardingCompleted === false;
+  const needsOnboarding = isLoggedIn && currentUser?.onboardingCompleted === false && !welcomeHeld;
 
   const renderPage = () => {
     if (needsProfilePhoto) return <AddProfilePhoto {...publicProps} />;
@@ -1010,9 +1016,11 @@ function App() {
       case 'PayoutSettings': return requireLogin(<PayoutSettings {...publicProps} />);
       case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} editField={navParams?.editField} />);
       case 'Checkout':
-        // Signed out at checkout: come back here after signing in or up; the cart is kept (owner 2026-11-10).
-        if (!isLoggedIn) { try { localStorage.setItem('kentexa_after_login', 'Checkout'); } catch { /* storage blocked */ } }
-        return requireLogin(<Checkout {...publicProps} />);
+        // Signed out at checkout: buy with a phone number, no sign-up first (owner 2026-11-10).
+        if (!isLoggedIn) return <GuestCheckout onNavigate={handleNavigate} onLoginSuccess={handleLoginSuccess} />;
+        return <Checkout {...publicProps} />;
+      case 'GuestCheckout':
+        return isLoggedIn ? <Checkout {...publicProps} /> : <GuestCheckout onNavigate={handleNavigate} onLoginSuccess={handleLoginSuccess} />;
       case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={activeContext?.userId} />);
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
