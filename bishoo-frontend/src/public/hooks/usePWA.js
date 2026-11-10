@@ -109,7 +109,22 @@ export const detectInstallEnvironment = (nav = navigator, win = window) => {
   const standalone = Boolean(nav.standalone) || Boolean(win.matchMedia?.('(display-mode: standalone)').matches);
   // Browsers inside WhatsApp, Instagram, Facebook... cannot install: the page must be opened in Chrome or Safari.
   const inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)/i.test(ua);
-  return { ios, mobile, safari, standalone, inApp };
+  const android = !ios && /Android/i.test(ua);
+  return { ios, mobile, safari, standalone, inApp, android, androidApp: android && isAndroidApp(win) };
+};
+
+// KenteXa on Google Play (owner 2026-11-10): Android phones use the Play app, not the web app, so
+// alerts arrive as the KenteXa app. iPhone and computers keep the web app.
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.app.bishoo';
+const ANDROID_APP_KEY = 'kx_android_app';
+/** True inside the Google Play app: it opens kentexa.com/?source=android (referrer android-app://). */
+export const isAndroidApp = (win = window) => {
+  try {
+    const opened = /[?&]source=android\b/.test(win.location?.search || '')
+      || String(win.document?.referrer || '').startsWith('android-app://com.app.bishoo');
+    if (opened) { try { win.sessionStorage.setItem(ANDROID_APP_KEY, '1'); } catch { /* storage blocked */ } return true; }
+    return win.sessionStorage?.getItem(ANDROID_APP_KEY) === '1';
+  } catch { return false; }
 };
 
 const DISMISS_KEY = 'kx_pwa_dismissed';
@@ -121,7 +136,9 @@ const dismissedRecently = () => {
 export const usePWA = () => {
   const [environment] = useState(detectInstallEnvironment);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(environment.standalone);
+  // An Android phone outside the Play app is offered the Play app, even if it installed the web app.
+  const playOffer = environment.android && !environment.androidApp && !environment.inApp;
+  const [isInstalled, setIsInstalled] = useState(environment.androidApp || (environment.standalone && !playOffer));
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
 
@@ -153,6 +170,7 @@ export const usePWA = () => {
   const handleInstall = async () => {
     if (isInstalled) return;
     setShowInstallPrompt(false);
+    if (playOffer) { window.location.href = PLAY_STORE_URL; return; }
     if (!deferredPrompt) {
       if (environment.mobile) setShowGuide(true);
       return;
@@ -173,24 +191,27 @@ export const usePWA = () => {
 
   return { showInstallPrompt, showGuide, handleInstall, handleDismiss,
     closeGuide: () => setShowGuide(false), isInstalled, canInstall: !isInstalled && (environment.mobile || Boolean(deferredPrompt)),
-    hasPrompt: Boolean(deferredPrompt), environment };
+    hasPrompt: Boolean(deferredPrompt), environment, playOffer };
 };
 
-export const InstallBanner = ({ onInstall, onDismiss }) => {
+export const InstallBanner = ({ onInstall, onDismiss, play = false }) => {
   const { t } = useTranslation();
+  const title = play ? 'Pakua KenteXa kwenye Google Play' : t('install_kentexa.title');
+  const subtitle = play ? 'Arifa za oda, ujumbe na kazi zinakufikia kama programu.' : t('install_kentexa.subtitle');
+  const action = play ? 'Pakua' : t('install_kentexa.action');
   return (
-  <div role="complementary" aria-label={t('install_kentexa.title')} style={{
+  <div role="complementary" aria-label={title} style={{
     position: 'fixed', bottom: 76, left: 16, right: 16, maxWidth: 440, margin: '0 auto', zIndex: 9000,
     background: '#0f172a', borderRadius: 16, padding: 14,
     boxShadow: '0 8px 30px rgba(0,0,0,0.24)', display: 'flex', alignItems: 'center', gap: 12,
   }}>
     <img src="/logo192.png" alt="" width="40" height="40" style={{ borderRadius: 10 }} />
     <div style={{ flex: 1, color: '#fff', minWidth: 0 }}>
-      <strong style={{ fontSize: 13 }}>{t('install_kentexa.title')}</strong>
-      <div style={{ fontSize: 12, marginTop: 3, opacity: 0.8 }}>{t('install_kentexa.subtitle')}</div>
+      <strong style={{ fontSize: 13 }}>{title}</strong>
+      <div style={{ fontSize: 12, marginTop: 3, opacity: 0.8 }}>{subtitle}</div>
     </div>
     <button onClick={onInstall} style={{ background: '#2563eb', color: '#fff', border: 0,
-      borderRadius: 8, padding: '10px 12px', fontWeight: 700, cursor: 'pointer' }}>{t('install_kentexa.action')}</button>
+      borderRadius: 8, padding: '10px 12px', fontWeight: 700, cursor: 'pointer' }} data-testid="install-banner-action">{action}</button>
     <button onClick={onDismiss} aria-label={t('install_kentexa.later')} style={{ background: 'none', color: '#fff',
       border: 0, fontSize: 20, cursor: 'pointer' }}>×</button>
   </div>
