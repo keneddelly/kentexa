@@ -23,7 +23,8 @@ const SEGMENT_TO_PREFIX = Object.fromEntries(
 // the owner's PERSONAL profile. Carry it as ?cp= so a pushed/shared /store
 // URL reloads into the same specific profile instead of that fallback.
 // Fixed public pages with their own address (owner 2026-11-10: kentexa.com/uza-tena for campaigns).
-const STATIC_PATHS = { UzaTena: '/uza-tena' };
+// The privacy policy and terms have their own address too: the Play Store listing links to them.
+const STATIC_PATHS = { UzaTena: '/uza-tena', PrivacyPolicy: '/privacy', Terms: '/terms' };
 
 export const pageToPath = (page, navParams) => {
   if (typeof page !== 'string') return null;
