@@ -9,12 +9,12 @@ def ciVersionCode = 100 + ((System.getenv('VERSION_CODE') ?: '0') as int)
 
 android {
     namespace 'com.kentexa.app'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.app.bishoo'
         minSdk 24 // Play's automatic protection needs 24+ (the old Bishoo app was 24+ too)
-        targetSdk 35
+        targetSdk 36
         versionCode ciVersionCode
         versionName "2.0.${ciVersionCode}"
     }
