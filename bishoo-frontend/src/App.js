@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { workAppPage } from './utils/posApp';
 import { usePWA, InstallBanner, InstallGuide, subscribeToPush, disablePushNotifications } from './public/hooks/usePWA';
+import AppPushCard from './public/components/AppPushCard';
 import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
@@ -234,7 +235,7 @@ function App() {
     if (authStatus === 'authenticated' && posOfflineBoot && navigator.onLine !== false) setPosOfflineBoot(false);
   }, [authStatus, posOfflineBoot]);
   const { showInstallPrompt, showGuide, handleInstall, handleDismiss, closeGuide,
-    canInstall, hasPrompt, environment } = usePWA();
+    canInstall, hasPrompt, environment, playOffer } = usePWA();
   const [showPostModal, setShowPostModal] = useState(false);
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [momentModalMode, setMomentModalMode] = useState('selling');
@@ -1301,7 +1302,10 @@ function App() {
       )}
       {canInstall && showInstallPrompt && page === 'Home' && !showLangPicker && !showPostModal &&
         !showMomentModal && !showGuide &&
-        <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} />}
+        <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} play={playOffer} />}
+      {/* Inside the Google Play app: alerts come as the app (owner 2026-11-10). */}
+      {environment.androidApp && isLoggedIn && page === 'Home' && !showLangPicker && !showPostModal && !showMomentModal &&
+        <AppPushCard />}
       {showGuide && <InstallGuide environment={environment} onClose={closeGuide} />}
     </CartProvider>
     </OnboardingProvider>
