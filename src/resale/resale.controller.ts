@@ -39,6 +39,24 @@ export class ResaleController {
     return this.svc.openProducts(req.user.id, { page: Number(page) || 1, q, category, supplierId: Number(supplierId) || undefined, sort });
   }
 
+  /** Public: counts for the Uza tena page (no prices). */
+  @Get('stats')
+  stats() {
+    return this.svc.publicStats();
+  }
+
+  @Get('supplier/summary')
+  @UseGuards(JwtAuthGuard)
+  supplierSummary(@Request() req) {
+    return this.svc.supplierSummary(req.user.id);
+  }
+
+  @Post('supplier/bulk')
+  @UseGuards(JwtAuthGuard)
+  supplierBulk(@Request() req, @Body() body: any) {
+    return this.svc.supplierBulk(req.user.id, body || {});
+  }
+
   /** Public: a reseller's shelf on their profile (their prices only). */
   @Get('sellers/:id/offers')
   shelf(@Param('id', ParseIntPipe) id: number) {

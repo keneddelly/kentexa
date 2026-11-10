@@ -167,3 +167,30 @@ describe('Uza tena: the shelf on the reseller profile (owner 2026-11-10)', () =>
     expect(JSON.stringify(shelf)).not.toContain('42000');
   });
 });
+
+describe('Uza tena growth (owner 2026-11-10)', () => {
+  const make = (rows: any[] = [{ id: 1 }, { id: 2 }]) => {
+    const calls: any[] = [];
+    const db: any = { query: jest.fn(async (sql: string, params: any[]) => { calls.push([sql, params]); return rows; }) };
+    const events: any = { record: jest.fn(async () => undefined) };
+    return { svc: new ResaleService(db, events), calls, events };
+  };
+  it('a shop opens many of its own products at once with one margin; only new by default', async () => {
+    const { svc, calls, events } = make();
+    await expect(svc.supplierBulk(9, { action: 'open', marginPercent: 15 })).resolves.toEqual({ action: 'open', changed: 2, marginPercent: 15 });
+    expect(calls[0][0]).toContain('WHERE "sellerId" = $1::int');
+    expect(calls[0][1]).toEqual([9, 15, true]);
+    expect(events.record).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'RESALE_BULK_OPENED' }));
+  });
+  it('refuses a margin outside 3% to 50%, and an unknown action; closing closes all its open ones', async () => {
+    await expect(make().svc.supplierBulk(9, { action: 'open', marginPercent: 80 })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(make().svc.supplierBulk(9, { action: 'sell' })).rejects.toBeInstanceOf(BadRequestException);
+    const { svc, calls } = make([{ id: 4 }]);
+    await expect(svc.supplierBulk(9, { action: 'close' })).resolves.toEqual({ action: 'close', changed: 1 });
+    expect(calls[0][1]).toEqual([9]);
+  });
+  it('public numbers are counts only', async () => {
+    const { svc } = make([{ shops: 3, products: 40 }]);
+    await expect(svc.publicStats()).resolves.toEqual({ shops: 3, products: 40 });
+  });
+});

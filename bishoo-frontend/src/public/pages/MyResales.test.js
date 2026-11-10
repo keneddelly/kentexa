@@ -47,3 +47,19 @@ test('joining is one tap after accepting the rules; then the catalogue opens', a
   expect(api.post).toHaveBeenCalledWith('/resale/join', { acceptRules: true });
   expect(screen.getByTestId('resale-open-products')).toBeInTheDocument();
 });
+
+test('a shop opens many products for resellers at once', async () => {
+  api.get.mockImplementation(async (url) => {
+    if (url === '/resale/supplier/summary') return { data: { products: 12, open: 2 } };
+    if (url === '/resale/supplier-orders') return { data: { totals: {}, items: [] } };
+    return { data: [] };
+  });
+  api.post.mockResolvedValue({ data: { action: 'open', changed: 10, marginPercent: 20 } });
+  await act(async () => { render(<MyResales onNavigate={jest.fn()} startTab="supplier" />); });
+  expect(screen.getByTestId('supplier-bulk')).toHaveTextContent('Bidhaa 2 kati ya 12');
+  fireEvent.change(screen.getByTestId('bulk-margin'), { target: { value: '20' } });
+  expect(screen.getByTestId('supplier-bulk')).toHaveTextContent('anakulipa TZS 40,000');
+  await act(async () => { fireEvent.click(screen.getByTestId('bulk-open')); });
+  expect(api.post).toHaveBeenCalledWith('/resale/supplier/bulk', { action: 'open', marginPercent: 20, onlyNew: true });
+  expect(screen.getByTestId('supplier-bulk')).toHaveTextContent('Bidhaa 10 zimefunguliwa');
+});
