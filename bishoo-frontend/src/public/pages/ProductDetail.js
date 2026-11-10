@@ -20,6 +20,24 @@ const offerIdFromUrl = (productId) => {
 };
 
 /**
+ * Where the reseller shared the link (?src=status | share, owner 2026-11-10). Kept for the visit so
+ * the order remembers it; the open is counted once per visit (the offer request carries src once).
+ */
+const offerSource = (offerIdValue) => {
+  try {
+    const key = `kx_offer_src_${offerIdValue}`;
+    const v = new URLSearchParams(window.location.search).get('src');
+    if (v === 'status' || v === 'share') {
+      const counted = window.sessionStorage.getItem(key) === v;
+      window.sessionStorage.setItem(key, v);
+      return { source: v, countNow: !counted };
+    }
+    const kept = window.sessionStorage.getItem(key);
+    return { source: kept === 'status' || kept === 'share' ? kept : null, countNow: false };
+  } catch { return { source: null, countNow: false }; }
+};
+
+/**
  * ProductDetail — one shop product (owner 2026-10-26 redesign): photo, price and
  * facts, then the business behind it (identity first), tabs, and a bottom bar
  * with quantity, cart and "Agiza". No emoji; only real numbers (no invented
@@ -105,8 +123,9 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
     const id = offerId || offerIdFromUrl(productId);
     if (!id) return undefined;
     let alive = true;
-    api.get(`/resale/offers/${id}`)
-      .then((r) => { if (alive && Number(r?.data?.productId) === Number(productId)) setOffer(r.data); })
+    const { source, countNow } = offerSource(id);
+    api.get(`/resale/offers/${id}`, countNow ? { params: { src: source } } : undefined)
+      .then((r) => { if (alive && Number(r?.data?.productId) === Number(productId)) setOffer({ ...r.data, source }); })
       .catch(() => {});
     return () => { alive = false; };
   }, [productId, offerId]);
@@ -189,7 +208,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
       if (err?.response?.status === 404) current = { ...product, stock: 0 };
     }
     // A reseller's offer: the line carries it, and the server charges the offer's price.
-    if (offer) current = { ...current, displayPrice: offer.price, basePrice: offer.price, resaleOfferId: offer.id, resellerName: offer.reseller?.name || null };
+    if (offer) current = { ...current, displayPrice: offer.price, basePrice: offer.price, resaleOfferId: offer.id, resellerName: offer.reseller?.name || null, resaleSource: offer.source || null };
     if (!addToCart(current, Math.min(quantity, Math.max(Number(current.stock), 1)))) {
       setProduct(p => ({ ...p, stock: 0, isAvailable: false }));
       setMessage(`${product.name}: ${t('commerce_profile.out_of_stock')}`);

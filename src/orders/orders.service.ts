@@ -96,7 +96,7 @@ import { formatWaybill, normalizeWaybill } from '../shipments/waybill';
 import { parseOrderIdParam } from '../common/utils/order-id.util';
 import { ensureOrderParcel, ensureOrderParcelWithin } from './order-parcel';
 import { LIPA_PROOF_REF, signedLipaProofUrl } from './lipa-proof';
-import { resaleForOrder, resellerProfit } from '../resale/resale-rules';
+import { cleanSource, resaleForOrder, resellerProfit } from '../resale/resale-rules';
 // Timed jobs run on Tanzania time (owner 2026-11-09; the server runs on UTC).
 import { TANZANIA_TZ } from '../dispatch-reminders/dispatch-reminders.config';
 
@@ -485,6 +485,7 @@ export class OrdersService {
       ...(resale ? {
         ...resale,
         resellerProfit: resellerProfit(resale.resaleUnitPrice, resale.supplierUnitPrice, dto.quantity),
+        resaleSource: cleanSource(dto.resaleSource),
       } : {}),
     } as any);
 
@@ -855,7 +856,7 @@ export class OrdersService {
     for (const { item, product } of lines) {
       try {
         orders.push(await this.create(
-          { ...shared, productId: item.productId, quantity: item.quantity, resaleOfferId: item.resaleOfferId ?? undefined } as CreateOrderDto,
+          { ...shared, productId: item.productId, quantity: item.quantity, resaleOfferId: item.resaleOfferId ?? undefined, resaleSource: item.resaleSource ?? undefined } as CreateOrderDto,
           user,
           { checkout: true, lipaProof: proofs.get(product.seller?.id) ?? null, place },
         ));

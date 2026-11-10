@@ -140,3 +140,10 @@ export async function resaleForOrder(query: Query, offerId: unknown, productId: 
     supplierUnitPrice: money(row.resalePrice),
   };
 }
+
+// ── Where a reseller's link was shared (owner 2026-11-10): WhatsApp Status or a normal share ──
+export const RESALE_SOURCES = ['status', 'share'] as const;
+export type ResaleSource = (typeof RESALE_SOURCES)[number];
+/** A source from a link (?src=status); anything else is not recorded. */
+export const cleanSource = (v: unknown): ResaleSource | null =>
+  (RESALE_SOURCES as readonly string[]).includes(String(v)) ? (String(v) as ResaleSource) : null;

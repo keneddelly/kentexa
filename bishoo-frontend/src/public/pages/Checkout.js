@@ -356,7 +356,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       ...(methodData && methodData.key !== 'agent' && methodData.fee != null ? { deliveryFee: methodData.fee } : {}),
       paymentMethod: directMode ? directChoice : paymentChoice,
       // "Uza tena": an item bought through a reseller's link carries its offer; the server reads the price from it.
-      items: cart.map((item) => ({ productId: item.id, quantity: item.quantity, ...(item.resaleOfferId ? { resaleOfferId: item.resaleOfferId } : {}) })),
+      items: cart.map((item) => ({ productId: item.id, quantity: item.quantity, ...(item.resaleOfferId ? { resaleOfferId: item.resaleOfferId, ...(item.resaleSource ? { resaleSource: item.resaleSource } : {}) } : {}) })),
     };
   };
 
@@ -435,7 +435,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       const { items, ...shared } = checkoutPayload();
       const orders = [];
       for (const item of items) {
-        const res = await api.post('/orders', { ...shared, productId: item.productId, quantity: item.quantity, ...(item.resaleOfferId ? { resaleOfferId: item.resaleOfferId } : {}) });
+        const res = await api.post('/orders', { ...shared, productId: item.productId, quantity: item.quantity, ...(item.resaleOfferId ? { resaleOfferId: item.resaleOfferId, ...(item.resaleSource ? { resaleSource: item.resaleSource } : {}) } : {}) });
         orders.push(res.data);
       }
       setOrderTotal(getCartTotal());

@@ -138,7 +138,7 @@ export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate, 
   const floor = Number(terms?.floor) || 0;
   const mine = num(price);
   const profit = mine && sup ? mine - sup : null;
-  const link = saved ? resaleLink(product, saved.id) : '';
+  const link = saved ? resaleLink(product, saved.id, 'share') : '';
   const shareLink = async () => {
     try {
       if (navigator.share) { await navigator.share({ title: product.name, text: `${product.name}: ${tzs(saved.price)}`, url: link }); return; }

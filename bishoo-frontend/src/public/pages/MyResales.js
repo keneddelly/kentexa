@@ -149,7 +149,7 @@ export default function MyResales({ onNavigate, startTab, supplierId, currentUse
   }, [mine]); // eslint-disable-line react-hooks/exhaustive-deps -- only when the offers first arrive
 
   const share = async (o) => {
-    const link = resaleLink({ id: o.productId, name: o.name }, o.id);
+    const link = resaleLink({ id: o.productId, name: o.name }, o.id, 'share');
     try { if (navigator.share) { await navigator.share({ title: o.name, url: link }); return; } } catch { return; }
     try { await navigator.clipboard?.writeText(link); setMsg('Kiungo kimenakiliwa.'); } catch { setMsg(link); }
   };
@@ -201,6 +201,14 @@ export default function MyResales({ onNavigate, startTab, supplierId, currentUse
                 <button type="button" onClick={() => onNavigate(`ProductDetail-${o.productId}`)}
                   style={{ padding: 0, border: 'none', background: 'none', textAlign: 'left', fontSize: 15, fontWeight: 700, color: DK, cursor: 'pointer', fontFamily: 'inherit' }}>{o.name}</button>
                 <div style={{ fontSize: 14, color: GR }}>Bei yako {tzs(o.price)} · faida {tzs(o.profitEach)} kila moja · oda {o.orders}</div>
+                {/* Where buyers came from, last 30 days (owner 2026-11-10). */}
+                {o.opens && (
+                  <div data-testid={`offer-opens-${o.id}`} style={{ fontSize: 13, color: GR }}>
+                    {o.opens.total > 0
+                      ? `Watu ${o.opens.total} wamefungua kiungo (siku 30): Status ${o.opens.status} · kushiriki ${o.opens.share}`
+                      : 'Bado hakuna aliyefungua kiungo. Kishiriki kwenye WhatsApp Status.'}
+                  </div>
+                )}
                 {o.needsNewPrice && <div style={{ fontSize: 13, color: '#b45309', fontWeight: 600 }}>Duka limepandisha bei. Badilisha bei yako kabla ya kuuza.</div>}
                 {!o.isActive && <div style={{ fontSize: 13, color: GR }}>Imesimamishwa</div>}
                 {o.isActive && (
