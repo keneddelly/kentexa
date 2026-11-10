@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId 'com.app.bishoo'
-        minSdk 21
+        minSdk 24 // Play's automatic protection needs 24+ (the old Bishoo app was 24+ too)
         targetSdk 35
         versionCode ciVersionCode
         versionName "2.0.${ciVersionCode}"
