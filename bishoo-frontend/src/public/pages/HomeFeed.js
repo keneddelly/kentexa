@@ -19,6 +19,7 @@ import PostSafetyMenu from '../components/PostSafetyMenu';
 import TopicPicker from '../components/TopicPicker';
 import LeoKwako from '../components/LeoKwako';
 import NewcomerNudge from '../components/NewcomerNudge';
+import ResaleStartCard from '../components/ResaleStartCard';
 import CommunitiesPanel from '../components/CommunitiesPanel';
 import SuggestedCommunities from '../components/SuggestedCommunities';
 import KentexaDirectory, { DIRECTORY_KINDS } from '../components/KentexaDirectory';
@@ -2003,6 +2004,8 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           {/* The welcome keeps asking (owner 2026-11-02): photo, then the first post. */}
           <NewcomerNudge currentUser={currentUser} activeProfileId={activeProfileId} onNavigate={onNavigate} onOpenMoment={onOpenMoment} refreshKey={momentRefreshKey} />
           <LeoKwako onNavigate={onNavigate} refreshKey={momentRefreshKey} />
+          {/* Chose "Uza tena" at the welcome, no offer yet (owner 2026-11-10). */}
+          <ResaleStartCard currentUser={currentUser} onNavigate={onNavigate} />
         </>
       )}
 
