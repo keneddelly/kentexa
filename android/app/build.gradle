@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The Play Store needs a higher versionCode for every upload; CI passes its run number.
+def ciVersionCode = (System.getenv('VERSION_CODE') ?: '1') as int
+
+android {
+    namespace 'com.kentexa.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.kentexa.app'
+        minSdk 21
+        targetSdk 35
+        versionCode ciVersionCode
+        versionName "1.0.${ciVersionCode}"
+    }
+
+    buildTypes {
+        release {
+            // Signed after the build with the KenteXa upload key (kept off this public repo).
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+}

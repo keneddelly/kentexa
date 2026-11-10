@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kentexa.app",
+      "sha256_cert_fingerprints": [
+        "7A:F9:B2:C7:D7:30:44:09:8A:85:B0:80:25:A7:B4:36:6F:62:D2:7A:B2:9A:C3:E2:75:31:C4:39:A6:2C:17:61"
+      ]
+    }
+  }
+]

@@ -1,0 +1,54 @@
+# KenteXa for Android (Play Store). Builds the app bundle from android/ and takes phone
+# screenshots of kentexa.com for the store listing. The bundle is built unsigned; it is
+# signed with the KenteXa upload key, which never enters this public repository.
+name: Android app
+
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-app.yml'
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    name: Android app bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Build release bundle
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle --no-daemon bundleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kentexa-android-unsigned
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 14
+
+  screenshots:
+    name: Store screenshots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Take phone screenshots of kentexa.com
+        run: |
+          npm i --no-save playwright@1.48.2
+          npx playwright install --with-deps chromium
+          node android/store/screenshots.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kentexa-store-screenshots
+          path: android/store/out/*.png
+          retention-days: 14
