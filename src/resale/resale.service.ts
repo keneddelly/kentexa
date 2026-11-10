@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
-import { RESALE_NOTE_MAX, UNPAID_LATE_SQL, assertSellingPrice, money, profitState, sellingFloor } from './resale-rules';
+import { PAY_DAYS, RESALE_NOTE_MAX, UNPAID_LATE_SQL, assertSellingPrice, money, profitState, sellingFloor } from './resale-rules';
 
 /** One resale order with its profit record, as both sides see it. */
 const RESALE_ORDER_SELECT = `o.id, o.status, o.quantity, o."resaleUnitPrice", o."supplierUnitPrice", o."resellerProfit",
@@ -174,7 +174,7 @@ export class ResaleService {
    * shop price. Also returns the categories that have products, with counts, for the chips.
    * Shops that left a reseller's profit unpaid 7 days are left out.
    */
-  async openProducts(userId: number, f: { page?: number; q?: string; category?: string; supplierId?: number; sort?: string } = {}) {
+  async openProducts(userId: number, f: { page?: number; q?: string; category?: string; supplierId?: number; sort?: string; city?: string } = {}) {
     await this.assertMember(userId);
     const size = 30;
     const page = Math.max(1, Math.floor(Number(f.page) || 1));
@@ -192,6 +192,15 @@ export class ResaleService {
       params.push(Number(f.supplierId));
       where.push(`p."sellerId" = $${params.length}::int`);
     }
+    // Where the goods leave from (owner 2026-11-10: regional resellers find shops near them, and
+    // every reseller sees where a parcel will travel from).
+    const preCity = where.join(' AND ');
+    const cityParams = [...params];
+    const city = String(f.city ?? '').trim().slice(0, 60);
+    if (city) {
+      params.push(city);
+      where.push(`COALESCE(p."sellerCity", 'Dar es Salaam') = $${params.length}`);
+    }
     const base = where.join(' AND ');
     const catParams = [...params];
     const category = String(f.category ?? '').trim().slice(0, 60);
@@ -206,20 +215,39 @@ export class ResaleService {
     params.push((page - 1) * size);
     const rows: any[] = await this.db.query(
       `SELECT p.id, p.name, p.images, p.category, p."basePrice", p."resalePrice", p."resaleMinPrice", p.stock, p."sellerId",
-              COALESCE(u."storeName", u.name) AS "supplierName"
+              COALESCE(p."sellerCity", 'Dar es Salaam') AS "fromCity", COALESCE(u."storeName", u.name) AS "supplierName"
          FROM public.product p LEFT JOIN public."user" u ON u.id = p."sellerId"
         WHERE ${filtered}
         ORDER BY ${order} LIMIT ${size + 1} OFFSET $${params.length}::int`, params);
     const cats: any[] = await this.db.query(
       `SELECT p.category, COUNT(*)::int AS n FROM public.product p
         WHERE ${base} AND p.category IS NOT NULL GROUP BY p.category ORDER BY n DESC, p.category LIMIT 20`, catParams);
+    const cities: any[] = await this.db.query(
+      `SELECT COALESCE(p."sellerCity", 'Dar es Salaam') AS city, COUNT(*)::int AS n FROM public.product p
+        WHERE ${preCity} GROUP BY 1 ORDER BY n DESC LIMIT 20`, cityParams);
+    // Each shop's record of paying resellers (owner 2026-11-10: resellers see which shops pay on time).
+    const shopIds = [...new Set(rows.slice(0, size).map((r) => Number(r.sellerId)).filter(Boolean))];
+    const records: any[] = shopIds.length ? await this.db.query(
+      `SELECT o."sellerId",
+              COUNT(*) FILTER (WHERE o."resellerPaidAt" IS NOT NULL)::int AS paid,
+              COUNT(*) FILTER (WHERE o."resellerPaidAt" IS NOT NULL
+                AND o."resellerPaidAt" <= COALESCE(o."deliveredAt", o."completedAt") + interval '${PAY_DAYS} days')::int AS "onTime",
+              COUNT(*) FILTER (WHERE o."resellerPaidAt" IS NULL AND o.status::text IN ('delivered', 'completed')
+                AND COALESCE(o."deliveredAt", o."completedAt") < now() - interval '${PAY_DAYS} days')::int AS late
+         FROM public."order" o
+        WHERE o."resellerUserId" IS NOT NULL AND o."sellerId" = ANY($1::int[])
+        GROUP BY o."sellerId"`, [shopIds]) : [];
+    const record = new Map(records.map((r) => [Number(r.sellerId), { paid: Number(r.paid) || 0, onTime: Number(r.onTime) || 0, late: Number(r.late) || 0 }]));
     return {
       items: rows.slice(0, size).map((r) => ({
         id: r.id, name: r.name, image: firstImage(r.images), category: r.category, supplierId: r.sellerId, supplierName: r.supplierName,
         publicPrice: money(r.basePrice), supplierPrice: money(r.resalePrice), floor: sellingFloor(r),
         profitAtShopPrice: money(money(r.basePrice) - money(r.resalePrice)), stock: Number(r.stock) || 0,
+        fromCity: r.fromCity || 'Dar es Salaam',
+        shopRecord: record.get(Number(r.sellerId)) || { paid: 0, onTime: 0, late: 0 },
       })),
       categories: cats.map((c) => ({ key: c.category, count: Number(c.n) || 0 })),
+      cities: cities.filter((c) => c.city).map((c) => ({ key: c.city, count: Number(c.n) || 0 })),
       hasMore: rows.length > size,
       page,
     };

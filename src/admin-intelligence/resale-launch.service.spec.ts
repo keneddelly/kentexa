@@ -17,6 +17,8 @@ describe('Uza tena launch numbers', () => {
     const db: any = { query: jest.fn(async (sql: string) => {
       if (fail) throw new Error('missing table');
       if (sql.includes('count(DISTINCT p."sellerId")')) return [{ suppliers: 2, products: 15, resellers: 7, offers: 11, members: 9 }];
+      if (sql.includes('GROUP BY s."destinationCity"')) return [{ city: 'Mwanza', parcels: 3, viaOffice: 3 }, { city: 'Dar es Salaam', parcels: 2, viaOffice: 0 }];
+      if (sql.includes('GROUP BY s."originHubId"')) return [{ id: 4, name: 'Ar Samatta', parcels: 3 }];
       return rows;
     }) };
     return new ResaleLaunchService(db);
@@ -32,10 +34,13 @@ describe('Uza tena launch numbers', () => {
     expect(r.payDays).toEqual({ paid: 2, median: 1, withinThree: 2 });
     expect(r.problems.map((p: any) => [p.orderId, p.state])).toEqual([[2, 'late'], [5, 'disputed']]);
     expect(r.topResellers[0]).toMatchObject({ id: 20, name: 'Neema', orders: 4, delivered: 4 });
+    // Uza tena volume for logistics: parcels by city and by office.
+    expect(r.parcels).toEqual({ total: 5, toCities: [{ city: 'Mwanza', parcels: 3, viaOffice: 3 }, { city: 'Dar es Salaam', parcels: 2, viaOffice: 0 }],
+      offices: [{ id: 4, name: 'Ar Samatta', parcels: 3 }] });
   });
 
   it('a part that cannot be read is null, never made up', async () => {
     const r: any = await build(true).launch(now);
-    expect(r).toEqual({ network: null, weeks: null, profits: null, payDays: null, problems: null, topResellers: null, topSuppliers: null });
+    expect(r).toEqual({ network: null, weeks: null, profits: null, payDays: null, problems: null, topResellers: null, topSuppliers: null, parcels: null });
   });
 });

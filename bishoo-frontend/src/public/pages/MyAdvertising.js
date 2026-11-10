@@ -12,7 +12,9 @@ import BackBar from '../components/BackBar';
  * 2026-10-26). The person applies; KenteXa accepts (the link appears here) or
  * rejects with a reason (they may apply again).
  */
-export const EVENT_LABEL = { first_listing: 'Tangazo la kwanza', business: 'Amefungua biashara', office: 'Amefungua ofisi', seller: 'Amekuwa muuzaji' };
+export const EVENT_LABEL = { first_listing: 'Tangazo la kwanza', business: 'Amefungua biashara', office: 'Amefungua ofisi', seller: 'Amekuwa muuzaji',
+  // Uza tena (owner 2026-11-10): recruit resellers who actually sell.
+  reseller_joined: 'Amejiunga Uza tena', first_resale: 'Mauzo ya kwanza ya Uza tena' };
 const tzs = (n) => `TZS ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 const card = { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 16, marginBottom: 14 };
 

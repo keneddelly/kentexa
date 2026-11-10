@@ -38,6 +38,20 @@ describe('AdvertisersService', () => {
     expect(inserted).toEqual([[4, 50, 'seller', 5000]]); // listing already earned; no business, no office
   });
 
+  it('Uza tena (owner 2026-11-10): a referred person who joins, then makes a delivered resale', async () => {
+    const inserted: any[] = [];
+    const { svc } = make((sql, p) => {
+      if (sql.includes('FROM public.advertiser_referral r WHERE')) return [{ userId: 50 }];
+      if (sql.includes('FROM public.advertiser_rate')) return [{ event: 'reseller_joined', amount: 500 }, { event: 'first_resale', amount: 2000 }];
+      if (sql.includes('FROM public.resale_member')) return [{ '?column?': 1 }];
+      if (sql.includes('"resellerUserId" = $1')) return [{ '?column?': 1 }];
+      if (sql.includes('INSERT INTO public.advertiser_commission')) { inserted.push(p); return [{ id: 1 }]; }
+      return [];
+    });
+    expect(await svc.refresh(4)).toBe(2);
+    expect(inserted).toEqual([[4, 50, 'reseller_joined', 500], [4, 50, 'first_resale', 2000]]);
+  });
+
   it('admin: add with a valid phone, refuse a bad one; rates must be whole and not negative', async () => {
     const { svc } = make((sql) => {
       if (sql.includes('SELECT id FROM public.advertiser WHERE phone')) return [];

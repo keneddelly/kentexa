@@ -35,8 +35,8 @@ export class ResaleController {
   @Get('products')
   @UseGuards(JwtAuthGuard)
   openProducts(@Request() req, @Query('page') page?: string, @Query('q') q?: string, @Query('category') category?: string,
-    @Query('supplierId') supplierId?: string, @Query('sort') sort?: string) {
-    return this.svc.openProducts(req.user.id, { page: Number(page) || 1, q, category, supplierId: Number(supplierId) || undefined, sort });
+    @Query('supplierId') supplierId?: string, @Query('sort') sort?: string, @Query('city') city?: string) {
+    return this.svc.openProducts(req.user.id, { page: Number(page) || 1, q, category, supplierId: Number(supplierId) || undefined, sort, city });
   }
 
   /** Public: counts for the Uza tena page (no prices). */
