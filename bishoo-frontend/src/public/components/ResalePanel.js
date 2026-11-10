@@ -10,7 +10,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
-import { productLink } from '../utils/shareLinks';
+import { resaleLink, shareToStatus, STATUS_DONE } from '../../utils/resaleShare';
 
 const B = '#1d4ed8';
 const DK = '#0f1419';
@@ -25,10 +25,9 @@ const btn = (bg, color = WH) => ({ height: 44, padding: '0 18px', borderRadius: 
 const label = { fontSize: 13, fontWeight: 700, color: GR };
 const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(/[^0-9.]/g, '')));
 
-/** The link a reseller shares: the product page with their offer on it. */
-export const resaleLink = (product, offerId) => `${productLink(product.id, product.name)}?offer=${offerId}`;
+export { resaleLink };
 
-export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate, buyerView = false }) {
+export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate, buyerView = false, resellerName = null }) {
   const [terms, setTerms] = useState(null);
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState('');
@@ -198,6 +197,13 @@ export default function ResalePanel({ product, isOwner, isLoggedIn, onNavigate, 
               {busy ? 'Inahifadhi...' : saved ? 'Badilisha bei' : 'Hifadhi na pata kiungo'}
             </button>
             {saved && <button type="button" onClick={shareLink} data-testid="resale-share" style={{ ...btn(B), flex: 1 }}>Shiriki kiungo</button>}
+            {saved && (
+              <button type="button" data-testid="resale-status" style={{ ...btn('#16a34a'), flex: 1 }}
+                onClick={async () => {
+                  const r = await shareToStatus({ product: { id: product.id, name: product.name, image: (product.images || [])[0] || null }, offer: saved, resellerName });
+                  if (STATUS_DONE[r]) setMsg(STATUS_DONE[r]);
+                }}>Weka Status</button>
+            )}
           </div>
           {saved && <button type="button" onClick={() => onNavigate('MyResales')} style={{ padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', fontFamily: 'inherit' }}>Ofa zangu zote</button>}
         </>

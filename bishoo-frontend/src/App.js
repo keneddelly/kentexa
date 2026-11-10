@@ -107,6 +107,7 @@ import BrandCatalog from './public/pages/BrandCatalog';
 import VerifyProduct from './public/pages/VerifyProduct';
 import MyWarranties from './public/pages/MyWarranties';
 import MyResales from './public/pages/MyResales';
+import UzaTena from './public/pages/UzaTena';
 import SellerWarrantyClaims from './public/pages/SellerWarrantyClaims';
 import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
@@ -951,6 +952,7 @@ function App() {
       case 'Home':              return isLoggedIn ? <HomeFeed {...publicProps} /> : <Welcome {...publicProps} />;
 
       case 'AboutUs':              return <AboutUs {...publicProps} />;
+      case 'UzaTena':              return <UzaTena {...publicProps} />;
       case 'ContactUs':            return <ContactUs {...publicProps} />;
       case 'HowItWorks':           return <HowItWorks {...publicProps} />;
       case 'Privacy':

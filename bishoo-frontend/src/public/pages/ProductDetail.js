@@ -541,7 +541,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
             </section>
 
             {/* "Uza tena": the supplier opens the product for resellers; anyone else resells it. */}
-            <ResalePanel product={product} isOwner={isOwner} isLoggedIn={isLoggedIn} onNavigate={onNavigate} buyerView={!!offer} />
+            <ResalePanel product={product} isOwner={isOwner} isLoggedIn={isLoggedIn} onNavigate={onNavigate} buyerView={!!offer} resellerName={currentUser?.name || null} />
 
             {/* ── Tabs ── */}
             <div role="tablist" style={{ display:'flex', overflowX:'auto', borderBottom:`1px solid ${LINE}`, scrollbarWidth:'none', padding:'0 8px' }}>

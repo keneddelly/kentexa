@@ -22,8 +22,12 @@ const SEGMENT_TO_PREFIX = Object.fromEntries(
 // it (navParams.commerceProfileId), or it silently falls back to showing
 // the owner's PERSONAL profile. Carry it as ?cp= so a pushed/shared /store
 // URL reloads into the same specific profile instead of that fallback.
+// Fixed public pages with their own address (owner 2026-11-10: kentexa.com/uza-tena for campaigns).
+const STATIC_PATHS = { UzaTena: '/uza-tena' };
+
 export const pageToPath = (page, navParams) => {
   if (typeof page !== 'string') return null;
+  if (STATIC_PATHS[page]) return STATIC_PATHS[page];
   for (const prefix of Object.keys(PREFIX_TO_SEGMENT)) {
     if (page.startsWith(`${prefix}-`)) {
       const rest = page.slice(prefix.length + 1);
@@ -43,6 +47,8 @@ export const pageToPath = (page, navParams) => {
 
 // pathname -> page, or null if it doesn't match a synced route.
 export const pathToPage = (pathname) => {
+  const fixed = Object.keys(STATIC_PATHS).find((k) => STATIC_PATHS[k] === String(pathname || '').replace(/\/+$/, ''));
+  if (fixed) return fixed;
   // A readable name may follow the number (/product/42-simu-samsung, owner 2026-11-03).
   const match = String(pathname || '').match(/^\/(product|classified|service|store|post)\/(\d+)(?:-[a-z0-9-]*)?\/?$/i);
   if (!match) return null;

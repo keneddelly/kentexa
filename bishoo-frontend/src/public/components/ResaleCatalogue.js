@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
-import { resaleLink } from './ResalePanel';
+import { resaleLink, shareToStatus, STATUS_DONE } from '../../utils/resaleShare';
 
 const B = '#1d4ed8';
 const DK = '#0f1419';
@@ -22,7 +22,7 @@ const btn = (bg, color = WH) => ({ height: 36, padding: '0 14px', borderRadius: 
   fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' });
 const pretty = (key) => String(key || '').replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
-function Row({ p, onNavigate, onSaved }) {
+function Row({ p, onNavigate, onSaved, resellerName }) {
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState(String(Math.round(p.publicPrice || p.floor || 0)));
   const [busy, setBusy] = useState(false);
@@ -82,6 +82,11 @@ function Row({ p, onNavigate, onSaved }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, color: GREEN, fontWeight: 700 }}>Tayari kwa {tzs(offer.price)}. Iko kwenye wasifu wako (Anauza).</span>
           <button type="button" onClick={share} data-testid={`catalogue-share-${p.id}`} style={btn(B)}>Shiriki kiungo</button>
+          <button type="button" data-testid={`catalogue-status-${p.id}`} style={btn('#16a34a')}
+            onClick={async () => {
+              const r = await shareToStatus({ product: p, offer, resellerName });
+              if (STATUS_DONE[r]) setOffer({ ...offer, copied: STATUS_DONE[r] });
+            }}>Weka Status</button>
           {offer.copied === true && <span style={{ fontSize: 13, color: GR }}>Kiungo kimenakiliwa.</span>}
           {typeof offer.copied === 'string' && <span style={{ fontSize: 13, color: GR, overflowWrap: 'anywhere' }}>{offer.copied}</span>}
         </div>
@@ -90,7 +95,7 @@ function Row({ p, onNavigate, onSaved }) {
   );
 }
 
-export default function ResaleCatalogue({ onNavigate, supplierId = null, onSaved }) {
+export default function ResaleCatalogue({ onNavigate, supplierId = null, onSaved, resellerName = null }) {
   const [text, setText] = useState('');
   const [filters, setFilters] = useState({ q: '', category: '', sort: 'new' });
   const [data, setData] = useState(null);
@@ -151,7 +156,7 @@ export default function ResaleCatalogue({ onNavigate, supplierId = null, onSaved
             {filters.q || filters.category ? 'Hakuna bidhaa inayolingana. Jaribu neno jingine.' : 'Bado hakuna duka lililofungua bidhaa kwa wauzaji.'}
           </li>
         )}
-        {(data?.items || []).map((p) => <Row key={p.id} p={p} onNavigate={onNavigate} onSaved={onSaved} />)}
+        {(data?.items || []).map((p) => <Row key={p.id} p={p} onNavigate={onNavigate} onSaved={onSaved} resellerName={resellerName} />)}
       </ul>
       {data?.hasMore && (
         <button type="button" onClick={() => setPage((n) => n + 1)} style={{ ...btn(WH, DK), display: 'block', margin: '12px auto' }}>Onyesha zaidi</button>

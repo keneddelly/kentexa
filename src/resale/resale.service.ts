@@ -10,6 +10,8 @@ const RESALE_ORDER_SELECT = `o.id, o.status, o.quantity, o."resaleUnitPrice", o.
   o."deliveredAt", o."completedAt", o."createdAt", o."resellerPaidAt", o."resellerPaidRef", o."resellerConfirmedAt",
   o."resellerDisputedAt", o."resellerDisputeNote", o."productNameSnapshot", o."sellerId", o."resellerUserId"`;
 const PAID_REF = /^[A-Za-z0-9 ._/-]{4,60}$/;
+/** The margin a shop may give resellers when opening many products at once. */
+export const BULK_MARGIN = { min: 3, max: 50 } as const;
 
 /** product.images is a simple-array column: raw SQL returns "a.jpg,b.jpg". */
 const firstImage = (v: unknown): string | null =>
@@ -238,6 +240,59 @@ export class ResaleService {
     return rows
       .filter((r) => money(r.price) >= sellingFloor(r))
       .map((r) => ({ offerId: r.id, productId: r.productId, name: r.name, image: firstImage(r.images), price: money(r.price), note: r.note, stock: Number(r.stock) || 0 }));
+  }
+
+  // ── Growth (owner 2026-11-10: "start the implementation of what is missing") ──
+
+  /** Public numbers for the Uza tena page: shops and products open. Counts only, never a price. */
+  async publicStats() {
+    const [r] = await this.db.query(`SELECT
+        count(DISTINCT p."sellerId")::int AS shops, count(*)::int AS products
+      FROM public.product p
+      WHERE p."resaleOpen" = true AND p."resalePrice" > 0 AND p."isActive" = true AND p."isAvailable" = true AND p.stock > 0`);
+    return { shops: Number(r?.shops) || 0, products: Number(r?.products) || 0 };
+  }
+
+  /** A shop's own products: how many there are and how many are open for resellers. */
+  async supplierSummary(supplierUserId: number) {
+    const [r] = await this.db.query(`SELECT count(*)::int AS products,
+        count(*) FILTER (WHERE p."resaleOpen" = true AND p."resalePrice" > 0)::int AS open
+      FROM public.product p WHERE p."sellerId" = $1::int AND p."isActive" = true`, [supplierUserId]);
+    return { products: Number(r?.products) || 0, open: Number(r?.open) || 0 };
+  }
+
+  /**
+   * Open (or close) many of a shop's own products at once: the reseller price is the shop price
+   * less the margin the shop gives, rounded to TZS 100. "Only new" leaves products that already
+   * have a reseller price as they are.
+   */
+  async supplierBulk(supplierUserId: number, body: { action?: unknown; marginPercent?: unknown; onlyNew?: unknown }) {
+    if (body?.action === 'close') {
+      const res: any = await this.db.query(
+        `UPDATE public.product SET "resaleOpen" = false WHERE "sellerId" = $1::int AND "resaleOpen" = true RETURNING id`, [supplierUserId]);
+      const rows = Array.isArray(res?.[0]) ? res[0] : res;
+      return { action: 'close', changed: rows?.length || 0 };
+    }
+    if (body?.action !== 'open') throw new BadRequestException('Chagua kufungua au kufunga.');
+    const margin = Number(body?.marginPercent);
+    if (!Number.isFinite(margin) || margin < BULK_MARGIN.min || margin > BULK_MARGIN.max) {
+      throw new BadRequestException(`Punguzo kwa wauzaji liwe kati ya ${BULK_MARGIN.min}% na ${BULK_MARGIN.max}%.`);
+    }
+    const onlyNew = body?.onlyNew !== false;
+    const res: any = await this.db.query(
+      `UPDATE public.product
+          SET "resaleOpen" = true,
+              "resalePrice" = CASE WHEN $3::boolean AND "resalePrice" > 0 THEN "resalePrice"
+                                   ELSE GREATEST(ROUND("basePrice" * (100 - $2::numeric) / 100 / 100) * 100, 1) END
+        WHERE "sellerId" = $1::int AND "isActive" = true AND "basePrice" > 0
+          AND ($3::boolean = false OR "resaleOpen" = false OR "resalePrice" IS NULL)
+        RETURNING id`, [supplierUserId, margin, onlyNew]);
+    const rows = Array.isArray(res?.[0]) ? res[0] : res;
+    void this.events.record({
+      eventType: 'RESALE_BULK_OPENED', category: ActivityCategory.COMMERCE, actorId: supplierUserId, actorType: 'seller',
+      targetType: 'product', metadata: { marginPercent: margin, onlyNew, changed: rows?.length || 0 },
+    });
+    return { action: 'open', changed: rows?.length || 0, marginPercent: margin };
   }
 
   /** How many of one shop's products are open for reselling (the "Uza bidhaa za duka hili" door). */

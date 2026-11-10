@@ -10,7 +10,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
-import { resaleLink } from '../components/ResalePanel';
+import { resaleLink, shareToStatus, STATUS_DONE } from '../../utils/resaleShare';
 import ResaleCatalogue from '../components/ResaleCatalogue';
 
 const B = '#1d4ed8';
@@ -71,11 +71,52 @@ export function JoinResale({ onJoined }) {
   );
 }
 
-export default function MyResales({ onNavigate, startTab, supplierId }) {
+/**
+ * A shop opens many of its products for resellers at once (owner 2026-11-10, growth plan):
+ * one margin for all, rounded to TZS 100; "only new" keeps prices already set.
+ */
+function SupplierBulk({ summary, onDone }) {
+  const [margin, setMargin] = useState('15');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const run = async (action) => {
+    setNote('');
+    try {
+      setBusy(true);
+      const r = await api.post('/resale/supplier/bulk', action === 'open' ? { action, marginPercent: Number(margin), onlyNew: true } : { action });
+      setNote(action === 'open' ? `Bidhaa ${r.data.changed} zimefunguliwa kwa wauzaji.` : `Bidhaa ${r.data.changed} zimefungwa.`);
+      onDone?.();
+    } catch (e) { setNote(e?.response?.data?.message || 'Imeshindikana.'); } finally { setBusy(false); }
+  };
+  return (
+    <section data-testid="supplier-bulk" style={{ margin: 16, padding: 14, border: `1px solid ${LINE}`, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <b style={{ fontSize: 16 }}>Fungua bidhaa zako kwa wauzaji</b>
+      <span style={{ fontSize: 14, color: GR }}>Bidhaa {summary.open} kati ya {summary.products} ziko wazi kwa wauzaji.</span>
+      <label style={{ fontSize: 14, color: DK, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        Wape wauzaji punguzo la
+        <input inputMode="numeric" value={margin} onChange={(e) => setMargin(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} aria-label="Punguzo kwa wauzaji (%)"
+          data-testid="bulk-margin" style={{ width: 64, height: 36, padding: '0 8px', borderRadius: 10, border: '1px solid #cfd9de', fontSize: 15, fontFamily: 'inherit' }} />
+        % chini ya bei yako ya duka
+      </label>
+      {Number(margin) > 0 && (
+        <span style={{ fontSize: 13, color: GR }}>Mfano: bidhaa ya TZS 50,000, muuzaji anakulipa TZS {(Math.round((500 * (100 - Number(margin))) / 100) * 100).toLocaleString('en-US')}. Bidhaa zenye bei ya wauzaji tayari hazibadiliki.</span>
+      )}
+      {note && <span role="status" style={{ fontSize: 14, color: '#166534', fontWeight: 600 }}>{note}</span>}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" disabled={busy} onClick={() => run('open')} data-testid="bulk-open" style={small(DK)}>Fungua zote</button>
+        {summary.open > 0 && <button type="button" disabled={busy} onClick={() => run('close')} data-testid="bulk-close" style={small(WH, DK)}>Funga zote</button>}
+      </div>
+    </section>
+  );
+}
+
+export default function MyResales({ onNavigate, startTab, supplierId, currentUser }) {
   const [tab, setTab] = useState(startTab || (supplierId ? 'open' : 'mine'));
   const [mine, setMine] = useState(null);
   const [profits, setProfits] = useState(null);
   const [supplier, setSupplier] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const loadSummary = () => api.get('/resale/supplier/summary').then((r) => setSummary(r?.data || null)).catch(() => setSummary(null));
   const [refs, setRefs] = useState({});
   const [msg, setMsg] = useState('');
   // Members only see reseller prices (owner 2026-11-10). null = not known yet.
@@ -86,7 +127,7 @@ export default function MyResales({ onNavigate, startTab, supplierId }) {
 
   const loadProfits = () => api.get('/resale/profits').then((r) => setProfits(r.data || { items: [] })).catch(() => setProfits({ items: [] }));
   const loadSupplier = () => api.get('/resale/supplier-orders').then((r) => setSupplier(r.data || { items: [] })).catch(() => setSupplier({ items: [] }));
-  useEffect(() => { loadProfits(); loadSupplier(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once on open
+  useEffect(() => { loadProfits(); loadSupplier(); loadSummary(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once on open
   const act = async (fn, okText) => {
     setMsg('');
     try { await fn(); setMsg(okText); } catch (e) { setMsg(e?.response?.data?.message || 'Imeshindikana.'); }
@@ -132,12 +173,16 @@ export default function MyResales({ onNavigate, startTab, supplierId }) {
         <p style={{ margin: '4px 0 0', fontSize: 14, color: GR, lineHeight: 1.45 }}>
           Uza bidhaa za maduka kwa bei yako. Duka linafikisha na linapokea malipo, kisha linakulipa faida yako. Hakuna ada ya kujiunga.
         </p>
+        <button type="button" onClick={() => onNavigate('UzaTena')}
+          style={{ marginTop: 6, padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Inavyofanya kazi na maswali
+        </button>
       </header>
       <div role="tablist" style={{ display: 'flex', borderBottom: `1px solid ${LINE}`, padding: '0 4px' }}>
         {tabBtn('open', 'Bidhaa za kuuza')}
         {tabBtn('mine', 'Ofa zangu')}
         {tabBtn('profits', 'Faida zangu')}
-        {(supplier?.items?.length > 0 || startTab === 'supplier') && tabBtn('supplier', 'Wauzaji wangu')}
+        {(supplier?.items?.length > 0 || summary?.products > 0 || startTab === 'supplier') && tabBtn('supplier', 'Wauzaji wangu')}
       </div>
       {msg && <div role="status" style={{ margin: 16, fontSize: 14, color: '#166534', fontWeight: 600, overflowWrap: 'anywhere' }}>{msg}</div>}
 
@@ -161,6 +206,11 @@ export default function MyResales({ onNavigate, startTab, supplierId }) {
                 {o.isActive && (
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <button type="button" onClick={() => share(o)} style={small(B)}>Shiriki</button>
+                    <button type="button" data-testid={`status-${o.id}`} style={small('#16a34a')}
+                      onClick={async () => {
+                        const r = await shareToStatus({ product: { id: o.productId, name: o.name, image: o.image }, offer: o, resellerName: currentUser?.name || null });
+                        if (STATUS_DONE[r]) setMsg(STATUS_DONE[r]);
+                      }}>Weka Status</button>
                     <button type="button" onClick={() => stop(o)} style={small(WH, DK)}>Simamisha</button>
                   </div>
                 )}
@@ -208,6 +258,7 @@ export default function MyResales({ onNavigate, startTab, supplierId }) {
         </div>
       )}
 
+      {tab === 'supplier' && summary?.products > 0 && <SupplierBulk summary={summary} onDone={loadSummary} />}
       {tab === 'supplier' && (
         <div data-testid="resale-supplier">
           <p style={{ margin: 16, fontSize: 14, color: GR, lineHeight: 1.45 }}>
@@ -240,7 +291,7 @@ export default function MyResales({ onNavigate, startTab, supplierId }) {
       )}
 
       {tab === 'open' && member === false && <JoinResale onJoined={(m) => { setMember(!!m?.member); setMsg('Karibu Uza tena.'); }} />}
-      {tab === 'open' && member && <ResaleCatalogue onNavigate={onNavigate} supplierId={supplierId || null} onSaved={loadMine} />}
+      {tab === 'open' && member && <ResaleCatalogue onNavigate={onNavigate} supplierId={supplierId || null} onSaved={loadMine} resellerName={currentUser?.name || null} />}
     </div>
   );
 }
