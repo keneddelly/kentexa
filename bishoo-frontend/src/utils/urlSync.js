@@ -63,3 +63,9 @@ export const pathToNavParams = (pathname, search) => {
   const cp = new URLSearchParams(search || '').get('cp');
   return cp && /^\d+$/.test(cp) ? { commerceProfileId: Number(cp) } : null;
 };
+
+// The page a shared link points to (kentexa.com/uza-tena, /product/42-simu, /@duka), or null
+// for the bare site and every other address. App opens it once after a signed-in account loads.
+export const linkPageFromAddress = (loc = typeof window !== 'undefined' ? window.location : null) => {
+  try { return loc ? pathToPage(loc.pathname) : null; } catch { return null; }
+};

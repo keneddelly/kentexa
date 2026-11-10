@@ -6,7 +6,7 @@ import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
-import { pageToPath, pathToPage, pathToNavParams } from './utils/urlSync';
+import { pageToPath, pathToPage, pathToNavParams, linkPageFromAddress } from './utils/urlSync';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
 import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
 import { rememberPageForUpdate, takeResumePage } from './utils/appVersion';
@@ -254,6 +254,10 @@ function App() {
   // After an automatic update the fresh copy reopens the screen that was open (once).
   const updateResume = React.useRef(undefined);
   if (updateResume.current === undefined) updateResume.current = takeResumePage();
+  // A shared link (kentexa.com/uza-tena, /product/42, /@duka...) opened by someone already signed
+  // in: the page in the link opens once the account loads, not the role home (2026-11-10).
+  const linkPage = React.useRef(undefined);
+  if (linkPage.current === undefined) linkPage.current = linkPageFromAddress();
   const [page, setPage]             = useState(() => {
     if (updateResume.current && !updateResume.current.roleType) return updateResume.current.page;
     // Bootstrap from a real URL — lets external links (WhatsApp, SMS) deep-link
@@ -437,6 +441,14 @@ function App() {
     if (resume?.roleType && resume.roleType === activeContext?.roleType) {
       setNavParams(resume.navParams ?? null);
       setPage(resume.page);
+      return;
+    }
+    // A shared link opened while signed in: that page, once (a later role switch goes home).
+    const fromLink = linkPage.current;
+    if (activeContext?.roleType) linkPage.current = null;
+    if (activeContext?.roleType && fromLink) {
+      setNavParams(pathToNavParams(window.location.pathname, window.location.search));
+      setPage(fromLink);
       return;
     }
     // A hotel's menu / table QR link (/menu/:businessId?meza=4) stays on that menu.
