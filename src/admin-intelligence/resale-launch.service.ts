@@ -39,7 +39,25 @@ export class ResaleLaunchService {
          LEFT JOIN public."user" r ON r.id = o."resellerUserId"
         WHERE o."resellerUserId" IS NOT NULL AND o."createdAt" >= $1
         ORDER BY o.id DESC LIMIT 5000`, [since])) ;
-    if (!rows) return { network: network ?? null, weeks: null, profits: null, payDays: null, problems: null, topResellers: null, topSuppliers: null };
+    // Resale orders that became parcels (owner 2026-11-10: Uza tena brings volume to logistics):
+    // by the city they go to, and by the office that handled them.
+    const toCities = await this.q(
+      `SELECT s."destinationCity" AS city, count(*)::int AS parcels, count(*) FILTER (WHERE s."originHubId" IS NOT NULL)::int AS "viaOffice"
+         FROM public.shipment s JOIN public."order" o ON o.id = s."orderId"
+        WHERE o."resellerUserId" IS NOT NULL AND o."createdAt" >= $1
+        GROUP BY s."destinationCity" ORDER BY parcels DESC LIMIT 15`, [since]);
+    const offices = await this.q(
+      `SELECT s."originHubId" AS id, sa."businessName" AS name, count(*)::int AS parcels
+         FROM public.shipment s JOIN public."order" o ON o.id = s."orderId" LEFT JOIN public.super_agent sa ON sa.id = s."originHubId"
+        WHERE o."resellerUserId" IS NOT NULL AND o."createdAt" >= $1 AND s."originHubId" IS NOT NULL
+        GROUP BY s."originHubId", sa."businessName" ORDER BY parcels DESC LIMIT 10`, [since]);
+    const parcels = toCities === null ? null : {
+      total: toCities.reduce((n: number, r: any) => n + (Number(r.parcels) || 0), 0),
+      toCities: toCities.map((r: any) => ({ city: r.city || '—', parcels: Number(r.parcels) || 0, viaOffice: Number(r.viaOffice) || 0 })),
+      offices: (offices || []).map((r: any) => ({ id: Number(r.id), name: r.name || `#${r.id}`, parcels: Number(r.parcels) || 0 })),
+    };
+
+    if (!rows) return { network: network ?? null, weeks: null, profits: null, payDays: null, problems: null, topResellers: null, topSuppliers: null, parcels };
 
     const items = rows.map((r: any) => ({ ...r, state: profitState(r, now), profit: money(r.resellerProfit) }));
 
@@ -106,6 +124,7 @@ export class ResaleLaunchService {
       profits, payDays, problems,
       topResellers: top('resellerUserId', 'resellerName'),
       topSuppliers: top('sellerId', 'supplierName'),
+      parcels,
     };
   }
 }

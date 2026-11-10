@@ -54,7 +54,13 @@ function Row({ p, onNavigate, onSaved, resellerName }) {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
           <button type="button" onClick={() => onNavigate(`ProductDetail-${p.id}`)}
             style={{ padding: 0, border: 'none', background: 'none', textAlign: 'left', fontSize: 15, fontWeight: 700, color: DK, cursor: 'pointer', fontFamily: 'inherit' }}>{p.name}</button>
-          <span style={{ fontSize: 13, color: GR }}>{p.supplierName || 'Duka'} · dukani {tzs(p.publicPrice)} · zimebaki {p.stock}</span>
+          <span style={{ fontSize: 13, color: GR }}>{p.supplierName || 'Duka'} · inatoka {p.fromCity || 'Dar es Salaam'} · dukani {tzs(p.publicPrice)} · zimebaki {p.stock}</span>
+          {/* The shop's record of paying resellers (owner 2026-11-10). */}
+          <span data-testid={`catalogue-record-${p.id}`} style={{ fontSize: 13, color: p.shopRecord?.late ? '#b91c1c' : GR }}>
+            {p.shopRecord?.paid
+              ? `Limewalipa wauzaji mara ${p.shopRecord.paid}, kwa wakati ${p.shopRecord.onTime}${p.shopRecord.late ? ` · ${p.shopRecord.late} limechelewa` : ''}`
+              : p.shopRecord?.late ? `Malipo ${p.shopRecord.late} kwa wauzaji yamechelewa` : 'Duka jipya kwenye Uza tena'}
+          </span>
           <span style={{ fontSize: 14, color: DK }}>Unalipa duka <b>{tzs(p.supplierPrice)}</b></span>
           <span style={{ fontSize: 14, color: GREEN, fontWeight: 700 }}>Faida {tzs(p.profitAtShopPrice)} kwa bei ya duka, zaidi ukiongeza</span>
         </div>
@@ -97,7 +103,7 @@ function Row({ p, onNavigate, onSaved, resellerName }) {
 
 export default function ResaleCatalogue({ onNavigate, supplierId = null, onSaved, resellerName = null }) {
   const [text, setText] = useState('');
-  const [filters, setFilters] = useState({ q: '', category: '', sort: 'new' });
+  const [filters, setFilters] = useState({ q: '', category: '', sort: 'new', city: '' });
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [labels, setLabels] = useState({});
@@ -113,6 +119,7 @@ export default function ResaleCatalogue({ onNavigate, supplierId = null, onSaved
   useEffect(() => {
     let alive = true;
     const params = { page, sort: filters.sort, ...(filters.q ? { q: filters.q } : {}), ...(filters.category ? { category: filters.category } : {}),
+      ...(filters.city ? { city: filters.city } : {}),
       ...(supplierId ? { supplierId } : {}) };
     api.get('/resale/products', { params }).then((r) => {
       if (!alive) return;
@@ -120,6 +127,7 @@ export default function ResaleCatalogue({ onNavigate, supplierId = null, onSaved
       setData((prev) => ({
         items: page > 1 && prev ? [...prev.items, ...(d.items || [])] : (d.items || []),
         categories: d.categories || prev?.categories || [],
+        cities: d.cities || prev?.cities || [],
         hasMore: !!d.hasMore,
       }));
     }).catch(() => { if (alive) setData((prev) => prev || { items: [], categories: [], hasMore: false }); });
@@ -144,6 +152,16 @@ export default function ResaleCatalogue({ onNavigate, supplierId = null, onSaved
           </button>
         ))}
       </div>
+      {(data?.cities || []).length > 1 && (
+        <div role="tablist" aria-label="Mahali" style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '0 16px 8px', scrollbarWidth: 'none', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: GR, flexShrink: 0 }}>Inatoka:</span>
+          <button type="button" role="tab" aria-selected={!filters.city} onClick={() => apply({ city: '' })} style={pill(!filters.city)}>Kote</button>
+          {data.cities.map((c) => (
+            <button type="button" role="tab" key={c.key} aria-selected={filters.city === c.key} data-testid={`catalogue-city-${c.key}`}
+              onClick={() => apply({ city: c.key })} style={pill(filters.city === c.key)}>{c.key} ({c.count})</button>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, padding: '0 16px 8px', alignItems: 'center' }}>
         <span style={{ fontSize: 13, color: GR }}>Panga:</span>
         <button type="button" onClick={() => apply({ sort: 'new' })} aria-pressed={filters.sort === 'new'} style={pill(filters.sort === 'new')}>Mpya</button>

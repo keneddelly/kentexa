@@ -194,3 +194,26 @@ describe('Uza tena growth (owner 2026-11-10)', () => {
     await expect(svc.publicStats()).resolves.toEqual({ shops: 3, products: 40 });
   });
 });
+
+describe('Uza tena growth 2 (owner 2026-11-10): where goods leave from, and each shop paying record', () => {
+  it('filters by the shop city and shows how the shop pays resellers', async () => {
+    const calls: any[] = [];
+    const db: any = { query: jest.fn(async (sql: string, params: any[]) => {
+      calls.push([sql, params]);
+      if (/resale_member/.test(sql)) return [{ ok: 1 }];
+      if (/GROUP BY p.category/.test(sql)) return [];
+      if (/GROUP BY 1/.test(sql)) return [{ city: 'Dar es Salaam', n: 7 }, { city: 'Mwanza', n: 2 }];
+      if (/ANY\(\$1::int\[\]\)/.test(sql)) return [{ sellerId: 9, paid: 5, onTime: 4, late: 1 }];
+      return [{ id: 3, name: 'Simu', images: null, category: 'electronics', basePrice: '50000', resalePrice: '42000', resaleMinPrice: null,
+        stock: 4, sellerId: 9, supplierName: 'BIS', fromCity: 'Mwanza' }];
+    }) };
+    const r: any = await new ResaleService(db, { record: jest.fn() } as any).openProducts(20, { city: 'Mwanza' });
+    expect(r.items[0]).toMatchObject({ fromCity: 'Mwanza', shopRecord: { paid: 5, onTime: 4, late: 1 } });
+    expect(r.cities).toEqual([{ key: 'Dar es Salaam', count: 7 }, { key: 'Mwanza', count: 2 }]);
+    const list = calls.find(([sql]: any) => /LIMIT 31/.test(sql));
+    expect(list[0]).toContain('COALESCE(p."sellerCity", \'Dar es Salaam\') = $2');
+    expect(list[1]).toEqual([20, 'Mwanza', 0]);
+    // The city chips count every city under the same search, not only the chosen one.
+    expect(calls.find(([sql]: any) => /GROUP BY 1/.test(sql))[1]).toEqual([20]);
+  });
+});

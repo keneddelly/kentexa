@@ -12,14 +12,16 @@ import { normalizeTzPhone } from '../common/utils/phone.util';
  *   first_listing - the user posted their first listing (classified or product);
  *   business      - the user created a business;
  *   office        - the user's office (Super Agent) was approved;
- *   seller        - the user was approved as a seller.
+ *   seller        - the user was approved as a seller;
+ *   reseller_joined - the user joined Uza tena and accepted its rules (owner 2026-11-10);
+ *   first_resale    - the user's first resale order was delivered (a real sale, not a signup).
  *
  * Events are read from the real records (never claimed by the advertiser), and checked
  * whenever the advertiser or admin opens their page, so no module needs a hook. KenteXa
  * pays its advertisers itself (admin marks commission paid); customers' money is never
  * involved.
  */
-export const ADVERTISER_EVENTS = ['first_listing', 'business', 'office', 'seller'] as const;
+export const ADVERTISER_EVENTS = ['first_listing', 'business', 'office', 'seller', 'reseller_joined', 'first_resale'] as const;
 export type AdvertiserEvent = (typeof ADVERTISER_EVENTS)[number];
 
 export const ADVERTISER_MESSAGES = {
@@ -45,6 +47,8 @@ const EVENT_CHECK: Record<AdvertiserEvent, string> = {
   office: `SELECT 1 FROM public.super_agent WHERE "userId" = $1 AND status::text = 'active'
            AND COALESCE("isTrainingOffice", false) = false LIMIT 1`,
   seller: `SELECT 1 FROM public.seller_profile WHERE "userId" = $1 AND status::text = 'approved' LIMIT 1`,
+  reseller_joined: `SELECT 1 FROM public.resale_member WHERE "userId" = $1 AND "isActive" = true AND "rulesAcceptedAt" IS NOT NULL LIMIT 1`,
+  first_resale: `SELECT 1 FROM public."order" WHERE "resellerUserId" = $1 AND status::text IN ('delivered', 'completed') LIMIT 1`,
 };
 
 const tz = (raw: unknown) => (typeof raw === 'string' ? normalizeTzPhone(raw) : '');
@@ -143,7 +147,7 @@ export class AdvertisersService {
 
   async rates(): Promise<Record<AdvertiserEvent, number>> {
     const rows: any[] = await this.db.query(`SELECT event, amount FROM public.advertiser_rate`);
-    const out = { first_listing: 0, business: 0, office: 0, seller: 0 } as Record<AdvertiserEvent, number>;
+    const out = Object.fromEntries(ADVERTISER_EVENTS.map((e) => [e, 0])) as Record<AdvertiserEvent, number>;
     for (const r of rows) if ((ADVERTISER_EVENTS as readonly string[]).includes(r.event)) out[r.event as AdvertiserEvent] = Number(r.amount) || 0;
     return out;
   }

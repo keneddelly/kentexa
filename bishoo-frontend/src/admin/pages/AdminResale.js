@@ -134,6 +134,25 @@ export default function AdminResale({ activePage, onNavigate, onLogout }) {
               })}
             </section>
 
+            {/* Uza tena brings parcels to logistics (owner 2026-11-10). */}
+            <section style={card} data-testid="resale-parcels">
+              <h2 style={{ margin: '0 0 8px', fontSize: 16 }}>Mizigo kutoka Uza tena (wiki 8) {data.parcels ? `· ${fmt(data.parcels.total)}` : ''}</h2>
+              {!data.parcels ? <p style={{ color: MUTED, margin: 0 }}>—</p> : data.parcels.total === 0 ? <p style={{ color: MUTED, margin: 0 }}>Bado hakuna mzigo.</p> : (
+                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                  <table style={{ borderCollapse: 'collapse', flex: '1 1 300px' }}>
+                    <thead><tr><th style={th}>Inakwenda</th><th style={th}>Mizigo</th><th style={th}>Kupitia ofisi</th></tr></thead>
+                    <tbody>{data.parcels.toCities.map((c) => <tr key={c.city}><td style={td}>{c.city}</td><td style={td}>{fmt(c.parcels)}</td><td style={td}>{fmt(c.viaOffice)}</td></tr>)}</tbody>
+                  </table>
+                  <table style={{ borderCollapse: 'collapse', flex: '1 1 260px' }}>
+                    <thead><tr><th style={th}>Ofisi</th><th style={th}>Mizigo</th></tr></thead>
+                    <tbody>{data.parcels.offices.length === 0
+                      ? <tr><td style={td} colSpan={2}>Hakuna bado.</td></tr>
+                      : data.parcels.offices.map((o) => <tr key={o.id}><td style={td}>{o.name}</td><td style={td}>{fmt(o.parcels)}</td></tr>)}</tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               {people(data.topResellers, 'Wauzaji wanaoongoza', 'resale-top-resellers')}
               {people(data.topSuppliers, 'Maduka yanayoongoza', 'resale-top-suppliers')}
