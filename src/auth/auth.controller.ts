@@ -170,6 +170,21 @@ export class AuthController {
     return this.authService.forgotPassword(body.identifier);
   }
 
+  // Futa akaunti (owner 2026-11-10): a code to the account's own phone, then delete.
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Post('delete-account/request')
+  requestAccountDeletion(@Request() req) {
+    return this.authService.requestAccountDeletion(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @Post('delete-account/confirm')
+  confirmAccountDeletion(@Request() req, @Body() body: any) {
+    return this.authService.confirmAccountDeletion(req.user.id, body?.code);
+  }
+
   // Get current user profile
   @UseGuards(JwtAuthGuard)
   @Get('profile')

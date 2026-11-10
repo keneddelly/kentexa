@@ -21,6 +21,7 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { PolicyVersionService } from '../policies/policy-version.service';
 import { PolicyType } from '../policies/entities/policy-version.entity';
 import { normalizeTzPhone } from '../common/utils/phone.util';
+import { DELETED_NAME, HIDE_PUBLIC_SQL, OPEN_ORDER_STATUSES, erasedUserFields, maskContact } from './account-deletion';
 import { VerificationService } from '../identity/verification.service';
 import { RoleContextService } from '../role-context/role-context.service';
 import { AccountRole } from '../role-context/entities/account-role.entity';
@@ -446,6 +447,58 @@ export class AuthService {
       otpSent: sent,
       ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
     };
+  }
+
+  // ── FUTA AKAUNTI (account deletion, owner 2026-11-10) ─────────────────
+  /** Step 1: send a code to the account's own phone (or email) so only its owner can delete it. */
+  async requestAccountDeletion(userId: number) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || user.name === DELETED_NAME) throw new UnauthorizedException('Akaunti haipo.');
+    await this.assertNoOpenOrders(userId);
+    const otp = this.smsService.generateOtp();
+    await this.userRepo.update(user.id, { otp, otpExpiry: new Date(Date.now() + 10 * 60 * 1000), otpAttempts: 0 } as any);
+    let sent = false;
+    if (user.phone) sent = await this.smsService.sendOtp(user.phone, otp).catch(() => false);
+    else if (user.email) sent = await this.mailService.sendOtp(user.email, otp, user.name ? String(user.name) : undefined).catch(() => false);
+    else throw new BadRequestException('Akaunti hii haina namba ya simu wala barua pepe. Wasiliana na support@kentexa.com.');
+    return { sent, to: maskContact(user.phone, user.email), ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}) };
+  }
+
+  /** Step 2: with the right code, close the account and erase its personal data now. */
+  async confirmAccountDeletion(userId: number, code: unknown) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || user.name === DELETED_NAME) throw new UnauthorizedException('Akaunti haipo.');
+    const otp = typeof code === 'string' ? code.trim() : '';
+    if (!user.otp || !user.otpExpiry || user.otpExpiry < new Date()) throw new BadRequestException('Namba imeisha muda. Omba namba mpya.');
+    if ((user.otpAttempts ?? 0) >= 5) throw new BadRequestException('Umejaribu mara nyingi. Omba namba mpya.');
+    if (otp !== user.otp) {
+      await this.userRepo.update(user.id, { otpAttempts: (user.otpAttempts ?? 0) + 1 } as any);
+      throw new BadRequestException('Namba si sahihi.');
+    }
+    await this.assertNoOpenOrders(userId);
+    const hidden = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
+    const sessionIds: string[] = await this.userRepo.manager.transaction(async (m) => {
+      for (const sql of HIDE_PUBLIC_SQL) {
+        // A table an older database does not have yet is skipped; the rest still runs.
+        await m.query(`SAVEPOINT futa`);
+        try { await m.query(sql, [userId]); await m.query(`RELEASE SAVEPOINT futa`); }
+        catch { await m.query(`ROLLBACK TO SAVEPOINT futa`); }
+      }
+      await m.getRepository(User).update(userId, erasedUserFields(hidden) as any);
+      const rows = await m.query(`SELECT id FROM public.active_role_session WHERE "userId" = $1 AND "revokedAt" IS NULL`, [userId]);
+      return rows.map((r: any) => String(r.id));
+    });
+    for (const id of sessionIds) await this.roleContextService.revokeCurrentSession(id, 'account_deleted').catch(() => undefined);
+    return { deleted: true };
+  }
+
+  private async assertNoOpenOrders(userId: number) {
+    const [row] = await this.userRepo.manager.query(
+      `SELECT count(*)::int AS n FROM public."order" WHERE ("buyerId" = $1 OR "sellerId" = $1) AND status::text = ANY($2::text[])`,
+      [userId, OPEN_ORDER_STATUSES],
+    ).catch(() => [{ n: 0 }]);
+    const n = Number(row?.n || 0);
+    if (n > 0) throw new ConflictException(`Una oda ${n} ambazo bado hazijaisha. Zimalize au zighairi kwanza, kisha ufute akaunti.`);
   }
 
   // ── LOGIN ─────────────────────────────────────────────────────────────
