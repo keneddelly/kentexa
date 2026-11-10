@@ -21,6 +21,11 @@ export class CreateOrderDto {
   @IsInt()
   resaleOfferId?: number;
 
+  // Where the buyer came from on the reseller's link ('status' | 'share'); anything else is ignored.
+  @IsOptional()
+  @IsString()
+  resaleSource?: string;
+
   @IsOptional()
   @IsString()
   deliveryAddress?: string;

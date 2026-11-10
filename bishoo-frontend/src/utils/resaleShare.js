@@ -7,8 +7,11 @@
  */
 import { productLink } from '../public/utils/shareLinks';
 
-/** The link a reseller shares: the product page with their offer on it. */
-export const resaleLink = (product, offerId) => `${productLink(product.id, product.name)}?offer=${offerId}`;
+/**
+ * The link a reseller shares: the product page with their offer on it, and where it was shared
+ * (src=status for WhatsApp Status, src=share for a normal share) so the reseller sees what works.
+ */
+export const resaleLink = (product, offerId, src) => `${productLink(product.id, product.name)}?offer=${offerId}${src ? `&src=${src}` : ''}`;
 
 const W = 1080;
 const H = 1920;
@@ -90,7 +93,7 @@ export async function statusImage({ name, price, note, image, resellerName, link
  * Returns 'shared' | 'saved' | 'copied' | 'cancelled'.
  */
 export async function shareToStatus({ product, offer, resellerName }) {
-  const link = resaleLink(product, offer.id);
+  const link = resaleLink(product, offer.id, 'status');
   const caption = statusCaption({ name: product.name, price: offer.price, note: offer.note, link });
   const blob = await statusImage({ name: product.name, price: offer.price, note: offer.note, image: product.image, resellerName, link });
   const nav = typeof navigator !== 'undefined' ? navigator : null;

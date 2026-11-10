@@ -432,6 +432,10 @@ export class Order {
   @Column({ type: 'int', nullable: true })
   resaleOfferId: number | null;
 
+  // Where the buyer of a resale order came from: 'status' (WhatsApp Status) or 'share' (owner 2026-11-10).
+  @Column({ type: 'varchar', length: 12, nullable: true })
+  resaleSource: string | null;
+
   @Column({ type: 'int', nullable: true })
   resellerUserId: number | null;
 

@@ -9,8 +9,8 @@ export class ResaleController {
 
   /** A shared offer, public: the reseller and the selling price. */
   @Get('offers/:id')
-  publicOffer(@Param('id', ParseIntPipe) id: number) {
-    return this.svc.publicOffer(id);
+  publicOffer(@Param('id', ParseIntPipe) id: number, @Query('src') src?: string) {
+    return this.svc.publicOffer(id, src);
   }
 
   // ── Members (owner 2026-11-10) ──

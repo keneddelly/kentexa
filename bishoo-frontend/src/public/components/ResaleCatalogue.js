@@ -42,7 +42,7 @@ function Row({ p, onNavigate, onSaved, resellerName }) {
     } catch (e) { setErr(e?.response?.data?.message || 'Imeshindikana.'); } finally { setBusy(false); }
   };
   const share = async () => {
-    const link = resaleLink(p, offer.id);
+    const link = resaleLink(p, offer.id, 'share');
     try { if (navigator.share) { await navigator.share({ title: p.name, text: `${p.name}: ${tzs(offer.price)}`, url: link }); return; } } catch { return; }
     try { await navigator.clipboard?.writeText(link); setErr(''); setOffer({ ...offer, copied: true }); } catch { setOffer({ ...offer, copied: link }); }
   };

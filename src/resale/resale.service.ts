@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
-import { PAY_DAYS, RESALE_NOTE_MAX, UNPAID_LATE_SQL, assertSellingPrice, money, profitState, sellingFloor } from './resale-rules';
+import { PAY_DAYS, RESALE_NOTE_MAX, UNPAID_LATE_SQL, assertSellingPrice, cleanSource, money, profitState, sellingFloor } from './resale-rules';
 
 /** One resale order with its profit record, as both sides see it. */
 const RESALE_ORDER_SELECT = `o.id, o.status, o.quantity, o."resaleUnitPrice", o."supplierUnitPrice", o."resellerProfit",
@@ -144,17 +144,27 @@ export class ResaleService {
          FROM public.resale_offer o JOIN public.product p ON p.id = o."productId"
         WHERE o."resellerUserId" = $1::int
         ORDER BY o."isActive" DESC, o."updatedAt" DESC LIMIT 200`, [userId]);
+    // Opens of each link in the last 30 days, by source (empty until the tracking migration ran).
+    const opens: any[] = rows.length ? await this.db.query(
+      `SELECT "offerId", source, SUM(opens)::int AS n FROM public.resale_offer_open
+        WHERE "offerId" = ANY($1::int[]) AND day >= CURRENT_DATE - 30 GROUP BY "offerId", source`,
+      [rows.map((r) => r.id)]).catch(() => []) : [];
+    const opensOf = (id: number) => {
+      const o = { status: 0, share: 0 };
+      for (const x of opens) if (Number(x.offerId) === Number(id) && x.source in o) (o as any)[x.source] = Number(x.n) || 0;
+      return { ...o, total: o.status + o.share };
+    };
     return rows.map((r) => ({
       id: r.id, productId: r.productId, name: r.name, image: firstImage(r.images),
       price: money(r.price), note: r.note, isActive: r.isActive && r.resaleOpen, stock: Number(r.stock) || 0,
-      profitEach: money(money(r.price) - money(r.resalePrice)), orders: Number(r.orders) || 0,
+      profitEach: money(money(r.price) - money(r.resalePrice)), orders: Number(r.orders) || 0, opens: opensOf(r.id),
       // The supplier raised its price or floor above this offer: it must be updated before it sells.
       needsNewPrice: r.resaleOpen && money(r.price) < sellingFloor(r),
     }));
   }
 
   /** A shared offer, as the buyer sees it: the reseller and the price. No supplier price. */
-  async publicOffer(offerId: number) {
+  async publicOffer(offerId: number, src?: unknown) {
     const [r] = await this.db.query(
       `SELECT o.id, o."productId", o.price, o.note, o."isActive", p."resaleOpen", p."resalePrice", p."resaleMinPrice",
               u.id AS "resellerId", u.name AS "resellerName", u."avatarUrl" AS "resellerPhoto"
@@ -162,6 +172,13 @@ export class ResaleService {
          JOIN public."user" u ON u.id = o."resellerUserId"
         WHERE o.id = $1::int`, [offerId]);
     if (!r || !r.isActive || !r.resaleOpen || money(r.price) < sellingFloor(r)) throw new NotFoundException('Ofa hii haipo tena.');
+    // Count the open by where the link was shared (the page sends src once per visit).
+    const source = cleanSource(src);
+    if (source) {
+      void this.db.query(
+        `INSERT INTO public.resale_offer_open ("offerId", source, day, opens) VALUES ($1::int, $2, CURRENT_DATE, 1)
+         ON CONFLICT ("offerId", source, day) DO UPDATE SET opens = public.resale_offer_open.opens + 1`, [offerId, source]).catch(() => undefined);
+    }
     return {
       id: r.id, productId: r.productId, price: money(r.price), note: r.note,
       reseller: { id: r.resellerId, name: r.resellerName || 'Muuzaji', photo: r.resellerPhoto || null },

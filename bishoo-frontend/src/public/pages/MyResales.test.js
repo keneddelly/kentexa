@@ -63,3 +63,16 @@ test('a shop opens many products for resellers at once', async () => {
   expect(api.post).toHaveBeenCalledWith('/resale/supplier/bulk', { action: 'open', marginPercent: 20, onlyNew: true });
   expect(screen.getByTestId('supplier-bulk')).toHaveTextContent('Bidhaa 10 zimefunguliwa');
 });
+
+test('each offer shows how many people opened its link, by where it was shared', async () => {
+  api.get.mockImplementation(async (url) => {
+    if (url === '/resale/mine') return { data: [
+      { id: 7, productId: 3, name: 'Simu', price: 55000, profitEach: 13000, orders: 1, isActive: true, stock: 3, opens: { status: 8, share: 3, total: 11 } },
+      { id: 8, productId: 4, name: 'Taa', price: 12000, profitEach: 2000, orders: 0, isActive: true, stock: 5, opens: { status: 0, share: 0, total: 0 } },
+    ] };
+    return { data: [] };
+  });
+  await act(async () => { render(<MyResales onNavigate={jest.fn()} startTab="mine" />); });
+  expect(screen.getByTestId('offer-opens-7')).toHaveTextContent('Watu 11 wamefungua kiungo (siku 30): Status 8');
+  expect(screen.getByTestId('offer-opens-8')).toHaveTextContent('Bado hakuna aliyefungua kiungo');
+});
