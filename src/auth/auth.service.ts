@@ -10,6 +10,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { User } from '../users/entities/user.entity';
@@ -228,6 +229,33 @@ export class AuthService {
       otpSent: sent,
       ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
     };
+  }
+
+  /**
+   * Buying without signing up first (owner 2026-11-10: "when a user arrives with a link, allow him
+   * to check out; the account is created at checkout when he adds his phone"). Same SMS code and
+   * limits as sign-up; then POST /auth/verify-otp signs the person in and the order goes through.
+   *   new number          an account with no usable password (the person can set one later with
+   *                       "Weka nenosiri" / forgot password), and the SMS code;
+   *   started, not done   the code again;
+   *   has an account      { status: 'has_account' }: the checkout asks for the password instead.
+   */
+  async checkoutPhone(dto: { name?: unknown; phone?: unknown; referralCode?: unknown }) {
+    const name = typeof dto?.name === 'string' ? dto.name.trim().slice(0, 100) : '';
+    if (name.length < 2) throw new BadRequestException('Andika jina lako.');
+    const phone = typeof dto?.phone === 'string' ? normalizeTzPhone(dto.phone) : '';
+    if (!/^255\d{9}$/.test(phone)) throw new BadRequestException('Weka namba sahihi ya simu (mf. 0712345678).');
+    const existing = await this.userRepo.findOne({ where: { phone } });
+    if (existing?.isVerified) return { status: 'has_account' as const, phone };
+    const sent: any = existing
+      ? await this.resendPhoneOtp(phone)
+      : await this.registerWithPhone({
+          phone, name,
+          // Never shown or sent: the person signs in with the SMS code now and sets a password later.
+          password: randomBytes(24).toString('hex'),
+          referralCode: typeof dto?.referralCode === 'string' ? dto.referralCode : undefined,
+        });
+    return { status: 'otp_sent' as const, phone, otpSent: sent?.otpSent ?? true, ...(sent?.devOtp ? { devOtp: sent.devOtp } : {}) };
   }
 
   // ── REGISTER WITH EMAIL ───────────────────────────────────────────────
