@@ -33,4 +33,6 @@ android {
 dependencies {
     implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
+    // One Kotlin version (the old jdk7/jdk8 parts are folded into kotlin-stdlib since 1.8).
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
 }
