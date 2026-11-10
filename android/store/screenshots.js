@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const PROBE = ['/', '/uza-tena', '/product/1', '/store/1', '/.well-known/assetlinks.json', '/manifest.json', '/index.html'];
+const PROBE = ['/futa-akaunti/', '/', '/uza-tena', '/product/1', '/store/1', '/.well-known/assetlinks.json', '/manifest.json', '/index.html'];
 const PAGES = (process.env.SHOT_PAGES || '01-mwanzo=/,02-uza-tena=/?go=/uza-tena,03-bidhaa=/product/1,04-duka=/?go=/@bis,05-tafuta=/?go=/search').split(',').map((p) => [p.slice(0, p.indexOf('=')), p.slice(p.indexOf('=') + 1)]);
 
 (async () => {
