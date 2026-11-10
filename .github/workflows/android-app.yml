@@ -1,0 +1,75 @@
+# KenteXa for Android (Play Store). Builds the app bundle from android/ and takes phone
+# screenshots of kentexa.com for the store listing. The bundle is built unsigned; it is
+# signed with the KenteXa upload key, which never enters this public repository.
+name: Android app
+
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    name: Android app bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+      - name: Build release bundle
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle --no-daemon bundleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kentexa-android-unsigned
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 14
+      # The unsigned bundle (no secret in it) also goes to the android-builds branch, so it
+      # can be fetched with git and signed with the upload key.
+      - name: Hand the bundle back through the android-builds branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash android/store/handback.sh "android/app/build/outputs/bundle/release/app-release.aab" "bundle"
+
+  screenshots:
+    name: Store screenshots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check kentexa.com and www addresses
+        run: |
+          for h in kentexa.com www.kentexa.com api.kentexa.com; do
+            for t in A AAAA CNAME; do echo "DNS $h $t: $(dig +short $h $t | tr '\n' ' ')"; done
+            echo "HTTP4 $h: $(curl -4 -sS -o /dev/null -w '%{http_code} %{redirect_url}' https://$h/ 2>&1 | head -c 200)"
+            echo "HTTP6 $h: $(curl -6 -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 10 https://$h/ 2>&1 | head -c 200)"
+            echo "HTTP80 $h: $(curl -4 -sS -o /dev/null -w '%{http_code} %{redirect_url}' http://$h/ 2>&1 | head -c 200)"
+          done
+      - name: Take phone screenshots of kentexa.com
+        run: |
+          npm i --no-save playwright@1.48.2
+          npx playwright install --with-deps chromium
+          node android/store/screenshots.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kentexa-store-screenshots
+          path: android/store/out/*.png
+          retention-days: 14
+      - name: Hand the screenshots back through the android-builds branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash android/store/handback.sh "android/store/out" "screenshots"

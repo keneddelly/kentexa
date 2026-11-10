@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KenteXa</string>
+    <string name="providerAuthority">com.kentexa.app.fileprovider</string>
+    <!-- Digital Asset Links: kentexa.com/.well-known/assetlinks.json names this app back, so
+         the site opens full screen with no browser bar. -->
+    <string name="asset_statements">
+        [{
+            \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+            \"target\": {\"namespace\": \"web\", \"site\": \"https://kentexa.com\"}
+        }]
+    </string>
+</resources>
