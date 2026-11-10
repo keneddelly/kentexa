@@ -167,7 +167,12 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 </div>
 
                 <button className="cart-checkout-btn"
-                  onClick={() => isLoggedIn ? onNavigate('Checkout') : onNavigate('PublicLogin')}>
+                  onClick={() => {
+                    if (isLoggedIn) { onNavigate('Checkout'); return; }
+                    // Back to checkout after signing in or signing up (owner 2026-11-10); the cart stays.
+                    try { localStorage.setItem('kentexa_after_login', 'Checkout'); } catch { /* storage blocked */ }
+                    onNavigate('PublicLogin');
+                  }}>
                   {isLoggedIn ? t('cart.checkout') : t('cart.login_checkout')}
                 </button>
 
