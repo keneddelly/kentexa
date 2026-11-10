@@ -1009,7 +1009,10 @@ function App() {
       case 'EditPublicProfile': return requireLogin(<EditPublicProfile {...publicProps} commerceProfileId={navParams?.commerceProfileId} />);
       case 'PayoutSettings': return requireLogin(<PayoutSettings {...publicProps} />);
       case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} editField={navParams?.editField} />);
-      case 'Checkout':          return requireLogin(<Checkout {...publicProps} />);
+      case 'Checkout':
+        // Signed out at checkout: come back here after signing in or up; the cart is kept (owner 2026-11-10).
+        if (!isLoggedIn) { try { localStorage.setItem('kentexa_after_login', 'Checkout'); } catch { /* storage blocked */ } }
+        return requireLogin(<Checkout {...publicProps} />);
       case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={activeContext?.userId} />);
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);

@@ -27,9 +27,37 @@ const loadCart = (userKey) => {
   }
 };
 
+/**
+ * Owner 2026-11-10: "when a user has no account, when he starts creating an account the product is
+ * lost". What a person put in the cart before signing in (or signing up) moves into their account's
+ * cart: a guest line replaces the same product's line (it is the newest choice, and keeps a
+ * reseller's offer); then the guest cart is emptied.
+ */
+export const mergeGuestCart = (guest, mine) => {
+  const out = Array.isArray(mine) ? [...mine] : [];
+  for (const g of Array.isArray(guest) ? guest : []) {
+    const i = out.findIndex((x) => x.id === g.id);
+    if (i >= 0) out[i] = g; else out.push(g);
+  }
+  return out;
+};
+
+/** A signed-in person's cart, with anything left in the guest cart moved in (then cleared). */
+const cartFor = (userKey) => {
+  if (userKey === 'guest') return loadCart('guest');
+  const guest = loadCart('guest');
+  if (!guest.length) return loadCart(userKey);
+  const merged = mergeGuestCart(guest, loadCart(userKey));
+  try {
+    localStorage.setItem(cartStorageKey(userKey), JSON.stringify(merged));
+    localStorage.removeItem(cartStorageKey('guest'));
+  } catch { /* storage blocked */ }
+  return merged;
+};
+
 export const CartProvider = ({ children }) => {
   const [userKey, setUserKey] = useState(getUserKey);
-  const [cart, setCart] = useState(() => loadCart(getUserKey()));
+  const [cart, setCart] = useState(() => cartFor(getUserKey()));
 
   // Persist cart under the current user's key whenever it changes
   useEffect(() => {
@@ -43,9 +71,7 @@ export const CartProvider = ({ children }) => {
   const refreshUserKey = useCallback(() => {
     const newKey = getUserKey();
     setUserKey(prevKey => {
-      if (newKey !== prevKey) {
-        setCart(loadCart(newKey));
-      }
+      if (newKey !== prevKey) setCart(cartFor(newKey));
       return newKey;
     });
   }, []);
