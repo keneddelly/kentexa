@@ -17,6 +17,7 @@ import { enablePushNotifications, disablePushNotifications, getPushNotificationS
 import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import { LineIcon, LINE_ICONS } from '../components/LineIcon';
+import DeleteAccount from '../components/DeleteAccount';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -1064,6 +1065,9 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 {t('my_profile.logout_button')}
               </button>
             </div>
+
+            {/* Futa akaunti (owner 2026-11-10; Google Play account-deletion rule) */}
+            <DeleteAccount onDeleted={() => { onLogout?.(); onNavigate('Home'); }} />
           </>
         )}
       </div>
