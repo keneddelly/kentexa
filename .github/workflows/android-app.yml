@@ -10,6 +10,9 @@ on:
       - '.github/workflows/android-app.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   bundle:
     name: Android app bundle
@@ -33,6 +36,12 @@ jobs:
           name: kentexa-android-unsigned
           path: android/app/build/outputs/bundle/release/*.aab
           retention-days: 14
+      # The unsigned bundle (no secret in it) also goes to the android-builds branch, so it
+      # can be fetched with git and signed with the upload key.
+      - name: Hand the bundle back through the android-builds branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash android/store/handback.sh "android/app/build/outputs/bundle/release/app-release.aab" "bundle"
 
   screenshots:
     name: Store screenshots
@@ -52,3 +61,7 @@ jobs:
           name: kentexa-store-screenshots
           path: android/store/out/*.png
           retention-days: 14
+      - name: Hand the screenshots back through the android-builds branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash android/store/handback.sh "android/store/out" "screenshots"
