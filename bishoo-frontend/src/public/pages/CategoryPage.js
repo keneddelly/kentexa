@@ -113,6 +113,38 @@ const CategoryPage = ({ onNavigate, category }) => {
 
   const totalCount = filteredProducts.length + filteredClassifieds.length;
 
+  useEffect(() => {
+    if (!category) return undefined;
+    const title = `${cat.label} in Tanzania | Products, Services & Classifieds | Kentexa`;
+    const description = `Explore ${cat.label.toLowerCase()} on Kentexa. Discover products, local listings and sellers across Tanzania.`;
+    const canonical = `https://kentexa.com/category/${encodeURIComponent(category)}`;
+    const entries = [
+      ...filteredProducts.map(item => ({
+        '@type': 'ListItem',
+        url: `https://kentexa.com/product/${item.id}`,
+        name: item.name || 'Product',
+      })),
+      ...filteredClassifieds.map(item => ({
+        '@type': 'ListItem',
+        url: `https://kentexa.com/classified/${item.id}`,
+        name: item.title || 'Listing',
+      })),
+    ].slice(0, 100);
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: title,
+      description,
+      url: canonical,
+      mainEntity: {
+        '@type': 'ItemList',
+        numberOfItems: entries.length,
+        itemListElement: entries.map((entry, index) => ({ ...entry, position: index + 1 })),
+      },
+    };
+    return applyPageSeo({ title, description, canonical, type: 'website', jsonLd });
+  }, [category, cat.label, filteredProducts, filteredClassifieds]);
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: 'inherit' }}>
       <style>{`
