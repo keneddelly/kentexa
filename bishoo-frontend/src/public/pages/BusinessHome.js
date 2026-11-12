@@ -200,8 +200,8 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
               const canPostAsBusiness = Number(activeContext?.businessId) === Number(business.id)
                 && Number(activeProfileId) === Number(profile.id);
               const steps = [
-                { key: 'profile', title: '{t('business_home.step_profile_title')}', description: '{t('business_home.step_profile_desc')}', done: profileComplete },
-                { key: 'moment', title: '{t('business_home.step_moment_title')}', description: '{t('business_home.step_moment_desc')}', done: onboarding.hasMoment },
+                { key: 'profile', title: t('business_home.step_profile_title'), description: t('business_home.step_profile_desc'), done: profileComplete },
+                { key: 'moment', title: t('business_home.step_moment_title'), description: t('business_home.step_moment_desc'), done: onboarding.hasMoment },
               ];
               const completed = steps.filter(step => step.done).length;
               return (
