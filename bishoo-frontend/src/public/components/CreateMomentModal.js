@@ -20,6 +20,7 @@ import { saleIntent } from '../utils/saleIntent';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { COMPOSER, POST_KINDS, POLL, postPhotos, formatTag, photoAspect } from '../utils/feedPresentation';
+import { extractHashtags } from '../utils/hashtags';
 
 const B  = '#2563EB';
 const DK = '#0F1419';
@@ -97,6 +98,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   // Photos: { file?, url?, preview, width, height }. An edit starts with the post's own photos.
   const [photos,    setPhotos]    = useState(() => (isEdit ? postPhotos(editPost).map((p) => ({ ...p, preview: p.url })) : []));
   const [caption,   setCaption]   = useState(isEdit ? (editPost.body || editPost.title || '') : (initialText || ''));
+  const detectedHashtags = extractHashtags(caption);
   const [audience,  setAudience]  = useState(isEdit && editPost.visibility === 'followers' ? 'followers' : 'public');
   const [category,  setCategory]  = useState('');
   // Phase E: a poll's options (2 to 6) and how long it stays open.
@@ -457,6 +459,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               style={{ width:'100%', minHeight:96, padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
                 fontSize:16, lineHeight:1.45, resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none', color:DK }} />
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+              <span style={{ fontSize:12, color:GR }}>Tumia # kuunganisha chapisho lako na mada</span>
               {!isEdit && caption.trim().length >= 15 && !suggestion ? (
                 <button type="button" data-testid="suggest" onClick={askSuggestion} disabled={suggesting}
                   style={{ padding:'4px 0', border:'none', background:'none', color:B, fontSize:14, fontWeight:700, cursor: suggesting ? 'default' : 'pointer', fontFamily:'inherit' }}>
@@ -467,6 +470,15 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                 {caption.length} / {COMPOSER.text}
               </span>
             </div>
+            {detectedHashtags.length > 0 && (
+              <div data-testid="detected-hashtags" aria-label="Hashtags zilizotambuliwa" style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:8 }}>
+                {detectedHashtags.map((tag) => (
+                  <span key={tag.normalized} style={{ padding:'5px 10px', borderRadius:16, background:'#eff6ff', color:B, fontSize:13, fontWeight:700 }}>
+                    #{tag.label}
+                  </span>
+                ))}
+              </div>
+            )}
             {suggestNote && !suggestion && <div role="status" style={{ fontSize:13, color:GR, marginTop:4 }}>{suggestNote}</div>}
             {suggestion && (
               <div data-testid="suggestion" style={{ marginTop:8, padding:12, borderRadius:12, border:`1px solid ${B}`, background:'#eff6ff', display:'flex', flexDirection:'column', gap:6 }}>
