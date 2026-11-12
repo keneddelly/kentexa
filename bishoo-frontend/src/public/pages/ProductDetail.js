@@ -159,6 +159,44 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
 
   useEffect(() => { if (productId) fetchProduct(); }, [productId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Page-specific metadata is generated from the same product record already shown to buyers.
+  // The existing server share route remains authoritative for non-JavaScript social crawlers.
+  useEffect(() => {
+    if (!product) return undefined;
+    const name = String(product.name || 'Product').trim();
+    const description = String(product.description || `Buy ${name} from a seller on Kentexa, Tanzania's connected marketplace.`)
+      .replace(/\\s+/g, ' ').slice(0, 160);
+    const canonical = `${window.location.origin}${window.location.pathname}`;
+    const image = absoluteImageUrl(product.images?.[0]);
+    const price = Number(product.displayPrice ?? product.basePrice ?? product.price);
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name,
+      description,
+      url: canonical,
+      ...(image ? { image: [image] } : {}),
+      ...(product.seller?.name ? { seller: { '@type': 'Organization', name: product.seller.name } } : {}),
+      ...(Number.isFinite(price) && price > 0 ? {
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: 'TZS',
+          price: price.toString(),
+          availability: product.isAvailable ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+          url: canonical,
+        },
+      } : {}),
+    };
+    return applyPageSeo({
+      title: `${name} | Buy in Tanzania on Kentexa`,
+      description,
+      canonical,
+      image,
+      type: 'product',
+      jsonLd,
+    });
+  }, [product]);
+
   // Deep-linked from a "New comment"/"New save" notification — land on the
   // reviews/comments tab instead of the default tab.
   useEffect(() => { setTab(initialTab || 'features'); }, [productId, initialTab]);
