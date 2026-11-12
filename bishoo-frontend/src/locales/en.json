@@ -1045,7 +1045,7 @@
     "transport_type_label": "What will you use to transport goods?",
     "type_bus": "Bus",
     "type_courier": "Courier service",
-    "type_van": "Van",
+    "type_van": "Small delivery van",
     "type_truck": "Truck",
     "type_boda": "Boda",
     "submit_button": "Submit Application",
@@ -1070,6 +1070,8 @@
     "workspace_hint": "Choose the workspace for this parcel office. Each office is set up separately.",
     "workspace_required": "Choose an office location before sending the application.",
     "workspace_unavailable": "We couldn't load this business's office locations. Go back and try again.",
+    "workspace_loading": "Loading available office locations...",
+    "workspace_none_available": "All office locations are already active or waiting for review.",
     "cta_pending": "Your application is waiting for review.",
     "cta_rejected": "Not approved — you can apply again."
   },
