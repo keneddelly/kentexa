@@ -25,6 +25,10 @@ test('renders capability tiles for the given business and shows the resolved nam
   await waitFor(() => expect(screen.getByText('BiS')).toBeInTheDocument());
   expect(screen.getByText('business_home.tile_commerce')).toBeInTheDocument();
   expect(screen.getByText('business_home.tile_pos')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-choices')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-service')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-transport')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-super_agent')).toBeInTheDocument();
 });
 
 test('#9 tapping an actionable, not-yet-active tile calls onSwitchAccountRole(accountRoleId, destination) — never a businessId/workspaceId switch', async () => {
