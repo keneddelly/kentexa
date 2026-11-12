@@ -49,6 +49,7 @@ export const applyPageSeo = ({ title, description, canonical, image, type = 'web
   setCanonical(canonical);
 
   if (jsonLd) {
+    previousJsonLd?.remove();
     const script = document.createElement('script');
     script.id = 'kentexa-page-jsonld';
     script.type = 'application/ld+json';
