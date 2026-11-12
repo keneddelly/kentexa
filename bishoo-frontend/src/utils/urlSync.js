@@ -10,7 +10,7 @@ const PREFIX_TO_SEGMENT = {
 const SEGMENT_TO_PREFIX = Object.fromEntries(
   Object.entries(PREFIX_TO_SEGMENT).map(([prefix, segment]) => [segment, prefix])
 );
-const STATIC_PATHS = { UzaTena: '/uza-tena', PrivacyPolicy: '/privacy', Terms: '/terms' };
+const STATIC_PATHS = { UzaTena: '/uza-tena', StartSelling: '/start-selling', PrivacyPolicy: '/privacy', Terms: '/terms' };
 
 export const pageToPath = (page, navParams) => {
   if (typeof page !== 'string') return null;

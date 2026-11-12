@@ -27,3 +27,11 @@ describe('existing product and store routes remain compatible', () => {
     expect(pathToNavParams('/store/18', '?cp=27')).toEqual({ commerceProfileId: 27 });
   });
 });
+
+
+describe('public seller recruitment route', () => {
+  test('maps the seller landing page to its campaign URL', () => {
+    expect(pageToPath('StartSelling')).toBe('/start-selling');
+    expect(pathToPage('/start-selling/')).toBe('StartSelling');
+  });
+});
