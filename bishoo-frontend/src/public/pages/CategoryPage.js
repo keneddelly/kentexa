@@ -143,7 +143,7 @@ const CategoryPage = ({ onNavigate, category }) => {
       },
     };
     return applyPageSeo({ title, description, canonical, type: 'website', jsonLd });
-  }, [category, cat.label, filteredProducts, filteredClassifieds]);
+  }, [category, cat.label, products, classifieds, search]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: 'inherit' }}>
