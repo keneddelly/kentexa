@@ -9,6 +9,7 @@ import { Spinner, PageLoading } from '../components/Loading';
 import { useTranslation } from 'react-i18next';
 import { productLink } from '../utils/shareLinks';
 import ResalePanel from '../components/ResalePanel';
+import { applyPageSeo, absoluteImageUrl } from '../../utils/pageSeo';
 
 /** "Uza tena": the reseller's offer in a shared link (/product/42-name?offer=7) for this product. */
 const offerIdFromUrl = (productId) => {
