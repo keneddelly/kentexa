@@ -40,6 +40,7 @@ import ProfileSwitcherSheet from './public/components/ProfileSwitcherSheet';
 import PostModal      from './public/components/PostModal';
 import CreateMomentModal from './public/components/CreateMomentModal';
 import BecomeSellerInfo from './public/pages/BecomeSellerInfo';
+import SellerRecruitment from './public/pages/SellerRecruitment';
 import ConfirmDelivery    from './public/pages/ConfirmDelivery';
 import SellerCheckout     from './public/pages/SellerCheckout';
 import PartnerInvite      from './public/pages/PartnerInvite';
@@ -972,6 +973,7 @@ function App() {
 
       case 'AboutUs':              return <AboutUs {...publicProps} />;
       case 'UzaTena':              return <UzaTena {...publicProps} />;
+      case 'StartSelling':         return <SellerRecruitment {...publicProps} />;
       case 'ContactUs':            return <ContactUs {...publicProps} />;
       case 'HowItWorks':           return <HowItWorks {...publicProps} />;
       case 'Privacy':
