@@ -1,0 +1,26 @@
+name: Business Profile Onboarding Validation
+
+on:
+  pull_request:
+    branches:
+      - feature/kentexa-authoritative-identity-profile
+  push:
+    branches:
+      - feature/business-profile-onboarding
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bishoo-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: bishoo-frontend/package-lock.json
+      - run: npm ci
+      - run: CI=true npm test -- --watch=false --runInBand
+      - run: npm run build
