@@ -1,7 +1,21 @@
-import { tilesForWorkspace, TILE_STATE, CTA_CAPABILITIES } from './capabilityTiles';
+import { tilesForWorkspace, TILE_STATE, CTA_CAPABILITIES, capabilityCtaState, CTA_STATE } from './capabilityTiles';
 
 test('businesses can apply for several independent capabilities, including a parcel office', () => {
   expect(CTA_CAPABILITIES).toEqual(['commerce', 'service', 'transport', 'super_agent']);
+});
+
+test('parcel office activation is tracked per workspace, so one active office does not hide another', () => {
+  const workspaces = [
+    { id: 21, capabilities: ['super_agent'] },
+    { id: 22, capabilities: [] },
+  ];
+  expect(capabilityCtaState('super_agent', workspaces, [])).toBe(CTA_STATE.START);
+  expect(capabilityCtaState('super_agent', workspaces, [
+    { application: { id: 5, workspaceId: 22, capabilityCode: 'super_agent', status: 'pending' } },
+  ])).toBe(CTA_STATE.PENDING);
+  expect(capabilityCtaState('super_agent', workspaces, [
+    { application: { id: 5, workspaceId: 22, capabilityCode: 'super_agent', status: 'approved' } },
+  ])).toBe(CTA_STATE.ACTIVE);
 });
 
 const availableRoles = [
