@@ -1,0 +1,31 @@
+name: Business Profile Onboarding Tests
+
+on:
+  push:
+    branches:
+      - feature/business-profile-onboarding
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend tests and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: bishoo-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: bishoo-frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run frontend tests
+        run: CI=true npm test -- --watch=false --runInBand
+      - name: Build frontend
+        run: npm run build
