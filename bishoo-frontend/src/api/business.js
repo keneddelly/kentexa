@@ -26,8 +26,11 @@ export const createBusiness = (dto) => api.post('/business/create', dto).then((r
 // never called from the frontend until now). `code` is a
 // BusinessCapabilityCode string; `applicationData` is optional,
 // capability-specific extra input (SERVICE needs none).
-export const applyForBusinessCapability = (businessId, code, applicationData) =>
-  api.post(`/business/${businessId}/capabilities/${code}/apply`, { applicationData }).then((res) => res.data);
+export const applyForBusinessCapability = (businessId, code, applicationData, workspaceId) =>
+  api.post(`/business/${businessId}/capabilities/${code}/apply`, {
+    ...(applicationData ? { applicationData } : {}),
+    ...(workspaceId != null ? { workspaceId } : {}),
+  }).then((res) => res.data);
 
 // I2C - application history for ONE Business (membership-scoped server-side);
 // drives the Start / Pending / Rejected CTA state.
