@@ -177,21 +177,21 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
         {business?.id && workspaces && !mismatch && (
           <div data-testid="business-onboarding" style={{ backgroundColor: WH, border: '1px solid #DBEAFE', borderRadius: 16,
             padding: 16, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 4 }}>Anza kuijenga biashara yako KenteXa</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 4 }}>{t('business_home.onboarding_title')}</div>
             <div style={{ fontSize: 14, color: GR, lineHeight: 1.45, marginBottom: 14 }}>
-              Kamilisha utambulisho wa biashara yako, kisha itambulishe kwa wateja kupitia chapisho la kwanza.
+              {t('business_home.onboarding_intro')}
             </div>
             {onboarding.loading ? (
-              <div style={{ fontSize: 13, color: GR }}>Inapakia hatua za mwanzo...</div>
+              <div style={{ fontSize: 13, color: GR }}>{t('business_home.onboarding_loading')}</div>
             ) : !onboarding.profile ? (
               <div>
                 <div style={{ fontSize: 13, color: GR, lineHeight: 1.45, marginBottom: 10 }}>
-                  Wasifu wa umma wa biashara hii haujapatikana. Jaribu kupakia tena ili tuhakikishe biashara ina utambulisho wake wa umma.
+                  {t('business_home.profile_missing')}
                 </div>
                 <button type="button" onClick={() => load(businessId)}
                   style={{ border: '1px solid #BFDBFE', borderRadius: 10, background: '#EFF6FF', color: B,
                     padding: '9px 12px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                  Jaribu tena
+                  {t('business_home.retry')}
                 </button>
               </div>
             ) : (() => {
@@ -200,14 +200,14 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
               const canPostAsBusiness = Number(activeContext?.businessId) === Number(business.id)
                 && Number(activeProfileId) === Number(profile.id);
               const steps = [
-                { key: 'profile', title: 'Kamilisha wasifu wa biashara', description: 'Weka picha, jina la mtumiaji, maelezo na eneo ili wateja wakutambue.', done: profileComplete },
-                { key: 'moment', title: 'Chapisha Moment ya kwanza', description: 'Eleza biashara yako na kile ambacho wateja wanaweza kupata kwako.', done: onboarding.hasMoment },
+                { key: 'profile', title: '{t('business_home.step_profile_title')}', description: '{t('business_home.step_profile_desc')}', done: profileComplete },
+                { key: 'moment', title: '{t('business_home.step_moment_title')}', description: '{t('business_home.step_moment_desc')}', done: onboarding.hasMoment },
               ];
               const completed = steps.filter(step => step.done).length;
               return (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: DK }}>Hatua za kuanza</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: DK }}>{t('business_home.steps_label')}</span>
                     <span style={{ fontSize: 12, color: GR }}>{completed}/{steps.length}</span>
                   </div>
                   <div style={{ height: 6, backgroundColor: '#F1F5F9', borderRadius: 100, overflow: 'hidden', marginBottom: 12 }}>
@@ -226,7 +226,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
                         {!step.done && step.key === 'profile' && (
                           <button type="button" onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: profile.id })}
                             style={{ marginTop: 8, padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                            Hariri wasifu
+                            {t('business_home.edit_profile')}
                           </button>
                         )}
                         {!step.done && step.key === 'moment' && (
@@ -234,16 +234,16 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
                             <button type="button" onClick={() => onOpenMoment?.('selling', { kind: 'moment' })}
                               disabled={!onOpenMoment}
                               style={{ marginTop: 8, padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                              Tengeneza Moment ya kwanza
+                              {t('business_home.create_first_moment')}
                             </button>
                           ) : (
                             <div style={{ marginTop: 8 }}>
                               <div style={{ fontSize: 12, color: GR, lineHeight: 1.4, marginBottom: 6 }}>
-                                Ili kuchapisha kama biashara, fungua Kazi na uchague shughuli unayotaka kuanzisha. Biashara yako haitachapisha kupitia wasifu wako binafsi.
+                                {t('business_home.post_as_business_hint')}
                               </div>
                               <button type="button" onClick={() => onNavigate('Workspace')}
                                 style={{ padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                                Fungua Kazi
+                                {t('business_home.open_workspace')}
                               </button>
                             </div>
                           )
@@ -254,7 +254,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
                   <button type="button" onClick={() => onNavigate('CommerceProfile-' + currentUser?.id, { commerceProfileId: profile.id })}
                     style={{ width: '100%', marginTop: 10, minHeight: 42, border: '1px solid #DBEAFE', borderRadius: 10,
                       background: '#EFF6FF', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                    Tazama wasifu wa umma
+                    {t('business_home.view_public_profile')}
                   </button>
                 </>
               );
@@ -263,13 +263,13 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
         )}
 
         {business?.id && workspaces && !mismatch && (
-          <button type="button" data-testid="business-integrations" onClick={() => onNavigate('BusinessIntegrations', { businessId: business.id })}
+          <button type="button" data-testid="business-integrations" onClick={() => onNavigate('Business{t('business_home.integrations_title')}', { businessId: business.id })}
             style={{ width: '100%', minHeight: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
               padding: '0 16px', margin: '4px 0 18px', border: '1px solid #dbeafe', borderRadius: 14,
               background: '#fff', color: DK, cursor: 'pointer', textAlign: 'left' }}>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <strong style={{ fontSize: 15 }}>Integrations</strong>
-              <span style={{ fontSize: 13, color: GR }}>Unganisha Instagram na huduma nyingine</span>
+              <span style={{ fontSize: 13, color: GR }}>{t('business_home.integrations_desc')}</span>
             </span>
             <span aria-hidden="true" style={{ color: B, fontSize: 22 }}>›</span>
           </button>
