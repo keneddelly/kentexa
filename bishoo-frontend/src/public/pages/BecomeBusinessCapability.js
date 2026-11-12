@@ -74,6 +74,7 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
   }
   return (
     <ApplyPage onBack={back} backTitle={t('apply_capability.page_title')} title={t(`apply_capability.hero_title_${code}`, { business: businessName })} desc={t(`apply_capability.hero_subtitle_${code}`)}>
+      <Note tone="blue">{t(`apply_capability.what_happens_${code}`)}</Note>
       {code === 'transport' && (
         <Field label={t('apply_capability.transport_type_label')}>
           <select value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>
