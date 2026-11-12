@@ -28,6 +28,8 @@
  * decision (BusinessCapabilityCode has no AGENT value).
  */
 
+import { ICON } from './workspaceModel';
+
 export const TILE_STATE = Object.freeze({
   ACTIVE: 'active', // this tile's AccountRole is the CURRENTLY active context
   AVAILABLE: 'available', // actionable, not currently active
@@ -40,23 +42,23 @@ export const TILE_STATE = Object.freeze({
 // that can never be actionable (no AccountRole concept backs it).
 const CAPABILITY_TILE_DEFS = {
   commerce: [
-    { key: 'commerce', labelKey: 'business_home.tile_commerce', icon: '🛒', roleType: 'seller', destination: 'SellerDashboard' },
-    { key: 'pos', labelKey: 'business_home.tile_pos', icon: '💳', roleType: 'seller', destination: 'POS' },
+    { key: 'commerce', labelKey: 'business_home.tile_commerce', iconPath: ICON.store, roleType: 'seller', destination: 'SellerDashboard' },
+    { key: 'pos', labelKey: 'business_home.tile_pos', iconPath: ICON.pos, roleType: 'seller', destination: 'POS' },
   ],
   transport: [
-    { key: 'transport', labelKey: 'business_home.tile_transport', icon: '🚌', roleType: 'transport_provider', destination: 'TransportProviderDashboard' },
+    { key: 'transport', labelKey: 'business_home.tile_transport', iconPath: ICON.truck, roleType: 'transport_provider', destination: 'TransportProviderDashboard' },
   ],
   super_agent: [
-    { key: 'super_agent', labelKey: 'business_home.tile_super_agent', icon: '🏢', roleType: 'super_agent', destination: 'SuperAgentDashboard' },
+    { key: 'super_agent', labelKey: 'business_home.tile_super_agent', iconPath: ICON.office, roleType: 'super_agent', destination: 'SuperAgentDashboard' },
   ],
   cargo: [
-    { key: 'cargo', labelKey: 'business_home.tile_cargo', icon: '📦', roleType: null, destination: null },
+    { key: 'cargo', labelKey: 'business_home.tile_cargo', iconPath: ICON.parcel, roleType: null, destination: null },
   ],
   // B6C — reuses MyServices.js (already business-context-aware: it scopes
   // to this exact Business via activeContext.businessId once this tile's
   // role is the active one) rather than a new dedicated dashboard page.
   service: [
-    { key: 'service', labelKey: 'business_home.tile_service', icon: '🧰', roleType: 'service_provider', destination: 'MyServices' },
+    { key: 'service', labelKey: 'business_home.tile_service', iconPath: ICON.wrench, roleType: 'service_provider', destination: 'MyServices' },
   ],
 };
 
@@ -126,7 +128,7 @@ export const capabilityCtaState = (code, workspaces = [], applications = []) => 
   return CTA_STATE.START;
 };
 
-export const CTA_CAPABILITIES = Object.freeze(['commerce', 'service', 'transport']);
+export const CTA_CAPABILITIES = Object.freeze(['commerce', 'service', 'transport', 'super_agent']);
 
 // I2D: the exact-Business destination for a capability CTA. The Business id is
 // the one BusinessHome resolved through the canonical entry rules; the
