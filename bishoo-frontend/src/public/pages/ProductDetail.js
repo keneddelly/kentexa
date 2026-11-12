@@ -165,7 +165,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
     if (!product) return undefined;
     const name = String(product.name || 'Product').trim();
     const description = String(product.description || `Buy ${name} from a seller on Kentexa, Tanzania's connected marketplace.`)
-      .replace(/\\s+/g, ' ').slice(0, 160);
+      .replace(/\s+/g, ' ').slice(0, 160);
     const canonical = `${window.location.origin}${window.location.pathname}`;
     const image = absoluteImageUrl(product.images?.[0]);
     const price = Number(product.displayPrice ?? product.basePrice ?? product.price);
