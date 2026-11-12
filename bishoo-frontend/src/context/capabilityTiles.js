@@ -118,6 +118,18 @@ export const isTileActionable = (tile) => tile.state === TILE_STATE.AVAILABLE ||
 export const CTA_STATE = Object.freeze({ START: 'start', PENDING: 'pending', REJECTED: 'rejected', ACTIVE: 'active' });
 
 export const capabilityCtaState = (code, workspaces = [], applications = []) => {
+  // A parcel office belongs to one specific workspace. A Business may run
+  // more than one office, so one active/pending office must not hide the
+  // option to set up another workspace.
+  if (code === 'super_agent') {
+    const targets = (workspaces || []).filter((ws) => !(ws.capabilities || []).includes(code));
+    if (targets.length === 0) return CTA_STATE.ACTIVE;
+    const pendingWorkspaceIds = new Set((applications || [])
+      .filter((row) => row?.application?.capabilityCode === code && row?.application?.status === 'pending')
+      .map((row) => Number(row.application.workspaceId)));
+    if (targets.every((ws) => pendingWorkspaceIds.has(Number(ws.id)))) return CTA_STATE.PENDING;
+    return CTA_STATE.START;
+  }
   if ((workspaces || []).some((ws) => (ws.capabilities || []).includes(code))) return CTA_STATE.ACTIVE;
   const mine = (applications || [])
     .filter((row) => row?.application?.capabilityCode === code)
