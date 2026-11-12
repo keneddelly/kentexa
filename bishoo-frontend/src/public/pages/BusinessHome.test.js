@@ -91,8 +91,8 @@ test('business onboarding uses the exact Business profile and opens its profile 
   const onNavigate = jest.fn();
   render(<BusinessHome businessId={2} isLoggedIn currentUser={{ id: 7 }} onNavigate={onNavigate}
     activeContext={{}} roleOptions={[]} onSwitchAccountRole={jest.fn()} />);
-  await waitFor(() => expect(screen.getByText('Kamilisha wasifu wa biashara')).toBeInTheDocument());
-  fireEvent.click(screen.getByText('Hariri wasifu'));
+  await waitFor(() => expect(screen.getByText('business_home.step_profile_title')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('business_home.edit_profile'));
   expect(onNavigate).toHaveBeenCalledWith('EditPublicProfile', { commerceProfileId: 22 });
 });
 
@@ -110,7 +110,7 @@ test('first Moment is only offered when the exact Business profile is the active
   render(<BusinessHome businessId={2} isLoggedIn currentUser={{ id: 7 }} activeProfileId={22}
     activeContext={{ businessId: 2 }} onOpenMoment={onOpenMoment} onNavigate={jest.fn()}
     roleOptions={[]} onSwitchAccountRole={jest.fn()} />);
-  await waitFor(() => expect(screen.getByText('Tengeneza Moment ya kwanza')).toBeInTheDocument());
-  fireEvent.click(screen.getByText('Tengeneza Moment ya kwanza'));
+  await waitFor(() => expect(screen.getByText('business_home.create_first_moment')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('business_home.create_first_moment'));
   expect(onOpenMoment).toHaveBeenCalledWith('selling', { kind: 'moment' });
 });
