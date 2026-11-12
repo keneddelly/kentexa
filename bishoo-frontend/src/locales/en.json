@@ -1065,6 +1065,11 @@
     "what_happens_commerce": "After approval, you can add products to your business store, receive customer orders and manage sales. Your personal profile and personal selling stay separate.",
     "what_happens_transport": "After approval, you can add your transport service, set the routes or areas you cover and receive requests for moving goods. Your other business activities can remain active too.",
     "what_happens_super_agent": "After approval, you can run this business as a parcel office: receive parcels, keep them safe and hand them over for collection or onward delivery.",
+    "workspace_label": "Which office location will handle the parcels?",
+    "workspace_placeholder": "Choose an office location",
+    "workspace_hint": "Choose the workspace for this parcel office. Each office is set up separately.",
+    "workspace_required": "Choose an office location before sending the application.",
+    "workspace_unavailable": "We couldn't load this business's office locations. Go back and try again.",
     "cta_pending": "Your application is waiting for review.",
     "cta_rejected": "Not approved — you can apply again."
   },
