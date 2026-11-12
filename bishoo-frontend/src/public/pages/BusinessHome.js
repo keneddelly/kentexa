@@ -201,7 +201,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
                           ) : (
                             <div style={{ marginTop: 8 }}>
                               <div style={{ fontSize: 12, color: GR, lineHeight: 1.4, marginBottom: 6 }}>
-                                Ili kuchapisha kama biashara, fungua Kazi na uwashe uwezo unaohitaji. Biashara yako haitachapisha kwa niaba ya wasifu binafsi.
+                                Ili kuchapisha kama biashara, fungua Kazi na uchague shughuli unayotaka kuanzisha. Biashara yako haitachapisha kupitia wasifu wako binafsi.
                               </div>
                               <button type="button" onClick={() => onNavigate('Workspace')}
                                 style={{ padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
@@ -238,7 +238,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
         )}
 
         {workspaces === null && !error && !mismatch && (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>⏳ {t('common.loading')}</div>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>{t('common.loading')}</div>
         )}
 
         {error && (
@@ -300,7 +300,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
         )}
 
         {/* Each activity is independent. A business can apply for several; statuses remain server-derived. */}
-        {workspaces && workspaces.length > 0 && (
+        {workspaces && workspaces.length > 0 && CTA_CAPABILITIES.some((code) => capabilityCtaState(code, workspaces, applications) !== CTA_STATE.ACTIVE) && (
           <section data-testid="business-capability-choices" style={{ backgroundColor: WH, borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 4 }}>{t('business_home.capabilities_title')}</div>
             <div style={{ fontSize: 14, color: GR, lineHeight: 1.45, marginBottom: 12 }}>{t('business_home.capabilities_intro')}</div>
