@@ -136,6 +136,44 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto' }}>
         {mismatch && <BusinessContextMismatch contextBusinessId={mismatch.contextBusinessId} onNavigate={onNavigate} />}
 
+        {/* Each activity is independent. A business can apply for several; statuses remain server-derived. */}
+        {workspaces && workspaces.length > 0 && CTA_CAPABILITIES.some((code) => capabilityCtaState(code, workspaces, applications) !== CTA_STATE.ACTIVE) && (
+          <section data-testid="business-capability-choices" style={{ backgroundColor: WH, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 4 }}>{t('business_home.capabilities_title')}</div>
+            <div style={{ fontSize: 14, color: GR, lineHeight: 1.45, marginBottom: 12 }}>{t('business_home.capabilities_intro')}</div>
+            {(roleOptions || []).some(isLegacyPersonalSeller) && capabilityCtaState('commerce', workspaces, applications) !== CTA_STATE.ACTIVE && (
+              <div style={{ fontSize: 12, color: GR, marginBottom: 10 }}>
+                {t('apply_capability.legacy_seller_hint', { name: (roleOptions || []).find(isLegacyPersonalSeller)?.displayName })}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {CTA_CAPABILITIES.map((code) => {
+                const state = capabilityCtaState(code, workspaces, applications);
+                if (state === CTA_STATE.ACTIVE) return null;
+                const destination = ctaDestination(code, business?.id || businessId);
+                const pending = state === CTA_STATE.PENDING;
+                const rejected = state === CTA_STATE.REJECTED;
+                return (
+                  <div key={code} data-testid={`business-capability-${code}`}
+                    style={{ border: '1px solid #E2E8F0', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: DK }}>{t(`business_home.capability_title_${code}`)}</div>
+                    <div style={{ fontSize: 13, color: GR, lineHeight: 1.4 }}>{t(`business_home.capability_desc_${code}`)}</div>
+                    {(pending || rejected) && <div style={{ fontSize: 13, color: pending ? '#92400E' : '#B42318', fontWeight: 600 }}>
+                      {pending ? t('apply_capability.cta_pending') : t('apply_capability.cta_rejected')}
+                    </div>}
+                    <button type="button" disabled={pending} onClick={() => onNavigate(destination)}
+                      style={{ alignSelf: 'flex-start', marginTop: 3, backgroundColor: pending ? '#F1F5F9' : B,
+                        color: pending ? GR : WH, border: 'none', borderRadius: 8, padding: '9px 14px',
+                        cursor: pending ? 'default' : 'pointer', fontSize: 13, fontWeight: 700 }}>
+                      {t(`business_home.capability_action_${code}`)}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {business?.id && workspaces && !mismatch && (
           <div data-testid="business-onboarding" style={{ backgroundColor: WH, border: '1px solid #DBEAFE', borderRadius: 16,
             padding: 16, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -299,43 +337,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
           </button>
         )}
 
-        {/* Each activity is independent. A business can apply for several; statuses remain server-derived. */}
-        {workspaces && workspaces.length > 0 && CTA_CAPABILITIES.some((code) => capabilityCtaState(code, workspaces, applications) !== CTA_STATE.ACTIVE) && (
-          <section data-testid="business-capability-choices" style={{ backgroundColor: WH, borderRadius: 16, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 4 }}>{t('business_home.capabilities_title')}</div>
-            <div style={{ fontSize: 14, color: GR, lineHeight: 1.45, marginBottom: 12 }}>{t('business_home.capabilities_intro')}</div>
-            {(roleOptions || []).some(isLegacyPersonalSeller) && capabilityCtaState('commerce', workspaces, applications) !== CTA_STATE.ACTIVE && (
-              <div style={{ fontSize: 12, color: GR, marginBottom: 10 }}>
-                {t('apply_capability.legacy_seller_hint', { name: (roleOptions || []).find(isLegacyPersonalSeller)?.displayName })}
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {CTA_CAPABILITIES.map((code) => {
-                const state = capabilityCtaState(code, workspaces, applications);
-                if (state === CTA_STATE.ACTIVE) return null;
-                const destination = ctaDestination(code, business?.id || businessId);
-                const pending = state === CTA_STATE.PENDING;
-                const rejected = state === CTA_STATE.REJECTED;
-                return (
-                  <div key={code} data-testid={`business-capability-${code}`}
-                    style={{ border: '1px solid #E2E8F0', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: DK }}>{t(`business_home.capability_title_${code}`)}</div>
-                    <div style={{ fontSize: 13, color: GR, lineHeight: 1.4 }}>{t(`business_home.capability_desc_${code}`)}</div>
-                    {(pending || rejected) && <div style={{ fontSize: 13, color: pending ? '#92400E' : '#B42318', fontWeight: 600 }}>
-                      {pending ? t('apply_capability.cta_pending') : t('apply_capability.cta_rejected')}
-                    </div>}
-                    <button type="button" disabled={pending} onClick={() => onNavigate(destination)}
-                      style={{ alignSelf: 'flex-start', marginTop: 3, backgroundColor: pending ? '#F1F5F9' : B,
-                        color: pending ? GR : WH, border: 'none', borderRadius: 8, padding: '9px 14px',
-                        cursor: pending ? 'default' : 'pointer', fontSize: 13, fontWeight: 700 }}>
-                      {t(`business_home.capability_action_${code}`)}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
+
       </div>
     </div>
   );
