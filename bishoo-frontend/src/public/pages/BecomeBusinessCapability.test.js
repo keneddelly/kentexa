@@ -1,12 +1,13 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import BecomeBusinessCapability from './BecomeBusinessCapability';
-import { getMyBusinesses, getBusinessWorkspaces, applyForBusinessCapability } from '../../api/business';
+import { getMyBusinesses, getBusinessWorkspaces, getBusinessCapabilityApplications, applyForBusinessCapability } from '../../api/business';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key) => key }) }));
 jest.mock('../../api/business', () => ({
   getMyBusinesses: jest.fn(),
   getBusinessWorkspaces: jest.fn(),
+  getBusinessCapabilityApplications: jest.fn(),
   applyForBusinessCapability: jest.fn(),
   connectSelling: jest.fn(),
 }));
@@ -16,6 +17,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   getMyBusinesses.mockResolvedValue([{ id: 2, legalName: 'Example Business' }]);
   getBusinessWorkspaces.mockResolvedValue([{ id: 21, name: 'Main office' }]);
+  getBusinessCapabilityApplications.mockResolvedValue([]);
   applyForBusinessCapability.mockResolvedValue({});
 });
 
