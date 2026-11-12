@@ -35,16 +35,17 @@ export const applyPageSeo = ({ title, description, canonical, image, type = 'web
   const previousCanonical = canonicalNode?.getAttribute('href') ?? null;
   const previousJsonLd = document.getElementById('kentexa-page-jsonld');
 
+  const shareImage = image || `${SITE}/og-image.png`;
   document.title = title;
   setMeta('meta[name="description"]', 'name', description);
   setMeta('meta[property="og:title"]', 'property', title);
   setMeta('meta[property="og:description"]', 'property', description);
   setMeta('meta[property="og:url"]', 'property', canonical);
-  setMeta('meta[property="og:image"]', 'property', image);
+  setMeta('meta[property="og:image"]', 'property', shareImage);
   setMeta('meta[property="og:type"]', 'property', type);
   setMeta('meta[name="twitter:title"]', 'name', title);
   setMeta('meta[name="twitter:description"]', 'name', description);
-  setMeta('meta[name="twitter:image"]', 'name', image);
+  setMeta('meta[name="twitter:image"]', 'name', shareImage);
   setCanonical(canonical);
 
   if (jsonLd) {
