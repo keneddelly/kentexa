@@ -23,7 +23,7 @@ const FAQ = [
   ['Nahitaji mtaji au duka?', 'Hapana. Huna mzigo wala duka. Duka lenye bidhaa ndilo linafikisha.'],
   ['Nalipwa lini?', 'Mteja akipokea mzigo, duka linakulipa faida yako kwa simu ndani ya siku 3. Unaona kila malipo kwenye "Faida zangu", na unathibitisha "Nimepokea".'],
   ['Duka likichelewa kunilipa?', 'Baada ya siku 7 bila kulipa, duka hilo halipati oda mpya za wauzaji mpaka likulipe. KenteXa inaona kila deni.'],
-  ['Mteja akirudisha bidhaa?', 'Oda iliyoghairiwa au kurudishwa haina faida. Hakuna unachopoteza.'],
+  ['Mteja akirudisha bidhaa?', 'Oda iliyoghairiwa au kurudishwa haina faida. Unapata faida pale tu oda inapokamilika.'],
   ['Mzigo unafika mikoani?', 'Ndiyo. Unasafirishwa kupitia ofisi za usafirishaji za KenteXa hadi mkoa wa mteja.'],
 ];
 
@@ -105,7 +105,7 @@ export default function UzaTena({ onNavigate, isLoggedIn }) {
           <b style={{ fontSize: 16 }}>Una duka?</b>
           <span style={{ fontSize: 15, color: GR, lineHeight: 1.45 }}>Fungua bidhaa zako kwa wauzaji upate wauzaji wengi bure. Unalipa ada ya kawaida ya 2% tu, kwenye unachobaki nacho.</span>
           <div>
-            <button type="button" onClick={() => (isLoggedIn ? onNavigate('MyResales', { tab: 'supplier' }) : onNavigate('PublicLogin'))}
+            <button type="button" onClick={() => { if (isLoggedIn) { onNavigate('MyResales', { tab: 'supplier' }); return; } try { localStorage.setItem('kentexa_after_login', 'MyResales'); } catch { /* storage blocked */ } onNavigate('Register'); }}
               style={{ ...btn, background: '#fff', color: DK, border: '1px solid #cfd9de' }}>Fungua bidhaa zangu</button>
           </div>
         </section>

@@ -6,9 +6,13 @@ import { pageToPath, pathToPage } from '../../utils/urlSync';
 
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn() } }));
 
-test('the public page: live counts (no prices), an example labelled as one, and join goes to sign-up then Uza tena', async () => {
-  api.get.mockResolvedValue({ data: { shops: 3, products: 40 } });
+beforeEach(() => {
+  jest.clearAllMocks();
   localStorage.removeItem('kentexa_after_login');
+});
+
+test('public page shows live counts and sends a new reseller to registration then Uza tena', async () => {
+  api.get.mockResolvedValue({ data: { shops: 3, products: 40 } });
   const onNavigate = jest.fn();
   await act(async () => { render(<UzaTena onNavigate={onNavigate} isLoggedIn={false} />); });
   expect(screen.getByTestId('uza-stats')).toHaveTextContent('Maduka 3 · bidhaa 40');
@@ -18,7 +22,7 @@ test('the public page: live counts (no prices), an example labelled as one, and 
   expect(onNavigate).toHaveBeenCalledWith('Register');
 });
 
-test('signed in, join opens the catalogue; the page has its own address', async () => {
+test('signed-in reseller opens catalogue and public page keeps its canonical route', async () => {
   api.get.mockResolvedValue({ data: { shops: 0, products: 0 } });
   const onNavigate = jest.fn();
   await act(async () => { render(<UzaTena onNavigate={onNavigate} isLoggedIn />); });
@@ -28,4 +32,21 @@ test('signed in, join opens the catalogue; the page has its own address', async 
   expect(pageToPath('UzaTena')).toBe('/uza-tena');
   expect(pathToPage('/uza-tena/')).toBe('UzaTena');
   expect(pathToPage('/product/3-simu')).toBe('ProductDetail-3');
+});
+
+test('supplier CTA preserves supplier destination through registration', async () => {
+  api.get.mockResolvedValue({ data: { shops: 0, products: 0 } });
+  const onNavigate = jest.fn();
+  await act(async () => { render(<UzaTena onNavigate={onNavigate} isLoggedIn={false} />); });
+  fireEvent.click(screen.getByRole('button', { name: 'Fungua bidhaa zangu' }));
+  expect(localStorage.getItem('kentexa_after_login')).toBe('MyResales');
+  expect(onNavigate).toHaveBeenCalledWith('Register');
+});
+
+test('signed-in supplier CTA opens supplier tab directly', async () => {
+  api.get.mockResolvedValue({ data: { shops: 0, products: 0 } });
+  const onNavigate = jest.fn();
+  await act(async () => { render(<UzaTena onNavigate={onNavigate} isLoggedIn />); });
+  fireEvent.click(screen.getByRole('button', { name: 'Fungua bidhaa zangu' }));
+  expect(onNavigate).toHaveBeenCalledWith('MyResales', { tab: 'supplier' });
 });
