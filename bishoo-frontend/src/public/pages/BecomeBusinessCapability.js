@@ -9,7 +9,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApplyPage, ErrorText, Field, Note, inputStyle, pillStyle } from '../components/ApplyKit';
-import { getMyBusinesses, applyForBusinessCapability, connectSelling } from '../../api/business';
+import { getMyBusinesses, getBusinessWorkspaces, applyForBusinessCapability, connectSelling } from '../../api/business';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
 const TRANSPORT_TYPES = ['bus', 'courier', 'van', 'truck', 'boda'];
@@ -30,6 +30,8 @@ export const applyErrorKey = (e) => {
 const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const [business, setBusiness] = useState(null);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [workspaceId, setWorkspaceId] = useState('');
   const [type, setType] = useState('van');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -41,16 +43,32 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
     getMyBusinesses().then((mine) => {
       setBusiness(mine.find((b) => Number(b.id) === Number(businessId)) || { id: businessId });
     }).catch(() => setBusiness({ id: businessId }));
+    if (code === 'super_agent') {
+      getBusinessWorkspaces(businessId).then((items) => {
+        const list = Array.isArray(items) ? items : [];
+        setWorkspaces(list);
+        if (list.length === 1) setWorkspaceId(String(list[0].id));
+      }).catch(() => setWorkspaces([]));
+    }
   }, [businessId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const businessName = business?.tradingName || business?.legalName || '';
 
   const handleSubmit = async () => {
+    if (code === 'super_agent' && !workspaceId) {
+      setError(t(workspaces.length ? 'apply_capability.workspace_required' : 'apply_capability.workspace_unavailable'));
+      return;
+    }
     try {
       setSubmitting(true);
       setError('');
       if (code === 'commerce') await connectSelling(businessId);
-      else await applyForBusinessCapability(businessId, code, code === 'transport' ? { type } : undefined);
+      else await applyForBusinessCapability(
+        businessId,
+        code,
+        code === 'transport' ? { type } : undefined,
+        code === 'super_agent' ? Number(workspaceId) : undefined,
+      );
       setDone(true);
     } catch (e) {
       const code = e?.response?.data?.code || e?.response?.data?.message?.code;
@@ -75,6 +93,17 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
   return (
     <ApplyPage onBack={back} backTitle={t('apply_capability.page_title')} title={t(`apply_capability.hero_title_${code}`, { business: businessName })} desc={t(`apply_capability.hero_subtitle_${code}`)}>
       <Note tone="blue">{t(`apply_capability.what_happens_${code}`)}</Note>
+      {code === 'super_agent' && (
+        <Field label={t('apply_capability.workspace_label')}>
+          <select value={workspaceId} onChange={(e) => setWorkspaceId(e.target.value)} style={inputStyle}>
+            <option value="">{t('apply_capability.workspace_placeholder')}</option>
+            {workspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>{workspace.name || `Office ${workspace.id}`}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: 13, color: '#64748B' }}>{t('apply_capability.workspace_hint')}</span>
+        </Field>
+      )}
       {code === 'transport' && (
         <Field label={t('apply_capability.transport_type_label')}>
           <select value={type} onChange={(e) => setType(e.target.value)} style={inputStyle}>
