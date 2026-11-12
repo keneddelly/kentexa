@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
-import { applyPageSeo, absoluteImageUrl } from '../../utils/pageSeo';
+import { applyPageSeo } from '../../utils/pageSeo';
 
 const getCategories = (t) => ({
   electronics:   { icon: 'phone', label: t('category_page.cat_electronics'),    color: '#1d4ed8', bg: '#f7f9f9' },
