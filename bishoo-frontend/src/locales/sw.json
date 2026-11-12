@@ -844,6 +844,11 @@
     "what_happens_commerce": "Baada ya ombi lako kukubaliwa, utaweza kuweka bidhaa dukani, kupokea oda za wateja na kusimamia mauzo. Wasifu wako binafsi na mauzo yako binafsi vitaendelea kuwa tofauti.",
     "what_happens_transport": "Baada ya ombi kukubaliwa, utaweza kuweka huduma ya usafirishaji, kuchagua njia au maeneo unayohudumia na kupokea maombi ya kusafirisha mizigo. Shughuli nyingine za biashara yako zitaendelea kama kawaida.",
     "what_happens_super_agent": "Baada ya ombi kukubaliwa, utaweza kutumia biashara hii kama ofisi ya mizigo: kupokea vifurushi, kuvitunza salama na kuvikabidhi kwa wateja au wasafirishaji.",
+    "workspace_label": "Ofisi ipi itapokea na kushughulikia vifurushi?",
+    "workspace_placeholder": "Chagua eneo la ofisi",
+    "workspace_hint": "Chagua eneo la kazi la ofisi hii. Kila ofisi huanzishwa kivyake.",
+    "workspace_required": "Chagua eneo la ofisi kabla ya kutuma ombi.",
+    "workspace_unavailable": "Imeshindikana kupakia maeneo ya ofisi za biashara hii. Rudi nyuma na ujaribu tena.",
     "cta_pending": "Ombi lako linasubiri kukaguliwa.",
     "cta_rejected": "Halijakubaliwa — unaweza kutuma ombi tena."
   },
