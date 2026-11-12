@@ -54,6 +54,7 @@ const BecomeBusinessServiceProvider = ({ businessId, onNavigate, isLoggedIn }) =
   }
   return (
     <ApplyPage onBack={back} backTitle={t('apply_service_provider.page_title')} title={t('apply_service_provider.hero_title', { business: businessName || t('apply_service_provider.page_title') })} desc={t('apply_service_provider.hero_subtitle')}>
+      <Note tone="blue">{t('apply_service_provider.what_happens')}</Note>
       <ErrorText>{error}</ErrorText>
       <button type="button" onClick={handleSubmit} disabled={submitting} style={pillStyle(true, submitting)}>
         {submitting ? t('apply_service_provider.submitting_button') : t('apply_service_provider.submit_button')}

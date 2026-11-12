@@ -28,6 +28,8 @@
  * decision (BusinessCapabilityCode has no AGENT value).
  */
 
+import { ICON } from './workspaceModel';
+
 export const TILE_STATE = Object.freeze({
   ACTIVE: 'active', // this tile's AccountRole is the CURRENTLY active context
   AVAILABLE: 'available', // actionable, not currently active
@@ -40,23 +42,23 @@ export const TILE_STATE = Object.freeze({
 // that can never be actionable (no AccountRole concept backs it).
 const CAPABILITY_TILE_DEFS = {
   commerce: [
-    { key: 'commerce', labelKey: 'business_home.tile_commerce', icon: 'cart', roleType: 'seller', destination: 'SellerDashboard' },
-    { key: 'pos', labelKey: 'business_home.tile_pos', icon: 'card', roleType: 'seller', destination: 'POS' },
+    { key: 'commerce', labelKey: 'business_home.tile_commerce', iconPath: ICON.store, roleType: 'seller', destination: 'SellerDashboard' },
+    { key: 'pos', labelKey: 'business_home.tile_pos', iconPath: ICON.pos, roleType: 'seller', destination: 'POS' },
   ],
   transport: [
-    { key: 'transport', labelKey: 'business_home.tile_transport', icon: 'bus', roleType: 'transport_provider', destination: 'TransportProviderDashboard' },
+    { key: 'transport', labelKey: 'business_home.tile_transport', iconPath: ICON.truck, roleType: 'transport_provider', destination: 'TransportProviderDashboard' },
   ],
   super_agent: [
-    { key: 'super_agent', labelKey: 'business_home.tile_super_agent', icon: 'office', roleType: 'super_agent', destination: 'SuperAgentDashboard' },
+    { key: 'super_agent', labelKey: 'business_home.tile_super_agent', iconPath: ICON.office, roleType: 'super_agent', destination: 'SuperAgentDashboard' },
   ],
   cargo: [
-    { key: 'cargo', labelKey: 'business_home.tile_cargo', icon: 'box', roleType: null, destination: null },
+    { key: 'cargo', labelKey: 'business_home.tile_cargo', iconPath: ICON.parcel, roleType: null, destination: null },
   ],
   // B6C — reuses MyServices.js (already business-context-aware: it scopes
   // to this exact Business via activeContext.businessId once this tile's
   // role is the active one) rather than a new dedicated dashboard page.
   service: [
-    { key: 'service', labelKey: 'business_home.tile_service', icon: 'wrench', roleType: 'service_provider', destination: 'MyServices' },
+    { key: 'service', labelKey: 'business_home.tile_service', iconPath: ICON.wrench, roleType: 'service_provider', destination: 'MyServices' },
   ],
 };
 
@@ -116,17 +118,27 @@ export const isTileActionable = (tile) => tile.state === TILE_STATE.AVAILABLE ||
 export const CTA_STATE = Object.freeze({ START: 'start', PENDING: 'pending', REJECTED: 'rejected', ACTIVE: 'active' });
 
 export const capabilityCtaState = (code, workspaces = [], applications = []) => {
+  if (code === 'super_agent') {
+    const targets = (workspaces || []).filter((ws) => !(ws.capabilities || []).includes(code));
+    if (targets.length === 0) return CTA_STATE.ACTIVE;
+    const latestByWorkspace = new Map();
+    (applications || []).filter((row) => row?.application?.capabilityCode === code).forEach((row) => {
+      const app = row.application, key = Number(app.workspaceId), previous = latestByWorkspace.get(key);
+      if (!previous || Number(app.id) > Number(previous.id)) latestByWorkspace.set(key, app);
+    });
+    const states = targets.map((ws) => latestByWorkspace.get(Number(ws.id))?.status || 'none');
+    if (states.every((status) => status === 'approved')) return CTA_STATE.ACTIVE;
+    if (states.every((status) => status === 'approved' || status === 'pending') && states.includes('pending')) return CTA_STATE.PENDING;
+    return CTA_STATE.START;
+  }
   if ((workspaces || []).some((ws) => (ws.capabilities || []).includes(code))) return CTA_STATE.ACTIVE;
-  const mine = (applications || [])
-    .filter((row) => row?.application?.capabilityCode === code)
-    .sort((a, b) => Number(b.application.id) - Number(a.application.id));
+  const mine = (applications || []).filter((row) => row?.application?.capabilityCode === code).sort((x,y) => Number(y.application.id)-Number(x.application.id));
   if (mine.length === 0) return CTA_STATE.START;
   if (mine[0].application.status === 'pending') return CTA_STATE.PENDING;
   if (mine[0].application.status === 'rejected') return CTA_STATE.REJECTED;
   return CTA_STATE.START;
 };
-
-export const CTA_CAPABILITIES = Object.freeze(['commerce', 'service', 'transport']);
+export const CTA_CAPABILITIES = Object.freeze(['commerce', 'service', 'transport', 'super_agent']);
 
 // I2D: the exact-Business destination for a capability CTA. The Business id is
 // the one BusinessHome resolved through the canonical entry rules; the
