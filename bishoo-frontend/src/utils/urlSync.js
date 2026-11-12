@@ -33,7 +33,7 @@ export const pathToPage = (pathname) => {
   if (fixed) return fixed;
   const categoryMatch = cleanPath.match(/^\/category\/([a-z0-9_]+)$/i);
   if (categoryMatch) return `Category-${categoryMatch[1].toLowerCase()}`;
-  const match = cleanPath.match(/^\\/(product|classified|service|store|post)\\/(\\d+)(?:-[a-z0-9-]*)?\\/?$/i);
+  const match = cleanPath.match(/^\/(product|classified|service|store|post)\/(\d+)(?:-[a-z0-9-]*)?\/?$/i);
   if (!match) return null;
   const [, segment, id] = match;
   return `${SEGMENT_TO_PREFIX[segment]}-${id}`;
