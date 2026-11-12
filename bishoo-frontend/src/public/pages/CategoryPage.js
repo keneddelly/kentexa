@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LineIcon } from '../components/LineIcon';
 import { Spinner } from '../components/Loading';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
+import { applyPageSeo } from '../../utils/pageSeo';
 
 const getCategories = (t) => ({
   electronics:   { icon: 'phone', label: t('category_page.cat_electronics'),    color: '#1d4ed8', bg: '#f7f9f9' },
@@ -102,15 +103,47 @@ const CategoryPage = ({ onNavigate, category }) => {
     setActiveFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
   };
 
-  const filteredProducts = products.filter(p =>
+  const filteredProducts = useMemo(() => products.filter(p =>
     !search || p.name?.toLowerCase().includes(search.toLowerCase())
-  );
-  const filteredClassifieds = classifieds.filter(c =>
+  ), [products, search]);
+  const filteredClassifieds = useMemo(() => classifieds.filter(c =>
     !search || c.title?.toLowerCase().includes(search.toLowerCase()) ||
     c.description?.toLowerCase().includes(search.toLowerCase())
-  );
+  ), [classifieds, search]);
 
   const totalCount = filteredProducts.length + filteredClassifieds.length;
+
+  useEffect(() => {
+    if (!category) return undefined;
+    const title = `${cat.label} in Tanzania | Products, Services & Classifieds | Kentexa`;
+    const description = `Explore ${cat.label.toLowerCase()} on Kentexa. Discover products, local listings and sellers across Tanzania.`;
+    const canonical = `https://kentexa.com/category/${encodeURIComponent(category)}`;
+    const entries = [
+      ...filteredProducts.map(item => ({
+        '@type': 'ListItem',
+        url: `https://kentexa.com/product/${item.id}`,
+        name: item.name || 'Product',
+      })),
+      ...filteredClassifieds.map(item => ({
+        '@type': 'ListItem',
+        url: `https://kentexa.com/classified/${item.id}`,
+        name: item.title || 'Listing',
+      })),
+    ].slice(0, 100);
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: title,
+      description,
+      url: canonical,
+      mainEntity: {
+        '@type': 'ItemList',
+        numberOfItems: entries.length,
+        itemListElement: entries.map((entry, index) => ({ ...entry, position: index + 1 })),
+      },
+    };
+    return applyPageSeo({ title, description, canonical, type: 'website', jsonLd });
+  }, [category, cat.label, filteredProducts, filteredClassifieds]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: 'inherit' }}>
