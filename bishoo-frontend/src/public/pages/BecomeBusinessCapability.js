@@ -1,7 +1,7 @@
 /**
  * BecomeBusinessCapability.js — I2C
  * Confirmation screen for POST /business/:businessId/capabilities/:code/apply
- * (code = 'commerce' | 'transport'). The Business is the route's exact
+ * (code = 'commerce' | 'transport' | 'super_agent'). The Business is the route's exact
  * businessId; the server compares it with the caller's canonical acting
  * context and rejects a mismatch (never retargets). Nothing here decides
  * authority.
