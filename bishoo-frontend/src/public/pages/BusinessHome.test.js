@@ -72,3 +72,41 @@ test('load failure shows an error state with retry, never crashes', async () => 
   await waitFor(() => expect(screen.getByText('business_home.load_failed')).toBeInTheDocument());
   expect(screen.getByText('common.try_again')).toBeInTheDocument();
 });
+
+test('business onboarding uses the exact Business profile and opens its profile editor', async () => {
+  api.get.mockImplementation((path) => {
+    if (path === '/business/mine/all') return Promise.resolve({ data: [mockBusiness] });
+    if (path === '/business/2/workspaces') return Promise.resolve({ data: [mockWorkspace] });
+    if (path === '/profiles/for-user/7') return Promise.resolve({ data: [
+      { id: 90, type: 'business', businessId: 99, displayName: 'Other Business' },
+      { id: 22, type: 'business', businessId: 2, displayName: 'BiS', username: null, photoUrl: null, bio: '', location: '' },
+    ] });
+    if (path === '/feed/business/7') return Promise.resolve({ data: [] });
+    return Promise.reject(new Error('unexpected path ' + path));
+  });
+  const onNavigate = jest.fn();
+  render(<BusinessHome businessId={2} isLoggedIn currentUser={{ id: 7 }} onNavigate={onNavigate}
+    activeContext={{}} roleOptions={[]} onSwitchAccountRole={jest.fn()} />);
+  await waitFor(() => expect(screen.getByText('Kamilisha wasifu wa biashara')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('Hariri wasifu'));
+  expect(onNavigate).toHaveBeenCalledWith('EditPublicProfile', { commerceProfileId: 22 });
+});
+
+test('first Moment is only offered when the exact Business profile is the active identity', async () => {
+  api.get.mockImplementation((path) => {
+    if (path === '/business/mine/all') return Promise.resolve({ data: [mockBusiness] });
+    if (path === '/business/2/workspaces') return Promise.resolve({ data: [mockWorkspace] });
+    if (path === '/profiles/for-user/7') return Promise.resolve({ data: [
+      { id: 22, type: 'business', businessId: 2, displayName: 'BiS', username: 'bis', photoUrl: 'logo.jpg', bio: 'About BiS', location: 'Dar es Salaam' },
+    ] });
+    if (path === '/feed/business/7') return Promise.resolve({ data: [] });
+    return Promise.reject(new Error('unexpected path ' + path));
+  });
+  const onOpenMoment = jest.fn();
+  render(<BusinessHome businessId={2} isLoggedIn currentUser={{ id: 7 }} activeProfileId={22}
+    activeContext={{ businessId: 2 }} onOpenMoment={onOpenMoment} onNavigate={jest.fn()}
+    roleOptions={[]} onSwitchAccountRole={jest.fn()} />);
+  await waitFor(() => expect(screen.getByText('Tengeneza Moment ya kwanza')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('Tengeneza Moment ya kwanza'));
+  expect(onOpenMoment).toHaveBeenCalledWith('selling', { kind: 'moment' });
+});
