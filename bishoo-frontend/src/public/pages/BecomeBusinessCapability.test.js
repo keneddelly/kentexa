@@ -24,7 +24,9 @@ beforeEach(() => {
 test('parcel office application uses the only available workspace', async () => {
   render(<BecomeBusinessCapability businessId={2} code="super_agent" isLoggedIn onNavigate={jest.fn()} />);
 
-  await waitFor(() => expect(screen.getByLabelText('apply_capability.workspace_label')).toBeInTheDocument());
+  const select = await screen.findByRole('combobox');
+  expect(screen.getByText('apply_capability.workspace_label')).toBeInTheDocument();
+  expect(select).toHaveValue('21');
   fireEvent.click(screen.getByText('apply_capability.submit_button'));
 
   await waitFor(() => expect(applyForBusinessCapability).toHaveBeenCalledWith(2, 'super_agent', undefined, 21));
@@ -38,7 +40,8 @@ test('parcel office application requires an explicit choice when a business has 
   ]);
   render(<BecomeBusinessCapability businessId={2} code="super_agent" isLoggedIn onNavigate={jest.fn()} />);
 
-  const select = await screen.findByLabelText('apply_capability.workspace_label');
+  const select = await screen.findByRole('combobox');
+  expect(select).toHaveValue('');
   fireEvent.click(screen.getByText('apply_capability.submit_button'));
   expect(screen.getByText('apply_capability.workspace_required')).toBeInTheDocument();
   expect(applyForBusinessCapability).not.toHaveBeenCalled();
