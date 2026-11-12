@@ -25,6 +25,10 @@ test('renders capability tiles for the given business and shows the resolved nam
   await waitFor(() => expect(screen.getByText('BiS')).toBeInTheDocument());
   expect(screen.getByText('business_home.tile_commerce')).toBeInTheDocument();
   expect(screen.getByText('business_home.tile_pos')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-choices')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-service')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-transport')).toBeInTheDocument();
+  expect(screen.getByTestId('business-capability-super_agent')).toBeInTheDocument();
 });
 
 test('#9 tapping an actionable, not-yet-active tile calls onSwitchAccountRole(accountRoleId, destination) — never a businessId/workspaceId switch', async () => {
@@ -71,4 +75,42 @@ test('load failure shows an error state with retry, never crashes', async () => 
   render(<BusinessHome businessId={2} isLoggedIn onNavigate={jest.fn()} activeContext={{}} roleOptions={[]} onSwitchAccountRole={jest.fn()} />);
   await waitFor(() => expect(screen.getByText('business_home.load_failed')).toBeInTheDocument());
   expect(screen.getByText('common.try_again')).toBeInTheDocument();
+});
+
+test('business onboarding uses the exact Business profile and opens its profile editor', async () => {
+  api.get.mockImplementation((path) => {
+    if (path === '/business/mine/all') return Promise.resolve({ data: [mockBusiness] });
+    if (path === '/business/2/workspaces') return Promise.resolve({ data: [mockWorkspace] });
+    if (path === '/profiles/for-user/7') return Promise.resolve({ data: [
+      { id: 90, type: 'business', businessId: 99, displayName: 'Other Business' },
+      { id: 22, type: 'business', businessId: 2, displayName: 'BiS', username: null, photoUrl: null, bio: '', location: '' },
+    ] });
+    if (path === '/feed/business/7') return Promise.resolve({ data: [] });
+    return Promise.reject(new Error('unexpected path ' + path));
+  });
+  const onNavigate = jest.fn();
+  render(<BusinessHome businessId={2} isLoggedIn currentUser={{ id: 7 }} onNavigate={onNavigate}
+    activeContext={{}} roleOptions={[]} onSwitchAccountRole={jest.fn()} />);
+  await waitFor(() => expect(screen.getByText('business_home.step_profile_title')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('business_home.edit_profile'));
+  expect(onNavigate).toHaveBeenCalledWith('EditPublicProfile', { commerceProfileId: 22 });
+});
+
+test('first Moment is only offered when the exact Business profile is the active identity', async () => {
+  api.get.mockImplementation((path) => {
+    if (path === '/business/mine/all') return Promise.resolve({ data: [mockBusiness] });
+    if (path === '/business/2/workspaces') return Promise.resolve({ data: [mockWorkspace] });
+    if (path === '/profiles/for-user/7') return Promise.resolve({ data: [
+      { id: 22, type: 'business', businessId: 2, displayName: 'BiS', username: 'bis', photoUrl: 'logo.jpg', bio: 'About BiS', location: 'Dar es Salaam' },
+    ] });
+    if (path === '/feed/business/7') return Promise.resolve({ data: [] });
+    return Promise.reject(new Error('unexpected path ' + path));
+  });
+  const onOpenMoment = jest.fn();
+  render(<BusinessHome businessId={2} isLoggedIn currentUser={{ id: 7 }} activeProfileId={22}
+    activeContext={{ businessId: 2 }} onOpenMoment={onOpenMoment} onNavigate={jest.fn()}
+    roleOptions={[]} onSwitchAccountRole={jest.fn()} />);
+  await waitFor(() => expect(screen.getByText('business_home.create_first_moment')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('business_home.create_first_moment'));
+  expect(onOpenMoment).toHaveBeenCalledWith('selling', { kind: 'moment' });
 });

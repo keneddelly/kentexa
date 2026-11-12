@@ -24,6 +24,7 @@ import { isFoodBusiness } from '../../context/workspaceModel';
 import { tilesForWorkspace, TILE_STATE, capabilityCtaState, CTA_STATE, CTA_CAPABILITIES, ctaDestination } from '../../context/capabilityTiles';
 import { resolveBusinessEntry, BUSINESS_ENTRY } from '../../context/businessEntry';
 import BusinessContextMismatch from '../components/BusinessContextMismatch';
+import api from '../../api/api';
 
 const B = '#2563EB';
 const DK = '#0F172A';
@@ -47,7 +48,7 @@ const Tile = ({ tile, onTap, t }) => {
         backgroundColor: isActive ? '#EFF6FF' : WH,
         boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
         cursor: actionable ? 'pointer' : 'default', opacity: actionable ? 1 : 0.6 }}>
-      <div style={{ fontSize: 26 }}>{tile.icon}</div>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={B} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={tile.iconPath} /></svg>
       <div style={{ fontSize: 12, fontWeight: 800, color: DK, textAlign: 'center' }}>{t(tile.labelKey)}</div>
       {isActive && <div style={{ fontSize: 9, fontWeight: 800, color: B }}>{t('profile_switcher.active_label')}</div>}
       {!actionable && (
@@ -57,13 +58,14 @@ const Tile = ({ tile, onTap, t }) => {
   );
 };
 
-const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleOptions, onSwitchAccountRole, onRefreshContext }) => {
+const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeContext, activeProfileId, roleOptions, onSwitchAccountRole, onRefreshContext, onOpenMoment }) => {
   const { t } = useTranslation();
   const [business, setBusiness] = useState(null);
   const [workspaces, setWorkspaces] = useState(null); // null = loading
   const [applications, setApplications] = useState([]);
   const [error, setError] = useState('');
   const [mismatch, setMismatch] = useState(null);
+  const [onboarding, setOnboarding] = useState({ profile: null, hasMoment: false, loading: true });
 
   const load = async (id) => {
     setMismatch(null);
@@ -81,6 +83,27 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
       setBusiness(mine.find((b) => Number(b.id) === resolvedId) || { id: resolvedId });
       const ws = await getBusinessWorkspaces(resolvedId);
       setWorkspaces(ws);
+      // Business onboarding is profile-scoped. Never select the first Business
+      // profile belonging to this person: match the exact Business id.
+      setOnboarding({ profile: null, hasMoment: false, loading: true });
+      if (currentUser?.id) {
+        try {
+          const profiles = await api.get(`/profiles/for-user/${currentUser.id}`);
+          const profile = (profiles.data || []).find((item) =>
+            item.type === 'business' && Number(item.businessId) === Number(resolvedId));
+          let hasMoment = false;
+          if (profile?.id) {
+            const feed = await api.get(`/feed/business/${currentUser.id}`, { params: { commerceProfileId: profile.id } });
+            const posts = Array.isArray(feed.data) ? feed.data : (feed.data?.posts || feed.data?.items || []);
+            hasMoment = posts.length > 0;
+          }
+          setOnboarding({ profile: profile || null, hasMoment, loading: false });
+        } catch {
+          setOnboarding({ profile: null, hasMoment: false, loading: false });
+        }
+      } else {
+        setOnboarding({ profile: null, hasMoment: false, loading: false });
+      }
       // I2C: application history for THIS exact Business, for the CTA state only.
       getBusinessCapabilityApplications(resolvedId).then(setApplications).catch(() => setApplications([]));
     } catch {
@@ -113,6 +136,132 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto' }}>
         {mismatch && <BusinessContextMismatch contextBusinessId={mismatch.contextBusinessId} onNavigate={onNavigate} />}
 
+        {/* Each activity is independent. A business can apply for several; statuses remain server-derived. */}
+        {workspaces && workspaces.length > 0 && CTA_CAPABILITIES.some((code) => capabilityCtaState(code, workspaces, applications) !== CTA_STATE.ACTIVE) && (
+          <section data-testid="business-capability-choices" style={{ backgroundColor: WH, borderRadius: 16, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 4 }}>{t('business_home.capabilities_title')}</div>
+            <div style={{ fontSize: 14, color: GR, lineHeight: 1.45, marginBottom: 12 }}>{t('business_home.capabilities_intro')}</div>
+            {(roleOptions || []).some(isLegacyPersonalSeller) && capabilityCtaState('commerce', workspaces, applications) !== CTA_STATE.ACTIVE && (
+              <div style={{ fontSize: 12, color: GR, marginBottom: 10 }}>
+                {t('apply_capability.legacy_seller_hint', { name: (roleOptions || []).find(isLegacyPersonalSeller)?.displayName })}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {CTA_CAPABILITIES.map((code) => {
+                const state = capabilityCtaState(code, workspaces, applications);
+                if (state === CTA_STATE.ACTIVE) return null;
+                const destination = ctaDestination(code, business?.id || businessId);
+                const pending = state === CTA_STATE.PENDING;
+                const rejected = state === CTA_STATE.REJECTED;
+                return (
+                  <div key={code} data-testid={`business-capability-${code}`}
+                    style={{ border: '1px solid #E2E8F0', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: DK }}>{t(`business_home.capability_title_${code}`)}</div>
+                    <div style={{ fontSize: 13, color: GR, lineHeight: 1.4 }}>{t(`business_home.capability_desc_${code}`)}</div>
+                    {(pending || rejected) && <div style={{ fontSize: 13, color: pending ? '#92400E' : '#B42318', fontWeight: 600 }}>
+                      {pending ? t('apply_capability.cta_pending') : t('apply_capability.cta_rejected')}
+                    </div>}
+                    <button type="button" disabled={pending} onClick={() => onNavigate(destination)}
+                      style={{ alignSelf: 'flex-start', marginTop: 3, backgroundColor: pending ? '#F1F5F9' : B,
+                        color: pending ? GR : WH, border: 'none', borderRadius: 8, padding: '9px 14px',
+                        cursor: pending ? 'default' : 'pointer', fontSize: 13, fontWeight: 700 }}>
+                      {t(`business_home.capability_action_${code}`)}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {business?.id && workspaces && !mismatch && (
+          <div data-testid="business-onboarding" style={{ backgroundColor: WH, border: '1px solid #DBEAFE', borderRadius: 16,
+            padding: 16, marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 4 }}>{t('business_home.onboarding_title')}</div>
+            <div style={{ fontSize: 14, color: GR, lineHeight: 1.45, marginBottom: 14 }}>
+              {t('business_home.onboarding_intro')}
+            </div>
+            {onboarding.loading ? (
+              <div style={{ fontSize: 13, color: GR }}>{t('business_home.onboarding_loading')}</div>
+            ) : !onboarding.profile ? (
+              <div>
+                <div style={{ fontSize: 13, color: GR, lineHeight: 1.45, marginBottom: 10 }}>
+                  {t('business_home.profile_missing')}
+                </div>
+                <button type="button" onClick={() => load(businessId)}
+                  style={{ border: '1px solid #BFDBFE', borderRadius: 10, background: '#EFF6FF', color: B,
+                    padding: '9px 12px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                  {t('business_home.retry')}
+                </button>
+              </div>
+            ) : (() => {
+              const profile = onboarding.profile;
+              const profileComplete = !!(profile.username && profile.photoUrl && profile.bio?.trim() && profile.location?.trim());
+              const canPostAsBusiness = Number(activeContext?.businessId) === Number(business.id)
+                && Number(activeProfileId) === Number(profile.id);
+              const steps = [
+                { key: 'profile', title: t('business_home.step_profile_title'), description: t('business_home.step_profile_desc'), done: profileComplete },
+                { key: 'moment', title: t('business_home.step_moment_title'), description: t('business_home.step_moment_desc'), done: onboarding.hasMoment },
+              ];
+              const completed = steps.filter(step => step.done).length;
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: DK }}>{t('business_home.steps_label')}</span>
+                    <span style={{ fontSize: 12, color: GR }}>{completed}/{steps.length}</span>
+                  </div>
+                  <div style={{ height: 6, backgroundColor: '#F1F5F9', borderRadius: 100, overflow: 'hidden', marginBottom: 12 }}>
+                    <div style={{ height: '100%', width: `${(completed / steps.length) * 100}%`, backgroundColor: B, borderRadius: 100 }} />
+                  </div>
+                  {steps.map((step) => (
+                    <div key={step.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0',
+                      borderTop: '1px solid #F1F5F9' }}>
+                      <div style={{ width: 20, height: 20, borderRadius: 10, flexShrink: 0, marginTop: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: step.done ? '#DCFCE7' : '#EFF6FF', color: step.done ? '#166534' : B,
+                        fontSize: 12, fontWeight: 800 }}>{step.done ? '✓' : ''}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: DK }}>{step.title}</div>
+                        <div style={{ fontSize: 13, color: GR, lineHeight: 1.4, marginTop: 2 }}>{step.description}</div>
+                        {!step.done && step.key === 'profile' && (
+                          <button type="button" onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: profile.id })}
+                            style={{ marginTop: 8, padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                            {t('business_home.edit_profile')}
+                          </button>
+                        )}
+                        {!step.done && step.key === 'moment' && (
+                          canPostAsBusiness ? (
+                            <button type="button" onClick={() => onOpenMoment?.('selling', { kind: 'moment' })}
+                              disabled={!onOpenMoment}
+                              style={{ marginTop: 8, padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                              {t('business_home.create_first_moment')}
+                            </button>
+                          ) : (
+                            <div style={{ marginTop: 8 }}>
+                              <div style={{ fontSize: 12, color: GR, lineHeight: 1.4, marginBottom: 6 }}>
+                                {t('business_home.post_as_business_hint')}
+                              </div>
+                              <button type="button" onClick={() => onNavigate('Workspace')}
+                                style={{ padding: 0, border: 'none', background: 'none', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                                {t('business_home.open_workspace')}
+                              </button>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => onNavigate('CommerceProfile-' + currentUser?.id, { commerceProfileId: profile.id })}
+                    style={{ width: '100%', marginTop: 10, minHeight: 42, border: '1px solid #DBEAFE', borderRadius: 10,
+                      background: '#EFF6FF', color: B, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                    {t('business_home.view_public_profile')}
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
         {business?.id && workspaces && !mismatch && (
           <button type="button" data-testid="business-integrations" onClick={() => onNavigate('BusinessIntegrations', { businessId: business.id })}
             style={{ width: '100%', minHeight: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
@@ -120,14 +269,14 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
               background: '#fff', color: DK, cursor: 'pointer', textAlign: 'left' }}>
             <span style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               <strong style={{ fontSize: 15 }}>Integrations</strong>
-              <span style={{ fontSize: 13, color: GR }}>Unganisha Instagram na huduma nyingine</span>
+              <span style={{ fontSize: 13, color: GR }}>{t('business_home.integrations_desc')}</span>
             </span>
             <span aria-hidden="true" style={{ color: B, fontSize: 22 }}>›</span>
           </button>
         )}
 
         {workspaces === null && !error && !mismatch && (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>⏳ {t('common.loading')}</div>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>{t('common.loading')}</div>
         )}
 
         {error && (
@@ -188,32 +337,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
           </button>
         )}
 
-        {/* I2C: one canonical CTA per not-yet-active capability of THIS Business
-            (Start / Pending / Rejected), driven by the server's own reports
-            for this exact Business. Selling and Transport open the generic
-            apply page; Services keeps its existing apply page. */}
-        {workspaces && workspaces.length > 0 && (roleOptions || []).some(isLegacyPersonalSeller) &&
-          capabilityCtaState('commerce', workspaces, applications) !== CTA_STATE.ACTIVE && (
-          <div style={{ fontSize: 12, color: GR, marginBottom: 8 }}>
-            {t('apply_capability.legacy_seller_hint', { name: (roleOptions || []).find(isLegacyPersonalSeller)?.displayName })}
-          </div>
-        )}
-        {workspaces && workspaces.length > 0 && CTA_CAPABILITIES.map((code) => {
-          const state = capabilityCtaState(code, workspaces, applications);
-          if (state === CTA_STATE.ACTIVE) return null;
-          const bid = business?.id || businessId;
-          const destination = ctaDestination(code, bid);
-          const pending = state === CTA_STATE.PENDING;
-          return (
-            <button key={code} disabled={pending} onClick={() => onNavigate(destination)}
-              style={{ width: '100%', backgroundColor: WH, color: pending ? GR : B, border: `1.5px dashed ${pending ? '#CBD5E1' : B}`,
-                borderRadius: 12, padding: '12px 0', cursor: pending ? 'default' : 'pointer', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
-              {pending ? `${t(`apply_capability.cta_start_${code}`)} · ${t('apply_capability.cta_pending')}`
-                : state === CTA_STATE.REJECTED ? `${t(`apply_capability.cta_start_${code}`)} · ${t('apply_capability.cta_rejected')}`
-                : t(`apply_capability.cta_start_${code}`)}
-            </button>
-          );
-        })}
+
       </div>
     </div>
   );

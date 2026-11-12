@@ -833,7 +833,7 @@ function App() {
       return requireLogin(<BusinessHome {...publicProps} businessId={Number(page.split('BusinessHome-')[1])} />);
     if (page.startsWith('BecomeBusinessCapability-')) {
       const [, id, code] = page.split('-');
-      if (['commerce', 'transport'].includes(code)) return requireLogin(<BecomeBusinessCapability {...publicProps} businessId={Number(id)} code={code} />);
+      if (['commerce', 'transport', 'super_agent'].includes(code)) return requireLogin(<BecomeBusinessCapability {...publicProps} businessId={Number(id)} code={code} />);
     }
     if (page.startsWith('BecomeBusinessServiceProvider-'))
       return requireLogin(<BecomeBusinessServiceProvider {...publicProps} businessId={Number(page.split('BecomeBusinessServiceProvider-')[1])} />);
