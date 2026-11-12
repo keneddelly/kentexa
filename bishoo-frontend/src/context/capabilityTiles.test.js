@@ -1,4 +1,8 @@
-import { tilesForWorkspace, TILE_STATE } from './capabilityTiles';
+import { tilesForWorkspace, TILE_STATE, CTA_CAPABILITIES } from './capabilityTiles';
+
+test('businesses can apply for several independent capabilities, including a parcel office', () => {
+  expect(CTA_CAPABILITIES).toEqual(['commerce', 'service', 'transport', 'super_agent']);
+});
 
 const availableRoles = [
   { accountRoleId: 38, roleType: 'seller', switchable: true },
@@ -22,6 +26,7 @@ test('#6 POS is a feature tile riding the Seller AccountRole, never its own Acco
   expect(pos.roleType).toBe('seller'); // same authority as Commerce, not a separate role
   expect(pos.accountRoleId).toBe(38);
   expect(pos.destination).toBe('POS');
+  expect(pos.iconPath).toBeTruthy();
 });
 
 test('#7 Cargo never invents an AccountRole — always coming_soon, never actionable', () => {
