@@ -3,7 +3,7 @@
  * Hashtags remain part of the user's original post text; this helper only
  * identifies valid tags for previews and future discovery indexing.
  */
-const HASHTAG_PATTERN = /(^|[\\s([{])#([\\p{L}\\p{N}_]{2,50})/gu;
+const HASHTAG_PATTERN = /(^|[\s([{])#([\p{L}\p{N}_]{2,50})/gu;
 
 export const extractHashtags = (value = '') => {
   const text = String(value || '');
