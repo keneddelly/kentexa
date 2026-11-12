@@ -263,7 +263,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, currentUser, activeC
         )}
 
         {business?.id && workspaces && !mismatch && (
-          <button type="button" data-testid="business-integrations" onClick={() => onNavigate('Business{t('business_home.integrations_title')}', { businessId: business.id })}
+          <button type="button" data-testid="business-integrations" onClick={() => onNavigate('BusinessIntegrations', { businessId: business.id })}
             style={{ width: '100%', minHeight: 54, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
               padding: '0 16px', margin: '4px 0 18px', border: '1px solid #dbeafe', borderRadius: 14,
               background: '#fff', color: DK, cursor: 'pointer', textAlign: 'left' }}>
