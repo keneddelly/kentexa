@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, Request } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThan, Not, Repository } from 'typeorm';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
@@ -41,6 +43,7 @@ export class SearchController {
     @InjectRepository(CommerceProfile) private profileRepo: Repository<CommerceProfile>,
     @InjectRepository(BusinessFeedItem) private momentRepo: Repository<BusinessFeedItem>,
     @InjectRepository(TransportRoute) private routeRepo: Repository<TransportRoute>,
+    private readonly dataSource: DataSource,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -118,6 +121,50 @@ export class SearchController {
       default:
         return base;
     }
+  }
+
+  // First-class community discovery. Only active communities are returned; request-only
+  // communities and their discussions are visible only to active members. Open-community
+  // discussions must be published, active and public, matching the community feed rules.
+  @UseGuards(ThrottlerGuard, OptionalJwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('communities')
+  async searchCommunities(@Query('q') q: string, @Request() req): Promise<any> {
+    const query = String(q || '').trim().slice(0, 120);
+    if (query.length < 2) return { communities: [], discussions: [] };
+    const viewerId = Number(req?.user?.id || 0);
+    const pattern = `%${query.replace(/[\\%_]/g, '\\\\  // Meaning-based search — catches matches keyword search structurally')}%`;
+    const communities = await this.dataSource.query(
+      `SELECT c.id, c.name, c.purpose, c."topicKey", c."memberCount", c."joinPolicy"
+         FROM public.community c
+        WHERE c.status = 'active'
+          AND (c.name ILIKE $1 ESCAPE '\\\\' OR c.purpose ILIKE $1 ESCAPE '\\\\' OR c."topicKey" ILIKE $1 ESCAPE '\\\\')
+          AND (c."joinPolicy" = 'open' OR EXISTS (
+            SELECT 1 FROM public.community_member cm
+             WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
+          ))
+        ORDER BY c."memberCount" DESC, c."createdAt" DESC
+        LIMIT 20`, [pattern, viewerId]);
+    const discussions = await this.dataSource.query(
+      `SELECT f.id, f.title, f.body, f."imageUrl", f."createdAt", f.intent::text AS intent,
+              f."communityId" AS "communityId", c.name AS "communityName", c."topicKey" AS "topicKey"
+         FROM public.business_feed_item f
+         JOIN public.community c ON c.id = f."communityId"
+        WHERE c.status = 'active' AND f."isActive" = true AND f.status::text = 'published'
+          AND f.visibility::text = 'public'
+          AND (f.title ILIKE $1 ESCAPE '\\\\' OR f.body ILIKE $1 ESCAPE '\\\\'
+               OR c.name ILIKE $1 ESCAPE '\\\\' OR c.purpose ILIKE $1 ESCAPE '\\\\'
+               OR c."topicKey" ILIKE $1 ESCAPE '\\\\')
+          AND (c."joinPolicy" = 'open' OR EXISTS (
+            SELECT 1 FROM public.community_member cm
+             WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
+          ))
+        ORDER BY f."createdAt" DESC
+        LIMIT 30`, [pattern, viewerId]);
+    return {
+      communities: communities.map((row: any) => ({ ...row, _type: 'community', intentRef: { entityType: 'community', entityId: Number(row.id), destination: `Community-${row.id}` } })),
+      discussions: discussions.map((row: any) => ({ ...row, _type: 'community_post', intentRef: { entityType: 'moment', entityId: Number(row.id), destination: 'Home' } })),
+    };
   }
 
   // Meaning-based search — catches matches keyword search structurally
