@@ -1,5 +1,8 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-15 (hashtags):** the pin is now `MIGRATION_RUN_UPTO=1796100000000`. The next deploy
+runs `1796100000000-AddHashtags` itself (tables hashtag and hashtag_usage: which posts use which tag). After it, an admin runs `POST /hashtags/admin/backfill` once to read the tags of existing posts. Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-10 (Uza tena tracking):** the pin is now `MIGRATION_RUN_UPTO=1796000000000`. The next deploy
 runs `1796000000000-AddResaleTracking` itself (table resale_offer_open: link opens by source and day; order."resaleSource"; resale_member."nudgedAt"). Check: `/version/migrations` shows `pending: []`.
 

@@ -2019,6 +2019,40 @@ export class CvsService {
     return { items: await this.presentRealItems(rows, followed, savedIds), total };
   }
 
+  /**
+   * Hashtags (owner approved 2026-11-15): the posts that use one tag, for its page.
+   * "top": what people talk about most, fading with age (the For You score without its
+   * personal lifts); "latest": newest first. Same visibility, hidden-profile and mute rules as
+   * the feed. Posts the viewer has already seen stay here: a tag page is a place to look, not
+   * a feed that rotates.
+   */
+  async getHashtagPosts(key: string, viewerId: number | null, sort: 'top' | 'latest' = 'top', page = 1): Promise<{ items: any[]; total: number }> {
+    const limit = 15;
+    const qb = this.feedRepo.createQueryBuilder('f')
+      .leftJoin('f.business', 'b')
+      .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.reputationScore',
+        'b.followersCount', 'b.isVerified', 'b.isOfficialStore', 'b.storeWhatsApp', 'b.phone', 'b.role'])
+      .where(`EXISTS (SELECT 1 FROM public.hashtag_usage hu JOIN public.hashtag h ON h.id = hu."hashtagId"
+               WHERE hu."contentType" = 'moment' AND hu."contentId" = f.id AND h.key = :hashtagKey AND h.status = 'active')`,
+        { hashtagKey: key })
+      .andWhere('f.isActive = true')
+      .andWhere('f."autoListing" = false')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+      .andWhere(NOT_MUTED_BY_VIEWER('f'));
+    if (sort === 'latest') {
+      qb.orderBy('f.createdAt', 'DESC');
+    } else {
+      qb.addSelect(this.talkDecayExpr(), 'tag_rank').orderBy('tag_rank', 'DESC').addOrderBy('f.createdAt', 'DESC');
+    }
+    const [rows, total] = await qb.skip((Math.max(page, 1) - 1) * limit).take(limit).getManyAndCount();
+    const [followed, savedIds] = await Promise.all([
+      this.getFollowedSellerIds(viewerId),
+      viewerId ? this.getSavedPostIds(viewerId) : Promise.resolve([]),
+    ]);
+    return { items: await this.presentRealItems(rows, followed, savedIds), total };
+  }
+
   /** Phase F: account ids behind these profiles, for the personal profiles among them. */
   private async personalOwnersOf(profileIds: number[]): Promise<number[]> {
     if (!profileIds.length) return [];
