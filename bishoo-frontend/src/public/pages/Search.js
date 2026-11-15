@@ -378,8 +378,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   // handleSearch below (every query typed on this page) or the homepage's
   // AiSearchBar handoff (see the mount effect further down). ─────────────
   const handleAiSearch = useCallback(async (q, intent) => {
-    const trimmed = (intent?.keywords || q || query).trim();
-    const rawQ    = (q || query).trim();
+    const rawQ = (q || query).trim();
+    // Preserve the exact user query for deterministic retrieval. AI-extracted
+    // keywords can assist intent/ranking, but must not rewrite away search terms.
+    const trimmed = rawQ;
     // Only transport/people are genuinely domain-exclusive fetches (see the
     // dedicated branches below — they never join the classifieds/products/
     // services fan-out, so "all" would show nothing for them). For every
