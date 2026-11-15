@@ -83,7 +83,63 @@
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800;900&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run Kentexa.</noscript>
+    <noscript>Kivinjari hiki kimezima JavaScript. Fungua kentexa.com kwa Google Chrome.</noscript>
     <div id="root"></div>
+    <!-- Every browser (owner approved 2026-11-15): a browser that cannot run KenteXa, or a line
+         so slow that the site has not started after 20 seconds, gets a plain message instead of
+         an endless white screen. Plain old JavaScript on purpose: it must run where the site cannot. -->
+    <div id="kx-boot-msg" style="display:none;position:fixed;inset:0;z-index:99999;background:#fff;color:#0f1419;font-family:-apple-system,Roboto,Arial,sans-serif;padding:32px 20px;text-align:center"></div>
+    <script>
+      (function () {
+        var ua = navigator.userAgent || '';
+        var android = /Android/i.test(ua);
+        var shown = false;
+        var timer = null;
+        function report(kind, message) {
+          try {
+            var x = new XMLHttpRequest();
+            x.open('POST', '%REACT_APP_API_URL%/client-errors', true);
+            x.setRequestHeader('Content-Type', 'application/json');
+            x.send(JSON.stringify({ kind: 'boot', page: kind, path: location.pathname, message: String(message).slice(0, 300),
+              appMode: /[?&]source=android/.test(location.search) ? 'android_app' : 'web' }));
+          } catch (e) { /* nothing more to do */ }
+        }
+        function show(kind, message) {
+          if (shown || window.__kxMounted) return;
+          shown = true;
+          var el = document.getElementById('kx-boot-msg');
+          if (!el) return;
+          var btn = 'display:inline-block;margin:6px;padding:10px 20px;border-radius:999px;font-weight:700;font-size:14px;text-decoration:none;';
+          var html = kind === 'browser'
+            ? '<div style="font-size:18px;font-weight:800;margin:40px 0 10px">Kivinjari hiki hakiwezi kufungua KenteXa</div>'
+              + '<div style="font-size:14px;color:#536471;line-height:1.5;max-width:320px;margin:0 auto 16px">Fungua kentexa.com kwa Google Chrome'
+              + (android ? ', au pakua app ya KenteXa kwenye Play Store.' : '.') + '</div>'
+              + (android ? '<a href="https://play.google.com/store/apps/details?id=com.app.bishoo" style="' + btn + 'background:#0f1419;color:#fff">Pakua app</a>' : '')
+            : '<div style="font-size:18px;font-weight:800;margin:40px 0 10px">Mtandao ni dhaifu</div>'
+              + '<div style="font-size:14px;color:#536471;line-height:1.5;max-width:320px;margin:0 auto 16px">KenteXa inachukua muda kufunguka. Hakikisha una mtandao, kisha jaribu tena.</div>';
+          html += '<a href="javascript:location.reload()" style="' + btn + 'border:1px solid #cfd9de;color:#0f1419">Jaribu tena</a>';
+          el.innerHTML = html;
+          el.style.display = 'block';
+          report(kind, message);
+        }
+        window.__kxBootDone = function () {
+          if (timer) clearTimeout(timer);
+          var el = document.getElementById('kx-boot-msg');
+          if (el && shown) el.style.display = 'none';
+        };
+        // Opera Mini (data-saving mode) and browsers missing what the site needs.
+        if (/Opera Mini/i.test(ua) || typeof Promise === 'undefined' || typeof window.fetch !== 'function'
+            || typeof Symbol === 'undefined' || typeof Map === 'undefined' || typeof Object.assign !== 'function') {
+          show('browser', 'Unsupported browser: ' + ua.slice(0, 200));
+          return;
+        }
+        // The site's own code failed to start (for example an old browser that cannot read it).
+        window.addEventListener('error', function (e) {
+          if (window.__kxMounted || !e || !/\/static\/js\//.test(e.filename || '')) return;
+          show('browser', e.message || 'Script error');
+        });
+        timer = setTimeout(function () { show('slow', 'Site did not start within 20 seconds'); }, 20000);
+      })();
+    </script>
   </body>
 </html>

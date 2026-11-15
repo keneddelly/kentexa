@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getTokenSnapshot, setAccessToken } from './tokenStore';
 import { API_BASE_URL } from './baseUrl';
+import { startRequest as startSlowWatch, finishRequest as finishSlowWatch } from './slowNetwork';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -39,6 +40,7 @@ const responseCode = (error) => {
 
 const finishRequest = (config) => {
   if (config?.__contextController) pendingControllers.delete(config.__contextController);
+  finishSlowWatch(config?.__slowWatchId);
 };
 
 const isStale = (config) => {
@@ -97,6 +99,7 @@ api.interceptors.request.use(async (config) => {
       pendingControllers.add(controller);
     }
   }
+  config.__slowWatchId = startSlowWatch(config.method);
   return config;
 });
 

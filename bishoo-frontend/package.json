@@ -8,6 +8,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.16.1",
+    "core-js": "^3.49.0",
     "i18next": "^23.16.8",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -18,7 +19,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "node -e \"require('fs').rmSync('node_modules/.cache',{recursive:true,force:true})\" && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -32,7 +33,13 @@
     "production": [
       ">0.2%",
       "not dead",
-      "not op_mini all"
+      "not op_mini all",
+      "chrome >= 61",
+      "and_chr >= 61",
+      "android >= 61",
+      "samsung >= 8",
+      "ios_saf >= 12",
+      "safari >= 12"
     ],
     "development": [
       "last 1 chrome version",
