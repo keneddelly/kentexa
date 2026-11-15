@@ -64,7 +64,7 @@ export class SearchIndexService {
 
   async similaritySearch(
     query: string,
-    limit = 20,
+    limit = 120,
     minScore = 0.3,
   ): Promise<SimilarityMatch[]> {
     if (!this.schema.ready) return [];
@@ -73,10 +73,16 @@ export class SearchIndexService {
       if (!vector) return [];
       const rows: { entity_type: string; entity_id: number; score: string }[] =
         await this.dataSource.query(
-          `SELECT entity_type, entity_id, 1 - (embedding <=> $1) AS score
-           FROM search_embeddings
-           ORDER BY embedding <=> $1
-           LIMIT $2`,
+          `WITH ranked AS (
+             SELECT entity_type, entity_id, 1 - (embedding <=> $1) AS score,
+                    ROW_NUMBER() OVER (PARTITION BY entity_type ORDER BY embedding <=> $1) AS domain_rank
+               FROM search_embeddings
+           )
+           SELECT entity_type, entity_id, score
+             FROM ranked
+            WHERE domain_rank <= GREATEST(1, CEIL($2::numeric / 6))
+            ORDER BY score DESC
+            LIMIT $2`,
           [JSON.stringify(vector), limit],
         );
       return rows
