@@ -15,6 +15,7 @@ import {
 } from '../ai/ai-search-explainer.service';
 import { SearchIndexService } from './search-index.service';
 import { SearchBackfillService } from './search-backfill.service';
+import { normalizeSearchQuery } from './search-term-normalizer.util';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -133,14 +134,14 @@ export class SearchController {
     const query = String(q || '').trim().slice(0, 120);
     if (query.length < 2) return [];
     const viewerId = Number(req?.user?.id || 0);
-    const pattern = `%${query}%`;
+    const patterns = normalizeSearchQuery(query).patterns;
     const rows = await this.dataSource.query(
       `SELECT f.id, f.title, f.body, f."imageUrl", f.category, f."locationLabel",
               f.intent::text AS intent, f."createdAt", f.price
          FROM public.business_feed_item f
         WHERE f."communityId" IS NULL AND f."isActive" = true
           AND f.status::text = 'published' AND f.visibility::text = 'public'
-          AND (f.title ILIKE $1 OR f.body ILIKE $1 OR f.category ILIKE $1 OR f."locationLabel" ILIKE $1)
+          AND (LOWER(f.title) LIKE ANY($1::text[]) OR LOWER(f.body) LIKE ANY($1::text[]) OR LOWER(f.category) LIKE ANY($1::text[]) OR LOWER(f."locationLabel") LIKE ANY($1::text[]))
           AND NOT EXISTS (
             SELECT 1 FROM public.commerce_profile hp
              WHERE hp.id = f."commerceProfileId" AND hp."hiddenFromPublic" = true
@@ -152,7 +153,7 @@ export class SearchController {
                     OR (f."commerceProfileId" IS NULL AND pm."mutedUserId" = f."businessId"))
           )
         ORDER BY f."createdAt" DESC
-        LIMIT 30`, [pattern, viewerId]);
+        LIMIT 30`, [patterns, viewerId]);
     return rows.map((row: any) => ({
       ...row,
       _type: 'moment',
@@ -170,18 +171,18 @@ export class SearchController {
     const query = String(q || '').trim().slice(0, 120);
     if (query.length < 2) return { communities: [], discussions: [] };
     const viewerId = Number(req?.user?.id || 0);
-    const pattern = `%${query}%`;
+    const patterns = normalizeSearchQuery(query).patterns;
     const communities = await this.dataSource.query(
       `SELECT c.id, c.name, c.purpose, c."topicKey", c."memberCount", c."joinPolicy"
          FROM public.community c
         WHERE c.status = 'active'
-          AND (c.name ILIKE $1 OR c.purpose ILIKE $1 OR c."topicKey" ILIKE $1)
+          AND (LOWER(c.name) LIKE ANY($1::text[]) OR LOWER(c.purpose) LIKE ANY($1::text[]) OR LOWER(c."topicKey") LIKE ANY($1::text[]))
           AND (c."joinPolicy" = 'open' OR EXISTS (
             SELECT 1 FROM public.community_member cm
              WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
           ))
         ORDER BY c."memberCount" DESC, c."createdAt" DESC
-        LIMIT 20`, [pattern, viewerId]);
+        LIMIT 20`, [patterns, viewerId]);
     const discussions = await this.dataSource.query(
       `SELECT f.id, f.title, f.body, f."imageUrl", f."createdAt", f.intent::text AS intent,
               f."communityId" AS "communityId", c.name AS "communityName", c."topicKey" AS "topicKey"
@@ -199,15 +200,15 @@ export class SearchController {
                AND (pm."mutedProfileId" = f."commerceProfileId"
                     OR (f."commerceProfileId" IS NULL AND pm."mutedUserId" = f."businessId"))
           )
-          AND (f.title ILIKE $1 OR f.body ILIKE $1
-               OR c.name ILIKE $1 OR c.purpose ILIKE $1
-               OR c."topicKey" ILIKE $1)
+          AND (LOWER(f.title) LIKE ANY($1::text[]) OR LOWER(f.body) LIKE ANY($1::text[])
+               OR LOWER(c.name) LIKE ANY($1::text[]) OR LOWER(c.purpose) LIKE ANY($1::text[])
+               OR LOWER(c."topicKey") LIKE ANY($1::text[]))
           AND (c."joinPolicy" = 'open' OR EXISTS (
             SELECT 1 FROM public.community_member cm
              WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
           ))
         ORDER BY f."createdAt" DESC
-        LIMIT 30`, [pattern, viewerId]);
+        LIMIT 30`, [patterns, viewerId]);
     return {
       communities: communities.map((row: any) => ({ ...row, _type: 'community', intentRef: { entityType: 'community', entityId: Number(row.id), destination: `Community-${row.id}` } })),
       discussions: discussions.map((row: any) => ({ ...row, _type: 'community_post', intentRef: { entityType: 'moment', entityId: Number(row.id), destination: 'Home' } })),
