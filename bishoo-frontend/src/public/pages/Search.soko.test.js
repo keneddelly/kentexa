@@ -41,6 +41,7 @@ test('Soko: text category chips, businesses, and listings that show who sells th
 
 
 test('Soko search includes communities and matching discussions in All and Jumuiya tabs', async () => {
+  api.post.mockResolvedValue({ data: { summary: null, suggestions: [] } });
   api.get.mockImplementation((url) => {
     if (url.startsWith('/classifieds/search')) return Promise.resolve({ data: { classifieds: [] } });
     if (url === '/seller/public/all') return Promise.resolve({ data: [] });
