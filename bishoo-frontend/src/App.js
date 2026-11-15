@@ -13,6 +13,8 @@ import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
 import { rememberPageForUpdate, takeResumePage } from './utils/appVersion';
 import { useRoleContext } from './context/RoleContext';
 import ContextEpochBoundary from './context/ContextEpochBoundary';
+import PageErrorBoundary from './public/components/PageErrorBoundary';
+import SlowNetworkNotice from './public/components/SlowNetworkNotice';
 import { contextTransitionState } from './context/contextTransition';
 import { getAccessToken } from './api/tokenStore';
 import useNavigationShell from './navigation/NavigationShell';
@@ -1165,13 +1167,20 @@ function App() {
   }
 
   if (authStatus === 'restoring') {
-    return <div role="status" style={{ minHeight:'100vh', display:'grid', placeItems:'center', color:'#64748b' }}>Loading…</div>;
+    return (<>
+      <div role="status" style={{ minHeight:'100vh', display:'grid', placeItems:'center', color:'#64748b' }}>Loading…</div>
+      <SlowNetworkNotice page="restoring" />
+    </>);
   }
 
   return (
     <OnboardingProvider currentUser={currentUser}>
     <CartProvider>
-      <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>
+      {/* Safety net (owner 2026-11-15): a failing page shows "Jaribu tena", never a white screen. */}
+      <PageErrorBoundary page={page} onHome={() => handleNavigate('Home')}>
+        <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>
+      </PageErrorBoundary>
+      <SlowNetworkNotice page={page} />
 
       {/* A phone that kept the app open gets a new website version by itself, never mid-form. */}
       <UpdateNotice page={page}

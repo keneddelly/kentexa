@@ -18,7 +18,7 @@ import { ActivityCategory } from './entities/activity-event.entity';
 const MUTATING = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
 // Not actions a person takes (polling, pings, searches, previews, webhooks, token refresh).
-export const SKIP_ROUTE = /(^|\/)(webhook|refresh|heartbeat|ping|location|online|presence|typing|seen|read|track|analytics|search|discover|explain|preview|estimate|calculate|quote|remind-check|activity)(\/|$)|^\/?auth\/(refresh|check)/i;
+export const SKIP_ROUTE = /(^|\/)(webhook|refresh|heartbeat|ping|location|online|presence|typing|seen|read|track|analytics|search|discover|explain|preview|estimate|calculate|quote|remind-check|activity|client-errors)(\/|$)|^\/?auth\/(refresh|check)/i;
 
 const CATEGORY_BY_PREFIX: Array<[RegExp, ActivityCategory]> = [
   [/^(auth|otp|password)/, ActivityCategory.AUTH],
