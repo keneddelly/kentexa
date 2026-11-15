@@ -613,6 +613,9 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   useEffect(() => {
     if (!isLoggedIn || hasTrackedView.current || !cardRef.current) return;
     const el = cardRef.current;
+    // IntersectionObserver is unavailable in some embedded webviews and test
+    // environments; engagement actions must remain usable without impressions.
+    if (typeof IntersectionObserver === 'undefined') return undefined;
     let timer = null;
     const observer = new IntersectionObserver(
       ([entry]) => {
