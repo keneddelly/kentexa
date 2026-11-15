@@ -18,6 +18,7 @@
  * catch below now surfaces the real error message.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import HashtagText from './HashtagText';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { commenterIdentity } from '../utils/publicActor';
@@ -219,7 +220,7 @@ const CommentRow = ({
             </div>
           )}
 
-          {c.body && <div style={{ fontSize: 13, color: DK, lineHeight: 1.5 }}>{c.body}</div>}
+          {c.body && <div style={{ fontSize: 13, color: DK, lineHeight: 1.5 }}><HashtagText text={c.body} onTag={onNavigate ? (key) => onNavigate(`Tag-${key}`) : null} /></div>}
           <MediaGrid media={c.media} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8 }}>
@@ -274,7 +275,7 @@ const CommentRow = ({
                     padding: '1px 7px', borderRadius: 100 }}>{t('comment_section.seller_badge')}</span>
                   <span style={{ fontSize: 12, color: GR }}>{ago(r.createdAt, t)}</span>
                 </div>
-                <div style={{ fontSize: 12, color: DK, lineHeight: 1.5 }}>{r.body}</div>
+                <div style={{ fontSize: 12, color: DK, lineHeight: 1.5 }}><HashtagText text={r.body} onTag={onNavigate ? (key) => onNavigate(`Tag-${key}`) : null} /></div>
               </div>
             </div>
           ))}

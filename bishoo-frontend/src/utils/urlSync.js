@@ -1,4 +1,5 @@
 // Maps between the app's internal page router state and shareable browser paths.
+import { hashtagKey } from '../public/utils/hashtags';
 const PREFIX_TO_SEGMENT = {
   ProductDetail: 'product',
   ClassifiedDetail: 'classified',
@@ -15,6 +16,11 @@ const STATIC_PATHS = { UzaTena: '/uza-tena', StartSelling: '/start-selling', Pri
 export const pageToPath = (page, navParams) => {
   if (typeof page !== 'string') return null;
   if (STATIC_PATHS[page]) return STATIC_PATHS[page];
+  // Hashtags (owner 2026-11-15): a tag's page, kentexa.com/tag/<key>.
+  if (page.startsWith('Tag-')) {
+    const key = hashtagKey(page.slice(4));
+    return key ? `/tag/${encodeURIComponent(key)}` : null;
+  }
   for (const prefix of Object.keys(PREFIX_TO_SEGMENT)) {
     if (!page.startsWith(`${prefix}-`)) continue;
     const id = page.slice(prefix.length + 1).split('-')[0];
@@ -31,6 +37,13 @@ export const pathToPage = (pathname) => {
   const cleanPath = String(pathname || '').replace(/\/+$/, '') || '/';
   const fixed = Object.keys(STATIC_PATHS).find((key) => STATIC_PATHS[key] === cleanPath);
   if (fixed) return fixed;
+  const tagMatch = cleanPath.match(/^\/tag\/([^/]+)$/i);
+  if (tagMatch) {
+    let raw = tagMatch[1];
+    try { raw = decodeURIComponent(raw); } catch { return null; }
+    const key = hashtagKey(raw);
+    return key ? `Tag-${key}` : null;
+  }
   const categoryMatch = cleanPath.match(/^\/category\/([a-z0-9_]+)$/i);
   if (categoryMatch) return `Category-${categoryMatch[1].toLowerCase()}`;
   const match = cleanPath.match(/^\/(product|classified|service|store|post)\/(\d+)(?:-[a-z0-9-]*)?\/?$/i);

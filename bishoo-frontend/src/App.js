@@ -24,6 +24,7 @@ import { evaluateDestination } from './navigation/navigationPolicy';
 import { unavailableNotice } from './navigation/unavailableNotice';
 import HomeFeed           from './public/pages/HomeFeed';
 import PostDetail         from './public/pages/PostDetail';
+import TagPage            from './public/pages/TagPage';
 import CommunityPage      from './public/pages/CommunityPage';
 import CreateCommunity    from './public/pages/CreateCommunity';
 import Welcome            from './public/pages/Welcome';
@@ -840,6 +841,9 @@ function App() {
     // Social Home part 3: a community page.
     if (page.startsWith('Community-'))
       return <CommunityPage {...publicProps} communityId={Number(page.split('Community-')[1])} />;
+    // Hashtags (owner 2026-11-15): a tag's page, kentexa.com/tag/<key>.
+    if (page.startsWith('Tag-'))
+      return <TagPage {...publicProps} tagKey={page.slice(4)} />;
     if (page.startsWith('PostDetail-')) {
       const [rawId, suffix] = page.split('PostDetail-')[1].split('-');
       return <PostDetail {...publicProps} postId={Number(rawId)} openComments={suffix === 'comments'} />;

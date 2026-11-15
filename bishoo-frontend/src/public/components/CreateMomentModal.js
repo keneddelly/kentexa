@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { COMPOSER, POST_KINDS, POLL, postPhotos, formatTag, photoAspect } from '../utils/feedPresentation';
 import ImageStudio from './ImageStudio';
+import HashtagSuggestions from './HashtagSuggestions';
 
 const B  = '#2563EB';
 const DK = '#0F1419';
@@ -141,6 +142,10 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const intent = !isEdit && kind === 'moment' ? saleIntent(caption, { tagged: !!tagged && tagged.type !== 'business' }) : { sale: false, price: null };
   const asAd = intent.sale && !keepMoment && !!onNavigate;
   const fileRef = useRef(null);
+  // Hashtags (owner 2026-11-15): where the cursor is, for the # suggestions.
+  const captionRef = useRef(null);
+  const [caret, setCaret] = useState(null);
+  const trackCaret = (e) => setCaret(e.target.selectionStart);
   // Smart Post: 'write' then 'preview'. Editing and "Endelea kama tangazo" skip the preview.
   const [step, setStep] = useState('write');
   const postedRef = useRef(false);
@@ -469,7 +474,9 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
 
           {/* Text, with the 500-character count */}
           <div>
-            <textarea value={caption} onChange={e => setCaption(e.target.value.slice(0, COMPOSER.text))}
+            <textarea ref={captionRef} value={caption}
+              onChange={e => { setCaption(e.target.value.slice(0, COMPOSER.text)); trackCaret(e); }}
+              onSelect={trackCaret} onKeyUp={trackCaret} onClick={trackCaret}
               placeholder={mode === 'moment' ? (PLACEHOLDER[kind] || PLACEHOLDER.moment) : t('create_moment_modal.placeholder_looking_for')}
               maxLength={COMPOSER.text} aria-label="Maandishi"
               style={{ width:'100%', minHeight:96, padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
@@ -485,6 +492,13 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                 {caption.length} / {COMPOSER.text}
               </span>
             </div>
+            <HashtagSuggestions text={caption} caret={caret}
+              onPick={(next, at) => {
+                setCaption(next.slice(0, COMPOSER.text));
+                setCaret(at);
+                const el = captionRef.current;
+                if (el) requestAnimationFrame(() => { try { el.focus(); el.setSelectionRange(at, at); } catch { /* older browser */ } });
+              }} />
             {suggestNote && !suggestion && <div role="status" style={{ fontSize:13, color:GR, marginTop:4 }}>{suggestNote}</div>}
             {suggestion && (
               <div data-testid="suggestion" style={{ marginTop:8, padding:12, borderRadius:12, border:`1px solid ${B}`, background:'#eff6ff', display:'flex', flexDirection:'column', gap:6 }}>

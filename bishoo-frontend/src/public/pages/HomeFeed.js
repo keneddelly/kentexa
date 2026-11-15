@@ -12,6 +12,7 @@
  *  Comments go to POST /comments (entity-based)
  */
 import ExpandableText from '../components/ExpandableText';
+import HashtagText from '../components/HashtagText';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
@@ -327,7 +328,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
         </div>
         <div style={{ fontSize:13, color: c.isDeleted ? GR : DK,
           lineHeight:1.4, fontStyle: c.isDeleted ? 'italic' : 'normal' }}>
-          {c.body}
+          <HashtagText text={c.body} onTag={onNavigate ? (key) => onNavigate(`Tag-${key}`) : null} />
         </div>
         {c.offerCard && (
           <button onClick={() => {
@@ -591,6 +592,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const sameText = !!rawBody && (rawTitle === rawBody || rawTitle === 'Moment');
   const headline = sameText || rawTitle === 'Moment' ? '' : rawTitle;
   const postText = sameText ? rawBody : (rawBody || (!headline ? rawTitle : ''));
+  // Hashtags (owner 2026-11-15): a tag in the text opens its page.
+  const openTag = (key) => onNavigate && onNavigate(`Tag-${key}`);
   // Badge: real, unambiguous post types (Moment, Looking For, Discount...)
   // always win over the entityType inference above, which is really about
   // what's tagged/for-sale, not what kind of post this is.
@@ -833,8 +836,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         )}
         {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
         {postText && (detail
-          ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{postText}</div>
-          : <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} />)}
+          ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}><HashtagText text={postText} onTag={openTag} /></div>
+          : <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} onTag={openTag} />)}
 
         {post.intent === 'poll' && /^\d+$/.test(String(post.id)) && (
           <PollBlock postId={post.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
