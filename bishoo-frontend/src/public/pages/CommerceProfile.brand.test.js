@@ -46,7 +46,7 @@ test('personal profile: visitors see the Listings tab right after Moments; a lis
     return Promise.resolve({ data: [] });
   });
   render(<CommerceProfile pageParam="45" currentUser={{ id: 99 }} isLoggedIn onNavigate={onNavigate} />);
-  const img = await screen.findByTestId('moment-image');
+  const img = await screen.findByTestId('post-photo');
   const labels = screen.getAllByRole('button').map(b => b.textContent);
   const iMoments = labels.indexOf('Machapisho'); // owner 2026-11-02: Moments tab is now Machapisho
   expect(iMoments).toBeGreaterThan(-1);

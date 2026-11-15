@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, Request } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThan, Not, Repository } from 'typeorm';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
@@ -13,6 +15,7 @@ import {
 } from '../ai/ai-search-explainer.service';
 import { SearchIndexService } from './search-index.service';
 import { SearchBackfillService } from './search-backfill.service';
+import { normalizeSearchQuery } from './search-term-normalizer.util';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -41,6 +44,7 @@ export class SearchController {
     @InjectRepository(CommerceProfile) private profileRepo: Repository<CommerceProfile>,
     @InjectRepository(BusinessFeedItem) private momentRepo: Repository<BusinessFeedItem>,
     @InjectRepository(TransportRoute) private routeRepo: Repository<TransportRoute>,
+    private readonly dataSource: DataSource,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -118,6 +122,97 @@ export class SearchController {
       default:
         return base;
     }
+  }
+
+  // Deterministic keyword search for public Moments. Semantic search stays additive:
+  // missing embeddings or an unavailable AI provider must not make Moments disappear.
+  // Community discussions are returned by /search/communities to avoid duplicate cards.
+  @UseGuards(ThrottlerGuard, OptionalJwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('moments')
+  async searchMoments(@Query('q') q: string, @Request() req): Promise<any[]> {
+    const query = String(q || '').trim().slice(0, 120);
+    if (query.length < 2) return [];
+    const viewerId = Number(req?.user?.id || 0);
+    const patterns = normalizeSearchQuery(query).patterns;
+    const rows = await this.dataSource.query(
+      `SELECT f.id, f.title, f.body, f."imageUrl", f.category, f."locationLabel",
+              f.intent::text AS intent, f."createdAt", f.price
+         FROM public.business_feed_item f
+        WHERE f."communityId" IS NULL AND f."isActive" = true
+          AND f.status::text = 'published' AND f.visibility::text = 'public'
+          AND (LOWER(f.title) LIKE ANY($1::text[]) OR LOWER(f.body) LIKE ANY($1::text[]) OR LOWER(f.category) LIKE ANY($1::text[]) OR LOWER(f."locationLabel") LIKE ANY($1::text[]))
+          AND NOT EXISTS (
+            SELECT 1 FROM public.commerce_profile hp
+             WHERE hp.id = f."commerceProfileId" AND hp."hiddenFromPublic" = true
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM public.profile_mute pm
+             WHERE pm."userId" = $2
+               AND (pm."mutedProfileId" = f."commerceProfileId"
+                    OR (f."commerceProfileId" IS NULL AND pm."mutedUserId" = f."businessId"))
+          )
+        ORDER BY f."createdAt" DESC
+        LIMIT 30`, [patterns, viewerId]);
+    return rows.map((row: any) => ({
+      ...row,
+      _type: 'moment',
+      intentRef: { entityType: 'moment', entityId: Number(row.id), destination: 'Home' },
+    }));
+  }
+
+  // First-class community discovery. Only active communities are returned; request-only
+  // communities and their discussions are visible only to active members. Open-community
+  // discussions must be published, active and public, matching the community feed rules.
+  @UseGuards(ThrottlerGuard, OptionalJwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('communities')
+  async searchCommunities(@Query('q') q: string, @Request() req): Promise<any> {
+    const query = String(q || '').trim().slice(0, 120);
+    if (query.length < 2) return { communities: [], discussions: [] };
+    const viewerId = Number(req?.user?.id || 0);
+    const patterns = normalizeSearchQuery(query).patterns;
+    const communities = await this.dataSource.query(
+      `SELECT c.id, c.name, c.purpose, c."topicKey", c."memberCount", c."joinPolicy"
+         FROM public.community c
+        WHERE c.status = 'active'
+          AND (LOWER(c.name) LIKE ANY($1::text[]) OR LOWER(c.purpose) LIKE ANY($1::text[]) OR LOWER(c."topicKey") LIKE ANY($1::text[]))
+          AND (c."joinPolicy" = 'open' OR EXISTS (
+            SELECT 1 FROM public.community_member cm
+             WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
+          ))
+        ORDER BY c."memberCount" DESC, c."createdAt" DESC
+        LIMIT 20`, [patterns, viewerId]);
+    const discussions = await this.dataSource.query(
+      `SELECT f.id, f.title, f.body, f."imageUrl", f."createdAt", f.intent::text AS intent,
+              f."communityId" AS "communityId", c.name AS "communityName", c."topicKey" AS "topicKey"
+         FROM public.business_feed_item f
+         JOIN public.community c ON c.id = f."communityId"
+        WHERE c.status = 'active' AND f."isActive" = true AND f.status::text = 'published'
+          AND f.visibility::text = 'public'
+          AND NOT EXISTS (
+            SELECT 1 FROM public.commerce_profile hp
+             WHERE hp.id = f."commerceProfileId" AND hp."hiddenFromPublic" = true
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM public.profile_mute pm
+             WHERE pm."userId" = $2
+               AND (pm."mutedProfileId" = f."commerceProfileId"
+                    OR (f."commerceProfileId" IS NULL AND pm."mutedUserId" = f."businessId"))
+          )
+          AND (LOWER(f.title) LIKE ANY($1::text[]) OR LOWER(f.body) LIKE ANY($1::text[])
+               OR LOWER(c.name) LIKE ANY($1::text[]) OR LOWER(c.purpose) LIKE ANY($1::text[])
+               OR LOWER(c."topicKey") LIKE ANY($1::text[]))
+          AND (c."joinPolicy" = 'open' OR EXISTS (
+            SELECT 1 FROM public.community_member cm
+             WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
+          ))
+        ORDER BY f."createdAt" DESC
+        LIMIT 30`, [patterns, viewerId]);
+    return {
+      communities: communities.map((row: any) => ({ ...row, _type: 'community', intentRef: { entityType: 'community', entityId: Number(row.id), destination: `Community-${row.id}` } })),
+      discussions: discussions.map((row: any) => ({ ...row, _type: 'community_post', intentRef: { entityType: 'moment', entityId: Number(row.id), destination: 'Home' } })),
+    };
   }
 
   // Meaning-based search — catches matches keyword search structurally

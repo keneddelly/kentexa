@@ -40,6 +40,7 @@ const getTabs = t => [
   { key:'products',   label:t('search.tab_products')    },
   { key:'services',   label:t('search.tab_services')     },
   { key:'moments',    label:'Moments'                    },
+  { key:'communities',label:'Jumuiya'                     },
   { key:'transport',  label:t('search.tab_transport')    },
   { key:'hub',        label:t('search.tab_hub')          },
   { key:'people',     label:t('search.tab_people')       },
@@ -317,6 +318,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const [hubs,        setHubs]        = useState([]);
   const [profiles,    setProfiles]    = useState([]);
   const [moments,     setMoments]     = useState([]);
+  const [communities, setCommunities] = useState([]);
+  const [communityPosts, setCommunityPosts] = useState([]);
   const [semanticRoutes, setSemanticRoutes] = useState([]);
   // AI/NL brand query integration (spec §23) — "which businesses sell
   // genuine LG products near me" etc. Same structured, domain-exclusive
@@ -375,8 +378,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   // handleSearch below (every query typed on this page) or the homepage's
   // AiSearchBar handoff (see the mount effect further down). ─────────────
   const handleAiSearch = useCallback(async (q, intent) => {
-    const trimmed = (intent?.keywords || q || query).trim();
-    const rawQ    = (q || query).trim();
+    const rawQ = (q || query).trim();
+    // Preserve the exact user query for deterministic retrieval. AI-extracted
+    // keywords can assist intent/ranking, but must not rewrite away search terms.
+    const trimmed = rawQ;
     // Only transport/people are genuinely domain-exclusive fetches (see the
     // dedicated branches below — they never join the classifieds/products/
     // services fan-out, so "all" would show nothing for them). For every
@@ -401,6 +406,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     setHubs([]);
     setProfiles([]);
     setMoments([]);
+    setCommunities([]);
+    setCommunityPosts([]);
     setSemanticRoutes([]);
     setBusinesses([]);
     setTransportNeedsCities(false);
@@ -415,12 +422,14 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     // in a business's bio rather than a listing's own title. Both are
     // additive: they never replace or gate what keyword search already
     // finds, only add what it would otherwise miss.
-    const [profileResults, semanticResults] = rawQ
+    const [profileResults, semanticResults, communityResults, keywordMomentResults] = rawQ
       ? await Promise.all([
           api.get('/profiles/search', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
           api.get('/search/semantic', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
+          api.get('/search/communities', { params: { q: rawQ } }).then(r => r.data || { communities: [], discussions: [] }).catch(() => ({ communities: [], discussions: [] })),
+          api.get('/search/moments', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
         ])
-      : [[], []];
+      : [[], [], { communities: [], discussions: [] }, []];
     const semanticByType = {
       product:    semanticResults.filter(r => r._type === 'product'),
       classified: semanticResults.filter(r => r._type === 'classified'),
@@ -434,7 +443,13 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       ...semanticByType.profile.filter(sp => !profileResults.some(p => p.id === sp.id)),
     ];
     setProfiles(mergedProfiles);
-    setMoments(semanticByType.moment);
+    const mergedMoments = [
+      ...keywordMomentResults,
+      ...semanticByType.moment.filter(m => !m.communityId && !keywordMomentResults.some(k => k.id === m.id)),
+    ];
+    setMoments(mergedMoments);
+    setCommunities(communityResults.communities || []);
+    setCommunityPosts(communityResults.discussions || []);
     setSemanticRoutes(semanticByType.transport_route);
 
     // finish() closes out every branch below: merges in semantic-only
@@ -464,13 +479,16 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         (finalProducts.length - productsList.length) +
         (finalServices.length - servicesList.length) +
         (mergedProfiles.length - profileResults.length) +
-        semanticByType.moment.length + semanticByType.transport_route.length;
+        mergedMoments.length + semanticByType.transport_route.length +
+        (communityResults.communities?.length || 0) + (communityResults.discussions?.length || 0);
 
       setLoading(false);
       if (typeof track === 'function') {
         trackSearch(track, rawQ, otherResultCount + mergedProfiles.length + semanticExtra, {
           domain: intent?.domain ?? null,
           profileMatches: mergedProfiles.length,
+          communityMatches: (communityResults.communities?.length || 0) + (communityResults.discussions?.length || 0),
+          momentMatches: mergedMoments.length,
           semanticMatches: semanticResults.length,
         });
       }
@@ -483,13 +501,19 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
           type: 'profile', name: p.displayName,
           subtitle: (p.type || '').replace(/_/g, ' '),
         })),
+        ...(communityResults.communities || []).slice(0, 2).map(c => ({
+          type: 'community', name: c.name, subtitle: c.purpose,
+        })),
+        ...(communityResults.discussions || []).slice(0, 2).map(p => ({
+          type: 'community discussion', name: p.title || p.body, subtitle: p.communityName,
+        })),
       ].slice(0, 6);
       setAiExplaining(true);
       api.post('/search/explain', {
         q: rawQ,
         resultSummary: {
           domain: intent?.domain ?? 'all',
-          counts: { ...domainCounts, people: mergedProfiles.length },
+          counts: { ...domainCounts, people: mergedProfiles.length, moments: mergedMoments.length, communities: (communityResults.communities?.length || 0), discussions: (communityResults.discussions?.length || 0) },
           topItems: allTopItems,
         },
       }).then(r => {
@@ -596,7 +620,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     // every service result via a category mismatch that never surfaces as
     // an error.
     const listingParams = new URLSearchParams({ q: trimmed, limit: '20' });
-    if (intent?.category) listingParams.set('category', intent.category);
+    // Do not apply AI's guessed category as a hard filter: an imperfect
+    // classifier must never hide a genuine keyword match in another category.
     if (intent?.minPrice != null) listingParams.set('minPrice', String(intent.minPrice));
     if (intent?.maxPrice != null) listingParams.set('maxPrice', String(intent.maxPrice));
     // Generic location (distinct from transport's fromCity/toCity) — a
@@ -666,7 +691,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     await handleAiSearch(trimmed, intent);
   }, [query, handleAiSearch]);
 
-  const total = classifieds.length + products.length + services.length + transports.length + hubs.length + profiles.length + businesses.length + moments.length + semanticRoutes.length;
+  const total = classifieds.length + products.length + services.length + transports.length + hubs.length + profiles.length + businesses.length + moments.length + semanticRoutes.length + communities.length + communityPosts.length;
 
   // Every item is tagged with _type so the render loop below picks the
   // right card regardless of whether it came via a single-domain tab or
@@ -680,11 +705,14 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                  ...services.map(s => ({...s, _type:'service'})),
                  ...profiles.map(p => ({...p, _type:'profile'})),
                  ...moments.map(m => ({...m, _type:'moment'})),
+                 ...communities,
+                 ...communityPosts,
                  ...semanticRoutes.map(r => ({...r, _type:'transport_route'}))],
     classifieds: classifieds.map(c => ({...c, _type:'classified'})),
     products:    products.map(p => ({...p, _type:'product'})),
     services:    services.map(s => ({...s, _type:'service'})),
     moments:     moments.map(m => ({...m, _type:'moment'})),
+    communities: [...communities, ...communityPosts],
     transport:   transports.map(tr => ({...tr, _type:'transport'})),
     hub:         hubs.map(h => ({...h, _type:'hub'})),
     people:      profiles.map(p => ({...p, _type:'profile'})),
@@ -808,6 +836,21 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                   <div style={{ fontSize:14, color:GR, marginBottom:14 }}>{t('search.results_count', { count: total, query })}</div>
                   <div style={grid}>
                     {(tab === 'all' ? tabItems.all : tabItems[tab]).map((item) => {
+                      if (item._type === 'community') return (
+                        <button type="button" key={`community-${item.id}`} onClick={() => onNavigate(`Community-${item.id}`)} style={tile}>
+                          <span style={{ fontSize:12, fontWeight:700, color:B }}>Jumuiya</span>
+                          <span style={{ ...titleStyle, fontSize:16 }}>{item.name}</span>
+                          {item.purpose && <span style={{ fontSize:13, color:GR }}>{item.purpose}</span>}
+                          <span style={{ fontSize:12, color:GR }}>{Number(item.memberCount || 0)} wanachama · {item.joinPolicy === 'request' ? 'Kwa ombi' : 'Jiunge wazi'}</span>
+                        </button>
+                      );
+                      if (item._type === 'community_post') return (
+                        <button type="button" key={`community-post-${item.id}`} onClick={() => onNavigate(`Community-${item.communityId}`, { postId: item.id })} style={cardBtn}>
+                          <span style={{ fontSize:12, fontWeight:700, color:B }}>Majadiliano · {item.communityName}</span>
+                          <span style={titleStyle}>{item.title || item.body || 'Majadiliano'}</span>
+                          {item.body && item.title && <span style={{ fontSize:13, color:GR }}>{item.body}</span>}
+                        </button>
+                      );
                       if (item._type === 'service') return <ServiceCard key={`s-${item.id}`} item={item} onNavigate={onNavigate} />;
                       if (item._type === 'moment') {
                         return (

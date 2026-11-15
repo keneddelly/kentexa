@@ -736,7 +736,7 @@ export class ServicesService {
     // Query normalization layer — see search-term-normalizer.util.ts.
     const { patterns } = normalizeSearchQuery(query);
     const { clause, params } = buildMultiTermLikeClause(
-      ['LOWER(a.title)', 'LOWER(a.description)', 'LOWER(a.category::text)', 'LOWER(a."coverageCity")'],
+      ['LOWER(a.title)', 'LOWER(a.description)', 'LOWER(a.category::text)', 'LOWER(a.subcategory)', 'LOWER(a."coverageCity")'],
       patterns,
       'kw',
     );

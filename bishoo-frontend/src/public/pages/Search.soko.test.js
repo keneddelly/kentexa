@@ -38,3 +38,33 @@ test('Soko: text category chips, businesses, and listings that show who sells th
   fireEvent.click(screen.getByText('Samsung A15 mpya'));
   expect(onNavigate).toHaveBeenCalledWith('ClassifiedDetail-5');
 });
+
+
+test('Soko search includes communities and matching discussions in All and Jumuiya tabs', async () => {
+  api.post.mockResolvedValue({ data: { summary: null, suggestions: [] } });
+  api.get.mockImplementation((url) => {
+    if (url.startsWith('/classifieds/search')) return Promise.resolve({ data: { classifieds: [] } });
+    if (url === '/seller/public/all') return Promise.resolve({ data: [] });
+    if (url.startsWith('/services')) return Promise.resolve({ data: { ads: [] } });
+    if (url === '/search/intent') return Promise.resolve({ data: { domain: 'all', keywords: 'business ideas' } });
+    if (url === '/profiles/search' || url === '/search/semantic') return Promise.resolve({ data: [] });
+    if (url === '/search/communities') return Promise.resolve({ data: {
+      communities: [{ id: 4, name: 'Business & Entrepreneurship', purpose: 'Share business ideas', topicKey: 'biashara', memberCount: 12, joinPolicy: 'open', _type: 'community' }],
+      discussions: [{ id: 19, title: 'How to grow a small shop', body: 'Share ideas', communityId: 4, communityName: 'Business & Entrepreneurship', _type: 'community_post' }],
+    } });
+    return Promise.resolve({ data: [] });
+  });
+
+  const onNavigate = jest.fn();
+  render(<Search onNavigate={onNavigate} isLoggedIn />);
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'business ideas' } });
+  fireEvent.click(screen.getByRole('button', { name: 'search.search_button' }));
+
+  expect((await screen.findAllByText('Business & Entrepreneurship')).length).toBeGreaterThan(0);
+  expect(screen.getByText('How to grow a small shop')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /Jumuiya/ }));
+  expect(screen.getAllByText('Business & Entrepreneurship').length).toBeGreaterThan(0);
+  expect(screen.getByText('How to grow a small shop')).toBeInTheDocument();
+  fireEvent.click(screen.getAllByText('Business & Entrepreneurship')[0]);
+  expect(onNavigate).toHaveBeenCalledWith('Community-4');
+});

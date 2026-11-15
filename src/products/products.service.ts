@@ -228,7 +228,7 @@ export class ProductsService {
     // plurals, and known Tanzanian marketplace terminology.
     const { patterns } = normalizeSearchQuery(query);
     const { clause, params } = buildMultiTermLikeClause(
-      ['LOWER(p.name)', 'LOWER(p.description)', 'LOWER(p.category)'],
+      ['LOWER(p.name)', 'LOWER(p.description)', 'LOWER(p.category)', 'LOWER(p.subcategory)', 'LOWER(p.model)', 'LOWER(p.sku)', 'LOWER(p.barcode)', 'LOWER(p.specs::text)', 'LOWER(p.features::text)'],
       patterns,
       'kw',
     );
