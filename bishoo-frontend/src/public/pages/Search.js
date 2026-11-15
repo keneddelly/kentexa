@@ -605,7 +605,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     // every service result via a category mismatch that never surfaces as
     // an error.
     const listingParams = new URLSearchParams({ q: trimmed, limit: '20' });
-    if (intent?.category) listingParams.set('category', intent.category);
+    // AI category is a ranking hint, not a hard exclusion: an imperfect
+    // classifier must never hide a genuine keyword match in another category.
     if (intent?.minPrice != null) listingParams.set('minPrice', String(intent.minPrice));
     if (intent?.maxPrice != null) listingParams.set('maxPrice', String(intent.maxPrice));
     // Generic location (distinct from transport's fromCity/toCity) — a
