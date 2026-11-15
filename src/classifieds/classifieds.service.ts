@@ -392,7 +392,7 @@ export class ClassifiedsService {
     // this expands against.
     const { patterns } = normalizeSearchQuery(query);
     const { clause, params } = buildMultiTermLikeClause(
-      ['LOWER(c.title)', 'LOWER(c.description)', 'LOWER(c.category::text)', 'LOWER(c.location)'],
+      ['LOWER(c.title)', 'LOWER(c.description)', 'LOWER(c.category::text)', 'LOWER(c.subcategory)', 'LOWER(c.specs::text)', 'LOWER(c.location)'],
       patterns,
       'kw',
     );
