@@ -20,6 +20,7 @@ import { saleIntent } from '../utils/saleIntent';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { COMPOSER, POST_KINDS, POLL, postPhotos, formatTag, photoAspect } from '../utils/feedPresentation';
+import ImageStudio from './ImageStudio';
 
 const B  = '#2563EB';
 const DK = '#0F1419';
@@ -96,6 +97,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const kindInfo = POST_KINDS.find((k) => k.key === kind) || POST_KINDS[0];
   // Photos: { file?, url?, preview, width, height }. An edit starts with the post's own photos.
   const [photos,    setPhotos]    = useState(() => (isEdit ? postPhotos(editPost).map((p) => ({ ...p, preview: p.url })) : []));
+  const [editingPhotoIndex, setEditingPhotoIndex] = useState(null);
   const [caption,   setCaption]   = useState(isEdit ? (editPost.body || editPost.title || '') : (initialText || ''));
   const [audience,  setAudience]  = useState(isEdit && editPost.visibility === 'followers' ? 'followers' : 'public');
   const [category,  setCategory]  = useState('');
@@ -261,6 +263,11 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     setError(files.length > room ? `Picha ${COMPOSER.photos} tu ndizo zimechukuliwa.` : '');
   };
   const removePhoto = (i) => setPhotos((prev) => prev.filter((_, j) => j !== i));
+  const saveEditedPhoto = (edited) => {
+    setPhotos((prev) => prev.map((photo, index) => index === editingPhotoIndex ? edited : photo));
+    setEditingPhotoIndex(null);
+    setError('');
+  };
 
   const actor = actorLabelParts(activeProfile, t);
   const actorUnresolved = !isEdit && !activeProfileId;
@@ -554,7 +561,9 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:6 }}>
             {photos.map((p, i) => (
               <div key={p.preview || p.url} data-testid="composer-photo" style={{ position:'relative', aspectRatio:'1 / 1', borderRadius:10, overflow:'hidden', background:'#F1F5F9' }}>
-                <img src={p.preview || p.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                <img src={p.preview || p.url} alt="" style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
+                <button type="button" onClick={() => setEditingPhotoIndex(i)} aria-label={`Hariri picha ${i + 1}`} data-testid={`edit-photo-${i}`}
+                  style={{ position:'absolute', left:4, bottom:4, border:0, borderRadius:12, padding:'4px 7px', background:'rgba(15,20,25,.78)', color:WH, fontSize:11, fontWeight:700, cursor:'pointer' }}>Hariri</button>
                 <button type="button" onClick={() => removePhoto(i)} aria-label="Ondoa picha"
                   style={{ position:'absolute', top:4, right:4, width:22, height:22, borderRadius:11, border:'none',
                     background:'rgba(15,20,25,0.72)', color:WH, fontSize:14, lineHeight:'22px', cursor:'pointer', padding:0 }}>×</button>
@@ -687,6 +696,9 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         </div>
         )}
       </div>
+      {editingPhotoIndex !== null && photos[editingPhotoIndex] && (
+        <ImageStudio photo={photos[editingPhotoIndex]} onClose={() => setEditingPhotoIndex(null)} onSave={saveEditedPhoto} />
+      )}
     </div>
   );
 };
@@ -714,12 +726,12 @@ function PostPreview({ actor, kind, kindInfo, text, photos, pollOptions, pollDay
         </div>
         {text && <div style={{ fontSize:15, lineHeight:1.45, color:DK, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>{text}</div>}
         {one && (
-          <img src={one.preview || one.url} alt="" style={{ width:'100%', aspectRatio: photoAspect(one.width && one.height ? one.width / one.height : null), objectFit:'cover', borderRadius:12, display:'block' }} />
+          <img src={one.preview || one.url} alt="" style={{ width:'100%', aspectRatio: photoAspect(one.width && one.height ? one.width / one.height : null), objectFit:'contain', background:'#F1F5F9', borderRadius:12, display:'block' }} />
         )}
         {photos.length > 1 && (
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:4, borderRadius:12, overflow:'hidden' }}>
             {photos.map((p) => (
-              <img key={p.preview || p.url} src={p.preview || p.url} alt="" style={{ width:'100%', aspectRatio:'1 / 1', objectFit:'cover', display:'block' }} />
+              <img key={p.preview || p.url} src={p.preview || p.url} alt="" style={{ width:'100%', aspectRatio:'1 / 1', objectFit:'contain', background:'#F1F5F9', display:'block' }} />
             ))}
           </div>
         )}
