@@ -262,9 +262,17 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     setPhotos((prev) => [...prev, ...picked].slice(0, COMPOSER.photos));
     setError(files.length > room ? `Picha ${COMPOSER.photos} tu ndizo zimechukuliwa.` : '');
   };
-  const removePhoto = (i) => setPhotos((prev) => prev.filter((_, j) => j !== i));
+  const removePhoto = (i) => setPhotos((prev) => {
+    const removed = prev[i];
+    if (removed?.preview?.startsWith('blob:')) URL.revokeObjectURL(removed.preview);
+    return prev.filter((_, j) => j !== i);
+  });
   const saveEditedPhoto = (edited) => {
-    setPhotos((prev) => prev.map((photo, index) => index === editingPhotoIndex ? edited : photo));
+    setPhotos((prev) => prev.map((photo, index) => {
+      if (index !== editingPhotoIndex) return photo;
+      if (photo.preview?.startsWith('blob:')) URL.revokeObjectURL(photo.preview);
+      return edited;
+    }));
     setEditingPhotoIndex(null);
     setError('');
   };
