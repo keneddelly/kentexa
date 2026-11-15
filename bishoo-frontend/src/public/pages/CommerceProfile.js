@@ -1073,25 +1073,30 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   {feed.map(f => (
                     <div key={f.id} ref={highlightPostId === f.id ? highlightPostRef : null}
                       style={highlightPostId === f.id ? { backgroundColor:'#eff6ff' } : undefined}>
-                      <PostCard
-                        post={{
-                          ...f,
-                          business: {
-                            id: f.business?.id || activeProfile.ownerId,
-                            name: f.business?.name || displayName,
-                            storeName: f.business?.storeName || displayName,
-                            logo: f.business?.logo || displayPhoto,
-                            commerceProfileId: f.business?.commerceProfileId || activeProfile.id,
-                            isVerified: f.business?.isVerified ?? isVerifiedIdentity,
-                            ...(f.business || {}),
-                          },
-                        }}
-                        isLoggedIn={isLoggedIn}
-                        onNavigate={onNavigate}
-                        currentUser={currentUser}
-                        activeProfileId={viewerActiveProfileId || activeProfile.id}
-                        repostedIds={f.isReposted ? [f.id] : []}
-                      />
+                      <div onClick={(event) => {
+                        if (event.target.closest('button, a, input, textarea, [role="button"]')) return;
+                        onNavigate?.(`PostDetail-${f.id}`);
+                      }}>
+                        <PostCard
+                          post={{
+                            ...f,
+                            business: {
+                              id: f.business?.id || activeProfile.ownerId,
+                              name: f.business?.name || displayName,
+                              storeName: f.business?.storeName || displayName,
+                              logo: f.business?.logo || displayPhoto,
+                              commerceProfileId: f.business?.commerceProfileId || activeProfile.id,
+                              isVerified: f.business?.isVerified ?? isVerifiedIdentity,
+                              ...(f.business || {}),
+                            },
+                          }}
+                          isLoggedIn={isLoggedIn}
+                          onNavigate={onNavigate}
+                          currentUser={currentUser}
+                          activeProfileId={viewerActiveProfileId || activeProfile.id}
+                          repostedIds={f.isReposted ? [f.id] : []}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
