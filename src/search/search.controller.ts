@@ -123,6 +123,43 @@ export class SearchController {
     }
   }
 
+  // Deterministic keyword search for public Moments. Semantic search stays additive:
+  // missing embeddings or an unavailable AI provider must not make Moments disappear.
+  // Community discussions are returned by /search/communities to avoid duplicate cards.
+  @UseGuards(ThrottlerGuard, OptionalJwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('moments')
+  async searchMoments(@Query('q') q: string, @Request() req): Promise<any[]> {
+    const query = String(q || '').trim().slice(0, 120);
+    if (query.length < 2) return [];
+    const viewerId = Number(req?.user?.id || 0);
+    const pattern = `%${query}%`;
+    const rows = await this.dataSource.query(
+      `SELECT f.id, f.title, f.body, f."imageUrl", f.category, f."locationLabel",
+              f.intent::text AS intent, f."createdAt", f.price
+         FROM public.business_feed_item f
+        WHERE f."communityId" IS NULL AND f."isActive" = true
+          AND f.status::text = 'published' AND f.visibility::text = 'public'
+          AND (f.title ILIKE $1 OR f.body ILIKE $1 OR f.category ILIKE $1 OR f."locationLabel" ILIKE $1)
+          AND NOT EXISTS (
+            SELECT 1 FROM public.commerce_profile hp
+             WHERE hp.id = f."commerceProfileId" AND hp."hiddenFromPublic" = true
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM public.profile_mute pm
+             WHERE pm."userId" = $2
+               AND (pm."mutedProfileId" = f."commerceProfileId"
+                    OR (f."commerceProfileId" IS NULL AND pm."mutedUserId" = f."businessId"))
+          )
+        ORDER BY f."createdAt" DESC
+        LIMIT 30`, [pattern, viewerId]);
+    return rows.map((row: any) => ({
+      ...row,
+      _type: 'moment',
+      intentRef: { entityType: 'moment', entityId: Number(row.id), destination: 'Home' },
+    }));
+  }
+
   // First-class community discovery. Only active communities are returned; request-only
   // communities and their discussions are visible only to active members. Open-community
   // discussions must be published, active and public, matching the community feed rules.
