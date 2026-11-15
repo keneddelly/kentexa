@@ -56,14 +56,6 @@ const iconPill = { width:40, height:40, borderRadius:20, border:'1px solid #cfd9
   alignItems:'center', justifyContent:'center', boxSizing:'border-box', textDecoration:'none' };
 const countBtn = { background:'none', border:'none', padding:0, cursor:'pointer', fontSize:15, fontFamily:'inherit' };
 
-const agoShort = (d) => {
-  if (!d) return '';
-  const m = Math.max(0, Math.round((Date.now() - new Date(d).getTime()) / 60000));
-  if (m < 60) return `dk ${m || 1}`;
-  if (m < 1440) return `saa ${Math.round(m / 60)}`;
-  if (m < 10080) return `siku ${Math.round(m / 1440)}`;
-  return new Date(d).toLocaleDateString('sw-TZ', { day:'numeric', month:'short' });
-};
 const fmt  = n => Number(n||0).toLocaleString();
 const fmtM = n => { const v=Number(n||0); return v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1000?`${(v/1e3).toFixed(0)}K`:String(v); };
 
