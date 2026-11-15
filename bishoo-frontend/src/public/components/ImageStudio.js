@@ -158,9 +158,9 @@ export default function ImageStudio({ photo, onClose, onSave }) {
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Kentexa Image Studio" data-testid="image-studio"
-      style={{ position: 'fixed', inset: 0, zIndex: 6000, background: 'rgba(8,15,28,.72)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <section style={{ width: '100%', maxWidth: 560, maxHeight: '96dvh', overflowY: 'auto', background: '#fff', color: '#0f1419',
-        borderRadius: '22px 22px 0 0', padding: '12px 16px max(18px, env(safe-area-inset-bottom))', boxSizing: 'border-box' }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 6000, background: '#080f1c', display: 'flex', alignItems: 'stretch', justifyContent: 'center' }}>
+      <section style={{ width: '100%', maxWidth: 760, height: '100dvh', maxHeight: '100dvh', overflowY: 'auto', background: '#fff', color: '#0f1419',
+        borderRadius: 0, padding: 'max(10px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom))', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800 }}>Image Studio</div>
@@ -170,13 +170,13 @@ export default function ImageStudio({ photo, onClose, onSave }) {
             style={{ width: 40, height: 40, border: 0, borderRadius: 20, background: '#f1f5f9', fontSize: 24, cursor: 'pointer' }}>×</button>
         </header>
 
-        <div style={{ background: '#111827', borderRadius: 16, minHeight: 190, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 }}>
+        <div style={{ background: '#111827', borderRadius: 14, minHeight: 250, height: '54dvh', flex: '1 1 54dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8, overflow: 'hidden' }}>
           {!ready && !error && <span style={{ color: '#fff', fontSize: 13 }}>Inafungua picha…</span>}
           {ready && <canvas ref={canvasRef} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}
             aria-label="Buruta picha kuipanga" data-testid="image-studio-canvas"
-            style={{ display: 'block', maxWidth: '100%', maxHeight: '48dvh', width: 'auto', height: 'auto', objectFit: 'contain', touchAction: 'none', borderRadius: 8, cursor: mode === 'crop' ? 'grab' : 'default' }} />}
+            style={{ display: 'block', maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', touchAction: 'none', borderRadius: 8, cursor: mode === 'crop' ? 'grab' : 'default' }} />}
         </div>
-        <div style={{ fontSize: 12, color: '#64748b', margin: '7px 2px 12px' }}>Buruta picha kuipanga. Chagua Fit ili picha nzima ionekane, au Crop kuijaza frame.</div>
+        <div style={{ fontSize: 12, color: '#64748b', margin: '7px 2px 12px', flexShrink: 0 }}>Panga picha ndani ya frame inayoonekana hapa. Hivi ndivyo itakavyoonekana kwenye chapisho. Fit huonyesha picha nzima bila kuikata.</div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <button type="button" data-testid="image-fit" onClick={() => { setMode('fit'); setZoom(1); setOffset({ x: 0, y: 0 }); }} style={{ ...buttonStyle(mode === 'fit'), flex: 1 }}>Fit · picha nzima</button>
