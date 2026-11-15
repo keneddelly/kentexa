@@ -925,7 +925,14 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           <div style={{ fontSize:16, fontWeight:800, color:INK_TX, paddingTop:4 }}>Maoni</div>
         )}
         {showComments && (
-          post.linkedEntityType && post.linkedEntityId ? (
+          // A real Moment/post owns its own discussion thread, even when it
+          // links to a product, service, or classified. Only virtual listing
+          // cards without a persisted post ID use the commerce entity thread.
+          isRealPost ? (
+            <CommentSection post={post} isLoggedIn={isLoggedIn}
+              onNavigate={onNavigate} currentUser={currentUser}
+              activeProfileId={activeProfileId} />
+          ) : post.linkedEntityType && post.linkedEntityId ? (
             <CommerceCommentSection
               entityType={post.linkedEntityType}
               entityId={post.linkedEntityId}
