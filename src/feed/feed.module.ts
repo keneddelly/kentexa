@@ -41,6 +41,8 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { ActivityModule } from '../activity/activity.module';
 import { SearchModule } from '../search/search.module';
 import { PostSuggestService } from './post-suggest.service';
+import { HashtagService } from './hashtag.service';
+import { HashtagsController } from './hashtags.controller';
 
 @Module({
   imports: [
@@ -65,7 +67,7 @@ import { PostSuggestService } from './post-suggest.service';
     ActivityModule,
     SearchModule,
   ],
-  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController],
+  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController],
   providers: [
     FeedService,
     CvsService,
@@ -75,10 +77,11 @@ import { PostSuggestService } from './post-suggest.service';
     TodayService,
     CommunitiesService,
     PostSuggestService,
+    HashtagService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,
   ],
-  exports: [FeedService, CvsService],
+  exports: [FeedService, CvsService, HashtagService],
 })
 export class FeedModule {}

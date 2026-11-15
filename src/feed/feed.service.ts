@@ -2,10 +2,11 @@
  * FeedService — Commerce feed with CVS algorithm
  * Place at: src/feed/feed.service.ts
  */
-import { Injectable, Logger, ForbiddenException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, Optional, ForbiddenException, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { RoleContext } from '../role-context/role-context.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, Brackets } from 'typeorm';
+import { HashtagService, momentTagText } from './hashtag.service';
 import {
   BusinessFeedItem,
   FeedItemType,
@@ -106,6 +107,8 @@ export class FeedService {
     private readonly commerceProfiles: CommerceProfilesService,
     private readonly activityEvents: ActivityEventService,
     private readonly searchIndex: SearchIndexService,
+    // Hashtags (owner 2026-11-15). Optional so hand-built test services keep working.
+    @Optional() private readonly hashtags?: HashtagService,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -271,6 +274,9 @@ export class FeedService {
       item.id,
       [item.title, item.body, item.category, item.locationLabel, item.intent].filter(Boolean).join(' \n '),
     ).catch(() => {});
+
+    // Hashtags: save the tags this post uses (never blocks publishing).
+    this.hashtags?.sync('moment', item.id, momentTagText(item)).catch(() => {});
 
     // Notify followers — fire-and-forget
     this.notifyFollowers(sellerId, item).catch((err) =>
@@ -1236,6 +1242,10 @@ export class FeedService {
     } else {
       this.searchIndex.remove('moment', saved.id).catch(() => {});
     }
+    // Hashtags follow the edited text.
+    if (changes.title !== undefined || changes.body !== undefined) {
+      this.hashtags?.sync('moment', saved.id, momentTagText(saved)).catch(() => {});
+    }
     this.activityEvents.record({
       eventType: 'MOMENT_EDITED',
       category: ActivityCategory.CONTENT,
@@ -1256,6 +1266,7 @@ export class FeedService {
       { isActive: false, status: MomentStatus.ARCHIVED },
     );
     if (result.affected) {
+      this.hashtags?.remove('moment', postId).catch(() => {});
       this.activityEvents.record({
         eventType: 'MOMENT_STATUS_CHANGED',
         category: ActivityCategory.CONTENT,
