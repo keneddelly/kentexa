@@ -59,9 +59,20 @@ export class SearchBackfillService {
         .catch(() => {});
     }
 
+    // Add the community's name, purpose and topic to public discussion embeddings.
+    // Meaning-based search can then match the context a post was published in.
+    const communityRows: any[] = await this.momentRepo.manager.query(
+      `SELECT id, name, purpose, "topicKey" FROM public.community WHERE status = 'active'`,
+    );
+    const communityById = new Map(communityRows.map((row) => [Number(row.id), row]));
+
     for (const m of moments) {
+      const community = m.communityId ? communityById.get(Number(m.communityId)) : null;
       await this.searchIndex
-        .upsert('moment', m.id, [m.title, m.body, m.category, m.locationLabel, m.intent].filter(Boolean).join(' \n '))
+        .upsert('moment', m.id, [
+          m.title, m.body, m.category, m.locationLabel, m.intent,
+          community?.name, community?.purpose, community?.topicKey,
+        ].filter(Boolean).join(' \\n '))
         .catch(() => {});
     }
 
