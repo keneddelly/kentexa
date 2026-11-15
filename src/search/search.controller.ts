@@ -133,12 +133,12 @@ export class SearchController {
     const query = String(q || '').trim().slice(0, 120);
     if (query.length < 2) return { communities: [], discussions: [] };
     const viewerId = Number(req?.user?.id || 0);
-    const pattern = `%${query.replace(/[\\%_]/g, '\\\\  // Meaning-based search — catches matches keyword search structurally')}%`;
+    const pattern = `%${query}%`;
     const communities = await this.dataSource.query(
       `SELECT c.id, c.name, c.purpose, c."topicKey", c."memberCount", c."joinPolicy"
          FROM public.community c
         WHERE c.status = 'active'
-          AND (c.name ILIKE $1 ESCAPE '\\\\' OR c.purpose ILIKE $1 ESCAPE '\\\\' OR c."topicKey" ILIKE $1 ESCAPE '\\\\')
+          AND (c.name ILIKE $1 OR c.purpose ILIKE $1 OR c."topicKey" ILIKE $1)
           AND (c."joinPolicy" = 'open' OR EXISTS (
             SELECT 1 FROM public.community_member cm
              WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
@@ -152,9 +152,9 @@ export class SearchController {
          JOIN public.community c ON c.id = f."communityId"
         WHERE c.status = 'active' AND f."isActive" = true AND f.status::text = 'published'
           AND f.visibility::text = 'public'
-          AND (f.title ILIKE $1 ESCAPE '\\\\' OR f.body ILIKE $1 ESCAPE '\\\\'
-               OR c.name ILIKE $1 ESCAPE '\\\\' OR c.purpose ILIKE $1 ESCAPE '\\\\'
-               OR c."topicKey" ILIKE $1 ESCAPE '\\\\')
+          AND (f.title ILIKE $1 OR f.body ILIKE $1
+               OR c.name ILIKE $1 OR c.purpose ILIKE $1
+               OR c."topicKey" ILIKE $1)
           AND (c."joinPolicy" = 'open' OR EXISTS (
             SELECT 1 FROM public.community_member cm
              WHERE cm."communityId" = c.id AND cm."userId" = $2 AND cm.status = 'active'
