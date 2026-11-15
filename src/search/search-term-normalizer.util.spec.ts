@@ -20,6 +20,16 @@ describe('normalizeSearchQuery', () => {
     expect(terms).toContain('camera');
   });
 
+  it('keeps multi-word partial queries such as "key chain" searchable as phrase and tokens', () => {
+    const { terms, patterns } = normalizeSearchQuery('key chain');
+    expect(terms).toContain('key chain');
+    expect(terms).toContain('key');
+    expect(terms).toContain('chain');
+    expect(patterns).toContain('%key chain%');
+    expect(patterns).toContain('%key%');
+    expect(patterns).toContain('%chain%');
+  });
+
   it('keeps descriptive words alongside the expanded product term', () => {
     const swahili = normalizeSearchQuery('kamera ndogo').terms;
     expect(swahili).toContain('camera');
