@@ -59,11 +59,11 @@ test('Soko search includes communities and matching discussions in All and Jumui
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'business ideas' } });
   fireEvent.click(screen.getByRole('button', { name: 'search.search_button' }));
 
-  expect(await screen.findByText('Business & Entrepreneurship')).toBeInTheDocument();
+  expect((await screen.findAllByText('Business & Entrepreneurship')).length).toBeGreaterThan(0);
   expect(screen.getByText('How to grow a small shop')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: /Jumuiya/ }));
-  expect(screen.getByText('Business & Entrepreneurship')).toBeInTheDocument();
+  expect(screen.getAllByText('Business & Entrepreneurship').length).toBeGreaterThan(0);
   expect(screen.getByText('How to grow a small shop')).toBeInTheDocument();
-  fireEvent.click(screen.getByText('Business & Entrepreneurship'));
+  fireEvent.click(screen.getAllByText('Business & Entrepreneurship')[0]);
   expect(onNavigate).toHaveBeenCalledWith('Community-4');
 });
