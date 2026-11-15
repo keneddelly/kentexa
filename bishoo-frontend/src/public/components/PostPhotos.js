@@ -11,7 +11,7 @@ import React, { useEffect, useState } from 'react';
 const WH = '#FFFFFF';
 
 const cellStyle = { position: 'relative', padding: 0, border: 'none', margin: 0, cursor: 'pointer', overflow: 'hidden', background: '#e7ecf0', minWidth: 0, minHeight: 0 };
-const imgStyle = { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
+const imgStyle = { width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: '#f1f5f9' };
 
 const layoutFor = (n) => {
   if (n === 2) return { columns: '1fr 1fr', rows: '1fr', ratio: '16 / 9', areas: [{}, {}] };
