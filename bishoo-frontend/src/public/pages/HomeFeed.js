@@ -846,7 +846,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             style={{ position:'relative', padding:0, border:`1px solid ${LINE_TX}`, borderRadius:16, overflow:'hidden', cursor:'pointer', background:'#f7f9f9',
               aspectRatio: photoAspect(imgRatio || (photos[0]?.width && photos[0]?.height ? photos[0].width / photos[0].height : null)) }}>
             <img src={image} alt="" data-testid="post-photo"
-              style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+              style={{ width:'100%', height:'100%', objectFit:'contain', display:'block', background:'#f1f5f9' }}
               onLoad={(e) => { const { naturalWidth: w, naturalHeight: h } = e.currentTarget; if (w && h) setImgRatio(w / h); }}
               onError={() => setImgErr(true)} />
             {price > 0 && (
