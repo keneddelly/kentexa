@@ -55,7 +55,8 @@ export default function ImageStudio({ photo, onClose, onSave }) {
       const width = 900;
       return { width, height: Math.round(width / selected.ratio) };
     }
-    const ratio = image.naturalWidth / image.naturalHeight || 4 / 3;
+    const rotated = rotation % 180 !== 0;
+    const ratio = (rotated ? image.naturalHeight / image.naturalWidth : image.naturalWidth / image.naturalHeight) || 4 / 3;
     const bounded = Math.min(16 / 9, Math.max(9 / 16, ratio));
     const width = bounded < 1 ? 675 : 900;
     return { width, height: Math.round(width / bounded) };
@@ -75,9 +76,12 @@ export default function ImageStudio({ photo, onClose, onSave }) {
     ctx.fillStyle = bg?.color || '#e8edf3';
     ctx.fillRect(0, 0, cw, ch);
 
+    const rotated = rotation % 180 !== 0;
+    const sourceWidth = rotated ? image.naturalHeight : image.naturalWidth;
+    const sourceHeight = rotated ? image.naturalWidth : image.naturalHeight;
     const fitScale = mode === 'fit'
-      ? Math.min(cw / image.naturalWidth, ch / image.naturalHeight)
-      : Math.max(cw / image.naturalWidth, ch / image.naturalHeight);
+      ? Math.min(cw / sourceWidth, ch / sourceHeight)
+      : Math.max(cw / sourceWidth, ch / sourceHeight);
     const scale = fitScale * zoom;
     const dx = offset.x * ratio;
     const dy = offset.y * ratio;
@@ -85,8 +89,9 @@ export default function ImageStudio({ photo, onClose, onSave }) {
     if (background === 'blur') {
       ctx.save();
       ctx.filter = 'blur(22px) brightness(0.82)';
-      const bgScale = Math.max(cw / image.naturalWidth, ch / image.naturalHeight) * 1.12;
+      const bgScale = Math.max(cw / sourceWidth, ch / sourceHeight) * 1.12;
       ctx.translate(cw / 2, ch / 2);
+      ctx.rotate(rotation * Math.PI / 180);
       ctx.drawImage(image, -image.naturalWidth * bgScale / 2, -image.naturalHeight * bgScale / 2,
         image.naturalWidth * bgScale, image.naturalHeight * bgScale);
       ctx.restore();
