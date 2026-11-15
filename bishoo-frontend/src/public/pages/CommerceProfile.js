@@ -17,6 +17,7 @@ import api             from '../../api/api';
 import ProfileConnections from '../components/ProfileConnections';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 import { profileLink } from '../utils/shareLinks';
+import { PostCard } from './HomeFeed';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -1071,55 +1072,36 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 </button>
               </div>
             )}
-            {/* Moments as a Twitter-style list: who, when, the whole text with
-                "Soma zaidi", the picture, counts. Tap opens the full post. */}
+            {/* Reuse Homefeed's interactive post card so profile engagement
+                actions and tracking stay consistent across Kentexa. */}
             {feed.length === 0
               ? <Empty icon="megaphone" text={t('commerce_profile.no_announcements')} />
               : (
                 <div style={{ margin:'0 -16px', backgroundColor:WH, borderTop:`1px solid ${LINE}` }}>
-                  {feed.map(f => {
-                    const title = (f.title || '').trim();
-                    const body = (f.body || '').trim();
-                    const text = body && (title === body || title === 'Moment') ? body
-                      : [title !== 'Moment' ? title : '', body].filter(Boolean).join('\n');
-                    return (
-                      <article key={f.id} ref={highlightPostId === f.id ? highlightPostRef : null}
-                        onClick={() => onNavigate(`PostDetail-${f.id}`)}
-                        style={{ display:'flex', gap:12, padding:'12px 16px', borderBottom:`1px solid ${LINE}`, cursor:'pointer',
-                          backgroundColor: highlightPostId === f.id ? '#eff6ff' : WH }}>
-                        <div style={{ width:40, height:40, borderRadius:10, overflow:'hidden', backgroundColor:INK, color:WH,
-                          display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, flexShrink:0 }}>
-                          {displayPhoto ? <img src={displayPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                            : (displayName||'K').charAt(0).toUpperCase()}
-                        </div>
-                        <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:6 }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:15, minWidth:0 }}>
-                            <b style={{ color:INK, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{displayName}</b>
-                            {isVerifiedIdentity && <VerifiedBadge />}
-                            <span style={{ color:MUTED, whiteSpace:'nowrap' }}>· {agoShort(f.createdAt)}</span>
-                          </div>
-                          {text && <ExpandableText text={text} lines={4} />}
-                          {f.imageUrl && (
-                            <img src={f.imageUrl} alt="" data-testid="moment-image"
-                              onClick={(e) => {
-                                // A Moment made from a listing: its picture opens that listing.
-                                if (!f.linkedEntityType || !f.linkedEntityId) return;
-                                e.stopPropagation();
-                                onNavigate(f.linkedEntityType === 'product' ? `ProductDetail-${f.linkedEntityId}`
-                                  : f.linkedEntityType === 'service' ? `ServiceDetail-${f.linkedEntityId}`
-                                  : `ClassifiedDetail-${f.linkedEntityId}`);
-                              }}
-                              style={{ width:'100%', maxHeight:420, objectFit:'cover',
-                                borderRadius:16, border:`1px solid ${LINE}` }} />
-                          )}
-                          <div style={{ display:'flex', gap:24, color:MUTED, fontSize:13 }}>
-                            <span>Maoni {fmt(f.commentCount || 0)}</span>
-                            <span>Imependwa {fmt(f.saveCount || 0)}</span>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
+                  {feed.map(f => (
+                    <div key={f.id} ref={highlightPostId === f.id ? highlightPostRef : null}
+                      style={highlightPostId === f.id ? { backgroundColor:'#eff6ff' } : undefined}>
+                      <PostCard
+                        post={{
+                          ...f,
+                          business: {
+                            id: f.business?.id || activeProfile.ownerId,
+                            name: f.business?.name || displayName,
+                            storeName: f.business?.storeName || displayName,
+                            logo: f.business?.logo || displayPhoto,
+                            commerceProfileId: f.business?.commerceProfileId || activeProfile.id,
+                            isVerified: f.business?.isVerified ?? isVerifiedIdentity,
+                            ...(f.business || {}),
+                          },
+                        }}
+                        isLoggedIn={isLoggedIn}
+                        onNavigate={onNavigate}
+                        currentUser={currentUser}
+                        activeProfileId={viewerActiveProfileId || activeProfile.id}
+                        repostedIds={f.isReposted ? [f.id] : []}
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
           </div>
