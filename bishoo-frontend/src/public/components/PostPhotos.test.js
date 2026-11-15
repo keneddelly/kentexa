@@ -7,6 +7,7 @@ const photos = (n) => Array.from({ length: n }, (_, i) => ({ url: `${i + 1}.jpg`
 test('three photos: one large, two small, a counter and the price on them', () => {
   render(<PostPhotos photos={photos(3)} price={45000} priceLabel="TZS 45,000" />);
   expect(screen.getAllByTestId('post-photo-cell')).toHaveLength(3);
+  expect(screen.getAllByTestId('post-photo-cell')[0].querySelector('img')).toHaveStyle({ objectFit: 'contain' });
   expect(screen.getAllByTestId('post-photo-cell')[0]).toHaveStyle({ gridRow: '1 / 3' });
   expect(screen.getByTestId('photo-counter')).toHaveTextContent('1/3');
   expect(screen.getByTestId('photo-price')).toHaveTextContent('TZS 45,000');
