@@ -260,6 +260,9 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       return { file, preview, ...(await measure(preview)) };
     }));
     setPhotos((prev) => [...prev, ...picked].slice(0, COMPOSER.photos));
+    // Open the framing screen immediately, like Instagram, so the user checks
+    // positioning before continuing to write or publish the post.
+    setEditingPhotoIndex(photos.length);
     setError(files.length > room ? `Picha ${COMPOSER.photos} tu ndizo zimechukuliwa.` : '');
   };
   const removePhoto = (i) => setPhotos((prev) => {
