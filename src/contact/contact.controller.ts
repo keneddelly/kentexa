@@ -9,6 +9,7 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ContactService } from './contact.service';
 import { ContactMessageStatus } from './entities/contact-message.entity';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -32,6 +33,13 @@ export class ContactController {
   @Post()
   submit(@Body() dto: ContactFormDto) {
     return this.contactService.submit(dto);
+  }
+
+  // Public — "Unahitaji msaada?" from the sign-up / sign-in pages (issue #361).
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Post('help')
+  help(@Body() dto: any) {
+    return this.contactService.submitHelp(dto || {});
   }
 
   // Admin — list all messages, optional ?status=open filter

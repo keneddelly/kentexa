@@ -6,9 +6,17 @@ import { join } from 'path';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { EarlyAccessModule } from './early-access/early-access.module';
 import helmet from 'helmet';
+import { trustProxyHops } from './common/trust-proxy';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+
+  // Issue #361: Render's load balancer sits in front of the app, so without this every phone
+  // looked like the same address and shared one rate-limit bucket. Trusting the proxy hops
+  // Render adds (1 by default) makes req.ip the address that reached Render, which a phone
+  // cannot forge. TRUST_PROXY_HOPS changes the count if GET /activity/admin/request-source
+  // shows another proxy in front.
+  app.set('trust proxy', trustProxyHops(process.env.TRUST_PROXY_HOPS));
 
   // Baseline security headers (X-Frame-Options, HSTS, no-sniff, etc.).
   // contentSecurityPolicy is off — this is a JSON API plus a Swagger UI

@@ -111,7 +111,8 @@ export class SmsService {
 
   // ── Send OTP ──────────────────────────────────────────────────────────
   async sendOtp(phone: string, otp: string): Promise<boolean> {
-    const message = `Your KenteXa verification code is: ${otp}. Valid for 10 minutes. Do not share this code with anyone.`;
+    // Swahili first (issue #361): the code people wait for must be understood at a glance.
+    const message = `KenteXa: namba yako ya uthibitisho ni ${otp}. Inatumika dakika 10. Usimpe mtu yeyote namba hii.`;
     return this.sendSms(phone, message, true);
   }
 

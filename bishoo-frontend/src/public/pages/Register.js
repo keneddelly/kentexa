@@ -12,6 +12,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { AUTH, AuthButton, AuthError, AuthField, AuthLink, AuthShell, CodeBoxes, phoneForServer } from '../components/AuthShell';
+import AuthHelp from '../components/AuthHelp';
+import { authErrorCode, authErrorText } from '../utils/authErrors';
 
 const Register = ({ onNavigate, onLoginSuccess }) => {
   const { t } = useTranslation();
@@ -23,6 +25,10 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Issue #361: the error's code (for the help request) and whether the SMS went out.
+  const [errorCode, setErrorCode] = useState(null);
+  const [smsFailed, setSmsFailed] = useState(false);
+  const fail = (err, fallbackKey) => { setErrorCode(authErrorCode(err)); setError(authErrorText(err, t, fallbackKey)); };
   const [timer, setTimer] = useState(0);
   const tick = useRef(null);
 
@@ -55,10 +61,11 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
     try {
       const payload = method === 'phone' ? { phone: identifier, password, name: name.trim() } : { email: identifier, password, name: name.trim() };
       if (referralCode) payload.referralCode = referralCode;
-      await api.post(method === 'phone' ? '/auth/register/phone' : '/auth/register/email', payload);
+      const res = await api.post(method === 'phone' ? '/auth/register/phone' : '/auth/register/email', payload);
+      setSmsFailed(res?.data?.otpSent === false);
       setCode(''); setStep(2); startTimer();
     } catch (err) {
-      setError(err?.response?.data?.message || t('signin.register_failed'));
+      fail(err, 'signin.register_failed');
     } finally { setBusy(false); }
   };
 
@@ -69,23 +76,25 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       const res = await api.post('/auth/verify-otp', { identifier, otp: code });
       if (onLoginSuccess) await onLoginSuccess(res.data, { targetPage: 'AddProfilePhoto' });
     } catch (err) {
-      setError(err?.response?.data?.message || t('signin.invalid_code'));
+      fail(err, 'signin.invalid_code');
     } finally { setBusy(false); }
   };
 
   const resend = async () => {
     setBusy(true); setError('');
     try {
-      await api.post('/auth/resend-otp', { identifier });
+      const res = await api.post('/auth/resend-otp', { identifier });
+      setSmsFailed(res?.data?.otpSent === false);
       setCode(''); startTimer();
     } catch (err) {
-      setError(err?.response?.data?.message || t('signin.resend_failed'));
+      fail(err, 'signin.resend_failed');
     } finally { setBusy(false); }
   };
 
   if (step === 2) {
     return (
       <AuthShell title={t('signin.code_title')} subtitle={t('signin.code_desc', { identifier: contact.trim() })} onLogo={() => onNavigate('Home')}>
+        {smsFailed && <p role="alert" data-testid="sms-not-sent" style={{ margin: 0, fontSize: 14, color: AUTH.RED }}>{t('signin.sms_not_sent')}</p>}
         <CodeBoxes value={code} onChange={setCode} label={t('signin.code_label')} />
         <AuthError>{error}</AuthError>
         <AuthButton onClick={verify} disabled={busy || code.length !== 6} testId="register-verify">{busy ? t('signin.verifying') : t('signin.verify_button')}</AuthButton>
@@ -93,8 +102,9 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
           {timer > 0
             ? <span style={{ fontSize: 14, color: AUTH.MUTED }}>{t('signin.resend_in', { seconds: timer })}</span>
             : <AuthLink onClick={resend} testId="register-resend">{t('signin.resend')}</AuthLink>}
-          <AuthLink onClick={() => { setStep(1); setError(''); }} testId="register-change">{t('signin.change_number')}</AuthLink>
+          <AuthLink onClick={() => { setStep(1); setError(''); setSmsFailed(false); }} testId="register-change">{t('signin.change_number')}</AuthLink>
         </div>
+        <AuthHelp step="code" errorCode={errorCode || (smsFailed ? 'SMS_NOT_SENT' : null)} phone={method === 'phone' ? contact : ''} name={name.trim()} />
       </AuthShell>
     );
   }
@@ -122,6 +132,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
         <AuthError>{error}</AuthError>
         <AuthButton type="submit" disabled={busy} testId="register-submit">{busy ? t('signin.creating') : t('signin.continue')}</AuthButton>
       </form>
+      <AuthHelp step="register" errorCode={errorCode} phone={method === 'phone' ? contact : ''} name={name.trim()} />
     </AuthShell>
   );
 };

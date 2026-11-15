@@ -31,6 +31,29 @@ export class AnalyticsController {
     return { ok: true };
   }
 
+  /**
+   * Issue #361: the site sends its events in small groups (about one call every 10 seconds)
+   * instead of one call per event, so tracking no longer uses up the API's request limits.
+   * At most 50 events a call; same handling as /analytics/event.
+   */
+  @Post('events')
+  async trackEvents(@Body() body: any, @Req() req: Request) {
+    const events = Array.isArray(body?.events) ? body.events.slice(0, 50) : [];
+    const ipAddress =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      null;
+    // In order, one after another (the first event may open the session); never blocks.
+    (async () => {
+      for (const e of events) {
+        if (e && typeof e === 'object' && typeof e.sessionId === 'string' && typeof e.eventType === 'string') {
+          await this.service.trackEvent({ ...e, ipAddress }).catch(() => {});
+        }
+      }
+    })().catch(() => {});
+    return { ok: true, received: events.length };
+  }
+
   // Admin — dashboard stats
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

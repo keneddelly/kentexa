@@ -6124,6 +6124,28 @@
     "photo_save": "Continuer",
     "photo_saving": "Enregistrement...",
     "photo_skip": "Plus tard",
-    "photo_failed": "La photo n’a pas été envoyée. Réessayez."
+    "photo_failed": "La photo n’a pas été envoyée. Réessayez.",
+    "errors": {
+      "PHONE_TAKEN": "Ce numéro a déjà un compte. Connectez-vous, ou touchez « Mot de passe oublié ? ».",
+      "EMAIL_TAKEN": "Cet e-mail a déjà un compte. Connectez-vous, ou touchez « Mot de passe oublié ? ».",
+      "ACCOUNT_NOT_FOUND": "Aucun compte avec ce numéro. Vérifiez-le, ou créez un compte.",
+      "ALREADY_VERIFIED": "Ce compte est déjà vérifié. Connectez-vous avec votre mot de passe.",
+      "OTP_TOO_MANY": "Trop d’essais. Touchez « Renvoyer le code » pour un nouveau code.",
+      "OTP_EXPIRED": "Le code a expiré (10 minutes). Touchez « Renvoyer le code ».",
+      "OTP_WRONG": "Code incorrect. Il reste {{remaining}} essais.",
+      "INVALID_CREDENTIALS": "Numéro ou mot de passe incorrect. Réessayez.",
+      "ACCOUNT_NOT_VERIFIED": "Votre compte n’est pas encore vérifié. Nous vous avons envoyé un nouveau code par SMS.",
+      "TOO_MANY_REQUESTS": "Trop d’essais pour le moment. Patientez un peu, puis réessayez.",
+      "NETWORK": "Pas de connexion. Vérifiez votre internet, puis réessayez."
+    },
+    "sms_not_sent": "Nous n’avons pas pu envoyer le SMS. Patientez un peu puis touchez « Renvoyer le code », ou demandez de l’aide ci-dessous.",
+    "finish_title": "Terminez la création de votre compte",
+    "help_link": "Besoin d’aide ?",
+    "help_desc": "Laissez votre numéro, nous vous appellerons pour vous aider.",
+    "help_phone": "Numéro pour vous appeler",
+    "help_note": "Quel est le problème ? (facultatif)",
+    "help_send": "Demander de l’aide",
+    "help_sent": "Reçu. Nous vous appellerons bientôt.",
+    "help_failed": "Envoi impossible. Réessayez, ou écrivez à support@kentexa.com."
   }
 }

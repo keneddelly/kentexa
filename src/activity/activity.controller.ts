@@ -22,6 +22,26 @@ export class ActivityController {
     private readonly mirror: AdminMirrorService,
   ) {}
 
+  /**
+   * Issue #361: how the server sees THIS request (the admin's own), to set the proxy trust
+   * right. Shows only the caller's own addresses; nothing about anyone else.
+   */
+  @Get('admin/request-source')
+  requestSource(@Request() req: any) {
+    const h = req?.headers || {};
+    const one = (v: unknown) => (typeof v === 'string' ? v.slice(0, 300) : null);
+    return {
+      ip: req?.ip ?? null,
+      ips: Array.isArray(req?.ips) ? req.ips : [],
+      remoteAddress: req?.socket?.remoteAddress ?? null,
+      xForwardedFor: one(h['x-forwarded-for']),
+      cfConnectingIp: one(h['cf-connecting-ip']),
+      trueClientIp: one(h['true-client-ip']),
+      xRealIp: one(h['x-real-ip']),
+      trustProxyHops: req?.app?.get?.('trust proxy') ?? null,
+    };
+  }
+
   // Owner 2026-11-09: "admin is the mirror of KenteXa". Every recorded action, newest first.
   @Get('admin/feed')
   feed(
@@ -66,6 +86,12 @@ export class ActivityController {
       severity: 'info', visibility: 'admin',
     });
     return result;
+  }
+
+  // Issue #361: where the sign-up journey succeeds or fails.
+  @Get('admin/auth-funnel')
+  authFunnel(@Query('days') days?: string) {
+    return this.mirror.authFunnel(Number(days) || 7);
   }
 
   @Get('admin/recent')
