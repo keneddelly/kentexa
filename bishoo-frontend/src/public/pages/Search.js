@@ -422,13 +422,14 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     // in a business's bio rather than a listing's own title. Both are
     // additive: they never replace or gate what keyword search already
     // finds, only add what it would otherwise miss.
-    const [profileResults, semanticResults, communityResults] = rawQ
+    const [profileResults, semanticResults, communityResults, keywordMomentResults] = rawQ
       ? await Promise.all([
           api.get('/profiles/search', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
           api.get('/search/semantic', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
           api.get('/search/communities', { params: { q: rawQ } }).then(r => r.data || { communities: [], discussions: [] }).catch(() => ({ communities: [], discussions: [] })),
+          api.get('/search/moments', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
         ])
-      : [[], [], { communities: [], discussions: [] }];
+      : [[], [], { communities: [], discussions: [] }, []];
     const semanticByType = {
       product:    semanticResults.filter(r => r._type === 'product'),
       classified: semanticResults.filter(r => r._type === 'classified'),
@@ -442,7 +443,11 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       ...semanticByType.profile.filter(sp => !profileResults.some(p => p.id === sp.id)),
     ];
     setProfiles(mergedProfiles);
-    setMoments(semanticByType.moment);
+    const mergedMoments = [
+      ...keywordMomentResults,
+      ...semanticByType.moment.filter(m => !m.communityId && !keywordMomentResults.some(k => k.id === m.id)),
+    ];
+    setMoments(mergedMoments);
     setCommunities(communityResults.communities || []);
     setCommunityPosts(communityResults.discussions || []);
     setSemanticRoutes(semanticByType.transport_route);
@@ -474,7 +479,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         (finalProducts.length - productsList.length) +
         (finalServices.length - servicesList.length) +
         (mergedProfiles.length - profileResults.length) +
-        semanticByType.moment.length + semanticByType.transport_route.length +
+        mergedMoments.length + semanticByType.transport_route.length +
         (communityResults.communities?.length || 0) + (communityResults.discussions?.length || 0);
 
       setLoading(false);
@@ -483,6 +488,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
           domain: intent?.domain ?? null,
           profileMatches: mergedProfiles.length,
           communityMatches: (communityResults.communities?.length || 0) + (communityResults.discussions?.length || 0),
+          momentMatches: mergedMoments.length,
           semanticMatches: semanticResults.length,
         });
       }
@@ -507,7 +513,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         q: rawQ,
         resultSummary: {
           domain: intent?.domain ?? 'all',
-          counts: { ...domainCounts, people: mergedProfiles.length, communities: (communityResults.communities?.length || 0), discussions: (communityResults.discussions?.length || 0) },
+          counts: { ...domainCounts, people: mergedProfiles.length, moments: mergedMoments.length, communities: (communityResults.communities?.length || 0), discussions: (communityResults.discussions?.length || 0) },
           topItems: allTopItems,
         },
       }).then(r => {
