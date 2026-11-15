@@ -11,13 +11,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { AuthButton, AuthError, AuthField, AuthLink, AuthNote, AuthOr, AuthShell, CodeBoxes, isEmail, phoneForServer } from '../components/AuthShell';
+import { AUTH, AuthButton, AuthError, AuthField, AuthLink, AuthNote, AuthOr, AuthShell, CodeBoxes, isEmail, phoneForServer } from '../components/AuthShell';
+import AuthHelp from '../components/AuthHelp';
+import { authErrorCode, authErrorText } from '../utils/authErrors';
 
 const forServer = (raw) => (isEmail(raw) ? String(raw).trim() : phoneForServer(raw));
 
 const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const { t } = useTranslation();
-  const [step, setStep] = useState('login'); // login | forgot | reset
+  const [step, setStep] = useState('login'); // login | forgot | reset | verify
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -25,6 +27,11 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  // Issue #361: an account that never typed its sign-up code finishes here, not in a dead end.
+  const [verifyId, setVerifyId] = useState('');
+  const [smsFailed, setSmsFailed] = useState(false);
+  const [errorCode, setErrorCode] = useState(null);
+  const fail = (err, fallbackKey) => { setErrorCode(authErrorCode(err)); setError(authErrorText(err, t, fallbackKey)); };
 
   const go = (next) => { setStep(next); setError(''); setNote(''); };
 
@@ -38,7 +45,16 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
       const res = await api.post('/auth/login', payload);
       if (onLoginSuccess) await onLoginSuccess(res.data);
     } catch (err) {
-      setError(err?.response?.data?.message || t('signin.invalid_credentials'));
+      const data = err?.response?.data;
+      if (data?.code === 'ACCOUNT_NOT_VERIFIED' && data.identifier) {
+        setVerifyId(String(data.identifier));
+        setSmsFailed(data.otpSent === false);
+        setCode('');
+        go('verify');
+        setNote(t('signin.errors.ACCOUNT_NOT_VERIFIED'));
+        return;
+      }
+      fail(err, 'signin.invalid_credentials');
     } finally { setBusy(false); }
   };
 
@@ -50,7 +66,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
       setCode(''); setNewPassword('');
       go('reset');
     } catch (err) {
-      setError(err?.response?.data?.message || t('signin.send_failed'));
+      fail(err, 'signin.send_failed');
     } finally { setBusy(false); }
   };
 
@@ -64,9 +80,46 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
       go('login');
       setNote(t('signin.reset_done'));
     } catch (err) {
-      setError(err?.response?.data?.message || t('signin.reset_failed'));
+      fail(err, 'signin.reset_failed');
     } finally { setBusy(false); }
   };
+
+  const verify = async () => {
+    if (code.length !== 6) { setError(t('signin.need_code')); return; }
+    setBusy(true); setError('');
+    try {
+      const res = await api.post('/auth/verify-otp', { identifier: verifyId, otp: code });
+      if (onLoginSuccess) await onLoginSuccess(res.data, { targetPage: 'AddProfilePhoto' });
+    } catch (err) {
+      fail(err, 'signin.invalid_code');
+    } finally { setBusy(false); }
+  };
+
+  const resendVerify = async () => {
+    setBusy(true); setError(''); setNote('');
+    try {
+      const res = await api.post('/auth/resend-otp', { identifier: verifyId });
+      setSmsFailed(res?.data?.otpSent === false);
+      setCode('');
+    } catch (err) {
+      fail(err, 'signin.resend_failed');
+    } finally { setBusy(false); }
+  };
+
+  if (step === 'verify') {
+    return (
+      <AuthShell title={t('signin.finish_title')} subtitle={t('signin.code_desc', { identifier: identifier.trim() })} onLogo={() => onNavigate('Home')}>
+        <AuthNote>{note}</AuthNote>
+        {smsFailed && <p role="alert" data-testid="sms-not-sent" style={{ margin: 0, fontSize: 14, color: AUTH.RED }}>{t('signin.sms_not_sent')}</p>}
+        <CodeBoxes value={code} onChange={setCode} label={t('signin.code_label')} testId="verify-code" />
+        <AuthError>{error}</AuthError>
+        <AuthButton onClick={verify} disabled={busy || code.length !== 6} testId="login-verify">{busy ? t('signin.verifying') : t('signin.verify_button')}</AuthButton>
+        <AuthLink onClick={resendVerify} testId="login-verify-resend">{t('signin.resend')}</AuthLink>
+        <AuthLink onClick={() => go('login')}>{t('signin.back_to_login')}</AuthLink>
+        <AuthHelp step="code" errorCode={errorCode || (smsFailed ? 'SMS_NOT_SENT' : null)} phone={isEmail(identifier) ? '' : identifier} />
+      </AuthShell>
+    );
+  }
 
   if (step === 'forgot') {
     return (
@@ -108,6 +161,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
         <AuthError>{error}</AuthError>
         <AuthButton type="submit" disabled={busy} testId="login-submit">{busy ? t('signin.logging_in') : t('signin.login_button')}</AuthButton>
       </form>
+      <AuthHelp step="login" errorCode={errorCode} phone={isEmail(identifier) ? '' : identifier} />
     </AuthShell>
   );
 };

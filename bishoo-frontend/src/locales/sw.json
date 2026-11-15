@@ -6131,6 +6131,28 @@
     "photo_save": "Endelea",
     "photo_saving": "Inahifadhi...",
     "photo_skip": "Ruka kwa sasa",
-    "photo_failed": "Picha haikupakiwa. Jaribu tena."
+    "photo_failed": "Picha haikupakiwa. Jaribu tena.",
+    "errors": {
+      "PHONE_TAKEN": "Namba hii tayari ina akaunti. Ingia, au bonyeza \"Umesahau nenosiri?\".",
+      "EMAIL_TAKEN": "Barua pepe hii tayari ina akaunti. Ingia, au bonyeza \"Umesahau nenosiri?\".",
+      "ACCOUNT_NOT_FOUND": "Hatukupata akaunti yenye namba hii. Angalia namba, au fungua akaunti mpya.",
+      "ALREADY_VERIFIED": "Akaunti hii imeshathibitishwa. Ingia kwa nenosiri lako.",
+      "OTP_TOO_MANY": "Umejaribu mara nyingi. Bonyeza \"Tuma namba tena\" upate namba mpya.",
+      "OTP_EXPIRED": "Namba imeisha muda (dakika 10). Bonyeza \"Tuma namba tena\".",
+      "OTP_WRONG": "Namba si sahihi. Umebakiza majaribio {{remaining}}.",
+      "INVALID_CREDENTIALS": "Namba au nenosiri si sahihi. Jaribu tena.",
+      "ACCOUNT_NOT_VERIFIED": "Akaunti yako bado haijathibitishwa. Tumekutumia namba mpya kwa SMS.",
+      "TOO_MANY_REQUESTS": "Majaribio ni mengi kwa sasa. Subiri kidogo, kisha jaribu tena.",
+      "NETWORK": "Mtandao umekatika. Angalia intaneti yako, kisha jaribu tena."
+    },
+    "sms_not_sent": "Hatukuweza kutuma SMS sasa hivi. Subiri kidogo kisha bonyeza \"Tuma namba tena\", au omba msaada hapa chini.",
+    "finish_title": "Maliza kufungua akaunti",
+    "help_link": "Unahitaji msaada?",
+    "help_desc": "Acha namba yako ya simu, tutakupigia tukusaidie.",
+    "help_phone": "Namba ya simu ya kukupigia",
+    "help_note": "Tatizo ni nini? (si lazima)",
+    "help_send": "Omba msaada",
+    "help_sent": "Tumepokea. Tutakupigia hivi karibuni.",
+    "help_failed": "Imeshindikana kutuma. Jaribu tena, au andika support@kentexa.com."
   }
 }

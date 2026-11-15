@@ -1,12 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import api from '../../api/api';
+import { API_BASE_URL } from '../../api/baseUrl';
 
 /**
  * useAnalytics — KenteXa self-hosted analytics hook
  *
  * Auto-tracks:
  * - Page views (every page change)
- * - Clicks (every element clicked)
+ * - Clicks on elements marked data-track (issue #361: no longer every tap, which sent the
+ *   button's own text and used up the API's request limits)
  * - Scroll depth (25%, 50%, 75%, 100%)
  * - Time on page
  * - Search queries
@@ -74,32 +76,46 @@ const getOS = () => {
 };
 
 // ── Batch events to avoid hammering the server ─────────────────────────────
+// Issue #361: one call every 10 seconds (or every 20 events) to /analytics/events, instead of
+// one call per event, so tracking never uses up the API's request limits.
+export const FLUSH_MS = 10000;
+export const FLUSH_AT = 20;
 let eventQueue = [];
 let flushTimer = null;
 
-const flushEvents = async () => {
+export const flushEvents = async () => {
+  if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
   if (eventQueue.length === 0) return;
-  const batch = [...eventQueue];
-  eventQueue = [];
+  const batch = eventQueue.splice(0, 50);
   try {
-    // Send each event (could batch in future)
-    for (const event of batch) {
-      await api.post('/analytics/event', event);
-    }
+    await api.post('/analytics/events', { events: batch });
   } catch {
     // Silently fail — never break the app for analytics
   }
+  if (eventQueue.length) flushTimer = setTimeout(flushEvents, FLUSH_MS);
 };
 
-const queueEvent = (event) => {
+/** The page is going away: send what is left with keepalive, to the API (not the site). */
+export const flushOnLeave = () => {
+  if (eventQueue.length === 0 || typeof fetch !== 'function') return;
+  const batch = eventQueue.splice(0, 50);
+  try {
+    fetch(`${API_BASE_URL}/analytics/events`, {
+      method: 'POST', keepalive: true, credentials: 'omit',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ events: batch }),
+    }).catch(() => {});
+  } catch { /* never break the app for analytics */ }
+};
+
+export const queueEvent = (event) => {
   eventQueue.push(event);
-  if (flushTimer) clearTimeout(flushTimer);
-  // Flush after 2 seconds of inactivity, or immediately if queue > 10
-  if (eventQueue.length >= 10) {
-    flushEvents();
-  } else {
-    flushTimer = setTimeout(flushEvents, 2000);
-  }
+  if (eventQueue.length >= FLUSH_AT) { flushEvents(); return; }
+  if (!flushTimer) flushTimer = setTimeout(flushEvents, FLUSH_MS);
+};
+
+export const __resetAnalyticsQueueForTests = () => {
+  eventQueue = [];
+  if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
 };
 
 // ── Main hook ──────────────────────────────────────────────────────────────
@@ -183,14 +199,10 @@ export const useAnalytics = ({ page, isLoggedIn, userId } = {}) => {
     const handler = (e) => {
       const el = e.target;
       // Walk up DOM to find meaningful element
-      const button = el.closest('button, a, [data-track]');
-      const label  =
-        button?.getAttribute('data-track') ||
-        button?.innerText?.trim()?.slice(0, 60) ||
-        el.innerText?.trim()?.slice(0, 60) ||
-        el.getAttribute('aria-label') ||
-        el.className?.toString()?.slice(0, 40) ||
-        'unknown';
+      // Only elements marked data-track: their label is chosen by us, never typed text.
+      const button = el?.closest ? el.closest('[data-track]') : null;
+      if (!button) return;
+      const label  = button.getAttribute('data-track').slice(0, 60);
 
       queueEvent(buildEvent('click', {
         eventCategory: 'interaction',
@@ -234,21 +246,15 @@ export const useAnalytics = ({ page, isLoggedIn, userId } = {}) => {
     return () => window.removeEventListener('scroll', handler);
   }, [buildEvent]);
 
-  // ── Flush on page unload ────────────────────────────────────────────────
+  // ── Flush when the page is hidden or closed ─────────────────────────────
   useEffect(() => {
-    const handleUnload = () => {
-      // Use sendBeacon for reliability on page close
-      if (navigator.sendBeacon && eventQueue.length > 0) {
-        const batch = [...eventQueue];
-        eventQueue = [];
-        // Note: sendBeacon can't use custom headers, so we use a simple fallback
-        batch.forEach(event => {
-          navigator.sendBeacon('/api/analytics/event', JSON.stringify(event));
-        });
-      }
+    const onHide = () => { if (document.visibilityState === 'hidden') flushOnLeave(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flushOnLeave);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flushOnLeave);
     };
-    window.addEventListener('beforeunload', handleUnload);
-    return () => window.removeEventListener('beforeunload', handleUnload);
   }, []);
 
   return { track, sessionId: sessionId.current };

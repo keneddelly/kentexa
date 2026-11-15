@@ -24,6 +24,37 @@ export class AdminMirrorService {
     try { const [r] = await this.db.query(sql, params); return r ? Number(Object.values(r)[0]) : null; } catch { return null; }
   }
 
+  /**
+   * Issue #361: the sign-up journey for the last `days` days, from the AUTH events the
+   * sign-up and sign-in steps record. Counts are events; `people` counts distinct accounts
+   * (visitors with no account yet are not counted as people). Measured only from the day the
+   * events started (16 Nov 2026); earlier days show nothing, not zero.
+   */
+  async authFunnel(days: number) {
+    const d = Math.min(Math.max(Math.floor(days) || 7, 1), 90);
+    const since = `NOW() - ($1 || ' days')::interval`;
+    const [steps, otp, reasons, firstEvent] = await Promise.all([
+      this.rows(`SELECT e."eventType" AS step, COUNT(*)::int AS events, COUNT(DISTINCT e."actorId")::int AS people
+                   FROM public.activity_events e
+                  WHERE e.category = 'AUTH' AND e."eventType" IN ('REGISTRATION_STARTED','OTP_SENT','OTP_VERIFIED','OTP_FAILED','LOGIN_FAILED')
+                    AND e."createdAt" > ${since}
+                  GROUP BY 1`, [String(d)]),
+      this.rows(`SELECT e.metadata->>'purpose' AS purpose, e.metadata->>'channel' AS channel,
+                        COUNT(*) FILTER (WHERE (e.metadata->>'delivered')::boolean)::int AS delivered,
+                        COUNT(*) FILTER (WHERE NOT (e.metadata->>'delivered')::boolean)::int AS "notDelivered"
+                   FROM public.activity_events e
+                  WHERE e."eventType" = 'OTP_SENT' AND e."createdAt" > ${since}
+                  GROUP BY 1, 2 ORDER BY 1, 2`, [String(d)]),
+      this.rows(`SELECT e."eventType" AS step, e.metadata->>'reason' AS reason, COUNT(*)::int AS events
+                   FROM public.activity_events e
+                  WHERE e."eventType" IN ('OTP_FAILED','LOGIN_FAILED') AND e."createdAt" > ${since}
+                  GROUP BY 1, 2 ORDER BY 3 DESC`, [String(d)]),
+      this.rows(`SELECT MIN(e."createdAt") AS "firstEventAt" FROM public.activity_events e
+                  WHERE e."eventType" IN ('REGISTRATION_STARTED','OTP_SENT','OTP_VERIFIED','OTP_FAILED','LOGIN_FAILED')`),
+    ]);
+    return { days: d, measuredSince: firstEvent?.[0]?.firstEventAt ?? null, steps, otpDelivery: otp, failures: reasons };
+  }
+
   async feed(f: FeedFilter) {
     const where: string[] = []; const params: unknown[] = [];
     // Each condition writes its own placeholder for the value just added.

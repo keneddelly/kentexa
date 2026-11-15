@@ -1,4 +1,7 @@
 import { AdvertisersService } from '../advertisers/advertisers.service';
+import { authError } from './auth-errors';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import {
   Injectable,
   BadRequestException,
@@ -48,7 +51,24 @@ export class AuthService {
     private roleContextService: RoleContextService,
     private inAppNotifications: InAppNotificationService,
     @Optional() private advertisers?: AdvertisersService,
+    // Sign-up journey events (issue #361). Optional so hand-built test services keep working.
+    @Optional() private activityEvents?: ActivityEventService,
   ) {}
+
+  /**
+   * Sign-up and sign-in journey events (owner approved 2026-11-16, issue #361): which step
+   * people reach and why they fail, so the journey can be measured. Never a phone number,
+   * email, password or code. Never blocks the request.
+   */
+  private journey(eventType: string, actorId: number | null, metadata: Record<string, unknown> = {}): void {
+    try {
+      this.activityEvents?.record({
+        eventType, category: ActivityCategory.AUTH, actorId, actorType: actorId ? 'user' : 'visitor',
+        targetType: 'account', targetId: actorId, metadata, visibility: 'system',
+        severity: /FAILED/.test(eventType) ? 'warning' : 'info',
+      })?.catch?.(() => {});
+    } catch { /* measuring never blocks signing in */ }
+  }
 
   // Stamps whatever Terms of Service version is currently active at the
   // moment of signup — the registration form's "I agree to the Terms"
@@ -189,7 +209,7 @@ export class AuthService {
     });
     if (existing) {
       if (!existing.isVerified) return this.resendPhoneOtp(phone);
-      throw new ConflictException('Phone number already registered');
+      throw authError(ConflictException, 'PHONE_TAKEN', 'Phone number already registered');
     }
 
     const hashed = await bcrypt.hash(dto.password, 10);
@@ -222,6 +242,8 @@ export class AuthService {
       await this.advertisers.recordSignup(dto.referralCode, (user as any).id).catch(() => false);
     }
     const sent = await this.smsService.sendOtp(phone, otp);
+    this.journey('REGISTRATION_STARTED', (user as any).id ?? null, { method: 'phone', invited: !!dto.referralCode });
+    this.journey('OTP_SENT', (user as any).id ?? null, { purpose: 'register', channel: 'sms', delivered: !!sent });
 
     return {
       message: 'OTP sent to your phone number.',
@@ -272,7 +294,7 @@ export class AuthService {
     });
     if (existing) {
       if (!existing.isVerified) return this.resendEmailOtp(dto.email);
-      throw new ConflictException('Email already registered');
+      throw authError(ConflictException, 'EMAIL_TAKEN', 'Email already registered');
     }
 
     const hashed = await bcrypt.hash(dto.password, 10);
@@ -305,6 +327,8 @@ export class AuthService {
 
     // ✅ Actually send the email now
     const sent = await this.mailService.sendOtp(dto.email, otp, dto.name);
+    this.journey('REGISTRATION_STARTED', (user as any).id ?? null, { method: 'email', invited: !!dto.referralCode });
+    this.journey('OTP_SENT', (user as any).id ?? null, { purpose: 'register', channel: 'email', delivered: !!sent });
 
     return {
       message: 'OTP sent to your email address.',
@@ -322,22 +346,31 @@ export class AuthService {
       ? await this.userRepo.findOne({ where: { email: identifier } })
       : await this.userRepo.findOne({ where: { phone: normalizeTzPhone(identifier) } });
 
-    if (!user) throw new BadRequestException('Account not found');
-    if (user.isVerified)
-      throw new BadRequestException('Account already verified. Please login.');
-    if (user.otpAttempts >= 5)
-      throw new BadRequestException('Too many attempts. Request a new OTP.');
-    if (!user.otpExpiry || new Date() > user.otpExpiry)
-      throw new BadRequestException('OTP expired. Request a new one.');
+    if (!user) {
+      this.journey('OTP_FAILED', null, { reason: 'no_account' });
+      throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
+    }
+    if (user.isVerified) {
+      this.journey('OTP_FAILED', user.id, { reason: 'already_verified' });
+      throw authError(BadRequestException, 'ALREADY_VERIFIED', 'Account already verified. Please login.');
+    }
+    if (user.otpAttempts >= 5) {
+      this.journey('OTP_FAILED', user.id, { reason: 'too_many' });
+      throw authError(BadRequestException, 'OTP_TOO_MANY', 'Too many attempts. Request a new OTP.');
+    }
+    if (!user.otpExpiry || new Date() > user.otpExpiry) {
+      this.journey('OTP_FAILED', user.id, { reason: 'expired' });
+      throw authError(BadRequestException, 'OTP_EXPIRED', 'OTP expired. Request a new one.');
+    }
     if (user.otp !== otp) {
       await this.userRepo.update(user.id, {
         otpAttempts: user.otpAttempts + 1,
       });
       const remaining = 5 - (user.otpAttempts + 1);
-      throw new BadRequestException(
-        `Incorrect OTP. ${remaining} attempts remaining.`,
-      );
+      this.journey('OTP_FAILED', user.id, { reason: 'wrong', remaining });
+      throw authError(BadRequestException, 'OTP_WRONG', `Incorrect OTP. ${remaining} attempts remaining.`, { remaining });
     }
+    this.journey('OTP_VERIFIED', user.id, { channel: isEmail ? 'email' : 'sms' });
 
     await this.userRepo.update(user.id, {
       isVerified: true,
@@ -409,13 +442,14 @@ export class AuthService {
   async resendPhoneOtp(phone: string) {
     const normalizedPhone = normalizeTzPhone(phone);
     const user = await this.userRepo.findOne({ where: { phone: normalizedPhone } });
-    if (!user) throw new BadRequestException('Phone number not found');
-    if (user.isVerified) throw new BadRequestException('Already verified');
+    if (!user) throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Phone number not found');
+    if (user.isVerified) throw authError(BadRequestException, 'ALREADY_VERIFIED', 'Already verified');
 
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await this.userRepo.update(user.id, { otp, otpExpiry, otpAttempts: 0 });
     const sent = await this.smsService.sendOtp(normalizedPhone, otp);
+    this.journey('OTP_SENT', user.id, { purpose: 'resend', channel: 'sms', delivered: !!sent });
 
     return {
       message: 'New OTP sent to your phone.',
@@ -428,8 +462,8 @@ export class AuthService {
   async resendEmailOtp(email: string) {
     email = email.toLowerCase().trim();
     const user = await this.userRepo.findOne({ where: { email } });
-    if (!user) throw new BadRequestException('Email not found');
-    if (user.isVerified) throw new BadRequestException('Already verified');
+    if (!user) throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Email not found');
+    if (user.isVerified) throw authError(BadRequestException, 'ALREADY_VERIFIED', 'Already verified');
 
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -441,6 +475,7 @@ export class AuthService {
       otp,
       user.name ? String(user.name) : undefined,
     );
+    this.journey('OTP_SENT', user.id, { purpose: 'resend', channel: 'email', delivered: !!sent });
 
     return {
       message: 'New OTP sent to your email.',
@@ -508,7 +543,7 @@ export class AuthService {
     metadata: RequestMetadata = {},
   ) {
     if (!identifier || !identifier.trim())
-      throw new UnauthorizedException('Invalid credentials');
+      throw authError(UnauthorizedException, 'INVALID_CREDENTIALS', 'Invalid credentials');
 
     const id = identifier.trim();
     const isEmail = id.includes('@');
@@ -528,18 +563,29 @@ export class AuthService {
         .getOne();
     }
 
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      this.journey('LOGIN_FAILED', null, { reason: 'no_account' });
+      throw authError(UnauthorizedException, 'INVALID_CREDENTIALS', 'Invalid credentials');
+    }
 
     if (!user.isVerified) {
-      if (user.phone) await this.resendPhoneOtp(user.phone);
-      else if (user.email) await this.resendEmailOtp(user.email);
-      throw new UnauthorizedException(
-        'Account not verified. A new OTP has been sent.',
-      );
+      // Issue #361: the person never typed their code. A new one goes out and the page opens
+      // the code step straight away (identifier = what /auth/verify-otp expects).
+      let resent: any = null;
+      if (user.phone) resent = await this.resendPhoneOtp(user.phone).catch(() => null);
+      else if (user.email) resent = await this.resendEmailOtp(user.email).catch(() => null);
+      this.journey('LOGIN_FAILED', user.id, { reason: 'not_verified' });
+      throw authError(UnauthorizedException, 'ACCOUNT_NOT_VERIFIED', 'Account not verified. A new OTP has been sent.', {
+        identifier: user.phone || user.email,
+        otpSent: !!resent?.otpSent,
+      });
     }
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) throw new UnauthorizedException('Invalid credentials');
+    if (!match) {
+      this.journey('LOGIN_FAILED', user.id, { reason: 'wrong_password' });
+      throw authError(UnauthorizedException, 'INVALID_CREDENTIALS', 'Invalid credentials');
+    }
 
     return this.issueAuthenticatedResponse(user, metadata);
   }
@@ -645,7 +691,7 @@ export class AuthService {
         .getOne();
     }
 
-    if (!user) throw new BadRequestException('Account not found');
+    if (!user) throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
 
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -685,16 +731,16 @@ export class AuthService {
         .getOne();
     }
 
-    if (!user) throw new BadRequestException('Account not found');
+    if (!user) throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
     if (user.otpAttempts >= 5)
-      throw new BadRequestException('Too many attempts.');
+      throw authError(BadRequestException, 'OTP_TOO_MANY', 'Too many attempts.');
     if (!user.otpExpiry || new Date() > user.otpExpiry)
-      throw new BadRequestException('OTP expired.');
+      throw authError(BadRequestException, 'OTP_EXPIRED', 'OTP expired.');
     if (user.otp !== otp) {
       await this.userRepo.update(user.id, {
         otpAttempts: user.otpAttempts + 1,
       });
-      throw new BadRequestException('Incorrect OTP.');
+      throw authError(BadRequestException, 'OTP_WRONG', 'Incorrect OTP.');
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);

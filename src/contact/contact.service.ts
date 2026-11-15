@@ -30,6 +30,30 @@ export class ContactService {
   ) {}
 
   // ── Submit — saves to DB first (source of truth), then attempts email ──
+  /**
+   * "Unahitaji msaada?" on the sign-up and sign-in pages (issue #361): someone who cannot get
+   * in asks for help without an account. Saved as an open support message for the team, with
+   * only what helps: name if given, the phone to call back, the step and the error shown.
+   */
+  async submitHelp(dto: { name?: unknown; phone?: unknown; step?: unknown; errorCode?: unknown; note?: unknown }) {
+    const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    const phone = text(dto?.phone, 20).replace(/[^\d+]/g, '');
+    if (phone.replace(/\D/g, '').length < 9) throw new BadRequestException('Weka namba yako ya simu ili tukupigie.');
+    const step = ['register', 'code', 'login', 'reset'].includes(text(dto?.step, 12)) ? text(dto?.step, 12) : 'other';
+    const errorCode = /^[A-Z_]{2,40}$/.test(text(dto?.errorCode, 40)) ? text(dto?.errorCode, 40) : null;
+    const note = text(dto?.note, 500);
+    const saved = await this.repo.save(this.repo.create({
+      name: text(dto?.name, 80) || 'Mgeni',
+      email: '',
+      phone,
+      subject: step === 'login' || step === 'reset' ? 'Msaada: kuingia' : 'Msaada: usajili',
+      message: [`Hatua: ${step}`, errorCode ? `Kosa: ${errorCode}` : null, note ? `Maelezo: ${note}` : null].filter(Boolean).join('\n'),
+      status: ContactMessageStatus.OPEN,
+      emailSent: false,
+    }));
+    return { ok: true, id: saved.id };
+  }
+
   async submit(dto: SubmitContactDto) {
     if (!dto.name?.trim()) throw new BadRequestException('Name is required');
     if (!dto.email?.trim()) throw new BadRequestException('Email is required');

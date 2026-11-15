@@ -6201,6 +6201,28 @@
     "photo_save": "Continue",
     "photo_saving": "Saving...",
     "photo_skip": "Skip for now",
-    "photo_failed": "The photo did not upload. Try again."
+    "photo_failed": "The photo did not upload. Try again.",
+    "errors": {
+      "PHONE_TAKEN": "This number already has an account. Sign in, or tap \"Forgot password?\".",
+      "EMAIL_TAKEN": "This email already has an account. Sign in, or tap \"Forgot password?\".",
+      "ACCOUNT_NOT_FOUND": "We found no account with this number. Check it, or create a new account.",
+      "ALREADY_VERIFIED": "This account is already verified. Sign in with your password.",
+      "OTP_TOO_MANY": "Too many tries. Tap \"Send the code again\" to get a new code.",
+      "OTP_EXPIRED": "The code has expired (10 minutes). Tap \"Send the code again\".",
+      "OTP_WRONG": "Wrong code. {{remaining}} tries left.",
+      "INVALID_CREDENTIALS": "Wrong number or password. Try again.",
+      "ACCOUNT_NOT_VERIFIED": "Your account is not verified yet. We sent you a new code by SMS.",
+      "TOO_MANY_REQUESTS": "Too many tries right now. Wait a little, then try again.",
+      "NETWORK": "No connection. Check your internet, then try again."
+    },
+    "sms_not_sent": "We could not send the SMS right now. Wait a little, then tap \"Send the code again\", or ask for help below.",
+    "finish_title": "Finish creating your account",
+    "help_link": "Need help?",
+    "help_desc": "Leave your phone number and we will call you to help.",
+    "help_phone": "Phone number to call you on",
+    "help_note": "What is the problem? (optional)",
+    "help_send": "Ask for help",
+    "help_sent": "Received. We will call you soon.",
+    "help_failed": "Could not send. Try again, or write to support@kentexa.com."
   }
 }
