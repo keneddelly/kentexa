@@ -474,7 +474,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         (finalProducts.length - productsList.length) +
         (finalServices.length - servicesList.length) +
         (mergedProfiles.length - profileResults.length) +
-        semanticByType.moment.length + semanticByType.transport_route.length;
+        semanticByType.moment.length + semanticByType.transport_route.length +
+        (communityResults.communities?.length || 0) + (communityResults.discussions?.length || 0);
 
       setLoading(false);
       if (typeof track === 'function') {
@@ -494,13 +495,19 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
           type: 'profile', name: p.displayName,
           subtitle: (p.type || '').replace(/_/g, ' '),
         })),
+        ...(communityResults.communities || []).slice(0, 2).map(c => ({
+          type: 'community', name: c.name, subtitle: c.purpose,
+        })),
+        ...(communityResults.discussions || []).slice(0, 2).map(p => ({
+          type: 'community discussion', name: p.title || p.body, subtitle: p.communityName,
+        })),
       ].slice(0, 6);
       setAiExplaining(true);
       api.post('/search/explain', {
         q: rawQ,
         resultSummary: {
           domain: intent?.domain ?? 'all',
-          counts: { ...domainCounts, people: mergedProfiles.length },
+          counts: { ...domainCounts, people: mergedProfiles.length, communities: (communityResults.communities?.length || 0), discussions: (communityResults.discussions?.length || 0) },
           topItems: allTopItems,
         },
       }).then(r => {
