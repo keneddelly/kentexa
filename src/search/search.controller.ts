@@ -152,6 +152,16 @@ export class SearchController {
          JOIN public.community c ON c.id = f."communityId"
         WHERE c.status = 'active' AND f."isActive" = true AND f.status::text = 'published'
           AND f.visibility::text = 'public'
+          AND NOT EXISTS (
+            SELECT 1 FROM public.commerce_profile hp
+             WHERE hp.id = f."commerceProfileId" AND hp."hiddenFromPublic" = true
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM public.profile_mute pm
+             WHERE pm."userId" = $2
+               AND (pm."mutedProfileId" = f."commerceProfileId"
+                    OR (f."commerceProfileId" IS NULL AND pm."mutedUserId" = f."businessId"))
+          )
           AND (f.title ILIKE $1 OR f.body ILIKE $1
                OR c.name ILIKE $1 OR c.purpose ILIKE $1
                OR c."topicKey" ILIKE $1)
