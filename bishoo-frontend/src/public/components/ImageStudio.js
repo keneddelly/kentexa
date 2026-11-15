@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Kentexa Image Studio.
@@ -48,7 +48,7 @@ export default function ImageStudio({ photo, onClose, onSave }) {
     return () => { active = false; };
   }, [photo.preview, photo.url]);
 
-  const dimensions = () => {
+  const dimensions = useCallback(() => {
     const image = imageRef.current;
     if (!image) return { width: 900, height: 675 };
     if (selected.ratio) {
@@ -60,9 +60,9 @@ export default function ImageStudio({ photo, onClose, onSave }) {
     const bounded = Math.min(16 / 9, Math.max(9 / 16, ratio));
     const width = bounded < 1 ? 675 : 900;
     return { width, height: Math.round(width / bounded) };
-  };
+  }, [selected.ratio, rotation]);
 
-  const draw = (target, exporting = false) => {
+  const draw = useCallback((target, exporting = false) => {
     const image = imageRef.current;
     if (!image || !target) return;
     const { width, height } = dimensions();
@@ -103,13 +103,13 @@ export default function ImageStudio({ photo, onClose, onSave }) {
     ctx.scale(scale, scale);
     ctx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
     ctx.restore();
-  };
+  }, [dimensions, background, rotation, mode, zoom, offset.x, offset.y]);
 
   useEffect(() => {
     if (!ready || !canvasRef.current) return;
     try { draw(canvasRef.current); }
     catch { setError('Picha hii haiwezi kuhaririwa kwenye kifaa hiki.'); }
-  }, [ready, format, mode, background, zoom, rotation, offset.x, offset.y]);
+  }, [ready, draw]);
 
   const pointerDown = (event) => {
     event.currentTarget.setPointerCapture?.(event.pointerId);
