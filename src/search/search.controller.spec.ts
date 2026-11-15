@@ -28,6 +28,22 @@ describe('SearchController community discovery', () => {
     expect(result.discussions[0]).toMatchObject({ id: 19, _type: 'community_post', communityId: 4 });
   });
 
+  it('keyword-searches public Moments while excluding hidden, muted and community-only posts', async () => {
+    const controller = Object.create(SearchController.prototype) as SearchController;
+    const query = jest.fn().mockResolvedValue([{ id: 27, title: 'Business update' }]);
+    (controller as any).dataSource = { query };
+
+    const result = await controller.searchMoments('business', { user: { id: 11 } });
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][1]).toEqual(['%business%', 11]);
+    expect(query.mock.calls[0][0]).toContain('f."communityId" IS NULL');
+    expect(query.mock.calls[0][0]).toContain("f.visibility::text = 'public'");
+    expect(query.mock.calls[0][0]).toContain('public.commerce_profile hp');
+    expect(query.mock.calls[0][0]).toContain('public.profile_mute pm');
+    expect(result[0]).toMatchObject({ id: 27, _type: 'moment', intentRef: { destination: 'Home' } });
+  });
+
   it('returns empty results without querying for short input', async () => {
     const { controller, query } = makeController();
     await expect(controller.searchCommunities('a', { user: null })).resolves.toEqual({ communities: [], discussions: [] });
