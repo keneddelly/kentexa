@@ -1,5 +1,5 @@
 // Older phones (owner approved 2026-11-15). Newer functions the site and its libraries use that
-// an old Chrome (61+) or Safari (12+) does not have. Only what is needed, to keep the site light.
+// an old Chrome (64+) or Safari (12+) does not have. Only what is needed, to keep the site light.
 import 'core-js/stable/global-this';
 import 'core-js/stable/array/at';
 import 'core-js/stable/array/flat';

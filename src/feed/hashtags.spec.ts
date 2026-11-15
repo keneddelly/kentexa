@@ -175,3 +175,28 @@ describe('FeedService keeps tags in step with posts', () => {
     expect(svc.hashtags.remove).toHaveBeenCalledWith('moment', 7);
   });
 });
+
+describe('HashtagService: old posts get their tags once, by themselves', () => {
+  it('reads every post when no tag was ever saved and some posts have #', async () => {
+    const ds: any = { query: jest.fn().mockResolvedValueOnce([{ hasTags: false, hasHashes: true }]).mockResolvedValue([]) };
+    const svc = new HashtagService(ds);
+    const spy = jest.spyOn(svc, 'backfill').mockResolvedValue({ posts: 3, tagged: 2 });
+    expect(await svc.backfillIfNeverRun()).toEqual({ posts: 3, tagged: 2 });
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing once tags exist, or when no post has #', async () => {
+    for (const state of [{ hasTags: true, hasHashes: true }, { hasTags: false, hasHashes: false }]) {
+      const ds: any = { query: jest.fn().mockResolvedValue([state]) };
+      const svc = new HashtagService(ds);
+      const spy = jest.spyOn(svc, 'backfill');
+      expect(await svc.backfillIfNeverRun()).toBeNull();
+      expect(spy).not.toHaveBeenCalled();
+    }
+  });
+
+  it('never throws when the tables are not there yet', async () => {
+    const svc = new HashtagService({ query: jest.fn().mockRejectedValue(new Error('no table')) } as any);
+    await expect(svc.backfillIfNeverRun()).resolves.toBeNull();
+  });
+});

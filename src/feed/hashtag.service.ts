@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { extractHashtags, hashtagKey } from './hashtags';
 import { NOT_FROM_HIDDEN_PROFILE } from '../commerce-profiles/public-visibility';
@@ -22,10 +22,37 @@ const COUNTED_POST = `f."isActive" = true AND (f.visibility IS NULL OR f.visibil
  * caught and logged.
  */
 @Injectable()
-export class HashtagService {
+export class HashtagService implements OnApplicationBootstrap {
   private readonly logger = new Logger(HashtagService.name);
 
   constructor(private readonly dataSource: DataSource) {}
+
+  /**
+   * Old posts get their tags once, by themselves (owner 2026-11-15: no manual admin step):
+   * a minute after the server starts, if no tag has ever been saved, every existing post is
+   * read. Runs in the background; publishing goes on meanwhile. The admin backfill stays for
+   * running it again.
+   */
+  onApplicationBootstrap(): void {
+    if (process.env.NODE_ENV === 'test' || process.env.HASHTAG_AUTO_BACKFILL === 'off') return;
+    const timer = setTimeout(() => { this.backfillIfNeverRun().catch(() => {}); }, 60_000);
+    if (typeof (timer as any).unref === 'function') (timer as any).unref();
+  }
+
+  async backfillIfNeverRun(): Promise<{ posts: number; tagged: number } | null> {
+    try {
+      const [state] = await this.dataSource.query(
+        `SELECT EXISTS (SELECT 1 FROM public.hashtag) AS "hasTags",
+                EXISTS (SELECT 1 FROM public.business_feed_item WHERE "isActive" = true AND (title LIKE '%#%' OR body LIKE '%#%')) AS "hasHashes"`);
+      if (!state || state.hasTags || !state.hasHashes) return null;
+      const result = await this.backfill();
+      this.logger.log(`Hashtag backfill: ${result.tagged} of ${result.posts} posts have tags`);
+      return result;
+    } catch (err) {
+      this.logger.warn(`Hashtag backfill skipped: ${err}`);
+      return null;
+    }
+  }
 
   /** Make the saved tags of one piece of content match its text: add new ones, drop removed ones. */
   async sync(contentType: HashtagContentType, contentId: number, text: string | null | undefined): Promise<number> {
