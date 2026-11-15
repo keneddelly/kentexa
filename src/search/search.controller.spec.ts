@@ -19,7 +19,7 @@ describe('SearchController community discovery', () => {
     const result = await controller.searchCommunities('business', { user: { id: 8 } });
 
     expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[0][1]).toEqual(['%business%', 8]);
+    expect(query.mock.calls[0][1]).toEqual([['%business%'], 8]);
     expect(query.mock.calls[0][0]).toContain("c.status = 'active'");
     expect(query.mock.calls[0][0]).toContain("c.\"joinPolicy\" = 'open' OR EXISTS");
     expect(query.mock.calls[1][0]).toContain("f.status::text = 'published'");
@@ -36,7 +36,7 @@ describe('SearchController community discovery', () => {
     const result = await controller.searchMoments('business', { user: { id: 11 } });
 
     expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0][1]).toEqual(['%business%', 11]);
+    expect(query.mock.calls[0][1]).toEqual([['%business%'], 11]);
     expect(query.mock.calls[0][0]).toContain('f."communityId" IS NULL');
     expect(query.mock.calls[0][0]).toContain("f.visibility::text = 'public'");
     expect(query.mock.calls[0][0]).toContain('public.commerce_profile hp');
