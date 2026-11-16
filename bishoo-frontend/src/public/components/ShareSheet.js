@@ -18,7 +18,7 @@ const INK = '#0f1419';
 const MUTED = '#536471';
 const LINE = '#eff3f4';
 const BORDER = '#cfd9de';
-const CHANNELS = ['whatsapp', 'status', 'facebook', 'telegram', 'x', 'copy', 'native', 'image'];
+const CHANNELS = ['whatsapp', 'status', 'instagram', 'facebook', 'telegram', 'x', 'copy', 'native', 'image'];
 const KIND_LABEL = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu' };
 
 const cut = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t; };
@@ -99,10 +99,11 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
         if (!alive) return;
         const l = r?.data?.links || {};
         setLinks(l);
-        [['status', 'status', 'status'], ['image', 'link', 'image']].forEach(([key, fmt, ch]) => {
+        // The tall card goes to WhatsApp Status and to Instagram Stories, each with its own link (counted apart).
+        [['status', 'status', 'status'], ['instagram', 'status', 'instagram'], ['image', 'link', 'image']].forEach(([key, fmt, ch]) => {
           fetch(cardUrl(contentType, contentId, fmt, l[ch]))
             .then((res) => (res.ok ? res.blob() : null))
-            .then((b) => { if (b && alive) blobs.current[key] = new File([b], `kentexa-${contentType}-${contentId}${key === 'status' ? '-status' : ''}.png`, { type: 'image/png' }); })
+            .then((b) => { if (b && alive) blobs.current[key] = new File([b], `kentexa-${contentType}-${contentId}${key === 'image' ? '' : `-${key}`}.png`, { type: 'image/png' }); })
             .catch(() => {});
         });
       })
@@ -131,6 +132,17 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
   const picture = async (key) => {
     const file = blobs.current[key];
     const text = `${message} ${linkFor(key)}`.trim();
+    // Instagram Story: a link is only tappable through Instagram's Link sticker, so the link is
+    // copied at the same tap and the person is told where to paste it.
+    if (key === 'instagram') {
+      // Not awaited: some phones only open the share sheet when nothing waits before it.
+      try { Promise.resolve(navigator.clipboard?.writeText(linkFor('instagram'))).catch(() => {}); } catch { /* clipboard off */ }
+      setNote(`Link imenakiliwa: ${linkFor('instagram').replace(/^https?:\/\//, '')}. Kwenye Story, ongeza sticker ya Link na ubandike.`);
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file] }); done(key); } catch { /* closed */ }
+        return;
+      }
+    }
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], text }); done(key); if (key === 'status') setStatusLink(true); return; } catch { return; }
     }
@@ -140,7 +152,9 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
       a.href = URL.createObjectURL(file);
       a.download = file.name;
       document.body.appendChild(a); a.click(); a.remove();
-      setNote(key === 'status' ? 'Picha imehifadhiwa. Iweke kwenye Status yako ya WhatsApp.' : 'Picha imehifadhiwa.');
+      setNote(key === 'status' ? 'Picha imehifadhiwa. Iweke kwenye Status yako ya WhatsApp.'
+        : key === 'instagram' ? `Picha imehifadhiwa na link imenakiliwa. Weka picha kwenye Story ya Instagram, kisha ongeza sticker ya Link na ubandike.`
+          : 'Picha imehifadhiwa.');
       done(key);
       if (key === 'status') setStatusLink(true);
       return;
@@ -219,6 +233,7 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
           {shareable && btn('whatsapp', 'WhatsApp', <Circle bg="#25d366">{ico('M21 12a8 8 0 01-11.6 7.2L4 20l1-4.6A8 8 0 1121 12z')}</Circle>, () => go('whatsapp'))}
           {shareable && btn('status', 'Status', <Circle bg="#fff" border="3px solid #25d366">{ico('M12 7a5 5 0 100 10 5 5 0 000-10z', '#25d366')}</Circle>, () => picture('status'))}
+          {shareable && btn('instagram', 'Instagram', <Circle bg="linear-gradient(45deg, #f58529, #dd2a7b 50%, #8134af)">{ico('M7 3h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7a4 4 0 014-4zM12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zM17.5 6.5h.01')}</Circle>, () => picture('instagram'))}
           {shareable && btn('facebook', 'Facebook', <Circle bg="#1877f2">f</Circle>, () => go('facebook'))}
           {shareable && btn('telegram', 'Telegram', <Circle bg="#229ed9">{ico('M22 2L11 13M22 2l-7 20-4-9-9-4z')}</Circle>, () => go('telegram'))}
           {shareable && btn('x', 'X', <Circle bg={INK}>X</Circle>, () => go('x'))}
@@ -237,7 +252,12 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
           </div>
         )}
         {note && <div role="status" data-testid="share-note" style={{ fontSize: 13, color: '#1d6b39', overflowWrap: 'anywhere' }}>{note}</div>}
-        {shareable && <div style={{ fontSize: 12, color: MUTED, lineHeight: '17px' }}>"Zaidi" hufungua njia za simu yako (Messenger, Instagram...). "Status" na "Picha" hutuma kadi ya picha.</div>}
+        {shareable && (
+          <div data-testid="share-hints" style={{ fontSize: 12, color: MUTED, lineHeight: '17px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span>"Status" na "Instagram" hutuma kadi ndefu ya picha; "Picha" hutuma kadi ya kiungo. "Zaidi" hufungua njia nyingine za simu yako.</span>
+            <span data-testid="share-facebook-hint">Facebook: unaweza kuchagua Page au Group juu ya dirisha la Facebook kabla ya kuchapisha.</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
 
-const CHANNEL = { whatsapp: 'WhatsApp', status: 'Status', facebook: 'Facebook', telegram: 'Telegram', x: 'X', copy: 'Kiungo', native: 'Simu', image: 'Picha', link: 'Kiungo' };
+const CHANNEL = { whatsapp: 'WhatsApp', status: 'Status', instagram: 'Instagram', facebook: 'Facebook', telegram: 'Telegram', x: 'X', copy: 'Kiungo', native: 'Simu', image: 'Picha', link: 'Kiungo' };
 
 export default function ShareResult({ contentType, contentId, isLoggedIn }) {
   const [stats, setStats] = useState(null);
