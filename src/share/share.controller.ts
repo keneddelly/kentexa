@@ -140,7 +140,7 @@ export class ShareController {
     })[ch] as string);
     const rows: Array<{ loc: string; lastmod?: string }> = [];
     const add = (items: any[], path: (row: any) => string) => {
-      for (const row of items) rows.push({ loc: base + path(row), lastmod: row.updatedAt || row.createdAt });
+      for (const row of items || []) rows.push({ loc: base + path(row), lastmod: row.updatedAt || row.createdAt });
     };
     try {
       const [profiles, products, classifieds, services, posts, communities] = await Promise.all([
