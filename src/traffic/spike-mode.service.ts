@@ -19,7 +19,7 @@ export class SpikeModeService {
     return String(process.env.SPIKE_MODE || '').toLowerCase() === 'on';
   }
 
-  set(on: boolean, by: number | null): { on: boolean; source: string; at: string } {
+  set(on: boolean, by: number | null): { on: boolean; source: string; at: string | null } {
     this.manual = { on, by, at: new Date().toISOString() };
     return this.status();
   }
