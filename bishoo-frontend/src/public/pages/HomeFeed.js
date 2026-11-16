@@ -588,7 +588,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           </button>
         </div>
       )}
-      {detail && !locked && <div data-testid="detail-comment-bottom-space" aria-hidden="true" style={{ height:'calc(128px + env(safe-area-inset-bottom, 0px))', flexShrink:0 }} />}
+      {/* The room under the last comment for the fixed reply bar is at the end of PostDetail, after Mijadala zaidi. */}
       {detail && !locked && replyBar}
 
       {/* ── Reply picker — choose which of your items you're offering ── */}

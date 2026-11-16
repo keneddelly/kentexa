@@ -46,6 +46,8 @@ describe('KenteXa text style (#374 part E)', () => {
     expect(formatText('nimenunua. iPhone ni nzuri')).toBe('Nimenunua. iPhone ni nzuri');
     expect(formatText('100,000/= tu')).toBe('100,000/= tu');
     expect(formatText('subiri... kidogo')).toBe('Subiri... kidogo');
+    expect(formatText('🌌 siri ya uwepo wa mwanadamu')).toBe('🌌 Siri ya uwepo wa mwanadamu');
+    expect(formatTitle('🌌 siri ya uwepo')).toBe('🌌 Siri ya uwepo');
   });
 
   test('spaces are tidied; emoji and line breaks kept; at most one empty line', () => {

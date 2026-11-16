@@ -6,17 +6,12 @@
  */
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
-import { formatCaption, formatName } from '../utils/kentexaText';
+import { formatName } from '../utils/kentexaText';
+import { ThreadCard } from './DiscussionCard';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
 const LINE = '#eff3f4';
-const KIND = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu' };
-
-const titleOf = (p) => {
-  const { lead, text } = formatCaption(p.title === 'Moment' ? '' : p.title, p.body);
-  return lead || String(text || '').split('\n')[0] || 'Chapisho';
-};
 
 export default function RelatedDiscussions({ postId, onNavigate }) {
   const [data, setData] = useState(null);
@@ -35,24 +30,16 @@ export default function RelatedDiscussions({ postId, onNavigate }) {
   if (!discussions.length && !communities.length) return null;
   const h = { margin: 0, padding: '14px 16px 6px', fontSize: 17, fontWeight: 800, color: INK };
   return (
-    <div data-testid="related" style={{ borderTop: `8px solid ${LINE}`, paddingBottom: 96 }}>
+    <div data-testid="related" style={{ borderTop: `8px solid ${LINE}` }}>
       {discussions.length > 0 && (
         <section aria-label="Mijadala zaidi">
-          <h2 style={h}>Mijadala zaidi</h2>
-          {discussions.map((p) => (
-            <button key={p.id} type="button" data-testid={`related-post-${p.id}`} onClick={() => onNavigate(`PostDetail-${p.id}`)}
-              style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 16px', border: 'none', borderBottom: `1px solid ${LINE}`,
-                background: '#fff', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
-              <span style={{ display: 'flex', gap: 6, alignItems: 'flex-start', minWidth: 0 }}>
-                {KIND[p.intent] && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#1a6fb0', background: '#e8f5fd', borderRadius: 4, padding: '1px 6px', marginTop: 2 }}>{KIND[p.intent]}</span>}
-                <span style={{ fontSize: 15, fontWeight: 700, color: INK, lineHeight: '20px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{titleOf(p)}</span>
-              </span>
-              <span style={{ fontSize: 13, color: MUTED }}>
-                {formatName(p.business?.storeName || p.business?.name) || 'Mwanachama'}
-                {p.community?.name ? ` · ${formatName(p.community.name)}` : ''} · majibu <b style={{ color: INK }}>{p.replyCount || 0}</b>
-              </span>
-            </button>
-          ))}
+          <h2 style={{ ...h, background: '#eef1f4', paddingBottom: 10 }}>Mijadala zaidi</h2>
+          {/* D2: the same discussion cards as the community page. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '6px 12px 12px', background: '#eef1f4' }}>
+            {discussions.map((p) => (
+              <ThreadCard key={p.id} post={p} showCommunity testId={`related-post-${p.id}`} onOpen={() => onNavigate(`PostDetail-${p.id}`)} />
+            ))}
+          </div>
         </section>
       )}
       {communities.length > 0 && (
