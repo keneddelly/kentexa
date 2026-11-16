@@ -2,6 +2,7 @@
  * FeedController — unified feed with CVS + comments + filters
  * Place at: src/feed/feed.controller.ts
  */
+import { GuestCache } from '../traffic/guest-cache';
 import {
   Controller,
   Get,
@@ -55,6 +56,7 @@ export class FeedController {
 
   // ── Discovery (no auth required, but personalized when logged in) ────────
   @UseGuards(OptionalJwtAuthGuard)
+  @GuestCache(30) // traffic (issue #368): signed-out visitors share a short-lived answer
   @Get('discover')
   getDiscover(@Request() req) {
     const userId = req?.user?.id || null;
@@ -63,6 +65,7 @@ export class FeedController {
 
   // ── Filtered feed (works with or without auth, personalized when logged in) ─
   @UseGuards(OptionalJwtAuthGuard)
+  @GuestCache(30) // traffic (issue #368): signed-out visitors share a short-lived answer
   @Get()
   async getFiltered(
     @Query('filter') filter = 'for_you',
@@ -88,6 +91,7 @@ export class FeedController {
 
   // ── Trending feed ─────────────────────────────────────────────────────────
   @UseGuards(OptionalJwtAuthGuard)
+  @GuestCache(60) // traffic (issue #368): signed-out visitors share a short-lived answer
   @Get('trending')
   getTrending(@Request() req) {
     const userId = req?.user?.id || null;
@@ -96,6 +100,7 @@ export class FeedController {
 
   // ── Story ring — sellers with a fresh Moment in the last 48h ──────────────
   @UseGuards(OptionalJwtAuthGuard)
+  @GuestCache(30) // traffic (issue #368): signed-out visitors share a short-lived answer
   @Get('moments/stories')
   getMomentStories(@Request() req) {
     const userId = req?.user?.id || null;
@@ -286,6 +291,7 @@ export class FeedController {
 
   // ── Social Home: topics ("Mada") ─────────────────────────────────────────
   @UseGuards(OptionalJwtAuthGuard)
+  @GuestCache(300) // traffic (issue #368): signed-out visitors share a short-lived answer
   @Get('topics')
   listTopics(@Request() req?) {
     if (!this.topics) return [];

@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { spikeMode } from '../traffic/spike-mode.service';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AiRouter, AiTask } from './ai.router';
 import { AiSafetyService } from './ai-safety.service';
@@ -56,6 +57,12 @@ export class AiService {
     opts: AiGenerateOptions,
   ): Promise<AiGenerateResponse<T>> {
     this.safety.assertInputLength(opts.prompt);
+
+    // Traffic spike (issue #368): only safety checks keep using AI; everything else waits.
+    // Callers already treat AI as optional and fall back when it is unavailable.
+    if (spikeMode.isOn() && opts.task !== 'moderation') {
+      throw new ServiceUnavailableException('AI imesimamishwa kwa muda (msongamano).');
+    }
 
     if (opts.cacheKey) {
       const cached = this.cache.get<AiGenerateResponse<T>>(opts.cacheKey);

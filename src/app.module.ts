@@ -1,4 +1,5 @@
 import { SlowQueryLogger } from './metrics/slow-query.logger';
+import { TrafficModule } from './traffic/traffic.module';
 import { SLOW_QUERY_MS } from './metrics/request-metrics';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -88,6 +89,8 @@ export const allowDevelopmentSchemaSync =
     // and, at start-up, by SchedulingCheckModule.
     ScheduleModule.forRoot(),
     SchedulingCheckModule,
+    // Traffic step 2 (issue #368): the emergency switch.
+    TrafficModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',

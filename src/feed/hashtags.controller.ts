@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Get, NotFoundException, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { GuestCache } from '../traffic/guest-cache';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -22,6 +23,7 @@ export class HashtagsController {
 
   /** Composer: tags that start with what was typed after #, with how many posts use each. */
   @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @GuestCache(60)
   @Get('suggest')
   suggest(@Query('q') q?: string) {
     return this.hashtags.suggest(String(q || ''));
@@ -45,6 +47,7 @@ export class HashtagsController {
   }
 
   /** The tag page's header. A tag nobody has used yet answers with 0 posts, not an error. */
+  @GuestCache(60)
   @Get(':key')
   async info(@Param('key') raw: string) {
     const key = hashtagKey(raw);
@@ -54,6 +57,7 @@ export class HashtagsController {
 
   /** The tag page's posts: sort=top (Juu) or latest (Mpya). */
   @UseGuards(OptionalJwtAuthGuard)
+  @GuestCache(30)
   @Get(':key/posts')
   async posts(@Param('key') raw: string, @Request() req, @Query('sort') sort?: string, @Query('page') page?: string) {
     const key = hashtagKey(raw);

@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Controller, Get, Optional, Req } from '@nestjs/common';
 import { describeRequestSource } from './common/trust-proxy';
 import { metricsSnapshot } from './metrics/request-metrics';
+import { spikeMode } from './traffic/spike-mode.service';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -74,7 +75,7 @@ export class VersionController {
         pool = { total: p.totalCount, idle: p.idleCount, waiting: p.waitingCount, max: p.options?.max ?? null };
       }
     } catch { pool = null; }
-    return { commit: process.env.RENDER_GIT_COMMIT || null, ...metricsSnapshot(pool) };
+    return { commit: process.env.RENDER_GIT_COMMIT || null, spikeMode: spikeMode.isOn(), ...metricsSnapshot(pool) };
   }
 
   @Get('migrations')
