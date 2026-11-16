@@ -93,5 +93,48 @@ test('the post page is a full page, not a feed row: big author block, full text,
   expect(screen.getByTestId('detail-text')).toHaveTextContent('Mzigo mpya umefika leo.');
   expect(screen.queryByTestId('read-more')).toBeNull();
   expect(screen.getByTestId('detail-time')).toHaveTextContent(/\d{2}:\d{2} · 2 Nov 2026/);
-  expect(screen.getAllByText('Maoni').length).toBeGreaterThan(0);
+  // #374 C: a "Jibu" box under the post and a reply bar fixed above the bottom bar.
+  expect(screen.getByTestId('reply-under-post')).toBeInTheDocument();
+  expect(screen.getByTestId('reply-bar')).toHaveAttribute('data-fixed-bar');
+});
+
+const thread = [
+  { id: 11, body: 'biashara ya mayai.', authorId: 5, helpfulCount: 3, likedByMe: false, createdAt: new Date().toISOString(),
+    author: { id: 5, name: 'asha m.' },
+    replies: [
+      { id: 12, body: 'Asante', authorId: 3, helpfulCount: 0, createdAt: new Date().toISOString(), author: { id: 3, name: 'Kened' } },
+      { id: 13, body: 'Mimi pia', authorId: 6, helpfulCount: 0, createdAt: new Date().toISOString(), author: { id: 6, name: 'Juma' } },
+      { id: 14, body: 'Sawa', authorId: 7, helpfulCount: 0, createdAt: new Date().toISOString(), author: { id: 7, name: 'Neema' } },
+    ] },
+];
+const answerThread = () => api.get.mockImplementation(async (url) => ({ data: url === '/feed/7' ? { ...post, businessId: 3 } : thread }));
+
+test('#374 C: comments are a conversation: names tidy, visible Jibu and Penda buttons, replies under their comment', async () => {
+  answerThread();
+  await open();
+  const top = screen.getByTestId('comment');
+  expect(top).toHaveTextContent('Asha m.');
+  expect(top).toHaveTextContent('Biashara ya mayai.');
+  expect(screen.getAllByTestId('comment-reply')).toHaveLength(1);
+  expect(screen.getAllByTestId('comment-reply')[0]).toHaveTextContent('Kened · mwandishi');
+  fireEvent.click(screen.getByTestId('comment-more-replies'));
+  expect(screen.getAllByTestId('comment-reply')).toHaveLength(3);
+  expect(screen.getAllByTestId('comment-like')[0]).toHaveAccessibleName('Penda, 3');
+});
+
+test('#374 C: a reply to a reply goes under the same comment, and Penda toggles', async () => {
+  answerThread();
+  await open();
+  fireEvent.click(screen.getAllByTestId('comment-reply-btn')[1]); // reply to Kened's reply
+  expect(screen.getByTestId('reply-input')).toHaveAttribute('placeholder', 'Jibu kwa Kened…');
+  fireEvent.change(screen.getByTestId('reply-input'), { target: { value: 'karibu' } });
+  api.post.mockResolvedValueOnce({ data: { id: 20, body: 'karibu', author: { id: 1, name: 'Me' } } });
+  await act(async () => { fireEvent.click(screen.getByTestId('reply-send')); });
+  expect(api.post).toHaveBeenCalledWith('/feed/7/comments', { body: 'karibu', parentId: 11 });
+
+  api.post.mockResolvedValueOnce({ data: { helpful: true, helpfulCount: 4 } });
+  await act(async () => { fireEvent.click(screen.getAllByTestId('comment-like')[0]); });
+  expect(api.post).toHaveBeenCalledWith('/comments/11/helpful');
+  expect(screen.getAllByTestId('comment-like')[0]).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getAllByTestId('comment-like')[0]).toHaveAccessibleName('Penda, 4');
 });

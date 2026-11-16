@@ -14,7 +14,6 @@ import { personalOperationalText } from '../utils/publicActor';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { itemsForRole } from '../../navigation/navigationRegistry';
-import { isAppleMobile } from '../utils/isAppleMobile';
 
 /**
  * Space a page must leave at its bottom so nothing sits under the bottom menu: the
@@ -98,6 +97,36 @@ const useWideScreen = () => {
     return () => { if (mq.removeEventListener) mq.removeEventListener('change', onChange); else if (mq.removeListener) mq.removeListener(onChange); };
   }, []);
   return wide;
+};
+
+/**
+ * Who you are acting as, in a page's top bar (#374 part C, owner approved 2026-11-16). Tapping it
+ * opens the profile switcher. Shown only when there is more than one profile to switch between.
+ */
+export const IdentityPill = ({ activeProfile, activeContext, activeBusinessName, myProfiles, onOpenSwitcher, isLoggedIn = true }) => {
+  const { t } = useTranslation();
+  if (!isLoggedIn || !activeProfile || !onOpenSwitcher || (myProfiles?.length || 0) < 2) return null;
+  const label = activeBusinessName
+    ? `${activeBusinessName} · ${t(CAPABILITY_LABEL_BY_ROLE[activeContext?.roleType] || 'profile_switcher.type_business')}`
+    : personalOperationalText(activeProfile, t);
+  return (
+    <button type="button" onClick={onOpenSwitcher} data-testid="identity-pill" aria-label={`Unatumia: ${label}. Badilisha`}
+      style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: 170, height: 32, padding: '0 10px 0 6px',
+        border: '1px solid #cfd9de', borderRadius: 999, background: '#fff', color: INK, cursor: 'pointer', fontFamily: 'inherit' }}>
+      <span style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, background: '#eff3f4', overflow: 'hidden',
+        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {activeProfile.photoUrl
+          ? <img src={activeProfile.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d={PROFILE_TYPE_ICON[activeProfile.type] || PROFILE_TYPE_ICON.personal} />
+            </svg>
+          )}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{label}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={INK} strokeWidth="2.5" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="M6 9l6 6 6-6" /></svg>
+    </button>
+  );
 };
 
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
@@ -231,41 +260,8 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
 
   return (
     <>
-      {showPill && (
-        <button onClick={onOpenSwitcher}
-          style={{
-            position: 'fixed', bottom: isAppleMobile() ? 'calc(66px + env(safe-area-inset-bottom, 0px))' : 66,
-            left: '50%', transform: 'translateX(-50%)',
-            zIndex: 999, display: 'flex', alignItems: 'center', gap: 6,
-            backgroundColor: INK, color: '#fff', border: 'none',
-            borderRadius: 100, padding: '6px 14px 6px 8px', cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.25)', maxWidth: '80vw',
-          }}>
-          <span style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-            backgroundColor: '#1E293B', overflow: 'hidden', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
-            {activeProfile.photoUrl
-              ? <img src={activeProfile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : (
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d={PROFILE_TYPE_ICON[activeProfile.type] || PROFILE_TYPE_ICON.personal} />
-                </svg>
-              )}
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden',
-            textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {/* Business-First Frontend Stage 1: "Bishoo Intelligence
-                Systems · Commerce" once the active AccountRole is
-                organizationally bound, instead of just "Seller" --
-                presentation only, activeBusinessName is resolved
-                server-side (roleOptions), never asserted here. */}
-            {activeBusinessName
-              ? `${activeBusinessName} · ${t(CAPABILITY_LABEL_BY_ROLE[activeContext?.roleType] || 'profile_switcher.type_business')}`
-              : personalOperationalText(activeProfile, t)}
-          </span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true" style={{ opacity: 0.8 }}><path d="M6 9l6 6 6-6" /></svg>
-        </button>
-      )}
+      {/* #374 C: the identity pill no longer floats over the page; on a phone it sits in the
+          top bar of Home and Kazi, next to your photo (IdentityPill below). */}
       <div style={{
         position:        'fixed',
         bottom:          0,

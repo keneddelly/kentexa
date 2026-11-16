@@ -487,10 +487,47 @@ export class CvsService {
             isDeleted: false,
           }
         : { postId, parentId: IsNull(), isDeleted: false },
-      relations: { author: true, replies: { author: true } },
+      relations: { author: true, replies: { author: true, replies: { author: true } } },
       order: { createdAt: 'ASC' },
     });
-    return this.attachOfferCards(comments);
+    // #374 C: one level of replies under each comment. A reply to a reply (older clients) is
+    // shown in its comment's thread instead of being lost, in time order.
+    comments.forEach((c) => {
+      const flat: PostComment[] = [];
+      (c.replies || []).forEach((r) => {
+        flat.push(r);
+        (r.replies || []).forEach((rr) => flat.push(rr));
+        delete (r as any).replies;
+      });
+      c.replies = flat.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+    });
+    const enriched = await this.attachOfferCards(comments);
+    return this.markLikedByViewer(enriched, viewerId);
+  }
+
+  /** #374 C: `likedByMe` on each comment and reply ("Penda" = the helpful vote). */
+  private async markLikedByViewer(comments: any[], viewerId?: number | null): Promise<any[]> {
+    const ids: number[] = [];
+    comments.forEach((c) => {
+      ids.push(c.id);
+      (c.replies || []).forEach((r: any) => ids.push(r.id));
+    });
+    let liked = new Set<number>();
+    if (viewerId && ids.length) {
+      try {
+        const rows: { commentId: number }[] = await this.commentRepo.query(
+          'SELECT "commentId" FROM post_comment_helpful_vote WHERE "userId" = $1 AND "commentId" = ANY($2)',
+          [viewerId, ids],
+        );
+        liked = new Set(rows.map((r) => Number(r.commentId)));
+      } catch {
+        liked = new Set();
+      }
+    }
+    const mark = (c: any) => ({ ...c, likedByMe: liked.has(c.id), helpfulCount: Number(c.helpfulCount || 0) });
+    return comments.map((c) => ({ ...mark(c), replies: (c.replies || []).map(mark) }));
   }
 
   // ── Delete comment ────────────────────────────────────────────────────────

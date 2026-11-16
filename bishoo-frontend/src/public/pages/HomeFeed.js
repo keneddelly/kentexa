@@ -14,6 +14,7 @@
 import ExpandableText from '../components/ExpandableText';
 import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, leadSeparator } from '../utils/kentexaText';
+import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
@@ -186,12 +187,15 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
 };
 
 // ── Comments section ──────────────────────────────────────────────────────────
-const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfileId }) => {
+const HOME_COMMENTS = 3; // comments shown under a post on Home; the rest on the post page
+const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfileId, detail = false }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
   const [comments, setComments] = useState([]);
   const [body,     setBody]     = useState('');
-  const [replyTo,  setReplyTo]  = useState(null);
+  const [replyTo,  setReplyTo]  = useState(null); // { id: the comment the reply goes under, name }
+  const [likes,    setLikes]    = useState({});
+  const [openThreads, setOpenThreads] = useState({});
   const [loading,  setLoading]  = useState(false);
   const [sending,  setSending]  = useState(false);
   const [showReply,    setShowReply]    = useState(false);
@@ -302,155 +306,215 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
     finally { setReplySending(false); }
   };
 
-  const Comment = ({ c, isReply = false }) => {
-    // Show whichever profile the commenter was actually acting as — not
-    // always their personal account. No profile -> the author's Personal identity
-    // only (name/avatar, never storeName/logo) -- see commenterIdentity().
+  // ── #374 C: comments that work like a conversation (owner approved 2026-11-16) ──
+  // Every action is a visible button. One level of replies under each comment, with a thin
+  // line; "Onyesha majibu N zaidi" opens the rest. On the post page the reply box is fixed at
+  // the bottom of the screen, above the bottom bar, and a "Jibu" box sits right under the post.
+  const ownerId = post.businessId ?? post.business?.id ?? null;
+  const replyName = (c) => formatName(commenterIdentity(c).name) || t('home_feed.user_fallback');
+  const startReply = (c, root) => {
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    setReplyTo({ id: root.id, name: replyName(c) });
+    setOpenThreads((s) => ({ ...s, [root.id]: true }));
+    inputRef.current?.focus();
+  };
+  const likeOf = (c) => likes[c.id] || { liked: !!c.likedByMe, count: Number(c.helpfulCount || 0) };
+  const toggleLike = async (c) => {
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    const cur = likeOf(c);
+    const next = { liked: !cur.liked, count: Math.max(0, cur.count + (cur.liked ? -1 : 1)) };
+    setLikes((m) => ({ ...m, [c.id]: next }));
+    try {
+      const r = await api.post(`/comments/${c.id}/helpful`);
+      setLikes((m) => ({ ...m, [c.id]: { liked: !!r.data?.helpful, count: Number(r.data?.helpfulCount ?? next.count) } }));
+    } catch {
+      setLikes((m) => ({ ...m, [c.id]: cur }));
+    }
+  };
+
+  const chip = (extra = {}) => ({ display:'flex', alignItems:'center', gap:5, minHeight:32, padding:'0 12px', borderRadius:999,
+    border:`1px solid ${LINE_BTN}`, background:WH, color:INK_TX, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', ...extra });
+  const chipIcon = (d, fill) => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={fill || 'none'} stroke={fill || INK_TX} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
+  );
+  const HEART = 'M12 21s-7.5-4.6-9.5-9.2C1 8 3.4 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.6 0 6 3.5 4.5 7.3C19.5 16.4 12 21 12 21z';
+  const BUBBLE = 'M21 12a8 8 0 01-11.6 7.2L4 20l1-4.6A8 8 0 1121 12z';
+
+  const renderOffer = (c) => c.offerCard && (
+    <button type="button" onClick={() => {
+        const entType = c.offerCard.entityType;
+        const id = c.offerCard.entityId;
+        if (entType === 'product') onNavigate(`ProductDetail-${id}`);
+        else if (entType === 'service') onNavigate(`ServiceDetail-${id}`);
+        else if (entType === 'route') {
+          const pid = c.offerCard.providerUserId;
+          if (pid) onNavigate(`CommerceProfile-${pid}-transport`);
+          else onNavigate('SendShipment');
+        }
+        else onNavigate(`ClassifiedDetail-${id}`);
+      }}
+      style={{ display:'flex', alignItems:'center', gap:10, marginTop:6, padding:8, borderRadius:12, border:`1px solid ${LINE_TX}`,
+        backgroundColor:'#f7f9f9', cursor:'pointer', width:'100%', maxWidth:300, textAlign:'left', fontFamily:'inherit' }}>
+      <div style={{ width:40, height:40, borderRadius:8, backgroundColor:LINE_TX, flexShrink:0, overflow:'hidden' }}>
+        {c.offerCard.image && <img src={c.offerCard.image} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />}
+      </div>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:14, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {formatName(c.offerCard.title)}
+        </div>
+        {c.offerCard.price != null && (
+          <div style={{ fontSize:13, color:INK_TX }}>{formatPrice(c.offerCard.price) || 'Bure'}</div>
+        )}
+      </div>
+      <span style={{ fontSize:13, fontWeight:700, color:INK_TX, flexShrink:0 }}>{t('home_feed.view_arrow')}</span>
+    </button>
+  );
+
+  const renderComment = (c, root, isReply, hasThread) => {
+    // Show whichever profile the commenter was actually acting as — not always their personal
+    // account (commenterIdentity: never storeName/logo for a Personal comment).
     const identity = commenterIdentity(c);
-    const commenterName = formatName(identity.name) || t('home_feed.user_fallback');
-    const commenterPhoto = identity.photo;
+    const name = formatName(identity.name) || t('home_feed.user_fallback');
+    const size = isReply ? 28 : 36;
+    const like = likeOf(c);
+    const isAuthor = ownerId != null && c.authorId != null && Number(c.authorId) === Number(ownerId);
     return (
-    <div style={{ display:'flex', gap:8,
-      padding: isReply ? '6px 0 4px 36px' : '10px 0',
-      borderBottom: isReply ? 'none' : '1px solid #F8FAFC' }}>
-      <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
-        backgroundColor:B, display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:12, color:WH, fontWeight:800, overflow:'hidden' }}>
-        {commenterPhoto
-          ? <img src={commenterPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-          : commenterName.charAt(0).toUpperCase()}
-      </div>
-      <div style={{ flex:1 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
-          <span style={{ fontSize:12, fontWeight:800, color:DK }}>
-            {commenterName}
-          </span>
-          <span style={{ fontSize:12, color:GR }}>{ago(c.createdAt)}</span>
+      <div key={c.id} data-testid={isReply ? 'comment-reply' : 'comment'} style={{ display:'flex', gap:10, padding: isReply ? '4px 0 0 46px' : '12px 0 0' }}>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', flexShrink:0 }}>
+          <div style={{ width:size, height:size, borderRadius:'50%', background:'#d6e4f0', overflow:'hidden', display:'flex',
+            alignItems:'center', justifyContent:'center', fontSize: isReply ? 12 : 14, fontWeight:700, color:INK_TX }}>
+            {identity.photo ? <img src={identity.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : name.charAt(0).toUpperCase()}
+          </div>
+          {hasThread && <div aria-hidden="true" style={{ flex:1, width:2, background:LINE_BTN, marginTop:4, minHeight:12 }} />}
         </div>
-        <div style={{ fontSize:13, color: c.isDeleted ? GR : DK,
-          lineHeight:1.4, fontStyle: c.isDeleted ? 'italic' : 'normal' }}>
-          <HashtagText text={c.body} onTag={onNavigate ? (key) => onNavigate(`Tag-${key}`) : null} />
+        <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:3, paddingBottom:8 }}>
+          <div style={{ fontSize:14, color:MUTED_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            <b style={{ color:INK_TX }}>{name}</b>{isAuthor ? ' · mwandishi' : ''} · {ago(c.createdAt)}
+          </div>
+          <div style={{ fontSize:15, lineHeight:'21px', color: c.isDeleted ? MUTED_TX : INK_TX, fontStyle: c.isDeleted ? 'italic' : 'normal',
+            whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>
+            {c.isDeleted ? 'Jibu hili limefutwa' : <HashtagText text={c.body} onTag={onNavigate ? (key) => onNavigate(`Tag-${key}`) : null} />}
+          </div>
+          {renderOffer(c)}
+          {!c.isDeleted && (
+            <div style={{ display:'flex', gap:8, paddingTop:6, flexWrap:'wrap' }}>
+              <button type="button" data-testid="comment-reply-btn" onClick={() => startReply(c, root)} style={chip()}>
+                {chipIcon(BUBBLE)}Jibu
+              </button>
+              <button type="button" data-testid="comment-like" aria-pressed={like.liked}
+                aria-label={like.count ? `Penda, ${like.count}` : 'Penda'} onClick={() => toggleLike(c)}
+                style={chip(like.liked ? { background:'#fdecef', borderColor:'#f4b4be', color:'#c4123c', fontWeight:700 } : {})}>
+                {chipIcon(HEART, like.liked ? '#c4123c' : null)}{like.count > 0 ? like.count : 'Penda'}
+              </button>
+            </div>
+          )}
         </div>
-        {c.offerCard && (
-          <button onClick={() => {
-              const entType = c.offerCard.entityType;
-              const id = c.offerCard.entityId;
-              if (entType === 'product') onNavigate(`ProductDetail-${id}`);
-              else if (entType === 'service') onNavigate(`ServiceDetail-${id}`);
-              else if (entType === 'route') {
-                const pid = c.offerCard.providerUserId;
-                if (pid) onNavigate(`CommerceProfile-${pid}-transport`);
-                else onNavigate('SendShipment');
-              }
-              else onNavigate(`ClassifiedDetail-${id}`);
-            }}
-            style={{ display:'flex', alignItems:'center', gap:10, marginTop:8,
-              padding:8, borderRadius:10, border:'1px solid #eff3f4',
-              backgroundColor:'#f7f9f9', cursor:'pointer', width:'100%',
-              maxWidth:280, textAlign:'left' }}>
-            <div style={{ width:36, height:36, borderRadius:8, backgroundColor:'#f7f9f9',
-              flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center',
-              justifyContent:'center', fontSize:16 }}>
-              {c.offerCard.image
-                ? <img src={c.offerCard.image} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                : ''}
-            </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, fontWeight:800, color:DK,
-                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                {c.offerCard.title}
-              </div>
-              {c.offerCard.price != null && (
-                <div style={{ fontSize:12, fontWeight:800, color:'#0f1419' }}>
-                  {formatPrice(c.offerCard.price) || 'TZS 0'}
-                </div>
-              )}
-            </div>
-            <span style={{ fontSize:12, fontWeight:800, color:'#0f1419', flexShrink:0 }}>
-              {t('home_feed.view_arrow')}
-            </span>
-          </button>
-        )}
-        {!c.isDeleted && !isReply && (
-          <button onClick={() => {
-            if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
-            setReplyTo(c); inputRef.current?.focus();
-          }}
-            style={{ background:'none', border:'none', cursor:'pointer',
-              color:GR, fontSize:12, fontWeight:700, padding:'4px 0 0' }}>
-            {t('home_feed.reply_button')}
-          </button>
-        )}
-        {c.replies?.map(r => <Comment key={r.id} c={r} isReply />)}
       </div>
-    </div>
     );
   };
 
-  return (
-    <div style={{ backgroundColor:'#F8FAFC', borderTop:'1px solid #F1F5F9' }}>
-      <div style={{ padding:'8px 14px', maxHeight:260, overflowY:'auto' }}>
-        {loading
-          ? <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('home_feed.loading_comments')}</div>
-          : comments.length === 0
-            ? <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>
-                {t('home_feed.be_first_to_ask')}
-              </div>
-            : comments.map(c => <Comment key={c.id} c={c} />)
-        }
+  const renderThread = (c) => {
+    const replies = c.replies || [];
+    const open = !!openThreads[c.id];
+    const shown = open ? replies : replies.slice(0, 1);
+    const hidden = replies.length - shown.length;
+    return (
+      <div key={c.id} style={{ borderBottom:`1px solid ${LINE_TX}` }}>
+        {renderComment(c, c, false, replies.length > 0)}
+        {shown.map((r) => renderComment(r, c, true, false))}
+        {hidden > 0 && (
+          <button type="button" data-testid="comment-more-replies" onClick={() => setOpenThreads((s) => ({ ...s, [c.id]: true }))}
+            style={{ margin:'4px 0 10px 46px', display:'flex', alignItems:'center', gap:6, minHeight:34, padding:'0 14px', borderRadius:999,
+              border:'none', background:'#e8f5fd', color:'#1a6fb0', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            {hidden === 1 ? 'Onyesha jibu 1 zaidi' : `Onyesha majibu ${hidden} zaidi`}
+          </button>
+        )}
+        {hidden === 0 && <div style={{ height:4 }} />}
       </div>
+    );
+  };
+
+  const visible = detail ? comments : comments.slice(0, HOME_COMMENTS);
+  const placeholder = isLoggedIn
+    ? (replyTo ? `Jibu kwa ${replyTo.name}…` : 'Andika jibu lako…')
+    : t('home_feed.sign_in_to_comment_placeholder');
+  const myInitial = (currentUser?.name || 'U').charAt(0).toUpperCase();
+
+  const replyBar = (
+    <div data-testid="reply-bar" {...(detail ? { 'data-fixed-bar': '' } : {})}
+      // Signed in, the bottom bar is there and the reply bar sits on it; a guest has no bottom bar.
+      className={detail && isLoggedIn ? 'kx-reply-bar' : undefined}
+      style={detail
+        ? { position:'fixed', left:0, right:0, zIndex:900, background:WH, borderTop:`1px solid ${LINE_TX}`,
+            ...(isLoggedIn ? {} : { bottom:0, paddingBottom:'env(safe-area-inset-bottom, 0px)' }) }
+        : { borderTop:`1px solid ${LINE_TX}` }}>
+      <div style={{ maxWidth: detail ? 600 : undefined, margin:'0 auto', padding:'8px 12px', display:'flex', flexDirection:'column', gap:6 }}>
+        {replyTo && (
+          <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:MUTED_TX }}>
+            <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>Unajibu <b style={{ color:INK_TX }}>{replyTo.name}</b></span>
+            <button type="button" onClick={() => setReplyTo(null)} aria-label="Acha kujibu"
+              style={chip({ minHeight:28, padding:'0 10px', marginLeft:'auto' })}>Acha</button>
+          </div>
+        )}
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <label htmlFor={`reply-${post.id}`} style={{ position:'absolute', left:-9999 }}>Andika jibu</label>
+          <input id={`reply-${post.id}`} ref={inputRef} value={body} data-testid="reply-input"
+            onChange={e => setBody(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            onClick={() => !isLoggedIn && onNavigate('PublicLogin')}
+            placeholder={placeholder}
+            style={{ flex:1, minWidth:0, height:40, borderRadius:20, border:`1px solid ${LINE_BTN}`, background:'#f7f9f9',
+              padding:'0 14px', fontSize:16, color:INK_TX, fontFamily:'inherit', outline:'none' }} />
+          <button type="button" onClick={handleSend} disabled={sending || !body.trim()} aria-label="Tuma jibu" data-testid="reply-send"
+            style={{ width:40, height:40, borderRadius:'50%', border:'none', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center',
+              background: body.trim() ? '#1d9bf0' : '#8ecdf8', cursor: body.trim() ? 'pointer' : 'default' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={WH} strokeWidth="2.2" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div data-testid="comment-section" style={{ background:WH }}>
+      {/* The bottom bar is 60px on a phone; on a computer there is none (side menu). */}
+      {detail && <style>{`.kx-reply-bar{bottom:calc(60px + env(safe-area-inset-bottom, 0px))}@media ${DESKTOP_QUERY}{.kx-reply-bar{bottom:0}}`}</style>}
+      {detail && (
+        <button type="button" data-testid="reply-under-post" onClick={() => { if (!isLoggedIn) { onNavigate('PublicLogin'); return; } setReplyTo(null); inputRef.current?.focus(); }}
+          style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'10px 0', border:'none', borderBottom:`1px solid ${LINE_TX}`,
+            background:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
+          <span style={{ width:32, height:32, borderRadius:'50%', background:'#d6e4f0', display:'flex', alignItems:'center', justifyContent:'center',
+            fontWeight:700, fontSize:13, color:INK_TX, flexShrink:0 }}>{myInitial}</span>
+          <span style={{ flex:1, fontSize:15, color:MUTED_TX }}>{isLoggedIn ? 'Andika jibu lako…' : t('home_feed.sign_in_to_comment_placeholder')}</span>
+          <span style={{ background:'#1d9bf0', color:WH, borderRadius:999, padding:'6px 14px', fontWeight:700, fontSize:14 }}>Jibu</span>
+        </button>
+      )}
+      {!detail && replyBar}
+      <div>
+        {loading
+          ? <div style={{ fontSize:14, color:MUTED_TX, padding:'12px 0' }}>{t('home_feed.loading_comments')}</div>
+          : comments.length === 0
+            ? <div data-testid="comments-empty" style={{ fontSize:14, color:MUTED_TX, padding:'12px 0' }}>{t('home_feed.be_first_to_ask')}</div>
+            : visible.map(renderThread)}
+      </div>
+      {!detail && comments.length > visible.length && (
+        <button type="button" data-testid="comments-all" onClick={() => onNavigate(`PostDetail-${post.id}-comments`)}
+          style={{ margin:'10px 0', display:'flex', alignItems:'center', gap:6, minHeight:36, padding:'0 16px', borderRadius:999,
+            border:'none', background:'#e8f5fd', color:'#1a6fb0', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+          {`Ona maoni yote ${comments.length}`}
+        </button>
+      )}
       {isLookingFor && (
-        <div style={{ padding:'0 14px 10px' }}>
-          <button onClick={openReply}
-            style={{ width:'100%', backgroundColor:'#f7f9f9', color:'#0f1419',
-              border:'1px solid #eff3f4', borderRadius:10, padding:'10px 0',
-              cursor:'pointer', fontSize:13, fontWeight:800 }}>
+        <div style={{ padding:'10px 0' }}>
+          <button type="button" onClick={openReply}
+            style={{ width:'100%', backgroundColor:'#f7f9f9', color:INK_TX, border:`1px solid ${LINE_BTN}`, borderRadius:999, minHeight:44,
+              cursor:'pointer', fontSize:15, fontWeight:700, fontFamily:'inherit' }}>
             {t('home_feed.have_this_reply_button')}
           </button>
         </div>
       )}
-      <div style={{ display:'flex', gap:8, padding:'10px 14px',
-        borderTop:'1px solid #F1F5F9', backgroundColor:WH }}>
-        <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
-          backgroundColor:B, display:'flex', alignItems:'center',
-          justifyContent:'center', fontSize:12, color:WH, fontWeight:800 }}>
-          {(currentUser?.name || 'U').charAt(0).toUpperCase()}
-        </div>
-        <div style={{ flex:1, backgroundColor:'#F1F5F9', borderRadius:20,
-          display:'flex', alignItems:'center', padding:'0 12px', gap:6 }}>
-          {replyTo && (
-            <span style={{ fontSize:12, color:B, fontWeight:700 }}>
-              @{replyTo.author?.name?.split(' ')[0]}
-            </span>
-          )}
-          <input ref={inputRef} value={body}
-            onChange={e => setBody(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            onClick={() => !isLoggedIn && onNavigate('PublicLogin')}
-            placeholder={isLoggedIn
-              ? (replyTo ? t('home_feed.reply_to_placeholder', { name: replyTo.author?.name?.split(' ')[0] }) : t('home_feed.ask_question_placeholder'))
-              : t('home_feed.sign_in_to_comment_placeholder')}
-            style={{ flex:1, border:'none', background:'none', outline:'none',
-              fontSize:13, padding:'8px 0', color:DK, fontFamily:'inherit' }}
-          />
-          {replyTo && (
-            <button onClick={() => setReplyTo(null)}
-              style={{ background:'none', border:'none', cursor:'pointer',
-                color:GR, fontSize:16, padding:0 }}>×</button>
-          )}
-        </div>
-        <button onClick={handleSend} disabled={sending || !body.trim()}
-          style={{ width:32, height:32, borderRadius:'50%',
-            backgroundColor: body.trim() ? B : '#E2E8F0',
-            border:'none', cursor: body.trim() ? 'pointer' : 'default',
-            display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke={body.trim() ? WH : GR} strokeWidth="2.5">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22,2 15,22 11,13 2,9"/>
-          </svg>
-        </button>
-      </div>
+      {detail && <div aria-hidden="true" style={{ height:72 }} />}
+      {detail && replyBar}
 
       {/* ── Reply picker — choose which of your items you're offering ── */}
       {showReply && (
@@ -753,8 +817,14 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const caption = commerceBox ? { lead: '', text: postText } : formatCaption(headline, postText);
   const priceText = formatPrice(price);
   const icon = (d, filled) => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || MUTED_TX} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || (detail ? INK_TX : MUTED_TX)} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
   );
+  // #374 C: on the post page every action is a visible button (icon, count, 44px to tap).
+  const act = (on = false, onColor = INK_TX, onBg = '#f7f9f9') => (detail
+    ? { display:'flex', alignItems:'center', justifyContent:'center', gap:6, minHeight:44, minWidth:44, padding:'0 12px', borderRadius:999,
+        border:'none', background: on ? onBg : '#f7f9f9', color: on ? onColor : INK_TX, fontSize:14, fontWeight: on ? 700 : 600,
+        cursor:'pointer', fontFamily:'inherit' }
+    : { ...actionTx, color: on ? onColor : MUTED_TX });
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
 
@@ -902,48 +972,45 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         )}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingRight: detail ? 4 : 24, color:MUTED_TX, fontSize:13,
           ...(detail ? { borderTop:`1px solid ${LINE_TX}`, borderBottom:`1px solid ${LINE_TX}`, padding:'8px 4px' } : {}) }}>
-          <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={actionTx}>
+          <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={act()}>
             {icon('M4 5h16v11H8l-4 4z')}{counts.comments > 0 && counts.comments}
           </button>
           {canRepost && (
             <button type="button" onClick={handleRepost} aria-label="Sambaza" aria-pressed={reposted} data-testid="post-repost"
-              style={{ ...actionTx, color: reposted ? '#00a676' : MUTED_TX }}>
+              style={act(reposted, '#00a676', '#e6f7f1')}>
               {icon('M17 2l4 4-4 4M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 01-3 3H3')}
               {counts.reposts > 0 && counts.reposts}
             </button>
           )}
-          <button type="button" onClick={handleLike} aria-label="Penda" aria-pressed={liked} data-testid="post-like" style={{ ...actionTx, color: liked ? '#dc2626' : MUTED_TX }}>
-            {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', liked ? '#dc2626' : null)}
+          <button type="button" onClick={handleLike} aria-label="Penda" aria-pressed={liked} data-testid="post-like" style={act(liked, '#c4123c', '#fdecef')}>
+            {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', liked ? '#c4123c' : null)}
             {counts.likes > 0 && counts.likes}
           </button>
-          <button type="button" onClick={handleShare} aria-label="Shiriki" data-testid="post-share" style={actionTx}>
+          <button type="button" onClick={handleShare} aria-label="Shiriki" data-testid="post-share" style={act()}>
             {icon('M4 12v8h16v-8M16 6l-4-4-4 4M12 2v13')}{counts.shares > 0 && counts.shares}
           </button>
-          <button type="button" onClick={handleSave} aria-label="Hifadhi" aria-pressed={saved} data-testid="post-save" style={{ ...actionTx, color: saved ? B : MUTED_TX }}>
+          <button type="button" onClick={handleSave} aria-label="Hifadhi" aria-pressed={saved} data-testid="post-save" style={act(saved, B, '#e8f0fe')}>
             {icon('M6 3h12v18l-6-4-6 4z', saved ? B : null)}
           </button>
           {mayEdit && (
-            <button type="button" onClick={() => setEditing(true)} aria-label="Hariri" data-testid="post-edit" style={actionTx}>
+            <button type="button" onClick={() => setEditing(true)} aria-label="Hariri" data-testid="post-edit" style={act()}>
               {icon('M4 20h4L19 9l-4-4L4 16zM14 6l4 4')}
             </button>
           )}
           {entityId && (
-            <button type="button" onClick={goToDetail} aria-label="Fungua" style={actionTx}>
+            <button type="button" onClick={goToDetail} aria-label="Fungua" style={act()}>
               {icon('M14 4h6v6M20 4l-9 9M19 14v6H4V5h6')}
             </button>
           )}
         </div>
         {shareMsg && <div style={{ fontSize:13, color:'#166534' }}>{shareMsg}</div>}
 
-        {detail && showComments && (
-          <div style={{ fontSize:16, fontWeight:800, color:INK_TX, paddingTop:4 }}>Maoni</div>
-        )}
         {showComments && (
           // A real Moment/post owns its own discussion thread, even when it
           // links to a product, service, or classified. Only virtual listing
           // cards without a persisted post ID use the commerce entity thread.
           isRealPost ? (
-            <CommentSection post={post} isLoggedIn={isLoggedIn}
+            <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail}
               onNavigate={onNavigate} currentUser={currentUser}
               activeProfileId={activeProfileId} />
           ) : post.linkedEntityType && post.linkedEntityId ? (
@@ -958,7 +1025,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               activeProfileId={activeProfileId}
             />
           ) : (
-            <CommentSection post={post} isLoggedIn={isLoggedIn}
+            <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail}
               onNavigate={onNavigate} currentUser={currentUser}
               activeProfileId={activeProfileId} />
           )
@@ -1668,8 +1735,11 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
 };
 
 // ── Main HomeFeed ─────────────────────────────────────────────────────────────
-const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRefreshKey, activeProfileId }) => {
+const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRefreshKey, activeProfileId,
+  activeProfile, activeContext, activeBusinessName, myProfiles, onOpenSwitcher }) => {
   const { t } = useTranslation();
+  // The identity pill takes the wordmark's place in the top bar when there is a profile to switch to.
+  const hasPill = !!(isLoggedIn && activeProfile && onOpenSwitcher && (myProfiles?.length || 0) > 1);
   const FILTERS = getFilters(t);
   const [filter,      setFilter]      = useState('for_you');
   // Social Home (owner approved 2026-11-02): topics. `topic` narrows the feed to one topic.
@@ -1829,7 +1899,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                   </span>}
             </button>
           )}
-          <button onClick={() => onNavigate('Home')}
+          {/* #374 C: who you are acting as, next to your photo (it no longer floats over the page). */}
+          <IdentityPill activeProfile={activeProfile} activeContext={activeContext} activeBusinessName={activeBusinessName}
+            myProfiles={myProfiles} onOpenSwitcher={onOpenSwitcher} isLoggedIn={isLoggedIn} />
+          <button onClick={() => onNavigate('Home')} aria-label="KenteXa"
             style={{ display:'flex', alignItems:'center', gap:8, background:'none',
               border:'none', cursor:'pointer', padding:0 }}>
             <div style={{ width:24, height:24, backgroundColor:'#1d4ed8', borderRadius:7,
@@ -1842,7 +1915,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 <circle cx="14.5" cy="9.5" r="1" fill="#0f172a"/>
               </svg>
             </div>
-            <div style={{ display:'flex', alignItems:'baseline', gap:0, lineHeight:1 }}>
+            <div style={{ display: hasPill ? 'none' : 'flex', alignItems:'baseline', gap:0, lineHeight:1 }}>
               <span style={{ fontSize:17, fontWeight:800, color:DK,
                 letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Kente</span>
               <span style={{ fontSize:17, fontWeight:800, color:'#1d4ed8',
