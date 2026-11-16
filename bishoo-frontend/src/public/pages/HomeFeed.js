@@ -62,8 +62,6 @@ const LINE_TX = '#eff3f4';
 const LINE_BTN = '#cfd9de';
 const pillTx = (dark) => ({ height:36, padding:'0 14px', borderRadius:18, border: dark ? 'none' : `1px solid ${LINE_BTN}`,
   background: dark ? INK_TX : '#ffffff', color: dark ? '#ffffff' : INK_TX, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' });
-const actionTx = { display:'flex', alignItems:'center', gap:6, minHeight:36, background:'none', border:'none', padding:'0 4px',
-  cursor:'pointer', color:MUTED_TX, fontSize:13, fontFamily:'inherit' };
 const VerifiedTick = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" role="img" aria-label="Imethibitishwa" style={{ flexShrink:0 }}>
     <path fill="#1d4ed8" d="M12 1l2.6 2.1 3.3-.4 1.1 3.2 3 1.6-.9 3.2.9 3.2-3 1.6-1.1 3.2-3.3-.4L12 23l-2.6-2.1-3.3.4-1.1-3.2-3-1.6.9-3.2-.9-3.2 3-1.6 1.1-3.2 3.3.4z"/>
@@ -810,6 +808,9 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   };
 
   const kindLabel = typeInfo.label;
+  // #374 B: a plain Moment needs no label; other kinds (a listing, Natafuta...) keep theirs.
+  const kindText = post.type === 'moment' || post.postType === 'moment' || tag ? '' : kindLabel;
+  const handle = biz.username ? `@${biz.username}` : '';
   const productName = headline || (isProduct || isService ? rawTitle : '');
   // One KenteXa text style (#374 part E): a title that is not a product's name becomes the bold
   // start of the caption ("Title: text"); the same words twice show once. Display only.
@@ -817,14 +818,17 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const caption = commerceBox ? { lead: '', text: postText } : formatCaption(headline, postText);
   const priceText = formatPrice(price);
   const icon = (d, filled) => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || (detail ? INK_TX : MUTED_TX)} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || INK_TX} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
   );
-  // #374 C: on the post page every action is a visible button (icon, count, 44px to tap).
+  // #374 C/B: every action is a visible button (icon, count, big enough to tap).
   const act = (on = false, onColor = INK_TX, onBg = '#f7f9f9') => (detail
     ? { display:'flex', alignItems:'center', justifyContent:'center', gap:6, minHeight:44, minWidth:44, padding:'0 12px', borderRadius:999,
         border:'none', background: on ? onBg : '#f7f9f9', color: on ? onColor : INK_TX, fontSize:14, fontWeight: on ? 700 : 600,
         cursor:'pointer', fontFamily:'inherit' }
-    : { ...actionTx, color: on ? onColor : MUTED_TX });
+    // #374 B: on Home too: a light pill with its icon and count, never text that looks unclickable.
+    : { display:'flex', alignItems:'center', justifyContent:'center', gap:5, minHeight:36, minWidth:44, padding:'0 10px', borderRadius:999,
+        border:'none', background: on ? onBg : '#f7f9f9', color: on ? onColor : INK_TX, fontSize:13, fontWeight: on ? 700 : 600,
+        cursor:'pointer', fontFamily:'inherit' });
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
 
@@ -851,7 +855,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
       )}
       <div style={{ display:'flex', gap:12 }}>
       {!detail && <button type="button" onClick={openProfile} aria-label={bizName}
-        style={{ width:40, height:40, borderRadius:10, flexShrink:0, border:'none', padding:0, cursor:'pointer',
+        style={{ width:40, height:40, borderRadius: biz.actorType === 'PERSONAL' ? '50%' : 10, flexShrink:0, border:'none', padding:0, cursor:'pointer',
           overflow:'hidden', backgroundColor:INK_TX, display:'flex', alignItems:'center', justifyContent:'center' }}>
         {biz.logo
           ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display = 'none'; }} />
@@ -862,7 +866,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         <div style={{ display:'flex', alignItems:'center', gap: detail ? 10 : 4, fontSize:15, minWidth:0 }}>
           {detail && (
             <button type="button" onClick={openProfile} aria-label={bizName} data-testid="detail-avatar"
-              style={{ width:48, height:48, borderRadius:12, flexShrink:0, border:'none', padding:0, cursor:'pointer',
+              style={{ width:48, height:48, borderRadius: biz.actorType === 'PERSONAL' ? '50%' : 12, flexShrink:0, border:'none', padding:0, cursor:'pointer',
                 overflow:'hidden', backgroundColor:INK_TX, display:'flex', alignItems:'center', justifyContent:'center' }}>
               {biz.logo
                 ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => { e.target.style.display = 'none'; }} />
@@ -876,8 +880,9 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:'inherit' }}>{bizName}</button>
           {biz.isVerified && <VerifiedTick />}
           </span>
-          <span style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontSize: detail ? 14 : 15 }}>
-            {detail ? kindLabel : `· ${kindLabel} · ${ago(post.createdAt)}${post.editedAt ? ' · imehaririwa' : ''}`}
+          <span data-testid="post-byline" style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontSize: detail ? 14 : 15, minWidth:0 }}>
+            {/* #374 B: name · @handle · time, the Twitter way; the post kind moves to the line below. */}
+            {detail ? (handle || '') : `${handle ? ` ${handle}` : ''} · ${ago(post.createdAt)}${post.editedAt ? ' · imehaririwa' : ''}`}
           </span>
           </span>
           {bizId && !followed && !actorUnresolved && currentUser?.id !== bizId && (
@@ -895,12 +900,20 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             </button>
           )}
         </div>
-        {biz.businessLocation && <div style={{ fontSize:13, color:MUTED_TX, marginTop:-4 }}>{biz.businessLocation}</div>}
-
-        {(tag || (post.topic && !post.community)) && (
-          <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:MUTED_TX }}>
-            {tag && <span data-testid="post-tag" style={{ fontWeight:700, color:B, background:'#eff6ff', padding:'2px 8px', borderRadius:10 }}>{tag}</span>}
-            {post.topic && <span data-testid="post-topic">{topicLabel(post.topic)}</span>}
+        {/* #374 B: one quiet line under the name: what kind of post (never "Moment", the default),
+            its topic and the place. */}
+        {(tag || kindText || (post.topic && !post.community) || biz.businessLocation) && (
+          <div data-testid="post-meta" style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:MUTED_TX, minWidth:0, marginTop: detail ? 0 : -2 }}>
+            {tag && <span data-testid="post-tag" style={{ flexShrink:0, fontWeight:700, color:'#1a6fb0', background:'#e8f5fd', padding:'1px 6px', borderRadius:4 }}>{tag}</span>}
+            <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>
+              {[
+                kindText && { key:'kind', text:kindText },
+                post.topic && !post.community && { key:'topic', text:topicLabel(post.topic) },
+                biz.businessLocation && { key:'place', text:biz.businessLocation },
+              ].filter(Boolean).map((x, i) => (
+                <React.Fragment key={x.key}>{i > 0 && ' · '}<span data-testid={`post-${x.key}`}>{x.text}</span></React.Fragment>
+              ))}
+            </span>
           </div>
         )}
         {post.community?.id && (
@@ -970,7 +983,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             {fullTime(post.createdAt)}{post.editedAt ? ' · imehaririwa' : ''}
           </div>
         )}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingRight: detail ? 4 : 24, color:MUTED_TX, fontSize:13,
+        <div data-testid="post-actions" style={{ display:'flex', alignItems:'center', justifyContent: detail ? 'space-between' : 'flex-start', gap:6, flexWrap:'wrap', color:MUTED_TX, fontSize:13, paddingTop: detail ? 0 : 2,
           ...(detail ? { borderTop:`1px solid ${LINE_TX}`, borderBottom:`1px solid ${LINE_TX}`, padding:'8px 4px' } : {}) }}>
           <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={act()}>
             {icon('M4 5h16v11H8l-4 4z')}{counts.comments > 0 && counts.comments}

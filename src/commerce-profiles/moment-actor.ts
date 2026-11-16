@@ -15,6 +15,8 @@ export interface MomentActorFields {
   actorResolved: boolean;
   actorType: MomentActorType | null;
   name?: string;
+  /** #374 B: the profile's @handle, shown after the name on a post. */
+  username?: string | null;
   storeName?: string;
   logo?: string | null;
   followersCount?: number;
@@ -40,7 +42,7 @@ export function identityVerified(
 }
 
 export function momentActorFields(
-  profile: Pick<CommerceProfile, 'id' | 'type' | 'displayName' | 'photoUrl' | 'followersCount' | 'isVerified'> | null | undefined,
+  profile: (Pick<CommerceProfile, 'id' | 'type' | 'displayName' | 'photoUrl' | 'followersCount' | 'isVerified'> & { username?: string | null }) | null | undefined,
   fallbackLogo: string | null = null,
   ownerIsOfficialStore: boolean | null = null,
 ): MomentActorFields {
@@ -52,6 +54,7 @@ export function momentActorFields(
     actorResolved: true,
     actorType: actorTypeOf(profile.type),
     name: profile.displayName,
+    username: profile.username || null,
     storeName: profile.displayName,
     logo: profile.photoUrl || fallbackLogo,
     followersCount: profile.followersCount,
