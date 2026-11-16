@@ -140,7 +140,7 @@ export class TrueTypeFont {
     const contours: Contour[] = [];
     let s = 0;
     for (const e of endPts) {
-      const pts = [];
+      const pts: Array<{ x: number; y: number; on: boolean }> = [];
       for (let i = s; i <= e; i++) pts.push({ x: xs[i], y: ys[i], on: !!(flags[i] & 1) });
       s = e + 1;
       if (pts.length) contours.push(toContour(pts));
