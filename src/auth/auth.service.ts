@@ -24,7 +24,7 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { PolicyVersionService } from '../policies/policy-version.service';
 import { PolicyType } from '../policies/entities/policy-version.entity';
 import { normalizeTzPhone } from '../common/utils/phone.util';
-import { DELETED_NAME, HIDE_PUBLIC_SQL, OPEN_ORDER_STATUSES, erasedUserFields, maskContact } from './account-deletion';
+import { DELETED_NAME, ERASE_TRACKING_SQL, HIDE_PUBLIC_SQL, OPEN_ORDER_STATUSES, erasedUserFields, maskContact } from './account-deletion';
 import { VerificationService } from '../identity/verification.service';
 import { RoleContextService } from '../role-context/role-context.service';
 import { AccountRole } from '../role-context/entities/account-role.entity';
@@ -513,7 +513,7 @@ export class AuthService {
     await this.assertNoOpenOrders(userId);
     const hidden = await bcrypt.hash(randomBytes(24).toString('hex'), 10);
     const sessionIds: string[] = await this.userRepo.manager.transaction(async (m) => {
-      for (const sql of HIDE_PUBLIC_SQL) {
+      for (const sql of [...HIDE_PUBLIC_SQL, ...ERASE_TRACKING_SQL]) {
         // A table an older database does not have yet is skipped; the rest still runs.
         await m.query(`SAVEPOINT futa`);
         try { await m.query(sql, [userId]); await m.query(`RELEASE SAVEPOINT futa`); }

@@ -212,6 +212,8 @@ export class AuthController {
       businessLocation: user.businessLocation || null,
       isOfficialStore: user.isOfficialStore || false,
       isVerified: user.isVerified || false,
+      // Privacy (issue #365): the person's own news-and-offers choice, for Settings.
+      marketingOptOut: !!user.marketingOptOut,
       // Stats
       rating: user.rating || 0,
       reviewsCount: user.reviewsCount || 0,

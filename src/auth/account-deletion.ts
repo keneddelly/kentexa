@@ -51,6 +51,18 @@ export const HIDE_PUBLIC_SQL: string[] = [
   `DELETE FROM public.notification WHERE "userId" = $1`,
 ];
 
+/**
+ * Privacy (issue #365): the person's browsing records go too — their visits, taps and searches.
+ * Events from their visits before signing in are found through their sessions. Order, payment
+ * and audit records are not touched (they stay for the law and for the other people involved).
+ */
+export const ERASE_TRACKING_SQL: string[] = [
+  `DELETE FROM public.analytics_events WHERE "userId" = $1
+      OR "sessionId" IN (SELECT "sessionId" FROM public.analytics_sessions WHERE "userId" = $1)`,
+  `DELETE FROM public.analytics_sessions WHERE "userId" = $1`,
+  `DELETE FROM public.user_topic_follow WHERE "userId" = $1`,
+];
+
 export const maskContact = (phone?: string | null, email?: string | null): string => {
   if (phone) return `${String(phone).slice(0, 3)}****${String(phone).slice(-3)}`;
   if (email) { const [a, d] = String(email).split('@'); return `${a.slice(0, 2)}***@${d || ''}`; }

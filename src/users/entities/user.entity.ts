@@ -199,6 +199,14 @@ export class User {
     tours: Record<string, { status: 'completed' | 'skipped'; at: string }>;
   } | null;
 
+  // Privacy (issue #365): the person said no to KenteXa's news and offers ("Tuma taarifa" to
+  // many people). Messages about their own orders, deliveries and money still arrive.
+  @Column({ type: 'boolean', default: false })
+  marketingOptOut: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  marketingOptOutAt: Date | null;
+
   @Column({ type: 'simple-array', nullable: true })
   interests: string[] | null; // ['electronics','fashion','food'...]
 
