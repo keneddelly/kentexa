@@ -15,6 +15,7 @@ import api from '../../api/api';
 import { pollTimeLeft, topicLabel } from '../utils/feedPresentation';
 import { formatCaption, formatName, formatText } from '../utils/kentexaText';
 import ShareSheet from '../components/ShareSheet';
+import { askToJoin } from '../utils/guestJoin';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -169,8 +170,12 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
     api.get(`/communities/${communityId}/requests`).then((r) => setRequests(Array.isArray(r.data) ? r.data : [])).catch(() => setRequests([]));
   }, [isModerator, communityId]);
 
+  // Viral engine B (#381): a guest is invited to join right here and comes back to this community.
+  const askGuest = () => {
+    if (!askToJoin({ action: 'join', destination: `Community-${communityId}`, people: [], replies: 0 })) onNavigate('PublicLogin');
+  };
   const act = async (path) => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuest(); return; }
     setBusy(true); setError(''); setMenu(false);
     try { const r = await api.post(`/communities/${communityId}/${path}`); setCommunity(r.data); }
     catch (err) { setError(err?.response?.data?.message || 'Imeshindikana. Jaribu tena.'); }
@@ -190,7 +195,7 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
     } catch (err) { setError(err?.response?.data?.message || 'Imeshindikana. Jaribu tena.'); }
   };
   const write = () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuest(); return; }
     onOpenMoment?.('moment', { communityId: community.id });
   };
   const openThread = (post) => onNavigate(`PostDetail-${post.id}`);

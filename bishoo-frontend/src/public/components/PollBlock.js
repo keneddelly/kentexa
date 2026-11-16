@@ -6,6 +6,7 @@
  * share. A vote is sent once (POST /feed/:id/poll/vote) and the server's answer is shown.
  * Nothing is counted or guessed here.
  */
+import { askToJoin } from '../utils/guestJoin';
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
 import { pollTimeLeft } from '../utils/feedPresentation';
@@ -29,7 +30,8 @@ export default function PollBlock({ postId, isLoggedIn, onNavigate }) {
   }, [postId]);
 
   const vote = async (optionId) => {
-    if (!isLoggedIn) { onNavigate?.('PublicLogin'); return; }
+    // Viral engine B (#381): a guest is invited to join, and comes back to this poll.
+    if (!isLoggedIn) { if (!askToJoin({ action: 'vote', destination: `PostDetail-${postId}` })) onNavigate?.('PublicLogin'); return; }
     if (sending) return;
     setSending(true); setError('');
     try {

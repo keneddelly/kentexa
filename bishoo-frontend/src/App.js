@@ -28,6 +28,7 @@ import HomeFeed           from './public/pages/HomeFeed';
 import { photoSkipped }   from './utils/photoLater';
 import { holdWelcomeSteps, isCheckoutBuyer } from './utils/checkoutBuyer';
 import BottomNav      from './public/components/BottomNav';
+import GuestJoinSheet from './public/components/GuestJoinSheet';
 import ProfileSwitcherSheet from './public/components/ProfileSwitcherSheet';
 import PostModal      from './public/components/PostModal';
 import CreateMomentModal from './public/components/CreateMomentModal';
@@ -1264,6 +1265,8 @@ function App() {
           position:fixed, zIndex:1000 bar was rendering directly on top of
           it, covering the send button (and on the conversation list, the
           bottom rows) since nothing in SellerInbox reserved space for it. */}
+      {/* Viral engine B (#381): a guest who taps Jibu, Penda, Kura, Jiunge... is invited to join here. */}
+      {!isLoggedIn && <GuestJoinSheet onNavigate={handleNavigate} />}
       {isLoggedIn && !needsProfilePhoto && !needsOnboarding && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS' && page !== 'TeamPOS'
         && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational')))
         // Tuma mzigo (send form v2) is a focused 5-step form with its own back button and an
