@@ -103,3 +103,15 @@ describe('C10: links for every channel at once', () => {
     expect(create).toHaveBeenCalledWith(5, 'post', 88, 'whatsapp');
   });
 });
+
+describe('share link address', () => {
+  it('is always a full https:// address, so WhatsApp makes it tappable', () => {
+    const svc: any = Object.create(ShareLinksService.prototype);
+    const before = process.env.FRONTEND_URL;
+    process.env.FRONTEND_URL = 'kentexa.com/';
+    expect(svc.present('AbC12dE', 'post', 7, 'whatsapp').url).toBe('https://kentexa.com/s/AbC12dE');
+    process.env.FRONTEND_URL = 'https://kentexa.com';
+    expect(svc.present('AbC12dE', 'post', 7, 'whatsapp').url).toBe('https://kentexa.com/s/AbC12dE');
+    if (before === undefined) delete process.env.FRONTEND_URL; else process.env.FRONTEND_URL = before;
+  });
+});

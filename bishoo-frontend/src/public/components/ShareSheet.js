@@ -80,10 +80,11 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
   const [message, setMessage] = useState('');
   const [links, setLinks] = useState(null); // { channel: url } | {} when not shareable outside
   const [note, setNote] = useState('');
+  const [statusLink, setStatusLink] = useState(false); // after a Status picture: offer the link as its own Status
   const blobs = useRef({});
   const base = useMemo(() => ({ contentType, intent, words, community, purpose, invite }), [contentType, intent, words, community, purpose, invite]);
 
-  useEffect(() => { if (open) { setMessage(suggestedMessage(base, lang)); setNote(''); } }, [open, lang, base]);
+  useEffect(() => { if (open) { setMessage(suggestedMessage(base, lang)); setNote(''); setStatusLink(false); } }, [open, lang, base]);
 
   // Links for every channel, and the two card pictures, are made when the sheet opens, so each
   // tap can hand them to the phone at once (phones only share straight after a tap).
@@ -131,7 +132,7 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
     const file = blobs.current[key];
     const text = `${message} ${linkFor(key)}`.trim();
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], text }); done(key); return; } catch { return; }
+      try { await navigator.share({ files: [file], text }); done(key); if (key === 'status') setStatusLink(true); return; } catch { return; }
     }
     if (file) {
       // No picture sharing on this phone: save the picture, then the person posts it.
@@ -141,9 +142,22 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
       document.body.appendChild(a); a.click(); a.remove();
       setNote(key === 'status' ? 'Picha imehifadhiwa. Iweke kwenye Status yako ya WhatsApp.' : 'Picha imehifadhiwa.');
       done(key);
+      if (key === 'status') setStatusLink(true);
       return;
     }
     setNote('Picha bado inaandaliwa. Jaribu tena baada ya sekunde moja.');
+  };
+
+  // WhatsApp does not make a link tappable on a picture Status; a text Status with the link is
+  // tappable (and shows the preview), so it is offered right after the picture.
+  const shareStatusLink = async () => {
+    const text = `${message} ${linkFor('status')}`.trim();
+    if (navigator.share) {
+      try { await navigator.share({ text }); done('status'); setStatusLink(false); } catch { /* closed */ }
+      return;
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    setStatusLink(false);
   };
 
   const btn = (key, label, circle, onClick, testid) => (
@@ -212,6 +226,16 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
           {typeof navigator !== 'undefined' && navigator.share && btn('native', 'Zaidi', <Circle bg={LINE}>{ico(SHARE, INK)}</Circle>, native)}
           {shareable && btn('image', 'Picha', <Circle bg={LINE}>{ico('M4 3h16v18H4zM9 17h6', INK)}</Circle>, () => picture('image'))}
         </div>
+        {statusLink && (
+          <div data-testid="share-status-link" style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#ecfdf3', border: '1px solid #86d4a2', borderRadius: 12, padding: '10px 12px' }}>
+            <span style={{ fontSize: 14, color: INK, lineHeight: '20px' }}>
+              Kwenye Status ya picha, WhatsApp haifanyi link ibonyezeke. Weka pia Status ya maandishi yenye link ili watu wabonyeze moja kwa moja.
+            </span>
+            <button type="button" data-testid="share-status-link-go" onClick={shareStatusLink}
+              style={{ alignSelf: 'flex-start', height: 38, padding: '0 16px', borderRadius: 999, border: 'none', background: '#25d366', color: '#fff',
+                fontFamily: 'inherit', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>Weka link kwenye Status</button>
+          </div>
+        )}
         {note && <div role="status" data-testid="share-note" style={{ fontSize: 13, color: '#1d6b39', overflowWrap: 'anywhere' }}>{note}</div>}
         {shareable && <div style={{ fontSize: 12, color: MUTED, lineHeight: '17px' }}>"Zaidi" hufungua njia za simu yako (Messenger, Instagram...). "Status" na "Picha" hutuma kadi ya picha.</div>}
       </div>
