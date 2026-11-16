@@ -52,6 +52,9 @@ export const suggestedMessage = ({ contentType, intent, words, community, purpos
   return `${where ? `Mjadala kwenye ${where}` : 'Mjadala kwenye KenteXa'}: ${w}`;
 };
 
+/** A phone (where links like wa.me open the app itself). */
+export const onPhone = () => typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+
 /** Where each channel sends the person (opened in a new tab or the app). */
 export const channelUrl = (channel, message, url) => {
   const text = `${message} ${url}`.trim();
@@ -117,9 +120,20 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
   const linkFor = (ch) => (links && links[ch]) || plainUrl;
   const done = (ch) => { onShared?.(ch); };
 
-  const go = (ch) => {
+  // On a phone the app (WhatsApp, Telegram, X) is opened in place of a new browser tab, so after
+  // sharing the person comes straight back to the KenteXa post (owner 2026-11-16: a new tab left
+  // them on an empty browser page). Facebook has no app link for sharing a link: on a phone the
+  // phone's own share list is used (pick Facebook there); on a computer its share window opens.
+  const go = async (ch) => {
     const url = channelUrl(ch, message, linkFor(ch));
-    if (url) { window.open(url, '_blank', 'noopener'); done(ch); }
+    if (!url) return;
+    if (!onPhone()) { window.open(url, '_blank', 'noopener'); done(ch); return; }
+    if (ch === 'facebook' && navigator.share) {
+      try { await navigator.share({ text: message, url: linkFor(ch) }); done(ch); } catch { /* closed */ }
+      return;
+    }
+    window.location.href = url;
+    done(ch);
   };
   const copy = async () => {
     const text = `${message} ${linkFor('copy')}`.trim();
