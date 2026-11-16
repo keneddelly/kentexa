@@ -40,6 +40,7 @@ const TABS = [
   { key: 'all', label: 'Mijadala' },
   { key: 'question', label: 'Maswali' },
   { key: 'poll', label: 'Kura' },
+  { key: 'article', label: 'Makala' }, // owner approved 2026-11-16
   { key: 'members', label: 'Wanachama' },
 ];
 
@@ -248,7 +249,7 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
         {TABS.map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} data-testid={`community-tab-${t.key}`} onClick={() => setTab(t.key)}
             style={{ flex: 1, position: 'relative', height: 46, padding: 0, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 15, fontWeight: tab === t.key ? 700 : 500, color: tab === t.key ? INK : MUTED, whiteSpace: 'nowrap' }}>
+              fontSize: 14, fontWeight: tab === t.key ? 700 : 500, color: tab === t.key ? INK : MUTED, whiteSpace: 'nowrap' }}>
             {t.label}
             <span aria-hidden="true" style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 0, width: 48, height: 3, borderRadius: 2, background: tab === t.key ? BLUE : 'transparent' }} />
           </button>

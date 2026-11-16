@@ -12,6 +12,7 @@
  *  Comments go to POST /comments (entity-based)
  */
 import ExpandableText from '../components/ExpandableText';
+import ArticlePost from '../components/ArticlePost';
 import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, formatTitle, leadSeparator } from '../utils/kentexaText';
 import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
@@ -1007,14 +1008,19 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             </span>
           </div>
         )}
-        {post.community?.id && (
+        {post.community?.id && post.intent !== 'article' && (
           <button type="button" data-testid="post-community" onClick={() => onNavigate(`Community-${post.community.id}`)}
             style={{ alignSelf:'flex-start', border:'none', background:'none', padding:0, cursor:'pointer', fontFamily:'inherit',
               fontSize:13, fontWeight:700, color:INK_TX }}>
             {formatName(post.community.name)}
           </button>
         )}
-        {(caption.text || caption.lead) && (detail
+        {/* Makala (owner approved 2026-11-16): its own card in lists and its own reading layout. */}
+        {post.intent === 'article' && (
+          <ArticlePost post={post} detail={detail} onOpen={() => onNavigate(`PostDetail-${post.id}`)}
+            onCommunity={post.community?.id ? () => onNavigate(`Community-${post.community.id}`) : undefined} />
+        )}
+        {post.intent !== 'article' && (caption.text || caption.lead) && (detail
           ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>
               {caption.lead && <><strong data-testid="post-lead" style={{ fontWeight:700 }}>{caption.lead}</strong>{caption.text ? leadSeparator(caption.lead) : ''}</>}
               <HashtagText text={caption.text} onTag={openTag} />
@@ -1026,11 +1032,11 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           <PollBlock postId={post.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
         )}
 
-        {photos.length > 1 && (
+        {post.intent !== 'article' && photos.length > 1 && (
           <PostPhotos photos={photos} price={price} priceLabel={priceText} title={post.title || bizName} />
         )}
 
-        {image && (
+        {post.intent !== 'article' && image && (
           <button type="button" onClick={goToDetail} aria-label={post.title || bizName}
             style={{ position:'relative', padding:0, border:`1px solid ${LINE_TX}`, borderRadius:16, overflow:'hidden', cursor:'pointer', background:'#f7f9f9',
               aspectRatio: photoAspect(imgRatio || (photos[0]?.width && photos[0]?.height ? photos[0].width / photos[0].height : null)) }}>

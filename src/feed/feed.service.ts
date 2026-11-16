@@ -14,7 +14,7 @@ import {
   MomentStatus,
   MomentVisibility,
 } from '../business/entities/business-feed-item.entity';
-import { assertPublishInput, assertComposerText, assertMedia, cleanMedia, COMPOSER_LIMITS } from './publish-input';
+import { assertPublishInput, assertComposerText, assertMedia, cleanMedia, COMPOSER_LIMITS, ARTICLE_LIMITS } from './publish-input';
 import {
   PostEngagement,
   EngagementType,
@@ -1213,8 +1213,10 @@ export class FeedService {
     if (ageMs > COMPOSER_LIMITS.editMinutes * 60 * 1000) {
       throw new ForbiddenException(`Chapisho linaweza kuhaririwa ndani ya dakika ${COMPOSER_LIMITS.editMinutes} tu.`);
     }
-    assertComposerText(dto);
-    assertMedia(dto.media);
+    // A Makala keeps its own limits when edited.
+    const article = (post as any).intent === 'article';
+    assertComposerText({ ...dto, intent: (post as any).intent });
+    assertMedia(dto.media, article ? ARTICLE_LIMITS.photos : COMPOSER_LIMITS.photos);
     if (dto.visibility !== undefined && ![MomentVisibility.PUBLIC, MomentVisibility.FOLLOWERS].includes(dto.visibility as any)) {
       throw new BadRequestException('Chagua "Wote" au "Wanaofuata".');
     }

@@ -12,6 +12,7 @@ import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FRONTEND_URL, BACKEND_URL } from '../config/urls.config';
 import { nameStyle } from './cards/share-cards.controller';
+import { stripArticle } from '../feed/article-text';
 
 // Social/search crawlers never execute JavaScript, so a pure client-side
 // React fix can't give shared links a rich preview card — this route is the
@@ -28,7 +29,7 @@ const SITE_FALLBACK = {
   image: 'https://kentexa.com/og-image.png',
 };
 
-const PREVIEW_KIND: Record<string, string> = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu' };
+const PREVIEW_KIND: Record<string, string> = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu', article: 'Makala' };
 const oneLine = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
 /**
@@ -38,7 +39,8 @@ const oneLine = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
  */
 export const postPreview = (r: { title?: string; body?: string; intent?: string; owner?: string; community?: string; replies?: number }) => {
   const title = oneLine(r.title) && oneLine(r.title) !== 'Moment' ? oneLine(r.title) : '';
-  const body = oneLine(r.body);
+  // A Makala's text has layout marks (## , - , **); a preview shows its plain words.
+  const body = oneLine(r.intent === 'article' ? stripArticle(r.body) : r.body);
   const words = title || body || 'Chapisho';
   const kind = PREVIEW_KIND[String(r.intent || '')];
   const replies = Number(r.replies || 0);

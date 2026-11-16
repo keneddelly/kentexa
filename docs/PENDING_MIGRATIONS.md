@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-16 (Makala):** the pin is now `MIGRATION_RUN_UPTO=1796700000000`. The next deploy runs `1796700000000-AddArticlePostIntent` itself (adds the value `article` to `business_feed_item_intent_enum`). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-16 (viral engine B8, issue #381):** the pin is now `MIGRATION_RUN_UPTO=1796600000000`. The next deploy runs `1796600000000-AddShareAttribution` itself (new tables `share_visit` and `share_conversion`). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-16 (viral engine A2, issue #381):** the pin is now `MIGRATION_RUN_UPTO=1796500000000`. The next deploy runs `1796500000000-AddShareLinks` itself (new table `share_link`: code, sharer, content, channel; unique code). Check: `/version/migrations` shows `pending: []`.

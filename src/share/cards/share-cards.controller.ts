@@ -3,8 +3,9 @@ import type { Response } from 'express';
 import { DataSource } from 'typeorm';
 import { PUBLIC_TO_GUESTS } from '../../commerce-profiles/public-visibility';
 import { CardFormat, CardInput, coverFor, drawCard } from './card';
+import { stripArticle } from '../../feed/article-text';
 
-const KIND: Record<string, string> = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu' };
+const KIND: Record<string, string> = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu', article: 'Makala' };
 const oneLine = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
 /** A name typed all small gets a capital first letter (KenteXa text style, #374 E). */
 // KenteXa name style (owner 2026-11-16), same rule as the app's formatName: each word starts with a
@@ -71,7 +72,7 @@ export class ShareCardsController {
       return {
         kind: 'post',
         badge: KIND[String(r.intent)] || 'Chapisho',
-        headline: title || oneLine(r.body) || 'Chapisho kwenye KenteXa',
+        headline: title || oneLine(r.intent === 'article' ? stripArticle(r.body) : r.body) || 'Chapisho kwenye KenteXa',
         context: r.community ? nameStyle(r.community) : undefined,
         meta: [nameStyle(r.owner), replies ? `majibu ${replies}` : ''].filter(Boolean).join(' · '),
         link,

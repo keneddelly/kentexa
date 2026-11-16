@@ -35,6 +35,7 @@ import { claimArrival } from './public/utils/shortLinks';
 import ProfileSwitcherSheet from './public/components/ProfileSwitcherSheet';
 import PostModal      from './public/components/PostModal';
 import CreateMomentModal from './public/components/CreateMomentModal';
+import ArticleEditor from './public/components/ArticleEditor';
 import { loadPosTeam, OWN_TILL_ROLES } from './utils/posTeam';
 import { parseMenuPath }  from './utils/food';
 import { loadSession as loadPosSession } from './utils/posOffline';
@@ -257,6 +258,8 @@ function App() {
   const [momentCommunityId, setMomentCommunityId] = useState(null);
   // The welcome's first post (owner 2026-11-02): the composer can open on a kind with a ready start.
   const [momentStart, setMomentStart] = useState(null);
+  // Makala (owner approved 2026-11-16): written on its own full screen; { communityId, text } while open.
+  const [articleStart, setArticleStart] = useState(null);
   const [momentRefreshKey, setMomentRefreshKey] = useState(0);
   const [postedNudge, setPostedNudge] = useState(null); // C11: the post just made, to invite sharing
   const [postedSheet, setPostedSheet] = useState(false);
@@ -786,6 +789,7 @@ function App() {
     capabilities: roleContext.capabilities, contextEpoch,
     onOpenMoment: (_mode, opts) => {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }
+      if (opts?.kind === 'article') { setArticleStart({ communityId: opts?.communityId ?? null, text: opts?.text || '' }); return; }
       setMomentModalMode('selling');
       setMomentCommunityId(opts?.communityId ?? null);
       setMomentStart(opts?.kind || opts?.text ? { kind: opts.kind || null, text: opts.text || '' } : null);
@@ -1275,13 +1279,13 @@ function App() {
       {/* Viral engine C11 (#381): right after posting a question, poll or discussion. */}
       {postedNudge && !postedSheet && (
         <ShareNudge floating testid="posted-nudge"
-          title={postedNudge.intent === 'poll' ? 'Kura yako iko hewani' : postedNudge.intent === 'question' ? 'Swali lako liko hewani' : 'Mjadala wako uko hewani'}
-          text={postedNudge.intent === 'poll' ? 'Shiriki ili watu wengi zaidi wapige kura.' : postedNudge.intent === 'question' ? 'Shiriki ili upate majibu haraka.' : 'Shiriki ili watu wajiunge na mazungumzo.'}
+          title={postedNudge.intent === 'poll' ? 'Kura yako iko hewani' : postedNudge.intent === 'question' ? 'Swali lako liko hewani' : postedNudge.intent === 'article' ? 'Makala yako iko hewani' : 'Mjadala wako uko hewani'}
+          text={postedNudge.intent === 'poll' ? 'Shiriki ili watu wengi zaidi wapige kura.' : postedNudge.intent === 'question' ? 'Shiriki ili upate majibu haraka.' : postedNudge.intent === 'article' ? 'Shiriki ili watu wengi zaidi waisome.' : 'Shiriki ili watu wajiunge na mazungumzo.'}
           onShare={() => setPostedSheet(true)} onDismiss={() => setPostedNudge(null)} />
       )}
       {postedNudge && postedSheet && (
         <ShareSheet open onClose={() => { setPostedSheet(false); setPostedNudge(null); }} contentType="post" contentId={Number(postedNudge.id)}
-          words={postedNudge.body || postedNudge.title} intent={postedNudge.intent} plainUrl={`${window.location.origin}/post/${postedNudge.id}`} />
+          words={postedNudge.intent === 'article' ? postedNudge.title : (postedNudge.body || postedNudge.title)} intent={postedNudge.intent} plainUrl={`${window.location.origin}/post/${postedNudge.id}`} />
       )}
       {/* Viral engine B (#381): a guest who taps Jibu, Penda, Kura, Jiunge... is invited to join here. */}
       {!isLoggedIn && <GuestJoinSheet onNavigate={handleNavigate} />}
@@ -1357,6 +1361,20 @@ function App() {
             if (page !== 'Home') handleNavigate('Home');
             // Viral engine C11 (#381): a new public question, poll or discussion: one invitation to share it.
             if (created?.id && ['question', 'poll', 'discussion'].includes(created.intent) && (created.visibility || 'public') === 'public') setPostedNudge(created);
+          }}
+          onOpenArticle={(start) => { setShowMomentModal(false); setArticleStart(start || {}); }}
+        />
+      )}
+      {articleStart && isLoggedIn && (
+        <ArticleEditor
+          initialCommunityId={articleStart.communityId ?? null}
+          initialText={articleStart.text || ''}
+          activeProfileId={momentActorProfileId(activeProfile) ?? null}
+          onClose={() => setArticleStart(null)}
+          onPosted={(created) => {
+            setMomentRefreshKey(k => k + 1);
+            // The writer lands on the new Makala, ready to share it.
+            if (created?.id) { handleNavigate(`PostDetail-${created.id}`); setPostedNudge(created); }
           }}
         />
       )}
