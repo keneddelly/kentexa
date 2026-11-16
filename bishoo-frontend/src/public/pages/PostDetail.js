@@ -12,6 +12,9 @@ import api from '../../api/api';
 import { PostCard } from './HomeFeed';
 import { formatName } from '../utils/kentexaText';
 import ShareResult from '../components/ShareResult';
+import ShareNudge, { markNudge, nudgeSeen } from '../components/ShareNudge';
+import ShareSheet from '../components/ShareSheet';
+import RelatedDiscussions from '../components/RelatedDiscussions';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -50,6 +53,12 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
     return () => { alive = false; };
   }, [communityId, isLoggedIn]);
   const isModerator = role === 'admin' || role === 'helper';
+  // Viral engine C11 (#381): when the writer's discussion reaches 10 replies, one invitation to put it
+  // on Status (never again once used or dismissed on this phone).
+  const [hotSheet, setHotSheet] = useState(false);
+  const [hotDone, setHotDone] = useState(false);
+  const hot = !!post && !hotDone && !hotSheet && isLoggedIn && Number(currentUser?.id) === Number(post.businessId ?? post.business?.id)
+    && Number(post.commentCount || 0) >= 10 && (!post.visibility || post.visibility === 'public') && !nudgeSeen(`hot-${post.id}`);
   const moderate = async (path, body, apply) => {
     setMenu(false); setNote('');
     try {
@@ -147,8 +156,23 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
       {state === 'ready' && post && (
         <PostCard post={post} isLoggedIn={isLoggedIn} onNavigate={onNavigate} currentUser={currentUser}
           activeProfileId={activeProfileId} initialShowComments detail communityRole={role}
-          detailExtra={<ShareResult contentType="post" contentId={post.id} isLoggedIn={isLoggedIn} />} />
+          detailExtra={(
+            <>
+              <ShareResult contentType="post" contentId={post.id} isLoggedIn={isLoggedIn} />
+              {hot && (
+                <ShareNudge status testid="hot-nudge" title={`Mjadala wako unavuma: majibu ${post.commentCount}`}
+                  text="Uweke kwenye Status ili watu zaidi waone na kujibu." action="Weka kwenye Status"
+                  onShare={() => { markNudge(`hot-${post.id}`); setHotSheet(true); }} onDismiss={() => { markNudge(`hot-${post.id}`); setHotDone(true); }} />
+              )}
+            </>
+          )} />
       )}
+      {state === 'ready' && post && hotSheet && (
+        <ShareSheet open onClose={() => { setHotSheet(false); setHotDone(true); }} contentType="post" contentId={Number(post.id)}
+          words={post.body || post.title} intent={post.intent} community={post.community?.name ? formatName(post.community.name) : ''}
+          replies={post.commentCount} plainUrl={`${window.location.origin}/post/${post.id}`} />
+      )}
+      {state === 'ready' && post && <RelatedDiscussions postId={post.id} onNavigate={onNavigate} />}
     </div>
   );
 }

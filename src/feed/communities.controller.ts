@@ -100,6 +100,13 @@ export class CommunitiesController {
     return this.communities.setHelper(id, req.user.id, userId, helper);
   }
 
+  /** Viral engine C12 (#381): what invitations to this community brought (moderators). */
+  @Get(':id/invitations')
+  @UseGuards(JwtAuthGuard)
+  invitations(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.communities.invitationStats(id, req.user.id);
+  }
+
   @Post(':id/posts/:postId/pin')
   @UseGuards(JwtAuthGuard)
   pin(@Param('id', ParseIntPipe) id: number, @Param('postId', ParseIntPipe) postId: number, @Request() req, @Body('pinned') pinned: any) {

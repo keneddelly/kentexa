@@ -24,8 +24,14 @@ const KIND_LABEL = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', off
 const cut = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t; };
 
 /** The suggested message for a kind of content, in Kiswahili or English (no link: added per channel). */
-export const suggestedMessage = ({ contentType, intent, words, community, purpose }, lang = 'sw') => {
+export const suggestedMessage = ({ contentType, intent, words, community, purpose, invite }, lang = 'sw') => {
   const w = cut(words, 140);
+  if (contentType === 'community' && invite) {
+    // C12: a member inviting friends.
+    return lang === 'en'
+      ? `I joined ${w} on KenteXa. Join me${purpose ? `: ${cut(purpose, 120)}` : ''}`
+      : `Nimejiunga na ${w} kwenye KenteXa. Jiunge nami${purpose ? `: ${cut(purpose, 120)}` : ''}`;
+  }
   if (contentType === 'community') {
     return lang === 'en'
       ? `Join ${w} on KenteXa${purpose ? `: ${cut(purpose, 120)}` : ''}`
@@ -69,13 +75,13 @@ const ico = (d, stroke = '#fff') => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2.1" aria-hidden="true"><path d={d} /></svg>
 );
 
-export default function ShareSheet({ open, onClose, contentType, contentId, words, intent, community, purpose, replies, plainUrl, onShared }) {
+export default function ShareSheet({ open, onClose, contentType, contentId, words, intent, community, purpose, replies, plainUrl, onShared, invite = false }) {
   const [lang, setLang] = useState('sw');
   const [message, setMessage] = useState('');
   const [links, setLinks] = useState(null); // { channel: url } | {} when not shareable outside
   const [note, setNote] = useState('');
   const blobs = useRef({});
-  const base = useMemo(() => ({ contentType, intent, words, community, purpose }), [contentType, intent, words, community, purpose]);
+  const base = useMemo(() => ({ contentType, intent, words, community, purpose, invite }), [contentType, intent, words, community, purpose, invite]);
 
   useEffect(() => { if (open) { setMessage(suggestedMessage(base, lang)); setNote(''); } }, [open, lang, base]);
 
@@ -159,7 +165,7 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
           display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '92vh', overflowY: 'auto', boxSizing: 'border-box' }}>
         <div aria-hidden="true" style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, background: BORDER }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: INK }}>{contentType === 'community' ? 'Shiriki jumuiya hii' : 'Shiriki mjadala huu'}</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: INK }}>{invite ? 'Alika marafiki' : contentType === 'community' ? 'Shiriki jumuiya hii' : 'Shiriki mjadala huu'}</h2>
           <button type="button" aria-label="Funga" onClick={onClose} style={{ width: 36, height: 36, border: 'none', borderRadius: '50%', background: '#f7f9f9', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {ico('M6 6l12 12M18 6L6 18', INK)}
           </button>

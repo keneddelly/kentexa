@@ -204,7 +204,18 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
   // Viral engine C10: an open community is shared through the smart share sheet.
   const canShare = community?.joinPolicy === 'open';
   const [sheetOpen, setSheetOpen] = useState(false);
-  const share = () => setSheetOpen(true);
+  const [inviting, setInviting] = useState(false); // C12: a member inviting friends (own message)
+  const share = () => { setInviting(false); setSheetOpen(true); };
+  const invite = () => { setInviting(true); setSheetOpen(true); };
+  // C12: what invitations brought, for the community's moderators (numbers only, never names).
+  const [invites, setInvites] = useState(null);
+  useEffect(() => {
+    if (!isModerator || !canShare) { setInvites(null); return undefined; }
+    let alive = true;
+    Promise.resolve().then(() => api.get(`/communities/${communityId}/invitations`))
+      .then((r) => { if (alive) setInvites(r?.data || null); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isModerator, canShare, communityId]);
 
   if (state === 'loading') return <div style={{ padding: 24, color: MUTED }}>Inapakia...</div>;
   if (state === 'missing' || !community) {
@@ -264,7 +275,12 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
               {joinLabel}
             </button>
           ) : (
-            <button type="button" data-testid="community-joined" onClick={() => setMenu((v) => !v)} style={pill(false)}>Umejiunga</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {canShare && (
+                <button type="button" data-testid="community-invite" onClick={invite} style={pill(true)}>Alika marafiki</button>
+              )}
+              <button type="button" data-testid="community-joined" onClick={() => setMenu((v) => !v)} style={pill(false)}>Umejiunga</button>
+            </div>
           )}
         </div>
         <h1 style={{ margin: '4px 0 0', fontSize: 21, color: INK, overflowWrap: 'anywhere' }}>{name}</h1>
@@ -286,8 +302,13 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
         )}
         {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c' }}>{error}</div>}
         {canShare && <ShareResult contentType="community" contentId={community.id} isLoggedIn={isLoggedIn} />}
+        {invites && invites.links > 0 && (
+          <div data-testid="community-invitations" style={{ fontSize: 13, color: MUTED }}>
+            Mialiko ya wanachama: wamefungua <b style={{ color: INK }}>{invites.opens}</b> · wamejiunga <b style={{ color: INK }}>{invites.joined}</b>
+          </div>
+        )}
         {sheetOpen && (
-          <ShareSheet open onClose={() => setSheetOpen(false)} contentType="community" contentId={community.id} words={name}
+          <ShareSheet open onClose={() => setSheetOpen(false)} contentType="community" contentId={community.id} words={name} invite={inviting}
             purpose={formatText(community.purpose)} plainUrl={`${window.location.origin}/community/${community.id}`} />
         )}
       </div>
