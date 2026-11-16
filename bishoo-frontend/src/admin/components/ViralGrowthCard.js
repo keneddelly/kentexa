@@ -3,7 +3,7 @@ import api from '../../api/api';
 
 // Viral engine stage E (issue #381, owner approved 2026-11-16): what sharing brings. Plain counts
 // from recorded shares, opens and new accounts (no estimates).
-const CHANNEL = { whatsapp: 'WhatsApp', status: 'WhatsApp Status', facebook: 'Facebook', telegram: 'Telegram', x: 'X', copy: 'Kiungo kilichonakiliwa', native: 'Njia za simu', image: 'Picha', link: 'Kiungo' };
+const CHANNEL = { whatsapp: 'WhatsApp', status: 'WhatsApp Status', instagram: 'Instagram Story', facebook: 'Facebook', telegram: 'Telegram', x: 'X', copy: 'Kiungo kilichonakiliwa', native: 'Njia za simu', image: 'Picha', link: 'Kiungo' };
 const pct = (v) => (v == null ? '–' : `${v}%`);
 const short = (s) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > 60 ? `${t.slice(0, 59)}…` : t; };
 

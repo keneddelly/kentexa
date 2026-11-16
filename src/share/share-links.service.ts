@@ -10,7 +10,7 @@ import { PUBLIC_TO_GUESTS } from '../commerce-profiles/public-visibility';
  */
 export const SHARE_CONTENT_TYPES = ['post', 'community'] as const;
 export type ShareContentType = (typeof SHARE_CONTENT_TYPES)[number];
-export const SHARE_CHANNELS = ['whatsapp', 'status', 'facebook', 'telegram', 'x', 'copy', 'native', 'image', 'link'] as const;
+export const SHARE_CHANNELS = ['whatsapp', 'status', 'instagram', 'facebook', 'telegram', 'x', 'copy', 'native', 'image', 'link'] as const;
 export const SHARE_CODE = /^[A-Za-z0-9]{5,12}$/;
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'; // no 0/O, 1/l/I

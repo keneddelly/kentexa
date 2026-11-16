@@ -8,7 +8,7 @@ jest.mock('../../api/api', () => ({ post: jest.fn() }));
 const links = {
   whatsapp: 'https://kentexa.com/s/Wha1234', status: 'https://kentexa.com/s/Sta1234', facebook: 'https://kentexa.com/s/Fac1234',
   telegram: 'https://kentexa.com/s/Tel1234', x: 'https://kentexa.com/s/Xxx1234', copy: 'https://kentexa.com/s/Cop1234',
-  native: 'https://kentexa.com/s/Nat1234', image: 'https://kentexa.com/s/Img1234',
+  native: 'https://kentexa.com/s/Nat1234', image: 'https://kentexa.com/s/Img1234', instagram: 'https://kentexa.com/s/Ins1234',
 };
 const props = { open: true, onClose: jest.fn(), contentType: 'post', contentId: 88, words: 'Biashara gani kwa mtaji wa 100,000?', intent: 'question',
   community: 'Wafanyabiashara Kariakoo', replies: 12, plainUrl: 'https://kentexa.com/post/88' };
@@ -80,4 +80,22 @@ test('C10: members-only content: no outside channels, only copying its normal ad
   Object.defineProperty(navigator, 'clipboard', { value: { writeText: jest.fn().mockResolvedValue() }, configurable: true });
   await act(async () => { fireEvent.click(screen.getByTestId('share-copy')); });
   expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('https://kentexa.com/post/88'));
+});
+
+test('Instagram Story: the tall card goes to the phone, the link is copied and the Link sticker explained', async () => {
+  api.post.mockResolvedValue({ data: { links } });
+  const share = jest.fn().mockResolvedValue(undefined);
+  const writeText = jest.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+  Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true });
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  await act(async () => { render(<ShareSheet {...props} />); });
+  await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/share/card/post/88.png?f=status&s=Ins1234'));
+  await act(async () => { fireEvent.click(screen.getByTestId('share-instagram')); });
+  expect(writeText).toHaveBeenCalledWith('https://kentexa.com/s/Ins1234');
+  expect(share).toHaveBeenCalledWith({ files: [expect.any(File)] });
+  expect(screen.getByTestId('share-note')).toHaveTextContent('sticker ya Link');
+  expect(screen.getByTestId('share-facebook-hint')).toHaveTextContent('Page au Group');
+  delete navigator.share; delete navigator.canShare; delete navigator.clipboard;
 });
