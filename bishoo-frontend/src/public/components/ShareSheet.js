@@ -92,12 +92,12 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
         if (!alive) return;
         const l = r?.data?.links || {};
         setLinks(l);
-        for (const [key, fmt, ch] of [['status', 'status', 'status'], ['image', 'link', 'image']]) {
+        [['status', 'status', 'status'], ['image', 'link', 'image']].forEach(([key, fmt, ch]) => {
           fetch(cardUrl(contentType, contentId, fmt, l[ch]))
             .then((res) => (res.ok ? res.blob() : null))
             .then((b) => { if (b && alive) blobs.current[key] = new File([b], `kentexa-${contentType}-${contentId}${key === 'status' ? '-status' : ''}.png`, { type: 'image/png' }); })
             .catch(() => {});
-        }
+        });
       })
       .catch(() => { if (alive) setLinks({}); });
     return () => { alive = false; };
