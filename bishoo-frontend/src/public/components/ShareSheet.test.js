@@ -97,6 +97,11 @@ test('Instagram Story: the tall card goes to the phone, the link is copied and t
   expect(share).toHaveBeenCalledWith({ files: [expect.any(File)] });
   expect(screen.getByTestId('share-note')).toHaveTextContent('sticker ya Link');
   expect(screen.getByTestId('share-facebook-hint')).toHaveTextContent('Page au Group');
+  // Facebook takes only the link: the message is copied to paste as the caption on top.
+  writeText.mockClear();
+  await act(async () => { fireEvent.click(screen.getByTestId('share-facebook')); });
+  expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/^Unaweza kujibu hili\?/));
+  expect(screen.getByTestId('share-note')).toHaveTextContent('juu ya link');
   delete navigator.share; delete navigator.canShare; delete navigator.clipboard;
 });
 
