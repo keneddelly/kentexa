@@ -5,7 +5,7 @@
  * post's own edit button within 15 minutes of publishing.
  *
  *  - Kinds: Moment, Swali, Mjadala, Onyesha bidhaa, Ofa, Kura (phase E), Natafuta.
- *  - Up to 4 photos, each keeping its own width and height; 500 characters of text.
+ *  - Up to 4 photos, each keeping its own width and height; 3,000 characters of text (owner 2026-11-16).
  *  - Onyesha bidhaa and Ofa link one of the person's real products, listings or services;
  *    the price comes from that record, never typed.
  *  - Audience: Wote or Wanaofuata. The server decides who sees what.
@@ -474,14 +474,14 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
             </div>
           )}
 
-          {/* Text, with the 500-character count */}
+          {/* Text, with its character count (3,000) */}
           <div>
             <textarea ref={captionRef} value={caption}
               onChange={e => { setCaption(e.target.value.slice(0, COMPOSER.text)); trackCaret(e); }}
               onSelect={trackCaret} onKeyUp={trackCaret} onClick={trackCaret}
               placeholder={mode === 'moment' ? (PLACEHOLDER[kind] || PLACEHOLDER.moment) : t('create_moment_modal.placeholder_looking_for')}
               maxLength={COMPOSER.text} aria-label="Maandishi"
-              style={{ width:'100%', minHeight:96, padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
+              style={{ width:'100%', minHeight:96, maxHeight:'45vh', padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
                 fontSize:16, lineHeight:1.45, resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none', color:DK }} />
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
               {!isEdit && caption.trim().length >= 15 && !suggestion ? (
@@ -491,7 +491,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                 </button>
               ) : <span />}
               <span data-testid="char-count" style={{ fontSize:12, color: caption.length >= COMPOSER.text ? '#B91C1C' : GR, fontVariantNumeric:'tabular-nums' }}>
-                {caption.length} / {COMPOSER.text}
+                {caption.length.toLocaleString('en-US')} / {COMPOSER.text.toLocaleString('en-US')}
               </span>
             </div>
             <HashtagSuggestions text={caption} caret={caret}

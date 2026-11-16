@@ -19,9 +19,12 @@ describe('composer input', () => {
     expect(cleanMedia([])).toBeNull();
   });
 
-  it('what a person types is at most 500 characters; question and discussion are known formats', () => {
-    expect(() => assertComposerText({ body: 'a'.repeat(500) })).not.toThrow();
-    expect(() => assertComposerText({ body: 'a'.repeat(501) })).toThrow(BadRequestException);
+  it('what a person types is at most 3,000 characters (owner 2026-11-16); question and discussion are known formats', () => {
+    expect(() => assertComposerText({ title: 'a'.repeat(3000), body: 'a'.repeat(3000) })).not.toThrow();
+    expect(() => assertComposerText({ body: 'a'.repeat(3001) })).toThrow(BadRequestException);
+    // A Moment repeats its text as its title; a listing keeps a short title.
+    expect(() => assertPublishInput({ type: 'moment', title: 'a'.repeat(3000), body: 'a'.repeat(3000) })).not.toThrow();
+    expect(() => assertPublishInput({ type: 'moment', title: 'a'.repeat(3001) })).toThrow(BadRequestException);
     expect(() => assertPublishInput({ type: 'moment', title: 'Nani anajua fundi?', intent: 'question' })).not.toThrow();
     expect(() => assertPublishInput({ type: 'moment', title: 'Tuzungumze', intent: 'discussion' })).not.toThrow();
   });

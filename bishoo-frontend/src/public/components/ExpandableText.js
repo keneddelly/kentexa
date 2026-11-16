@@ -11,7 +11,11 @@ export const POST_TEXT = { fontSize: 16, lineHeight: '22px', fontWeight: 400, co
 
 // `onTag(key)`: tags in the text are links to their page (hashtags, owner 2026-11-15).
 // `lead`: a caption's title, shown as the bold start of the text followed by a colon (#374 part E).
-const ExpandableText = ({ text, lead = '', lines = 4, style, onOpen, onTag, raw = false }) => {
+// A long post (owner 2026-11-16, up to 3,000 characters): "Soma zaidi" opens its own page instead of
+// filling the feed; a shorter one opens in place.
+export const LONG_TEXT = 700;
+
+const ExpandableText = ({ text, lead = '', lines = 4, style, onOpen, onTag, raw = false, onMore = null }) => {
   const [open, setOpen] = useState(false);
   const [long, setLong] = useState(false);
   const ref = useRef(null);
@@ -29,7 +33,7 @@ const ExpandableText = ({ text, lead = '', lines = 4, style, onOpen, onTag, raw 
         <HashtagText text={text} onTag={onTag} raw={raw} />
       </div>
       {long && !open && (
-        <button type="button" data-testid="read-more" onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        <button type="button" data-testid="read-more" onClick={(e) => { e.stopPropagation(); if (onMore && String(text || '').length + String(lead || '').length > LONG_TEXT) onMore(); else setOpen(true); }}
           style={{ background: 'none', border: 'none', padding: '2px 0 0', cursor: 'pointer', color: '#1d9bf0', fontSize: 16, lineHeight: '22px', fontWeight: 400 }}>
           Soma zaidi
         </button>

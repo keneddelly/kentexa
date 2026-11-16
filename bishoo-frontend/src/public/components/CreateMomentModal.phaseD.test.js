@@ -40,11 +40,11 @@ test('a question is published as a question, with its audience', async () => {
   }));
 });
 
-test('text stops at 500 characters and the count shows it', async () => {
+test('text stops at 3,000 characters and the count shows it (owner 2026-11-16)', async () => {
   await open();
-  type('a'.repeat(620));
-  expect(screen.getByLabelText('Maandishi').value).toHaveLength(500);
-  expect(screen.getByTestId('char-count')).toHaveTextContent('500 / 500');
+  type('a'.repeat(3100));
+  expect(screen.getByLabelText('Maandishi').value).toHaveLength(3000);
+  expect(screen.getByTestId('char-count')).toHaveTextContent('3,000 / 3,000');
 });
 
 test('"Onyesha bidhaa" needs a real product; its price comes from the product', async () => {
