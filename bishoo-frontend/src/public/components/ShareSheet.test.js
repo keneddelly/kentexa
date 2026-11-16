@@ -99,3 +99,18 @@ test('Instagram Story: the tall card goes to the phone, the link is copied and t
   expect(screen.getByTestId('share-facebook-hint')).toHaveTextContent('Page au Group');
   delete navigator.share; delete navigator.canShare; delete navigator.clipboard;
 });
+
+test('on a phone the app opens in place (no new tab), so the person comes back to the post', async () => {
+  api.post.mockResolvedValue({ data: { links } });
+  const ua = jest.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile');
+  const share = jest.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+  delete window.location; window.location = { href: 'https://kentexa.com/post/88', origin: 'https://kentexa.com' };
+  await act(async () => { render(<ShareSheet {...props} />); });
+  await act(async () => { fireEvent.click(screen.getByTestId('share-whatsapp')); });
+  expect(window.open).not.toHaveBeenCalled();
+  expect(window.location.href).toBe(`https://wa.me/?text=${encodeURIComponent(`${screen.getByTestId('share-message').value} https://kentexa.com/s/Wha1234`)}`);
+  await act(async () => { fireEvent.click(screen.getByTestId('share-facebook')); });
+  expect(share).toHaveBeenCalledWith({ text: expect.any(String), url: 'https://kentexa.com/s/Fac1234' });
+  ua.mockRestore(); delete navigator.share;
+});
