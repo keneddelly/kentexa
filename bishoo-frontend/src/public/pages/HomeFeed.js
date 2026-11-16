@@ -36,7 +36,9 @@ import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../uti
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import ProductTrail from '../components/ProductTrail';
-import { slotAfterPost, buildTrailPool, createTrailRotation } from '../utils/productTrail';
+import { buildTrailPool, createTrailRotation } from '../utils/productTrail';
+import { TRAY_TABS, traySlots } from '../utils/feedTrays';
+import { ArticleTray, HashtagTray, ListTray, PollTray, QuestionTray } from '../components/FeedTray';
 import { useCart } from '../../context/CartContext';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import AiSearchBar from '../components/AiSearchBar';
@@ -1876,6 +1878,25 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const [hasMore,     setHasMore]     = useState(true);
   const [discover,    setDiscover]    = useState(null);
   const [trending,    setTrending]    = useState(null);
+  // Feed trays (owner approved 2026-11-16): conversation rows and directories, read once.
+  const [trays,       setTrays]       = useState(null);
+  const [dirs,        setDirs]        = useState({});
+  useEffect(() => {
+    let alive = true;
+    const list = (r) => (Array.isArray(r?.data?.items) ? r.data.items : Array.isArray(r?.data) ? r.data : []);
+    Promise.resolve().then(() => api.get('/feed-trays')).then((r) => { if (alive) setTrays(r?.data || null); }).catch(() => {});
+    Promise.allSettled([
+      api.get('/profiles/directory/businesses', { params: { type: 'hub', limit: 12 } }),
+      api.get('/profiles/directory/businesses', { params: { type: 'agent', limit: 12 } }),
+      api.get('/profiles/directory/businesses', { params: { type: 'service_provider', limit: 12 } }),
+      api.get('/food/hotels'),
+    ]).then(([h, a, sp, ho]) => {
+      if (!alive) return;
+      const ok = (x) => (x.status === 'fulfilled' ? list(x.value) : []);
+      setDirs({ offices: ok(h), agents: ok(a), providers: ok(sp), hotels: ok(ho) });
+    });
+    return () => { alive = false; };
+  }, []);
   const [savedIds,    setSavedIds]    = useState([]);
   const [likedIds,    setLikedIds]    = useState([]);
   const [repostedIds, setRepostedIds] = useState([]);
@@ -1899,6 +1920,42 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     try { storage = window.localStorage; } catch { /* blocked storage: rotation still works per session */ }
     return createTrailRotation(trailPool, { userKey: currentUser?.id, storage });
   }, [trailPool, currentUser?.id]);
+
+  // Feed trays (owner approved 2026-11-16): which trays have something to show, and where they go.
+  const railLists = useMemo(() => ({
+    product: trending?.topProducts || [],
+    classified: trending?.topClassifieds || [],
+    service: trending?.topServices || [],
+    store: (trending?.topBusinesses || []).map((b) => b.business).filter(Boolean),
+    transport: trending?.topRoutes || [],
+  }), [trending]);
+  const profileCards = (list) => (list || []).map((p) => ({
+    key: `cp${p.id}`, image: p.photoUrl, name: p.displayName, line: [p.location, p.isVerified ? 'Imethibitishwa' : ''].filter(Boolean).join(' · '),
+    ownerId: p.ownerId, commerceProfileId: p.id,
+  }));
+  const openProfileCard = (it) => onNavigate(`CommerceProfile-${it.ownerId}`, { commerceProfileId: it.commerceProfileId });
+  const hotelCards = (dirs.hotels || []).map((h) => ({
+    key: `h${h.businessId}`, image: h.photoUrl, name: h.name, line: h.open ? 'Inapokea oda sasa' : 'Imefungwa kwa sasa', page: `HotelMenu-${h.businessId}`,
+  }));
+  const trayAvailable = useMemo(() => {
+    const has = {
+      products: trailPool.length > 0,
+      communities: true,
+      services: railLists.service.length > 0,
+      articles: !!trays?.articles?.length,
+      classifieds: railLists.classified.length > 0,
+      questions: !!trays?.questions?.length,
+      stores: railLists.store.length > 0,
+      transport: railLists.transport.length > 0,
+      polls: !!trays?.polls?.length,
+      offices: !!dirs.offices?.length,
+      hotels: !!dirs.hotels?.length,
+      agents: !!dirs.agents?.length,
+      providers: !!dirs.providers?.length,
+      hashtags: !!trays?.hashtags?.length,
+    };
+    return Object.keys(has).filter((k) => has[k]);
+  }, [trailPool, railLists, trays, dirs]);
 
   // Owner 2026-11-16 ("new posts show for a second, then old posts replace them"): the list was
   // read again every time the profile was refreshed (sign-in, coming back to the app), and by then
@@ -1927,6 +1984,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   }, [city, topic]);
 
   const isDirectory = DIRECTORY_KINDS.includes(filter);
+  const traySlotMap = useMemo(
+    () => (TRAY_TABS.includes(filter) && !topic ? traySlots(posts.length, trayAvailable) : {}),
+    [filter, topic, posts.length, trayAvailable]);
+  /** How many trays of this kind came before post i (each product row shows different items). */
+  const trayCount = (i, key) => Object.keys(traySlotMap).filter((k) => Number(k) < i && traySlotMap[k] === key).length;
   useEffect(() => {
     setPage(1);
     // A catalogue tab reads its own list (KentexaDirectory), not the feed.
@@ -2330,19 +2392,12 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       ) : (
         <>
           {posts.map((post, i) => {
-            // One slot after every 2 posts: product trail after posts 2, 6, 10…, the
-            // discovery rail after 4, 8, 12… (and after the last post of a thin feed).
-            // See utils/productTrail.js.
-            const slot = slotAfterPost(i, posts.length);
-            const railType  = slot?.kind === 'discovery_rail' ? slot.railType : null;
-            const railItems = railType && trending && {
-              product:    trending.topProducts,
-              classified: trending.topClassifieds,
-              service:    trending.topServices,
-              store:      trending.topBusinesses?.map(b => b.business).filter(Boolean),
-              transport:  trending.topRoutes,
-            }[railType];
-            const trail = slot?.kind === 'product_trail' ? trailRotation.trailAt(slot.trailIndex) : null;
+            // Feed trays (owner approved 2026-11-16): one tray after every 2 posts, in the approved
+            // order, skipping trays with nothing to show. See utils/feedTrays.js.
+            const trayKey = traySlotMap[i] || null;
+            const railType = { services: 'service', classifieds: 'classified', stores: 'store', transport: 'transport' }[trayKey] || null;
+            const railItems = railType ? railLists[railType] : null;
+            const trail = trayKey === 'products' ? trailRotation.trailAt(trayCount(i, 'products')) : null;
 
             // Individual route posts only get the full-width transport card
             // on the dedicated Transport tab (a deliberate browse action).
@@ -2381,9 +2436,24 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 {railType && (
                   <DiscoveryRail type={railType} items={railItems} onNavigate={onNavigate} />
                 )}
-                {/* Owner 2026-11-02: a few communities to join inside For You (after post 3, or the last post of a short feed). */}
-                {filter === 'for_you' && i === Math.min(2, posts.length - 1) && (
+                {trayKey === 'communities' && (
                   <SuggestedCommunities isLoggedIn={isLoggedIn} onNavigate={onNavigate} topic={topic} onSeeAll={() => setFilter('communities')} />
+                )}
+                {trayKey === 'articles' && <ArticleTray items={trays?.articles} onNavigate={onNavigate} />}
+                {trayKey === 'questions' && <QuestionTray items={trays?.questions} onNavigate={onNavigate} />}
+                {trayKey === 'polls' && <PollTray items={trays?.polls} onNavigate={onNavigate} />}
+                {trayKey === 'hashtags' && <HashtagTray items={trays?.hashtags} onNavigate={onNavigate} />}
+                {trayKey === 'offices' && (
+                  <ListTray testid="tray-offices" title="Ofisi za KenteXa" sub="Tuma na pokea mizigo karibu nawe" round items={profileCards(dirs.offices)} onOpen={openProfileCard} />
+                )}
+                {trayKey === 'agents' && (
+                  <ListTray testid="tray-agents" title="Mawakala" sub="Wanaokuchukulia na kukuletea mizigo" round items={profileCards(dirs.agents)} onOpen={openProfileCard} />
+                )}
+                {trayKey === 'providers' && (
+                  <ListTray testid="tray-providers" title="Watoa huduma" sub="Mafundi na wataalamu kwenye KenteXa" round items={profileCards(dirs.providers)} onOpen={openProfileCard} />
+                )}
+                {trayKey === 'hotels' && (
+                  <ListTray testid="tray-hotels" title="Hoteli na chakula" sub="Agiza kutoka kwenye menyu" items={hotelCards} onOpen={(it) => onNavigate(it.page)} onSeeAll={() => setFilter('hotels')} />
                 )}
                 {i === 0 && (filter === 'for_you' || filter === 'following') && (
                   <WhoToFollow isLoggedIn={isLoggedIn} onNavigate={onNavigate} city={currentUser?.city || currentUser?.businessLocation} />

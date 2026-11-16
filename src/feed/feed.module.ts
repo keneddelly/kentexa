@@ -44,7 +44,8 @@ import { PostSuggestService } from './post-suggest.service';
 import { HashtagService } from './hashtag.service';
 import { HashtagsController } from './hashtags.controller';
 import { WriterWeekService } from './writer-week.service';
-import { WriterWeekController } from './writer-week.controller';
+import { TraysService } from './trays.service';
+import { WriterWeekController, FeedTraysController } from './writer-week.controller';
 
 @Module({
   imports: [
@@ -69,7 +70,7 @@ import { WriterWeekController } from './writer-week.controller';
     ActivityModule,
     SearchModule,
   ],
-  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController, WriterWeekController],
+  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController, WriterWeekController, FeedTraysController],
   providers: [
     FeedService,
     CvsService,
@@ -81,6 +82,7 @@ import { WriterWeekController } from './writer-week.controller';
     PostSuggestService,
     HashtagService,
     WriterWeekService,
+    TraysService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,
