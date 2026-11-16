@@ -148,6 +148,15 @@ export class RoleContextService {
     }));
   }
 
+  /**
+   * Owner 2026-11-16 ("the login page comes by itself"): a session in use stays signed in. Each
+   * renewal moves its end to 7 days from now (it used to end 7 days after sign-in, however active
+   * the person was). A revoked session is never extended.
+   */
+  async extendSession(sessionId: string): Promise<void> {
+    await this.sessionRepo.update({ id: sessionId, revokedAt: IsNull() }, { expiresAt: new Date(Date.now() + SESSION_TTL_MS) });
+  }
+
   async revokeCurrentSession(sessionId: string, reason: string = 'logout'): Promise<void> {
     await this.sessionRepo.update({ id: sessionId, revokedAt: IsNull() }, { revokedAt: new Date(), revokeReason: reason });
     // Realtime layers (ConversationGateway) listen for this to disconnect

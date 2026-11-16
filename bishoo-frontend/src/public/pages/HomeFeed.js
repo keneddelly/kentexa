@@ -1885,15 +1885,20 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     let alive = true;
     const list = (r) => (Array.isArray(r?.data?.items) ? r.data.items : Array.isArray(r?.data) ? r.data : []);
     Promise.resolve().then(() => api.get('/feed-trays')).then((r) => { if (alive) setTrays(r?.data || null); }).catch(() => {});
+    // Owner 2026-11-16: every tray starts with the newest.
+    const dir = (type) => api.get('/profiles/directory/businesses', { params: { type, limit: 12, sort: 'newest' } });
+    const newest = (arr) => [...arr].sort((x, y) => (Date.parse(y?.createdAt) || 0) - (Date.parse(x?.createdAt) || 0));
     Promise.allSettled([
-      api.get('/profiles/directory/businesses', { params: { type: 'hub', limit: 12 } }),
-      api.get('/profiles/directory/businesses', { params: { type: 'agent', limit: 12 } }),
-      api.get('/profiles/directory/businesses', { params: { type: 'service_provider', limit: 12 } }),
-      api.get('/food/hotels'),
-    ]).then(([h, a, sp, ho]) => {
+      dir('hub'), dir('agent'), dir('service_provider'), api.get('/food/hotels'),
+      dir('business'), api.get('/services', { params: { limit: 12 } }), api.get('/classifieds'),
+    ]).then(([h, a, sp, ho, biz, sv, cl]) => {
       if (!alive) return;
       const ok = (x) => (x.status === 'fulfilled' ? list(x.value) : []);
-      setDirs({ offices: ok(h), agents: ok(a), providers: ok(sp), hotels: ok(ho) });
+      const ads = (x) => (x.status === 'fulfilled' ? (Array.isArray(x.value?.data?.ads) ? x.value.data.ads : list(x.value)) : []);
+      setDirs({
+        offices: ok(h), agents: ok(a), providers: ok(sp), hotels: ok(ho), businesses: ok(biz),
+        services: newest(ads(sv)).slice(0, 12), classifieds: newest(ok(cl)).slice(0, 12),
+      });
     });
     return () => { alive = false; };
   }, []);
@@ -1927,7 +1932,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     classified: trending?.topClassifieds || [],
     service: trending?.topServices || [],
     store: (trending?.topBusinesses || []).map((b) => b.business).filter(Boolean),
-    transport: trending?.topRoutes || [],
+    transport: [...(trending?.topRoutes || [])].sort((x, y) => (Date.parse(y?.createdAt) || 0) - (Date.parse(x?.createdAt) || 0)),
   }), [trending]);
   const profileCards = (list) => (list || []).map((p) => ({
     key: `cp${p.id}`, image: p.photoUrl, name: p.displayName, line: [p.location, p.isVerified ? 'Imethibitishwa' : ''].filter(Boolean).join(' · '),
@@ -1937,15 +1942,19 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const hotelCards = (dirs.hotels || []).map((h) => ({
     key: `h${h.businessId}`, image: h.photoUrl, name: h.name, line: h.open ? 'Inapokea oda sasa' : 'Imefungwa kwa sasa', page: `HotelMenu-${h.businessId}`,
   }));
+  const tzsLine = (n) => (Number(n) > 0 ? `TZS ${Math.round(Number(n)).toLocaleString('en-US')}` : '');
+  const serviceCards = (dirs.services || []).map((s) => ({ key: `s${s.id}`, image: s.images?.[0], name: s.title, line: tzsLine(s.price) || 'Bei kwa makubaliano', page: `ServiceDetail-${s.id}` }));
+  const classifiedCards = (dirs.classifieds || []).map((c) => ({ key: `c${c.id}`, image: c.images?.[0], name: c.title,
+    line: tzsLine(c.isFlashSale && c.flashSalePrice ? c.flashSalePrice : c.price), page: `ClassifiedDetail-${c.id}` }));
   const trayAvailable = useMemo(() => {
     const has = {
       products: trailPool.length > 0,
       communities: true,
-      services: railLists.service.length > 0,
+      services: !!dirs.services?.length,
       articles: !!trays?.articles?.length,
-      classifieds: railLists.classified.length > 0,
+      classifieds: !!dirs.classifieds?.length,
       questions: !!trays?.questions?.length,
-      stores: railLists.store.length > 0,
+      stores: !!dirs.businesses?.length,
       transport: railLists.transport.length > 0,
       polls: !!trays?.polls?.length,
       offices: !!dirs.offices?.length,
@@ -1955,7 +1964,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       hashtags: !!trays?.hashtags?.length,
     };
     return Object.keys(has).filter((k) => has[k]);
-  }, [trailPool, railLists, trays, dirs]);
+  }, [trailPool, railLists, trays, dirs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Owner 2026-11-16 ("new posts show for a second, then old posts replace them"): the list was
   // read again every time the profile was refreshed (sign-in, coming back to the app), and by then
@@ -2400,7 +2409,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
             // Feed trays (owner approved 2026-11-16): one tray after every 2 posts, in the approved
             // order, skipping trays with nothing to show. See utils/feedTrays.js.
             const trayKey = traySlotMap[i] || null;
-            const railType = { services: 'service', classifieds: 'classified', stores: 'store', transport: 'transport' }[trayKey] || null;
+            const railType = trayKey === 'transport' ? 'transport' : null;
             const railItems = railType ? railLists[railType] : null;
             const trail = trayKey === 'products' ? trailRotation.trailAt(trayCount(i, 'products')) : null;
 
@@ -2443,6 +2452,15 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 )}
                 {trayKey === 'communities' && (
                   <SuggestedCommunities isLoggedIn={isLoggedIn} onNavigate={onNavigate} topic={topic} onSeeAll={() => setFilter('communities')} />
+                )}
+                {trayKey === 'services' && (
+                  <ListTray testid="tray-services" title="Huduma mpya" sub="Zilizowekwa karibuni" items={serviceCards} onOpen={(it) => onNavigate(it.page)} onSeeAll={() => setFilter('services')} />
+                )}
+                {trayKey === 'classifieds' && (
+                  <ListTray testid="tray-classifieds" title="Matangazo mapya" sub="Yaliyowekwa karibuni" items={classifiedCards} onOpen={(it) => onNavigate(it.page)} onSeeAll={() => setFilter('classifieds')} />
+                )}
+                {trayKey === 'stores' && (
+                  <ListTray testid="tray-stores" title="Biashara mpya za kufuata" sub="Zilizojiunga karibuni" round items={profileCards(dirs.businesses)} onOpen={openProfileCard} onSeeAll={() => setFilter('businesses')} />
                 )}
                 {trayKey === 'articles' && <ArticleTray items={trays?.articles} onNavigate={onNavigate} />}
                 {trayKey === 'questions' && <QuestionTray items={trays?.questions} onNavigate={onNavigate} />}

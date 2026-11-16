@@ -91,9 +91,9 @@ export class CommerceProfilesController {
   // Owner 2026-11-02: Home's "Biashara" tab lists every business on KenteXa (public ones:
   // active, not hidden). Declared before ':id'.
   @Get('directory/businesses')
-  businessDirectory(@Query('limit') limit?: string, @Query('offset') offset?: string, @Query('type') type?: string) {
+  businessDirectory(@Query('limit') limit?: string, @Query('offset') offset?: string, @Query('type') type?: string, @Query('sort') sort?: string) {
     // Feed trays (owner 2026-11-16): also offices (hub), agents, service providers and transporters.
-    return this.service.businessDirectory(Number(limit) || 40, Number(offset) || 0, type);
+    return this.service.businessDirectory(Number(limit) || 40, Number(offset) || 0, type, sort === 'newest' ? 'newest' : 'top');
   }
 
   @Get(':id')

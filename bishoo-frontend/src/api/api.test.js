@@ -87,3 +87,32 @@ test('a temporary refresh network failure does not silently log the account out'
     expect(revoked).not.toHaveBeenCalled();
   } finally { refresh.mockRestore(); }
 });
+
+test('a plain 401 (an access token that just ran out) is renewed once and sent again; no sign-out', async () => {
+  setAccessToken('stale');
+  const refresh = jest.spyOn(axios, 'post').mockResolvedValue({ data: { accessToken: 'fresh' } });
+  const seen = [];
+  const adapter = (config) => {
+    seen.push(config.headers.Authorization);
+    if (config.headers.Authorization === 'Bearer stale') {
+      return Promise.reject({ config, response: { status: 401, data: { message: 'Unauthorized' }, config }, isAxiosError: true });
+    }
+    return Promise.resolve({ data: { ok: true }, status: 200, statusText: 'OK', headers: {}, config });
+  };
+  try {
+    const res = await api.get('/feed', { adapter });
+    expect(res.data).toEqual({ ok: true });
+    expect(seen).toEqual(['Bearer stale', 'Bearer fresh']);
+    expect(revoked).not.toHaveBeenCalled();
+  } finally { refresh.mockRestore(); }
+});
+
+test('when renewing is refused too, the person is signed out once', async () => {
+  setAccessToken('stale');
+  const refresh = jest.spyOn(axios, 'post').mockRejectedValue({ response: { status: 401 } });
+  const adapter = (config) => Promise.reject({ config, response: { status: 401, data: {}, config }, isAxiosError: true });
+  try {
+    await expect(api.get('/feed', { adapter })).rejects.toBeTruthy();
+    expect(revoked).toHaveBeenCalledTimes(1);
+  } finally { refresh.mockRestore(); }
+});

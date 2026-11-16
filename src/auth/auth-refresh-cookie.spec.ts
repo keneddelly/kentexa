@@ -25,7 +25,20 @@ describe('phone session renewal cookie', () => {
   it('rejects a refresh without a credential before querying account state', async () => {
     const auth: any = { refresh: jest.fn() };
     const controller = new AuthController(auth, {} as any);
-    await expect(controller.refresh({ headers: {} } as any)).rejects.toMatchObject({ status: 401 });
+    await expect(controller.refresh({ headers: {} } as any, {} as any)).rejects.toMatchObject({ status: 401 });
     expect(auth.refresh).not.toHaveBeenCalled();
+  });
+
+  it('every renewal writes a fresh 7-day cookie, so an active person stays signed in (owner 2026-11-16)', async () => {
+    const auth: any = {
+      refresh: jest.fn().mockResolvedValue({ accessToken: 'new', activeContext: context }),
+      issueRefreshCredential: jest.fn().mockReturnValue('signed-refresh-2'),
+    };
+    const response: any = { cookie: jest.fn() };
+    const controller = new AuthController(auth, {} as any);
+    const out = await controller.refresh({ headers: { cookie: 'kx_refresh=signed-refresh' } } as any, response);
+    expect(out.accessToken).toBe('new');
+    expect(response.cookie).toHaveBeenCalledWith('kx_refresh', 'signed-refresh-2',
+      expect.objectContaining({ httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }));
   });
 });
