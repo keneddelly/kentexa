@@ -6,7 +6,7 @@ import api from '../../api/api';
 jest.mock('../../api/api', () => ({ __esModule: true, default: { get: jest.fn(), patch: jest.fn() } }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key) => key, i18n: { language: 'sw', changeLanguage: jest.fn() } }) }));
 jest.mock('../components/VerifyIdentityModal', () => () => null);
-jest.mock('../components/LanguageSwitcher', () => ({ __esModule: true, default: () => null, LANGUAGES: [] }));
+jest.mock('../components/LanguageSwitcher', () => ({ __esModule: true, default: () => null, LANGUAGES: [{ code: 'sw', label: 'Kiswahili' }] }));
 
 beforeEach(() => {
   jest.clearAllMocks();
