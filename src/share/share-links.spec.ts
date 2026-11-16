@@ -69,6 +69,7 @@ describe('previews', () => {
   it('an open community invites; a request-only one shows only its name', () => {
     expect(communityPreview({ name: 'Wakulima Igoma', purpose: 'Mbegu na mvua', memberCount: 1200, joinPolicy: 'open' }))
       .toEqual({ title: 'Wakulima Igoma · Jumuiya ya KenteXa', description: 'Mbegu na mvua · wanachama 1,200 · Jiunge kwenye KenteXa' });
+    expect(communityPreview({ name: 'wafanya biashara kariakoo', joinPolicy: 'open' }).title).toBe('Wafanya Biashara Kariakoo · Jumuiya ya KenteXa');
     expect(communityPreview({ name: 'Siri', purpose: 'mambo ya ndani', memberCount: 3, joinPolicy: 'request' }).description).not.toMatch(/ndani/);
   });
 
