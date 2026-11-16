@@ -2,6 +2,7 @@ import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import * as bcrypt from 'bcrypt';
 import { trustProxyHops } from '../common/trust-proxy';
+import { VersionController } from '../version.controller';
 import { ContactService } from '../contact/contact.service';
 import { AnalyticsController } from '../analytics/analytics.controller';
 import { ActivityController } from '../activity/activity.controller';
@@ -98,6 +99,8 @@ describe('issue #361: rate limits per person', () => {
     const out = ctl.requestSource({ ip: '41.59.1.2', ips: ['41.59.1.2'], socket: { remoteAddress: '10.0.0.4' },
       headers: { 'x-forwarded-for': '41.59.1.2' }, app: { get: () => 1 } });
     expect(out).toMatchObject({ ip: '41.59.1.2', remoteAddress: '10.0.0.4', xForwardedFor: '41.59.1.2', trustProxyHops: 1 });
+    const pub = new VersionController().requestSource({ ip: '41.59.1.2', headers: { 'x-forwarded-for': '41.59.1.2, 10.0.0.9' }, socket: { remoteAddress: '10.0.0.4' } });
+    expect(pub).toMatchObject({ ip: '41.59.1.2', xForwardedFor: '41.59.1.2, 10.0.0.9', remoteAddress: '10.0.0.4' });
   });
 
   it('analytics arrives in groups of at most 50, each handled like a single event', async () => {
