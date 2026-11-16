@@ -773,6 +773,8 @@ function App() {
     // (which carries businessName) matched against activeContext.accountRoleId
     // -- never persisted as its own authority, never used to derive access.
     activeBusinessName: activeBusinessNameFor(activeContext, roleOptions),
+    // #374 C: the identity pill sits in the Home and Kazi top bars (it no longer floats).
+    myProfiles, onOpenSwitcher: () => setShowProfileSwitcher(true),
     capabilities: roleContext.capabilities, contextEpoch,
     onOpenMoment: (_mode, opts) => {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }

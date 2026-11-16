@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { IdentityPill } from '../components/BottomNav';
 import GoalsCard from '../components/GoalsCard';
 import api from '../../api/api';
 import TeamWork from '../components/TeamWork';
@@ -31,7 +32,8 @@ const Chevron = () => <Icon d="M9 6l6 6-6 6" color="#8b98a5" size={16} />;
 const pill = { height: 40, padding: '0 16px', borderRadius: 20, border: '1px solid #cfd9de', background: '#fff',
   color: INK, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center' };
 
-export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeContext, activeProfileId, roleOptions, onSwitchAccountRole, onRefreshContext, inboxUnread }) {
+export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeContext, activeProfileId, roleOptions, onSwitchAccountRole, onRefreshContext, inboxUnread,
+  activeProfile, activeBusinessName, myProfiles, onOpenSwitcher }) {
   const [businesses, setBusinesses] = useState(null); // null = loading
   const [error, setError] = useState('');
   const [selectedKey, setSelectedKey] = useState(null);
@@ -158,12 +160,17 @@ export default function Workspace({ onNavigate, isLoggedIn, currentUser, activeC
       <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#fff', borderBottom: `1px solid ${LINE}` }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px 0 16px' }}>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Kazi</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+          {/* #374 C: who you are acting as, next to your photo (it no longer floats over the page). */}
+          <IdentityPill activeProfile={activeProfile} activeContext={activeContext} activeBusinessName={activeBusinessName}
+            myProfiles={myProfiles} onOpenSwitcher={onOpenSwitcher} isLoggedIn={isLoggedIn} />
           <button type="button" aria-label="Wasifu wangu" onClick={() => onNavigate('MyProfile')}
             style={{ width: 44, height: 44, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {currentUser?.avatarUrl
               ? <img src={currentUser.avatarUrl} alt="" style={{ width: 32, height: 32, borderRadius: 16, objectFit: 'cover' }} />
               : <span style={{ width: 32, height: 32, borderRadius: 16, background: '#cfd9de', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>{(currentUser?.name || 'U').charAt(0).toUpperCase()}</span>}
           </button>
+          </div>
         </div>
       </div>
 
