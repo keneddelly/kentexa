@@ -7,6 +7,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { EarlyAccessModule } from './early-access/early-access.module';
 import helmet from 'helmet';
 import { trustProxyHops } from './common/trust-proxy';
+import { requestMetricsMiddleware, startEventLoopMonitor } from './metrics/request-metrics';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
@@ -16,6 +17,10 @@ async function bootstrap() {
   // those two hops makes req.ip the phone's own address, which it cannot forge.
   // TRUST_PROXY_HOPS changes the count; GET /version/request-source shows the result.
   app.set('trust proxy', trustProxyHops(process.env.TRUST_PROXY_HOPS));
+
+  // Traffic step 1 (issue #368): time every request, in memory only (GET /version/health).
+  startEventLoopMonitor();
+  app.use(requestMetricsMiddleware);
 
   // Baseline security headers (X-Frame-Options, HSTS, no-sniff, etc.).
   // contentSecurityPolicy is off — this is a JSON API plus a Swagger UI

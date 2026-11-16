@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Controller, Get, Optional, Req } from '@nestjs/common';
 import { describeRequestSource } from './common/trust-proxy';
+import { metricsSnapshot } from './metrics/request-metrics';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -56,6 +57,24 @@ export class VersionController {
   @Get('request-source')
   requestSource(@Req() req: any) {
     return describeRequestSource(req);
+  }
+
+  /**
+   * Traffic step 1 (issue #368): how this server process is coping, the last 5 minutes —
+   * requests per minute, response times (p50/p95/p99), errors and "too many" answers, event
+   * loop delay, memory, database connections in use and waiting, and the slowest queries
+   * (their text only, never the values). No user data. Open, like a status page.
+   */
+  @Get('health')
+  health() {
+    let pool: { total: number; idle: number; waiting: number; max: number | null } | null = null;
+    try {
+      const p: any = (this.dataSource as any)?.driver?.master;
+      if (p && typeof p.totalCount === 'number') {
+        pool = { total: p.totalCount, idle: p.idleCount, waiting: p.waitingCount, max: p.options?.max ?? null };
+      }
+    } catch { pool = null; }
+    return { commit: process.env.RENDER_GIT_COMMIT || null, ...metricsSnapshot(pool) };
   }
 
   @Get('migrations')

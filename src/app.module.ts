@@ -1,3 +1,5 @@
+import { SlowQueryLogger } from './metrics/slow-query.logger';
+import { SLOW_QUERY_MS } from './metrics/request-metrics';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -98,7 +100,13 @@ export const allowDevelopmentSchemaSync =
       extra: {
         query_timeout: 30000,
         statement_timeout: 30000,
+        // Traffic (issue #368): how many queries can run at once. Same as the driver's default
+        // (10) unless DB_POOL_MAX says otherwise; must stay under the database plan's limit.
+        max: Math.min(Math.max(parseInt(process.env.DB_POOL_MAX || '10', 10) || 10, 2), 50),
       },
+      // Traffic (issue #368): queries slower than 1 s are counted for GET /version/health.
+      maxQueryExecutionTime: SLOW_QUERY_MS,
+      logger: new SlowQueryLogger(),
     }),
     SmsModule,
     MailModule,
