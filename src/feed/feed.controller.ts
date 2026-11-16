@@ -2,6 +2,7 @@
  * FeedController — unified feed with CVS + comments + filters
  * Place at: src/feed/feed.controller.ts
  */
+import { GuestCache } from '../traffic/guest-cache';
 import {
   Controller,
   Get,
