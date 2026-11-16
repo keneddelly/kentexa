@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import lazyPage, { PageLoading } from './utils/lazyPage';
+import { markFirstEntry, restoreScroll, writeEntry, currentDepth } from './navigation/browserHistory';
 import { useTranslation } from 'react-i18next';
 import { workAppPage } from './utils/posApp';
 import { usePWA, InstallBanner, InstallGuide, subscribeToPush, disablePushNotifications } from './public/hooks/usePWA';
@@ -8,7 +9,7 @@ import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
-import { pageToPath, pathToPage, pathToNavParams, linkPageFromAddress } from './utils/urlSync';
+import { pageToAddress, pathToPage, pathToNavParams, linkPageFromAddress } from './utils/urlSync';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
 import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
 import { rememberPageForUpdate, takeResumePage } from './utils/appVersion';
@@ -324,6 +325,9 @@ function App() {
       if (params.get('ref') && !getAccessToken()) return 'Register';
       // Real shareable paths (/product/42, /store/7, ...) — resolves
       // synchronously from the URL alone, no network round trip needed.
+      // A refresh keeps the page the person was on (#374): its entry holds the page.
+      const kept = window.history.state;
+      if (kept && kept.kx && typeof kept.page === 'string' && kept.page) return kept.page;
       const fromPath = pathToPage(window.location.pathname);
       if (fromPath) return fromPath;
     } catch { /* SSR or no window — fall through */ }
@@ -340,6 +344,8 @@ function App() {
       if (params.get('instagramOAuth') && /^\d+$/.test(instagramOAuthBusinessId || '')) return { businessId: Number(instagramOAuthBusinessId) };
       const menu = parseMenuPath(window.location.pathname, window.location.search);
       if (menu) return menu.navParams;
+      const kept = window.history.state;
+      if (kept && kept.kx && typeof kept.page === 'string' && kept.page) return kept.params || null;
       return pathToNavParams(window.location.pathname, window.location.search);
     } catch { return null; }
   });
@@ -484,9 +490,10 @@ function App() {
   // Syncs the visible browser URL for the 4 shareable content types
   // (product/classified/service/store) — every other page intentionally
   // leaves the URL untouched, matching today's behavior.
+  // One navigation (owner 2026-11-16, #374): EVERY page opened gets its own browser history
+  // entry (its address, its details, later its scroll), so every back returns to it.
   const syncUrl = (pageName, params, state = { page: pageName }, mode = 'push') => {
-    const path = pageToPath(pageName, params);
-    if (path) window.history[mode === 'replace' ? 'replaceState' : 'pushState'](state, '', path);
+    writeEntry(pageToAddress(pageName, params), { ...state, params: params || null }, mode);
   };
 
   // A page that cannot open says why (owner 2026-11-09 audit), instead of a silent jump home.
@@ -533,12 +540,33 @@ function App() {
   // on. Only fires for real navigation events (not our own pushState calls,
   // which don't trigger popstate), so this is purely additive to the
   // existing in-app "back" button logic above.
+  // Once a signed-in person opens Home, it stays loaded under other pages (#374).
+  const [homeAlive, setHomeAlive] = useState(false);
   useEffect(() => {
-    const onPopState = () => {
-      const next = pathToPage(window.location.pathname);
-      if (next) {
-        navigation.handleBrowserDestination(next,
-          pathToNavParams(window.location.pathname, window.location.search), window.history.state);
+    if (!isLoggedIn) setHomeAlive(false);
+    else if (page === 'Home') setHomeAlive(true);
+  }, [page, isLoggedIn]);
+
+  // The first page of the tab gets an entry, so coming back to it restores it.
+  const lastDepth = React.useRef(0);
+  useEffect(() => {
+    markFirstEntry({ page, params: navParams || null, contextEpoch, accountRoleId: activeContext?.accountRoleId ?? null });
+    lastDepth.current = currentDepth();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { lastDepth.current = currentDepth(); }, [page]);
+
+  useEffect(() => {
+    const onPopState = (event) => {
+      const st = event?.state && event.state.kx ? event.state : null;
+      const next = (st && typeof st.page === 'string' && st.page)
+        || pathToPage(window.location.pathname)
+        || (window.location.pathname === '/' ? 'Home' : null);
+      if (!next) return;
+      const params = st ? (st.params || null) : pathToNavParams(window.location.pathname, window.location.search);
+      const wentBack = st ? (Number(st.kxDepth) || 0) < lastDepth.current : true;
+      lastDepth.current = st ? Number(st.kxDepth) || 0 : 0;
+      if (navigation.handleBrowserDestination(next, params, window.history.state, wentBack)) {
+        restoreScroll(st?.scrollY || 0);
       }
     };
     window.addEventListener('popstate', onPopState);
@@ -756,6 +784,8 @@ function App() {
     momentRefreshKey,
     inboxUnread,
   };
+  const homeProps = publicProps;
+
   const adminProps  = { onNavigate: handleNavigate, onLogout: handleLogout };
 
   const loginPage = <PublicLogin onNavigate={handleNavigate} onLoginSuccess={handleLoginSuccess} />;
@@ -980,7 +1010,8 @@ function App() {
     if (page === 'Listings')
       return <ListingsPage {...publicProps} />;
     switch (page) {
-      case 'Home':              return isLoggedIn ? <HomeFeed {...publicProps} /> : <Welcome {...publicProps} />;
+      // Signed in, Home stays loaded underneath (#374): drawn by the kept Home below.
+      case 'Home':              return isLoggedIn ? null : <Welcome {...publicProps} />;
 
       case 'AboutUs':              return <AboutUs {...publicProps} />;
       case 'UzaTena':              return <UzaTena {...publicProps} />;
@@ -1186,6 +1217,15 @@ function App() {
     <OnboardingProvider currentUser={currentUser}>
     <CartProvider>
       {/* Safety net (owner 2026-11-15): a failing page shows "Jaribu tena", never a white screen. */}
+      {/* One navigation (owner 2026-11-16, #374): once opened, Home stays loaded while other pages
+          are open, so coming back shows the same posts at the same place, like the big apps. */}
+      {homeAlive && (
+        <div data-testid="kept-home" style={{ display: page === 'Home' ? 'block' : 'none' }} aria-hidden={page !== 'Home'}>
+          <PageErrorBoundary page="Home" onHome={() => handleNavigate('Home')}>
+            <ContextEpochBoundary contextEpoch={contextEpoch}><HomeFeed {...homeProps} /></ContextEpochBoundary>
+          </PageErrorBoundary>
+        </div>
+      )}
       <PageErrorBoundary page={page} onHome={() => handleNavigate('Home')}>
         <Suspense fallback={<PageLoading />}>
           <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>

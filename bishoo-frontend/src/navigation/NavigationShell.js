@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { evaluateDestination, historyEntryFor, isHistoryEntryValid } from './navigationPolicy';
 import { homeForRole } from './navigationRegistry';
+import { canGoBack } from './browserHistory';
 
 export const resolveNavigationRequest = (page, context) => evaluateDestination({
   page,
@@ -78,9 +79,16 @@ const useNavigationShell = ({
   }, [commit, onUnavailable]);
 
   const back = useCallback(() => {
+    // One navigation (owner 2026-11-16, #374): when KenteXa pages are behind this one in the
+    // browser's history, go back there; the popstate handler restores the page, its details and
+    // its scroll. Only a page opened from a link (nothing behind it) uses the fallback below.
+    if (canGoBack()) {
+      window.history.back();
+      return;
+    }
     setNavHistory((history) => {
       const { entry, remaining } = popValidHistoryEntry(history, contextRef.current);
-      commit(entry?.page || homeForRole(contextRef.current.roleType), null);
+      commit(entry?.page || homeForRole(contextRef.current.roleType), null, 'replace');
       return remaining;
     });
   }, [commit, setNavHistory]);
@@ -98,6 +106,7 @@ const useNavigationShell = ({
     // "in Services the back arrow does not go back, it turns around on Services"). Without
     // this, A -> B -> (B's own back button opens A) -> back -> B -> A ... loops forever.
     if (pageRef.current !== requestedPage && shouldStepBack(historyRef.current, requestedPage)) {
+      if (canGoBack() && !params) { back(); return decision; }
       setNavHistory((history) => history.slice(0, -1));
       commit(requestedPage, params);
       return decision;
@@ -119,7 +128,7 @@ const useNavigationShell = ({
     commit(homeForRole(contextRef.current.roleType), null, 'replace');
   }, [commit, setNavHistory]);
 
-  const handleBrowserDestination = useCallback((requestedPage, params, browserState) => {
+  const handleBrowserDestination = useCallback((requestedPage, params, browserState, wentBack = false) => {
     const decision = resolveBrowserEntry(requestedPage, browserState, contextRef.current);
     if (!decision.allowed) {
       onUnavailable?.(decision);
@@ -127,6 +136,8 @@ const useNavigationShell = ({
       commit(homeForRole(contextRef.current.roleType), null, 'replace');
       return false;
     }
+    // Keep the app's own list in step with the browser's (it guards stale role pages).
+    if (wentBack) setNavHistory((history) => history.slice(0, -1));
     setNavParams(params || null);
     setPage(requestedPage);
     pageRef.current = requestedPage;
