@@ -2162,7 +2162,9 @@
     "share_prompt_title": "Have something to share?",
     "share_prompt_desc": "Post for free today",
     "list_item_button": "List Item",
-    "services_button": "Services"
+    "services_button": "Services",
+    "empty_topic": "No posts in {{topic}} yet.",
+    "all_topics_button": "See all topics"
   },
   "order_tracking": {
     "load_failed": "Failed to load order details",

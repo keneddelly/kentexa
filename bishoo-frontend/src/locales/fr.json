@@ -2122,7 +2122,9 @@
     "share_prompt_title": "Quelque chose à partager ?",
     "share_prompt_desc": "Publiez gratuitement aujourd'hui",
     "list_item_button": "Publier un Article",
-    "services_button": "Services"
+    "services_button": "Services",
+    "empty_topic": "Pas encore de publication dans {{topic}}.",
+    "all_topics_button": "Voir tous les sujets"
   },
   "order_tracking": {
     "load_failed": "Échec du chargement des détails de la commande",
