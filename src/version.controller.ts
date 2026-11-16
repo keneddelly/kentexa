@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Controller, Get, Optional } from '@nestjs/common';
+import { Controller, Get, Optional, Req } from '@nestjs/common';
+import { describeRequestSource } from './common/trust-proxy';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
@@ -48,6 +49,15 @@ export class VersionController {
    * Migration names only; no data. `null` when there is no ledger to read
    * (a database built by schema sync, as in CI).
    */
+  /**
+   * Issue #361: the caller's own address as the server sees it, open to anyone (it shows each
+   * visitor only themselves), so the proxy setting can be confirmed without signing in.
+   */
+  @Get('request-source')
+  requestSource(@Req() req: any) {
+    return describeRequestSource(req);
+  }
+
   @Get('migrations')
   async getMigrations() {
     const files = this.migrationFiles();

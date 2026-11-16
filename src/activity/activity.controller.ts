@@ -1,3 +1,4 @@
+import { describeRequestSource } from '../common/trust-proxy';
 import { Controller, Get, Param, ParseIntPipe, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminMirrorService } from './admin-mirror.service';
 import { ActivityEventService } from './activity-event.service';
@@ -28,18 +29,7 @@ export class ActivityController {
    */
   @Get('admin/request-source')
   requestSource(@Request() req: any) {
-    const h = req?.headers || {};
-    const one = (v: unknown) => (typeof v === 'string' ? v.slice(0, 300) : null);
-    return {
-      ip: req?.ip ?? null,
-      ips: Array.isArray(req?.ips) ? req.ips : [],
-      remoteAddress: req?.socket?.remoteAddress ?? null,
-      xForwardedFor: one(h['x-forwarded-for']),
-      cfConnectingIp: one(h['cf-connecting-ip']),
-      trueClientIp: one(h['true-client-ip']),
-      xRealIp: one(h['x-real-ip']),
-      trustProxyHops: req?.app?.get?.('trust proxy') ?? null,
-    };
+    return describeRequestSource(req);
   }
 
   // Owner 2026-11-09: "admin is the mirror of KenteXa". Every recorded action, newest first.
