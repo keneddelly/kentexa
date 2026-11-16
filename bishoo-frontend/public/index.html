@@ -84,7 +84,10 @@
   </head>
   <body>
     <noscript>Kivinjari hiki kimezima JavaScript. Fungua kentexa.com kwa Google Chrome.</noscript>
-    <div id="root"></div>
+    <!-- Light first load (owner 2026-11-16): shown the moment the page arrives, while KenteXa's
+         code downloads, so a slow line never shows a blank screen. React replaces it. -->
+    <style>@keyframes kxboot{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}</style>
+    <div id="root"><div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:-apple-system,Roboto,Arial,sans-serif;background:#fff;color:#536471"><div style="font-size:26px;font-weight:800;color:#0f1419;letter-spacing:-0.5px">KenteXa</div><div style="width:120px;height:3px;border-radius:2px;background:#eff3f4;overflow:hidden"><div style="width:40%;height:100%;background:#1d9bf0;border-radius:2px;animation:kxboot 1.1s ease-in-out infinite"></div></div><div style="font-size:14px">Inafungua…</div></div></div>
     <!-- Every browser (owner approved 2026-11-15): a browser that cannot run KenteXa, or a line
          so slow that the site has not started after 20 seconds, gets a plain message instead of
          an endless white screen. Plain old JavaScript on purpose: it must run where the site cannot. -->

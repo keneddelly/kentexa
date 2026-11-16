@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'kentexa-static-v4';
+const STATIC_CACHE = 'kentexa-static-v5';
 // The till (/pos) must open without internet (owner 2026-10-27). Only that one page is kept:
 // fetched from the network every time it can be, and the copy is used only when the
 // network fails. No other page is ever served from a cache.
@@ -48,7 +48,10 @@ self.addEventListener('fetch', (event) => {
   if (!isStatic) return;
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok && response.type === 'basic' &&
+      // A page file from an old version answers with the website itself (HTML): never keep that
+      // as a script, or the page could not load until the cache is cleared.
+      const type = response.headers.get('content-type') || '';
+      if (response.ok && response.type === 'basic' && !type.includes('text/html') &&
           ['script', 'style', 'image', 'font'].includes(request.destination)) {
         const clone = response.clone();
         caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));

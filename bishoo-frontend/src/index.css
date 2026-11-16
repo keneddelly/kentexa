@@ -21,3 +21,7 @@ html.kentexa-apple-mobile textarea,
 html.kentexa-apple-mobile select {
   font-size: 16px !important;
 }
+
+/* Light first load (owner 2026-11-16): the moving bar while a page downloads. */
+@keyframes kx-loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.kx-loading-bar { animation: kx-loading 1.1s ease-in-out infinite; }
