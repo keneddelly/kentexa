@@ -7,10 +7,10 @@ beforeEach(() => __resetMetricsForTests());
 describe('traffic step 1 (#368): live numbers for the server', () => {
   it('counts requests per minute, statuses and response times over 5 minutes', () => {
     const t = Date.UTC(2026, 10, 16, 6, 0, 30);
+    recordRequest(200, 50, t - 10 * 60000); // older than the window: dropped
     for (let i = 1; i <= 100; i += 1) recordRequest(200, i * 10, t);
     recordRequest(429, 5, t);
     recordRequest(503, 5, t);
-    recordRequest(200, 50, t - 10 * 60000); // older than the window
     const s = metricsSnapshot(null, t);
     expect(s.requests.total).toBe(102);
     expect(s.requests.status).toEqual({ ok2xx: 100, redirect3xx: 0, client4xx: 1, tooMany429: 1, server5xx: 1 });
