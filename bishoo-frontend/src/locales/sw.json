@@ -1941,7 +1941,9 @@
     "share_prompt_title": "Una kitu cha kushiriki?",
     "share_prompt_desc": "Chapisha bure leo",
     "list_item_button": "Weka Tangazo",
-    "services_button": "Huduma"
+    "services_button": "Huduma",
+    "empty_topic": "Bado hakuna chapisho kwenye {{topic}}.",
+    "all_topics_button": "Ona mada zote"
   },
   "order_tracking": {
     "load_failed": "Imeshindwa kupakia maelezo ya agizo",

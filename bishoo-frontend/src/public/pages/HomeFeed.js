@@ -2212,8 +2212,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           <div style={{ fontSize:48, marginBottom:12 }}>
             {''}
           </div>
-          <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-            {filter==='following'
+          <div data-testid="feed-empty" style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
+            {topic
+              ? t('home_feed.empty_topic', { topic: topicLabel(topic, topics) })
+              : filter==='following'
               ? t('home_feed.empty_following')
               : filter==='transport'
               ? t('home_feed.empty_transport')
@@ -2222,6 +2224,13 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               : t('home_feed.empty_default')}
           </div>
           <div style={{ display:'flex', gap:10, justifyContent:'center', marginTop:16 }}>
+            {topic && (
+              <button type="button" data-testid="feed-all-topics" onClick={() => setTopic('')}
+                style={{ backgroundColor:DK, color:WH, border:'none', borderRadius:12,
+                  padding:'11px 20px', cursor:'pointer', fontSize:13, fontWeight:700 }}>
+                {t('home_feed.all_topics_button')}
+              </button>
+            )}
             <button onClick={() => onNavigate('Stores')}
               style={{ backgroundColor:B, color:WH, border:'none', borderRadius:12,
                 padding:'11px 20px', cursor:'pointer', fontSize:13, fontWeight:700 }}>

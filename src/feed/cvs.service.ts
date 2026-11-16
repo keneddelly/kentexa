@@ -1377,7 +1377,9 @@ export class CvsService {
     // post stays at top forever" instead of just decaying its score.
     // 'following' stays exempt: it's a chronological timeline of people you
     // chose to follow, not a discovery surface that needs to rotate.
-    if (userId && filter !== 'following') {
+    // A chosen topic (owner 2026-11-16: "Biashara showed no posts while posts are tagged") is a
+    // place to look, like a tag page: it shows all its posts, seen or not.
+    if (userId && filter !== 'following' && !topic) {
       qb.andWhere(
         `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view')`,
         { uid: userId },
@@ -1549,8 +1551,8 @@ export class CvsService {
         .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
         .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`)
         .andWhere(
-          `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view')`,
-          { uid: userId },
+          topic ? '1=1' : `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view')`,
+          topic ? {} : { uid: userId },
         );
       if (primaryIds.length) {
         exploreQb.andWhere('f.id NOT IN (:...primaryIds)', { primaryIds });
