@@ -179,7 +179,7 @@ export class CommunitiesService {
       if (m?.status !== 'active') throw new ForbiddenException('Wanachama tu ndio wanaona orodha hii.');
     }
     return this.dataSource.query(
-      `SELECT m."userId", u.name, m.role FROM public.community_member m JOIN public."user" u ON u.id = m."userId"
+      `SELECT m."userId", u.name, u."avatarUrl" AS photo, m.role FROM public.community_member m JOIN public."user" u ON u.id = m."userId"
         WHERE m."communityId" = $1 AND m.status = 'active'
         ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'helper' THEN 1 ELSE 2 END, m."createdAt" LIMIT 200`, [communityId]);
   }

@@ -119,7 +119,7 @@ test('#374 C: comments are a conversation: names tidy, visible Jibu and Penda bu
   answerThread();
   await open();
   const top = screen.getByTestId('comment');
-  expect(top).toHaveTextContent('Asha m.');
+  expect(top).toHaveTextContent('Asha M.');
   expect(top).toHaveTextContent('Biashara ya mayai.');
   expect(screen.getAllByTestId('comment-reply')).toHaveLength(1);
   expect(screen.getAllByTestId('comment-reply')[0]).toHaveTextContent('Kened · mwandishi');
@@ -158,7 +158,7 @@ const answerCommunity = (p, role) => api.get.mockImplementation(async (url) => (
 test('#374 D: the header names the community; the chosen reply shows first as "Jibu bora"', async () => {
   answerCommunity(communityPost, 'member');
   const onNavigate = await open();
-  expect(screen.getByTestId('post-from-community')).toHaveTextContent('kutoka Wafanyabiashara kariakoo');
+  expect(screen.getByTestId('post-from-community')).toHaveTextContent('kutoka Wafanyabiashara Kariakoo');
   expect(screen.getByTestId('best-answer')).toHaveTextContent('Accessories za simu');
   expect(screen.queryByTestId('moderator-menu')).toBeNull(); // a member is not a moderator
   expect(screen.queryByTestId('comment-best')).toBeNull(); // nor the writer
@@ -200,7 +200,7 @@ test('B: a guest can type a reply; sending it opens the invitation with real nam
   await act(async () => { fireEvent.click(screen.getByTestId('reply-send')); });
   expect(screen.getByTestId('guest-join')).toBeInTheDocument();
   expect(screen.getByTestId('guest-draft')).toHaveValue('Mimi naona mayai');
-  expect(screen.getByTestId('guest-join-people')).toHaveTextContent('Asha m., Kened na wengine 2 wanajadili hili');
+  expect(screen.getByTestId('guest-join-people')).toHaveTextContent('Asha M., Kened na wengine 2 wanajadili hili');
   expect(api.post).not.toHaveBeenCalled();
 });
 

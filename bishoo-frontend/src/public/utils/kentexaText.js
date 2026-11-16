@@ -84,12 +84,36 @@ export const formatText = (text) => {
   return sentenceCaps(lines.join('\n'));
 };
 
-/** A name (person, business, product, community): first letter capital if typed all small. */
-export const formatName = (name) => {
-  const tidy = tidySpaces(name).replace(/\n+/g, ' ');
+/** A title or heading written as a sentence: first letter capital if typed all small. */
+export const formatTitle = (title) => {
+  const tidy = tidySpaces(title).replace(/\n+/g, ' ');
   if (!tidy) return '';
   if (isShouting(tidy)) return capFirst(unshoutLine(tidy));
   return isAllLower(tidy) ? capFirst(tidy) : tidy;
+};
+
+// Small joining words stay small inside a name ("Duka la Juma", "Wafanya Biashara wa Kariakoo").
+const NAME_SMALL = new Set(['na', 'wa', 'ya', 'la', 'za', 'kwa', 'cha', 'vya', 'pa', 'mwa', 'ni', 'au', 'katika', 'kwenye',
+  'and', 'of', 'the', 'in', 'for', 'de', 'du', 'et']);
+const NAME_BRANDS = { kentexa: 'KenteXa' };
+
+/**
+ * A name (person, business, community, product), owner 2026-11-16: each word starts with a capital
+ * ("wafanya biashara kariakoo" -> "Wafanya Biashara Kariakoo"); small joining words stay small;
+ * a word already written with a capital inside (iPhone, BiS, TBC, M-PESA) stays exactly as typed;
+ * KenteXa always as KenteXa. A long name typed all in capitals is shown in normal case first.
+ */
+export const formatName = (name) => {
+  let tidy = tidySpaces(name).replace(/\n+/g, ' ');
+  if (!tidy) return '';
+  if (isShouting(tidy)) tidy = unshoutLine(tidy);
+  return tidy.split(' ').map((w, i) => {
+    const bare = w.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+    if (NAME_BRANDS[bare]) return w.replace(new RegExp(bare, 'i'), NAME_BRANDS[bare]);
+    if (UPPER.test(w)) return w; // the writer's own capitals
+    if (i > 0 && NAME_SMALL.has(bare)) return w;
+    return capFirst(w);
+  }).join(' ');
 };
 
 const sameWords = (a, b) => {
@@ -103,7 +127,7 @@ const sameWords = (a, b) => {
  * Returns { lead, text }: lead is '' when there is no separate title.
  */
 export const formatCaption = (title, body) => {
-  const t = formatName(title);
+  const t = formatTitle(title);
   const b = formatText(body);
   if (!t) return { lead: '', text: b };
   if (!b || sameWords(t, b)) return { lead: '', text: b || formatText(title) };

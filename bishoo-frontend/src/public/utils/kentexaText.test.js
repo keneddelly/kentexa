@@ -1,15 +1,25 @@
 import {
-  formatText, formatName, formatCaption, formatPrice, formatPhone, tidySpaces, isShouting, leadSeparator,
+  formatText, formatName, formatTitle, formatCaption, formatPrice, formatPhone, tidySpaces, isShouting, leadSeparator,
 } from './kentexaText';
 
 describe('KenteXa text style (#374 part E)', () => {
-  test('names typed all small get a capital first letter', () => {
-    expect(formatName('duka la juma')).toBe('Duka la juma');
-    expect(formatName('  mama  ntilie ')).toBe('Mama ntilie');
+  test('names: each word starts with a capital; small joining words stay small (owner 2026-11-16)', () => {
+    expect(formatName('duka la juma')).toBe('Duka la Juma');
+    expect(formatName('  mama  ntilie ')).toBe('Mama Ntilie');
+    expect(formatName('Wafanya biashara kariakoo')).toBe('Wafanya Biashara Kariakoo');
+    expect(formatName('wafanya biashara wa kariakoo')).toBe('Wafanya Biashara wa Kariakoo');
+    expect(formatName('Kentexa')).toBe('KenteXa');
+    expect(formatName('asha m.')).toBe('Asha M.');
+    expect(formatName('samsung galaxy a14')).toBe('Samsung Galaxy A14');
+  });
+
+  test('a title written as a sentence keeps the sentence style', () => {
+    expect(formatTitle('hivi ni biashara gani?')).toBe('Hivi ni biashara gani?');
   });
 
   test('names typed with capitals stay exactly as written', () => {
     expect(formatName('iPhone 13 Pro')).toBe('iPhone 13 Pro');
+    expect(formatName('BiS')).toBe('BiS');
     expect(formatName('KenteXa')).toBe('KenteXa');
     expect(formatName('TBC')).toBe('TBC');
     expect(formatName('eBay')).toBe('eBay');

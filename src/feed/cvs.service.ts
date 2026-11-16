@@ -2112,7 +2112,8 @@ export class CvsService {
    */
   async getCommunityThreads(
     communityId: number, viewerId: number | null, page = 1, kind: string | null = null, lastSeenAt: Date | null = null,
-  ): Promise<{ items: any[]; total: number }> {
+    sort: 'latest' | 'top' | 'unanswered' = 'latest', search: string | null = null,
+  ): Promise<{ items: any[]; total: number; unanswered: number }> {
     const limit = 20;
     const qb = this.feedRepo.createQueryBuilder('f')
       .leftJoin('f.business', 'b')
@@ -2127,8 +2128,26 @@ export class CvsService {
       .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
       .andWhere(NOT_MUTED_BY_VIEWER('f'));
     if (kind) qb.andWhere('f.intent::text = :ckind', { ckind: kind });
-    const [rows, total] = await qb.orderBy('pin_rank', 'ASC').addOrderBy('activity_at', 'DESC').addOrderBy('f.id', 'DESC')
-      .skip((Math.max(page, 1) - 1) * limit).take(limit).getManyAndCount();
+    // D2 (owner approved 2026-11-16): search inside the community, and three ways to sort.
+    const words = String(search || '').trim().slice(0, 80);
+    if (words) qb.andWhere('(f.title ILIKE :cq OR f.body ILIKE :cq)', { cq: `%${words.replace(/[\\%_]/g, (m) => `\\${m}`)}%` });
+    const NO_REPLY = `NOT EXISTS (SELECT 1 FROM public.post_comment pu WHERE pu."postId" = f.id AND pu."isDeleted" = false)`;
+    // Unanswered: what still waits for a first reply (polls are answered by voting).
+    const unansweredQb = qb.clone().andWhere(NO_REPLY).andWhere(`f.intent::text IS DISTINCT FROM 'poll'`);
+    if (sort === 'unanswered') qb.andWhere(NO_REPLY).andWhere(`f.intent::text IS DISTINCT FROM 'poll'`);
+    if (sort === 'top') {
+      qb.addSelect(`(SELECT COUNT(*) FROM public.post_comment pt WHERE pt."postId" = f.id AND pt."isDeleted" = false
+                     AND pt."createdAt" > NOW() - INTERVAL '14 days')`, 'talk_14d')
+        .orderBy('talk_14d', 'DESC').addOrderBy('activity_at', 'DESC');
+    } else if (sort === 'unanswered') {
+      qb.orderBy('f.createdAt', 'DESC');
+    } else {
+      qb.orderBy('pin_rank', 'ASC').addOrderBy('activity_at', 'DESC');
+    }
+    const [[rows, total], unanswered] = await Promise.all([
+      qb.addOrderBy('f.id', 'DESC').skip((Math.max(page, 1) - 1) * limit).take(limit).getManyAndCount(),
+      unansweredQb.getCount().catch(() => 0),
+    ]);
     const [followed, savedIds] = await Promise.all([
       this.getFollowedSellerIds(viewerId),
       viewerId ? this.getSavedPostIds(viewerId) : Promise.resolve([]),
@@ -2140,9 +2159,29 @@ export class CvsService {
         `SELECT "postId", COUNT(*)::int AS n, MAX("createdAt") AS last FROM public.post_comment
           WHERE "postId" = ANY($1) AND "isDeleted" = false GROUP BY "postId"`, [ids]).catch(() => []),
       this.feedRepo.query(
-        `SELECT p."postId", p."closesAt", COALESCE(SUM(o."voteCount"), 0)::int AS votes FROM public.post_poll p
-           LEFT JOIN public.post_poll_option o ON o."pollId" = p.id WHERE p."postId" = ANY($1) GROUP BY p.id`, [ids]).catch(() => []),
+        `SELECT p."postId", p."closesAt", p."resultPolicy", COALESCE(SUM(o."voteCount"), 0)::int AS votes,
+                COALESCE(json_agg(json_build_object('label', o.label, 'votes', o."voteCount") ORDER BY o.position)
+                  FILTER (WHERE o.id IS NOT NULL), '[]') AS options,
+                EXISTS (SELECT 1 FROM public.post_poll_vote v WHERE v."pollId" = p.id AND v."userId" = $2) AS voted
+           FROM public.post_poll p
+           LEFT JOIN public.post_poll_option o ON o."pollId" = p.id WHERE p."postId" = ANY($1) GROUP BY p.id`, [ids, viewerId || 0]).catch(() => []),
     ]) : [[], []];
+    // D2: who is talking: up to 3 recent repliers per discussion, newest first, as they appeared
+    // (the profile they replied as).
+    const talkers: any[] = ids.length ? await this.feedRepo.query(
+      `SELECT pc."postId", pc."authorId", MAX(pc."createdAt") AS last,
+              MAX(COALESCE(cp."displayName", u.name)) AS name, MAX(COALESCE(cp."photoUrl", u."avatarUrl")) AS photo
+         FROM public.post_comment pc
+         LEFT JOIN public."user" u ON u.id = pc."authorId"
+         LEFT JOIN public.commerce_profile cp ON cp.id = pc."commerceProfileId"
+        WHERE pc."postId" = ANY($1) AND pc."isDeleted" = false
+        GROUP BY pc."postId", pc."authorId" ORDER BY last DESC`, [ids]).catch(() => []) : [];
+    const people = new Map<number, Array<{ name: string; photo: string | null }>>();
+    talkers.forEach((t) => {
+      const list = people.get(Number(t.postId)) || [];
+      if (list.length < 3) list.push({ name: t.name || '', photo: t.photo || null });
+      people.set(Number(t.postId), list);
+    });
     const replies = new Map<number, any>(replyRows.map((r: any) => [Number(r.postId), r]));
     const polls = new Map<number, any>(pollRows.map((r: any) => [Number(r.postId), r]));
     return {
@@ -2152,15 +2191,29 @@ export class CvsService {
         const lastReplyAt = r?.last ? new Date(r.last) : null;
         const activity = lastReplyAt && lastReplyAt > new Date(i.createdAt) ? lastReplyAt : new Date(i.createdAt);
         const poll = polls.get(i.id);
+        const who = people.get(i.id) || [];
+        const closed = poll ? new Date(poll.closesAt) <= new Date() : false;
+        // Results only where the poll itself would show them (after voting, unless it says always or has closed).
+        const showResults = !!poll && (poll.resultPolicy !== 'after_vote' || poll.voted || closed);
+        const pollVotes = Number(poll?.votes || 0);
         return {
           ...i,
           replyCount: Number(r?.n || 0),
+          participants: who,
+          lastReplyBy: who[0]?.name || null,
           lastReplyAt,
           pinned: !!i.pinnedAt,
           unread: !!lastSeenAt && activity > lastSeenAt && Number(i.business?.id) !== Number(viewerId),
-          poll: poll ? { closesAt: poll.closesAt, votes: Number(poll.votes || 0) } : null,
+          poll: poll ? {
+            closesAt: poll.closesAt, votes: pollVotes, closed, showResults, voted: !!poll.voted,
+            options: (Array.isArray(poll.options) ? poll.options : []).slice(0, 4).map((o: any) => ({
+              label: o.label,
+              pct: showResults && pollVotes > 0 ? Math.round((Number(o.votes || 0) / pollVotes) * 100) : null,
+            })),
+          } : null,
         };
       }),
+      unanswered: Number(unanswered || 0),
     };
   }
 

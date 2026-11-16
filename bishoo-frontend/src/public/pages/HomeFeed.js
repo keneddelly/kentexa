@@ -13,7 +13,7 @@
  */
 import ExpandableText from '../components/ExpandableText';
 import HashtagText from '../components/HashtagText';
-import { formatCaption, formatName, formatPrice, leadSeparator } from '../utils/kentexaText';
+import { formatCaption, formatName, formatPrice, formatTitle, leadSeparator } from '../utils/kentexaText';
 import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
 import ShareSheet from '../components/ShareSheet';
 import ShareNudge, { markNudge, nudgeSeen } from '../components/ShareNudge';
@@ -407,7 +407,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:14, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {formatName(c.offerCard.title)}
+          {formatTitle(c.offerCard.title)}
         </div>
         {c.offerCard.price != null && (
           <div style={{ fontSize:13, color:INK_TX }}>{formatPrice(c.offerCard.price) || 'Bure'}</div>
@@ -1049,7 +1049,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             border:`1px solid ${LINE_TX}`, borderRadius:12 }}>
             <div style={{ minWidth:0 }}>
               {(productName || rawTitle) && (
-                <div style={{ fontSize:15, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{formatName(productName || rawTitle)}</div>
+                <div style={{ fontSize:15, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{productName ? formatName(productName) : formatTitle(rawTitle)}</div>
               )}
               {price > 0 && !image && photos.length < 2 && (
                 <div style={{ fontSize:15, color: post.isFlashSale ? '#b91c1c' : INK_TX }}>
