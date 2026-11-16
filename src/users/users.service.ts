@@ -20,6 +20,13 @@ export class UsersService {
     private commerceProfiles: CommerceProfilesService,
   ) {}
 
+  /** Privacy (issue #365): the person's own yes or no to KenteXa's news and offers. */
+  async setMarketingOptOut(userId: number, optOut: boolean): Promise<{ marketingOptOut: boolean; marketingOptOutAt: Date | null }> {
+    const at = optOut ? new Date() : null;
+    await this.userRepo.update(userId, { marketingOptOut: optOut, marketingOptOutAt: at } as any);
+    return { marketingOptOut: optOut, marketingOptOutAt: at };
+  }
+
   // Destructuring off a User instance produces a plain object, which drops
   // the entity's prototype — the @Exclude() decorators on otp/otpExpiry/
   // otpAttempts never fire because ClassSerializerInterceptor only acts on

@@ -1495,7 +1495,13 @@
     "logout_button": "Toka",
     "my_kentexa_id_title": "KenteXa ID Yangu",
     "qr_modal_desc": "Onyesha hii ili watu wafuate wasifu wako",
-    "close_button": "Funga"
+    "close_button": "Funga",
+    "marketing_label": "Taarifa za KenteXa",
+    "marketing_on": "Unapokea habari mpya na ofa kutoka KenteXa. Gusa kuzima.",
+    "marketing_off": "Hupokei habari na ofa. Taarifa za oda, malipo na mizigo yako zinaendelea. Gusa kuwasha.",
+    "marketing_failed": "Imeshindikana kubadilisha. Jaribu tena.",
+    "marketing_value_on": "Imewashwa",
+    "marketing_value_off": "Imezimwa"
   },
   "commerce_profile": {
     "action_orders": "Orders",

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -27,6 +28,16 @@ import type { RoleContext } from '../role-context/role-context.types';
 @UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private usersService: UsersService) {}
+
+  /**
+   * Privacy (issue #365): "Taarifa za KenteXa" on or off, for the signed-in person only (an
+   * admin cannot change someone else's choice).
+   */
+  @Patch('me/marketing')
+  setMarketing(@Request() req, @Body('optOut') optOut: any) {
+    if (typeof optOut !== 'boolean') throw new BadRequestException('Chagua ndiyo au hapana.');
+    return this.usersService.setMarketingOptOut(req.user.id, optOut);
+  }
 
   @Post()
   @UseGuards(RolesGuard)

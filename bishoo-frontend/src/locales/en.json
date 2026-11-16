@@ -1716,7 +1716,13 @@
     "logout_button": "Logout",
     "my_kentexa_id_title": "My KenteXa ID",
     "qr_modal_desc": "Show this so people can follow your profile",
-    "close_button": "Close"
+    "close_button": "Close",
+    "marketing_label": "KenteXa news and offers",
+    "marketing_on": "You receive news and offers from KenteXa. Tap to turn off.",
+    "marketing_off": "You do not receive news and offers. Messages about your orders, payments and parcels still arrive. Tap to turn on.",
+    "marketing_failed": "Could not change it. Try again.",
+    "marketing_value_on": "On",
+    "marketing_value_off": "Off"
   },
   "commerce_profile": {
     "action_orders": "Orders",
