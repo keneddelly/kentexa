@@ -1,11 +1,16 @@
 /**
- * Issue #361: how many proxy hops in front of the app to trust (Render's load balancer = 1),
- * so req.ip is the address that reached Render. A whole number 0-5 from TRUST_PROXY_HOPS,
- * default 1.
+ * Issue #361: how many proxy hops in front of the app to trust, so req.ip is the phone's own
+ * address. Confirmed on live 2026-11-16 (GET /version/request-source): a request passes
+ * Cloudflare, then Render's load balancer — x-forwarded-for "197.186.16.6, 172.71.150.51"
+ * with cf-connecting-ip 197.186.16.6. Two hops: req.ip is the address Cloudflare itself saw,
+ * which a phone cannot forge (anything a phone writes in the header sits further left).
+ * A whole number 0-5 from TRUST_PROXY_HOPS, default 2.
  */
+export const DEFAULT_TRUST_PROXY_HOPS = 2;
+
 export function trustProxyHops(raw: string | undefined): number {
   const n = Number(raw);
-  return raw !== undefined && raw !== '' && Number.isInteger(n) && n >= 0 && n <= 5 ? n : 1;
+  return raw !== undefined && raw !== '' && Number.isInteger(n) && n >= 0 && n <= 5 ? n : DEFAULT_TRUST_PROXY_HOPS;
 }
 
 /**
