@@ -30,6 +30,9 @@ describe('topic chips on Home', () => {
     const { svc, wheres } = build();
     await svc.getFilteredFeed({ filter: 'for_you', userId: 5, page: 1, limit: 15, topic: null });
     expect(hidesSeen(wheres)).toBe(true);
+    // Owner 2026-11-16: only what was seen before this visit (over 30 minutes ago) leaves, so a
+    // second read never swaps the posts on screen for older ones.
+    expect(wheres.find((w) => w.includes("pe.type = 'view'"))).toContain("INTERVAL '30 minutes'");
   });
 
   it('a chosen topic shows all its posts, seen or not', async () => {

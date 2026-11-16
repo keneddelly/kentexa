@@ -1382,9 +1382,11 @@ export class CvsService {
     // chose to follow, not a discovery surface that needs to rotate.
     // A chosen topic (owner 2026-11-16: "Biashara showed no posts while posts are tagged") is a
     // place to look, like a tag page: it shows all its posts, seen or not.
+    // Owner 2026-11-16: a post seen in the last 30 minutes stays, so reading the list again in the
+    // same visit (coming back from WhatsApp, a refresh) never swaps what is on screen for older posts.
     if (userId && filter !== 'following' && !topic) {
       qb.andWhere(
-        `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view')`,
+        `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view' AND pe."createdAt" < NOW() - INTERVAL '30 minutes')`,
         { uid: userId },
       );
     }

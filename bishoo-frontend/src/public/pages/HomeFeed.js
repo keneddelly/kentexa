@@ -1900,7 +1900,14 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     return createTrailRotation(trailPool, { userKey: currentUser?.id, storage });
   }, [trailPool, currentUser?.id]);
 
+  // Owner 2026-11-16 ("new posts show for a second, then old posts replace them"): the list was
+  // read again every time the profile was refreshed (sign-in, coming back to the app), and by then
+  // the posts on screen counted as seen. The list now reads again only when the tab, topic or city
+  // changes, and an older answer never replaces a newer one.
+  const loadSeq = useRef(0);
+  const city = currentUser?.city || '';
   const loadPosts = useCallback(async (f, p = 1, append = false) => {
+    const seq = ++loadSeq.current;
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
       const params = new URLSearchParams({ filter: f, page: String(p) });
@@ -1908,15 +1915,16 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       // Lets the backend's "for_you" blend (city-match component) and the
       // "nearby" filter actually match against the viewer's own location —
       // neither had ever received it before.
-      if (currentUser?.city) params.set('city', currentUser.city);
+      if (city) params.set('city', city);
       const res = await api.get(`/feed?${params}`);
+      if (seq !== loadSeq.current) return; // a newer read has started: this answer is old
       const items = res.data?.items || res.data || [];
       if (append) setPosts(prev => [...prev, ...items]);
       else setPosts(items);
       setHasMore(items.length >= 15);
     } catch {}
-    finally { setLoading(false); setLoadingMore(false); }
-  }, [currentUser, topic]);
+    finally { if (seq === loadSeq.current) { setLoading(false); setLoadingMore(false); } }
+  }, [city, topic]);
 
   const isDirectory = DIRECTORY_KINDS.includes(filter);
   useEffect(() => {
