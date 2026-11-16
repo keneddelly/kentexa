@@ -24,3 +24,16 @@ test('short text: no "Soma zaidi"', () => {
   render(<ExpandableText text="Karibu" />);
   expect(screen.queryByTestId('read-more')).toBeNull();
 });
+
+test('KenteXa text style (#374 E): a caption title is the bold start, the text is tidied', () => {
+  sizes(40, 40);
+  render(<ExpandableText lead="Wafanya biashara Kariakoo" text="hivi ni  biashara gani ?" />);
+  expect(screen.getByTestId('post-lead')).toHaveTextContent('Wafanya biashara Kariakoo');
+  expect(screen.getByTestId('post-text').textContent).toBe('Wafanya biashara Kariakoo: Hivi ni biashara gani?');
+});
+
+test('KenteXa text style (#374 E): raw keeps the text exactly as typed', () => {
+  sizes(40, 40);
+  render(<ExpandableText raw text="hivi ni  biashara" />);
+  expect(screen.getByTestId('post-text').textContent).toBe('hivi ni  biashara');
+});

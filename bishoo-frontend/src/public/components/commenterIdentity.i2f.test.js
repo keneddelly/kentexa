@@ -52,7 +52,7 @@ describe('CommerceCommentSection renders the shared identity', () => {
     const { container } = render(
       <CommerceCommentSection entityType="product" entityId={1} sellerId={999} isLoggedIn={false} currentUser={null} onNavigate={jest.fn()} />,
     );
-    expect(await screen.findByText('personal hello')).toBeInTheDocument();
+    expect(await screen.findByText('Personal hello')).toBeInTheDocument(); // shown in the KenteXa text style (#374 E)
     expect(screen.getByText('Bob')).toBeInTheDocument();
     expect(screen.getByText('Washing Machine Tz')).toBeInTheDocument(); // the Business comment's canonical profile
     expect(screen.queryByText('washing machine tz')).toBeNull(); // storeName never used as a Personal name
