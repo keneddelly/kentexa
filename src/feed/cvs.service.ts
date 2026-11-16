@@ -42,6 +42,7 @@ import { User } from '../users/entities/user.entity';
 import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { momentActorFields, identityVerified } from '../commerce-profiles/moment-actor';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { WriterWeekService } from './writer-week.service';
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -93,6 +94,8 @@ export class CvsService {
     // hand-built test instances keep constructing; missing = fail open (no flag).
     @Optional() private readonly aiService?: AiService,
     @Optional() private readonly aiPrompts?: AiPromptTemplateService,
+    // Mwandishi wa Wiki: the gold label on the writer of the week's posts.
+    @Optional() private readonly writerWeek?: WriterWeekService,
   ) {}
 
   /** A post the viewer may not see answers "not found" (phase A: followers-only posts). */
@@ -2345,6 +2348,7 @@ export class CvsService {
       ? await this.feedRepo.query(`SELECT id, name, "joinPolicy" FROM public.community WHERE id = ANY($1)`, [communityIdsOnPage]).catch(() => [])
       : [];
     const communityMap = new Map<number, any>(communityRows.map((c: any) => [Number(c.id), { id: Number(c.id), name: c.name, joinPolicy: c.joinPolicy }]));
+    const weekWriter = this.writerWeek ? await this.writerWeek.winnerOwner().catch(() => null) : null;
 
     return items.map((f) => {
         const rawBiz = (f as any).business;
@@ -2366,6 +2370,7 @@ export class CvsService {
           isSaved: savedIds.includes(f.id),
           business,
           community: (f as any).communityId ? communityMap.get(Number((f as any).communityId)) || null : null,
+          writerOfWeek: !!weekWriter && Number((f as any).businessId) === weekWriter,
         };
       });
   }

@@ -6,6 +6,8 @@
  * only sent when the person taps Tuma. Nothing is done for them without a tap.
  */
 import React, { useEffect, useState } from 'react';
+import { PlayMark, showGetApp } from './GetAppStrip';
+import { PLAY_STORE_URL } from '../hooks/usePWA';
 import { peopleLine, rememberGuestPlace } from '../utils/guestJoin';
 
 const INK = '#0f1419';
@@ -77,6 +79,13 @@ export default function GuestJoinSheet({ onNavigate }) {
           style={{ height: 48, borderRadius: 999, border: `1px solid ${BORDER}`, background: '#fff', color: INK, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
           Nina akaunti: Ingia
         </button>
+        {showGetApp() && (
+          <a href={PLAY_STORE_URL} data-testid="guest-join-app" target="_blank" rel="noopener noreferrer"
+            style={{ height: 44, borderRadius: 999, border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#0f1419', fontSize: 15, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
+            <PlayMark size={16} />Pakua app ya KenteXa (Google Play)
+          </a>
+        )}
         <button type="button" data-testid="guest-join-later" onClick={() => setAsk(null)}
           style={{ border: 'none', background: 'none', fontFamily: 'inherit', fontSize: 14, color: MUTED, cursor: 'pointer', padding: 6 }}>
           Endelea kusoma

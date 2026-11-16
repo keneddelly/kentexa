@@ -24,6 +24,7 @@ import { Face, KIND, KindIcon, PinnedCard, ThreadCard, shortAgo, threadTitle, th
 import ShareSheet from '../components/ShareSheet';
 import ShareResult from '../components/ShareResult';
 import { askToJoin } from '../utils/guestJoin';
+import GetAppStrip from '../components/GetAppStrip';
 
 export { KIND, shortAgo, threadTitle, threadWords };
 
@@ -306,6 +307,8 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
         </div>
       )}
 
+      {/* Owner 2026-11-16: Android visitors without the app are invited to get it. */}
+      <GetAppStrip text="Fuatilia jumuiya hii kwenye app ya KenteXa" />
       <div ref={headRef} data-testid="community-head" style={{ background: '#fff', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, borderBottom: `1px solid ${CARD_LINE}` }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
           <div aria-hidden="true" style={{ width: 64, height: 64, borderRadius: 16, background: INK, color: '#fff', flexShrink: 0,

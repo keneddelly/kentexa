@@ -12,7 +12,7 @@ import { Canvas, RGB, hex, mix, wrap, measure } from './canvas';
 import { TrueTypeFont } from './ttf';
 
 export type CardInput = {
-  kind: 'post' | 'community';
+  kind: 'post' | 'community' | 'writer';
   /** Badge: Swali, Kura, Mjadala, Ofa, Uzoefu, Chapisho, Jumuiya. */
   badge: string;
   /** The big words: the question, title or community name. */
@@ -66,6 +66,14 @@ function logo(c: Canvas, x: number, y: number, s: number) {
   c.poly([P(20, 2), P(15, 8), P(11, 5), P(11, 20), P(17, 14)], hex('#60a5fa'));
 }
 
+/** "Pakua app ya KenteXa: Google Play", with a small green play mark. */
+export const PLAY_LINE = 'Pakua app ya KenteXa: Google Play';
+function playLine(c: Canvas, f: TrueTypeFont, x: number, y: number, size: number) {
+  const s = size * 0.9;
+  c.poly([{ x, y: y - s }, { x: x + s * 0.85, y: y - s / 2 }, { x, y }], hex('#01875f'));
+  c.text(f, PLAY_LINE, x + s * 0.85 + 14, y, size, hex('#01875f'));
+}
+
 /** A badge pill with dark text on white. Returns its width. */
 function badge(c: Canvas, f: TrueTypeFont, text: string, x: number, y: number, size: number, color: RGB): number {
   const padX = size * 0.6, h = size * 1.55;
@@ -96,7 +104,9 @@ export function drawCard(input: CardInput, format: CardFormat): Buffer {
     if (input.meta) c.text(regular, wrap(regular, input.meta, 30, w - L * 2, 1)[0], L, y + 14, 30, soft);
     logo(c, L, h - 60 - 56, 56);
     c.text(bold, 'KenteXa', L + 74, h - 60 - 14, 38, WHITE);
-    const cta = input.kind === 'community' ? 'Jiunge kwenye KenteXa' : 'Jibu kwenye KenteXa';
+    const cta = input.kind === 'community' ? 'Jiunge kwenye KenteXa'
+      : input.kind === 'writer' ? 'Fuata kwenye KenteXa'
+        : input.badge === 'Makala' ? 'Soma kwenye KenteXa' : 'Jibu kwenye KenteXa';
     const cw = measure(bold, cta, 30) + 56;
     c.roundRect(w - L - cw, h - 60 - 62, cw, 62, 31, mix(cover, WHITE, 0.18));
     c.text(bold, cta, w - L - cw + 28, h - 60 - 20, 30, WHITE);
@@ -120,10 +130,14 @@ export function drawCard(input: CardInput, format: CardFormat): Buffer {
 
   const boxY = h - 160 - 420;
   c.roundRect(L - 16, boxY, w - (L - 16) * 2, 420, 48, WHITE);
-  const ask = input.kind === 'community' ? 'Jiunge na mazungumzo kwenye KenteXa' : 'Unaweza kujibu? Toa maoni yako kwenye KenteXa';
+  const ask = input.kind === 'community' ? 'Jiunge na mazungumzo kwenye KenteXa'
+    : input.kind === 'writer' ? 'Soma alichoandika na umfuate kwenye KenteXa'
+      : input.badge === 'Makala' ? 'Soma makala hii kwenye KenteXa' : 'Unaweza kujibu? Toa maoni yako kwenye KenteXa';
   let ty = boxY + 100;
   for (const line of wrap(bold, ask, 52, w - L * 2 - 40, 2)) { c.text(bold, line, L + 40, ty, 52, INK); ty += 64; }
   c.text(bold, wrap(bold, input.link, 50, w - L * 2 - 40, 1)[0], L + 40, ty + 26, 50, hex('#1d4ed8'));
-  c.text(regular, 'Soma bila kujisajili', L + 40, ty + 100, 34, MUTED);
+  c.text(regular, 'Soma bila kujisajili', L + 40, ty + 90, 34, MUTED);
+  // Owner 2026-11-16: every card invites people without the app to get it from Google Play.
+  playLine(c, bold, L + 40, ty + 150, 34);
   return c.png();
 }

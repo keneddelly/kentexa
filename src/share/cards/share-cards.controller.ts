@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { PUBLIC_TO_GUESTS } from '../../commerce-profiles/public-visibility';
 import { CardFormat, CardInput, coverFor, drawCard } from './card';
 import { stripArticle } from '../../feed/article-text';
+import { weekLabel } from '../../feed/writer-week.service';
 
 const KIND: Record<string, string> = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu', article: 'Makala' };
 const oneLine = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
@@ -37,10 +38,10 @@ export class ShareCardsController {
   @Get(':type/:file')
   async card(@Param('type') type: string, @Param('file') file: string, @Query('f') f: string, @Query('s') code: string, @Res() res: Response) {
     const m = /^(\d{1,10})\.png$/.exec(String(file || ''));
-    if (!m || !['post', 'community'].includes(type)) throw new NotFoundException();
+    if (!m || !['post', 'community', 'writer'].includes(type)) throw new NotFoundException();
     const id = Number(m[1]);
     const format: CardFormat = f === 'status' ? 'status' : 'link';
-    const input = await this.inputFor(type as 'post' | 'community', id, code);
+    const input = type === 'writer' ? await this.writerInput(id) : await this.inputFor(type as 'post' | 'community', id, code);
     if (!input) throw new NotFoundException('Hakipatikani.');
     const key = JSON.stringify([type, id, format, input]);
     let png = this.cache.get(key);
@@ -90,6 +91,32 @@ export class ShareCardsController {
       meta: `wanachama ${Number(c.memberCount || 0).toLocaleString('en-US')}`,
       link,
       cover: coverFor(id),
+    };
+  }
+
+  /**
+   * Mwandishi wa Wiki (owner approved 2026-11-16): the gold card of a writer of the week (their
+   * latest win), with their profile address. Only public profile words; nothing when never picked.
+   */
+  async writerInput(ownerUserId: number): Promise<CardInput | null> {
+    const [r] = await this.db.query(
+      `SELECT w."weekStart", w.repliers, COALESCE(cp."displayName", u.name) AS name, cp.username
+         FROM public.weekly_writer w
+         JOIN public."user" u ON u.id = w."ownerUserId"
+         LEFT JOIN public.commerce_profile cp ON cp.id = w."commerceProfileId" AND cp."hiddenFromPublic" = false
+        WHERE w."ownerUserId" = $1 AND w."removedAt" IS NULL
+          AND w.rank = (SELECT MIN(x.rank) FROM public.weekly_writer x WHERE x."weekStart" = w."weekStart" AND x."removedAt" IS NULL)
+        ORDER BY w."weekStart" DESC LIMIT 1`, [ownerUserId]).catch(() => []);
+    if (!r) return null;
+    const week = r.weekStart instanceof Date ? r.weekStart.toISOString().slice(0, 10) : String(r.weekStart).slice(0, 10);
+    return {
+      kind: 'writer',
+      badge: 'Mwandishi wa Wiki',
+      headline: nameStyle(r.name) || 'Mwandishi wa KenteXa',
+      context: weekLabel(week, true),
+      meta: `watu ${Number(r.repliers || 0).toLocaleString('en-US')} walijibu alichoandika`,
+      link: r.username ? `${SITE}/@${r.username}` : SITE,
+      cover: '#b45309',
     };
   }
 

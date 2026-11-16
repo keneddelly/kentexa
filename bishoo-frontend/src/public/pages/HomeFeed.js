@@ -13,6 +13,7 @@
  */
 import ExpandableText from '../components/ExpandableText';
 import ArticlePost from '../components/ArticlePost';
+import WriterOfWeek, { WriterBadge } from '../components/WriterOfWeek';
 import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, formatTitle, leadSeparator } from '../utils/kentexaText';
 import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
@@ -971,6 +972,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             style={{ background:'none', border:'none', padding:0, cursor:'pointer', fontSize: detail ? 16 : 15, fontWeight:700, color:INK_TX,
               overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:'inherit' }}>{bizName}</button>
           {biz.isVerified && <VerifiedTick />}
+          {post.writerOfWeek && <WriterBadge />}
           </span>
           <span data-testid="post-byline" style={{ color:MUTED_TX, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontSize: detail ? 14 : 15, minWidth:0 }}>
             {/* #374 B: name · @handle · time, the Twitter way; the post kind moves to the line below. */}
@@ -2213,6 +2215,8 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         <CommunitiesPanel isLoggedIn={isLoggedIn} onNavigate={onNavigate} topic={topic} />
       )}
 
+      {/* Mwandishi wa Wiki (owner approved 2026-11-16): the gold card at the top of For You, for everyone. */}
+      {filter === 'for_you' && !topic && <WriterOfWeek onNavigate={onNavigate} isLoggedIn={isLoggedIn} currentUser={currentUser} />}
       {/* Social Home part 2: "Leo kwako" opens For You (only real activity; empty = nothing). */}
       {isLoggedIn && filter === 'for_you' && !topic && (
         <>

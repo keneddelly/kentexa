@@ -3,6 +3,7 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 import SpikeModeCard from '../components/SpikeModeCard';
 import ViralGrowthCard from '../components/ViralGrowthCard';
+import WriterWeekAdminCard from '../components/WriterWeekAdminCard';
 
 const Dashboard = ({ activePage, onNavigate, onLogout }) => {
   const [overview, setOverview] = useState(null);
@@ -99,6 +100,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
 
         <SpikeModeCard />
         <ViralGrowthCard />
+        <WriterWeekAdminCard />
 
         {/* Waiting for someone at KenteXa */}
         {!loading && overview && (
