@@ -69,6 +69,7 @@ describe('previews', () => {
   it('an open community invites; a request-only one shows only its name', () => {
     expect(communityPreview({ name: 'Wakulima Igoma', purpose: 'Mbegu na mvua', memberCount: 1200, joinPolicy: 'open' }))
       .toEqual({ title: 'Wakulima Igoma · Jumuiya ya KenteXa', description: 'Mbegu na mvua · wanachama 1,200 · Jiunge kwenye KenteXa' });
+    expect(communityPreview({ name: 'wafanya biashara kariakoo', joinPolicy: 'open' }).title).toBe('Wafanya Biashara Kariakoo · Jumuiya ya KenteXa');
     expect(communityPreview({ name: 'Siri', purpose: 'mambo ya ndani', memberCount: 3, joinPolicy: 'request' }).description).not.toMatch(/ndani/);
   });
 
@@ -101,5 +102,17 @@ describe('C10: links for every channel at once', () => {
     expect(out).toEqual({ links: { whatsapp: 'https://kentexa.com/s/whatsapp12345', status: 'https://kentexa.com/s/status12345' } });
     expect(create).toHaveBeenCalledTimes(2);
     expect(create).toHaveBeenCalledWith(5, 'post', 88, 'whatsapp');
+  });
+});
+
+describe('share link address', () => {
+  it('is always a full https:// address, so WhatsApp makes it tappable', () => {
+    const svc: any = Object.create(ShareLinksService.prototype);
+    const before = process.env.FRONTEND_URL;
+    process.env.FRONTEND_URL = 'kentexa.com/';
+    expect(svc.present('AbC12dE', 'post', 7, 'whatsapp').url).toBe('https://kentexa.com/s/AbC12dE');
+    process.env.FRONTEND_URL = 'https://kentexa.com';
+    expect(svc.present('AbC12dE', 'post', 7, 'whatsapp').url).toBe('https://kentexa.com/s/AbC12dE');
+    if (before === undefined) delete process.env.FRONTEND_URL; else process.env.FRONTEND_URL = before;
   });
 });

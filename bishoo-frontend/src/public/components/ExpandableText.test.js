@@ -37,3 +37,12 @@ test('KenteXa text style (#374 E): raw keeps the text exactly as typed', () => {
   render(<ExpandableText raw text="hivi ni  biashara" />);
   expect(screen.getByTestId('post-text').textContent).toBe('hivi ni  biashara');
 });
+
+test('a long post (over 700 letters): "Soma zaidi" opens its own page instead of filling the feed', () => {
+  sizes(200, 80);
+  const onMore = jest.fn();
+  render(<ExpandableText text={'Uzoefu wangu wa biashara. '.repeat(40).trim()} lines={6} onMore={onMore} />);
+  fireEvent.click(screen.getByTestId('read-more'));
+  expect(onMore).toHaveBeenCalled();
+  expect(screen.getByTestId('post-text').style.WebkitLineClamp).toBe('6');
+});

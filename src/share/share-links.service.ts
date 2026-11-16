@@ -206,7 +206,9 @@ export class ShareLinksService {
   }
 
   private present(code: string, type: string, id: number, channel: string) {
-    const site = process.env.FRONTEND_URL || 'https://kentexa.com';
+    // Always a full https:// address: apps (WhatsApp first) only make a full address tappable.
+    let site = String(process.env.FRONTEND_URL || 'https://kentexa.com').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(site)) site = `https://${site}`;
     return { code, url: `${site}/s/${code}`, contentType: type, contentId: id, channel, path: pathFor(type, id) };
   }
 }

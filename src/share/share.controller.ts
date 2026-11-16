@@ -11,6 +11,7 @@ import { TransportService } from '../transport/transport.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FRONTEND_URL, BACKEND_URL } from '../config/urls.config';
+import { nameStyle } from './cards/share-cards.controller';
 
 // Social/search crawlers never execute JavaScript, so a pure client-side
 // React fix can't give shared links a rich preview card — this route is the
@@ -54,7 +55,7 @@ export const communityPreview = (r: { name: string; purpose?: string; memberCoun
   const open = r.joinPolicy === 'open';
   const members = Number(r.memberCount || 0);
   return {
-    title: `${oneLine(r.name)} · Jumuiya ya KenteXa`,
+    title: `${nameStyle(r.name)} · Jumuiya ya KenteXa`, // KenteXa name style (owner 2026-11-16)
     description: open
       ? [oneLine(r.purpose), `wanachama ${members.toLocaleString('en-US')}`, 'Jiunge kwenye KenteXa'].filter(Boolean).join(' · ')
       : 'Jumuiya ya wanachama kwenye KenteXa. Omba kujiunga.',

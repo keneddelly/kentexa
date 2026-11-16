@@ -64,6 +64,11 @@ test('C10: the Status button sends the Status card picture through the phone', a
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
   await act(async () => { fireEvent.click(screen.getByTestId('share-status')); });
   expect(share).toHaveBeenCalledWith(expect.objectContaining({ files: [expect.any(File)], text: expect.stringContaining('https://kentexa.com/s/Sta1234') }));
+  // A picture Status has no tappable link on WhatsApp: the link is offered as a text Status next.
+  expect(screen.getByTestId('share-status-link')).toHaveTextContent('Weka link kwenye Status');
+  await act(async () => { fireEvent.click(screen.getByTestId('share-status-link-go')); });
+  expect(share).toHaveBeenLastCalledWith({ text: expect.stringContaining('https://kentexa.com/s/Sta1234') });
+  expect(screen.queryByTestId('share-status-link')).toBeNull();
   delete navigator.share; delete navigator.canShare;
 });
 

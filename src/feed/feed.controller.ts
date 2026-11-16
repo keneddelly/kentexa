@@ -126,7 +126,7 @@ export class FeedController {
   @Post('publish')
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   async publish(@Request() req, @Body() dto: any) {
-    // Phase D: what a person types in the composer is at most 500 characters.
+    // What a person types in the composer is at most 3,000 characters (owner 2026-11-16).
     assertComposerText(dto);
     // Social Home: only internal listing code may mark a post automatic; the topic must exist.
     if (dto && typeof dto === 'object') {

@@ -13,7 +13,9 @@ import {
 export const PUBLISH_LIMITS = Object.freeze({ title: 300, body: 5000, category: 120, label: 200 });
 
 /** Home Feed phase D (owner approved 2026-11-02): what a person writes in the composer. */
-export const COMPOSER_LIMITS = Object.freeze({ text: 500, photos: 4, editMinutes: 15 });
+// Owner 2026-11-16: a post's text up to 3,000 characters (was 500). A Moment repeats its text as
+// its title, so a Moment's title follows the same limit.
+export const COMPOSER_LIMITS = Object.freeze({ text: 3000, photos: 4, editMinutes: 15 });
 
 const oneOf = (value: unknown, allowed: object, field: string) => {
   if (value === undefined || value === null || value === '') return;
@@ -47,7 +49,8 @@ export function assertPublishInput(dto: any): void {
   // readable on old rows (treated like followers) but is not offered for new ones.
   if (dto.visibility === MomentVisibility.LIMITED) throw new BadRequestException('Chagua "Wote" au "Wanaofuata".');
   if (typeof dto.title !== 'string' || !dto.title.trim()) throw new BadRequestException('Andika kitu kwenye chapisho.');
-  text(dto.title, PUBLISH_LIMITS.title, 'title');
+  // A Moment's title is its text repeated (see COMPOSER_LIMITS); other kinds keep a short title.
+  text(dto.title, dto.type === FeedItemType.MOMENT ? COMPOSER_LIMITS.text : PUBLISH_LIMITS.title, 'title');
   text(dto.body, PUBLISH_LIMITS.body, 'body');
   text(dto.imageUrl, 2000, 'imageUrl');
   text(dto.category, PUBLISH_LIMITS.category, 'category');
@@ -90,14 +93,15 @@ export const cleanMedia = (media: any): { url: string; width: number | null; hei
     : null;
 
 /**
- * Phase D: the text a person types in the composer is at most 500 characters. Checked on the
- * person's own publish and edit only; listings that post themselves keep the general limits.
+ * The text a person types in the composer: up to 3,000 characters (owner 2026-11-16, was 500).
+ * Checked on the person's own publish and edit only; listings that post themselves keep the
+ * general limits.
  */
 export function assertComposerText(dto: { title?: unknown; body?: unknown }): void {
   for (const f of ['title', 'body'] as const) {
     const v = dto?.[f];
     if (typeof v === 'string' && v.length > COMPOSER_LIMITS.text) {
-      throw new BadRequestException(`Maandishi yasizidi herufi ${COMPOSER_LIMITS.text}.`);
+      throw new BadRequestException(`Maandishi yasizidi herufi ${COMPOSER_LIMITS.text.toLocaleString('en-US')}.`);
     }
   }
 }

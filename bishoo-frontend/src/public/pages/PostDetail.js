@@ -173,6 +173,8 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
           replies={post.commentCount} plainUrl={`${window.location.origin}/post/${post.id}`} />
       )}
       {state === 'ready' && post && <RelatedDiscussions postId={post.id} onNavigate={onNavigate} />}
+      {/* Room at the very end so the fixed reply bar never covers the last words (it used to sit under the comments and left a blank gap above Mijadala zaidi). */}
+      {state === 'ready' && post && <div data-testid="detail-comment-bottom-space" aria-hidden="true" style={{ height: 'calc(128px + env(safe-area-inset-bottom, 0px))' }} />}
     </div>
   );
 }

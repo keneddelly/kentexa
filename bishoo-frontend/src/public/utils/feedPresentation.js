@@ -35,7 +35,9 @@ export const postShareUrl = (post, entityType, entityId) => {
 
 // ── Phase D (owner approved 2026-11-02): the composer and what it makes ────────
 
-export const COMPOSER = Object.freeze({ text: 500, photos: 4, editMinutes: 15 });
+// Owner 2026-11-16: posts carry up to 3,000 characters (a real discussion or experience); the feed
+// shows the start with "Soma zaidi". A long-form Makala kind is a separate, later design.
+export const COMPOSER = Object.freeze({ text: 3000, photos: 4, editMinutes: 15 });
 
 /** The kinds of post the composer offers (Kura added in phase E, 2026-11-02). */
 export const POST_KINDS = Object.freeze([

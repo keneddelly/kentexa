@@ -5,10 +5,10 @@ import { PostSuggestService, cleanSuggestion } from './post-suggest.service';
 describe('Pendekeza', () => {
   const draft = { text: 'Nina viatu rangi nyeusi na nyekundu, ipi nzuri?', kind: 'moment' };
 
-  it('keeps a usable suggestion: a known kind, text within 500, 2 to 6 poll options', () => {
+  it('keeps a usable suggestion: a known kind, text within the composer limit, 2 to 6 poll options', () => {
     expect(cleanSuggestion({ kind: 'poll', text: 'Rangi ipi?', options: ['Nyeusi', 'Nyekundu', 'Nyeusi', ' '], reason: 'Kura hujibiwa haraka.' }, draft))
       .toEqual({ kind: 'poll', text: 'Rangi ipi?', options: ['Nyeusi', 'Nyekundu'], reason: 'Kura hujibiwa haraka.' });
-    expect(cleanSuggestion({ kind: 'question', text: 'x'.repeat(700), options: [], reason: '' }, draft)!.text).toHaveLength(500);
+    expect(cleanSuggestion({ kind: 'question', text: 'x'.repeat(3200), options: [], reason: '' }, draft)!.text).toHaveLength(3000);
   });
 
   it('drops: none, unknown kinds, a poll without 2 options, the same kind with no new text', () => {

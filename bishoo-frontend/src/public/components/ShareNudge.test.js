@@ -29,9 +29,10 @@ test('C: "Mijadala zaidi" and "Jumuiya zinazofanana" at the end of a discussion'
   const onNavigate = jest.fn();
   await act(async () => { render(<RelatedDiscussions postId={7} onNavigate={onNavigate} />); });
   expect(api.get).toHaveBeenCalledWith('/feed/7/related');
-  expect(screen.getByTestId('related-post-9')).toHaveTextContent('Swali');
+  expect(screen.getByTestId('related-post-9')).toHaveTextContent('SWALI'); // D2: the same cards as the community page
   expect(screen.getByTestId('related-post-9')).toHaveTextContent('Bei ya mahindi leo?');
-  expect(screen.getByTestId('related-post-9')).toHaveTextContent('Juma · Wakulima · majibu 4');
+  expect(screen.getByTestId('related-post-9')).toHaveTextContent(/Juma\s*· Wakulima/);
+  expect(screen.getByTestId('related-post-9')).toHaveTextContent('Majibu 4');
   expect(screen.getByTestId('related-community-4')).toHaveTextContent('wanachama 1,200');
   fireEvent.click(screen.getByTestId('related-post-9'));
   expect(onNavigate).toHaveBeenCalledWith('PostDetail-9');

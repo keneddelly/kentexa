@@ -62,6 +62,7 @@ const sentenceCaps = (text) => {
   return text.split(/(\s+)/).map((tok) => {
     if (/^\s+$/.test(tok)) { if (tok.includes('\n')) start = true; return tok; }
     const out = start ? capSentenceWord(tok) : tok;
+    if (!/[\p{L}\p{N}]/u.test(tok)) return out; // an emoji or a sign alone: the next word still starts the sentence
     start = /[.?!]["')”’»]*$/.test(tok) && !/\.\.$/.test(tok) && !/^(?:https?:|www\.)/i.test(tok);
     return out;
   }).join('');

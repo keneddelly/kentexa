@@ -24,7 +24,7 @@ export interface PostSuggestion {
 
 const clip = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
 
-/** Keeps only what the composer can use: a known kind, text within 500, 2-6 short poll options. */
+/** Keeps only what the composer can use: a known kind, text within the composer limit, 2-6 short poll options. */
 export function cleanSuggestion(data: any, draft: { text: string; kind: string }): PostSuggestion | null {
   if (!data || typeof data !== 'object') return null;
   const kind = (SUGGEST_KINDS as readonly string[]).includes(data.kind) ? data.kind : null;

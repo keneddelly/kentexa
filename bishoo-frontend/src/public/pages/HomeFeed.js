@@ -588,7 +588,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           </button>
         </div>
       )}
-      {detail && !locked && <div data-testid="detail-comment-bottom-space" aria-hidden="true" style={{ height:'calc(128px + env(safe-area-inset-bottom, 0px))', flexShrink:0 }} />}
+      {/* The room under the last comment for the fixed reply bar is at the end of PostDetail, after Mijadala zaidi. */}
       {detail && !locked && replyBar}
 
       {/* ── Reply picker — choose which of your items you're offering ── */}
@@ -1019,7 +1019,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               {caption.lead && <><strong data-testid="post-lead" style={{ fontWeight:700 }}>{caption.lead}</strong>{caption.text ? leadSeparator(caption.lead) : ''}</>}
               <HashtagText text={caption.text} onTag={openTag} />
             </div>
-          : <ExpandableText text={caption.text} lead={caption.lead} lines={image || photos.length > 1 ? 3 : 6} onTag={openTag} />)}
+          : <ExpandableText text={caption.text} lead={caption.lead} lines={image || photos.length > 1 ? 3 : 6} onTag={openTag}
+              onMore={onNavigate && /^\d+$/.test(String(post.id ?? '')) ? () => onNavigate(`PostDetail-${post.id}`) : null} />)}
 
         {post.intent === 'poll' && /^\d+$/.test(String(post.id)) && (
           <PollBlock postId={post.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
