@@ -549,7 +549,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           </button>
         </div>
       )}
-      {detail && !locked && <div aria-hidden="true" style={{ height:72 }} />}
+      {detail && !locked && <div data-testid="detail-comment-bottom-space" aria-hidden="true" style={{ height:'calc(128px + env(safe-area-inset-bottom, 0px))', flexShrink:0 }} />}
       {detail && !locked && replyBar}
 
       {/* ── Reply picker — choose which of your items you're offering ── */}
