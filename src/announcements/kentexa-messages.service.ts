@@ -107,6 +107,7 @@ export class KentexaMessagesService {
         .select(['r.userId AS id', 'u.phone AS phone'])
         .where('r.roleType IN (:...types)', { types: aud.roles })
         .andWhere('r.status = :active', { active: AccountRoleStatus.ACTIVE })
+        .andWhere('u.marketingOptOut = false')
         .getRawMany<{ id: number; phone: string | null }>();
       return dedupe(rows.map((r) => ({ id: Number(r.id), phone: r.phone || null })));
     }
@@ -114,10 +115,13 @@ export class KentexaMessagesService {
       const rows = await this.businesses.createQueryBuilder('b')
         .innerJoin('b.user', 'u')
         .select(['u.id AS id', 'u.phone AS phone'])
+        .where('u.marketingOptOut = false')
         .getRawMany<{ id: number; phone: string | null }>();
       return dedupe(rows.map((r) => ({ id: Number(r.id), phone: r.phone || null })));
     }
-    const all = await this.users.find({ select: { id: true, phone: true } });
+    // Privacy (issue #365): people who said no to KenteXa's news and offers are left out of
+    // messages to many people. A message to one person, or about money they owe, still arrives.
+    const all = await this.users.find({ where: { marketingOptOut: false } as any, select: { id: true, phone: true } });
     return all.map((u) => ({ id: u.id, phone: u.phone || null }));
   }
 

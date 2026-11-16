@@ -1676,7 +1676,13 @@
     "logout_button": "Déconnexion",
     "my_kentexa_id_title": "Mon Identité KenteXa",
     "qr_modal_desc": "Montrez ceci pour que les gens puissent suivre votre profil",
-    "close_button": "Fermer"
+    "close_button": "Fermer",
+    "marketing_label": "Actualités et offres KenteXa",
+    "marketing_on": "Vous recevez les actualités et offres de KenteXa. Touchez pour désactiver.",
+    "marketing_off": "Vous ne recevez pas les actualités et offres. Les messages sur vos commandes, paiements et colis arrivent toujours. Touchez pour activer.",
+    "marketing_failed": "Modification impossible. Réessayez.",
+    "marketing_value_on": "Activé",
+    "marketing_value_off": "Désactivé"
   },
   "commerce_profile": {
     "action_orders": "Commandes",

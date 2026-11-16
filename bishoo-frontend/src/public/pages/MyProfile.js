@@ -96,6 +96,19 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [section,    setSection]    = useState(null); // null = list home, like IG Settings
   const [personalProfile, setPersonalProfile] = useState(null);
   const [profile,    setProfile]    = useState(currentUser || null);
+  // Privacy (issue #365): "Taarifa za KenteXa" on or off; undefined until the profile loads.
+  const [marketingSaving, setMarketingSaving] = useState(false);
+  const [marketingError, setMarketingError] = useState('');
+  const marketingOff = !!profile?.marketingOptOut;
+  const toggleMarketing = async () => {
+    if (marketingSaving) return;
+    setMarketingSaving(true); setMarketingError('');
+    try {
+      const res = await api.patch('/users/me/marketing', { optOut: !marketingOff });
+      setProfile((p) => ({ ...(p || {}), marketingOptOut: !!res.data?.marketingOptOut }));
+    } catch { setMarketingError(t('my_profile.marketing_failed')); }
+    finally { setMarketingSaving(false); }
+  };
   const [rep,        setRep]        = useState(null);
   const [orders,     setOrders]     = useState([]);
   const [payments,   setPayments]   = useState([]);
@@ -987,6 +1000,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                     } else setPushState(await enablePushNotifications(pushKey));
                   } catch { setPushState('unavailable'); }
                 } : undefined} />
+              <div data-testid="marketing-toggle">
+                <Row icon="bell" label={t('my_profile.marketing_label')}
+                  sub={marketingError || (marketingOff ? t('my_profile.marketing_off') : t('my_profile.marketing_on'))}
+                  value={marketingOff ? t('my_profile.marketing_value_off') : t('my_profile.marketing_value_on')} color={marketingOff ? '#536471' : '#16A34A'}
+                  onAction={toggleMarketing} />
+              </div>
               {isBusinessOwner && (
                 <Row icon="store" label={t('my_profile.store_settings_label')}
                   onAction={() => onNavigate('StoreSettings')} />
