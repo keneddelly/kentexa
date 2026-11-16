@@ -86,12 +86,22 @@ describe('issue #361: "Unahitaji msaada?"', () => {
 });
 
 describe('issue #361: rate limits per person', () => {
-  it('trusts Render\'s proxy hop by default, adjustable 0 to 5', () => {
-    expect(trustProxyHops(undefined)).toBe(1);
-    expect(trustProxyHops('2')).toBe(2);
+  it('trusts Cloudflare and Render (2 hops) by default, adjustable 0 to 5', () => {
+    expect(trustProxyHops(undefined)).toBe(2);
+    expect(trustProxyHops('1')).toBe(1);
     expect(trustProxyHops('0')).toBe(0);
-    expect(trustProxyHops('9')).toBe(1);
-    expect(trustProxyHops('x')).toBe(1);
+    expect(trustProxyHops('9')).toBe(2);
+    expect(trustProxyHops('x')).toBe(2);
+  });
+
+  it('with 2 hops the phone\'s own address is used, and one it writes itself is ignored', () => {
+    // Express picks the address `hops` places from the right of [remoteAddress, ...x-forwarded-for reversed].
+    const pick = (xff: string, remote: string, hops: number) => {
+      const chain = [remote, ...xff.split(',').map((x) => x.trim()).reverse()];
+      return chain[Math.min(hops, chain.length - 1)];
+    };
+    expect(pick('197.186.16.6, 172.71.150.51', '10.27.179.58', 2)).toBe('197.186.16.6');
+    expect(pick('6.6.6.6, 197.186.16.6, 172.71.150.51', '10.27.179.58', 2)).toBe('197.186.16.6');
   });
 
   it('the admin can see how the server sees their own request', () => {

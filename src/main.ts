@@ -11,11 +11,10 @@ import { trustProxyHops } from './common/trust-proxy';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
-  // Issue #361: Render's load balancer sits in front of the app, so without this every phone
-  // looked like the same address and shared one rate-limit bucket. Trusting the proxy hops
-  // Render adds (1 by default) makes req.ip the address that reached Render, which a phone
-  // cannot forge. TRUST_PROXY_HOPS changes the count if GET /activity/admin/request-source
-  // shows another proxy in front.
+  // Issue #361: Cloudflare and then Render's load balancer sit in front of the app. Without
+  // this every phone looked like the same address and shared one rate-limit bucket. Trusting
+  // those two hops makes req.ip the phone's own address, which it cannot forge.
+  // TRUST_PROXY_HOPS changes the count; GET /version/request-source shows the result.
   app.set('trust proxy', trustProxyHops(process.env.TRUST_PROXY_HOPS));
 
   // Baseline security headers (X-Frame-Options, HSTS, no-sniff, etc.).
