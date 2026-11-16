@@ -129,6 +129,12 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
   const go = async (ch) => {
     const url = channelUrl(ch, message, linkFor(ch));
     if (!url) return;
+    // Facebook never takes words from a website (only the link), so the message is copied at the
+    // same tap: pasted above the link it becomes the caption on top, like a news page's post.
+    if (ch === 'facebook' && message.trim()) {
+      try { Promise.resolve(navigator.clipboard?.writeText(message.trim())).catch(() => {}); } catch { /* clipboard off */ }
+      setNote('Ujumbe umenakiliwa. Kwenye Facebook, ubandike juu ya link ili uwe maelezo ya juu (si lazima).');
+    }
     if (!onPhone()) { window.open(url, '_blank', 'noopener'); done(ch); return; }
     if (ch === 'facebook' && navigator.share) {
       try { await navigator.share({ text: message, url: linkFor(ch) }); done(ch); } catch { /* closed */ }
@@ -271,7 +277,7 @@ export default function ShareSheet({ open, onClose, contentType, contentId, word
         {shareable && (
           <div data-testid="share-hints" style={{ fontSize: 12, color: MUTED, lineHeight: '17px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span>"Status" na "Instagram" hutuma kadi ndefu ya picha; "Picha" hutuma kadi ya kiungo. "Zaidi" hufungua njia nyingine za simu yako.</span>
-            <span data-testid="share-facebook-hint">Facebook: unaweza kuchagua Page au Group juu ya dirisha la Facebook kabla ya kuchapisha.</span>
+            <span data-testid="share-facebook-hint">Facebook: ujumbe hunakiliwa ili uubandike juu ya link; unaweza pia kuchagua Page au Group juu ya dirisha la Facebook.</span>
           </div>
         )}
       </div>
