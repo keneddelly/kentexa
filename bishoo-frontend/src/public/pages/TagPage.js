@@ -62,10 +62,9 @@ export default function TagPage({ tagKey, onNavigate, isLoggedIn, currentUser, a
     load(tab, 1);
   }, [tab, load]);
 
-  const back = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) window.history.back();
-    else onNavigate('Home');
-  };
+  // One navigation (#374): back returns to exactly where the person came from (a community,
+  // a profile, a tag, Home...), at the same place; opened from a link, it goes Home.
+  const back = () => onNavigate('back');
 
   const loadMore = () => {
     setMore(true);

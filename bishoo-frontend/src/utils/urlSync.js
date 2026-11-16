@@ -6,6 +6,8 @@ const PREFIX_TO_SEGMENT = {
   ServiceDetail: 'service',
   CommerceProfile: 'store',
   PostDetail: 'post',
+  // One navigation (owner 2026-11-16, #374): a community has its own address.
+  Community: 'community',
   Category: 'category',
 };
 const SEGMENT_TO_PREFIX = Object.fromEntries(
@@ -46,10 +48,25 @@ export const pathToPage = (pathname) => {
   }
   const categoryMatch = cleanPath.match(/^\/category\/([a-z0-9_]+)$/i);
   if (categoryMatch) return `Category-${categoryMatch[1].toLowerCase()}`;
-  const match = cleanPath.match(/^\/(product|classified|service|store|post)\/(\d+)(?:-[a-z0-9-]*)?\/?$/i);
+  // Every other page (owner 2026-11-16, #374): /p/<PageName>, so a refresh stays on it.
+  const anyPage = cleanPath.match(/^\/p\/([A-Za-z][A-Za-z0-9_.:-]{0,120})$/);
+  if (anyPage) return anyPage[1];
+  const match = cleanPath.match(/^\/(product|classified|service|store|post|community)\/(\d+)(?:-[a-z0-9-]*)?\/?$/i);
   if (!match) return null;
   const [, segment, id] = match;
   return `${SEGMENT_TO_PREFIX[segment]}-${id}`;
+};
+
+/**
+ * The address for ANY page (owner 2026-11-16, #374): the shareable one when it has one,
+ * '/' for Home, else /p/<PageName>. Every page then has its own browser history entry.
+ */
+export const pageToAddress = (page, navParams) => {
+  if (typeof page !== 'string' || !page) return null;
+  if (page === 'Home') return '/';
+  const path = pageToPath(page, navParams);
+  if (path) return path;
+  return /^[A-Za-z][A-Za-z0-9_.:-]{0,120}$/.test(page) ? `/p/${page}` : null;
 };
 
 export const pathToNavParams = (pathname, search) => {

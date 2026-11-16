@@ -88,7 +88,7 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#fff', borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}` }}>
       <div data-testid="community-head" style={{ padding: '14px 16px 12px', display: 'flex', flexDirection: 'column', gap: 6, borderBottom: `1px solid ${LINE}` }}>
-        <button type="button" aria-label="Rudi" onClick={() => onNavigate('Home')} style={{ alignSelf: 'flex-start', border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: INK, padding: 0 }}>‹</button>
+        <button type="button" aria-label="Rudi" onClick={() => onNavigate('back')} style={{ alignSelf: 'flex-start', border: 'none', background: 'none', fontSize: 22, cursor: 'pointer', color: INK, padding: 0 }}>‹</button>
         <h1 style={{ margin: 0, fontSize: 21, color: INK }}>{community.name}</h1>
         <div style={{ fontSize: 13, color: MUTED }}>
           {topicLabel(community.topicKey)} · Wanachama {Number(community.memberCount || 0).toLocaleString('en-US')}{community.joinPolicy === 'request' ? ' · Kwa ombi' : ''}

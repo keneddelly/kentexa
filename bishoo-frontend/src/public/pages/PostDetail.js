@@ -34,10 +34,9 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
     return () => { alive = false; };
   }, [postId]);
 
-  const back = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) window.history.back();
-    else onNavigate('Home');
-  };
+  // One navigation (#374): back returns to exactly where the person came from (a community,
+  // a profile, a tag, Home...), at the same place; opened from a link, it goes Home.
+  const back = () => onNavigate('back');
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#fff', borderLeft: `1px solid ${LINE}`, borderRight: `1px solid ${LINE}` }}>

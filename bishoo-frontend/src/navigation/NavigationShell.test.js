@@ -41,3 +41,11 @@ test('owner 2026-11-03: opening the page we just came from is a step back (no ba
   expect(shouldStepBack(history, 'Home')).toBe(false);
   expect(shouldStepBack([], 'Home')).toBe(false);
 });
+
+test('#374: back uses the browser history when KenteXa pages are behind this one', () => {
+  const { canGoBack } = require('./browserHistory');
+  window.history.replaceState({ kx: true, kxDepth: 2, page: 'PostDetail-9' }, '', '/post/9');
+  expect(canGoBack()).toBe(true);
+  window.history.replaceState({ kx: true, kxDepth: 0, page: 'PostDetail-9' }, '', '/post/9');
+  expect(canGoBack()).toBe(false);
+});

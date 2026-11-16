@@ -45,7 +45,7 @@ export default function CreateCommunity({ onNavigate, isLoggedIn }) {
     <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', background: '#fff', padding: '16px 16px 40px', boxSizing: 'border-box',
       display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button type="button" aria-label="Rudi" onClick={() => onNavigate('Home')}
+        <button type="button" aria-label="Rudi" onClick={() => onNavigate('back')}
           style={{ width: 34, height: 34, border: 'none', background: 'none', cursor: 'pointer', fontSize: 22, color: INK }}>‹</button>
         <h1 style={{ margin: 0, fontSize: 20, color: INK }}>Fungua jumuiya</h1>
       </div>
