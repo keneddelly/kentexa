@@ -262,13 +262,15 @@ export class ShareController {
       // community, from a hidden profile, removed) shows only the general KenteXa card.
       if (!r) return { ...SITE_FALLBACK, path };
       const media = Array.isArray(r.media) ? r.media : [];
-      return { ...postPreview(r), image: absoluteImage(r.imageUrl || media[0]?.url), path };
+      // Viral engine A3: a post without a photo shows its KenteXa card.
+      return { ...postPreview(r), image: absoluteImage(r.imageUrl || media[0]?.url) || `${BACKEND_URL}/share/card/post/${id}.png`, path };
     }
     if (type === 'community') {
       const r = await q(`SELECT name, purpose, "memberCount", "joinPolicy" FROM public.community WHERE id = $1::int AND status = 'active'`);
       const path = `/community/${id}`;
       if (!r) return { ...SITE_FALLBACK, path };
-      return { ...communityPreview(r), image: null, path };
+      // Viral engine A3: an open community shows its KenteXa card; a request-only one the general card.
+      return { ...communityPreview(r), image: r.joinPolicy === 'open' ? `${BACKEND_URL}/share/card/community/${id}.png` : null, path };
     }
     return null;
   }
