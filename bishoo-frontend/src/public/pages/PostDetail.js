@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
 import { PostCard } from './HomeFeed';
 import { formatName } from '../utils/kentexaText';
+import ShareResult from '../components/ShareResult';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -145,7 +146,8 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
 
       {state === 'ready' && post && (
         <PostCard post={post} isLoggedIn={isLoggedIn} onNavigate={onNavigate} currentUser={currentUser}
-          activeProfileId={activeProfileId} initialShowComments detail communityRole={role} />
+          activeProfileId={activeProfileId} initialShowComments detail communityRole={role}
+          detailExtra={<ShareResult contentType="post" contentId={post.id} isLoggedIn={isLoggedIn} />} />
       )}
     </div>
   );

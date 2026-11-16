@@ -29,6 +29,7 @@ import { photoSkipped }   from './utils/photoLater';
 import { holdWelcomeSteps, isCheckoutBuyer } from './utils/checkoutBuyer';
 import BottomNav      from './public/components/BottomNav';
 import GuestJoinSheet from './public/components/GuestJoinSheet';
+import { claimArrival } from './public/utils/shortLinks';
 import ProfileSwitcherSheet from './public/components/ProfileSwitcherSheet';
 import PostModal      from './public/components/PostModal';
 import CreateMomentModal from './public/components/CreateMomentModal';
@@ -592,6 +593,8 @@ function App() {
             subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {});
           }
           localStorage.setItem('kentexa_user', JSON.stringify(profile));
+          // Viral engine B8 (#381): a new account that came through a shared link is counted for it.
+          claimArrival();
         } catch {}
         setNavParams(null);
         // Signed in from the checkout: straight on to the order; photo and welcome wait for Home.
