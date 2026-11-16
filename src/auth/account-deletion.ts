@@ -61,6 +61,9 @@ export const ERASE_TRACKING_SQL: string[] = [
       OR "sessionId" IN (SELECT "sessionId" FROM public.analytics_sessions WHERE "userId" = $1)`,
   `DELETE FROM public.analytics_sessions WHERE "userId" = $1`,
   `DELETE FROM public.user_topic_follow WHERE "userId" = $1`,
+  // Viral engine (#381): how the person arrived and the links they opened.
+  `DELETE FROM public.share_conversion WHERE "userId" = $1`,
+  `DELETE FROM public.share_visit WHERE "viewerUserId" = $1`,
 ];
 
 export const maskContact = (phone?: string | null, email?: string | null): string => {

@@ -661,7 +661,7 @@ export const fullTime = (iso) => {
 };
 
 // ── Post card ─────────────────────────────────────────────────────────────────
-export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, repostedIds, onRepostToggle, activeProfileId, initialShowComments = false, detail = false, communityRole = null }) => {
+export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, repostedIds, onRepostToggle, activeProfileId, initialShowComments = false, detail = false, communityRole = null, detailExtra = null }) => {
   const { t } = useTranslation();
   // Phase D: an edit by the author updates this card in place (the server answers with the post).
   const [post, setPost] = useState(postProp);
@@ -1063,6 +1063,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             {fullTime(post.createdAt)}{post.editedAt ? ' · imehaririwa' : ''}
           </div>
         )}
+        {detail && detailExtra}
         <div data-testid="post-actions" style={{ display:'flex', alignItems:'center', justifyContent: detail ? 'space-between' : 'flex-start', gap:6, flexWrap:'wrap', color:MUTED_TX, fontSize:13, paddingTop: detail ? 0 : 2,
           ...(detail ? { borderTop:`1px solid ${LINE_TX}`, borderBottom:`1px solid ${LINE_TX}`, padding:'8px 4px' } : {}) }}>
           <button type="button" onClick={openComments} aria-label={t('home_feed.view_all_comments')} style={act()}>

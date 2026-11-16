@@ -38,6 +38,10 @@ export class AnalyticsRetentionService {
       `DELETE FROM public.analytics_sessions s WHERE s."createdAt" < ${cutoff}
          AND NOT EXISTS (SELECT 1 FROM public.analytics_events e WHERE e."sessionId" = s."sessionId")`);
     const sessions = Array.isArray(s) ? Number(s[1] ?? 0) : Number((s as any)?.rowCount ?? 0);
+    // Viral engine (#381): link opens follow the same 12 months.
+    await Promise.resolve()
+      .then(() => this.dataSource.query(`DELETE FROM public.share_visit WHERE "createdAt" < ${cutoff}`))
+      .catch(() => undefined);
     if (events || sessions) this.logger.log(`Analytics retention: removed ${events} events, ${sessions} sessions older than ${ANALYTICS_RETENTION_MONTHS} months`);
     return { events, sessions };
   }

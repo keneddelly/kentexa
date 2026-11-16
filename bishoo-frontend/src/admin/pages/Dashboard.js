@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 import SpikeModeCard from '../components/SpikeModeCard';
+import ViralGrowthCard from '../components/ViralGrowthCard';
 
 const Dashboard = ({ activePage, onNavigate, onLogout }) => {
   const [overview, setOverview] = useState(null);
@@ -97,6 +98,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         <SpikeModeCard />
+        <ViralGrowthCard />
 
         {/* Waiting for someone at KenteXa */}
         {!loading && overview && (

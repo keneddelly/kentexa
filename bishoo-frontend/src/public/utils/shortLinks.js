@@ -51,6 +51,38 @@ const remember = (code) => {
   try { window.localStorage.setItem(KEY, JSON.stringify({ code, at: Date.now() })); } catch { /* storage off */ }
 };
 
+// A random key for this browser tab, so one open is counted once (no personal data).
+const sessionKey = () => {
+  try {
+    let k = window.sessionStorage.getItem('kx_sk');
+    if (!k) {
+      const bytes = new Uint8Array(12);
+      (window.crypto || {}).getRandomValues?.(bytes);
+      k = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('') || String(Date.now());
+      window.sessionStorage.setItem('kx_sk', k);
+    }
+    return k;
+  } catch { return null; }
+};
+
+/** Viral engine B8: count this open (once per tab; the sharer's own opens are left out by the server). */
+const recordVisit = (code) => {
+  const key = sessionKey();
+  if (!key) return;
+  Promise.resolve().then(() => api.post(`/share-links/${encodeURIComponent(code)}/visit`, { sessionKey: key })).catch(() => {});
+};
+
+/**
+ * B8: after signing in, a new account that arrived through a short link is linked to it (the
+ * server accepts only accounts created in the last 24 hours). The code is used once.
+ */
+export const claimArrival = () => {
+  const code = arrivalShareCode();
+  if (!code) return;
+  try { window.localStorage.removeItem(KEY); } catch { /* storage off */ }
+  Promise.resolve().then(() => api.post(`/share-links/${encodeURIComponent(code)}/claim`)).catch(() => {});
+};
+
 /**
  * Opened at /s/<code>: replace the address with the page it points to before the app starts, so
  * the app opens that discussion or community. The server already wrote the page into the HTML
@@ -62,6 +94,7 @@ export const openShortLinkIfAny = async () => {
   if (!m) return;
   const code = m[1];
   remember(code);
+  recordVisit(code);
   let target = document.querySelector('meta[name="kx-target"]')?.getAttribute('content') || '';
   if (!TARGET.test(target)) {
     try {

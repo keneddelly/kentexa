@@ -15,6 +15,7 @@ import api from '../../api/api';
 import { pollTimeLeft, topicLabel } from '../utils/feedPresentation';
 import { formatCaption, formatName, formatText } from '../utils/kentexaText';
 import ShareSheet from '../components/ShareSheet';
+import ShareResult from '../components/ShareResult';
 import { askToJoin } from '../utils/guestJoin';
 
 const INK = '#0f1419';
@@ -284,6 +285,7 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
           </div>
         )}
         {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c' }}>{error}</div>}
+        {canShare && <ShareResult contentType="community" contentId={community.id} isLoggedIn={isLoggedIn} />}
         {sheetOpen && (
           <ShareSheet open onClose={() => setSheetOpen(false)} contentType="community" contentId={community.id} words={name}
             purpose={formatText(community.purpose)} plainUrl={`${window.location.origin}/community/${community.id}`} />

@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-16 (viral engine B8, issue #381):** the pin is now `MIGRATION_RUN_UPTO=1796600000000`. The next deploy runs `1796600000000-AddShareAttribution` itself (new tables `share_visit` and `share_conversion`). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-16 (viral engine A2, issue #381):** the pin is now `MIGRATION_RUN_UPTO=1796500000000`. The next deploy runs `1796500000000-AddShareLinks` itself (new table `share_link`: code, sharer, content, channel; unique code). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-16 (communities, issue #374 part D):** the pin is now `MIGRATION_RUN_UPTO=1796400000000`. The next deploy runs `1796400000000-AddCommunityDiscussion` itself (`business_feed_item."pinnedAt"`, `"repliesLocked"` default false, `"bestCommentId"`; `community_member."lastSeenAt"`; two indexes). Check: `/version/migrations` shows `pending: []`.

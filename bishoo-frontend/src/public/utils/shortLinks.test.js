@@ -39,3 +39,21 @@ test('A2: a link is made ahead and ready at the tap; members-only content falls 
   api.post.mockRejectedValueOnce(new Error('400'));
   expect(await shortLinkFor('post', 9, 'copy', 'https://kentexa.com/post/9')).toBe('https://kentexa.com/post/9');
 });
+
+test('B8: an open is counted once per tab, and a new account claims its arrival once', async () => {
+  const { claimArrival } = require('./shortLinks');
+  api.post.mockReset();
+  api.post.mockResolvedValue({ data: {} });
+  window.history.replaceState(null, '', '/s/AbC12d');
+  document.head.innerHTML = '<meta name="kx-target" content="/post/88">';
+  await openShortLinkIfAny();
+  await new Promise((r) => setTimeout(r, 0));
+  expect(api.post).toHaveBeenCalledWith('/share-links/AbC12d/visit', { sessionKey: expect.any(String) });
+  claimArrival();
+  await new Promise((r) => setTimeout(r, 0));
+  expect(api.post).toHaveBeenCalledWith('/share-links/AbC12d/claim');
+  api.post.mockClear();
+  claimArrival();
+  await new Promise((r) => setTimeout(r, 0));
+  expect(api.post).not.toHaveBeenCalled();
+});
