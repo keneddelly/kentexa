@@ -43,16 +43,22 @@ test('the heart is a like, not a save', async () => {
   expect(screen.getByTestId('post-like')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('a share is counted only after the link was really shared', async () => {
+test('a share is counted only after the link was really shared (C10: through the share sheet)', async () => {
   answerPost(post);
-  api.post.mockResolvedValue({ data: { toggled: true } });
+  api.post.mockImplementation(async (url) => (url === '/share-links'
+    ? { data: { links: { native: 'https://kentexa.com/s/Nat1234', copy: 'https://kentexa.com/s/Cop1234' } } }
+    : { data: { toggled: true } }));
+  global.fetch = jest.fn().mockResolvedValue({ ok: false });
   const share = jest.fn().mockRejectedValueOnce(new Error('cancelled')).mockResolvedValueOnce(undefined);
   Object.defineProperty(navigator, 'share', { value: share, configurable: true });
   await open();
   await act(async () => { fireEvent.click(screen.getByTestId('post-share')); });
-  expect(api.post).not.toHaveBeenCalled();
-  await act(async () => { fireEvent.click(screen.getByTestId('post-share')); });
-  expect(share).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'https://kentexa.com/post/7' }));
+  expect(screen.getByTestId('share-sheet')).toBeInTheDocument();
+  expect(api.post).toHaveBeenCalledWith('/share-links', expect.objectContaining({ contentType: 'post', contentId: 7 }));
+  await act(async () => { fireEvent.click(screen.getByTestId('share-native')); });
+  expect(api.post).not.toHaveBeenCalledWith('/feed/7/engage', { type: 'share' });
+  await act(async () => { fireEvent.click(screen.getByTestId('share-native')); });
+  expect(share).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'https://kentexa.com/s/Nat1234' }));
   expect(api.post).toHaveBeenCalledWith('/feed/7/engage', { type: 'share' });
   expect(screen.getByTestId('post-share')).toHaveTextContent('1');
   delete navigator.share;

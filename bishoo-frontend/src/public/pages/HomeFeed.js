@@ -15,7 +15,7 @@ import ExpandableText from '../components/ExpandableText';
 import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, leadSeparator } from '../utils/kentexaText';
 import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
-import { prefetchShortLink, readyShortLink } from '../utils/shortLinks';
+import ShareSheet from '../components/ShareSheet';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
@@ -790,12 +790,20 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
 
   // Phase C: share the post's own link; it is counted only once the share or the copy
   // really happened (a cancelled share sheet counts nothing).
+  // Viral engine C10: a real post opens the smart share sheet (message, channels, cards).
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const countShare = async () => {
+    if (!isLoggedIn) return;
+    const res = await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
+    // The server counts one share per person; this card adds it once.
+    if (res?.toggled && !sharedOnce.current) { sharedOnce.current = true; setCounts(c => ({ ...c, shares: c.shares + 1 })); }
+  };
   const handleShare = async () => {
     const plain = postShareUrl(post, entityType, entityId);
-    // Viral engine A2: a public post travels as a short link (kentexa.com/s/<code>), made when
-    // the finger touched the button; not ready yet (or members only): the plain address.
     const isPost = /^\d+$/.test(String(post?.id ?? ''));
-    const url = (isPost && readyShortLink('post', Number(post.id))) || plain;
+    if (isPost) { setSheetOpen(true); return; }
+    // Listings without a post: the phone's own share sheet with the item's address.
+    const url = plain;
     let done = false;
     if (navigator.share) {
       done = await navigator.share({ title: post.title || bizName, url }).then(() => true, () => false);
@@ -803,10 +811,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
       done = await navigator.clipboard.writeText(url).then(() => true, () => false);
       if (done) { setShareMsg(t('home_feed.link_copied')); setTimeout(() => setShareMsg(''), 2000); }
     }
-    if (!done || !isLoggedIn) return;
-    const res = await Engagement.track(post.id, entityType, entityId, 'share', true, onNavigate);
-    // The server counts one share per person; this card adds it once.
-    if (res?.toggled && !sharedOnce.current) { sharedOnce.current = true; setCounts(c => ({ ...c, shares: c.shares + 1 })); }
+    if (done) countShare();
   };
 
   const handleFollow = async () => {
@@ -1043,7 +1048,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             {counts.likes > 0 && counts.likes}
           </button>
           <button type="button" onClick={handleShare} aria-label="Shiriki" data-testid="post-share" style={act()}
-            onPointerDown={() => { if (/^\d+$/.test(String(post?.id ?? ''))) prefetchShortLink('post', Number(post.id)); }}>
+>
             {icon('M4 12v8h16v-8M16 6l-4-4-4 4M12 2v13')}{counts.shares > 0 && counts.shares}
           </button>
           <button type="button" onClick={handleSave} aria-label="Hifadhi" aria-pressed={saved} data-testid="post-save" style={act(saved, B, '#e8f0fe')}>
@@ -1061,6 +1066,12 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           )}
         </div>
         {shareMsg && <div style={{ fontSize:13, color:'#166534' }}>{shareMsg}</div>}
+        {sheetOpen && (
+          <ShareSheet open onClose={() => setSheetOpen(false)} contentType="post" contentId={Number(post.id)}
+            words={caption.lead || String(caption.text || '').split('\n')[0] || bizName}
+            intent={post.intent} community={post.community?.name ? formatName(post.community.name) : ''}
+            replies={counts.comments} plainUrl={postShareUrl(post, entityType, entityId)} onShared={countShare} />
+        )}
 
         {showComments && (
           // A real Moment/post owns its own discussion thread, even when it

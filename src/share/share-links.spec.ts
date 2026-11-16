@@ -91,3 +91,15 @@ describe('previews', () => {
     expect(injectMeta('<head></head>', { title: 't', description: 'd', image: null, url: 'u', fallbackImage: 'f', target: 'javascript:x' })).not.toContain('kx-target');
   });
 });
+
+describe('C10: links for every channel at once', () => {
+  it('returns one link per channel (at most 10, no repeats)', async () => {
+    const { ShareLinksController } = require('./share-links.controller');
+    const create = jest.fn(async (_w: any, _t: string, _i: number, ch: string) => ({ url: `https://kentexa.com/s/${ch}12345` }));
+    const ctrl = new ShareLinksController({ create } as any);
+    const out = await ctrl.create({ user: { id: 5 } }, { contentType: 'post', contentId: 88, channels: ['whatsapp', 'status', 'whatsapp'] });
+    expect(out).toEqual({ links: { whatsapp: 'https://kentexa.com/s/whatsapp12345', status: 'https://kentexa.com/s/status12345' } });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create).toHaveBeenCalledWith(5, 'post', 88, 'whatsapp');
+  });
+});
