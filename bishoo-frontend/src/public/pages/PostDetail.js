@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
 import { PostCard } from './HomeFeed';
 import { formatName } from '../utils/kentexaText';
+import { prefetchShortLink } from '../utils/shortLinks';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -49,6 +50,8 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
     return () => { alive = false; };
   }, [communityId, isLoggedIn]);
   const isModerator = role === 'admin' || role === 'helper';
+  // Viral engine A2: the post page is where people share most; its short link is made ahead.
+  useEffect(() => { if (post?.id && post.visibility !== 'followers') prefetchShortLink('post', Number(post.id)); }, [post?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const moderate = async (path, body, apply) => {
     setMenu(false); setNote('');
     try {

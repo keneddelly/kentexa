@@ -35,7 +35,7 @@ describe('share previews and sitemap use it', () => {
   it('a public post shows its own text', async () => {
     const db = { query: jest.fn(async () => [{ title: 'Moment', body: 'Biashara gani?', imageUrl: null, media: null, owner: 'Kened' }]) };
     const payload = await (ctrl(db) as any).pagePayload('post', '88');
-    expect(payload.description).toBe('Biashara gani?');
+    expect(payload.description).toBe('Kened · Biashara gani?'); // A2: writer first, then the words
   });
 
   it('the sitemap reads posts through the same rule', async () => {

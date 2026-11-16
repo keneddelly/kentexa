@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ShareController } from './share.controller';
+import { ShareLinksController } from './share-links.controller';
+import { ShareLinksService } from './share-links.service';
 import { ProductsModule } from '../products/products.module';
 import { ClassifiedsModule } from '../classifieds/classifieds.module';
 import { ServicesModule } from '../services/services.module';
@@ -16,6 +18,8 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
     TransportModule,
     CommerceProfilesModule,
   ],
-  controllers: [ShareController],
+  controllers: [ShareController, ShareLinksController],
+  providers: [ShareLinksService],
+  exports: [ShareLinksService],
 })
 export class ShareModule {}

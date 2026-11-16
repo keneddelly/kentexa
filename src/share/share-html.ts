@@ -21,7 +21,7 @@ export function parseRef(ref: unknown): number | null {
   return m ? Number(m[1]) : null;
 }
 
-export function injectMeta(index: string, p: { title: string; description: string; image: string | null; url: string; fallbackImage: string }): string {
+export function injectMeta(index: string, p: { title: string; description: string; image: string | null; url: string; fallbackImage: string; target?: string }): string {
   const title = esc(cut(p.title, 90));
   const desc = esc(cut(p.description, 200));
   const image = esc(p.image || p.fallbackImage);
@@ -40,6 +40,8 @@ export function injectMeta(index: string, p: { title: string; description: strin
     `<meta name="twitter:title" content="${title}" />`,
     `<meta name="twitter:description" content="${desc}" />`,
     `<meta name="twitter:image" content="${image}" />`,
+    // Viral engine A2: a short link (/s/<code>) tells the app which page to open, with no extra call.
+    ...(p.target && /^\/[a-z]+\/\d+$/.test(p.target) ? [`<meta name="kx-target" content="${esc(p.target)}" />`] : []),
   ].join('');
   const cleaned = index
     .replace(/<title>[\s\S]*?<\/title>/i, '')

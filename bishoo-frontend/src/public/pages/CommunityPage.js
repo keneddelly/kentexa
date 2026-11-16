@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import api from '../../api/api';
 import { pollTimeLeft, topicLabel } from '../utils/feedPresentation';
 import { formatCaption, formatName, formatText } from '../utils/kentexaText';
+import { prefetchShortLink, readyShortLink } from '../utils/shortLinks';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -194,6 +195,18 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
   };
   const openThread = (post) => onNavigate(`PostDetail-${post.id}`);
 
+  // Viral engine A2: an open community can be shared as a short link (kentexa.com/s/<code>).
+  const canShare = community?.joinPolicy === 'open';
+  useEffect(() => { if (canShare && community?.id) prefetchShortLink('community', community.id); }, [canShare, community?.id]);
+  const [shareNote, setShareNote] = useState('');
+  const share = async () => {
+    const url = readyShortLink('community', community.id) || `${window.location.origin}/community/${community.id}`;
+    const text = `Jiunge na ${formatName(community.name)} kwenye KenteXa: ${formatText(community.purpose)}`;
+    if (navigator.share) { await navigator.share({ title: formatName(community.name), text, url }).catch(() => {}); return; }
+    try { await navigator.clipboard.writeText(`${text} ${url}`); setShareNote('Kiungo kimenakiliwa'); setTimeout(() => setShareNote(''), 2000); }
+    catch { setShareNote(url); }
+  };
+
   if (state === 'loading') return <div style={{ padding: 24, color: MUTED }}>Inapakia...</div>;
   if (state === 'missing' || !community) {
     return (
@@ -216,6 +229,11 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
         <button type="button" aria-label="Rudi" onClick={() => onNavigate('back')} style={{ ...roundBtn, left: 12 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
+        {canShare && (
+          <button type="button" aria-label="Shiriki jumuiya" data-testid="community-share" onClick={share} style={{ ...roundBtn, right: 56 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" aria-hidden="true"><path d="M4 12v8h16v-8M16 6l-4-4-4 4M12 2v13" /></svg>
+          </button>
+        )}
         <button type="button" aria-label="Zaidi" data-testid="community-menu" onClick={() => setMenu((v) => !v)} style={{ ...roundBtn, right: 12 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
         </button>
@@ -268,6 +286,7 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
           </div>
         )}
         {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c' }}>{error}</div>}
+        {shareNote && <div role="status" style={{ fontSize: 13, color: '#1d6b39', overflowWrap: 'anywhere' }}>{shareNote}</div>}
       </div>
 
       {isModerator && requests.length > 0 && (

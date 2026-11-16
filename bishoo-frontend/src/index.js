@@ -12,6 +12,7 @@ import { isAppleMobile } from './public/utils/isAppleMobile';
 import PageErrorBoundary from './public/components/PageErrorBoundary';
 import { PageLoading } from './utils/lazyPage';
 import { reportClientError } from './utils/clientErrors';
+import { openShortLinkIfAny } from './public/utils/shortLinks';
 
 if (isAppleMobile()) document.documentElement.classList.add('kentexa-apple-mobile');
 
@@ -22,7 +23,7 @@ window.addEventListener('error', (event) => {
 });
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
+const start = () => root.render(
   <React.StrictMode>
     <PageErrorBoundary scope="app" page="app">
       <Suspense fallback={<PageLoading />}>
@@ -35,6 +36,8 @@ root.render(
     </PageErrorBoundary>
   </React.StrictMode>
 );
+// Viral engine A2: a short link (/s/<code>) becomes the page it points to before the app starts.
+openShortLinkIfAny().finally(start);
 // The site's code ran: index.html stops waiting to show its "slow / old browser" message.
 window.__kxMounted = true;
 if (window.__kxBootDone) window.__kxBootDone();
