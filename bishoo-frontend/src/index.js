@@ -1,7 +1,7 @@
 // Older phones (owner approved 2026-11-15): fill in the newer browser functions the site uses,
 // for phones whose Chrome has not been updated for a long time. Must stay the first imports.
 import './polyfills';
-import React from 'react';
+import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
@@ -10,6 +10,7 @@ import { RoleContextProvider } from './context/RoleContext';
 import { SocketProvider } from './context/SocketProvider';
 import { isAppleMobile } from './public/utils/isAppleMobile';
 import PageErrorBoundary from './public/components/PageErrorBoundary';
+import { PageLoading } from './utils/lazyPage';
 import { reportClientError } from './utils/clientErrors';
 
 if (isAppleMobile()) document.documentElement.classList.add('kentexa-apple-mobile');
@@ -24,11 +25,13 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <PageErrorBoundary scope="app" page="app">
-      <RoleContextProvider>
-        <SocketProvider>
-          <App />
-        </SocketProvider>
-      </RoleContextProvider>
+      <Suspense fallback={<PageLoading />}>
+        <RoleContextProvider>
+          <SocketProvider>
+            <App />
+          </SocketProvider>
+        </RoleContextProvider>
+      </Suspense>
     </PageErrorBoundary>
   </React.StrictMode>
 );

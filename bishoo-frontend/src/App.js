@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import lazyPage, { PageLoading } from './utils/lazyPage';
 import { useTranslation } from 'react-i18next';
 import { workAppPage } from './utils/posApp';
 import { usePWA, InstallBanner, InstallGuide, subscribeToPush, disablePushNotifications } from './public/hooks/usePWA';
@@ -23,173 +24,177 @@ import { activeBusinessNameFor } from './context/businessGrouping';
 import { evaluateDestination } from './navigation/navigationPolicy';
 import { unavailableNotice } from './navigation/unavailableNotice';
 import HomeFeed           from './public/pages/HomeFeed';
-import PostDetail         from './public/pages/PostDetail';
-import TagPage            from './public/pages/TagPage';
-import CommunityPage      from './public/pages/CommunityPage';
-import CreateCommunity    from './public/pages/CreateCommunity';
-import Welcome            from './public/pages/Welcome';
-import MyProfile          from './public/pages/MyProfile';
-import RoleActivation     from './public/pages/RoleActivation';
-import Onboarding          from './public/pages/Onboarding';
-import AddProfilePhoto     from './public/pages/AddProfilePhoto';
 import { photoSkipped }   from './utils/photoLater';
 import { holdWelcomeSteps, isCheckoutBuyer } from './utils/checkoutBuyer';
-import FlashSales          from './public/pages/FlashSales';
-import PickupPoints        from './public/pages/PickupPoints';
-import RouteCoverageMap   from './public/pages/RouteCoverageMap';
-import Activity       from './public/pages/Activity';
 import BottomNav      from './public/components/BottomNav';
 import ProfileSwitcherSheet from './public/components/ProfileSwitcherSheet';
 import PostModal      from './public/components/PostModal';
 import CreateMomentModal from './public/components/CreateMomentModal';
-import BecomeSellerInfo from './public/pages/BecomeSellerInfo';
-import SellerRecruitment from './public/pages/SellerRecruitment';
-import ConfirmDelivery    from './public/pages/ConfirmDelivery';
-import SellerCheckout     from './public/pages/SellerCheckout';
-import PartnerInvite      from './public/pages/PartnerInvite';
-import SellerAgentInvite  from './public/pages/SellerAgentInvite';
-import TeamInvite from './public/pages/TeamInvite';
 import { loadPosTeam, OWN_TILL_ROLES } from './utils/posTeam';
-import HotelMenu          from './public/pages/HotelMenu';
-import FoodOrder          from './public/pages/FoodOrder';
-import HotelKitchen       from './public/pages/HotelKitchen';
-import HotelMenuManager   from './public/pages/HotelMenuManager';
 import { parseMenuPath }  from './utils/food';
 import { loadSession as loadPosSession } from './utils/posOffline';
-import SellerCustomers   from './public/pages/SellerCustomers';
-import AgentEarnings     from './public/pages/AgentEarnings';
-import KentexaFee        from './public/pages/KentexaFee';
-import TransportProviderSettings from './public/pages/TransportProviderSettings';
-import SellerAnalytics            from './public/pages/SellerAnalytics'; // eslint-disable-line
-import BecomeTransportProvider    from './public/pages/BecomeTransportProvider'; // eslint-disable-line
-import TransportAdmin             from './admin/pages/TransportAdmin'; // eslint-disable-line
-import VanOperations              from './admin/pages/VanOperations'; // eslint-disable-line
-import HubAdmin                   from './admin/pages/HubAdmin'; // eslint-disable-line
-import SellerTeam                 from './public/pages/SellerTeam'; // eslint-disable-line
-import AgentScorecard             from './public/pages/AgentScoreCard'; // eslint-disable-line
-import Wishlist                   from './public/pages/Wishlist'; // eslint-disable-line
-import CommerceProfile            from './public/pages/CommerceProfile'; // eslint-disable-line
-import Services                   from './public/pages/Services'; // eslint-disable-line
-import ServiceDetail               from './public/pages/ServiceDetail'; // eslint-disable-line
-import PostService                 from './public/pages/PostService'; // eslint-disable-line
-import MyServices                  from './public/pages/MyServices'; // eslint-disable-line
-import TransportProviderDashboard from './public/pages/TransportProviderDashboard'; // eslint-disable-line
-import SellerInbox       from './public/pages/SellerInbox';
-import Stores from './public/pages/Stores';
-import SellerStore from './public/pages/SellerStore';
-import ClassifiedsPublic from './public/pages/ClassifiedsPublic';
 import PublicLogin from './public/pages/PublicLogin';
 import Register from './public/pages/Register';
-import ProductDetail from './public/pages/ProductDetail';
-import ClassifiedDetail from './public/pages/ClassifiedDetail';
-import OrderTracking       from './public/pages/OrderTracking';
-import MyOrders from './public/pages/MyOrders';
-import CustomerProfile from './public/pages/CustomerProfile';
-import EditPublicProfile from './public/pages/EditPublicProfile';
-import PayoutSettings from './public/pages/PayoutSettings';
-import BecomeSeller from './public/pages/BecomeSeller';
 import SellerAccessGate from './public/components/SellerAccessGate';
-import SellerDashboard from './public/pages/SellerDashboard';
-import BusinessDashboard from './public/pages/BusinessDashboard';
-import MyBusinesses from './public/pages/MyBusinesses';
-import BusinessHome from './public/pages/BusinessHome';
-import BusinessIntegrations from './public/pages/BusinessIntegrations';
-import Workspace from './public/pages/Workspace';
-import BecomeBusinessServiceProvider from './public/pages/BecomeBusinessServiceProvider';
-import BecomeBusinessCapability from './public/pages/BecomeBusinessCapability';
-import ConnectSelling from './public/pages/ConnectSelling';
 import { momentActorProfileId } from './public/utils/publicActor';
-import BecomeBusiness from './public/pages/BecomeBusiness';
-import BecomeAgent from './public/pages/BecomeAgent';
-import AgentDashboard from './public/pages/AgentDashboard';
-import Cart from './public/pages/Cart';
-import Checkout from './public/pages/Checkout';
-import GuestCheckout from './public/pages/GuestCheckout';
-import Search from './public/pages/Search';
-import VerifyReceipt from './public/pages/VerifyReceipt';
-import SellerProducts from './public/pages/SellerProducts';
-import MyBrands from './public/pages/MyBrands';
-import BrandDashboard from './public/pages/BrandDashboard';
-import BrandCatalog from './public/pages/BrandCatalog';
-import VerifyProduct from './public/pages/VerifyProduct';
-import MyWarranties from './public/pages/MyWarranties';
-import MyResales from './public/pages/MyResales';
-import UzaTena from './public/pages/UzaTena';
-import SellerWarrantyClaims from './public/pages/SellerWarrantyClaims';
 import POS from './public/pages/POS';
-import SellerClassifieds from './public/pages/SellerClassifieds';
-import SellerOrders from './public/pages/SellerOrders';
-import SellerInvoices from './public/pages/SellerInvoices';
-import Dashboard from './admin/pages/Dashboard';
-import Products from './admin/pages/Products';
-import Classifieds from './admin/pages/Classifieds';
-import Profile from './admin/pages/Profile';
-import Users from './admin/pages/Users';
-import SuperAgents from './admin/pages/SuperAgents';
-import Disputes from './admin/pages/Disputes';
-import Payouts from './admin/pages/Payouts';
-import Invoices from './admin/pages/Invoices';
-import Reports from './admin/pages/Reports';
-import Orders from './admin/pages/Orders';
-import AdminShipments from './admin/pages/AdminShipments';
-import AdminDispatchReminders from './admin/pages/AdminDispatchReminders';
-import ContactMessages from './admin/pages/ContactMessages';
-import Announcements from './admin/pages/Announcements';
-import Analytics from './admin/pages/Analytics';
-import Payments from './admin/pages/Payments';
-import Sellers from './admin/pages/Sellers';
-import Businesses from './admin/pages/Businesses';
-import AdminServices from './admin/pages/Services';
-import IdentityVerifications from './admin/pages/IdentityVerifications';
-import AdminBrands from './admin/pages/AdminBrands';
-import AdminBrandAuthorizations from './admin/pages/AdminBrandAuthorizations';
-import AdminWarrantyClaims from './admin/pages/AdminWarrantyClaims';
-import OfficialProducts from './admin/pages/OfficialProducts';
-import Agents from './admin/pages/Agents';
-import SuperAgentDashboard from './public/pages/SuperAgentDashboard';
-import TrackParcel from './public/pages/TrackParcel';
-import BodaRates from './admin/pages/BodaRates';
-import RouteManagement from './admin/pages/RouteManagement';
-import AgentPerformance from './admin/pages/AgentPerformance';
-import FinancialDashboard from './admin/pages/FinancialDashboard';
-import CollectionFees from './admin/pages/CollectionFees';
-import SuperAgentParcel from './public/pages/SuperAgentParcel';
-import SuperAgentSettings from './public/pages/SuperAgentSettings';
-import MyAdvertising from './public/pages/MyAdvertising';
-import QuoteRequest from './public/pages/QuoteRequest';
-import MyQuoteRequests from './public/pages/MyQuoteRequests';
-import QuoteInbox from './public/pages/QuoteInbox';
-import AdminAdvertisers from './admin/pages/AdminAdvertisers';
-import AdminKentexaFees from './admin/pages/AdminKentexaFees';
-import AdminShippingCheck from './admin/pages/AdminShippingCheck';
-import AdminActivity from './admin/pages/AdminActivity';
-import AdminPerson from './admin/pages/AdminPerson';
-import AdminChats from './admin/pages/AdminChats';
-import AdminOnboarding from './admin/pages/AdminOnboarding';
-import AdminResale from './admin/pages/AdminResale';
-import AdminBusinessView from './admin/pages/AdminBusinessView';
 import AdminData, { PAGE_DATASET } from './admin/pages/AdminData';
-import AdminStaff from './admin/pages/AdminStaff';
 import { rememberReferral } from './utils/referralLink';
-import SellerShipment from './public/pages/SellerShipment';
-import SendShipment from './public/pages/SendShipment';
-import MyShipments from './public/pages/MyShipments';
-import BuyerParcelAction from './public/pages/BuyerParcelAction';
-import StoreSettings from './seller/pages/StoreSettings';
-import BecomeSuperAgentInfo from './public/pages/BecomeSuperAgentInfo';
-import CategoryPage from './public/pages/CategoryPage';
-import ListingsPage from './public/pages/ListingsPage';
-import AboutUs from './public/pages/AboutUs';
-import ContactUs from './public/pages/ContactUs';
-import HowItWorks from './public/pages/HowItWorks';
-import TermsAndConditions from './public/pages/TermsAndConditions';
-import PrivacyPolicy from './public/pages/PrivacyPolicy';
 import UpdateNotice from './public/components/UpdateNotice';
 import TrainingSmsNotice from './public/components/TrainingSmsNotice';
 import { identityState, afterIdentitySent } from './utils/identityState';
 import useIdentityRefresh from './utils/useIdentityRefresh';
 import useAgentPresence from './utils/useAgentPresence';
 import LineIcon from './public/components/LineIcon';
+
+// Light first load (owner 2026-11-16: a Samsung S23 on mobile data saw a blank page): each page
+// downloads when it is opened, not all ~100 at start. Home, sign-in, sign-up and the POS (it must
+// open offline) stay in the first download.
+const PostDetail         = lazyPage(() => import('./public/pages/PostDetail'));
+const TagPage            = lazyPage(() => import('./public/pages/TagPage'));
+const CommunityPage      = lazyPage(() => import('./public/pages/CommunityPage'));
+const CreateCommunity    = lazyPage(() => import('./public/pages/CreateCommunity'));
+const Welcome            = lazyPage(() => import('./public/pages/Welcome'));
+const MyProfile          = lazyPage(() => import('./public/pages/MyProfile'));
+const RoleActivation     = lazyPage(() => import('./public/pages/RoleActivation'));
+const Onboarding          = lazyPage(() => import('./public/pages/Onboarding'));
+const AddProfilePhoto     = lazyPage(() => import('./public/pages/AddProfilePhoto'));
+const FlashSales          = lazyPage(() => import('./public/pages/FlashSales'));
+const PickupPoints        = lazyPage(() => import('./public/pages/PickupPoints'));
+const RouteCoverageMap   = lazyPage(() => import('./public/pages/RouteCoverageMap'));
+const Activity       = lazyPage(() => import('./public/pages/Activity'));
+const BecomeSellerInfo = lazyPage(() => import('./public/pages/BecomeSellerInfo'));
+const SellerRecruitment = lazyPage(() => import('./public/pages/SellerRecruitment'));
+const ConfirmDelivery    = lazyPage(() => import('./public/pages/ConfirmDelivery'));
+const SellerCheckout     = lazyPage(() => import('./public/pages/SellerCheckout'));
+const PartnerInvite      = lazyPage(() => import('./public/pages/PartnerInvite'));
+const SellerAgentInvite  = lazyPage(() => import('./public/pages/SellerAgentInvite'));
+const TeamInvite = lazyPage(() => import('./public/pages/TeamInvite'));
+const HotelMenu          = lazyPage(() => import('./public/pages/HotelMenu'));
+const FoodOrder          = lazyPage(() => import('./public/pages/FoodOrder'));
+const HotelKitchen       = lazyPage(() => import('./public/pages/HotelKitchen'));
+const HotelMenuManager   = lazyPage(() => import('./public/pages/HotelMenuManager'));
+const SellerCustomers   = lazyPage(() => import('./public/pages/SellerCustomers'));
+const AgentEarnings     = lazyPage(() => import('./public/pages/AgentEarnings'));
+const KentexaFee        = lazyPage(() => import('./public/pages/KentexaFee'));
+const TransportProviderSettings = lazyPage(() => import('./public/pages/TransportProviderSettings'));
+const SellerAnalytics            = lazyPage(() => import('./public/pages/SellerAnalytics')); // eslint-disable-line
+const BecomeTransportProvider    = lazyPage(() => import('./public/pages/BecomeTransportProvider')); // eslint-disable-line
+const TransportAdmin             = lazyPage(() => import('./admin/pages/TransportAdmin')); // eslint-disable-line
+const VanOperations              = lazyPage(() => import('./admin/pages/VanOperations')); // eslint-disable-line
+const HubAdmin                   = lazyPage(() => import('./admin/pages/HubAdmin')); // eslint-disable-line
+const SellerTeam                 = lazyPage(() => import('./public/pages/SellerTeam')); // eslint-disable-line
+const AgentScorecard             = lazyPage(() => import('./public/pages/AgentScoreCard')); // eslint-disable-line
+const Wishlist                   = lazyPage(() => import('./public/pages/Wishlist')); // eslint-disable-line
+const CommerceProfile            = lazyPage(() => import('./public/pages/CommerceProfile')); // eslint-disable-line
+const Services                   = lazyPage(() => import('./public/pages/Services')); // eslint-disable-line
+const ServiceDetail               = lazyPage(() => import('./public/pages/ServiceDetail')); // eslint-disable-line
+const PostService                 = lazyPage(() => import('./public/pages/PostService')); // eslint-disable-line
+const MyServices                  = lazyPage(() => import('./public/pages/MyServices')); // eslint-disable-line
+const TransportProviderDashboard = lazyPage(() => import('./public/pages/TransportProviderDashboard')); // eslint-disable-line
+const SellerInbox       = lazyPage(() => import('./public/pages/SellerInbox'));
+const Stores = lazyPage(() => import('./public/pages/Stores'));
+const SellerStore = lazyPage(() => import('./public/pages/SellerStore'));
+const ClassifiedsPublic = lazyPage(() => import('./public/pages/ClassifiedsPublic'));
+const ProductDetail = lazyPage(() => import('./public/pages/ProductDetail'));
+const ClassifiedDetail = lazyPage(() => import('./public/pages/ClassifiedDetail'));
+const OrderTracking       = lazyPage(() => import('./public/pages/OrderTracking'));
+const MyOrders = lazyPage(() => import('./public/pages/MyOrders'));
+const CustomerProfile = lazyPage(() => import('./public/pages/CustomerProfile'));
+const EditPublicProfile = lazyPage(() => import('./public/pages/EditPublicProfile'));
+const PayoutSettings = lazyPage(() => import('./public/pages/PayoutSettings'));
+const BecomeSeller = lazyPage(() => import('./public/pages/BecomeSeller'));
+const SellerDashboard = lazyPage(() => import('./public/pages/SellerDashboard'));
+const BusinessDashboard = lazyPage(() => import('./public/pages/BusinessDashboard'));
+const MyBusinesses = lazyPage(() => import('./public/pages/MyBusinesses'));
+const BusinessHome = lazyPage(() => import('./public/pages/BusinessHome'));
+const BusinessIntegrations = lazyPage(() => import('./public/pages/BusinessIntegrations'));
+const Workspace = lazyPage(() => import('./public/pages/Workspace'));
+const BecomeBusinessServiceProvider = lazyPage(() => import('./public/pages/BecomeBusinessServiceProvider'));
+const BecomeBusinessCapability = lazyPage(() => import('./public/pages/BecomeBusinessCapability'));
+const ConnectSelling = lazyPage(() => import('./public/pages/ConnectSelling'));
+const BecomeBusiness = lazyPage(() => import('./public/pages/BecomeBusiness'));
+const BecomeAgent = lazyPage(() => import('./public/pages/BecomeAgent'));
+const AgentDashboard = lazyPage(() => import('./public/pages/AgentDashboard'));
+const Cart = lazyPage(() => import('./public/pages/Cart'));
+const Checkout = lazyPage(() => import('./public/pages/Checkout'));
+const GuestCheckout = lazyPage(() => import('./public/pages/GuestCheckout'));
+const Search = lazyPage(() => import('./public/pages/Search'));
+const VerifyReceipt = lazyPage(() => import('./public/pages/VerifyReceipt'));
+const SellerProducts = lazyPage(() => import('./public/pages/SellerProducts'));
+const MyBrands = lazyPage(() => import('./public/pages/MyBrands'));
+const BrandDashboard = lazyPage(() => import('./public/pages/BrandDashboard'));
+const BrandCatalog = lazyPage(() => import('./public/pages/BrandCatalog'));
+const VerifyProduct = lazyPage(() => import('./public/pages/VerifyProduct'));
+const MyWarranties = lazyPage(() => import('./public/pages/MyWarranties'));
+const MyResales = lazyPage(() => import('./public/pages/MyResales'));
+const UzaTena = lazyPage(() => import('./public/pages/UzaTena'));
+const SellerWarrantyClaims = lazyPage(() => import('./public/pages/SellerWarrantyClaims'));
+const SellerClassifieds = lazyPage(() => import('./public/pages/SellerClassifieds'));
+const SellerOrders = lazyPage(() => import('./public/pages/SellerOrders'));
+const SellerInvoices = lazyPage(() => import('./public/pages/SellerInvoices'));
+const Dashboard = lazyPage(() => import('./admin/pages/Dashboard'));
+const Products = lazyPage(() => import('./admin/pages/Products'));
+const Classifieds = lazyPage(() => import('./admin/pages/Classifieds'));
+const Profile = lazyPage(() => import('./admin/pages/Profile'));
+const Users = lazyPage(() => import('./admin/pages/Users'));
+const SuperAgents = lazyPage(() => import('./admin/pages/SuperAgents'));
+const Disputes = lazyPage(() => import('./admin/pages/Disputes'));
+const Payouts = lazyPage(() => import('./admin/pages/Payouts'));
+const Invoices = lazyPage(() => import('./admin/pages/Invoices'));
+const Reports = lazyPage(() => import('./admin/pages/Reports'));
+const Orders = lazyPage(() => import('./admin/pages/Orders'));
+const AdminShipments = lazyPage(() => import('./admin/pages/AdminShipments'));
+const AdminDispatchReminders = lazyPage(() => import('./admin/pages/AdminDispatchReminders'));
+const ContactMessages = lazyPage(() => import('./admin/pages/ContactMessages'));
+const Announcements = lazyPage(() => import('./admin/pages/Announcements'));
+const Analytics = lazyPage(() => import('./admin/pages/Analytics'));
+const Payments = lazyPage(() => import('./admin/pages/Payments'));
+const Sellers = lazyPage(() => import('./admin/pages/Sellers'));
+const Businesses = lazyPage(() => import('./admin/pages/Businesses'));
+const AdminServices = lazyPage(() => import('./admin/pages/Services'));
+const IdentityVerifications = lazyPage(() => import('./admin/pages/IdentityVerifications'));
+const AdminBrands = lazyPage(() => import('./admin/pages/AdminBrands'));
+const AdminBrandAuthorizations = lazyPage(() => import('./admin/pages/AdminBrandAuthorizations'));
+const AdminWarrantyClaims = lazyPage(() => import('./admin/pages/AdminWarrantyClaims'));
+const OfficialProducts = lazyPage(() => import('./admin/pages/OfficialProducts'));
+const Agents = lazyPage(() => import('./admin/pages/Agents'));
+const SuperAgentDashboard = lazyPage(() => import('./public/pages/SuperAgentDashboard'));
+const TrackParcel = lazyPage(() => import('./public/pages/TrackParcel'));
+const BodaRates = lazyPage(() => import('./admin/pages/BodaRates'));
+const RouteManagement = lazyPage(() => import('./admin/pages/RouteManagement'));
+const AgentPerformance = lazyPage(() => import('./admin/pages/AgentPerformance'));
+const FinancialDashboard = lazyPage(() => import('./admin/pages/FinancialDashboard'));
+const CollectionFees = lazyPage(() => import('./admin/pages/CollectionFees'));
+const SuperAgentParcel = lazyPage(() => import('./public/pages/SuperAgentParcel'));
+const SuperAgentSettings = lazyPage(() => import('./public/pages/SuperAgentSettings'));
+const MyAdvertising = lazyPage(() => import('./public/pages/MyAdvertising'));
+const QuoteRequest = lazyPage(() => import('./public/pages/QuoteRequest'));
+const MyQuoteRequests = lazyPage(() => import('./public/pages/MyQuoteRequests'));
+const QuoteInbox = lazyPage(() => import('./public/pages/QuoteInbox'));
+const AdminAdvertisers = lazyPage(() => import('./admin/pages/AdminAdvertisers'));
+const AdminKentexaFees = lazyPage(() => import('./admin/pages/AdminKentexaFees'));
+const AdminShippingCheck = lazyPage(() => import('./admin/pages/AdminShippingCheck'));
+const AdminActivity = lazyPage(() => import('./admin/pages/AdminActivity'));
+const AdminPerson = lazyPage(() => import('./admin/pages/AdminPerson'));
+const AdminChats = lazyPage(() => import('./admin/pages/AdminChats'));
+const AdminOnboarding = lazyPage(() => import('./admin/pages/AdminOnboarding'));
+const AdminResale = lazyPage(() => import('./admin/pages/AdminResale'));
+const AdminBusinessView = lazyPage(() => import('./admin/pages/AdminBusinessView'));
+const AdminStaff = lazyPage(() => import('./admin/pages/AdminStaff'));
+const SellerShipment = lazyPage(() => import('./public/pages/SellerShipment'));
+const SendShipment = lazyPage(() => import('./public/pages/SendShipment'));
+const MyShipments = lazyPage(() => import('./public/pages/MyShipments'));
+const BuyerParcelAction = lazyPage(() => import('./public/pages/BuyerParcelAction'));
+const StoreSettings = lazyPage(() => import('./seller/pages/StoreSettings'));
+const BecomeSuperAgentInfo = lazyPage(() => import('./public/pages/BecomeSuperAgentInfo'));
+const CategoryPage = lazyPage(() => import('./public/pages/CategoryPage'));
+const ListingsPage = lazyPage(() => import('./public/pages/ListingsPage'));
+const AboutUs = lazyPage(() => import('./public/pages/AboutUs'));
+const ContactUs = lazyPage(() => import('./public/pages/ContactUs'));
+const HowItWorks = lazyPage(() => import('./public/pages/HowItWorks'));
+const TermsAndConditions = lazyPage(() => import('./public/pages/TermsAndConditions'));
+const PrivacyPolicy = lazyPage(() => import('./public/pages/PrivacyPolicy'));
 
 // Seller's private order link tokens: the long signed form (?sellerCheckout=a.b) and the
 // short one sent since 2026-10-23 (?so=<5 base-36 parts>.<16-char signature>).
@@ -1172,7 +1177,7 @@ function App() {
 
   if (authStatus === 'restoring') {
     return (<>
-      <div role="status" style={{ minHeight:'100vh', display:'grid', placeItems:'center', color:'#64748b' }}>Loading…</div>
+      <div role="status" style={{ minHeight:'100vh', display:'grid', placeItems:'center', color:'#64748b' }}>Inafungua KenteXa…</div>
       <SlowNetworkNotice page="restoring" />
     </>);
   }
@@ -1182,7 +1187,9 @@ function App() {
     <CartProvider>
       {/* Safety net (owner 2026-11-15): a failing page shows "Jaribu tena", never a white screen. */}
       <PageErrorBoundary page={page} onHome={() => handleNavigate('Home')}>
-        <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>
+        <Suspense fallback={<PageLoading />}>
+          <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>
+        </Suspense>
       </PageErrorBoundary>
       <SlowNetworkNotice page={page} />
 
