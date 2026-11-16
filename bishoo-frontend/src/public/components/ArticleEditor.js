@@ -47,7 +47,7 @@ export default function ArticleEditor({ onClose, onPosted, initialCommunityId = 
 
   useEffect(() => {
     let alive = true;
-    api.get('/communities', { params: { mine: '1' } })
+    Promise.resolve().then(() => api.get('/communities', { params: { mine: '1' } }))
       .then((r) => { if (alive) setCommunities(Array.isArray(r?.data) ? r.data : []); }).catch(() => {});
     return () => { alive = false; };
   }, []);

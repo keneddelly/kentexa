@@ -57,6 +57,7 @@ test('in a community: a teal MAKALA card with its reading time', () => {
 });
 
 test('writing: tools add layout marks, the draft is kept, and it is published as a Makala', async () => {
+  api.get.mockResolvedValue({ data: [] });
   api.post.mockResolvedValue({ data: { id: 41, intent: 'article', title: 'Jinsi ya kuanza' } });
   const onPosted = jest.fn();
   await act(async () => { render(<ArticleEditor onClose={jest.fn()} onPosted={onPosted} initialCommunityId={3} />); });
