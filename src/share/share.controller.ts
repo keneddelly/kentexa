@@ -1,4 +1,5 @@
 import { Controller, Get, Optional, Param, Req, Res } from '@nestjs/common';
+import { PUBLIC_TO_GUESTS } from '../commerce-profiles/public-visibility';
 import { DataSource } from 'typeorm';
 import { injectMeta, parseRef, slugify } from './share-html';
 import type { Request, Response } from 'express';
@@ -127,11 +128,10 @@ export class ShareController {
           AND (x."createdAt" < TIMESTAMPTZ '2026-10-14T00:00:00+03:00'
             OR EXISTS (SELECT 1 FROM public.identity_profile ip WHERE ip."userId" = x."providerId" AND ip.status::text = 'verified'))
           ORDER BY x."updatedAt" DESC`),
+        // Viral engine A1: posts by the one public-to-guests rule (no followers-only posts, none
+        // from request-only communities or hidden profiles).
         this.db.query(`SELECT x.id, x."createdAt" FROM public.business_feed_item x
-          LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId"
-          WHERE x."isActive" = true AND x.status::text = 'published' AND x.visibility::text = 'public'
-          AND (x."expiresAt" IS NULL OR x."expiresAt" > NOW())
-          AND (x."commerceProfileId" IS NULL OR (cp.status::text = 'active' AND cp."hiddenFromPublic" = false))
+          WHERE ${PUBLIC_TO_GUESTS('x')}
           ORDER BY x."createdAt" DESC`),
       ]);
       add(profiles, (r) => '/@' + encodeURIComponent(r.username));
@@ -203,8 +203,10 @@ export class ShareController {
     if (type === 'post') {
       const r = await q(`SELECT x.title, x.body, x."imageUrl", x.media, ${owner} AS owner
         FROM public.business_feed_item x LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId" LEFT JOIN public."user" u ON u.id = x."businessId"
-        WHERE x.id = $1::int AND x."isActive" = true`);
+        WHERE x.id = $1::int AND ${PUBLIC_TO_GUESTS('x')}`);
       const path = `/post/${id}`;
+      // Viral engine A1: a post that is not public to guests (followers-only, in a request-only
+      // community, from a hidden profile, removed) shows only the general KenteXa card.
       if (!r) return { ...SITE_FALLBACK, path };
       const media = Array.isArray(r.media) ? r.media : [];
       const text = String(r.body || r.title || '').trim();

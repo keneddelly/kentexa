@@ -36,6 +36,21 @@ export const COMMUNITY_OPEN_TO_VIEWER = (alias: string, viewerParam = 'feedViewe
   + ` AND (cv."joinPolicy" = 'open' OR EXISTS (SELECT 1 FROM public.community_member cmv WHERE cmv."communityId" = cv.id`
   + ` AND cmv."userId" = :${viewerParam} AND cmv.status = 'active'))))`;
 
+/**
+ * Viral engine A1 (issue #381, owner approved 2026-11-16): the ONE rule for what a person who is
+ * not signed in may see of a post outside the app: link previews, share cards, short links and
+ * the sitemap. A post qualifies only when it is live (active, published, not expired), public
+ * (not followers-only), not in a request-only or closed community, and not from a hidden or
+ * inactive profile. Anything else gets the general KenteXa card, never its title, text or photo.
+ */
+export const PUBLIC_TO_GUESTS = (alias: string) =>
+  `(${alias}."isActive" = true AND ${alias}.status::text = 'published' AND ${alias}.visibility::text = 'public'`
+  + ` AND (${alias}."expiresAt" IS NULL OR ${alias}."expiresAt" > NOW())`
+  + ` AND NOT EXISTS (SELECT 1 FROM public.commerce_profile gp WHERE gp.id = ${alias}."commerceProfileId"`
+  + ` AND (gp."hiddenFromPublic" = true OR gp.status::text <> 'active'))`
+  + ` AND (${alias}."communityId" IS NULL OR EXISTS (SELECT 1 FROM public.community gc WHERE gc.id = ${alias}."communityId"`
+  + ` AND gc.status = 'active' AND gc."joinPolicy" = 'open')))`;
+
 /** Plain check for one post already loaded (same rule as VISIBLE_TO_VIEWER, for code paths). */
 export const isPublicPost = (post: { visibility?: string | null }) => !post.visibility || post.visibility === 'public';
 
