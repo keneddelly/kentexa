@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-16 (Mwandishi wa Wiki):** the pin is now `MIGRATION_RUN_UPTO=1796800000000`. The next deploy runs `1796800000000-AddWeeklyWriter` itself (new table `weekly_writer`: each week's writer of the week and the next 3). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-16 (Makala):** the pin is now `MIGRATION_RUN_UPTO=1796700000000`. The next deploy runs `1796700000000-AddArticlePostIntent` itself (adds the value `article` to `business_feed_item_intent_enum`). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-16 (viral engine B8, issue #381):** the pin is now `MIGRATION_RUN_UPTO=1796600000000`. The next deploy runs `1796600000000-AddShareAttribution` itself (new tables `share_visit` and `share_conversion`). Check: `/version/migrations` shows `pending: []`.

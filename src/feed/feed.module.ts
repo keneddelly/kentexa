@@ -43,6 +43,8 @@ import { SearchModule } from '../search/search.module';
 import { PostSuggestService } from './post-suggest.service';
 import { HashtagService } from './hashtag.service';
 import { HashtagsController } from './hashtags.controller';
+import { WriterWeekService } from './writer-week.service';
+import { WriterWeekController } from './writer-week.controller';
 
 @Module({
   imports: [
@@ -67,7 +69,7 @@ import { HashtagsController } from './hashtags.controller';
     ActivityModule,
     SearchModule,
   ],
-  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController],
+  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController, WriterWeekController],
   providers: [
     FeedService,
     CvsService,
@@ -78,6 +80,7 @@ import { HashtagsController } from './hashtags.controller';
     CommunitiesService,
     PostSuggestService,
     HashtagService,
+    WriterWeekService,
     EntityOwnerResolver,
     PurchaseVerificationService,
     AiSummaryProvider,

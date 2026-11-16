@@ -15,6 +15,7 @@ import ShareResult from '../components/ShareResult';
 import ShareNudge, { markNudge, nudgeSeen } from '../components/ShareNudge';
 import ShareSheet from '../components/ShareSheet';
 import RelatedDiscussions from '../components/RelatedDiscussions';
+import GetAppStrip from '../components/GetAppStrip';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -172,6 +173,8 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
           words={post.body || post.title} intent={post.intent} community={post.community?.name ? formatName(post.community.name) : ''}
           replies={post.commentCount} plainUrl={`${window.location.origin}/post/${post.id}`} />
       )}
+      {/* Owner 2026-11-16: Android visitors without the app are invited to get it. */}
+      {state === 'ready' && post && <GetAppStrip text={post.intent === 'article' ? 'Soma makala kwa urahisi zaidi kwenye app ya KenteXa' : 'Fuatilia mjadala huu kwenye app ya KenteXa'} />}
       {state === 'ready' && post && <RelatedDiscussions postId={post.id} onNavigate={onNavigate} />}
       {/* Room at the very end so the fixed reply bar never covers the last words (it used to sit under the comments and left a blank gap above Mijadala zaidi). */}
       {state === 'ready' && post && <div data-testid="detail-comment-bottom-space" aria-hidden="true" style={{ height: 'calc(128px + env(safe-area-inset-bottom, 0px))' }} />}
