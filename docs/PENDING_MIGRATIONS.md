@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-16 (traffic, issue #368):** the pin is now `MIGRATION_RUN_UPTO=1796300000000`. The next deploy runs `1796300000000-AddFeedReadIndexes` itself (three indexes on `business_feed_item`). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-16 (privacy, issue #365):** the pin is now `MIGRATION_RUN_UPTO=1796200000000`. The next deploy runs `1796200000000-AddMarketingOptOut` itself (`user."marketingOptOut"` default false, `user."marketingOptOutAt"`). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-15 (hashtags):** the pin is now `MIGRATION_RUN_UPTO=1796100000000`. The next deploy

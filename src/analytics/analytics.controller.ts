@@ -39,6 +39,8 @@ export class AnalyticsController {
   @Post('events')
   async trackEvents(@Body() body: any, @Req() req: Request) {
     const events = Array.isArray(body?.events) ? body.events.slice(0, 50) : [];
+    // Traffic spike (issue #368): browsing records wait; the site keeps working.
+    if (spikeMode.isOn()) return { ok: true, received: 0, paused: true };
     const ipAddress =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       req.socket?.remoteAddress ||
