@@ -219,6 +219,8 @@ export class CvsService {
       UNIFIED_THREAD_ENTITY_TYPES.has(post.linkedEntityType)
         ? { entityType: post.linkedEntityType, entityId: post.linkedEntityId }
         : null;
+    // #374 D: a moderator closed replies on this post.
+    if ((post as any)?.repliesLocked) throw new BadRequestException('Majibu ya chapisho hili yamefungwa.');
 
     const type = extra?.type || PostCommentType.COMMENT;
     if (type === PostCommentType.REVIEW && !linked) {
@@ -2054,6 +2056,66 @@ export class CvsService {
       viewerId ? this.getSavedPostIds(viewerId) : Promise.resolve([]),
     ]);
     return { items: await this.presentRealItems(rows, followed, savedIds), total };
+  }
+
+  /**
+   * Communities built for discussion (#374 D, owner approved 2026-11-16): a community's threads
+   * as a list. Pinned first, then the most recent activity (a new post or a new reply). Each
+   * row carries its reply count, the time of the last reply and, for a member, whether it has
+   * news since `lastSeenAt` (their previous visit). Same visibility rules as the feed.
+   */
+  async getCommunityThreads(
+    communityId: number, viewerId: number | null, page = 1, kind: string | null = null, lastSeenAt: Date | null = null,
+  ): Promise<{ items: any[]; total: number }> {
+    const limit = 20;
+    const qb = this.feedRepo.createQueryBuilder('f')
+      .leftJoin('f.business', 'b')
+      .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.reputationScore',
+        'b.followersCount', 'b.isVerified', 'b.isOfficialStore', 'b.storeWhatsApp', 'b.phone', 'b.role'])
+      .addSelect('CASE WHEN f."pinnedAt" IS NULL THEN 1 ELSE 0 END', 'pin_rank')
+      .addSelect(`GREATEST(f."createdAt", COALESCE((SELECT MAX(pc."createdAt") FROM public.post_comment pc
+                   WHERE pc."postId" = f.id AND pc."isDeleted" = false), f."createdAt"))`, 'activity_at')
+      .where('f."communityId" = :cid', { cid: communityId })
+      .andWhere('f.isActive = true')
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+      .andWhere(NOT_MUTED_BY_VIEWER('f'));
+    if (kind) qb.andWhere('f.intent::text = :ckind', { ckind: kind });
+    const [rows, total] = await qb.orderBy('pin_rank', 'ASC').addOrderBy('activity_at', 'DESC').addOrderBy('f.id', 'DESC')
+      .skip((Math.max(page, 1) - 1) * limit).take(limit).getManyAndCount();
+    const [followed, savedIds] = await Promise.all([
+      this.getFollowedSellerIds(viewerId),
+      viewerId ? this.getSavedPostIds(viewerId) : Promise.resolve([]),
+    ]);
+    const items = await this.presentRealItems(rows, followed, savedIds);
+    const ids = items.map((i) => i.id);
+    const [replyRows, pollRows] = ids.length ? await Promise.all([
+      this.feedRepo.query(
+        `SELECT "postId", COUNT(*)::int AS n, MAX("createdAt") AS last FROM public.post_comment
+          WHERE "postId" = ANY($1) AND "isDeleted" = false GROUP BY "postId"`, [ids]).catch(() => []),
+      this.feedRepo.query(
+        `SELECT p."postId", p."closesAt", COALESCE(SUM(o."voteCount"), 0)::int AS votes FROM public.post_poll p
+           LEFT JOIN public.post_poll_option o ON o."pollId" = p.id WHERE p."postId" = ANY($1) GROUP BY p.id`, [ids]).catch(() => []),
+    ]) : [[], []];
+    const replies = new Map<number, any>(replyRows.map((r: any) => [Number(r.postId), r]));
+    const polls = new Map<number, any>(pollRows.map((r: any) => [Number(r.postId), r]));
+    return {
+      total,
+      items: items.map((i) => {
+        const r = replies.get(i.id);
+        const lastReplyAt = r?.last ? new Date(r.last) : null;
+        const activity = lastReplyAt && lastReplyAt > new Date(i.createdAt) ? lastReplyAt : new Date(i.createdAt);
+        const poll = polls.get(i.id);
+        return {
+          ...i,
+          replyCount: Number(r?.n || 0),
+          lastReplyAt,
+          pinned: !!i.pinnedAt,
+          unread: !!lastSeenAt && activity > lastSeenAt && Number(i.business?.id) !== Number(viewerId),
+          poll: poll ? { closesAt: poll.closesAt, votes: Number(poll.votes || 0) } : null,
+        };
+      }),
+    };
   }
 
   /**

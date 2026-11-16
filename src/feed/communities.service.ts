@@ -12,7 +12,7 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
  *  - posts from an open community can also reach For You under its topic.
  * Who sees a community post is enforced in SQL by COMMUNITY_OPEN_TO_VIEWER (public-visibility).
  */
-export const COMMUNITY_LIMITS = Object.freeze({ perPerson: 5, name: 80, purpose: 300, rules: 500 });
+export const COMMUNITY_LIMITS = Object.freeze({ perPerson: 5, name: 80, purpose: 300, rules: 500, pinned: 3 });
 
 type Role = 'admin' | 'helper' | 'member';
 
@@ -210,6 +210,85 @@ export class CommunitiesService {
     await this.dataSource.query(
       `UPDATE public.community_member SET role = $3 WHERE "communityId" = $1 AND "userId" = $2`, [communityId, userId, helper ? 'helper' : 'member']);
     return { ok: true };
+  }
+
+  /**
+   * #374 D: when the member last opened the community's list. Returns the previous time (for the
+   * "new since your last visit" dots) and records now. Not a member: null, nothing recorded.
+   */
+  async markSeen(communityId: number, userId: number | null): Promise<Date | null> {
+    if (!userId) return null;
+    const rows = await this.dataSource.query(
+      `UPDATE public.community_member m SET "lastSeenAt" = now()
+         FROM (SELECT "lastSeenAt" AS prev FROM public.community_member WHERE "communityId" = $1 AND "userId" = $2 AND status = 'active') old
+        WHERE m."communityId" = $1 AND m."userId" = $2 AND m.status = 'active'
+        RETURNING old.prev`, [communityId, userId]).catch(() => []);
+    const prev = Array.isArray(rows) ? (Array.isArray(rows[0]) ? rows[0][0]?.prev : rows[0]?.prev) : null;
+    return prev ? new Date(prev) : null;
+  }
+
+  private async communityPost(communityId: number, postId: number): Promise<any> {
+    const [p] = await this.dataSource.query(
+      `SELECT id, "businessId", "pinnedAt", "repliesLocked", "bestCommentId" FROM public.business_feed_item
+        WHERE id = $1 AND "communityId" = $2 AND "isActive" = true`, [postId, communityId]);
+    if (!p) throw new NotFoundException('Chapisho halipatikani kwenye jumuiya hii.');
+    return p;
+  }
+
+  /** #374 D: a moderator pins a post to the top of the community (at most 3 at a time), or unpins it. */
+  async pinPost(communityId: number, moderatorId: number, postId: number, pinned: boolean): Promise<{ pinned: boolean }> {
+    await this.assertModerator(communityId, moderatorId);
+    await this.communityPost(communityId, postId);
+    if (pinned) {
+      const [{ n }] = await this.dataSource.query(
+        `SELECT COUNT(*)::int AS n FROM public.business_feed_item WHERE "communityId" = $1 AND "pinnedAt" IS NOT NULL AND "isActive" = true AND id <> $2`,
+        [communityId, postId]);
+      if (n >= COMMUNITY_LIMITS.pinned) throw new BadRequestException(`Unaweza kubandika machapisho ${COMMUNITY_LIMITS.pinned} tu. Ondoa moja kwanza.`);
+    }
+    await this.dataSource.query(`UPDATE public.business_feed_item SET "pinnedAt" = ${pinned ? 'COALESCE("pinnedAt", now())' : 'NULL'} WHERE id = $1`, [postId]);
+    this.activityEvents.record({
+      eventType: pinned ? 'COMMUNITY_POST_PINNED' : 'COMMUNITY_POST_UNPINNED', category: ActivityCategory.CONTENT, actorId: moderatorId,
+      targetType: 'moment', targetId: postId, metadata: { communityId },
+    });
+    return { pinned };
+  }
+
+  /** #374 D: a moderator closes (or opens again) the replies on a post. */
+  async lockReplies(communityId: number, moderatorId: number, postId: number, locked: boolean): Promise<{ repliesLocked: boolean }> {
+    await this.assertModerator(communityId, moderatorId);
+    await this.communityPost(communityId, postId);
+    await this.dataSource.query(`UPDATE public.business_feed_item SET "repliesLocked" = $2 WHERE id = $1`, [postId, locked]);
+    this.activityEvents.record({
+      eventType: locked ? 'COMMUNITY_REPLIES_LOCKED' : 'COMMUNITY_REPLIES_OPENED', category: ActivityCategory.CONTENT, actorId: moderatorId,
+      targetType: 'moment', targetId: postId, metadata: { communityId },
+    });
+    return { repliesLocked: locked };
+  }
+
+  /**
+   * #374 D: "Jibu bora". The post's writer, or a moderator, chooses one reply (a comment made
+   * directly on that post) as the best answer; null clears it.
+   */
+  async setBestAnswer(communityId: number, userId: number, postId: number, commentId: number | null): Promise<{ bestCommentId: number | null }> {
+    await this.active(communityId);
+    const post = await this.communityPost(communityId, postId);
+    if (Number(post.businessId) !== Number(userId)) {
+      const m = await this.membership(communityId, userId);
+      if (!(m?.status === 'active' && (m.role === 'admin' || m.role === 'helper'))) {
+        throw new ForbiddenException('Mwandishi wa chapisho au msimamizi tu ndiye anachagua jibu bora.');
+      }
+    }
+    if (commentId !== null) {
+      const [c] = await this.dataSource.query(
+        `SELECT id FROM public.post_comment WHERE id = $1 AND "postId" = $2 AND "isDeleted" = false`, [commentId, postId]);
+      if (!c) throw new BadRequestException('Jibu hili halipatikani kwenye chapisho hili.');
+    }
+    await this.dataSource.query(`UPDATE public.business_feed_item SET "bestCommentId" = $2 WHERE id = $1`, [postId, commentId]);
+    this.activityEvents.record({
+      eventType: 'COMMUNITY_BEST_ANSWER_SET', category: ActivityCategory.CONTENT, actorId: userId,
+      targetType: 'moment', targetId: postId, metadata: { communityId, commentId },
+    });
+    return { bestCommentId: commentId };
   }
 
   /** A moderator takes down a post made in the community (it is archived, never deleted). */

@@ -186,7 +186,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
 
 // ── Comments section ──────────────────────────────────────────────────────────
 const HOME_COMMENTS = 3; // comments shown under a post on Home; the rest on the post page
-const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfileId, detail = false }) => {
+const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfileId, detail = false, communityRole = null }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
   const [comments, setComments] = useState([]);
@@ -309,6 +309,20 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   // line; "Onyesha majibu N zaidi" opens the rest. On the post page the reply box is fixed at
   // the bottom of the screen, above the bottom bar, and a "Jibu" box sits right under the post.
   const ownerId = post.businessId ?? post.business?.id ?? null;
+  // #374 D: in a community, the writer (or a moderator) picks one reply as "Jibu bora";
+  // a moderator can close replies.
+  const communityId = post.community?.id || post.communityId || null;
+  const [bestId, setBestId] = useState(post.bestCommentId || null);
+  useEffect(() => { setBestId(post.bestCommentId || null); }, [post.bestCommentId]);
+  const isModeratorHere = communityRole === 'admin' || communityRole === 'helper';
+  const canChooseBest = !!communityId && isLoggedIn && (isModeratorHere || (currentUser?.id && Number(currentUser.id) === Number(ownerId)));
+  const locked = !!post.repliesLocked;
+  const chooseBest = async (commentId) => {
+    const prev = bestId;
+    setBestId(commentId);
+    try { await api.post(`/communities/${communityId}/posts/${post.id}/best-answer`, { commentId }); }
+    catch { setBestId(prev); }
+  };
   const replyName = (c) => formatName(commenterIdentity(c).name) || t('home_feed.user_fallback');
   const startReply = (c, root) => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -396,9 +410,18 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           {renderOffer(c)}
           {!c.isDeleted && (
             <div style={{ display:'flex', gap:8, paddingTop:6, flexWrap:'wrap' }}>
-              <button type="button" data-testid="comment-reply-btn" onClick={() => startReply(c, root)} style={chip()}>
-                {chipIcon(BUBBLE)}Jibu
-              </button>
+              {!locked && (
+                <button type="button" data-testid="comment-reply-btn" onClick={() => startReply(c, root)} style={chip()}>
+                  {chipIcon(BUBBLE)}Jibu
+                </button>
+              )}
+              {!isReply && canChooseBest && (
+                <button type="button" data-testid={Number(bestId) === Number(c.id) ? 'comment-unbest' : 'comment-best'}
+                  onClick={() => chooseBest(Number(bestId) === Number(c.id) ? null : c.id)}
+                  style={chip({ borderColor:'#1d6b39', background:'#f2fbf5', color:'#1d6b39', fontWeight:700 })}>
+                  {chipIcon('M5 12l5 5L20 7')}{Number(bestId) === Number(c.id) ? 'Ondoa jibu bora' : 'Jibu bora'}
+                </button>
+              )}
               <button type="button" data-testid="comment-like" aria-pressed={like.liked}
                 aria-label={like.count ? `Penda, ${like.count}` : 'Penda'} onClick={() => toggleLike(c)}
                 style={chip(like.liked ? { background:'#fdecef', borderColor:'#f4b4be', color:'#c4123c', fontWeight:700 } : {})}>
@@ -433,6 +456,12 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   };
 
   const visible = detail ? comments : comments.slice(0, HOME_COMMENTS);
+  const best = bestId ? comments.find((c) => Number(c.id) === Number(bestId) && !c.isDeleted) || null : null;
+  const lockedNote = (
+    <div data-testid="replies-locked" style={{ padding:'12px 0', fontSize:14, color:MUTED_TX, borderBottom:`1px solid ${LINE_TX}` }}>
+      Majibu ya chapisho hili yamefungwa na msimamizi.
+    </div>
+  );
   const placeholder = isLoggedIn
     ? (replyTo ? `Jibu kwa ${replyTo.name}…` : 'Andika jibu lako…')
     : t('home_feed.sign_in_to_comment_placeholder');
@@ -477,7 +506,8 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
     <div data-testid="comment-section" style={{ background:WH }}>
       {/* The bottom bar is 60px on a phone; on a computer there is none (side menu). */}
       {detail && <style>{`.kx-reply-bar{bottom:calc(60px + env(safe-area-inset-bottom, 0px))}@media ${DESKTOP_QUERY}{.kx-reply-bar{bottom:0}}`}</style>}
-      {detail && (
+      {locked && lockedNote}
+      {detail && !locked && (
         <button type="button" data-testid="reply-under-post" onClick={() => { if (!isLoggedIn) { onNavigate('PublicLogin'); return; } setReplyTo(null); inputRef.current?.focus(); }}
           style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'10px 0', border:'none', borderBottom:`1px solid ${LINE_TX}`,
             background:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
@@ -487,13 +517,21 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           <span style={{ background:'#1d9bf0', color:WH, borderRadius:999, padding:'6px 14px', fontWeight:700, fontSize:14 }}>Jibu</span>
         </button>
       )}
-      {!detail && replyBar}
+      {!detail && !locked && replyBar}
       <div>
         {loading
           ? <div style={{ fontSize:14, color:MUTED_TX, padding:'12px 0' }}>{t('home_feed.loading_comments')}</div>
           : comments.length === 0
             ? <div data-testid="comments-empty" style={{ fontSize:14, color:MUTED_TX, padding:'12px 0' }}>{t('home_feed.be_first_to_ask')}</div>
-            : visible.map(renderThread)}
+            : <>
+                {best && (
+                  <div data-testid="best-answer" style={{ margin:'10px 0 4px', border:'1px solid #b7e1c4', background:'#f2fbf5', borderRadius:12, padding:'2px 12px 4px' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#1d6b39', paddingTop:8 }}>Jibu bora</div>
+                    {renderComment(best, best, false, false)}
+                  </div>
+                )}
+                {visible.filter((c) => !best || c.id !== best.id).map(renderThread)}
+              </>}
       </div>
       {!detail && comments.length > visible.length && (
         <button type="button" data-testid="comments-all" onClick={() => onNavigate(`PostDetail-${post.id}-comments`)}
@@ -511,8 +549,8 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           </button>
         </div>
       )}
-      {detail && <div aria-hidden="true" style={{ height:72 }} />}
-      {detail && replyBar}
+      {detail && !locked && <div aria-hidden="true" style={{ height:72 }} />}
+      {detail && !locked && replyBar}
 
       {/* ── Reply picker — choose which of your items you're offering ── */}
       {showReply && (
@@ -595,7 +633,7 @@ export const fullTime = (iso) => {
 };
 
 // ── Post card ─────────────────────────────────────────────────────────────────
-export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, repostedIds, onRepostToggle, activeProfileId, initialShowComments = false, detail = false }) => {
+export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, likedIds, onLikeToggle, repostedIds, onRepostToggle, activeProfileId, initialShowComments = false, detail = false, communityRole = null }) => {
   const { t } = useTranslation();
   // Phase D: an edit by the author updates this card in place (the server answers with the post).
   const [post, setPost] = useState(postProp);
@@ -1023,7 +1061,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           // links to a product, service, or classified. Only virtual listing
           // cards without a persisted post ID use the commerce entity thread.
           isRealPost ? (
-            <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail}
+            <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail} communityRole={communityRole}
               onNavigate={onNavigate} currentUser={currentUser}
               activeProfileId={activeProfileId} />
           ) : post.linkedEntityType && post.linkedEntityId ? (
@@ -1038,7 +1076,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               activeProfileId={activeProfileId}
             />
           ) : (
-            <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail}
+            <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail} communityRole={communityRole}
               onNavigate={onNavigate} currentUser={currentUser}
               activeProfileId={activeProfileId} />
           )
