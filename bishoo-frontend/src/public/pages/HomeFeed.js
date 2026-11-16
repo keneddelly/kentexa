@@ -1962,7 +1962,12 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   // the posts on screen counted as seen. The list now reads again only when the tab, topic or city
   // changes, and an older answer never replaces a newer one.
   const loadSeq = useRef(0);
-  const city = currentUser?.city || '';
+  // The city only refines the order; when the profile arrives a moment after Home opened, the
+  // list is not read again (that second read was what swapped the posts on screen). Nearby,
+  // where the city decides what is shown, reads again.
+  const cityRef = useRef(currentUser?.city || '');
+  cityRef.current = currentUser?.city || '';
+  const nearbyCity = filter === 'nearby' ? (currentUser?.city || '') : '';
   const loadPosts = useCallback(async (f, p = 1, append = false) => {
     const seq = ++loadSeq.current;
     if (p === 1) setLoading(true); else setLoadingMore(true);
@@ -1972,7 +1977,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       // Lets the backend's "for_you" blend (city-match component) and the
       // "nearby" filter actually match against the viewer's own location —
       // neither had ever received it before.
-      if (city) params.set('city', city);
+      if (cityRef.current) params.set('city', cityRef.current);
       const res = await api.get(`/feed?${params}`);
       if (seq !== loadSeq.current) return; // a newer read has started: this answer is old
       const items = res.data?.items || res.data || [];
@@ -1981,7 +1986,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       setHasMore(items.length >= 15);
     } catch {}
     finally { if (seq === loadSeq.current) { setLoading(false); setLoadingMore(false); } }
-  }, [city, topic]);
+  }, [topic, nearbyCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isDirectory = DIRECTORY_KINDS.includes(filter);
   const traySlotMap = useMemo(
