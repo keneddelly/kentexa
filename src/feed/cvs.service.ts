@@ -1384,11 +1384,14 @@ export class CvsService {
     // place to look, like a tag page: it shows all its posts, seen or not.
     // Owner 2026-11-16: a post seen in the last 30 minutes stays, so reading the list again in the
     // same visit (coming back from WhatsApp, a refresh) never swaps what is on screen for older posts.
-    if (userId && filter !== 'following' && !topic) {
-      qb.andWhere(
-        `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view' AND pe."createdAt" < NOW() - INTERVAL '30 minutes')`,
-        { uid: userId },
-      );
+    // Owner 2026-11-16 (again: "new posts show, then old posts"): in For You a seen post is no
+    // longer removed (in a young network that left only old posts); it is ranked lower instead, so
+    // what the person has not seen comes first and fresh posts are never replaced by days-old ones.
+    // The other tabs keep leaving out what was seen before this visit.
+    const SEEN_BEFORE = `EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view' AND pe."createdAt" < NOW() - INTERVAL '30 minutes')`;
+    const forYouTab = !['communities', 'following', 'nearby', 'products', 'services', 'transport', 'businesses', 'trending'].includes(filter);
+    if (userId && filter !== 'following' && !topic && !forYouTab) {
+      qb.andWhere(`NOT ${SEEN_BEFORE}`, { uid: userId });
     }
 
     let reposterUserIds: number[] = [];
@@ -1493,8 +1496,11 @@ export class CvsService {
           ? `CASE WHEN f.topic = ANY(:followedTopics) THEN 0.5 ELSE 0 END`
           : `0`;
         const cityNeedle = city ? `%${city.split(',')[0].trim()}%` : null;
+        // Seen before this visit: a third of its score (fresh unseen posts first, never removed).
+        const seenFactor = userId && !topic ? `CASE WHEN ${SEEN_BEFORE} THEN 0.35 ELSE 1 END` : '1';
+        if (userId && !topic) qb.setParameter('uid', userId);
         qb.addSelect(
-          `(${this.talkDecayExpr()}) * (1 + CASE WHEN :cityNeedle::text IS NOT NULL AND b."businessLocation" ILIKE :cityNeedle THEN 0.15 ELSE 0 END) * (1 + ${followBoost}) * (1 + ${topicBoost})`,
+          `(${this.talkDecayExpr()}) * (1 + CASE WHEN :cityNeedle::text IS NOT NULL AND b."businessLocation" ILIKE :cityNeedle THEN 0.15 ELSE 0 END) * (1 + ${followBoost}) * (1 + ${topicBoost}) * ${seenFactor}`,
           'rank_score',
         )
           .orderBy('rank_score', 'DESC')
@@ -1562,8 +1568,12 @@ export class CvsService {
       if (primaryIds.length) {
         exploreQb.andWhere('f.id NOT IN (:...primaryIds)', { primaryIds });
       }
+      // The same few for this person all day (was RANDOM() each time, so every reload of For You
+      // put different posts at places 4, 9 and 13: what was on screen changed under the finger).
+      const exploreSeed = `${userId}-${new Date().toISOString().slice(0, 10)}`;
       const explorePosts = await exploreQb
-        .addSelect('RANDOM()', 'rnd')
+        .addSelect(`md5(f.id::text || :exploreSeed)`, 'rnd')
+        .setParameter('exploreSeed', exploreSeed)
         .orderBy('rnd')
         .take(EXPLORE_COUNT)
         .getMany();

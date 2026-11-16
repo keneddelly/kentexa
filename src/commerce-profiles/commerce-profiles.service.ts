@@ -312,14 +312,15 @@ export class CommerceProfilesService {
   }
 
   /** Home's "Biashara" tab (owner 2026-11-02): every public business, verified and most followed first. */
-  async businessDirectory(limit = 40, offset = 0, kind?: string): Promise<{ items: any[]; total: number }> {
+  async businessDirectory(limit = 40, offset = 0, kind?: string, sort: 'top' | 'newest' = 'top'): Promise<{ items: any[]; total: number }> {
     // Only identities that are public by nature; personal profiles and brands are never listed here.
     const LISTED = [CommerceProfileType.BUSINESS, CommerceProfileType.HUB, CommerceProfileType.AGENT,
       CommerceProfileType.SERVICE_PROVIDER, CommerceProfileType.TRANSPORT_PROVIDER] as string[];
     const type = kind && LISTED.includes(kind) ? kind : CommerceProfileType.BUSINESS;
     const [rows, total] = await this.repo.findAndCount({
       where: { type, status: CommerceProfileStatus.ACTIVE, hiddenFromPublic: false } as any,
-      order: { isVerified: 'DESC', followersCount: 'DESC', id: 'ASC' } as any,
+      // Feed trays (owner 2026-11-16): newest first; the Biashara tab keeps verified and most followed first.
+      order: (sort === 'newest' ? { createdAt: 'DESC', id: 'DESC' } : { isVerified: 'DESC', followersCount: 'DESC', id: 'ASC' }) as any,
       take: Math.min(Math.max(limit, 1), 60),
       skip: Math.max(offset, 0),
     });

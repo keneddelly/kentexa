@@ -71,7 +71,7 @@ export const ListTray = ({ testid, title, sub, items, onOpen, onSeeAll, round = 
 export const ArticleTray = ({ items, onNavigate }) => {
   if (!items?.length) return null;
   return (
-    <Shell testid="tray-articles" title="Makala bora" sub="Zinazosomwa zaidi wiki hii">
+    <Shell testid="tray-articles" title="Makala mpya" sub="Zilizoandikwa karibuni">
       {items.map((a) => (
         <button key={a.id} type="button" onClick={() => onNavigate(`PostDetail-${a.id}`)} style={card(220)}>
           <span style={{ height: 110, background: a.cover ? '#f1f5f9' : 'linear-gradient(135deg,#134e4a,#0f766e 55%,#5eead4)', display: 'block', position: 'relative' }}>

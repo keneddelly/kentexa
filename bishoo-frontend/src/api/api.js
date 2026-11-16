@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { reportClientError } from '../utils/clientErrors';
 import { getTokenSnapshot, setAccessToken } from './tokenStore';
 import { API_BASE_URL } from './baseUrl';
 import { startRequest as startSlowWatch, finishRequest as finishSlowWatch } from './slowNetwork';
@@ -60,9 +61,9 @@ const expiringSoon = (token) => {
 
 // A single refresh per device wake-up. The cookie is HttpOnly and scoped to
 // /auth; the signed, short-lived access token remains the only API authority.
-export const renewAccessTokenIfNeeded = async () => {
+export const renewAccessTokenIfNeeded = async (force = false) => {
   const token = getTokenSnapshot().token;
-  if (!token || !expiringSoon(token)) return;
+  if (!token || (!force && !expiringSoon(token))) return;
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {},
@@ -73,6 +74,14 @@ export const renewAccessTokenIfNeeded = async () => {
     })().finally(() => { refreshInFlight = null; });
   }
   return refreshInFlight;
+};
+
+/** Sign out on the server's word, and send a short note (reason and page) so we can see why. */
+const signedOut = (reason, config) => {
+  try {
+    reportClientError({ kind: 'app', page: 'signed-out', message: `Signed out: ${reason} (${String(config?.method || '').toUpperCase()} ${String(config?.url || '').split('?')[0]})` });
+  } catch { /* reporting never blocks */ }
+  onCurrentContextRevoked(reason);
 };
 
 // Attach the canonical token and capture its authority generation/epoch.
@@ -127,7 +136,31 @@ api.interceptors.response.use(
       window.dispatchEvent(new Event('kentexa:identity-changed'));
     }
     if (error?.response?.status === 401 && config?.__authenticatedRequest) {
-      onCurrentContextRevoked(responseCode(error) || 'AUTHENTICATION_FAILED');
+      // Owner 2026-11-16 ("the login page comes by itself while I am logged in"): a 401 used to
+      // sign the person out at once, even when only this access token had run out (a phone clock
+      // a few minutes off, a request sent just as the 30 minutes ended). Now the token is renewed
+      // once and the request sent again; only when renewing fails is the person signed out.
+      const isAuthCall = /\/auth\//.test(String(config?.url || ''));
+      // The server's own word that the session is over (revoked, expired, role changed) still
+      // signs out at once; only a plain "token not accepted" is renewed and tried again.
+      const definitive = /^ROLE_/.test(responseCode(error) || '');
+      if (!config.__retriedAfterRenew && !isAuthCall && !definitive) {
+        return renewAccessTokenIfNeeded(true)
+          .then(() => {
+            const { token } = getTokenSnapshot();
+            if (!token || token === config.__authToken) throw error;
+            const again = { ...config, __retriedAfterRenew: true, signal: undefined };
+            again.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
+            return api.request(again);
+          })
+          .catch((renewError) => {
+            if (renewError === error || renewError?.response?.status === 401 || renewError?.response?.status === 403) {
+              signedOut(responseCode(error) || 'AUTHENTICATION_FAILED', config);
+            }
+            return Promise.reject(error);
+          });
+      }
+      signedOut(responseCode(error) || 'AUTHENTICATION_FAILED', config);
     }
     return Promise.reject(error);
   }

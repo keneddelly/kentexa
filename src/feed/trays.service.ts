@@ -6,9 +6,9 @@ import { stripArticle, readMinutes } from './article-text';
 /**
  * Feed trays (owner approved 2026-11-16: "that will make KenteXa awake"): the conversation rows
  * Home places between posts, from public content only (what a guest may see):
- *  - articles:  Makala bora, most replied and liked in the last 14 days;
+ *  - articles:  Makala mpya, newest first, last 14 days (owner 2026-11-16: every tray starts with the newest);
  *  - questions: Maswali yasiyojibiwa, public questions of the last 14 days with no reply yet;
- *  - polls:     Kura zinazoendelea, open polls with their vote counts;
+ *  - polls:     Kura zinazoendelea, open polls, newest first, with their vote counts;
  *  - hashtags:  Hashtag zinazovuma, the most used tags of the last 7 days.
  * Plain counting; an empty list means the tray is skipped.
  */
@@ -30,8 +30,7 @@ export class TraysService {
                 (SELECT COUNT(*)::int FROM public.post_engagement e WHERE e."postId" = x.id AND e.type::text = 'like') AS likes
            FROM public.business_feed_item x ${joins}
           WHERE x.intent::text = 'article' AND ${PUBLIC_TO_GUESTS('x')} AND x."createdAt" > $1::timestamptz - INTERVAL '14 days'
-          ORDER BY (SELECT COUNT(*) FROM public.post_comment pc WHERE pc."postId" = x.id AND pc."isDeleted" = false) * 3
-                 + (SELECT COUNT(*) FROM public.post_engagement e WHERE e."postId" = x.id AND e.type::text = 'like') DESC, x."createdAt" DESC
+          ORDER BY x."createdAt" DESC
           LIMIT 8`, [now]).catch(() => []),
       this.db.query(
         `SELECT x.id, x.title, x.body, ${who}, c.name AS community, x."createdAt"
@@ -44,7 +43,7 @@ export class TraysService {
                 COALESCE((SELECT SUM(o."voteCount") FROM public.post_poll_option o WHERE o."pollId" = p.id), 0)::int AS votes
            FROM public.business_feed_item x JOIN public.post_poll p ON p."postId" = x.id ${joins}
           WHERE x.intent::text = 'poll' AND ${PUBLIC_TO_GUESTS('x')} AND p."closesAt" > $1
-          ORDER BY votes DESC, x."createdAt" DESC LIMIT 8`, [now]).catch(() => []),
+          ORDER BY x."createdAt" DESC LIMIT 8`, [now]).catch(() => []),
       this.db.query(
         `SELECT h.key, h.display, COUNT(*)::int AS posts
            FROM public.hashtag_usage hu JOIN public.hashtag h ON h.id = hu."hashtagId"

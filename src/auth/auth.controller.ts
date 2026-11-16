@@ -146,10 +146,13 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Req() req: any) {
+  async refresh(@Req() req: any, @Res({ passthrough: true }) res: Response) {
     const credential = this.refreshFromRequest(req);
     if (!credential) throw new UnauthorizedException('Refresh credential missing');
-    return this.authService.refresh(credential);
+    const result = await this.authService.refresh(credential);
+    // Owner 2026-11-16: a fresh 7-day cookie on every renewal, so an active person is never signed out.
+    this.writeRefreshCookie(res, result.activeContext);
+    return result;
   }
 
   @Post('logout')

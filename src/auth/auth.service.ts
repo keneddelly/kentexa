@@ -130,6 +130,9 @@ export class AuthService {
     const context = await this.roleContextService.resolveContext(payload);
     const user = await this.userRepo.findOne({ where: { id: context.userId } });
     if (!user) throw new UnauthorizedException('Account not found');
+    // A session in use stays signed in: its end moves to 7 days from now (the controller also
+    // writes a fresh 7-day refresh cookie).
+    await Promise.resolve().then(() => this.roleContextService.extendSession(context.sessionId)).catch(() => undefined);
     const accessToken = this.jwtService.sign({ sub: user.id, sid: context.sessionId,
       rid: context.accountRoleId, rt: context.roleType, cv: context.contextVersion });
     return { accessToken, access_token: accessToken, user: this.serializeUser(user),
