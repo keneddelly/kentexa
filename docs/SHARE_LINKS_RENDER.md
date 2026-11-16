@@ -15,7 +15,12 @@ Render dashboard -> the frontend static site -> **Redirects/Rewrites** -> add, A
 | `/service/*` | `https://api.kentexa.com/share/html/service/*` | Rewrite |
 | `/post/*` | `https://api.kentexa.com/share/html/post/*` | Rewrite |
 | `/@*` | `https://api.kentexa.com/share/html/u/*` | Rewrite |
+| `/community/*` | `https://api.kentexa.com/share/html/community/*` | Rewrite |
+| `/s/*` | `https://api.kentexa.com/share/html/s/*` | Rewrite |
 
 Without these rules the links still open the right page; only the preview picture is missing.
 If the server cannot read the app page it sends the visitor to `kentexa.com/?go=<path>`, which
 opens the same page.
+
+
+**Update 2026-11-16 (viral engine A2, issue #381):** two more rules, `/community/*` (community previews) and `/s/*` (short share links `kentexa.com/s/<code>`). Without the `/s/*` rule a short link still opens the right page (the app asks the server where it leads); only its preview is missing.

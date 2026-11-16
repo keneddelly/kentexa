@@ -21,10 +21,44 @@ const CRAWLER_UA =
   /facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|TelegramBot|Discordbot|Googlebot|bingbot|bot|crawler|spider/i;
 
 const SITE_FALLBACK = {
-  title: "KenteXa — Tanzania's #1 Marketplace",
+  title: 'KenteXa: biashara, jumuiya na mazungumzo Tanzania',
   description:
-    'Buy, sell and pay securely anywhere in Tanzania. Nationwide delivery and verified sellers.',
+    'Soma mijadala, jiunge na jumuiya, nunua na uza kwa usalama popote Tanzania.',
   image: 'https://kentexa.com/og-image.png',
+};
+
+const PREVIEW_KIND: Record<string, string> = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu' };
+const oneLine = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Viral engine A2 (issue #381): a discussion's own preview. Title: its kind and its words
+ * ("Swali: Biashara gani kwa mtaji wa 100,000?"); description: where and how alive it is
+ * ("Wafanyabiashara Kariakoo · majibu 12 · kened"), then the start of its text.
+ */
+export const postPreview = (r: { title?: string; body?: string; intent?: string; owner?: string; community?: string; replies?: number }) => {
+  const title = oneLine(r.title) && oneLine(r.title) !== 'Moment' ? oneLine(r.title) : '';
+  const body = oneLine(r.body);
+  const words = title || body || 'Chapisho';
+  const kind = PREVIEW_KIND[String(r.intent || '')];
+  const replies = Number(r.replies || 0);
+  const meta = [r.community ? oneLine(r.community) : '', replies ? `majibu ${replies}` : '', r.owner ? oneLine(r.owner) : ''].filter(Boolean).join(' · ');
+  const rest = title && body && body.toLowerCase() !== title.toLowerCase() ? body : '';
+  return {
+    title: kind ? `${kind}: ${words}` : (title || `${oneLine(r.owner) || 'Chapisho'} kwenye KenteXa`),
+    description: [meta, rest || (kind || title ? '' : body)].filter(Boolean).join(' · ') || 'Soma kwenye KenteXa',
+  };
+};
+
+/** Viral engine A2: a community's own preview. A request-only one shows only its name. */
+export const communityPreview = (r: { name: string; purpose?: string; memberCount?: number; joinPolicy?: string }) => {
+  const open = r.joinPolicy === 'open';
+  const members = Number(r.memberCount || 0);
+  return {
+    title: `${oneLine(r.name)} · Jumuiya ya KenteXa`,
+    description: open
+      ? [oneLine(r.purpose), `wanachama ${members.toLocaleString('en-US')}`, 'Jiunge kwenye KenteXa'].filter(Boolean).join(' · ')
+      : 'Jumuiya ya wanachama kwenye KenteXa. Omba kujiunga.',
+  };
 };
 
 const escapeHtml = (s: string): string =>
@@ -59,6 +93,7 @@ interface SharePayload {
   description: string;
   image: string | null;
   path: string; // canonical SPA path, e.g. /product/42
+  target?: string; // a short link: the page the app opens
 }
 
 @Controller('share')
@@ -108,7 +143,7 @@ export class ShareController {
       for (const row of items) rows.push({ loc: base + path(row), lastmod: row.updatedAt || row.createdAt });
     };
     try {
-      const [profiles, products, classifieds, services, posts] = await Promise.all([
+      const [profiles, products, classifieds, services, posts, communities] = await Promise.all([
         this.db.query(`SELECT username, "updatedAt" FROM public.commerce_profile
           WHERE status::text = 'active' AND "hiddenFromPublic" = false ORDER BY "updatedAt" DESC`),
         this.db.query(`SELECT x.id, x."updatedAt" FROM public.product x
@@ -133,12 +168,16 @@ export class ShareController {
         this.db.query(`SELECT x.id, x."createdAt" FROM public.business_feed_item x
           WHERE ${PUBLIC_TO_GUESTS('x')}
           ORDER BY x."createdAt" DESC`),
+        // Viral engine A2: open communities (request-only ones stay out of search engines).
+        Promise.resolve(this.db.query(`SELECT c.id, c."updatedAt" FROM public.community c
+          WHERE c.status = 'active' AND c."joinPolicy" = 'open' ORDER BY c."updatedAt" DESC`)).catch(() => []),
       ]);
       add(profiles, (r) => '/@' + encodeURIComponent(r.username));
       add(products, (r) => '/product/' + r.id);
       add(classifieds, (r) => '/classified/' + r.id);
       add(services, (r) => '/service/' + r.id);
       add(posts, (r) => '/post/' + r.id);
+      add(communities, (r) => '/community/' + r.id);
       const body = rows.map((r) => `<url><loc>${xml(r.loc)}</loc>${r.lastmod ? `<lastmod>${new Date(r.lastmod).toISOString()}</lastmod>` : ''}</url>`).join('');
       res.set('Cache-Control', 'public, max-age=300');
       return res.status(200).type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
@@ -159,6 +198,17 @@ export class ShareController {
 
   /** The page's title, description, picture and its own kentexa.com path. Null = not a link we know. */
   private async pagePayload(type: string, ref: string): Promise<SharePayload | null> {
+    // Viral engine A2: kentexa.com/s/<code> shows the preview of what it points to; the page
+    // address (canonical) is that content's own address.
+    if (type === 's') {
+      const code = String(ref || '');
+      if (!/^[A-Za-z0-9]{5,12}$/.test(code) || !this.db) return null;
+      const [link] = await this.db.query(
+        `SELECT "contentType", "contentId" FROM public.share_link WHERE code = $1`, [code]).catch(() => []);
+      if (!link) return { ...SITE_FALLBACK, path: '/' };
+      const target = await this.pagePayload(link.contentType, String(link.contentId));
+      return target ? { ...target, target: target.path } : { ...SITE_FALLBACK, path: '/' };
+    }
     if (type === 'u') {
       const handle = String(ref || '').replace(/^@/, '').toLowerCase();
       if (!/^[a-z0-9_]{2,40}$/.test(handle)) return null;
@@ -201,16 +251,24 @@ export class ShareController {
       return r ? { title: [r.title, tzs(r.price)].filter(Boolean).join(' · '), description: [r.owner, r.description].filter(Boolean).join(' · '), image: absoluteImage(first(r.images)), path } : { ...SITE_FALLBACK, path };
     }
     if (type === 'post') {
-      const r = await q(`SELECT x.title, x.body, x."imageUrl", x.media, ${owner} AS owner
+      const r = await q(`SELECT x.title, x.body, x."imageUrl", x.media, x.intent::text AS intent, ${owner} AS owner,
+          c.name AS community,
+          (SELECT COUNT(*)::int FROM public.post_comment pc WHERE pc."postId" = x.id AND pc."isDeleted" = false) AS replies
         FROM public.business_feed_item x LEFT JOIN public.commerce_profile cp ON cp.id = x."commerceProfileId" LEFT JOIN public."user" u ON u.id = x."businessId"
+        LEFT JOIN public.community c ON c.id = x."communityId"
         WHERE x.id = $1::int AND ${PUBLIC_TO_GUESTS('x')}`);
       const path = `/post/${id}`;
       // Viral engine A1: a post that is not public to guests (followers-only, in a request-only
       // community, from a hidden profile, removed) shows only the general KenteXa card.
       if (!r) return { ...SITE_FALLBACK, path };
       const media = Array.isArray(r.media) ? r.media : [];
-      const text = String(r.body || r.title || '').trim();
-      return { title: `${r.owner || 'KenteXa'} kwenye KenteXa`, description: text, image: absoluteImage(r.imageUrl || media[0]?.url), path };
+      return { ...postPreview(r), image: absoluteImage(r.imageUrl || media[0]?.url), path };
+    }
+    if (type === 'community') {
+      const r = await q(`SELECT name, purpose, "memberCount", "joinPolicy" FROM public.community WHERE id = $1::int AND status = 'active'`);
+      const path = `/community/${id}`;
+      if (!r) return { ...SITE_FALLBACK, path };
+      return { ...communityPreview(r), image: null, path };
     }
     return null;
   }

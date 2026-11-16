@@ -15,6 +15,7 @@ import ExpandableText from '../components/ExpandableText';
 import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, leadSeparator } from '../utils/kentexaText';
 import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
+import { prefetchShortLink, readyShortLink } from '../utils/shortLinks';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
@@ -790,7 +791,11 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   // Phase C: share the post's own link; it is counted only once the share or the copy
   // really happened (a cancelled share sheet counts nothing).
   const handleShare = async () => {
-    const url = postShareUrl(post, entityType, entityId);
+    const plain = postShareUrl(post, entityType, entityId);
+    // Viral engine A2: a public post travels as a short link (kentexa.com/s/<code>), made when
+    // the finger touched the button; not ready yet (or members only): the plain address.
+    const isPost = /^\d+$/.test(String(post?.id ?? ''));
+    const url = (isPost && readyShortLink('post', Number(post.id))) || plain;
     let done = false;
     if (navigator.share) {
       done = await navigator.share({ title: post.title || bizName, url }).then(() => true, () => false);
@@ -1037,7 +1042,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             {icon('M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 000-7.8z', liked ? '#c4123c' : null)}
             {counts.likes > 0 && counts.likes}
           </button>
-          <button type="button" onClick={handleShare} aria-label="Shiriki" data-testid="post-share" style={act()}>
+          <button type="button" onClick={handleShare} aria-label="Shiriki" data-testid="post-share" style={act()}
+            onPointerDown={() => { if (/^\d+$/.test(String(post?.id ?? ''))) prefetchShortLink('post', Number(post.id)); }}>
             {icon('M4 12v8h16v-8M16 6l-4-4-4 4M12 2v13')}{counts.shares > 0 && counts.shares}
           </button>
           <button type="button" onClick={handleSave} aria-label="Hifadhi" aria-pressed={saved} data-testid="post-save" style={act(saved, B, '#e8f0fe')}>
