@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-16 (communities, issue #374 part D):** the pin is now `MIGRATION_RUN_UPTO=1796400000000`. The next deploy runs `1796400000000-AddCommunityDiscussion` itself (`business_feed_item."pinnedAt"`, `"repliesLocked"` default false, `"bestCommentId"`; `community_member."lastSeenAt"`; two indexes). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-16 (traffic, issue #368):** the pin is now `MIGRATION_RUN_UPTO=1796300000000`. The next deploy runs `1796300000000-AddFeedReadIndexes` itself (three indexes on `business_feed_item`). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-16 (privacy, issue #365):** the pin is now `MIGRATION_RUN_UPTO=1796200000000`. The next deploy runs `1796200000000-AddMarketingOptOut` itself (`user."marketingOptOut"` default false, `user."marketingOptOutAt"`). Check: `/version/migrations` shows `pending: []`.

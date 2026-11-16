@@ -143,6 +143,17 @@ export class BusinessFeedItem {
   @Column({ type: 'int', nullable: true })
   communityId: number | null;
 
+  // Communities built for discussion (#374 D): pinned by a moderator, replies closed, and the
+  // reply chosen as "Jibu bora". Plain post data; who may change them is checked in CommunitiesService.
+  @Column({ type: 'timestamptz', nullable: true })
+  pinnedAt: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  repliesLocked: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  bestCommentId: number | null;
+
   // Social Home: a Moment a listing published by itself. It stays on the profile and in
   // search, but not in Home's feeds (owner: Home must not look like an advert board).
   @Column({ type: 'boolean', default: false })

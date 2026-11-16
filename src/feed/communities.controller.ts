@@ -46,6 +46,22 @@ export class CommunitiesController {
       ['question', 'poll', 'discussion'].includes(String(kind)) ? String(kind) : null);
   }
 
+  /**
+   * #374 D: the community's threads as a discussion list (pinned first, then latest activity),
+   * with reply counts, last reply time and, for a member, dots for news since the last visit.
+   */
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':id/threads')
+  async threads(@Param('id', ParseIntPipe) id: number, @Request() req, @Query('page') page = '1', @Query('kind') kind?: string) {
+    const viewer = req?.user?.id || null;
+    await this.communities.get(id, viewer);
+    const k = ['question', 'poll', 'discussion'].includes(String(kind)) ? String(kind) : null;
+    const p = Number(page) || 1;
+    // The visit is recorded once, from the first page of the main list.
+    const lastSeenAt = p === 1 && !k ? await this.communities.markSeen(id, viewer) : null;
+    return this.cvs.getCommunityThreads(id, viewer, p, k, lastSeenAt);
+  }
+
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':id/members')
   members(@Param('id', ParseIntPipe) id: number, @Request() req) {
@@ -82,6 +98,27 @@ export class CommunitiesController {
   setHelper(@Param('id', ParseIntPipe) id: number, @Param('userId', ParseIntPipe) userId: number, @Request() req, @Body('helper') helper: any) {
     if (typeof helper !== 'boolean') throw new BadRequestException('Chagua ndiyo au hapana.');
     return this.communities.setHelper(id, req.user.id, userId, helper);
+  }
+
+  @Post(':id/posts/:postId/pin')
+  @UseGuards(JwtAuthGuard)
+  pin(@Param('id', ParseIntPipe) id: number, @Param('postId', ParseIntPipe) postId: number, @Request() req, @Body('pinned') pinned: any) {
+    if (typeof pinned !== 'boolean') throw new BadRequestException('Chagua kubandika au kuondoa.');
+    return this.communities.pinPost(id, req.user.id, postId, pinned);
+  }
+
+  @Post(':id/posts/:postId/lock')
+  @UseGuards(JwtAuthGuard)
+  lock(@Param('id', ParseIntPipe) id: number, @Param('postId', ParseIntPipe) postId: number, @Request() req, @Body('locked') locked: any) {
+    if (typeof locked !== 'boolean') throw new BadRequestException('Chagua kufunga au kufungua.');
+    return this.communities.lockReplies(id, req.user.id, postId, locked);
+  }
+
+  @Post(':id/posts/:postId/best-answer')
+  @UseGuards(JwtAuthGuard)
+  bestAnswer(@Param('id', ParseIntPipe) id: number, @Param('postId', ParseIntPipe) postId: number, @Request() req, @Body('commentId') commentId: any) {
+    if (commentId !== null && !(Number.isInteger(commentId) && commentId > 0)) throw new BadRequestException('Chagua jibu.');
+    return this.communities.setBestAnswer(id, req.user.id, postId, commentId);
   }
 
   @Post(':id/posts/:postId/remove')

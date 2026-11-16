@@ -138,3 +138,48 @@ test('#374 C: a reply to a reply goes under the same comment, and Penda toggles'
   expect(screen.getAllByTestId('comment-like')[0]).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getAllByTestId('comment-like')[0]).toHaveAccessibleName('Penda, 4');
 });
+
+// ── #374 D: a community discussion ──
+const communityPost = { ...post, businessId: 5, community: { id: 3, name: 'wafanyabiashara kariakoo' }, bestCommentId: 12, repliesLocked: false };
+const communityThread = [
+  { id: 11, body: 'Mayai', authorId: 6, createdAt: new Date().toISOString(), author: { id: 6, name: 'Asha' }, replies: [] },
+  { id: 12, body: 'Accessories za simu', authorId: 7, createdAt: new Date().toISOString(), author: { id: 7, name: 'Juma' }, replies: [] },
+];
+const answerCommunity = (p, role) => api.get.mockImplementation(async (url) => ({
+  data: url === '/feed/7' ? p : url === '/communities/3' ? { id: 3, myStatus: role ? 'active' : null, myRole: role } : communityThread,
+}));
+
+test('#374 D: the header names the community; the chosen reply shows first as "Jibu bora"', async () => {
+  answerCommunity(communityPost, 'member');
+  const onNavigate = await open();
+  expect(screen.getByTestId('post-from-community')).toHaveTextContent('kutoka Wafanyabiashara kariakoo');
+  expect(screen.getByTestId('best-answer')).toHaveTextContent('Accessories za simu');
+  expect(screen.queryByTestId('moderator-menu')).toBeNull(); // a member is not a moderator
+  expect(screen.queryByTestId('comment-best')).toBeNull(); // nor the writer
+  fireEvent.click(screen.getByTestId('post-from-community'));
+  expect(onNavigate).toHaveBeenCalledWith('Community-3');
+});
+
+test('#374 D: the writer chooses a reply as "Jibu bora"', async () => {
+  answerCommunity({ ...communityPost, businessId: 1, bestCommentId: null }, 'member');
+  await open();
+  api.post.mockResolvedValueOnce({ data: { bestCommentId: 11 } });
+  await act(async () => { fireEvent.click(screen.getAllByTestId('comment-best')[0]); });
+  expect(api.post).toHaveBeenCalledWith('/communities/3/posts/7/best-answer', { commentId: 11 });
+  expect(screen.getByTestId('best-answer')).toHaveTextContent('Mayai');
+});
+
+test('#374 D: a moderator pins and closes replies; closed replies hide the reply box', async () => {
+  answerCommunity(communityPost, 'helper');
+  await open();
+  fireEvent.click(screen.getByTestId('moderator-menu'));
+  api.post.mockResolvedValueOnce({ data: { pinned: true } });
+  await act(async () => { fireEvent.click(screen.getByTestId('mod-pin')); });
+  expect(api.post).toHaveBeenCalledWith('/communities/3/posts/7/pin', { pinned: true });
+  expect(screen.getByTestId('moderator-note')).toHaveTextContent('Limebandikwa juu ya jumuiya.');
+  fireEvent.click(screen.getByTestId('moderator-menu'));
+  api.post.mockResolvedValueOnce({ data: { repliesLocked: true } });
+  await act(async () => { fireEvent.click(screen.getByTestId('mod-lock')); });
+  expect(screen.getByTestId('replies-locked')).toBeInTheDocument();
+  expect(screen.queryByTestId('reply-bar')).toBeNull();
+});
