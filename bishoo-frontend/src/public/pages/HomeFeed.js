@@ -16,6 +16,7 @@ import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, leadSeparator } from '../utils/kentexaText';
 import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
 import ShareSheet from '../components/ShareSheet';
+import { askToJoin, takeGuestDraft } from '../utils/guestJoin';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
@@ -194,6 +195,17 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   const [body,     setBody]     = useState('');
   const [replyTo,  setReplyTo]  = useState(null); // { id: the comment the reply goes under, name }
   const [likes,    setLikes]    = useState({});
+  const [restored, setRestored] = useState(false);
+  // Viral engine B: back after registering, the reply written as a guest is ready to send.
+  useEffect(() => {
+    if (!isLoggedIn || !detail) return;
+    const d = takeGuestDraft(post.id);
+    if (!d) return;
+    setBody(d.body || '');
+    if (d.parentId) setReplyTo({ id: d.parentId, name: d.replyName || '' });
+    setRestored(true);
+    setTimeout(() => inputRef.current?.focus(), 300);
+  }, [isLoggedIn, detail, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [openThreads, setOpenThreads] = useState({});
   const [loading,  setLoading]  = useState(false);
   const [sending,  setSending]  = useState(false);
@@ -208,6 +220,21 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
 
   // Determine endpoint based on post type
   const isRealPost = typeof post.id === 'number' || /^\d+$/.test(String(post.id));
+  // Viral engine B (#381): a guest who wants to take part is invited to join right here, with the
+  // real people in the discussion; a reply they wrote is kept and is ready after registering.
+  const askGuest = (action, draft) => {
+    const names = [];
+    comments.forEach((c) => [c, ...(c.replies || [])].forEach((x) => {
+      const n = formatName(commenterIdentity(x).name);
+      if (n && !x.isDeleted && !names.includes(n)) names.push(n);
+    }));
+    const handled = askToJoin({
+      action, destination: isRealPost ? `PostDetail-${post.id}` : null,
+      people: names.slice(0, 2), others: Math.max(0, names.length - 2), replies: comments.length,
+      draft: draft ? { postId: post.id, ...draft } : null,
+    });
+    if (!handled) onNavigate('PublicLogin');
+  };
   const commentsUrl = isRealPost
     ? `/feed/${post.id}/comments`
     : `/comments?entityType=${post.entityType}&entityId=${post.entityId}`;
@@ -224,7 +251,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   }, [commentsUrl]);
 
   const handleSend = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuest('reply', { body, parentId: replyTo?.id || null, replyName: replyTo?.name || '' }); return; }
     if (!body.trim()) return;
     try {
       setSending(true);
@@ -251,7 +278,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   };
 
   const openReply = () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuest('reply', { body: '' }); return; }
     setShowReply(true);
     if (myItems.length || loadingItems) return;
     const uid = currentUser?.id;
@@ -326,14 +353,14 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   };
   const replyName = (c) => formatName(commenterIdentity(c).name) || t('home_feed.user_fallback');
   const startReply = (c, root) => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuest('reply', { body: '', parentId: root.id, replyName: replyName(c) }); return; }
     setReplyTo({ id: root.id, name: replyName(c) });
     setOpenThreads((s) => ({ ...s, [root.id]: true }));
     inputRef.current?.focus();
   };
   const likeOf = (c) => likes[c.id] || { liked: !!c.likedByMe, count: Number(c.helpfulCount || 0) };
   const toggleLike = async (c) => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuest('like'); return; }
     const cur = likeOf(c);
     const next = { liked: !cur.liked, count: Math.max(0, cur.count + (cur.liked ? -1 : 1)) };
     setLikes((m) => ({ ...m, [c.id]: next }));
@@ -463,9 +490,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       Majibu ya chapisho hili yamefungwa na msimamizi.
     </div>
   );
-  const placeholder = isLoggedIn
-    ? (replyTo ? `Jibu kwa ${replyTo.name}…` : 'Andika jibu lako…')
-    : t('home_feed.sign_in_to_comment_placeholder');
+  const placeholder = replyTo ? `Jibu kwa ${replyTo.name}…` : 'Andika jibu lako…'; // guests too: write first, join after
   const myInitial = (currentUser?.name || 'U').charAt(0).toUpperCase();
 
   const replyBar = (
@@ -477,6 +502,9 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
             ...(isLoggedIn ? {} : { bottom:0, paddingBottom:'env(safe-area-inset-bottom, 0px)' }) }
         : { borderTop:`1px solid ${LINE_TX}` }}>
       <div style={{ maxWidth: detail ? 600 : undefined, margin:'0 auto', padding:'8px 12px', display:'flex', flexDirection:'column', gap:6 }}>
+        {restored && body.trim() && (
+          <div data-testid="reply-restored" role="status" style={{ fontSize:13, color:'#1d6b39' }}>Jibu lako liko tayari. Bonyeza Tuma kulituma.</div>
+        )}
         {replyTo && (
           <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:MUTED_TX }}>
             <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>Unajibu <b style={{ color:INK_TX }}>{replyTo.name}</b></span>
@@ -489,7 +517,6 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
           <input id={`reply-${post.id}`} ref={inputRef} value={body} data-testid="reply-input"
             onChange={e => setBody(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            onClick={() => !isLoggedIn && onNavigate('PublicLogin')}
             placeholder={placeholder}
             style={{ flex:1, minWidth:0, height:40, borderRadius:20, border:`1px solid ${LINE_BTN}`, background:'#f7f9f9',
               padding:'0 14px', fontSize:16, color:INK_TX, fontFamily:'inherit', outline:'none' }} />
@@ -509,12 +536,12 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       {detail && <style>{`.kx-reply-bar{bottom:calc(60px + env(safe-area-inset-bottom, 0px))}@media ${DESKTOP_QUERY}{.kx-reply-bar{bottom:0}}`}</style>}
       {locked && lockedNote}
       {detail && !locked && (
-        <button type="button" data-testid="reply-under-post" onClick={() => { if (!isLoggedIn) { onNavigate('PublicLogin'); return; } setReplyTo(null); inputRef.current?.focus(); }}
+        <button type="button" data-testid="reply-under-post" onClick={() => { setReplyTo(null); inputRef.current?.focus(); }}
           style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'10px 0', border:'none', borderBottom:`1px solid ${LINE_TX}`,
             background:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
           <span style={{ width:32, height:32, borderRadius:'50%', background:'#d6e4f0', display:'flex', alignItems:'center', justifyContent:'center',
             fontWeight:700, fontSize:13, color:INK_TX, flexShrink:0 }}>{myInitial}</span>
-          <span style={{ flex:1, fontSize:15, color:MUTED_TX }}>{isLoggedIn ? 'Andika jibu lako…' : t('home_feed.sign_in_to_comment_placeholder')}</span>
+          <span style={{ flex:1, fontSize:15, color:MUTED_TX }}>Andika jibu lako…</span>
           <span style={{ background:'#1d9bf0', color:WH, borderRadius:999, padding:'6px 14px', fontWeight:700, fontSize:14 }}>Jibu</span>
         </button>
       )}
@@ -751,8 +778,13 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
     return () => { if (timer) clearTimeout(timer); observer.disconnect(); };
   }, [isLoggedIn, post.id, entityType, entityId, onNavigate]);
 
+  // Viral engine B: a guest is invited to join (and comes back to this post).
+  const askGuestHere = (action) => {
+    const handled = askToJoin({ action, destination: /^\d+$/.test(String(post.id ?? '')) ? `PostDetail-${post.id}` : null, replies: counts.comments });
+    if (!handled) onNavigate('PublicLogin');
+  };
   const handleSave = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuestHere('save'); return; }
     const res = await Engagement.track(
       post.id, entityType, entityId, 'save', isLoggedIn, onNavigate
     );
@@ -768,7 +800,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const isRealPost = /^\d+$/.test(String(post.id ?? ''));
   const canRepost = isRealPost && (!post.visibility || post.visibility === 'public');
   const handleRepost = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuestHere('repost'); return; }
     const res = await Engagement.track(post.id, entityType, entityId, 'repost', isLoggedIn, onNavigate);
     if (res !== null && res !== undefined) {
       const toggled = res?.toggled ?? !reposted;
@@ -778,7 +810,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
     }
   };
   const handleLike = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuestHere('like'); return; }
     const res = await Engagement.track(post.id, entityType, entityId, 'like', isLoggedIn, onNavigate);
     if (res !== null) {
       const toggled = res?.toggled ?? !liked;
@@ -815,7 +847,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   };
 
   const handleFollow = async () => {
-    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!isLoggedIn) { askGuestHere('follow'); return; }
     try {
       // Follow the exact public actor shown on the post. A Moment may be
       // Personal, Business, Hub, Agent, etc.; routing every button through

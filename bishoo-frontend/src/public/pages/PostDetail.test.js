@@ -189,3 +189,27 @@ test('#374 D: a moderator pins and closes replies; closed replies hide the reply
   expect(screen.getByTestId('replies-locked')).toBeInTheDocument();
   expect(screen.queryByTestId('reply-bar')).toBeNull();
 });
+
+// ── #381 B: write first, join after ──
+test('B: a guest can type a reply; sending it opens the invitation with real names', async () => {
+  const GuestJoinSheet = require('../components/GuestJoinSheet').default;
+  answerThread();
+  render(<GuestJoinSheet onNavigate={jest.fn()} />);
+  await act(async () => { render(<PostDetail postId={7} isLoggedIn={false} onNavigate={jest.fn()} />); });
+  fireEvent.change(screen.getByTestId('reply-input'), { target: { value: 'Mimi naona mayai' } });
+  await act(async () => { fireEvent.click(screen.getByTestId('reply-send')); });
+  expect(screen.getByTestId('guest-join')).toBeInTheDocument();
+  expect(screen.getByTestId('guest-draft')).toHaveValue('Mimi naona mayai');
+  expect(screen.getByTestId('guest-join-people')).toHaveTextContent('Asha m., Kened na wengine 2 wanajadili hili');
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+test('B: back after registering, the reply written as a guest is ready to send', async () => {
+  window.localStorage.setItem('kx_guest_draft', JSON.stringify({ postId: 7, body: 'Mimi naona mayai', parentId: 11, replyName: 'Asha m.', at: Date.now() }));
+  answerThread();
+  await open();
+  expect(screen.getByTestId('reply-input')).toHaveValue('Mimi naona mayai');
+  expect(screen.getByTestId('reply-input')).toHaveAttribute('placeholder', 'Jibu kwa Asha m.…');
+  expect(screen.getByTestId('reply-restored')).toBeInTheDocument();
+  expect(window.localStorage.getItem('kx_guest_draft')).toBeNull();
+});
