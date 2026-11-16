@@ -213,3 +213,21 @@ test('B: back after registering, the reply written as a guest is ready to send',
   expect(screen.getByTestId('reply-restored')).toBeInTheDocument();
   expect(window.localStorage.getItem('kx_guest_draft')).toBeNull();
 });
+
+// ── #381 C11: share at the right moment ──
+test('C11: the writer of a discussion with 10 replies is invited once to put it on Status', async () => {
+  window.localStorage.removeItem('kx_nudges');
+  answerPost({ ...post, businessId: 1, commentCount: 10 });
+  await open();
+  expect(screen.getByTestId('hot-nudge')).toHaveTextContent('Mjadala wako unavuma: majibu 10');
+  fireEvent.click(screen.getByTestId('hot-nudge-later'));
+  expect(screen.queryByTestId('hot-nudge')).toBeNull();
+  expect(window.localStorage.getItem('kx_nudges')).toContain('hot-7');
+});
+
+test('C11: not the writer, or fewer than 10 replies: no nudge', async () => {
+  window.localStorage.removeItem('kx_nudges');
+  answerPost({ ...post, businessId: 3, commentCount: 40 });
+  await open();
+  expect(screen.queryByTestId('hot-nudge')).toBeNull();
+});

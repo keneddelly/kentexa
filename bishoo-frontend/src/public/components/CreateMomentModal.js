@@ -370,8 +370,9 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         return;
       }
 
+      let created = null;
       if (mode === 'moment') {
-        await api.post('/feed/publish', {
+        created = await api.post('/feed/publish', {
           type: 'moment',
           intent: kindInfo.intent,
           title: text || tagged?.title || 'Moment',
@@ -402,7 +403,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       }
 
       postedRef.current = true;
-      onPosted?.();
+      // Viral engine C11: the new post goes back, so the app can invite to share a question or poll.
+      onPosted?.(created?.data || null);
       onClose();
     } catch (err) {
       // The text, photos and choices stay as they were; the person can try again.

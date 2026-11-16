@@ -179,6 +179,13 @@ export class FeedController {
   }
 
   // ── Phase E: Kura ───────────────────────────────────────────────────────────
+  /** Viral engine C (#381): "Mijadala zaidi" and "Jumuiya zinazofanana" at the end of a discussion. */
+  @Get(':id/related')
+  @UseGuards(OptionalJwtAuthGuard)
+  related(@Param('id', ParseIntPipe) id: number, @Request() req?) {
+    return this.cvs.getRelated(id, req?.user?.id || null);
+  }
+
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':id/poll')
   getPoll(@Param('id', ParseIntPipe) id: number, @Request() req?) {

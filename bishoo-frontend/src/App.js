@@ -29,6 +29,8 @@ import { photoSkipped }   from './utils/photoLater';
 import { holdWelcomeSteps, isCheckoutBuyer } from './utils/checkoutBuyer';
 import BottomNav      from './public/components/BottomNav';
 import GuestJoinSheet from './public/components/GuestJoinSheet';
+import ShareNudge from './public/components/ShareNudge';
+import ShareSheet from './public/components/ShareSheet';
 import { claimArrival } from './public/utils/shortLinks';
 import ProfileSwitcherSheet from './public/components/ProfileSwitcherSheet';
 import PostModal      from './public/components/PostModal';
@@ -256,6 +258,8 @@ function App() {
   // The welcome's first post (owner 2026-11-02): the composer can open on a kind with a ready start.
   const [momentStart, setMomentStart] = useState(null);
   const [momentRefreshKey, setMomentRefreshKey] = useState(0);
+  const [postedNudge, setPostedNudge] = useState(null); // C11: the post just made, to invite sharing
+  const [postedSheet, setPostedSheet] = useState(false);
   // Single source of truth for every unread-inbox badge (bottom nav,
   // anywhere else that wants it) — GET /business/inbox/unread-count
   // combines seller-side + buyer-side unread conversations, deliberately
@@ -1268,6 +1272,17 @@ function App() {
           position:fixed, zIndex:1000 bar was rendering directly on top of
           it, covering the send button (and on the conversation list, the
           bottom rows) since nothing in SellerInbox reserved space for it. */}
+      {/* Viral engine C11 (#381): right after posting a question, poll or discussion. */}
+      {postedNudge && !postedSheet && (
+        <ShareNudge floating testid="posted-nudge"
+          title={postedNudge.intent === 'poll' ? 'Kura yako iko hewani' : postedNudge.intent === 'question' ? 'Swali lako liko hewani' : 'Mjadala wako uko hewani'}
+          text={postedNudge.intent === 'poll' ? 'Shiriki ili watu wengi zaidi wapige kura.' : postedNudge.intent === 'question' ? 'Shiriki ili upate majibu haraka.' : 'Shiriki ili watu wajiunge na mazungumzo.'}
+          onShare={() => setPostedSheet(true)} onDismiss={() => setPostedNudge(null)} />
+      )}
+      {postedNudge && postedSheet && (
+        <ShareSheet open onClose={() => { setPostedSheet(false); setPostedNudge(null); }} contentType="post" contentId={Number(postedNudge.id)}
+          words={postedNudge.body || postedNudge.title} intent={postedNudge.intent} plainUrl={`${window.location.origin}/post/${postedNudge.id}`} />
+      )}
       {/* Viral engine B (#381): a guest who taps Jibu, Penda, Kura, Jiunge... is invited to join here. */}
       {!isLoggedIn && <GuestJoinSheet onNavigate={handleNavigate} />}
       {isLoggedIn && !needsProfilePhoto && !needsOnboarding && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS' && page !== 'TeamPOS'
@@ -1337,9 +1352,11 @@ function App() {
           activeProfile={activeProfile}
           onNavigate={handleNavigate}
           onClose={() => setShowMomentModal(false)}
-          onPosted={() => {
+          onPosted={(created) => {
             setMomentRefreshKey(k => k + 1);
             if (page !== 'Home') handleNavigate('Home');
+            // Viral engine C11 (#381): a new public question, poll or discussion: one invitation to share it.
+            if (created?.id && ['question', 'poll', 'discussion'].includes(created.intent) && (created.visibility || 'public') === 'public') setPostedNudge(created);
           }}
         />
       )}

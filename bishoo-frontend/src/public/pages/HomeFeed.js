@@ -16,6 +16,7 @@ import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, leadSeparator } from '../utils/kentexaText';
 import { IdentityPill, DESKTOP_QUERY } from '../components/BottomNav';
 import ShareSheet from '../components/ShareSheet';
+import ShareNudge, { markNudge, nudgeSeen } from '../components/ShareNudge';
 import { askToJoin, takeGuestDraft } from '../utils/guestJoin';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
@@ -188,7 +189,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
 
 // ── Comments section ──────────────────────────────────────────────────────────
 const HOME_COMMENTS = 3; // comments shown under a post on Home; the rest on the post page
-const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfileId, detail = false, communityRole = null }) => {
+const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfileId, detail = false, communityRole = null, onShare = null }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
   const [comments, setComments] = useState([]);
@@ -345,10 +346,16 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
   const isModeratorHere = communityRole === 'admin' || communityRole === 'helper';
   const canChooseBest = !!communityId && isLoggedIn && (isModeratorHere || (currentUser?.id && Number(currentUser.id) === Number(ownerId)));
   const locked = !!post.repliesLocked;
+  // Viral engine C11 (#381): once the writer picks "Jibu bora", one invitation to share the discussion.
+  const [bestNudge, setBestNudge] = useState(false);
+  const isWriter = currentUser?.id && Number(currentUser.id) === Number(ownerId);
   const chooseBest = async (commentId) => {
     const prev = bestId;
     setBestId(commentId);
-    try { await api.post(`/communities/${communityId}/posts/${post.id}/best-answer`, { commentId }); }
+    try {
+      await api.post(`/communities/${communityId}/posts/${post.id}/best-answer`, { commentId });
+      if (commentId && isWriter && onShare && !nudgeSeen(`best-${post.id}`)) setBestNudge(true);
+    }
     catch { setBestId(prev); }
   };
   const replyName = (c) => formatName(commenterIdentity(c).name) || t('home_feed.user_fallback');
@@ -535,6 +542,10 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       {/* The bottom bar is 60px on a phone; on a computer there is none (side menu). */}
       {detail && <style>{`.kx-reply-bar{bottom:calc(60px + env(safe-area-inset-bottom, 0px))}@media ${DESKTOP_QUERY}{.kx-reply-bar{bottom:0}}`}</style>}
       {locked && lockedNote}
+      {bestNudge && (
+        <ShareNudge testid="best-nudge" title="Jibu bora limechaguliwa" text="Shiriki mjadala huu ili wengine wanufaike na jibu hili."
+          onShare={() => { markNudge(`best-${post.id}`); setBestNudge(false); onShare(); }} onDismiss={() => { markNudge(`best-${post.id}`); setBestNudge(false); }} />
+      )}
       {detail && !locked && (
         <button type="button" data-testid="reply-under-post" onClick={() => { setReplyTo(null); inputRef.current?.focus(); }}
           style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:'10px 0', border:'none', borderBottom:`1px solid ${LINE_TX}`,
@@ -1112,6 +1123,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           // cards without a persisted post ID use the commerce entity thread.
           isRealPost ? (
             <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail} communityRole={communityRole}
+              onShare={/^\d+$/.test(String(post?.id ?? '')) ? () => setSheetOpen(true) : null}
               onNavigate={onNavigate} currentUser={currentUser}
               activeProfileId={activeProfileId} />
           ) : post.linkedEntityType && post.linkedEntityId ? (
@@ -1127,6 +1139,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             />
           ) : (
             <CommentSection post={post} isLoggedIn={isLoggedIn} detail={detail} communityRole={communityRole}
+              onShare={/^\d+$/.test(String(post?.id ?? '')) ? () => setSheetOpen(true) : null}
               onNavigate={onNavigate} currentUser={currentUser}
               activeProfileId={activeProfileId} />
           )

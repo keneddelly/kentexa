@@ -291,6 +291,22 @@ export class CommunitiesService {
     return { bestCommentId: commentId };
   }
 
+  /**
+   * Viral engine C12 (#381): what all invitations to this community brought (every member's
+   * shared links to it): opens and new members. Moderators only; numbers, never names.
+   */
+  async invitationStats(communityId: number, userId: number): Promise<{ links: number; opens: number; joined: number }> {
+    await this.assertModerator(communityId, userId);
+    const [r] = await this.dataSource.query(
+      `SELECT COUNT(DISTINCT l.id)::int AS links,
+              (SELECT COUNT(*)::int FROM public.share_visit v JOIN public.share_link x ON x.id = v."shareLinkId"
+                WHERE x."contentType" = 'community' AND x."contentId" = $1) AS opens,
+              (SELECT COUNT(*)::int FROM public.share_conversion c JOIN public.share_link x ON x.id = c."shareLinkId"
+                WHERE x."contentType" = 'community' AND x."contentId" = $1) AS joined
+         FROM public.share_link l WHERE l."contentType" = 'community' AND l."contentId" = $1`, [communityId]).catch(() => []);
+    return { links: Number(r?.links || 0), opens: Number(r?.opens || 0), joined: Number(r?.joined || 0) };
+  }
+
   /** A moderator takes down a post made in the community (it is archived, never deleted). */
   async removePost(communityId: number, moderatorId: number, postId: number): Promise<{ ok: true }> {
     await this.assertModerator(communityId, moderatorId);

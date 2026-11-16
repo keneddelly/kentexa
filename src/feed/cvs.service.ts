@@ -2061,6 +2061,50 @@ export class CvsService {
   }
 
   /**
+   * Viral engine C (issue #381): what to read next at the end of a discussion, so one visit leads
+   * to more. "Mijadala zaidi": up to 5 other discussions from the same community, then the same
+   * topic, newest activity first, under the feed's visibility rules for this viewer. "Jumuiya
+   * zinazofanana": up to 3 open communities on the same topic, largest first.
+   */
+  async getRelated(postId: number, viewerId: number | null): Promise<{ discussions: any[]; communities: any[] }> {
+    await this.assertCanSeePost(postId, viewerId);
+    const [p] = await this.feedRepo.query(
+      `SELECT "communityId", topic FROM public.business_feed_item WHERE id = $1`, [postId]).catch(() => []);
+    if (!p || (!p.communityId && !p.topic)) return { discussions: [], communities: [] };
+    const qb = this.feedRepo.createQueryBuilder('f')
+      .leftJoin('f.business', 'b')
+      .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.isVerified', 'b.role'])
+      .addSelect(p.communityId ? `CASE WHEN f."communityId" = ${Number(p.communityId)} THEN 0 ELSE 1 END` : '1', 'rel_rank')
+      .addSelect(`GREATEST(f."createdAt", COALESCE((SELECT MAX(pc."createdAt") FROM public.post_comment pc
+                   WHERE pc."postId" = f.id AND pc."isDeleted" = false), f."createdAt"))`, 'activity_at')
+      .where('f.id <> :rid', { rid: postId })
+      .andWhere('f.isActive = true')
+      .andWhere(`f.type::text = 'moment'`)
+      .andWhere(NOT_FROM_HIDDEN_PROFILE('f'))
+      .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
+      .andWhere(NOT_MUTED_BY_VIEWER('f'));
+    if (p.communityId && p.topic) qb.andWhere('(f."communityId" = :rc OR f.topic = :rt)', { rc: p.communityId, rt: p.topic });
+    else if (p.communityId) qb.andWhere('f."communityId" = :rc', { rc: p.communityId });
+    else qb.andWhere('f.topic = :rt', { rt: p.topic });
+    const rows = await qb.orderBy('rel_rank', 'ASC').addOrderBy('activity_at', 'DESC').take(5).getMany().catch(() => []);
+    const followed = await this.getFollowedSellerIds(viewerId);
+    const discussions = await this.presentRealItems(rows, followed, []);
+    const ids = discussions.map((d) => d.id);
+    const counts = ids.length ? await this.feedRepo.query(
+      `SELECT "postId", COUNT(*)::int AS n, MAX("createdAt") AS last FROM public.post_comment
+        WHERE "postId" = ANY($1) AND "isDeleted" = false GROUP BY "postId"`, [ids]).catch(() => []) : [];
+    const byId = new Map<number, any>(counts.map((c: any) => [Number(c.postId), c]));
+    const communities = p.topic ? await this.feedRepo.query(
+      `SELECT id, name, purpose, "memberCount", "topicKey" FROM public.community
+        WHERE status = 'active' AND "joinPolicy" = 'open' AND "topicKey" = $1 AND id IS DISTINCT FROM $2
+        ORDER BY "memberCount" DESC, id DESC LIMIT 3`, [p.topic, p.communityId || null]).catch(() => []) : [];
+    return {
+      discussions: discussions.map((d) => ({ ...d, replyCount: Number(byId.get(d.id)?.n || 0), lastReplyAt: byId.get(d.id)?.last || null })),
+      communities,
+    };
+  }
+
+  /**
    * Communities built for discussion (#374 D, owner approved 2026-11-16): a community's threads
    * as a list. Pinned first, then the most recent activity (a new post or a new reply). Each
    * row carries its reply count, the time of the last reply and, for a member, whether it has
