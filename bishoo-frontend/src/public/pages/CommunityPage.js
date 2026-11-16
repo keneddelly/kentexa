@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import api from '../../api/api';
 import { pollTimeLeft, topicLabel } from '../utils/feedPresentation';
 import { formatCaption, formatName, formatText } from '../utils/kentexaText';
-import { prefetchShortLink, readyShortLink } from '../utils/shortLinks';
+import ShareSheet from '../components/ShareSheet';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -195,17 +195,10 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
   };
   const openThread = (post) => onNavigate(`PostDetail-${post.id}`);
 
-  // Viral engine A2: an open community can be shared as a short link (kentexa.com/s/<code>).
+  // Viral engine C10: an open community is shared through the smart share sheet.
   const canShare = community?.joinPolicy === 'open';
-  useEffect(() => { if (canShare && community?.id) prefetchShortLink('community', community.id); }, [canShare, community?.id]);
-  const [shareNote, setShareNote] = useState('');
-  const share = async () => {
-    const url = readyShortLink('community', community.id) || `${window.location.origin}/community/${community.id}`;
-    const text = `Jiunge na ${formatName(community.name)} kwenye KenteXa: ${formatText(community.purpose)}`;
-    if (navigator.share) { await navigator.share({ title: formatName(community.name), text, url }).catch(() => {}); return; }
-    try { await navigator.clipboard.writeText(`${text} ${url}`); setShareNote('Kiungo kimenakiliwa'); setTimeout(() => setShareNote(''), 2000); }
-    catch { setShareNote(url); }
-  };
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const share = () => setSheetOpen(true);
 
   if (state === 'loading') return <div style={{ padding: 24, color: MUTED }}>Inapakia...</div>;
   if (state === 'missing' || !community) {
@@ -286,7 +279,10 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
           </div>
         )}
         {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c' }}>{error}</div>}
-        {shareNote && <div role="status" style={{ fontSize: 13, color: '#1d6b39', overflowWrap: 'anywhere' }}>{shareNote}</div>}
+        {sheetOpen && (
+          <ShareSheet open onClose={() => setSheetOpen(false)} contentType="community" contentId={community.id} words={name}
+            purpose={formatText(community.purpose)} plainUrl={`${window.location.origin}/community/${community.id}`} />
+        )}
       </div>
 
       {isModerator && requests.length > 0 && (
