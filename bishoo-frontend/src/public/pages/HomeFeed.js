@@ -13,6 +13,7 @@
  */
 import ExpandableText from '../components/ExpandableText';
 import HashtagText from '../components/HashtagText';
+import { formatCaption, formatName, formatPrice, leadSeparator } from '../utils/kentexaText';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
@@ -306,7 +307,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
     // always their personal account. No profile -> the author's Personal identity
     // only (name/avatar, never storeName/logo) -- see commenterIdentity().
     const identity = commenterIdentity(c);
-    const commenterName = identity.name || t('home_feed.user_fallback');
+    const commenterName = formatName(identity.name) || t('home_feed.user_fallback');
     const commenterPhoto = identity.photo;
     return (
     <div style={{ display:'flex', gap:8,
@@ -361,7 +362,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
               </div>
               {c.offerCard.price != null && (
                 <div style={{ fontSize:12, fontWeight:800, color:'#0f1419' }}>
-                  TZS {fmt(c.offerCard.price)}
+                  {formatPrice(c.offerCard.price) || 'TZS 0'}
                 </div>
               )}
             </div>
@@ -573,7 +574,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
 
   const biz     = post.business || {};
   const bizId   = biz.id;
-  const bizName = biz.storeName || biz.name || t('home_feed.business_fallback');
+  const bizName = formatName(biz.storeName || biz.name) || t('home_feed.business_fallback');
   // When the backend resolved this post's commerceProfileId to a specific
   // CommerceProfile, nav must land there — not the owner's default/personal
   // profile, which is what a bare account id resolves to otherwise.
@@ -746,6 +747,11 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
 
   const kindLabel = typeInfo.label;
   const productName = headline || (isProduct || isService ? rawTitle : '');
+  // One KenteXa text style (#374 part E): a title that is not a product's name becomes the bold
+  // start of the caption ("Title: text"); the same words twice show once. Display only.
+  const commerceBox = price > 0 || !!(entityId && (isProduct || isService));
+  const caption = commerceBox ? { lead: '', text: postText } : formatCaption(headline, postText);
+  const priceText = formatPrice(price);
   const icon = (d, filled) => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || MUTED_TX} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
   );
@@ -831,20 +837,22 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           <button type="button" data-testid="post-community" onClick={() => onNavigate(`Community-${post.community.id}`)}
             style={{ alignSelf:'flex-start', border:'none', background:'none', padding:0, cursor:'pointer', fontFamily:'inherit',
               fontSize:13, fontWeight:700, color:INK_TX }}>
-            {post.community.name}
+            {formatName(post.community.name)}
           </button>
         )}
-        {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
-        {postText && (detail
-          ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}><HashtagText text={postText} onTag={openTag} /></div>
-          : <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} onTag={openTag} />)}
+        {(caption.text || caption.lead) && (detail
+          ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>
+              {caption.lead && <><strong data-testid="post-lead" style={{ fontWeight:700 }}>{caption.lead}</strong>{caption.text ? leadSeparator(caption.lead) : ''}</>}
+              <HashtagText text={caption.text} onTag={openTag} />
+            </div>
+          : <ExpandableText text={caption.text} lead={caption.lead} lines={image || photos.length > 1 ? 3 : 6} onTag={openTag} />)}
 
         {post.intent === 'poll' && /^\d+$/.test(String(post.id)) && (
           <PollBlock postId={post.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
         )}
 
         {photos.length > 1 && (
-          <PostPhotos photos={photos} price={price} priceLabel={`TZS ${fmt(price)}`} title={post.title || bizName} />
+          <PostPhotos photos={photos} price={price} priceLabel={priceText} title={post.title || bizName} />
         )}
 
         {image && (
@@ -857,7 +865,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
               onError={() => setImgErr(true)} />
             {price > 0 && (
               <span data-testid="photo-price" style={{ position:'absolute', left:10, bottom:10, padding:'4px 10px', borderRadius:14,
-                background:'rgba(15,20,25,0.78)', color:WH, fontSize:14, fontWeight:800 }}>TZS {fmt(price)}</span>
+                background:'rgba(15,20,25,0.78)', color:WH, fontSize:14, fontWeight:800 }}>{priceText}</span>
             )}
           </button>
         )}
@@ -867,11 +875,11 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
             border:`1px solid ${LINE_TX}`, borderRadius:12 }}>
             <div style={{ minWidth:0 }}>
               {(productName || rawTitle) && (
-                <div style={{ fontSize:15, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{productName || rawTitle}</div>
+                <div style={{ fontSize:15, fontWeight:700, color:INK_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{formatName(productName || rawTitle)}</div>
               )}
               {price > 0 && !image && photos.length < 2 && (
                 <div style={{ fontSize:15, color: post.isFlashSale ? '#b91c1c' : INK_TX }}>
-                  TZS {fmt(price)}{post.isNegotiable && !isProduct ? <span style={{ color:MUTED_TX }}> · {t('home_feed.negotiable_price')}</span> : null}
+                  {priceText}{post.isNegotiable && !isProduct ? <span style={{ color:MUTED_TX }}> · {t('home_feed.negotiable_price')}</span> : null}
                 </div>
               )}
             </div>

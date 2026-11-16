@@ -14,6 +14,7 @@ import WishlistHeart from '../components/WishlistHeart';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 import { serviceLink } from '../utils/shareLinks';
+import { formatName, formatText } from '../utils/kentexaText';
 
 const B = '#1d4ed8';
 const DK = '#0f1419';
@@ -171,7 +172,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
             {ad.isAvailableNow && <Chip tone="green">{t('service_detail.available_now')}</Chip>}
           </div>
         )}
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, lineHeight: 1.25 }}>{ad.title}</h1>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, lineHeight: 1.25 }}>{formatName(ad.title)}</h1>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
           <span data-testid="service-price" style={{ fontSize: 24, fontWeight: 800 }}>{priceText}</span>
           {!quote && PRICE_LABELS[ad.priceType] && <span style={{ fontSize: 15, color: GR }}>{PRICE_LABELS[ad.priceType]}</span>}
@@ -218,7 +219,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
       </section>
 
       {ad.description && (
-        <section style={{ padding: 16, borderBottom: `1px solid ${LINE}`, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{ad.description}</section>
+        <section style={{ padding: 16, borderBottom: `1px solid ${LINE}`, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{formatText(ad.description)}</section>
       )}
 
       {ad.category === 'usafirishaji' && (
@@ -271,7 +272,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
           <div onClick={(e) => e.stopPropagation()}
             style={{ width: '100%', maxWidth: 600, background: WH, borderRadius: '18px 18px 0 0', padding: '18px 16px calc(18px + env(safe-area-inset-bottom, 0px))',
               boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90vh', overflowY: 'auto' }}>
-            <b style={{ fontSize: 18 }}>{ad.title}</b>
+            <b style={{ fontSize: 18 }}>{formatName(ad.title)}</b>
             <label style={label}>{t('service_detail.field_need_label')}
               <textarea data-testid="service-need" rows={3} value={form.description} onChange={set('description')} placeholder={t('service_detail.field_need_placeholder')} style={{ ...field, resize: 'vertical' }} />
             </label>

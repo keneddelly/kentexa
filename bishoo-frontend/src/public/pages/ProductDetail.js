@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { productLink } from '../utils/shareLinks';
 import ResalePanel from '../components/ResalePanel';
 import { applyPageSeo, absoluteImageUrl } from '../../utils/pageSeo';
+import { formatName, formatText } from '../utils/kentexaText';
 
 /** "Uza tena": the reseller's offer in a shared link (/product/42-name?offer=7) for this product. */
 const offerIdFromUrl = (productId) => {
@@ -427,7 +428,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
       <div style={{ height:52, backgroundColor:'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderBottom:`1px solid ${LINE}`,
         display:'flex', alignItems:'center', padding:'0 8px', position:'sticky', top:0, zIndex:100 }}>
         <IconBtn label={t('common.back')} onClick={() => onNavigate('back')}><Icon d={IC.back} size={22} color={DK} /></IconBtn>
-        <span style={{ flex:1, minWidth:0, fontSize:16, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', padding:'0 4px' }}>{product.name}</span>
+        <span style={{ flex:1, minWidth:0, fontSize:16, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', padding:'0 4px' }}>{formatName(product.name)}</span>
         <IconBtn label={t('share.button')} onClick={handleShare}><Icon d={IC.share} size={20} color={DK} /></IconBtn>
         <IconBtn label={t('product_detail.cart')} onClick={() => onNavigate('Cart')}><Icon d={IC.bag} size={20} color={DK} /></IconBtn>
         {isOwner && (
@@ -496,7 +497,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
             {/* ── Price, name, facts ── */}
             <section style={{ padding:16, borderBottom:`1px solid ${LINE}`, display:'flex', flexDirection:'column', gap:8 }}>
               <div data-testid="pd-price" style={{ fontSize:28, fontWeight:800, letterSpacing:-0.3 }}>TZS {displayPrice.toLocaleString('en-US')}</div>
-              <h1 style={{ fontSize:18, fontWeight:600, margin:0, lineHeight:1.35 }}>{product.name}</h1>
+              <h1 style={{ fontSize:18, fontWeight:600, margin:0, lineHeight:1.35 }}>{formatName(product.name)}</h1>
               {offer && (
                 <div data-testid="pd-reseller" style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, color:GR }}>
                   <Avatar src={offer.reseller?.photo} name={offer.reseller?.name} size={24} />
@@ -641,14 +642,14 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
               {tab === 'description' && (
                 product.description ? (
                   <div style={{ fontSize:15, lineHeight:1.6 }}>
-                    {product.description.split('\n').map((line, i) => {
+                    {formatText(product.description).split('\n').map((line, i) => {
                       const trimmed = line.trim();
                       if (!trimmed) return <div key={i} style={{ height:8 }} />;
                       if (trimmed.endsWith(':') && !trimmed.startsWith('-')) return <div key={i} style={{ fontWeight:800, marginTop:12, marginBottom:4 }}>{trimmed}</div>;
                       if (trimmed.startsWith('-')) {
                         return (
                           <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', marginBottom:4 }}>
-                            <span style={{ color:GR, flexShrink:0 }}>•</span><span>{trimmed.substring(1).trim()}</span>
+                            <span style={{ color:GR, flexShrink:0 }}>•</span><span>{formatText(trimmed.substring(1))}</span>
                           </div>
                         );
                       }

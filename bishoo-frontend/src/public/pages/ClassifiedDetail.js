@@ -9,6 +9,7 @@ import { PageLoading } from '../components/Loading';
 import { useTranslation } from 'react-i18next';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 import { classifiedLink } from '../utils/shareLinks';
+import { formatName, formatText } from '../utils/kentexaText';
 
 /**
  * ClassifiedDetail — one listing (owner 2026-10-26 redesign, same look as the
@@ -234,7 +235,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
       <div style={{ height:52, backgroundColor:'rgba(255,255,255,0.96)', backdropFilter:'blur(8px)', borderBottom:`1px solid ${LINE}`,
         display:'flex', alignItems:'center', padding:'0 8px', position:'sticky', top:0, zIndex:100 }}>
         <IconBtn label={t('common.back')} onClick={goBack}><Icon d={IC.back} size={22} color={DK} /></IconBtn>
-        <span style={{ flex:1, minWidth:0, fontSize:16, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', padding:'0 4px' }}>{classified.title}</span>
+        <span style={{ flex:1, minWidth:0, fontSize:16, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', padding:'0 4px' }}>{formatName(classified.title)}</span>
         <IconBtn label={t('share.button')} onClick={handleShare}><Icon d={IC.share} size={20} color={DK} /></IconBtn>
         {isOwner && (
           <div style={{ position:'relative' }}>
@@ -313,7 +314,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                   <FlashCountdown endsAt={classified.flashSaleEndsAt} />
                 </div>
               )}
-              <h1 style={{ fontSize:18, fontWeight:600, margin:0, lineHeight:1.35 }}>{classified.title}</h1>
+              <h1 style={{ fontSize:18, fontWeight:600, margin:0, lineHeight:1.35 }}>{formatName(classified.title)}</h1>
               <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', fontSize:13, color:GR }}>
                 {classified.location && <><Icon d={IC.pin} size={14} /><span>{classified.location}</span><span>·</span></>}
                 <span>{t('classified_detail.listed')} {listed}</span>
@@ -402,7 +403,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
             <section style={{ padding:'0 16px 16px' }}>
               <h2 style={sectionTitle}>{t('classified_detail.description')}</h2>
               <p style={{ fontSize:15, lineHeight:'22px', margin:0, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>
-                {classified.description || t('classified_detail.no_description')}
+                {formatText(classified.description) || t('classified_detail.no_description')}
               </p>
             </section>
 

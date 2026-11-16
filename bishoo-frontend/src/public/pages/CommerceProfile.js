@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { topicLabel } from '../utils/feedPresentation';
 import { useTranslation } from 'react-i18next';
 import ExpandableText from '../components/ExpandableText';
+import { formatName } from '../utils/kentexaText';
 import { trackProfileView } from '../hooks/useAnalytics';
 import ProfileCompletion from '../components/ProfileCompletion';
 import api             from '../../api/api';
@@ -621,7 +622,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // tab happens to be selected. A visitor to a business page sees that
   // business's name/photo/followers the entire time they're on this
   // page, full stop; there is no other identity to bleed in.
-  const displayName   = activeProfile.displayName;
+  const displayName   = formatName(activeProfile.displayName); // KenteXa text style (#374 E)
   const displayPhoto  = activeProfile.photoUrl || (activeProfile.type === 'personal' ? currentUser?.avatarUrl : null);
   const displayHandle = activeProfile.username ? `@${activeProfile.username}` : null;
   // @kentexa is a protected, Admin-assigned handle. Treat it as the canonical
