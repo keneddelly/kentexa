@@ -46,6 +46,9 @@ export enum MomentIntent {
   POLL = 'poll',
   // Smart Post (owner 2026-11-09): Uzoefu, a story, review or lesson from the person's own experience.
   EXPERIENCE = 'experience',
+  // Makala (owner approved 2026-11-16): a long article; its own title, cover photo and simple
+  // layout marks in the text (## sub-heading, - list, > quote, **bold**, [picha 2]).
+  ARTICLE = 'article',
 }
 
 /** Phase D: one photo of a post, with its own size so the card keeps its shape. */

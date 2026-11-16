@@ -59,6 +59,7 @@ const KIND_ICON = {
   looking_for: 'M11 18a7 7 0 100-14 7 7 0 000 14zM21 21l-5-5',
   poll: 'M5 20V10M12 20V4M19 20v-7',
   experience: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
+  article: 'M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5zM4 19.5A2.5 2.5 0 006.5 22H20v-5',
 };
 
 /** Records one composer step. Never blocks or fails the composer. */
@@ -88,7 +89,7 @@ const measure = (url) => new Promise((resolve) => {
   img.src = url;
 });
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited, initialCommunityId = null, initialKind = null, initialText = '' }) => {
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited, initialCommunityId = null, initialKind = null, initialText = '', onOpenArticle = null }) => {
   const { t } = useTranslation();
   const isEdit = !!editPost;
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
@@ -151,6 +152,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const postedRef = useRef(false);
   useEffect(() => { if (!isEdit) composerEvent('opened', { kind }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const chooseKind = (key) => {
+    // Makala is written on its own full screen (owner approved 2026-11-16).
+    if (key === 'article' && onOpenArticle) { composerEvent('kind', { kind: key }); onOpenArticle({ communityId, text: caption }); return; }
     setKind(key); setError('');
     if (key !== kind) composerEvent('kind', { kind: key });
   };
@@ -459,7 +462,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           {/* The type grid: what kind of post this is. Not offered when editing. */}
           {!isEdit && (
             <div role="radiogroup" aria-label="Aina ya chapisho" style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:6 }}>
-              {POST_KINDS.map((k) => {
+              {POST_KINDS.filter((k) => !k.editor || onOpenArticle).map((k) => {
                 const on = kind === k.key;
                 return (
                   <button key={k.key} type="button" role="radio" aria-checked={on} data-testid={`kind-${k.key}`}

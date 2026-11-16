@@ -16,6 +16,10 @@ export const PUBLISH_LIMITS = Object.freeze({ title: 300, body: 5000, category: 
 // Owner 2026-11-16: a post's text up to 3,000 characters (was 500). A Moment repeats its text as
 // its title, so a Moment's title follows the same limit.
 export const COMPOSER_LIMITS = Object.freeze({ text: 3000, photos: 4, editMinutes: 15 });
+// Makala (owner approved 2026-11-16): a title of its own up to 150, the text up to 20,000, a cover
+// and up to 4 photos inside (5 in all).
+export const ARTICLE_LIMITS = Object.freeze({ title: 150, text: 20000, photos: 5 });
+const isArticle = (dto: any) => dto?.intent === 'article';
 
 const oneOf = (value: unknown, allowed: object, field: string) => {
   if (value === undefined || value === null || value === '') return;
@@ -50,8 +54,8 @@ export function assertPublishInput(dto: any): void {
   if (dto.visibility === MomentVisibility.LIMITED) throw new BadRequestException('Chagua "Wote" au "Wanaofuata".');
   if (typeof dto.title !== 'string' || !dto.title.trim()) throw new BadRequestException('Andika kitu kwenye chapisho.');
   // A Moment's title is its text repeated (see COMPOSER_LIMITS); other kinds keep a short title.
-  text(dto.title, dto.type === FeedItemType.MOMENT ? COMPOSER_LIMITS.text : PUBLISH_LIMITS.title, 'title');
-  text(dto.body, PUBLISH_LIMITS.body, 'body');
+  text(dto.title, isArticle(dto) ? ARTICLE_LIMITS.title : dto.type === FeedItemType.MOMENT ? COMPOSER_LIMITS.text : PUBLISH_LIMITS.title, 'title');
+  text(dto.body, isArticle(dto) ? ARTICLE_LIMITS.text : PUBLISH_LIMITS.body, 'body');
   text(dto.imageUrl, 2000, 'imageUrl');
   text(dto.category, PUBLISH_LIMITS.category, 'category');
   text(dto.ctaLabel, PUBLISH_LIMITS.label, 'ctaLabel');
@@ -59,7 +63,7 @@ export function assertPublishInput(dto: any): void {
   for (const f of ['locationRegion', 'locationDistrict', 'locationWard', 'locationLabel', 'availabilityStatus']) {
     text(dto[f], PUBLISH_LIMITS.label, f);
   }
-  assertMedia(dto.media);
+  assertMedia(dto.media, isArticle(dto) ? ARTICLE_LIMITS.photos : COMPOSER_LIMITS.photos);
   num(dto.price, 'price');
   num(dto.linkedEntityId, 'linkedEntityId');
   num(dto.commerceProfileId, 'commerceProfileId');
@@ -67,11 +71,11 @@ export function assertPublishInput(dto: any): void {
   date(dto.startsAt, 'startsAt');
 }
 
-/** Phase D: up to 4 photos, each a URL with an optional width and height. */
-export function assertMedia(media: unknown): void {
+/** Phase D: up to 4 photos (a Makala: a cover and 4 inside), each a URL with an optional width and height. */
+export function assertMedia(media: unknown, max: number = COMPOSER_LIMITS.photos): void {
   if (media === undefined || media === null) return;
   if (!Array.isArray(media)) throw new BadRequestException('Picha hazikutumwa vizuri.');
-  if (media.length > COMPOSER_LIMITS.photos) throw new BadRequestException(`Picha zisizidi ${COMPOSER_LIMITS.photos}.`);
+  if (media.length > max) throw new BadRequestException(`Picha zisizidi ${max}.`);
   for (const m of media) {
     if (!m || typeof m !== 'object' || typeof (m as any).url !== 'string' || !(m as any).url.trim()) {
       throw new BadRequestException('Kila picha lazima iwe na anwani yake.');
@@ -97,11 +101,17 @@ export const cleanMedia = (media: any): { url: string; width: number | null; hei
  * Checked on the person's own publish and edit only; listings that post themselves keep the
  * general limits.
  */
-export function assertComposerText(dto: { title?: unknown; body?: unknown }): void {
+export function assertComposerText(dto: { title?: unknown; body?: unknown; intent?: unknown }): void {
+  // Makala: a title up to 150 and the text up to 20,000 (owner approved 2026-11-16).
+  const limits = isArticle(dto)
+    ? { title: ARTICLE_LIMITS.title, body: ARTICLE_LIMITS.text }
+    : { title: COMPOSER_LIMITS.text, body: COMPOSER_LIMITS.text };
   for (const f of ['title', 'body'] as const) {
     const v = dto?.[f];
-    if (typeof v === 'string' && v.length > COMPOSER_LIMITS.text) {
-      throw new BadRequestException(`Maandishi yasizidi herufi ${COMPOSER_LIMITS.text.toLocaleString('en-US')}.`);
+    if (typeof v === 'string' && v.length > limits[f]) {
+      throw new BadRequestException(f === 'title' && isArticle(dto)
+        ? `Kichwa kisizidi herufi ${limits.title}.`
+        : `Maandishi yasizidi herufi ${limits[f].toLocaleString('en-US')}.`);
     }
   }
 }

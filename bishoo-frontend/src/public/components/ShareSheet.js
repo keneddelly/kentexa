@@ -19,7 +19,7 @@ const MUTED = '#536471';
 const LINE = '#eff3f4';
 const BORDER = '#cfd9de';
 const CHANNELS = ['whatsapp', 'status', 'instagram', 'facebook', 'telegram', 'x', 'copy', 'native', 'image'];
-const KIND_LABEL = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu' };
+const KIND_LABEL = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu', article: 'Makala' };
 
 const cut = (s, n) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t; };
 
@@ -43,12 +43,14 @@ export const suggestedMessage = ({ contentType, intent, words, community, purpos
     if (intent === 'poll') return `What do you think? Vote: ${w}`;
     if (intent === 'offer') return `Offer on KenteXa: ${w}`;
     if (intent === 'experience') return `Read this experience on KenteXa: ${w}`;
+    if (intent === 'article') return `Read this article on KenteXa: ${w}`;
     return `${where ? `Discussion in ${where}` : 'Discussion on KenteXa'}: ${w}`;
   }
   if (intent === 'question') return `Unaweza kujibu hili? ${w}${where ? ` Watu wa ${where} wanajadili.` : ''} Jibu hapa:`;
   if (intent === 'poll') return `Unaonaje? Piga kura: ${w}`;
   if (intent === 'offer') return `Ofa kwenye KenteXa: ${w}`;
   if (intent === 'experience') return `Soma uzoefu huu kwenye KenteXa: ${w}`;
+  if (intent === 'article') return `Soma makala hii kwenye KenteXa: ${w}`;
   return `${where ? `Mjadala kwenye ${where}` : 'Mjadala kwenye KenteXa'}: ${w}`;
 };
 

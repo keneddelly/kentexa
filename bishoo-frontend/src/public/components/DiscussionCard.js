@@ -6,7 +6,8 @@
  */
 import React from 'react';
 import { pollTimeLeft, postPhotos } from '../utils/feedPresentation';
-import { formatCaption, formatName, formatText } from '../utils/kentexaText';
+import { formatCaption, formatName, formatText, formatTitle } from '../utils/kentexaText';
+import { articlePhotos, readMinutes, stripArticle } from '../utils/articleText';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -22,6 +23,7 @@ const ICON = {
   discussion: <path d="M21 12a8 8 0 01-11.6 7.2L4 20l1-4.6A8 8 0 1121 12z" />,
   experience: <path d="M12 3l2.5 6 6.5.5-5 4.5 1.5 6.5L12 17l-5.5 3.5L8 14 3 9.5 9.5 9z" />,
   offer: <path d="M20 12l-8 8-9-9V3h8zM7.5 7.5h.01" />,
+  article: <path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5zM4 19.5A2.5 2.5 0 006.5 22H20v-5" />,
 };
 export const KIND = {
   question: { label: 'Swali', color: '#1d4ed8' },
@@ -29,6 +31,7 @@ export const KIND = {
   discussion: { label: 'Mjadala', color: '#6d28d9' },
   experience: { label: 'Uzoefu', color: '#15803d' },
   offer: { label: 'Ofa', color: '#b4122f' },
+  article: { label: 'Makala', color: '#0f766e' },
 };
 
 export const KindIcon = ({ kind, size = 12, color = '#fff' }) => (
@@ -63,6 +66,10 @@ export const shortAgo = (iso, now = Date.now()) => {
  * start of the rest, so one discussion is never read as one long sentence.
  */
 export const threadWords = (post) => {
+  // A Makala: its own title, and the start of its text without layout marks.
+  if (post.intent === 'article') {
+    return { title: formatTitle(post.title) || 'Makala', excerpt: stripArticle(post.body).split('\n').join(' ') };
+  }
   const { lead, text } = formatCaption(post.title === 'Moment' ? '' : post.title, post.body);
   const lines = String(text || '').split('\n').map((l) => l.trim()).filter(Boolean);
   if (lead) return { title: lead, excerpt: lines.join(' ') };
@@ -113,7 +120,9 @@ export const ThreadCard = ({ post, onOpen, showCommunity = false, testId = null 
   const { title, excerpt } = threadWords(post);
   const author = formatName(post.business?.storeName || post.business?.name) || 'Mwanachama';
   const isPoll = post.intent === 'poll' && post.poll;
-  const photo = !isPoll ? postPhotos(post)[0]?.url : null;
+  const photo = isPoll ? null : post.intent === 'article'
+    ? articlePhotos(postPhotos(post), post.body).cover?.url // a Makala shows its cover, never a photo from inside
+    : postPhotos(post)[0]?.url;
   const people = Array.isArray(post.participants) ? post.participants : [];
   const replies = Number(post.replyCount || 0);
   const open = () => onOpen(post);
@@ -136,6 +145,14 @@ export const ThreadCard = ({ post, onOpen, showCommunity = false, testId = null 
         <span style={{ marginLeft: 'auto', color: KIND.poll.color, fontWeight: 700, flexShrink: 0 }}>
           {closed ? 'Matokeo →' : post.poll.voted ? 'Umepiga kura' : 'Piga kura →'}
         </span>
+      </>
+    );
+  } else if (post.intent === 'article') {
+    // A Makala: how long it takes to read, and its replies once there are some.
+    footer = (
+      <>
+        <span data-testid="thread-read-time">dakika {readMinutes(post.body)} kusoma{replies ? ` · majibu ${replies}` : ''}</span>
+        <span style={{ marginLeft: 'auto', color: LINK, fontWeight: 700, flexShrink: 0 }}>Soma →</span>
       </>
     );
   } else if (replies === 0) {
