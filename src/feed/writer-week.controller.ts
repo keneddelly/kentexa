@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
 import { WriterWeekService } from './writer-week.service';
+import { TraysService } from './trays.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -34,5 +35,16 @@ export class WriterWeekController {
   @Roles(UserRole.ADMIN)
   remove(@Param('id', ParseIntPipe) id: number, @Body() body: { reason?: string }, @Request() req: any) {
     return this.writers.remove(id, req.user.id, body?.reason);
+  }
+}
+
+/** Feed trays (owner approved 2026-11-16): the conversation rows between Home posts (public content). */
+@Controller('feed-trays')
+export class FeedTraysController {
+  constructor(private readonly trays: TraysService) {}
+
+  @Get()
+  get() {
+    return this.trays.trays();
   }
 }
