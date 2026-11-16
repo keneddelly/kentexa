@@ -43,6 +43,7 @@ import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entit
 import { momentActorFields, identityVerified } from '../commerce-profiles/moment-actor';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { WriterWeekService } from './writer-week.service';
+import { PostViewsService } from './post-views.service';
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -96,6 +97,8 @@ export class CvsService {
     @Optional() private readonly aiPrompts?: AiPromptTemplateService,
     // Mwandishi wa Wiki: the gold label on the writer of the week's posts.
     @Optional() private readonly writerWeek?: WriterWeekService,
+    // Post views (owner 2026-11-16): guests are added to the signed-in readers.
+    @Optional() private readonly postViews?: PostViewsService,
   ) {}
 
   /** A post the viewer may not see answers "not found" (phase A: followers-only posts). */
@@ -2361,6 +2364,9 @@ export class CvsService {
       : [];
     const communityMap = new Map<number, any>(communityRows.map((c: any) => [Number(c.id), { id: Number(c.id), name: c.name, joinPolicy: c.joinPolicy }]));
     const weekWriter = this.writerWeek ? await this.writerWeek.winnerOwner().catch(() => null) : null;
+    const guestViews = this.postViews
+      ? await this.postViews.guestCounts(items.map((f) => Number(f.id)).filter((id) => Number.isFinite(id))).catch(() => new Map<number, number>())
+      : new Map<number, number>();
 
     return items.map((f) => {
         const rawBiz = (f as any).business;
@@ -2383,6 +2389,8 @@ export class CvsService {
           business,
           community: (f as any).communityId ? communityMap.get(Number((f as any).communityId)) || null : null,
           writerOfWeek: !!weekWriter && Number((f as any).businessId) === weekWriter,
+          // Readers, like Reels views: signed-in readers (one each) plus guest browsers (one each).
+          views: Number((f as any).viewCount || 0) + (guestViews.get(Number(f.id)) || 0),
         };
       });
   }

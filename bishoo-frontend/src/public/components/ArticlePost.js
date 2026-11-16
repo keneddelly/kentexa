@@ -123,7 +123,9 @@ export default function ArticlePost({ post, detail = false, onOpen, onCommunity 
           )}
         </span>
         <h1 data-testid="article-title" style={{ margin: 0, fontSize: 26, lineHeight: '32px', fontWeight: 800, letterSpacing: '-0.01em', color: INK, overflowWrap: 'anywhere' }}>{title}</h1>
-        <span style={{ fontSize: 14, color: MUTED }}>dakika {minutes} kusoma</span>
+        <span data-testid="article-readers" style={{ fontSize: 14, color: MUTED }}>
+          dakika {minutes} kusoma{Number(post.views) > 0 ? ` · wasomaji ${Number(post.views).toLocaleString('en-US')}` : ''}
+        </span>
         <ArticleBody text={post.body} media={post.media?.length ? post.media : (post.imageUrl ? [{ url: post.imageUrl }] : [])} />
       </div>
     </div>

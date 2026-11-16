@@ -13,6 +13,7 @@
  */
 import ExpandableText from '../components/ExpandableText';
 import ArticlePost from '../components/ArticlePost';
+import ViewsCount, { countGuestView } from '../components/PostViews';
 import WriterOfWeek, { WriterBadge } from '../components/WriterOfWeek';
 import HashtagText from '../components/HashtagText';
 import { formatCaption, formatName, formatPrice, formatTitle, leadSeparator } from '../utils/kentexaText';
@@ -758,7 +759,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const cardRef = useRef(null);
   const hasTrackedView = useRef(false);
   useEffect(() => {
-    if (!isLoggedIn || hasTrackedView.current || !cardRef.current) return;
+    // Guests are counted too (owner 2026-11-16), once per post per browser, public posts only.
+    if (hasTrackedView.current || !cardRef.current) return;
     const el = cardRef.current;
     // IntersectionObserver is unavailable in some embedded webviews and test
     // environments; engagement actions must remain usable without impressions.
@@ -778,7 +780,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           timer = setTimeout(() => {
             if (!hasTrackedView.current) {
               hasTrackedView.current = true;
-              Engagement.track(post.id, entityType, entityId, 'view', isLoggedIn, onNavigate);
+              if (isLoggedIn) Engagement.track(post.id, entityType, entityId, 'view', isLoggedIn, onNavigate);
+              else countGuestView(post.id);
             }
             observer.disconnect();
           }, 500);
@@ -1109,6 +1112,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
           <button type="button" onClick={handleSave} aria-label="Hifadhi" aria-pressed={saved} data-testid="post-save" style={act(saved, B, '#e8f0fe')}>
             {icon('M6 3h12v18l-6-4-6 4z', saved ? B : null)}
           </button>
+          {/* Readers, like Reels views (owner 2026-11-16); the writer taps for their numbers. */}
+          <ViewsCount post={post} isOwner={isOwnPost} style={act()} />
           {mayEdit && (
             <button type="button" onClick={() => setEditing(true)} aria-label="Hariri" data-testid="post-edit" style={act()}>
               {icon('M4 20h4L19 9l-4-4L4 16zM14 6l4 4')}

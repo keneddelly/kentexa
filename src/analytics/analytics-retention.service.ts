@@ -42,6 +42,10 @@ export class AnalyticsRetentionService {
     await Promise.resolve()
       .then(() => this.dataSource.query(`DELETE FROM public.share_visit WHERE "createdAt" < ${cutoff}`))
       .catch(() => undefined);
+    // Post views of guests (owner 2026-11-16): the same 12 months.
+    await Promise.resolve()
+      .then(() => this.dataSource.query(`DELETE FROM public.post_guest_view WHERE "createdAt" < ${cutoff}`))
+      .catch(() => undefined);
     if (events || sessions) this.logger.log(`Analytics retention: removed ${events} events, ${sessions} sessions older than ${ANALYTICS_RETENTION_MONTHS} months`);
     return { events, sessions };
   }
