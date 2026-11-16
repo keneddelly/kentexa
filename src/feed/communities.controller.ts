@@ -52,14 +52,16 @@ export class CommunitiesController {
    */
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':id/threads')
-  async threads(@Param('id', ParseIntPipe) id: number, @Request() req, @Query('page') page = '1', @Query('kind') kind?: string) {
+  async threads(@Param('id', ParseIntPipe) id: number, @Request() req, @Query('page') page = '1', @Query('kind') kind?: string,
+    @Query('sort') sort?: string, @Query('q') q?: string) {
     const viewer = req?.user?.id || null;
     await this.communities.get(id, viewer);
     const k = ['question', 'poll', 'discussion'].includes(String(kind)) ? String(kind) : null;
     const p = Number(page) || 1;
     // The visit is recorded once, from the first page of the main list.
-    const lastSeenAt = p === 1 && !k ? await this.communities.markSeen(id, viewer) : null;
-    return this.cvs.getCommunityThreads(id, viewer, p, k, lastSeenAt);
+    const lastSeenAt = p === 1 && !k && !q && (!sort || sort === 'latest') ? await this.communities.markSeen(id, viewer) : null;
+    const order = sort === 'top' || sort === 'unanswered' ? sort : 'latest';
+    return this.cvs.getCommunityThreads(id, viewer, p, k, lastSeenAt, order, q ? String(q) : null);
   }
 
   @UseGuards(OptionalJwtAuthGuard)

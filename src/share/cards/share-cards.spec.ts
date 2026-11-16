@@ -4,7 +4,7 @@ import { inflateSync } from 'zlib';
 import { TrueTypeFont } from './ttf';
 import { drawCard, coverFor, CARD_SIZES } from './card';
 import { wrap } from './canvas';
-import { ShareCardsController } from './share-cards.controller';
+import { ShareCardsController, nameStyle } from './share-cards.controller';
 import { PUBLIC_TO_GUESTS } from '../../commerce-profiles/public-visibility';
 
 /** Viral engine A3 (issue #381): share cards drawn on the server, no packages. */
@@ -93,5 +93,15 @@ describe('GET /share/card', () => {
     expect(pngSize(res.body)).toEqual({ w: 1080, h: 1920 });
     await expect(c.card('community', '4.svg', '', '', res)).rejects.toThrow();
     await expect(c.card('product', '4.png', '', '', res)).rejects.toThrow();
+  });
+});
+
+describe('KenteXa name style on cards (owner 2026-11-16)', () => {
+  it('each word starts with a capital; joining words stay small; own capitals and KenteXa kept', () => {
+    expect(nameStyle('wafanya biashara kariakoo')).toBe('Wafanya Biashara Kariakoo');
+    expect(nameStyle('duka la juma')).toBe('Duka la Juma');
+    expect(nameStyle('iPhone  BiS')).toBe('iPhone BiS');
+    expect(nameStyle('kentexa')).toBe('KenteXa');
+    expect(nameStyle(null)).toBe('');
   });
 });

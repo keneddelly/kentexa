@@ -7,7 +7,17 @@ import { CardFormat, CardInput, coverFor, drawCard } from './card';
 const KIND: Record<string, string> = { question: 'Swali', poll: 'Kura', discussion: 'Mjadala', offer: 'Ofa', experience: 'Uzoefu' };
 const oneLine = (s: unknown) => String(s ?? '').replace(/\s+/g, ' ').trim();
 /** A name typed all small gets a capital first letter (KenteXa text style, #374 E). */
-const nameStyle = (s: unknown) => { const t = oneLine(s); return t && t === t.toLowerCase() ? t.charAt(0).toUpperCase() + t.slice(1) : t; };
+// KenteXa name style (owner 2026-11-16), same rule as the app's formatName: each word starts with a
+// capital, small joining words stay small, words with the writer's own capitals stay, KenteXa as KenteXa.
+const NAME_SMALL = new Set(['na', 'wa', 'ya', 'la', 'za', 'kwa', 'cha', 'vya', 'pa', 'mwa', 'ni', 'au', 'katika', 'kwenye', 'and', 'of', 'the', 'in', 'for', 'de', 'du', 'et']);
+export const nameStyle = (s: unknown) => oneLine(s).split(' ').filter(Boolean).map((w, i) => {
+  const bare = w.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+  if (bare === 'kentexa') return w.replace(/kentexa/i, 'KenteXa');
+  if (/\p{Lu}/u.test(w)) return w;
+  if (i > 0 && NAME_SMALL.has(bare)) return w;
+  const at = w.search(/\p{L}/u);
+  return at < 0 ? w : w.slice(0, at) + w.charAt(at).toUpperCase() + w.slice(at + 1);
+}).join(' ');
 const SITE = 'kentexa.com';
 
 /**
