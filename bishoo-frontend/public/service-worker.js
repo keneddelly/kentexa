@@ -50,7 +50,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
       // A page file from an old version answers with the website itself (HTML): never keep that
       // as a script, or the page could not load until the cache is cleared.
-      const type = response.headers.get('content-type') || '';
+      const type = (response.headers && typeof response.headers.get === 'function' && response.headers.get('content-type')) || '';
       if (response.ok && response.type === 'basic' && !type.includes('text/html') &&
           ['script', 'style', 'image', 'font'].includes(request.destination)) {
         const clone = response.clone();
