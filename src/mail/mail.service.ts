@@ -261,6 +261,26 @@ export class MailService {
     }
   }
 
+  // ── Writers programme invitation (#417): one email, from the official address, with unsubscribe headers.
+  async sendWriterInvite(email: string, subject: string, html: string, unsubscribeUrl: string): Promise<boolean> {
+    try {
+      await this.transporter.sendMail({
+        from: `"KenteXa" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject,
+        html,
+        headers: {
+          'List-Unsubscribe': `<${unsubscribeUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
+      });
+      return true;
+    } catch (err) {
+      this.logger.error(`Failed to send writer invitation: ${err.message}`);
+      return false;
+    }
+  }
+
   // ── Generic update email — used by NotificationsService for all
   // shipping/tracking/delivery/payout events. One flexible template
   // instead of writing a new method for every single event. ──────────────

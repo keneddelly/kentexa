@@ -8,6 +8,7 @@
 import { LineIcon } from '../components/LineIcon';
 import React, { useState, useEffect } from 'react';
 import WriterWins from '../components/WriterWins';
+import FoundingContributor from '../components/FoundingContributor';
 import { topicLabel } from '../utils/feedPresentation';
 import { useTranslation } from 'react-i18next';
 import ExpandableText from '../components/ExpandableText';
@@ -820,6 +821,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             )}
             {/* Mwandishi wa Wiki (owner approved 2026-11-16): kept on the profile for good. */}
             <WriterWins ownerUserId={activeProfile.ownerId} />
+            {/* Writers programme (#417 B): a label an admin gives early writers; not verification. */}
+            <FoundingContributor ownerUserId={activeProfile.ownerId} />
             {/* New profiles part 3: the business's record, only from real reviews and orders. */}
             {isBusinessProfile && (ratingCount > 0 || Number(profile?.completedOrders) > 0) && (
               <div data-testid="business-record" style={{ fontSize:14, color:MUTED, marginTop:4, display:'flex', flexWrap:'wrap', gap:'2px 6px', alignItems:'center' }}>

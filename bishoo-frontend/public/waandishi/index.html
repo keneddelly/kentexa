@@ -116,5 +116,16 @@
     </div>
   </main>
   <footer>© 2026 KenteXa · <a href="https://kentexa.com/">Tembelea KenteXa</a> · <a href="/writers/" hreflang="en">English</a> · <a href="/miongozo-ya-uandishi/">Miongozo</a> · <a href="/privacy">Faragha</a> · <a href="/terms">Masharti</a></footer>
+  <script>
+    // Writers programme invitation: carry ?ref= on to sign-up, so the invitation counts as joined.
+    (function () {
+      try {
+        var ref = new URLSearchParams(location.search).get('ref') || '';
+        if (!/^[a-f0-9]{20,40}$/.test(ref)) return;
+        var links = document.querySelectorAll('a[href="/?intent=writer"]');
+        for (var i = 0; i < links.length; i++) links[i].setAttribute('href', '/?intent=writer&wref=' + ref);
+      } catch (e) { /* old browser: links stay as they are */ }
+    })();
+  </script>
 </body>
 </html>

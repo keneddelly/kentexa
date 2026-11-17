@@ -1,6 +1,6 @@
 import {
   ALLOWED_INTENTS, normalizeIntent, destinationForIntent, setIntent, getIntent,
-  clearIntent, consumeIntent, intentFromSearch,
+  clearIntent, consumeIntent, intentFromSearch, writerRefFromSearch, takeWriterRef,
 } from './campaignIntent';
 
 describe('normalizeIntent / allowlist', () => {
@@ -126,5 +126,15 @@ describe('module-load ?intent= capture', () => {
   test('no ?intent= at module load stores nothing', () => {
     loadFreshWithUrl('');
     expect(sessionStorage.getItem('kentexa_intent')).toBeNull();
+  });
+});
+
+describe('writer invitation ref (#417 B)', () => {
+  it('keeps only a real token and gives it once', () => {
+    expect(writerRefFromSearch('?wref=abc')).toBeNull();
+    expect(writerRefFromSearch(`?intent=writer&wref=${'ab'.repeat(18)}`)).toBe('ab'.repeat(18));
+    window.localStorage.setItem('kentexa_writer_ref', 'ab'.repeat(18));
+    expect(takeWriterRef()).toBe('ab'.repeat(18));
+    expect(takeWriterRef()).toBeNull();
   });
 });
