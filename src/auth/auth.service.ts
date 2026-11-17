@@ -162,6 +162,7 @@ export class AuthService {
       phone: user.phone,
       email: user.email,
       name: user.name,
+      city: (user as any).city ?? null,
       avatarUrl: user.avatarUrl || null,
       kentexaId: user.kentexaId,
       role: user.role,
@@ -717,6 +718,63 @@ export class AuthService {
     await this.linkSocial(user, p);
     this.journey('LOGIN_SOCIAL', user.id, { provider: p.provider, linked: true });
     return this.issueAuthenticatedResponse(user, metadata);
+  }
+
+  // ── ADD A PHONE LATER (owner 2026-11-17) ───────────────────────────────
+  // A person who signed up with Google / Facebook or email has no phone. Features that need one
+  // (selling, sending parcels, offices, agents, payments) ask for it first: the SMS code proves
+  // the number, and the person's town is saved with it. Nothing else changes on the account.
+  private phoneSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET is required');
+    return createHash('sha256').update(`kentexa-add-phone:${secret}`).digest('hex');
+  }
+
+  async addPhoneStart(userId: number, rawPhone: unknown) {
+    const phone = typeof rawPhone === 'string' ? normalizeTzPhone(rawPhone) : '';
+    if (!/^255\d{9}$/.test(phone)) throw authError(BadRequestException, 'PHONE_INVALID', 'Weka namba sahihi ya simu (mf. 0712345678).');
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
+    const [taken] = await this.userRepo.manager.query(`SELECT id FROM public."user" WHERE phone = $1::varchar AND id <> $2::int LIMIT 1`, [phone, userId]);
+    if (taken) throw authError(ConflictException, 'PHONE_TAKEN', 'Namba hii tayari inatumiwa na akaunti nyingine. Ingia kwa namba hiyo au tumia namba nyingine.');
+    const otp = this.smsService.generateOtp();
+    await this.userRepo.update(userId, { otp, otpExpiry: new Date(Date.now() + 10 * 60 * 1000), otpAttempts: 0 } as any);
+    const sent = await this.smsService.sendOtp(phone, otp);
+    this.journey('OTP_SENT', userId, { purpose: 'add_phone', channel: 'sms', delivered: !!sent });
+    const ticket = this.jwtService.sign({ purpose: 'add_phone', uid: userId, phone }, { secret: this.phoneSecret(), expiresIn: '15m' });
+    return { ticket, phone, otpSent: !!sent, ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}) };
+  }
+
+  async addPhoneConfirm(userId: number, body: { ticket?: unknown; otp?: unknown; city?: unknown }) {
+    let t: any;
+    try { t = this.jwtService.verify(String(body?.ticket || ''), { secret: this.phoneSecret() }); } catch { t = null; }
+    if (!t || t.purpose !== 'add_phone' || Number(t.uid) !== Number(userId)) throw authError(BadRequestException, 'OTP_EXPIRED', 'Muda umeisha. Omba namba mpya ya siri.');
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
+    const otp = typeof body?.otp === 'string' ? body.otp.trim() : '';
+    if ((user.otpAttempts ?? 0) >= 5) throw authError(BadRequestException, 'OTP_TOO_MANY', 'Too many attempts. Request a new OTP.');
+    if (!user.otp || !user.otpExpiry || new Date() > user.otpExpiry) throw authError(BadRequestException, 'OTP_EXPIRED', 'OTP expired. Request a new one.');
+    if (user.otp !== otp) {
+      await this.userRepo.update(userId, { otpAttempts: (user.otpAttempts ?? 0) + 1 } as any);
+      const remaining = 5 - ((user.otpAttempts ?? 0) + 1);
+      throw authError(BadRequestException, 'OTP_WRONG', `Incorrect OTP. ${remaining} attempts remaining.`, { remaining });
+    }
+    const [taken] = await this.userRepo.manager.query(`SELECT id FROM public."user" WHERE phone = $1::varchar AND id <> $2::int LIMIT 1`, [t.phone, userId]);
+    if (taken) throw authError(ConflictException, 'PHONE_TAKEN', 'Namba hii tayari inatumiwa na akaunti nyingine.');
+    const city = typeof body?.city === 'string' ? body.city.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+    await this.userRepo.update(userId, { phone: t.phone, otp: null, otpExpiry: null, otpAttempts: 0, ...(city ? { city } : {}) } as any);
+    this.journey('PHONE_ADDED', userId, { city: Boolean(city) });
+    const fresh = await this.userRepo.findOne({ where: { id: userId } });
+    return { user: this.serializeUser(fresh as User) };
+  }
+
+  /** The town only (the person already has a phone). */
+  async setCity(userId: number, raw: unknown) {
+    const city = typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+    if (city.length < 2) throw authError(BadRequestException, 'CITY_REQUIRED', 'Chagua mkoa au mji wako.');
+    await this.userRepo.update(userId, { city } as any);
+    const fresh = await this.userRepo.findOne({ where: { id: userId } });
+    return { user: this.serializeUser(fresh as User) };
   }
 
   // ── LOGIN ─────────────────────────────────────────────────────────────

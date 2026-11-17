@@ -10,6 +10,7 @@ import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
 import { pageToAddress, pathToPage, pathToNavParams, linkPageFromAddress, joinPageFromSearch } from './utils/urlSync';
+import { missingForPage } from './utils/accountGate';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
 import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
 import { rememberPageForUpdate, takeResumePage } from './utils/appVersion';
@@ -61,6 +62,7 @@ const TagPage            = lazyPage(() => import('./public/pages/TagPage'));
 const SeriesPage         = lazyPage(() => import('./public/pages/SeriesPage'));
 const TopicPage          = lazyPage(() => import('./public/pages/TopicPage'));
 const MySeries           = lazyPage(() => import('./public/pages/MySeries'));
+const CompleteAccount    = lazyPage(() => import('./public/pages/CompleteAccount'));
 const CommunityPage      = lazyPage(() => import('./public/pages/CommunityPage'));
 const CreateCommunity    = lazyPage(() => import('./public/pages/CreateCommunity'));
 const Welcome            = lazyPage(() => import('./public/pages/Welcome'));
@@ -890,6 +892,14 @@ function App() {
     // The effect above replaces invalid state with the current role home. Render
     // nothing during that transition so wrong-context operational UI never flashes.
     if (pageStr !== page || !policyDecision.allowed) return null;
+
+    // Owner 2026-11-17: a feature that needs a phone and a region asks for them first, so it never
+    // fails half-way (accounts made with Google / Facebook or email have no phone).
+    const missingDetails = isLoggedIn ? missingForPage(pageStr, currentUser) : [];
+    if (missingDetails.length) {
+      return <CompleteAccount page={pageStr} missing={missingDetails} onNavigate={handleNavigate}
+        onDone={(fresh) => handleUserUpdated({ ...currentUser, ...fresh })} />;
+    }
 
     // ── Dynamic routes (single source of truth — do not duplicate below) ────
     // "New comment"/"New save" notifications append "-comments" so the
