@@ -7,16 +7,34 @@
  * Work never stops for an unpaid fee. Paying: KenteXa's Lipa Namba, then the screenshot;
  * KenteXa confirms. Every number comes from GET /kentexa-fee/mine (the records); nothing here
  * is computed or guessed in the browser.
+ * Ankara (owner approved 2026-11-17): on the 1st of each month last month's fees become one
+ * invoice with a number and a due date; "Lipa ankara hii" fills in what is left on it. Which
+ * invoices are paid is worked out on the server (payments pay the oldest first).
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import api from '../../api/api';
 import { ApplyPage, ErrorText, Field, K, Note, Section, inputStyle, pillStyle } from '../components/ApplyKit';
+import GetAppStrip from '../components/GetAppStrip';
 
 const tzs = (n) => `TZS ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
 const WHAT = { office: 'Vifurushi', agent: 'Safari zilizokamilika', seller: 'Maagizo ya KenteXa' };
 const EARNED = { office: 'Ada za usafirishaji ulizopata', agent: 'Ada za safari', seller: 'Mauzo kupitia KenteXa' };
 const TITLE = { office: 'Ofisi', agent: 'Wakala', seller: 'Muuzaji' };
 const STATUS = { waiting: 'Inasubiri kuthibitishwa', confirmed: 'Imethibitishwa', rejected: 'Haikukubaliwa' };
+const dateOf = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00+03:00` : d).toLocaleDateString('en-GB') : '');
+
+/** Paid / part / not paid, and late when past the due date. */
+export const invoiceTag = (inv) => {
+  if (inv.status === 'paid') return { text: 'Imelipwa', bg: '#dcfce7', fg: '#166534' };
+  if (inv.late) return { text: 'Imechelewa', bg: '#fee2e2', fg: '#991b1b' };
+  if (inv.status === 'part') return { text: 'Imelipwa sehemu', bg: '#fef3c7', fg: '#92400e' };
+  return { text: 'Haijalipwa', bg: '#e0f2fe', fg: '#075985' };
+};
+
+export const InvoiceTag = ({ inv }) => {
+  const t = invoiceTag(inv);
+  return <span style={{ background: t.bg, color: t.fg, fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{t.text}</span>;
+};
 
 export const ruleText = (as, rule) => {
   if (!rule) return '';
@@ -43,6 +61,9 @@ export default function KentexaFee({ onNavigate, isLoggedIn, navParams, as: asPr
   const [sending, setSending] = useState(false);
   const [payError, setPayError] = useState('');
   const [sent, setSent] = useState(false);
+  const [openInvoice, setOpenInvoice] = useState(null);
+  const [invoiceData, setInvoiceData] = useState(null);
+  const [invoiceError, setInvoiceError] = useState('');
 
   const load = useCallback(() => {
     setError('');
@@ -71,6 +92,20 @@ export default function KentexaFee({ onNavigate, isLoggedIn, navParams, as: asPr
     } catch (e) {
       setPayError(e?.response?.data?.message || 'Malipo hayakutumwa. Jaribu tena.');
     } finally { setSending(false); }
+  };
+
+  const showInvoice = (id) => {
+    if (openInvoice === id) { setOpenInvoice(null); return; }
+    setOpenInvoice(id); setInvoiceData(null); setInvoiceError('');
+    Promise.resolve()
+      .then(() => api.get(`/kentexa-fee/invoices/${id}`, { params: { as } }))
+      .then((r) => setInvoiceData(r?.data || null))
+      .catch((e) => setInvoiceError(e?.response?.data?.message || 'Ankara haikupakia.'));
+  };
+
+  const payInvoice = (inv) => {
+    setPaying(true); setSent(false); setAmount(String(inv.left || ''));
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
   };
 
   const back = () => onNavigate('back');
@@ -132,6 +167,54 @@ export default function KentexaFee({ onNavigate, isLoggedIn, navParams, as: asPr
         </Section>
       )}
 
+      {data.invoices?.length > 0 && (
+        <Section title="Ankara" testId="fee-invoices">
+          <span style={{ fontSize: 13, color: K.MUTED }}>Kila tarehe 1 ada ya mwezi uliopita inakuwa ankara moja. Lipa ndani ya siku 30.</span>
+          <div>
+            {data.invoices.map((inv) => (
+              <div key={inv.id} style={{ borderBottom: `1px solid ${K.LINE}` }}>
+                <button type="button" data-testid={`fee-invoice-${inv.id}`} onClick={() => showInvoice(inv.id)}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '12px 0', border: 'none',
+                    background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: K.INK }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <b style={{ fontSize: 15 }}>{inv.month}</b>
+                    <span style={{ fontSize: 13, color: K.MUTED }}>{inv.number} · lipa kabla ya {dateOf(inv.dueAt)}</span>
+                  </span>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <b style={{ fontSize: 15 }}>{tzs(inv.amount)}</b>
+                    <InvoiceTag inv={inv} />
+                  </span>
+                </button>
+                {openInvoice === inv.id && (
+                  <div data-testid="fee-invoice-detail" style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 0 14px' }}>
+                    <Row label={WHAT[as]} value={inv.jobs} />
+                    {inv.freeJobs > 0 && <Row label="Za bure" value={inv.freeJobs} />}
+                    <Row label="Ada" value={tzs(inv.amount)} />
+                    <Row label="Umelipa" value={tzs(inv.paid)} />
+                    <Row label="Imebaki" value={tzs(inv.left)} />
+                    <ErrorText>{invoiceError}</ErrorText>
+                    {!invoiceData && !invoiceError && <span style={{ fontSize: 13, color: K.MUTED }}>Inapakia kazi za mwezi…</span>}
+                    {invoiceData?.jobs?.length > 0 && (
+                      <div style={{ maxHeight: 260, overflowY: 'auto', fontSize: 13 }}>
+                        {invoiceData.jobs.map((j) => (
+                          <div key={j.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', color: K.MUTED }}>
+                            <span>{dateOf(j.doneAt)} · {j.sourceRef || `#${j.id}`} · {tzs(j.baseAmount)}</span>
+                            <span style={{ color: K.INK, fontWeight: 700 }}>{j.freeJob ? 'Bure' : tzs(j.fee)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {inv.left > 0 && (
+                      <button type="button" data-testid="fee-pay-invoice" onClick={() => payInvoice(inv)} style={pillStyle()}>Lipa ankara hii ({tzs(inv.left)})</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section title="Mwezi huu">
         <div>
           <Row label={WHAT[as]} value={data.month.jobs} />
@@ -162,6 +245,7 @@ export default function KentexaFee({ onNavigate, isLoggedIn, navParams, as: asPr
           </div>
         </Section>
       )}
+      <GetAppStrip text="Fuatilia ada na ankara zako kwenye app ya KenteXa" />
     </ApplyPage>
   );
 }
