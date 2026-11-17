@@ -67,7 +67,7 @@ export const AUDIENCES = [
   { key: 'agent', icon: 'bike', intent: 'agent', more: null },
   { key: 'service', icon: 'tool', intent: 'service', more: null },
   { key: 'hotel', icon: 'dish', intent: 'business', more: '/hotel-restaurant-qr-menu/' },
-  { key: 'writer', icon: 'pen', intent: null, more: null },
+  { key: 'writer', icon: 'pen', intent: 'writer', more: '/waandishi/' },
 ];
 const WHY = [['verified', 'shield'], ['direct', 'wallet'], ['tracked', 'route'], ['local', 'chat']];
 const PAGES = [

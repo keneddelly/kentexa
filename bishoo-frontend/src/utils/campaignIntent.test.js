@@ -30,6 +30,7 @@ describe('destinationForIntent', () => {
     expect(destinationForIntent('ship')).toBe('SendShipment');
     expect(destinationForIntent('buyer')).toBe('Discover');
     expect(destinationForIntent('business')).toBe('BecomeBusiness');
+    expect(destinationForIntent('writer')).toBe('Home');
   });
   test('invalid intent maps to no destination — never becomes an arbitrary navigation target', () => {
     expect(destinationForIntent('not-a-real-intent')).toBeNull();

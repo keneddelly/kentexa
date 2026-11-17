@@ -3026,6 +3026,11 @@
         "headline": "Mettez votre entreprise sur KenteXa",
         "subheadline": "Hôtel, restaurant, boutique ou bureau : une page, un menu QR, une caisse gratuite et des clients qui vous écrivent.",
         "cta": "Lancer votre entreprise"
+      },
+      "writer": {
+        "headline": "Écrivez pour les lecteurs de Tanzanie",
+        "subheadline": "Publiez vos articles et analyses, construisez votre nom et échangez avec les lecteurs. C’est gratuit.",
+        "cta": "Commencer à écrire"
       }
     },
     "language_picker": {
