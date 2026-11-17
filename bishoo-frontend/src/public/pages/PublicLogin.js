@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { AUTH, AuthButton, AuthError, AuthField, AuthLink, AuthNote, AuthOr, AuthShell, CodeBoxes, isEmail, phoneForServer } from '../components/AuthShell';
 import AuthHelp from '../components/AuthHelp';
+import { SocialButtons, SocialFinish } from '../components/SocialSignIn';
 import { authErrorCode, authErrorText } from '../utils/authErrors';
 
 const forServer = (raw) => (isEmail(raw) ? String(raw).trim() : phoneForServer(raw));
@@ -34,6 +35,12 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const fail = (err, fallbackKey) => { setErrorCode(authErrorCode(err)); setError(authErrorText(err, t, fallbackKey)); };
 
   const go = (next) => { setStep(next); setError(''); setNote(''); };
+  // Google / Facebook (owner 2026-11-17): signed in, or a new person adds a phone once.
+  const [social, setSocial] = useState(null);
+  const onSocial = async (data) => {
+    if (data?.status === 'need_phone') { setSocial(data); return; }
+    if (onLoginSuccess) await onLoginSuccess(data);
+  };
 
   const login = async (e) => {
     e?.preventDefault?.();
@@ -106,6 +113,10 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
     } finally { setBusy(false); }
   };
 
+  if (social) {
+    return <SocialFinish info={social} onLoginSuccess={onLoginSuccess} onCancel={() => setSocial(null)} onNavigate={onNavigate} />;
+  }
+
   if (step === 'verify') {
     return (
       <AuthShell title={t('signin.finish_title')} subtitle={t('signin.code_desc', { identifier: identifier.trim() })} onLogo={() => onNavigate('Home')}>
@@ -161,6 +172,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
         <AuthError>{error}</AuthError>
         <AuthButton type="submit" disabled={busy} testId="login-submit">{busy ? t('signin.logging_in') : t('signin.login_button')}</AuthButton>
       </form>
+      <SocialButtons onResult={onSocial} />
       <AuthHelp step="login" errorCode={errorCode} phone={isEmail(identifier) ? '' : identifier} />
     </AuthShell>
   );

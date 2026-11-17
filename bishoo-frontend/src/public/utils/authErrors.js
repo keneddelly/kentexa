@@ -4,7 +4,7 @@
 const KNOWN = ['PHONE_TAKEN', 'EMAIL_TAKEN', 'ACCOUNT_NOT_FOUND', 'ALREADY_VERIFIED', 'OTP_TOO_MANY',
   'OTP_EXPIRED', 'OTP_WRONG', 'INVALID_CREDENTIALS', 'ACCOUNT_NOT_VERIFIED'];
 
-const SWAHILI = /\b(namba|akaunti|jina|weka|andika|imeshindikana|tafadhali|umejaribu)\b/i;
+const SWAHILI = /\b(namba|akaunti|jina|weka|andika|imeshindikana|tafadhali|umejaribu|muda|kuingia)\b/i;
 
 /** The code behind an error, for showing and for the help request. */
 export function authErrorCode(err) {

@@ -6154,6 +6154,18 @@
     "help_note": "Quel est le problème ? (facultatif)",
     "help_send": "Demander de l’aide",
     "help_sent": "Reçu. Nous vous appellerons bientôt.",
-    "help_failed": "Envoi impossible. Réessayez, ou écrivez à support@kentexa.com."
+    "help_failed": "Envoi impossible. Réessayez, ou écrivez à support@kentexa.com.",
+    "social": {
+      "facebook": "Continuer avec Facebook",
+      "checking": "Vérification…",
+      "failed": "Connexion impossible. Réessayez.",
+      "load_failed": "Impossible d'ouvrir. Vérifiez votre connexion et réessayez.",
+      "terms": "En continuant, vous acceptez les Conditions et la Politique de confidentialité de KenteXa.",
+      "phone_bad": "Entrez un numéro valide (ex. 0712345678).",
+      "hello": "Bienvenue, {{name}}",
+      "hello_plain": "Bienvenue sur KenteXa",
+      "phone_desc": "Vous êtes connecté avec {{who}}. Ajoutez votre numéro une seule fois : nous enverrons un code par SMS. Le téléphone sert aux paiements et à la livraison.",
+      "link_note": "Ce numéro a déjà un compte KenteXa. Après le code, votre compte {{who}} y sera lié."
+    }
   }
 }

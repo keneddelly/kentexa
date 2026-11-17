@@ -113,6 +113,38 @@ export class AuthController {
     return result;
   }
 
+  // Ingia kwa Google / Facebook (owner 2026-11-17). Which buttons to show: only providers with keys.
+  @Get('social/config')
+  socialConfig() {
+    return this.authService.socialProviders();
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 3600000 } })
+  @Post('social')
+  async social(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const result: any = await this.authService.socialLogin(body || {}, this.requestMetadata(req, body?.deviceId));
+    if (result?.activeContext) this.writeRefreshCookie(res, result.activeContext);
+    return result;
+  }
+
+  // Costs a real SMS: same limit as resend-otp.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Post('social/phone')
+  socialPhone(@Body() body: any) {
+    return this.authService.socialPhone(body || {});
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 15, ttl: 3600000 } })
+  @Post('social/verify')
+  async socialVerify(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const result: any = await this.authService.socialVerify(body || {}, this.requestMetadata(req, body?.deviceId));
+    this.writeRefreshCookie(res, result?.activeContext);
+    return result;
+  }
+
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('me')
   getMe(@Request() req: any, @Res({ passthrough: true }) res: Response) {

@@ -24,6 +24,7 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { PolicyVersionService } from '../policies/policy-version.service';
 import { PolicyType } from '../policies/entities/policy-version.entity';
 import { normalizeTzPhone } from '../common/utils/phone.util';
+import { SOCIAL_TEXT, SocialProfile, SocialProvider, providerName, socialConfig, verifyFacebook, verifyGoogle } from './social-login';
 import { DELETED_NAME, ERASE_TRACKING_SQL, HIDE_PUBLIC_SQL, OPEN_ORDER_STATUSES, erasedUserFields, maskContact } from './account-deletion';
 import { VerificationService } from '../identity/verification.service';
 import { RoleContextService } from '../role-context/role-context.service';
@@ -537,6 +538,149 @@ export class AuthService {
     ).catch(() => [{ n: 0 }]);
     const n = Number(row?.n || 0);
     if (n > 0) throw new ConflictException(`Una oda ${n} ambazo bado hazijaisha. Zimalize au zighairi kwanza, kisha ufute akaunti.`);
+  }
+
+  // ── INGIA KWA GOOGLE / FACEBOOK (owner 2026-11-17) ────────────────────
+  // 1. POST /auth/social: an outside account already linked signs in; a Google account whose
+  //    verified email belongs to a KenteXa account is linked and signs in. Otherwise the person
+  //    gets a short "ticket" and is asked for a phone number.
+  // 2. POST /auth/social/phone: the SMS code goes to that phone (a new account is started, or an
+  //    existing account with that phone will be linked once its owner types the code).
+  // 3. POST /auth/social/verify: the code proves the phone; the outside account is linked and the
+  //    person is signed in. Every account keeps a verified phone, as before.
+  socialProviders() {
+    const c = socialConfig();
+    return { google: c.google, facebook: c.facebook };
+  }
+
+  private socialSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET is required');
+    return createHash('sha256').update(`kentexa-social:${secret}`).digest('hex');
+  }
+
+  private async socialTableReady(): Promise<boolean> {
+    const [row] = await this.userRepo.manager.query(`SELECT to_regclass('public.user_social_login') IS NOT NULL AS ok`).catch(() => [null]);
+    return Boolean(row?.ok);
+  }
+
+  private socialTicket(p: SocialProfile): string {
+    return this.jwtService.sign({ purpose: 'social', p: p.provider, sub: p.sub, email: p.email, ev: p.emailVerified, name: p.name, pic: p.picture },
+      { secret: this.socialSecret(), expiresIn: '20m' });
+  }
+
+  private readTicket(ticket: unknown): SocialProfile {
+    try {
+      const t: any = this.jwtService.verify(String(ticket || ''), { secret: this.socialSecret() });
+      if (t?.purpose !== 'social' || !['google', 'facebook'].includes(t.p) || !t.sub) throw new Error('bad');
+      return { provider: t.p, sub: String(t.sub), email: t.email ?? null, emailVerified: Boolean(t.ev), name: t.name ?? null, picture: t.pic ?? null };
+    } catch { throw new BadRequestException(SOCIAL_TEXT.ticket); }
+  }
+
+  private async linkedUser(p: SocialProfile): Promise<User | null> {
+    const [row] = await this.userRepo.manager.query(`SELECT "userId" FROM public.user_social_login WHERE provider = $1::varchar AND "providerUserId" = $2::varchar`, [p.provider, p.sub]);
+    return row ? this.userRepo.findOne({ where: { id: Number(row.userId) } }) : null;
+  }
+
+  /** Links the outside account to the user, and fills an empty email or photo from it. */
+  private async linkSocial(user: User, p: SocialProfile) {
+    const m = this.userRepo.manager;
+    const [mine] = await m.query(`SELECT "providerUserId" FROM public.user_social_login WHERE provider = $1::varchar AND "userId" = $2::int`, [p.provider, user.id]);
+    if (mine && String(mine.providerUserId) !== p.sub) throw new ConflictException(SOCIAL_TEXT.otherLink.replace('{p}', providerName(p.provider)));
+    const ins = await m.query(`INSERT INTO public.user_social_login (provider, "providerUserId", "userId", email) VALUES ($1::varchar, $2::varchar, $3::int, $4::varchar)
+      ON CONFLICT (provider, "providerUserId") DO UPDATE SET "lastUsedAt" = now() RETURNING "userId"`, [p.provider, p.sub, user.id, p.email]);
+    if (Number(ins?.[0]?.userId) !== Number(user.id)) throw new ConflictException(SOCIAL_TEXT.linkedElsewhere.replace('{p}', providerName(p.provider)));
+    const fill: Partial<User> = {};
+    if (!user.email && p.email && p.emailVerified) {
+      const [taken] = await m.query(`SELECT id FROM public."user" WHERE LOWER(email) = $1::varchar LIMIT 1`, [p.email]);
+      if (!taken) fill.email = p.email;
+    }
+    if (!user.avatarUrl && p.picture) fill.avatarUrl = p.picture;
+    if (Object.keys(fill).length) await this.userRepo.update(user.id, fill as any).catch(() => undefined);
+  }
+
+  async socialLogin(body: { provider?: unknown; token?: unknown; deviceId?: unknown }, metadata: RequestMetadata = {}) {
+    const provider = String(body?.provider || '') as SocialProvider;
+    const token = typeof body?.token === 'string' ? body.token : '';
+    const cfg = socialConfig();
+    if (!(provider === 'google' ? cfg.google : provider === 'facebook' ? cfg.facebook : null) || !(await this.socialTableReady())) {
+      throw new BadRequestException(SOCIAL_TEXT.off);
+    }
+    const p = provider === 'google' ? await verifyGoogle(token) : await verifyFacebook(token);
+    if (!p) {
+      this.journey('LOGIN_FAILED', null, { reason: 'social_token', provider });
+      throw new UnauthorizedException(SOCIAL_TEXT.bad);
+    }
+    let user = await this.linkedUser(p);
+    if (user && user.name === DELETED_NAME) user = null;
+    if (!user && p.emailVerified && p.email) {
+      const byEmail = await this.userRepo.createQueryBuilder('u').where('LOWER(u.email) = :e', { e: p.email }).getOne();
+      if (byEmail?.isVerified && byEmail.name !== DELETED_NAME) {
+        await this.linkSocial(byEmail, p);
+        user = byEmail;
+      }
+    }
+    if (user) {
+      await this.userRepo.manager.query(`UPDATE public.user_social_login SET "lastUsedAt" = now() WHERE provider = $1::varchar AND "providerUserId" = $2::varchar`, [p.provider, p.sub]).catch(() => undefined);
+      this.journey('LOGIN_SOCIAL', user.id, { provider });
+      return { status: 'signed_in' as const, ...(await this.issueAuthenticatedResponse(user, metadata)) };
+    }
+    this.journey('REGISTRATION_STARTED', null, { method: provider });
+    return { status: 'need_phone' as const, ticket: this.socialTicket(p), name: p.name, provider };
+  }
+
+  async socialPhone(body: { ticket?: unknown; phone?: unknown }) {
+    const p = this.readTicket(body?.ticket);
+    const phone = typeof body?.phone === 'string' ? normalizeTzPhone(body.phone) : '';
+    if (!/^255\d{9}$/.test(phone)) throw new BadRequestException(SOCIAL_TEXT.phone);
+    const existing = await this.userRepo.findOne({ where: { phone } });
+    if (existing && existing.name === DELETED_NAME) throw new BadRequestException(SOCIAL_TEXT.phone);
+    let sent: any;
+    if (existing?.isVerified) {
+      // The phone's owner proves it with the code; only then is the outside account linked.
+      const otp = this.smsService.generateOtp();
+      await this.userRepo.update(existing.id, { otp, otpExpiry: new Date(Date.now() + 10 * 60 * 1000), otpAttempts: 0 } as any);
+      const ok = await this.smsService.sendOtp(phone, otp);
+      this.journey('OTP_SENT', existing.id, { purpose: 'social_link', channel: 'sms', delivered: !!ok });
+      sent = { otpSent: ok, ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}) };
+    } else if (existing) {
+      sent = await this.resendPhoneOtp(phone);
+    } else {
+      sent = await this.registerWithPhone({
+        phone, name: (p.name || '').trim() || 'Mtumiaji wa KenteXa',
+        // Never shown: the person signs in with Google / Facebook and can set a password later.
+        password: randomBytes(24).toString('hex'),
+      });
+    }
+    return { status: 'otp_sent' as const, phone, existing: Boolean(existing?.isVerified), otpSent: sent?.otpSent ?? true,
+      ...(sent?.devOtp ? { devOtp: sent.devOtp } : {}) };
+  }
+
+  async socialVerify(body: { ticket?: unknown; phone?: unknown; otp?: unknown }, metadata: RequestMetadata = {}) {
+    const p = this.readTicket(body?.ticket);
+    const phone = typeof body?.phone === 'string' ? normalizeTzPhone(body.phone) : '';
+    const otp = typeof body?.otp === 'string' ? body.otp.trim() : '';
+    const user = phone ? await this.userRepo.findOne({ where: { phone } }) : null;
+    if (!user || user.name === DELETED_NAME) throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
+    if (!user.isVerified) {
+      // A new account: the normal sign-up check (welcome, personal profile) runs, then the link.
+      const res = await this.verifyOtp(phone, otp);
+      const fresh = await this.userRepo.findOne({ where: { id: user.id } });
+      if (fresh) await this.linkSocial(fresh, p);
+      this.journey('LOGIN_SOCIAL', user.id, { provider: p.provider, created: true });
+      return res;
+    }
+    if ((user.otpAttempts ?? 0) >= 5) throw authError(BadRequestException, 'OTP_TOO_MANY', 'Too many attempts. Request a new OTP.');
+    if (!user.otp || !user.otpExpiry || new Date() > user.otpExpiry) throw authError(BadRequestException, 'OTP_EXPIRED', 'OTP expired. Request a new one.');
+    if (user.otp !== otp) {
+      await this.userRepo.update(user.id, { otpAttempts: (user.otpAttempts ?? 0) + 1 } as any);
+      const remaining = 5 - ((user.otpAttempts ?? 0) + 1);
+      throw authError(BadRequestException, 'OTP_WRONG', `Incorrect OTP. ${remaining} attempts remaining.`, { remaining });
+    }
+    await this.userRepo.update(user.id, { otp: null, otpExpiry: null, otpAttempts: 0 } as any);
+    await this.linkSocial(user, p);
+    this.journey('LOGIN_SOCIAL', user.id, { provider: p.provider, linked: true });
+    return this.issueAuthenticatedResponse(user, metadata);
   }
 
   // ── LOGIN ─────────────────────────────────────────────────────────────
