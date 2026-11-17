@@ -8,6 +8,8 @@ const ACCOUNT_PAGES = ['Workspace','CreateCommunity','MyAdvertising','MyResales'
   'FoodOrder','HotelKitchen','HotelMenuManager',
   // Ada ya KenteXa (2026-11-03): the account's own fee page (the server checks which account).
   'KentexaFee',
+  // Mfululizo wangu (#410 phase 5): a writer's own series (the server checks ownership).
+  'MySeries',
   // A cashier's till for the business she was invited to (2026-11-03): any signed-in account; the
   // server checks her canOperatePOS on that business for every call.
   'TeamPOS'];

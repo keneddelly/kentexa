@@ -60,6 +60,7 @@ const PostDetail         = lazyPage(() => import('./public/pages/PostDetail'));
 const TagPage            = lazyPage(() => import('./public/pages/TagPage'));
 const SeriesPage         = lazyPage(() => import('./public/pages/SeriesPage'));
 const TopicPage          = lazyPage(() => import('./public/pages/TopicPage'));
+const MySeries           = lazyPage(() => import('./public/pages/MySeries'));
 const CommunityPage      = lazyPage(() => import('./public/pages/CommunityPage'));
 const CreateCommunity    = lazyPage(() => import('./public/pages/CreateCommunity'));
 const Welcome            = lazyPage(() => import('./public/pages/Welcome'));
@@ -912,6 +913,9 @@ function App() {
       return <SeriesPage {...publicProps} seriesId={Number(page.slice(7))} />;
     if (page.startsWith('Topic-'))
       return <TopicPage {...publicProps} topicKey={page.slice(6)} />;
+    // Mfululizo wangu (#410 phase 5): a writer's own series.
+    if (page === 'MySeries')
+      return requireLogin(<MySeries {...publicProps} />);
     if (page.startsWith('PostDetail-')) {
       const [rawId, suffix] = page.split('PostDetail-')[1].split('-');
       return <PostDetail {...publicProps} postId={Number(rawId)} openComments={suffix === 'comments'} />;

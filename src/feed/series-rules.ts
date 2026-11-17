@@ -16,7 +16,14 @@ export const SERIES_TEXT = {
   order: 'Orodha ya mpangilio hailingani na sehemu zilizopo. Pakia upya ujaribu tena.',
   notPublished: 'Mfululizo huu bado haujachapishwa.',
   community: 'Jumuiya haipatikani.',
+  notYours: 'Unaweza kuongeza machapisho yako mwenyewe tu.',
+  notEligible: 'Ili kuunda mfululizo, thibitisha kitambulisho chako au chapisha angalau machapisho 3 ya wazi.',
+  tooMany: 'Umefikia idadi ya juu ya mfululizo (20).',
 } as const;
+
+/** Phase 5 (owner 2026-11-17 "should be on"): who may make series, and how many. */
+export const CREATOR_MIN_POSTS = 3;
+export const CREATOR_MAX_SERIES = 20;
 
 /** The address of a series: /series/12-business-conversations (the number is what counts). */
 export const seriesPath = (id: number, title: string) => {

@@ -1,10 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PUBLIC_TO_GUESTS } from '../commerce-profiles/public-visibility';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
-import { SERIES_STATUSES, SERIES_TEXT, SeriesStatus, cleanTitle, neighbours, numberVisible, seriesPath, validOrder } from './series-rules';
+import { CREATOR_MAX_SERIES, CREATOR_MIN_POSTS, SERIES_STATUSES, SERIES_TEXT, SeriesStatus, cleanTitle, neighbours, numberVisible, seriesPath, validOrder } from './series-rules';
 import { stripArticle } from './article-text';
 
 /**
@@ -114,18 +114,20 @@ export class SeriesService {
         LEFT JOIN public."user" u ON u.id = s."ownerUserId"
         LEFT JOIN public.community c ON c.id = s."communityId"
        WHERE s.id = $1::int`, [id]);
-    if (!s || (s.status !== 'published' && !viewer?.isAdmin)) throw new NotFoundException(SERIES_TEXT.missing);
-    const episodes = await this.episodes(id, Boolean(viewer?.isAdmin && s.status !== 'published'));
+    // Phase 5: the series' own creator manages it like admin does (drafts and hidden episodes too).
+    const manage = Boolean(viewer?.isAdmin || (viewer?.id && s && Number(s.ownerUserId) === Number(viewer.id)));
+    if (!s || (s.status !== 'published' && !manage)) throw new NotFoundException(SERIES_TEXT.missing);
+    const episodes = await this.episodes(id);
     const followed = await this.followedSet(viewer?.id, [id]);
     return {
       ...this.card({ ...s, episodes: episodes.filter((e) => e.visible).length }, followed),
-      status: s.status as SeriesStatus, communityName: s.communityName || null,
-      episodeList: viewer?.isAdmin ? episodes : episodes.filter((e) => e.visible),
+      status: s.status as SeriesStatus, communityName: s.communityName || null, canManage: manage,
+      episodeList: manage ? episodes : episodes.filter((e) => e.visible),
     };
   }
 
   /** The episodes of a series in order: post details, whether it may be shown, and its number among the shown. */
-  private async episodes(seriesId: number, _adminDraft = false) {
+  private async episodes(seriesId: number) {
     const rows: any[] = await this.db.query(`
       SELECT e."postId", e.position, e.title AS "episodeTitle", e."createdAt",
              x.title, x.body, x.intent, x."imageUrl", x.media, x."createdAt" AS "postedAt",
@@ -180,6 +182,38 @@ export class SeriesService {
     return { following: on, followers: Number(n?.n || 0) };
   }
 
+  // ── Creators (phase 5, owner 2026-11-17: "should be on") ────────────────
+  /**
+   * Who may make series: an account whose identity KenteXa verified, or one with at least
+   * CREATOR_MIN_POSTS public posts of its own. Admin keeps the last word (archive any series).
+   */
+  async creatorStatus(userId: number) {
+    if (!(await this.ready())) return { eligible: false, verified: false, posts: 0, need: CREATOR_MIN_POSTS, series: 0 };
+    const [v] = await this.db.query(`SELECT 1 AS ok FROM public.identity_profile WHERE "userId" = $1::int AND status::text = 'verified' LIMIT 1`, [userId]).catch(() => [null]);
+    const [p] = await this.db.query(`SELECT COUNT(*)::int AS n FROM public.business_feed_item x WHERE x."businessId" = $1::int AND ${PUBLIC_TO_GUESTS('x')}`, [userId]).catch(() => [{ n: 0 }]);
+    const [c] = await this.db.query(`SELECT COUNT(*)::int AS n FROM public.content_series WHERE "ownerUserId" = $1::int`, [userId]).catch(() => [{ n: 0 }]);
+    const posts = Number(p?.n || 0);
+    return { eligible: Boolean(v) || posts >= CREATOR_MIN_POSTS, verified: Boolean(v), posts, need: CREATOR_MIN_POSTS, series: Number(c?.n || 0) };
+  }
+
+  private async assertCreator(userId: number) {
+    const st = await this.creatorStatus(userId);
+    if (!st.eligible) throw new ForbiddenException(SERIES_TEXT.notEligible);
+    if (st.series >= CREATOR_MAX_SERIES) throw new BadRequestException(SERIES_TEXT.tooMany);
+  }
+
+  /** The creator's own series, every status. */
+  async mine(userId: number) {
+    if (!(await this.ready())) return [];
+    const rows: any[] = await this.db.query(`
+      SELECT s.id, s.title, s.status, s."coverUrl", s."updatedAt",
+             (SELECT COUNT(*)::int FROM public.content_series_episode e WHERE e."seriesId" = s.id) AS episodes,
+             (SELECT COUNT(*)::int FROM public.content_series_follow f WHERE f."seriesId" = s.id) AS followers,
+             COALESCE((SELECT array_agg(st."topicKey" ORDER BY st."topicKey") FROM public.content_series_topic st WHERE st."seriesId" = s.id), '{}') AS topics
+        FROM public.content_series s WHERE s."ownerUserId" = $1::int ORDER BY s."updatedAt" DESC LIMIT 50`, [userId]);
+    return rows.map((r) => ({ ...r, id: Number(r.id), episodes: Number(r.episodes), followers: Number(r.followers), path: seriesPath(Number(r.id), r.title) }));
+  }
+
   // ── Admin ──────────────────────────────────────────────────────────────
   async adminList() {
     if (!(await this.ready())) return [];
@@ -210,12 +244,18 @@ export class SeriesService {
     return id;
   }
 
-  async create(adminUserId: number, body: any) {
+  async create(adminUserId: number, body: any, creator = false) {
     if (!(await this.ready())) throw new BadRequestException(SERIES_TEXT.missing);
+    if (creator) await this.assertCreator(adminUserId);
     const title = cleanTitle(body?.title);
     if (!title) throw new BadRequestException(SERIES_TEXT.title);
     const topics = (await this.cleanTopics(body?.topics)) ?? [];
-    const communityId = (await this.cleanCommunity(body?.communityId)) ?? null;
+    // A creator's series belongs to no community (admin links communities) and to a profile they own.
+    const communityId = creator ? null : (await this.cleanCommunity(body?.communityId)) ?? null;
+    if (creator && body?.commerceProfileId != null) {
+      const [own] = await this.db.query(`SELECT id FROM public.commerce_profile WHERE id = $1::int AND "ownerId" = $2::int`, [Number(body.commerceProfileId) || 0, adminUserId]);
+      if (!own) body = { ...body, commerceProfileId: null };
+    }
     const id = await this.db.transaction(async (m) => {
       const [row] = await m.query(`INSERT INTO public.content_series (title, description, "coverUrl", "ownerUserId", "commerceProfileId", "communityId", status, "createdByUserId")
         VALUES ($1::varchar, $2::text, $3::varchar, $4::int, $5::int, $6::int, 'draft', $4::int) RETURNING id`,
@@ -224,14 +264,15 @@ export class SeriesService {
       for (const k of topics) await m.query(`INSERT INTO public.content_series_topic ("seriesId", "topicKey") VALUES ($1::int, $2::varchar)`, [row.id, k]);
       return Number(row.id);
     });
-    this.event('SERIES_CREATED', adminUserId, id, { title });
-    return this.get(id, { id: adminUserId, isAdmin: true });
+    this.event('SERIES_CREATED', adminUserId, id, { title, creator });
+    return this.get(id, { id: adminUserId, isAdmin: !creator });
   }
 
-  async update(adminUserId: number, id: number, body: any) {
+  async update(adminUserId: number, id: number, body: any, creator = false) {
     if (!(await this.ready())) throw new NotFoundException(SERIES_TEXT.missing);
-    const [s] = await this.db.query(`SELECT id, status, "publishedAt" FROM public.content_series WHERE id = $1::int`, [id]);
-    if (!s) throw new NotFoundException(SERIES_TEXT.missing);
+    const [s] = await this.db.query(`SELECT id, status, "publishedAt", "ownerUserId" FROM public.content_series WHERE id = $1::int`, [id]);
+    if (!s || (creator && Number(s.ownerUserId) !== Number(adminUserId))) throw new NotFoundException(SERIES_TEXT.missing);
+    if (creator && body?.communityId !== undefined) body = { ...body, communityId: undefined };
     const sets: string[] = []; const params: any[] = [id];
     const put = (col: string, val: any, cast: string) => { params.push(val); sets.push(`"${col}" = $${params.length}::${cast}`); };
     if (body?.title !== undefined) { const t = cleanTitle(body.title); if (!t) throw new BadRequestException(SERIES_TEXT.title); put('title', t, 'varchar'); }
@@ -252,8 +293,8 @@ export class SeriesService {
         for (const k of topics) await m.query(`INSERT INTO public.content_series_topic ("seriesId", "topicKey") VALUES ($1::int, $2::varchar)`, [id, k]);
       }
     });
-    if (body?.status && body.status !== s.status) this.event(`SERIES_${String(body.status).toUpperCase()}`, adminUserId, id);
-    return this.get(id, { id: adminUserId, isAdmin: true });
+    if (body?.status && body.status !== s.status) this.event(`SERIES_${String(body.status).toUpperCase()}`, adminUserId, id, { creator });
+    return this.get(id, { id: adminUserId, isAdmin: !creator });
   }
 
   /** "kentexa.com/post/42-..." or "42" -> 42. */
@@ -264,16 +305,18 @@ export class SeriesService {
   }
 
   /** Attach a public post as the next episode. */
-  async addEpisode(adminUserId: number, seriesId: number, body: any) {
+  async addEpisode(adminUserId: number, seriesId: number, body: any, creator = false) {
     if (!(await this.ready())) throw new NotFoundException(SERIES_TEXT.missing);
     const postId = SeriesService.postIdFrom(body?.post ?? body?.postId);
     if (!postId) throw new BadRequestException(SERIES_TEXT.post);
-    const [post] = await this.db.query(`SELECT x.id FROM public.business_feed_item x WHERE x.id = $1::int AND ${PUBLIC_TO_GUESTS('x')}`, [postId]);
+    const [post] = await this.db.query(`SELECT x.id, x."businessId" FROM public.business_feed_item x WHERE x.id = $1::int AND ${PUBLIC_TO_GUESTS('x')}`, [postId]);
     if (!post) throw new BadRequestException(SERIES_TEXT.post);
+    // A creator adds only their own posts.
+    if (creator && Number(post.businessId) !== Number(adminUserId)) throw new BadRequestException(SERIES_TEXT.notYours);
     const title = typeof body?.title === 'string' && body.title.trim() ? body.title.replace(/\s+/g, ' ').trim().slice(0, 120) : null;
     await this.db.transaction(async (m) => {
-      const [s] = await m.query(`SELECT id FROM public.content_series WHERE id = $1::int FOR UPDATE`, [seriesId]);
-      if (!s) throw new NotFoundException(SERIES_TEXT.missing);
+      const [s] = await m.query(`SELECT id, "ownerUserId" FROM public.content_series WHERE id = $1::int FOR UPDATE`, [seriesId]);
+      if (!s || (creator && Number(s.ownerUserId) !== Number(adminUserId))) throw new NotFoundException(SERIES_TEXT.missing);
       const [dupe] = await m.query(`SELECT 1 AS ok FROM public.content_series_episode WHERE "seriesId" = $1::int AND "postId" = $2::int`, [seriesId, postId]);
       if (dupe) throw new ConflictException(SERIES_TEXT.already);
       await m.query(`INSERT INTO public.content_series_episode ("seriesId", "postId", position, title, "addedByUserId")
@@ -283,14 +326,14 @@ export class SeriesService {
     });
     this.event('SERIES_EPISODE_ADDED', adminUserId, seriesId, { postId });
     await this.tellFollowers(seriesId, postId, title).catch(() => undefined);
-    return this.get(seriesId, { id: adminUserId, isAdmin: true });
+    return this.get(seriesId, { id: adminUserId, isAdmin: !creator });
   }
 
-  async removeEpisode(adminUserId: number, seriesId: number, postId: number) {
+  async removeEpisode(adminUserId: number, seriesId: number, postId: number, creator = false) {
     if (!(await this.ready())) throw new NotFoundException(SERIES_TEXT.missing);
     await this.db.transaction(async (m) => {
-      const [s] = await m.query(`SELECT id FROM public.content_series WHERE id = $1::int FOR UPDATE`, [seriesId]);
-      if (!s) throw new NotFoundException(SERIES_TEXT.missing);
+      const [s] = await m.query(`SELECT id, "ownerUserId" FROM public.content_series WHERE id = $1::int FOR UPDATE`, [seriesId]);
+      if (!s || (creator && Number(s.ownerUserId) !== Number(adminUserId))) throw new NotFoundException(SERIES_TEXT.missing);
       await m.query(`DELETE FROM public.content_series_episode WHERE "seriesId" = $1::int AND "postId" = $2::int`, [seriesId, postId]);
       // Close the gap so the places stay 1..n.
       await m.query(`SET CONSTRAINTS "UQ_content_series_episode_position" DEFERRED`);
@@ -299,16 +342,16 @@ export class SeriesService {
         WHERE e.id = r.id AND e.position <> r.n`, [seriesId]);
       await m.query(`UPDATE public.content_series SET "updatedAt" = now() WHERE id = $1::int`, [seriesId]);
     });
-    this.event('SERIES_EPISODE_REMOVED', adminUserId, seriesId, { postId });
-    return this.get(seriesId, { id: adminUserId, isAdmin: true });
+    this.event('SERIES_EPISODE_REMOVED', adminUserId, seriesId, { postId, creator });
+    return this.get(seriesId, { id: adminUserId, isAdmin: !creator });
   }
 
   /** New order: the full list of post ids, each once. One transaction, the series row locked. */
-  async reorder(adminUserId: number, seriesId: number, postIds: unknown) {
+  async reorder(adminUserId: number, seriesId: number, postIds: unknown, creator = false) {
     if (!(await this.ready())) throw new NotFoundException(SERIES_TEXT.missing);
     await this.db.transaction(async (m) => {
-      const [s] = await m.query(`SELECT id FROM public.content_series WHERE id = $1::int FOR UPDATE`, [seriesId]);
-      if (!s) throw new NotFoundException(SERIES_TEXT.missing);
+      const [s] = await m.query(`SELECT id, "ownerUserId" FROM public.content_series WHERE id = $1::int FOR UPDATE`, [seriesId]);
+      if (!s || (creator && Number(s.ownerUserId) !== Number(adminUserId))) throw new NotFoundException(SERIES_TEXT.missing);
       const rows: any[] = await m.query(`SELECT "postId" FROM public.content_series_episode WHERE "seriesId" = $1::int`, [seriesId]);
       const order = validOrder(rows.map((r) => Number(r.postId)), postIds);
       if (!order) throw new ConflictException(SERIES_TEXT.order);
@@ -318,8 +361,8 @@ export class SeriesService {
         WHERE e."seriesId" = $1::int AND e."postId" = o."postId"`, [seriesId, order]);
       await m.query(`UPDATE public.content_series SET "updatedAt" = now() WHERE id = $1::int`, [seriesId]);
     });
-    this.event('SERIES_REORDERED', adminUserId, seriesId);
-    return this.get(seriesId, { id: adminUserId, isAdmin: true });
+    this.event('SERIES_REORDERED', adminUserId, seriesId, { creator });
+    return this.get(seriesId, { id: adminUserId, isAdmin: !creator });
   }
 
   /**
