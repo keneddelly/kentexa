@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { PUBLIC_TO_GUESTS } from '../commerce-profiles/public-visibility';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { SERIES_STATUSES, SERIES_TEXT, SeriesStatus, cleanTitle, neighbours, numberVisible, seriesPath, validOrder } from './series-rules';
 import { stripArticle } from './article-text';
 
@@ -33,6 +34,7 @@ export class SeriesService {
   constructor(
     private readonly db: DataSource,
     @Optional() private readonly activityEvents?: ActivityEventService,
+    @Optional() private readonly notifications?: InAppNotificationService,
   ) {}
 
   async ready(): Promise<boolean> {
@@ -280,6 +282,7 @@ export class SeriesService {
       await m.query(`UPDATE public.content_series SET "updatedAt" = now() WHERE id = $1::int`, [seriesId]);
     });
     this.event('SERIES_EPISODE_ADDED', adminUserId, seriesId, { postId });
+    await this.tellFollowers(seriesId, postId, title).catch(() => undefined);
     return this.get(seriesId, { id: adminUserId, isAdmin: true });
   }
 
@@ -317,5 +320,30 @@ export class SeriesService {
     });
     this.event('SERIES_REORDERED', adminUserId, seriesId);
     return this.get(seriesId, { id: adminUserId, isAdmin: true });
+  }
+
+  /**
+   * Phase 4 (owner choice: in-app only): followers of a PUBLISHED series hear about a new episode,
+   * at most once a day per series (a second episode the same day says nothing), never by SMS.
+   */
+  private async tellFollowers(seriesId: number, postId: number, episodeTitle: string | null) {
+    if (!this.notifications) return 0;
+    const [s] = await this.db.query(`SELECT id, title, status FROM public.content_series WHERE id = $1::int`, [seriesId]);
+    if (!s || s.status !== 'published') return 0;
+    const [recent] = await this.db.query(`SELECT 1 AS ok FROM public.notification
+      WHERE "sourceType" = 'content_series' AND "sourceId" = $1::int AND "createdAt" > now() - interval '1 day' LIMIT 1`, [seriesId]).catch(() => [null]);
+    if (recent) return 0;
+    const [post] = await this.db.query(`SELECT title, body FROM public.business_feed_item WHERE id = $1::int`, [postId]);
+    const what = (episodeTitle || words(post || {}) || '').slice(0, 120);
+    const fans: any[] = await this.db.query(`SELECT "userId" FROM public.content_series_follow WHERE "seriesId" = $1::int LIMIT 5000`, [seriesId]);
+    let sent = 0;
+    for (const f of fans) {
+      await this.notifications.notify({
+        userId: Number(f.userId), type: 'system' as any, title: `Sehemu mpya: ${s.title}`,
+        body: what || 'Sehemu mpya imeongezwa kwenye mfululizo unaoufuata.',
+        actionPage: 'PostDetail', actionParam: String(postId), sourceType: 'content_series', sourceId: seriesId,
+      } as any).then(() => { sent += 1; }).catch(() => undefined);
+    }
+    return sent;
   }
 }

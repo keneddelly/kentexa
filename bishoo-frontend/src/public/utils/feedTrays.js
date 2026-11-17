@@ -2,7 +2,7 @@
 // tray, in this order; a tray with nothing to show is skipped (the next one takes its place), the
 // same kind never comes twice in a row, and with a single kind it shows once.
 export const TRAY_ORDER = Object.freeze([
-  'products', 'communities', 'services', 'articles', 'classifieds', 'questions', 'stores',
+  'products', 'communities', 'services', 'articles', 'series', 'classifieds', 'questions', 'stores',
   'transport', 'polls', 'offices', 'hotels', 'agents', 'providers', 'hashtags',
 ]);
 export const POSTS_BETWEEN_TRAYS = 2;
