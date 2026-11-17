@@ -49,3 +49,9 @@ test('#374: back uses the browser history when KenteXa pages are behind this one
   window.history.replaceState({ kx: true, kxDepth: 0, page: 'PostDetail-9' }, '', '/post/9');
   expect(canGoBack()).toBe(false);
 });
+
+test('owner 2026-11-17: the sign-in pages are the ones a signed-in person never goes back to', () => {
+  const { SIGN_IN_PAGES } = require('./NavigationShell');
+  expect([...SIGN_IN_PAGES].sort()).toEqual(['PublicLogin', 'Register']);
+  expect(SIGN_IN_PAGES.has('Community-5')).toBe(false);
+});

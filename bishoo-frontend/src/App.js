@@ -505,6 +505,14 @@ function App() {
     writeEntry(pageToAddress(pageName, params), { ...state, params: params || null }, mode);
   };
 
+  // Signed in, but the address still says the login page (login sets the page without a new
+  // history entry): the address follows the page, so Back and a reload never show the login again.
+  useEffect(() => {
+    if (!isLoggedIn || page === 'PublicLogin' || page === 'Register') return;
+    if (!/^\/p\/(PublicLogin|Register)\/?$/.test(window.location.pathname)) return;
+    syncUrl(page, navParams, { page, contextEpoch, accountRoleId: activeContext?.accountRoleId ?? null }, 'replace');
+  }, [isLoggedIn, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A page that cannot open says why (owner 2026-11-09 audit), instead of a silent jump home.
   const [navNotice, setNavNotice] = useState(null);
   useEffect(() => {

@@ -83,5 +83,9 @@ export const joinPageFromSearch = (search) => {
 
 export const linkPageFromAddress = (loc = typeof window !== 'undefined' ? window.location : null) => {
   // Owner 2026-11-17: kentexa.com/?join=office opens the office application even when signed in.
-  try { return loc ? (pathToPage(loc.pathname) || joinPageFromSearch(loc.search)) : null; } catch { return null; }
+  // Never the login page itself: a signed-in person who reloads on it goes to their home.
+  try {
+    const page = loc ? (pathToPage(loc.pathname) || joinPageFromSearch(loc.search)) : null;
+    return page === 'PublicLogin' || page === 'Register' ? null : page;
+  } catch { return null; }
 };

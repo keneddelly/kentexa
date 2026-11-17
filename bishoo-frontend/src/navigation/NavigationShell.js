@@ -33,6 +33,9 @@ export const resolveBrowserEntry = (requestedPage, browserState, context) => {
     : { ...decision, allowed: false, reason: decision.allowed ? 'STALE_HISTORY' : decision.reason, page: homeForRole(context.roleType) };
 };
 
+/** Sign-in pages a signed-in person never goes back to (owner 2026-11-17: "in jumuiya, back takes you to login"). */
+export const SIGN_IN_PAGES = new Set(['PublicLogin', 'Register']);
+
 /** True when the requested page is the one right behind us in the history. */
 export const shouldStepBack = (history, requestedPage) => {
   const last = Array.isArray(history) && history.length ? history[history.length - 1] : null;
@@ -129,6 +132,12 @@ const useNavigationShell = ({
   }, [commit, setNavHistory]);
 
   const handleBrowserDestination = useCallback((requestedPage, params, browserState, wentBack = false) => {
+    // The login page left behind in the browser's history: a signed-in person goes home instead.
+    if (contextRef.current.isAuthenticated && SIGN_IN_PAGES.has(requestedPage)) {
+      if (wentBack) setNavHistory((history) => history.slice(0, -1));
+      commit(homeForRole(contextRef.current.roleType), null, 'replace');
+      return false;
+    }
     const decision = resolveBrowserEntry(requestedPage, browserState, contextRef.current);
     if (!decision.allowed) {
       onUnavailable?.(decision);
