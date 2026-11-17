@@ -26,6 +26,21 @@ const MIGRATION_FILE = /^(\d{13})-(.+)\.(js|ts)$/;
 export class VersionController {
   constructor(@Optional() @InjectDataSource() private readonly dataSource?: DataSource) {}
 
+  /**
+   * The native app (#422 N0) asks on start: below minVersionCode it must update (Play Store link);
+   * below latestVersionCode it may show a gentle "update" note. Both set in Render, 0 = no rule.
+   */
+  @Get('app')
+  getAppVersion() {
+    const n = (v?: string) => Math.max(0, parseInt(String(v || '0'), 10) || 0);
+    return {
+      minVersionCode: n(process.env.APP_MIN_VERSION_CODE),
+      latestVersionCode: n(process.env.APP_LATEST_VERSION_CODE),
+      androidUrl: 'https://play.google.com/store/apps/details?id=com.app.bishoo',
+      iosUrl: process.env.APP_IOS_URL || null,
+    };
+  }
+
   @Get()
   getVersion() {
     return {
