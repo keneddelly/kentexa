@@ -156,6 +156,9 @@ function App() {
       const confirm = params.get('confirm');
       const token   = params.get('token');
       const verify  = params.get('verify');
+      const publicPage = params.get('page');
+      // Public SEO landing pages can hand off into the existing in-app application flow.
+      if (publicPage === 'BecomeSuperAgentInfo') return 'BecomeSuperAgentInfo';
       if (confirm && token) return `ConfirmDelivery-${token}`;
       if (track) return `TrackParcel-${track}`;
       if (verify) return `VerifyReceipt-${verify}`;
