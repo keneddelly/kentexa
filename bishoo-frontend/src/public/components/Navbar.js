@@ -57,6 +57,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
     ];
     if (!isLoggedIn) {
       return [...common,
+        { label: '🏢 Become a Super Agent', page: 'BecomeSuperAgentInfo' },
         { label: '🔐 Login',    page: 'PublicLogin' },
         { label: '✨ Register', page: 'Register' },
       ];
