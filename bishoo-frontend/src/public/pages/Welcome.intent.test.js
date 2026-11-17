@@ -101,4 +101,23 @@ describe('Welcome — the new landing (owner approved 2026-11-02): the live Kent
     expect(screen.getByText('welcome.landing.final')).toBeInTheDocument();
     expect(screen.getByTestId('language-switcher')).toBeInTheDocument();
   });
+
+  // Owner 2026-11-17: the professional sign-up page for Facebook ads.
+  test('every kind of work has a card; a card remembers the goal and opens sign-up', () => {
+    const onNavigate = jest.fn();
+    render(<Welcome onNavigate={onNavigate} />);
+    for (const k of ['seller', 'buyer', 'ship', 'office', 'agent', 'service', 'hotel', 'writer']) {
+      expect(screen.getByTestId(`welcome-for-${k}`)).toHaveTextContent(`welcome.pro.aud.${k}.title`);
+    }
+    fireEvent.click(screen.getByTestId('welcome-for-office'));
+    expect(onNavigate).toHaveBeenCalledWith('Register');
+    expect(JSON.parse(sessionStorage.getItem('kentexa_intent')).value).toBe('office');
+    expect(screen.getByTestId('welcome-why')).toHaveTextContent('welcome.pro.why.direct.title');
+  });
+
+  test.each(['buyer', 'ship', 'office', 'agent', 'business'])('the new ad link intent=%s has its own hero copy', (intent) => {
+    setIntent(intent);
+    render(<Welcome onNavigate={jest.fn()} />);
+    expect(screen.getByText(`welcome.intent.${intent}.headline`)).toBeInTheDocument();
+  });
 });

@@ -12,7 +12,7 @@ describe('normalizeIntent / allowlist', () => {
     expect(normalizeIntent('SELLER')).toBe('seller');
   });
   test('rejects anything off the allowlist', () => {
-    expect(normalizeIntent('buyer')).toBeNull();
+    expect(normalizeIntent('shopper')).toBeNull();
     expect(normalizeIntent('admin')).toBeNull();
     expect(normalizeIntent('<script>alert(1)</script>')).toBeNull();
     expect(normalizeIntent('')).toBeNull();
@@ -25,6 +25,11 @@ describe('destinationForIntent', () => {
     expect(destinationForIntent('service')).toBe('PostService');
     expect(destinationForIntent('classified')).toBe('CreateClassified');
     expect(destinationForIntent('seller')).toBe('BecomeSeller');
+    expect(destinationForIntent('office')).toBe('BecomeSuperAgentInfo');
+    expect(destinationForIntent('agent')).toBe('BecomeAgent');
+    expect(destinationForIntent('ship')).toBe('SendShipment');
+    expect(destinationForIntent('buyer')).toBe('Discover');
+    expect(destinationForIntent('business')).toBe('BecomeBusiness');
   });
   test('invalid intent maps to no destination — never becomes an arbitrary navigation target', () => {
     expect(destinationForIntent('not-a-real-intent')).toBeNull();

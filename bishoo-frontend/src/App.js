@@ -1028,7 +1028,7 @@ function App() {
       return <ListingsPage {...publicProps} />;
     switch (page) {
       // Signed in, Home stays loaded underneath (#374): drawn by the kept Home below.
-      case 'Home':              return isLoggedIn ? null : <Welcome {...publicProps} />;
+      case 'Home':              return isLoggedIn ? null : <Welcome {...publicProps} onLoginSuccess={handleLoginSuccess} />;
 
       case 'AboutUs':              return <AboutUs {...publicProps} />;
       case 'UzaTena':              return <UzaTena {...publicProps} />;
