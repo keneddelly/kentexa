@@ -157,8 +157,14 @@ function App() {
       const token   = params.get('token');
       const verify  = params.get('verify');
       const publicPage = params.get('page');
-      // Public SEO landing pages can hand off into the existing in-app application flow.
-      if (publicPage === 'BecomeSuperAgentInfo') return 'BecomeSuperAgentInfo';
+      // Send logged-out visitors through authentication first, then resume the existing application flow.
+      if (publicPage === 'BecomeSuperAgentInfo') {
+        if (!checkToken().loggedIn) {
+          localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo');
+          return 'PublicLogin';
+        }
+        return 'BecomeSuperAgentInfo';
+      }
       if (confirm && token) return `ConfirmDelivery-${token}`;
       if (track) return `TrackParcel-${track}`;
       if (verify) return `VerifyReceipt-${verify}`;
