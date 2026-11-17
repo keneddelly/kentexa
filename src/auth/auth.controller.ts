@@ -25,6 +25,11 @@ import { LoginDto } from './dto/login.dto';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { RoleContext } from '../role-context/role-context.types';
 
+/** The KenteXa native app marks its requests with this header (#422 N0). */
+export const APP_CLIENT_HEADER = 'x-kentexa-client';
+export const APP_REFRESH_HEADER = 'x-kentexa-refresh';
+export const isAppClient = (req: any) => String(req?.headers?.[APP_CLIENT_HEADER] || '').toLowerCase() === 'app';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -34,13 +39,21 @@ export class AuthController {
 
   private writeRefreshCookie(res: Response, activeContext?: RoleContext) {
     if (!activeContext) return;
-    res.cookie('kx_refresh', this.authService.issueRefreshCredential(activeContext), {
+    const credential = this.authService.issueRefreshCredential(activeContext);
+    res.cookie('kx_refresh', credential, {
       httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax',
       path: '/auth', maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+    // Native app (#422 N0): it has no browser cookie jar, so the same refresh credential goes in a
+    // response header it keeps in the phone's secure storage. Only when the app asks for it.
+    if (isAppClient((res as any).req)) res.setHeader(APP_REFRESH_HEADER, credential);
   }
 
   private refreshFromRequest(req: any): string | undefined {
+    if (isAppClient(req)) {
+      const fromApp = String(req.headers?.[APP_REFRESH_HEADER] || '').trim();
+      if (fromApp) return fromApp;
+    }
     const entry = String(req.headers?.cookie || '').split(';').map((s) => s.trim())
       .find((s) => s.startsWith('kx_refresh='));
     return entry?.slice('kx_refresh='.length);
