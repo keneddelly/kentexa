@@ -25,6 +25,7 @@ import ShareSheet from '../components/ShareSheet';
 import ShareResult from '../components/ShareResult';
 import { askToJoin } from '../utils/guestJoin';
 import GetAppStrip from '../components/GetAppStrip';
+import { SeriesCard, seriesRows } from '../components/SeriesCard';
 
 export { KIND, shortAgo, threadTitle, threadWords };
 
@@ -90,6 +91,15 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
   const [tab, setTab] = useState('all');
   const [sort, setSort] = useState('latest');
   const [threads, setThreads] = useState([]);
+  // Mfululizo (#410 phase 4): the series that belong to this community.
+  const [series, setSeries] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    setSeries([]);
+    Promise.resolve().then(() => api.get('/series', { params: { communityId } }))
+      .then((r) => { if (alive) setSeries(seriesRows(r?.data)); }).catch(() => {});
+    return () => { alive = false; };
+  }, [communityId]);
   const [total, setTotal] = useState(0);
   const [unanswered, setUnanswered] = useState(0);
   const [page, setPage] = useState(1);
@@ -412,6 +422,15 @@ export default function CommunityPage({ communityId, onNavigate, isLoggedIn, cur
                     <KindIcon kind={k} size={16} />{KIND[k].label}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {series.length > 0 && (
+            <div data-testid="community-series" style={{ background: '#fff', marginTop: 10, padding: '12px 0', borderTop: `1px solid ${CARD_LINE}`, borderBottom: `1px solid ${CARD_LINE}` }}>
+              <b style={{ display: 'block', padding: '0 16px 10px', fontSize: 16, color: INK }}>Mfululizo wa jumuiya hii</b>
+              <div style={{ display: 'flex', gap: 10, overflowX: 'auto', padding: '0 16px', scrollbarWidth: 'none' }}>
+                {series.map((x) => <SeriesCard key={x.id} s={x} onNavigate={onNavigate} />)}
               </div>
             </div>
           )}

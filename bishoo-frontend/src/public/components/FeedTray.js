@@ -10,6 +10,7 @@ import { formatName, formatText, formatTitle } from '../utils/kentexaText';
 import { pollTimeLeft } from '../utils/feedPresentation';
 import { PlayButton, showGetApp } from './GetAppStrip';
 import { BookIcon, TEAL } from './ArticlePost';
+import { SeriesCard } from './SeriesCard';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -142,6 +143,16 @@ export const HashtagTray = ({ items, onNavigate }) => {
           <span style={{ display: 'block', fontSize: 12, color: MUTED }}>machapisho {h.posts}</span>
         </button>
       ))}
+    </Shell>
+  );
+};
+
+/** Mfululizo (#410 phase 4): published series, the one with the newest episode first. */
+export const SeriesTray = ({ items, onNavigate }) => {
+  if (!items?.length) return null;
+  return (
+    <Shell testid="tray-series" title="Mfululizo" sub="Fuata mazungumzo yanayoendelea, sehemu kwa sehemu">
+      {items.map((s) => <SeriesCard key={s.id} s={s} onNavigate={onNavigate} />)}
     </Shell>
   );
 };

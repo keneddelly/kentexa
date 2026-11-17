@@ -1,7 +1,7 @@
 import { traySlots, TRAY_ORDER } from './feedTrays';
 
 test('a tray after every 2 posts, in the approved order, skipping empty ones', () => {
-  expect(TRAY_ORDER).toHaveLength(14);
+  expect(TRAY_ORDER).toHaveLength(15); // + Mfululizo (#410)
   expect(traySlots(8, ['products', 'services', 'polls'])).toEqual({ 1: 'products', 3: 'services', 5: 'polls', 7: 'products' });
 });
 

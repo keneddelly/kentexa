@@ -39,7 +39,7 @@ import { useTranslation } from 'react-i18next';
 import ProductTrail from '../components/ProductTrail';
 import { buildTrailPool, createTrailRotation } from '../utils/productTrail';
 import { TRAY_TABS, traySlots } from '../utils/feedTrays';
-import { ArticleTray, HashtagTray, ListTray, PollTray, QuestionTray } from '../components/FeedTray';
+import { ArticleTray, HashtagTray, ListTray, PollTray, QuestionTray, SeriesTray } from '../components/FeedTray';
 import { useCart } from '../../context/CartContext';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import AiSearchBar from '../components/AiSearchBar';
@@ -1957,6 +1957,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       communities: true,
       services: !!dirs.services?.length,
       articles: !!trays?.articles?.length,
+      series: !!trays?.series?.length,
       classifieds: !!dirs.classifieds?.length,
       questions: !!trays?.questions?.length,
       stores: !!dirs.businesses?.length,
@@ -2468,6 +2469,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                   <ListTray testid="tray-stores" title="Biashara mpya za kufuata" sub="Zilizojiunga karibuni" round items={profileCards(dirs.businesses)} onOpen={openProfileCard} onSeeAll={() => setFilter('businesses')} />
                 )}
                 {trayKey === 'articles' && <ArticleTray items={trays?.articles} onNavigate={onNavigate} />}
+                {trayKey === 'series' && <SeriesTray items={trays?.series} onNavigate={onNavigate} />}
                 {trayKey === 'questions' && <QuestionTray items={trays?.questions} onNavigate={onNavigate} />}
                 {trayKey === 'polls' && <PollTray items={trays?.polls} onNavigate={onNavigate} />}
                 {trayKey === 'hashtags' && <HashtagTray items={trays?.hashtags} onNavigate={onNavigate} />}

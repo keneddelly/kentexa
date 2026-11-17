@@ -109,3 +109,31 @@ describe('Mada: admin topic list (#410 phase 3)', () => {
     expect(ctl).toContain('@Roles(UserRole.ADMIN)');
   });
 });
+
+describe('Mfululizo: followers hear about a new episode (phase 4, in-app, once a day)', () => {
+  const make = (status: string, recent: boolean) => {
+    const notify = jest.fn(async () => undefined);
+    const db = { query: jest.fn(async (sql: string) => {
+      if (sql.includes('FROM public.content_series WHERE id')) return [{ id: 12, title: 'Business Conversations', status }];
+      if (sql.includes('FROM public.notification')) return recent ? [{ ok: 1 }] : [];
+      if (sql.includes('FROM public.business_feed_item WHERE id')) return [{ title: 'Moment', body: 'Je, biashara yako iko tayari?' }];
+      if (sql.includes('content_series_follow')) return [{ userId: 3 }, { userId: 4 }];
+      return [];
+    }) };
+    const svc: any = new SeriesService(db as any, undefined, { notify } as any);
+    return { svc, notify };
+  };
+
+  it('a published series tells each follower once', async () => {
+    const { svc, notify } = make('published', false);
+    expect(await svc.tellFollowers(12, 7, 'The Cashless Economy')).toBe(2);
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ userId: 3, title: 'Sehemu mpya: Business Conversations', body: 'The Cashless Economy', actionPage: 'PostDetail', actionParam: '7', sourceType: 'content_series', sourceId: 12 }));
+  });
+
+  it('nothing for a draft, or when followers already heard today', async () => {
+    expect(await make('draft', false).svc.tellFollowers(12, 7, null)).toBe(0);
+    const again = make('published', true);
+    expect(await again.svc.tellFollowers(12, 7, null)).toBe(0);
+    expect(again.notify).not.toHaveBeenCalled();
+  });
+});

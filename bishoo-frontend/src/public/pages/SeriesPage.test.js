@@ -87,3 +87,12 @@ test('addresses: /series/<id> and /topic/<key> open their pages', () => {
   expect(pageToAddress('Topic-biashara')).toBe('/topic/biashara');
   expect(pathToPage('/topic/biashara')).toBe('Topic-biashara');
 });
+
+test('Home tray and jumuiya: series cards open the series', async () => {
+  const { SeriesTray } = require('../components/FeedTray');
+  const onNavigate = jest.fn();
+  render(<SeriesTray items={[{ id: 12, title: 'Business Conversations', episodes: 3, publisher: 'KenteXa', followers: 4 }]} onNavigate={onNavigate} />);
+  expect(screen.getByTestId('tray-series')).toHaveTextContent('SEHEMU 3');
+  fireEvent.click(screen.getByTestId('series-card-12'));
+  expect(onNavigate).toHaveBeenCalledWith('Series-12');
+});

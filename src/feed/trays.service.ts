@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { SeriesService } from './series.service';
 import { DataSource } from 'typeorm';
 import { PUBLIC_TO_GUESTS } from '../commerce-profiles/public-visibility';
 import { stripArticle, readMinutes } from './article-text';
@@ -14,7 +15,7 @@ import { stripArticle, readMinutes } from './article-text';
  */
 @Injectable()
 export class TraysService {
-  constructor(private readonly db: DataSource) {}
+  constructor(private readonly db: DataSource, @Optional() private readonly series?: SeriesService) {}
 
   private cache: { at: number; value: any } | null = null;
 
@@ -62,6 +63,8 @@ export class TraysService {
       questions: questions.map((r: any) => ({ id: Number(r.id), words: String(words(r)).slice(0, 200), owner: r.owner, photo: r.photo, community: r.community, createdAt: r.createdAt })),
       polls: polls.map((r: any) => ({ id: Number(r.id), words: String(words(r)).slice(0, 200), owner: r.owner, photo: r.photo, community: r.community, closesAt: r.closesAt, votes: Number(r.votes || 0) })),
       hashtags: hashtags.map((r: any) => ({ key: r.key, display: r.display, posts: Number(r.posts || 0) })),
+      // Mfululizo (#410 phase 4): published series, the newest episode first (public episodes only).
+      series: this.series ? await this.series.list({ limit: 8 }).catch(() => []) : [],
     };
     this.cache = { at: now.getTime(), value };
     return value;
