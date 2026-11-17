@@ -48,6 +48,8 @@ import { TraysService } from './trays.service';
 import { PostViewsService } from './post-views.service';
 import { PostViewsController } from './post-views.controller';
 import { WriterWeekController, FeedTraysController } from './writer-week.controller';
+import { SeriesService } from './series.service';
+import { SeriesController } from './series.controller';
 
 @Module({
   imports: [
@@ -72,8 +74,9 @@ import { WriterWeekController, FeedTraysController } from './writer-week.control
     ActivityModule,
     SearchModule,
   ],
-  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController, WriterWeekController, FeedTraysController, PostViewsController],
+  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController, WriterWeekController, FeedTraysController, PostViewsController, SeriesController],
   providers: [
+    SeriesService,
     FeedService,
     CvsService,
     PollService,

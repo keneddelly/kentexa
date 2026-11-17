@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-17 (Mfululizo / Topic Series, #410 phase 1):** the pin is now `MIGRATION_RUN_UPTO=1797400000000`. The next deploy runs `1797400000000-AddContentSeries` itself (new tables `content_series`, `content_series_topic`, `content_series_episode`, `content_series_follow`; column `feed_topic.description`). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-17 (Ada lock at TZS 50,000 + SMS):** the pin is now `MIGRATION_RUN_UPTO=1797300000000`. The next deploy runs `1797300000000-AddKentexaFeeLock` itself (columns `locked`, `lockedAt` on `kentexa_fee_standing`; settings `lock_amount` 50000, `lock_warn_days` 3). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-17 (ofisi fee TZS 500):** the pin is now `MIGRATION_RUN_UPTO=1797200000000`. The next deploy runs `1797200000000-OfficeFeeFlat500` itself: ofisi fee settings min = cap = 500, and ofisi fees written since the start become 500 (or what the parcel earned, if less); old amounts are kept in the new table `kentexa_fee_repriced`. Check: `/version/migrations` shows `pending: []`.
