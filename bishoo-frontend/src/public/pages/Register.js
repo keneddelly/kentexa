@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { AUTH, AuthButton, AuthError, AuthField, AuthLink, AuthShell, CodeBoxes, phoneForServer } from '../components/AuthShell';
 import AuthHelp from '../components/AuthHelp';
+import { SocialButtons, SocialFinish } from '../components/SocialSignIn';
 import { authErrorCode, authErrorText } from '../utils/authErrors';
 
 const Register = ({ onNavigate, onLoginSuccess }) => {
@@ -30,6 +31,12 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
   const [smsFailed, setSmsFailed] = useState(false);
   const fail = (err, fallbackKey) => { setErrorCode(authErrorCode(err)); setError(authErrorText(err, t, fallbackKey)); };
   const [timer, setTimer] = useState(0);
+  // Google / Facebook (owner 2026-11-17): signed in, or a new person adds a phone once.
+  const [social, setSocial] = useState(null);
+  const onSocial = async (data) => {
+    if (data?.status === 'need_phone') { setSocial(data); return; }
+    if (onLoginSuccess) await onLoginSuccess(data);
+  };
   const tick = useRef(null);
 
   // An invitation link (kept by utils/referralLink) names who invited them.
@@ -91,6 +98,10 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
     } finally { setBusy(false); }
   };
 
+  if (social) {
+    return <SocialFinish info={social} onLoginSuccess={onLoginSuccess} onCancel={() => setSocial(null)} onNavigate={onNavigate} />;
+  }
+
   if (step === 2) {
     return (
       <AuthShell title={t('signin.code_title')} subtitle={t('signin.code_desc', { identifier: contact.trim() })} onLogo={() => onNavigate('Home')}>
@@ -132,6 +143,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
         <AuthError>{error}</AuthError>
         <AuthButton type="submit" disabled={busy} testId="register-submit">{busy ? t('signin.creating') : t('signin.continue')}</AuthButton>
       </form>
+      <SocialButtons onResult={onSocial} />
       <AuthHelp step="register" errorCode={errorCode} phone={method === 'phone' ? contact : ''} name={name.trim()} />
     </AuthShell>
   );

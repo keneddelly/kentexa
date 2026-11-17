@@ -64,6 +64,8 @@ export const ERASE_TRACKING_SQL: string[] = [
   // Viral engine (#381): how the person arrived and the links they opened.
   `DELETE FROM public.share_conversion WHERE "userId" = $1`,
   `DELETE FROM public.share_visit WHERE "viewerUserId" = $1`,
+  // Google / Facebook sign-in (owner 2026-11-17): the link to the outside account goes too.
+  `DELETE FROM public.user_social_login WHERE "userId" = $1`,
 ];
 
 export const maskContact = (phone?: string | null, email?: string | null): string => {

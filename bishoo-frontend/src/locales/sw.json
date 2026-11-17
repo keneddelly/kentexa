@@ -6161,6 +6161,18 @@
     "help_note": "Tatizo ni nini? (si lazima)",
     "help_send": "Omba msaada",
     "help_sent": "Tumepokea. Tutakupigia hivi karibuni.",
-    "help_failed": "Imeshindikana kutuma. Jaribu tena, au andika support@kentexa.com."
+    "help_failed": "Imeshindikana kutuma. Jaribu tena, au andika support@kentexa.com.",
+    "social": {
+      "facebook": "Endelea na Facebook",
+      "checking": "Tunathibitisha…",
+      "failed": "Imeshindikana kuingia. Jaribu tena.",
+      "load_failed": "Haikufunguka. Angalia mtandao kisha jaribu tena.",
+      "terms": "Ukiendelea unakubali Masharti ya KenteXa na Sera ya Faragha.",
+      "phone_bad": "Weka namba sahihi ya simu (mf. 0712345678).",
+      "hello": "Karibu, {{name}}",
+      "hello_plain": "Karibu KenteXa",
+      "phone_desc": "Umeingia na {{who}}. Weka namba yako ya simu mara moja tu: tutakutumia namba ya siri kwa SMS. Simu inahitajika kwa malipo na usafirishaji.",
+      "link_note": "Namba hii tayari ina akaunti ya KenteXa. Ukiandika namba ya siri, akaunti yako ya {{who}} itaunganishwa nayo."
+    }
   }
 }

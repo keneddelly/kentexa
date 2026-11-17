@@ -6231,6 +6231,18 @@
     "help_note": "What is the problem? (optional)",
     "help_send": "Ask for help",
     "help_sent": "Received. We will call you soon.",
-    "help_failed": "Could not send. Try again, or write to support@kentexa.com."
+    "help_failed": "Could not send. Try again, or write to support@kentexa.com.",
+    "social": {
+      "facebook": "Continue with Facebook",
+      "checking": "Checking…",
+      "failed": "Sign-in failed. Try again.",
+      "load_failed": "Could not open. Check your connection and try again.",
+      "terms": "By continuing you accept the KenteXa Terms and Privacy Policy.",
+      "phone_bad": "Enter a valid phone number (e.g. 0712345678).",
+      "hello": "Welcome, {{name}}",
+      "hello_plain": "Welcome to KenteXa",
+      "phone_desc": "You signed in with {{who}}. Add your phone number once: we will send a code by SMS. A phone is needed for payments and delivery.",
+      "link_note": "This number already has a KenteXa account. After the code, your {{who}} account will be linked to it."
+    }
   }
 }
