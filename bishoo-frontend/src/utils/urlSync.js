@@ -75,6 +75,13 @@ export const pathToNavParams = (pathname, search) => {
   return cp && /^\d+$/.test(cp) ? { commerceProfileId: Number(cp) } : null;
 };
 
+/** A seller's invitation to an office or a transporter (?join=office | ?join=transport). */
+export const JOIN_LINK_PAGE = { office: 'BecomeSuperAgentInfo', transport: 'BecomeTransportProvider' };
+export const joinPageFromSearch = (search) => {
+  try { return JOIN_LINK_PAGE[new URLSearchParams(search || '').get('join')] || null; } catch { return null; }
+};
+
 export const linkPageFromAddress = (loc = typeof window !== 'undefined' ? window.location : null) => {
-  try { return loc ? pathToPage(loc.pathname) : null; } catch { return null; }
+  // Owner 2026-11-17: kentexa.com/?join=office opens the office application even when signed in.
+  try { return loc ? (pathToPage(loc.pathname) || joinPageFromSearch(loc.search)) : null; } catch { return null; }
 };

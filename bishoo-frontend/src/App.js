@@ -9,7 +9,7 @@ import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
-import { pageToAddress, pathToPage, pathToNavParams, linkPageFromAddress } from './utils/urlSync';
+import { pageToAddress, pathToPage, pathToNavParams, linkPageFromAddress, joinPageFromSearch } from './utils/urlSync';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
 import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
 import { rememberPageForUpdate, takeResumePage } from './utils/appVersion';
@@ -639,6 +639,9 @@ function App() {
             const menu = parseMenuPath(window.location.pathname, window.location.search);
             if (menu) { setNavParams(menu.navParams); setPage(menu.page); return; }
             if (workAppPage(window.location.pathname)) { setPage(workAppPage(window.location.pathname)); return; }
+            // An office / transporter invitation (?join=...): back to that application after login.
+            const joinPage = joinPageFromSearch(window.location.search);
+            if (joinPage) { setPage(joinPage); return; }
             setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
               ? `BuyerParcelAction-${receive}`
               : sellerCheckout && SELLER_TOKEN.test(sellerCheckout)
