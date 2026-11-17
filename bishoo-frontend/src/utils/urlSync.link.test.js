@@ -16,3 +16,9 @@ test('an invitation link (?join=) opens the application', () => {
   expect(linkPageFromAddress({ pathname: '/', search: '?join=transport' })).toBe('BecomeTransportProvider');
   expect(linkPageFromAddress({ pathname: '/', search: '?join=other' })).toBeNull();
 });
+
+// Owner 2026-11-17: reloading on the login page while signed in never reopens it.
+test('the login and sign-up pages are never reopened as a shared link', () => {
+  expect(linkPageFromAddress({ pathname: '/p/PublicLogin' })).toBeNull();
+  expect(linkPageFromAddress({ pathname: '/p/Register' })).toBeNull();
+});
