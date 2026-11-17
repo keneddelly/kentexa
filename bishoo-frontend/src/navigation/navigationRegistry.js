@@ -43,7 +43,7 @@ export const ADMIN_NAVIGATION = Object.freeze([
   ['Products', 'Bidhaa', 'products', 'catalog'], ['OfficialProducts', 'Katalogi rasmi', 'catalog', 'catalog'], ['AdminBrands', 'Chapa', 'brand', 'catalog'],
   ['AdminBrandAuthorizations', 'Idhini za chapa', 'verified', 'catalog'], ['AdminWarrantyClaims', 'Madai ya dhamana', 'warranty', 'catalog'],
   ['AdminServices', 'Huduma', 'services', 'catalog'], ['Classifieds', 'Matangazo', 'listings', 'catalog'],
-  ['AdminMoments', 'Moments', 'listings', 'catalog'], ['AdminReports', 'Moments zilizoripotiwa', 'warning', 'catalog'], ['AdminCommunities', 'Jumuiya', 'users', 'catalog'], ['AdminReviews', 'Maoni', 'verified', 'catalog'],
+  ['AdminMoments', 'Moments', 'listings', 'catalog'], ['AdminReports', 'Moments zilizoripotiwa', 'warning', 'catalog'], ['AdminCommunities', 'Jumuiya', 'users', 'catalog'], ['AdminSeries', 'Mfululizo na Mada', 'listings', 'catalog'], ['AdminReviews', 'Maoni', 'verified', 'catalog'],
   ['Orders', 'Oda', 'orders', 'orders'],
   ['AdminShipments', 'Mizigo', 'shipments', 'logistics'], ['AdminShippingCheck', 'Kwa nini hakuna?', 'search', 'logistics'],
   ['AdminDispatchReminders', 'Vikumbusho vya kutuma', 'clock', 'logistics'], ['AdminAgentJobs', 'Kazi za mawakala', 'agent', 'logistics'], ['AdminOfficePrices', 'Bei za ofisi', 'payments', 'logistics'], ['Agents', 'Mawakala', 'agent', 'logistics'],
@@ -71,7 +71,8 @@ export function adminMenuFor(roleType) {
     // Tuma taarifa: admin, manager and customer care only (the server refuses finance and moderator).
     moderator: (e) => (['overview', 'people', 'business', 'catalog', 'support'].includes(e.section) && !FINANCE_PAGES.has(e.destination) && e.destination !== 'Announcements') || e.destination === 'Profile',
   }[roleType];
-  return keep ? ADMIN_NAVIGATION.filter(keep) : [];
+  // Mfululizo na Mada (#410): admin only in the MVP (the server refuses other staff).
+  return keep ? ADMIN_NAVIGATION.filter((e) => e.destination !== 'AdminSeries' && keep(e)) : [];
 }
 
 export const navigationForRole = (roleType) => ROLE_NAVIGATION[roleType] || ROLE_NAVIGATION.buyer;

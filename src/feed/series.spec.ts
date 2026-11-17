@@ -86,3 +86,26 @@ describe('Mfululizo: before the migration', () => {
     await expect(svc.get(1)).rejects.toThrow();
   });
 });
+
+describe('Mada: admin topic list (#410 phase 3)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { TopicsService } = require('./topics.service');
+  const make = (rows: Record<string, any[]> = {}) => {
+    const calls: string[] = [];
+    const db = { query: jest.fn(async (sql: string) => { calls.push(sql); for (const k of Object.keys(rows)) if (sql.includes(k)) return rows[k]; return []; }) };
+    return { svc: new TopicsService(db as any, { record: jest.fn() } as any), calls };
+  };
+
+  it('a new topic needs a key of a-z and _ and a name; a key already used is refused', async () => {
+    const { svc } = make({ 'WHERE key = $1::varchar': [{ key: 'biashara' }] });
+    await expect(svc.adminCreate(1, { key: 'Elimu 1', label: 'Elimu' })).rejects.toThrow('Ufunguo');
+    await expect(svc.adminCreate(1, { key: 'elimu', label: 'E' })).rejects.toThrow('jina');
+    await expect(svc.adminCreate(1, { key: 'biashara', label: 'Biashara' })).rejects.toThrow('tayari');
+  });
+
+  it('only admin reaches the topic routes', () => {
+    const ctl = readFileSync(join(__dirname, 'topics-admin.controller.ts'), 'utf8');
+    expect(ctl).toContain('@UseGuards(JwtAuthGuard, RolesGuard)');
+    expect(ctl).toContain('@Roles(UserRole.ADMIN)');
+  });
+});

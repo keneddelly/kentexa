@@ -182,6 +182,7 @@ const MyQuoteRequests = lazyPage(() => import('./public/pages/MyQuoteRequests'))
 const QuoteInbox = lazyPage(() => import('./public/pages/QuoteInbox'));
 const AdminAdvertisers = lazyPage(() => import('./admin/pages/AdminAdvertisers'));
 const AdminKentexaFees = lazyPage(() => import('./admin/pages/AdminKentexaFees'));
+const AdminSeries = lazyPage(() => import('./admin/pages/AdminSeries'));
 const AdminShippingCheck = lazyPage(() => import('./admin/pages/AdminShippingCheck'));
 const AdminActivity = lazyPage(() => import('./admin/pages/AdminActivity'));
 const AdminPerson = lazyPage(() => import('./admin/pages/AdminPerson'));
@@ -1178,6 +1179,8 @@ function App() {
       case 'AdminNotifications':
         return requireAdmin(<AdminData key={page} dataset={PAGE_DATASET[page]} activePage={page} {...adminProps} />);
       case 'AdminStaff': return requireAdmin(<AdminStaff activePage={page} {...adminProps} />);
+      // Mfululizo na Mada (#410 phase 3).
+      case 'AdminSeries': return requireAdmin(<AdminSeries activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return ['admin', 'manager', 'customer_care', 'moderator'].includes(activeContext?.roleType)
