@@ -64,3 +64,9 @@ test('Ankara: monthly invoices with paid/late tags; opening one shows its jobs a
   fireEvent.click(screen.getByTestId('fee-pay-invoice'));
   expect(screen.getByTestId('fee-amount')).toHaveValue('2500');
 });
+
+test('kufungwa (owner 2026-11-17): a locked account is told new work has stopped until it pays', async () => {
+  api.get.mockResolvedValue({ data: { ...mine, owed: 52000, inArrears: true, locked: true, lockAmount: 50000 } });
+  await act(async () => { render(<KentexaFee onNavigate={jest.fn()} isLoggedIn navParams={{ as: 'office' }} />); });
+  expect(screen.getByTestId('fee-locked')).toHaveTextContent('Kazi mpya zimesimama: deni limefika TZS 50,000');
+});

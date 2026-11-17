@@ -1,4 +1,4 @@
-import { DEFAULT_FEE_SETTINGS, feeSettingsFrom, jobFee, owedState, ruleFor } from './kentexa-fee-calc';
+import { DEFAULT_FEE_SETTINGS, feeSettingsFrom, jobFee, lockState, owedState, ruleFor } from './kentexa-fee-calc';
 
 describe('Ada ya KenteXa numbers (owner approved 2026-11-03)', () => {
   const s = DEFAULT_FEE_SETTINGS;
@@ -46,5 +46,25 @@ describe('Ada ya KenteXa numbers (owner approved 2026-11-03)', () => {
     expect(owedState(fees, 1000, 0, start, 30, now)).toEqual({ owed: 2000, inArrears: false });
     expect(owedState(fees, 1000, 4000, start, 30, now)).toEqual({ owed: 6000, inArrears: true });
     expect(owedState([], 0, 0, start, 30, now)).toEqual({ owed: 0, inArrears: false });
+  });
+});
+
+describe('Ada ya KenteXa: kufungwa at TZS 50,000 and 30 days (owner 2026-11-17)', () => {
+  const s = { startAt: new Date('2026-11-03T00:00:00Z'), arrearsDays: 30, lockAmount: 50000, lockWarnDays: 3 };
+  const fees = (n: number, at: string) => Array.from({ length: n }, () => ({ fee: 500, doneAt: at }));
+
+  it('locks only when the debt is 50,000 or more AND part of it is older than 30 days', () => {
+    const now = new Date('2026-12-20T00:00:00Z');
+    expect(lockState(fees(100, '2026-11-05T00:00:00Z'), 0, 0, s, now)).toMatchObject({ owed: 50000, locked: true });
+    expect(lockState(fees(99, '2026-11-05T00:00:00Z'), 0, 0, s, now).locked).toBe(false); // 49,500
+    expect(lockState(fees(100, '2026-12-10T00:00:00Z'), 0, 0, s, now).locked).toBe(false); // recent work only
+    expect(lockState(fees(100, '2026-11-05T00:00:00Z'), 500, 0, s, now).locked).toBe(false); // paid below 50,000
+  });
+
+  it('warns 3 days before the lock, once the debt is big enough', () => {
+    const now = new Date('2026-12-03T00:00:00Z'); // the 5 Nov fees turn 30 days old on 5 Dec
+    expect(lockState(fees(100, '2026-11-05T00:00:00Z'), 0, 0, s, now)).toMatchObject({ locked: false, warn: true });
+    expect(lockState(fees(100, '2026-11-05T00:00:00Z'), 0, 0, s, new Date('2026-11-25T00:00:00Z')).warn).toBe(false);
+    expect(lockState(fees(100, '2026-11-05T00:00:00Z'), 0, 0, { ...s, lockAmount: 0 }, now)).toMatchObject({ locked: false, warn: false });
   });
 });

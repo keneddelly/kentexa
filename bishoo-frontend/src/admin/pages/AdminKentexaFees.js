@@ -16,6 +16,7 @@ const when = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00+03:00
 const TAG = {
   paid: ['Imelipwa', '#dcfce7', '#166534'], late: ['Imechelewa', '#fee2e2', '#991b1b'],
   part: ['Imelipwa sehemu', '#fef3c7', '#92400e'], unpaid: ['Haijalipwa', '#e0f2fe', '#075985'],
+  locked: ['Imefungwa', '#0f1419', '#ffffff'],
 };
 const Tag = ({ k }) => {
   const [t, bg, fg] = TAG[k] || TAG.unpaid;
@@ -38,7 +39,11 @@ export function FeeAccount({ type, id, onBack }) {
   useEffect(() => { load(); }, [type, id]); // eslint-disable-line react-hooks/exhaustive-deps
   const remind = async () => {
     setBusy(true); setMsg('');
-    try { await api.post(`/kentexa-fee/admin/accounts/${type}/${id}/remind`); setMsg('Kumbusho limetumwa'); await load(); }
+    try {
+      const r = await api.post(`/kentexa-fee/admin/accounts/${type}/${id}/remind`);
+      setMsg(r?.data?.smsSent ? 'Kumbusho limetumwa (app na SMS)' : 'Kumbusho limetumwa kwenye app (SMS haikwenda)');
+      await load();
+    }
     catch (e) { setMsg(e?.response?.data?.message || 'Imeshindikana'); } finally { setBusy(false); }
   };
   const openInv = (invId) => {
@@ -61,8 +66,9 @@ export function FeeAccount({ type, id, onBack }) {
           <div style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <b style={{ fontSize: 18 }}>{WHO[a.accountType]}: {a.who || `#${a.accountId}`}</b>
-              {a.late ? <Tag k="late" /> : a.owed > 0 ? <Tag k="unpaid" /> : <Tag k="paid" />}
+              <span style={{ display: 'flex', gap: 6 }}>{a.locked && <Tag k="locked" />}{a.late ? <Tag k="late" /> : a.owed > 0 ? <Tag k="unpaid" /> : <Tag k="paid" />}</span>
             </div>
+            {a.locked && <span data-testid="fee-account-locked" style={{ fontSize: 14, color: '#991b1b' }}>Kazi mpya zimesimama mpaka alipe (deni {tzs(a.lockAmount)}+ na siku 30+).</span>}
             {a.phone && <span style={{ fontSize: 14, color: '#536471' }}>Simu: {a.phone}</span>}
             <Line l="Deni la sasa" v={tzs(a.owed)} />
             {a.legacy > 0 && <Line l="Deni la zamani" v={tzs(a.legacy)} />}
@@ -149,12 +155,13 @@ export function FeeAccounts() {
           <Stat l="Wanaotumia" v={t.accounts} />
           <Stat l="Wanadaiwa" v={`${t.owing} · ${tzs(t.owed)}`} />
           <Stat l="Wamechelewa (siku 30+)" v={t.late} tone={t.late ? '#991b1b' : undefined} />
+          <Stat l="Wamefungwa" v={t.locked || 0} tone={t.locked ? '#991b1b' : undefined} />
           <Stat l="Waliolipa jumla" v={tzs(t.paid)} tone="#166534" />
         </div>
       )}
       {data && data.invoicesOn === false && <div style={{ fontSize: 14, color: '#92400e' }}>Ankara zitaanza baada ya migration 1797000000000 kupita.</div>}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {[['owing', 'Wanadaiwa'], ['late', 'Wamechelewa'], ['all', 'Wote']].map(([k, l]) => (
+        {[['owing', 'Wanadaiwa'], ['late', 'Wamechelewa'], ['locked', 'Wamefungwa'], ['all', 'Wote']].map(([k, l]) => (
           <button key={k} type="button" onClick={() => setFilter(k)} style={btnStyle(filter === k)}>{l}</button>
         ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tafuta jina au simu" data-testid="fee-accounts-search"
@@ -168,7 +175,7 @@ export function FeeAccounts() {
           onClick={() => setOpen({ type: r.accountType, id: r.accountId })} style={{ ...cardStyle, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', width: '100%' }}>
             <b>{WHO[r.accountType] || r.accountType}: {r.who || `#${r.accountId}`}{r.phone ? ` · ${r.phone}` : ''}</b>
-            <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><b>{tzs(r.owed)}</b>{r.late ? <Tag k="late" /> : r.owed > 0 ? <Tag k="unpaid" /> : <Tag k="paid" />}</span>
+            <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><b>{tzs(r.owed)}</b>{r.locked && <Tag k="locked" />}{r.late ? <Tag k="late" /> : r.owed > 0 ? <Tag k="unpaid" /> : <Tag k="paid" />}</span>
           </div>
           <div style={{ fontSize: 13, color: '#536471' }}>
             Kazi {r.jobs} (mwezi huu {r.monthJobs}) · ada {tzs(r.fees)} · amelipa {tzs(r.paid)} · ankara {r.invoices}

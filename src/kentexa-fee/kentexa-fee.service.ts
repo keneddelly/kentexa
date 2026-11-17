@@ -2,9 +2,10 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { SmsService } from '../sms/sms.service';
 import { LIPA_PROOF_REF, signedLipaProofUrl } from '../orders/lipa-proof';
-import { DEFAULT_FEE_SETTINGS, FeeAccountType, FeeSettings, feeSettingsFrom, finishedMonths, invoiceStatuses, jobFee, monthLabel, owedState, ruleFor } from './kentexa-fee-calc';
-import { setFeeStandingReady } from './paid-up-gate';
+import { DEFAULT_FEE_SETTINGS, FeeAccountType, FeeSettings, feeSettingsFrom, finishedMonths, invoiceStatuses, jobFee, lockState, monthLabel, ruleFor } from './kentexa-fee-calc';
+import { setFeeLockReady, setFeeStandingReady } from './paid-up-gate';
 
 /**
  * Ada ya KenteXa (owner approved 2026-11-03): "we charge the one who has succeeded to make
@@ -13,7 +14,8 @@ import { setFeeStandingReady } from './paid-up-gate';
  *   ofisi  a parcel the ofisi took (walk-in, seller shipment, marketplace), shipping fee > 0
  *   agent  a finished delivery (its agreed delivery fee)
  *   seller a marketplace checkout order that is delivered/completed (product price)
- * Only work done from the start day counts. Work never stops for an unpaid fee: an account
+ * Only work done from the start day counts. Since 2026-11-17 an account owing TZS 50,000+ with
+ * part older than 30 days gets no new work until it pays (paid-up-gate.ts). Otherwise an account
  * with a fee unpaid for more than 30 days only goes after the paid-up ones for jobs KenteXa
  * brings (paid-up-gate.ts). Payment: KenteXa's Lipa Namba + screenshot, admin confirms.
  * Before migration 1794600000000 runs, everything here is off.
@@ -53,10 +55,38 @@ export class KentexaFeeService implements OnModuleInit {
   constructor(
     private readonly db: DataSource,
     @Optional() private readonly notifications?: InAppNotificationService,
+    @Optional() private readonly sms?: SmsService,
   ) {}
+
+  private lockColumn = false;
+  private lockCheckedAt = 0;
+
+  /** The lock columns exist once migration 1797300000000 ran (checked at most once a minute). */
+  async lockOn(): Promise<boolean> {
+    if (!(await this.ready())) return false;
+    if (!this.lockColumn && Date.now() - this.lockCheckedAt > 60_000) {
+      this.lockCheckedAt = Date.now();
+      try {
+        const [row] = await this.db.query(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'kentexa_fee_standing' AND column_name = 'locked') AS ok`);
+        this.lockColumn = Boolean(row?.ok);
+      } catch { this.lockColumn = false; }
+      setFeeLockReady(this.lockColumn);
+    }
+    return this.lockColumn;
+  }
+
+  /** One SMS to the account's phone; never blocks anything. */
+  private async textAccount(type: FeeAccountType, id: number, message: string): Promise<boolean> {
+    if (!this.sms) return false;
+    const who = await this.accountName(type, id).catch(() => null);
+    if (!who?.phone) return false;
+    return this.sms.sendSms(who.phone, message).catch(() => false);
+  }
 
   async onModuleInit() {
     if (await this.ready()) setFeeStandingReady(true, (await this.settings()).agentFirstMinutes);
+    await this.lockOn().catch(() => false);
   }
 
   /** The tables exist once migration 1794600000000 ran (checked at most once a minute). */
@@ -224,10 +254,10 @@ export class KentexaFeeService implements OnModuleInit {
   async stateOf(type: FeeAccountType, id: number, s: FeeSettings, now = new Date()) {
     const fees: any[] = await this.db.query(`SELECT fee, "doneAt" FROM public.kentexa_fee
       WHERE "accountType" = $1::varchar AND "accountId" = $2::int AND fee > 0`, [type, id]);
-    const [paid] = await this.db.query(`SELECT COALESCE(SUM(amount), 0) AS total FROM public.kentexa_fee_payment
+    const [paid] = await this.db.query(`SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*)::int AS n FROM public.kentexa_fee_payment
       WHERE "accountType" = $1::varchar AND "accountId" = $2::int AND status = 'confirmed'`, [type, id]);
     const legacy = await this.legacyFor(type, id);
-    return { ...owedState(fees, Number(paid?.total) || 0, legacy, s.startAt, s.arrearsDays, now), legacy };
+    return { ...lockState(fees, Number(paid?.total) || 0, legacy, s, now), legacy, paidCount: Number(paid?.n) || 0 };
   }
 
   private async userOf(type: FeeAccountType, id: number): Promise<number | null> {
@@ -241,13 +271,59 @@ export class KentexaFeeService implements OnModuleInit {
     const settings = s ?? (await this.settings());
     const st = await this.stateOf(type, id, settings, now);
     const userId = await this.userOf(type, id);
-    await this.db.query(`INSERT INTO public.kentexa_fee_standing ("accountType", "accountId", "accountUserId", "inArrears", owed, "updatedAt")
-      VALUES ($1::varchar, $2::int, $3::int, $4::boolean, $5::numeric, now())
-      ON CONFLICT ("accountType", "accountId") DO UPDATE SET "accountUserId" = EXCLUDED."accountUserId",
-        "inArrears" = EXCLUDED."inArrears", owed = EXCLUDED.owed, "updatedAt" = now()`,
-      [type, id, userId, st.inArrears, st.owed]);
+    const lockOn = await this.lockOn();
+    const locked = lockOn && st.locked;
+    const rows: any[] = lockOn
+      ? await this.db.query(`WITH before AS (SELECT locked FROM public.kentexa_fee_standing WHERE "accountType" = $1::varchar AND "accountId" = $2::int)
+          INSERT INTO public.kentexa_fee_standing ("accountType", "accountId", "accountUserId", "inArrears", owed, locked, "lockedAt", "updatedAt")
+          VALUES ($1::varchar, $2::int, $3::int, $4::boolean, $5::numeric, $6::boolean, CASE WHEN $6::boolean THEN now() END, now())
+          ON CONFLICT ("accountType", "accountId") DO UPDATE SET "accountUserId" = EXCLUDED."accountUserId",
+            "inArrears" = EXCLUDED."inArrears", owed = EXCLUDED.owed, locked = EXCLUDED.locked,
+            "lockedAt" = CASE WHEN EXCLUDED.locked THEN COALESCE(kentexa_fee_standing."lockedAt", now()) END, "updatedAt" = now()
+          RETURNING (SELECT locked FROM before) AS "wasLocked"`,
+          [type, id, userId, st.inArrears, st.owed, locked])
+      : await this.db.query(`INSERT INTO public.kentexa_fee_standing ("accountType", "accountId", "accountUserId", "inArrears", owed, "updatedAt")
+          VALUES ($1::varchar, $2::int, $3::int, $4::boolean, $5::numeric, now())
+          ON CONFLICT ("accountType", "accountId") DO UPDATE SET "accountUserId" = EXCLUDED."accountUserId",
+            "inArrears" = EXCLUDED."inArrears", owed = EXCLUDED.owed, "updatedAt" = now() RETURNING NULL AS "wasLocked"`,
+          [type, id, userId, st.inArrears, st.owed]);
+    if (lockOn && userId) {
+      const was = Boolean(rows?.[0]?.wasLocked);
+      if (locked !== was) await this.tellLock(type, id, userId, locked, st.owed);
+      else if (!locked && st.warn) await this.warnLock(type, id, st.owed, st.paidCount, settings);
+    }
     if (st.owed >= settings.reminderAmount && userId) await this.remindOnce(type, id, userId, st.owed);
     return st;
+  }
+
+  /** In-app note when new work stops or comes back (no SMS: owner chose SMS only for the warning). */
+  private async tellLock(type: FeeAccountType, id: number, userId: number, locked: boolean, owed: number) {
+    const what = type === 'office' ? 'vifurushi vipya' : type === 'agent' ? 'safari mpya' : 'maagizo mapya ya KenteXa';
+    await this.notifications?.notify({
+      userId, type: 'kentexa_fee',
+      title: locked ? 'Kazi mpya zimesimama' : 'Kazi mpya zimerudi',
+      body: locked
+        ? `Deni la Ada ya KenteXa ni ${money(owed)} na sehemu yake imepita siku 30. Hupokei ${what} mpaka ulipe. Kazi zilizopo zinaendelea.`
+        : `Asante kwa kulipa. Sasa unapokea ${what} tena.`,
+      actionPage: 'KentexaFee', actionParam: type, sourceType: 'kentexa_fee', sourceId: id,
+    }).catch(() => undefined);
+  }
+
+  /** One SMS (and in-app note) a few days before new work stops; once per payment period. */
+  private async warnLock(type: FeeAccountType, id: number, owed: number, paidCount: number, s: FeeSettings) {
+    const ins = await this.db.query(`INSERT INTO public.kentexa_fee_reminder ("accountType", "accountId", kind, "periodKey")
+      VALUES ($1::varchar, $2::int, 'lock_warning', $3::varchar) ON CONFLICT DO NOTHING RETURNING id`, [type, id, `p${paidCount}`]).catch(() => []);
+    if (!ins?.length) return;
+    const what = type === 'office' ? 'vifurushi vipya' : type === 'agent' ? 'safari mpya' : 'maagizo mapya';
+    const text = `KenteXa: deni lako la ada ni ${money(owed)}. Usipolipa ndani ya siku ${s.lockWarnDays}, hutapokea ${what} mpaka ulipe. Lipa Namba ${s.lipaNumber} (${s.lipaBank}, ${s.lipaName}), kisha tuma picha ya malipo kwenye app.`;
+    await this.textAccount(type, id, text);
+    const userId = await this.userOf(type, id).catch(() => null);
+    if (userId) {
+      await this.notifications?.notify({
+        userId, type: 'kentexa_fee', title: 'Lipa ada kabla kazi hazijasimama', body: text.replace(/^KenteXa: /, ''),
+        actionPage: 'KentexaFee', actionParam: type, sourceType: 'kentexa_fee', sourceId: id,
+      }).catch(() => undefined);
+    }
   }
 
   /** Accounts already owing (or with an old debt) are re-checked so arrears follow the calendar. */
@@ -352,15 +428,17 @@ export class KentexaFeeService implements OnModuleInit {
   }
 
   private async tellInvoice(r: any, month: string) {
-    if (!this.notifications) return;
     const userId = await this.userOf(r.accountType, Number(r.accountId)).catch(() => null);
-    if (!userId) return;
+    if (!userId || !this.notifications) return;
     const due = new Date(r.dueAt).toLocaleDateString('en-GB', { timeZone: 'Africa/Dar_es_Salaam' });
     await this.notifications.notify({
       userId, type: 'kentexa_fee', title: `Ankara ya ${monthLabel(month)}`,
-      body: `Ankara ${r.number}: ada ya KenteXa ${money(r.amount)}. Lipa kabla ya ${due}. Kazi yako haisimami.`,
+      body: `Ankara ${r.number}: ada ya KenteXa ${money(r.amount)}. Lipa kabla ya ${due}.`,
       actionPage: 'KentexaFee', actionParam: r.accountType, sourceType: 'kentexa_fee_invoice', sourceId: Number(r.id),
     }).catch(() => undefined);
+    const s = await this.settings();
+    await this.textAccount(r.accountType, Number(r.accountId),
+      `KenteXa: ankara ${r.number} ya ${monthLabel(month)} ni ${money(r.amount)}. Lipa kabla ya ${due} kwa Lipa Namba ${s.lipaNumber} (${s.lipaBank}, ${s.lipaName}), kisha tuma picha ya malipo kwenye app.`);
   }
 
   /** The account's invoices, newest first, each with what is paid and left. */
@@ -435,6 +513,7 @@ export class KentexaFeeService implements OnModuleInit {
              COALESCE(f."monthJobs", 0) AS "monthJobs", f."lastJobAt",
              COALESCE(p.paid, 0) AS paid, COALESCE(p.waiting, 0) AS waiting, p."lastPaidAt",
              COALESCE(st.owed, 0) AS owed, COALESCE(st."inArrears", false) AS late,
+             ${(await this.lockOn()) ? 'COALESCE(st.locked, false)' : 'false'} AS locked,
              COALESCE(sa."businessName", u.name) AS who, u.phone,
              ${invoices ? `(SELECT COUNT(*)::int FROM public.kentexa_fee_invoice i WHERE i."accountType" = a."accountType" AND i."accountId" = a."accountId")` : '0'} AS invoices
         FROM acc a
@@ -450,19 +529,20 @@ export class KentexaFeeService implements OnModuleInit {
     const all = rows.map((r) => ({
       accountType: r.accountType, accountId: Number(r.accountId), who: r.who || null, phone: r.phone || null,
       jobs: n(r.jobs), free: n(r.free), monthJobs: n(r.monthJobs), fees: n(r.fees), paid: n(r.paid), owed: n(r.owed),
-      late: Boolean(r.late), waiting: n(r.waiting), invoices: n(r.invoices), lastJobAt: r.lastJobAt, lastPaidAt: r.lastPaidAt,
+      late: Boolean(r.late), locked: Boolean(r.locked), waiting: n(r.waiting), invoices: n(r.invoices), lastJobAt: r.lastJobAt, lastPaidAt: r.lastPaidAt,
     }));
     const totals = {
       accounts: all.length,
       owing: all.filter((r) => r.owed > 0).length,
       late: all.filter((r) => r.late).length,
+      locked: all.filter((r) => r.locked).length,
       owed: all.reduce((sum, r) => sum + r.owed, 0),
       paid: all.reduce((sum, r) => sum + r.paid, 0),
       waiting: all.reduce((sum, r) => sum + r.waiting, 0),
     };
     const words = String(q ?? '').trim().toLowerCase();
     const picked = all
-      .filter((r) => (filter === 'late' ? r.late : filter === 'all' ? true : r.owed > 0))
+      .filter((r) => (filter === 'late' ? r.late : filter === 'locked' ? r.locked : filter === 'all' ? true : r.owed > 0))
       .filter((r) => !words || `${r.who ?? ''} ${r.phone ?? ''} ${r.accountId}`.toLowerCase().includes(words));
     return { ready: true, invoicesOn: invoices, totals, rows: picked.slice(0, 300) };
   }
@@ -490,7 +570,7 @@ export class KentexaFeeService implements OnModuleInit {
       WHERE "accountType" = $1::varchar AND "accountId" = $2::int AND kind = 'admin'`, [type, id]).catch(() => [null]);
     return {
       accountType: type, accountId: id, who: who.name, phone: who.phone,
-      owed: st.owed, legacy: n(st.legacy), late: st.inArrears,
+      owed: st.owed, legacy: n(st.legacy), late: st.inArrears, locked: (await this.lockOn()) && st.locked, lockAmount: s.lockAmount,
       jobs: n(sum?.jobs), earned: n(sum?.earned), fees: n(sum?.fees), free: n(sum?.free), firstJobAt: sum?.firstJobAt ?? null,
       invoices: await this.invoicesOf(type, id, now),
       payments: payments.map((p) => ({ id: Number(p.id), amount: n(p.amount), reference: p.reference, status: p.status, reason: p.reason,
@@ -518,7 +598,10 @@ export class KentexaFeeService implements OnModuleInit {
       body: `Deni lako la ada ni ${money(acc.owed)}. ${line} Lipa kwa Lipa Namba ya KenteXa kisha tuma picha ya malipo.`,
       actionPage: 'KentexaFee', actionParam: type, sourceType: 'kentexa_fee', sourceId: id,
     }).catch(() => undefined);
-    return { ok: true, owed: acc.owed };
+    const s = await this.settings();
+    const smsSent = await this.textAccount(type, id,
+      `KenteXa: deni lako la ada ni ${money(acc.owed)}. ${line} Lipa Namba ${s.lipaNumber} (${s.lipaBank}, ${s.lipaName}), kisha tuma picha ya malipo kwenye app.`);
+    return { ok: true, owed: acc.owed, smsSent };
   }
 
   // ── The account's own view ──────────────────────────────────────────────
@@ -564,6 +647,7 @@ export class KentexaFeeService implements OnModuleInit {
     return {
       ready: true, as: acc.type, name: acc.name,
       owed: st.owed, legacy: n(st.legacy), inArrears: st.inArrears,
+      locked: (await this.lockOn()) && st.locked, lockWarn: (await this.lockOn()) && st.warn, lockAmount: s.lockAmount,
       month: { jobs: n(month?.jobs), earned: n(month?.earned), fee: n(month?.fee), free: n(month?.free) },
       freeLeft,
       rule: { rate: rule.rate, min: rule.min, cap: Number.isFinite(rule.cap) ? rule.cap : null },

@@ -4,7 +4,8 @@
  *   ofisi  TZS 500 per parcel (owner 2026-11-17; never more than the parcel earned) after 20 free parcels
  *   wakala 10% of the delivery fee (min 100, cap 5,000) after 20 free deliveries
  *   muuzaji 2% of a marketplace order; POS and own sales are free
- * Work never stops for an unpaid fee. Paying: KenteXa's Lipa Namba, then the screenshot;
+ * Work goes on with a debt; at TZS 50,000+ with part older than 30 days new work stops until it
+ * is paid (owner 2026-11-17). Paying: KenteXa's Lipa Namba, then the screenshot;
  * KenteXa confirms. Every number comes from GET /kentexa-fee/mine (the records); nothing here
  * is computed or guessed in the browser.
  * Ankara (owner approved 2026-11-17): on the 1st of each month last month's fees become one
@@ -138,11 +139,21 @@ export default function KentexaFee({ onNavigate, isLoggedIn, navParams, as: asPr
         <span style={{ fontSize: 34, fontWeight: 800 }}>{tzs(data.owed)}</span>
         {data.waiting > 0 && <span style={{ fontSize: 14, color: K.MUTED }}>{tzs(data.waiting)} inasubiri kuthibitishwa</span>}
       </section>
-      <Note tone={data.inArrears ? 'amber' : 'green'}>
+      {data.locked && (
+        <Note tone="red">
+          <span data-testid="fee-locked">{`Kazi mpya zimesimama: deni limefika ${tzs(data.lockAmount)} na sehemu yake imepita siku 30. Kazi zilizopo zinaendelea. Lipa deni; kazi mpya zinarudi mara tukithibitisha malipo.`}</span>
+        </Note>
+      )}
+      {!data.locked && data.lockWarn && (
+        <Note tone="amber">
+          <span data-testid="fee-lock-warn">{`Lipa sasa: deni likikaa zaidi ya siku 30 na kuwa ${tzs(data.lockAmount)} au zaidi, kazi mpya zinasimama mpaka ulipe.`}</span>
+        </Note>
+      )}
+      {!data.locked && <Note tone={data.inArrears ? 'amber' : 'green'}>
         {data.inArrears
           ? 'Kazi yako haisimami. Kuna ada iliyopita siku 30 bila kulipwa: kazi mpya kutoka KenteXa zinawafikia waliolipa kwanza.'
           : 'Kazi yako haisimami. Ukilipa kwa wakati, kazi mpya kutoka KenteXa zinakuja kwako kwanza.'}
-      </Note>
+      </Note>}
       {sent && <Note tone="blue">Tumepokea picha ya malipo. Tunathibitisha ndani ya saa 24; deni linashuka tukithibitisha.</Note>}
 
       {!paying && data.owed > 0 && (
