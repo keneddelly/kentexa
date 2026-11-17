@@ -1,5 +1,7 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type RootStackParams = {
-  Tabs: undefined;
+  Tabs: NavigatorScreenParams<TabParams> | undefined;
   Post: { id: number };
   Web: { url: string; title?: string };
   Login: undefined;
