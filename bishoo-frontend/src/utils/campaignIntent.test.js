@@ -12,7 +12,7 @@ describe('normalizeIntent / allowlist', () => {
     expect(normalizeIntent('SELLER')).toBe('seller');
   });
   test('rejects anything off the allowlist', () => {
-    expect(normalizeIntent('buyer')).toBeNull();
+    expect(normalizeIntent('shopper')).toBeNull();
     expect(normalizeIntent('admin')).toBeNull();
     expect(normalizeIntent('<script>alert(1)</script>')).toBeNull();
     expect(normalizeIntent('')).toBeNull();

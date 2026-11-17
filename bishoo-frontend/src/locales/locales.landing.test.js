@@ -111,7 +111,7 @@ describe.each([
 
 test('intent keys are identical across all three locales (no missing/extra intent)', () => {
   const intentsFor = (dict) => Object.keys(dict.welcome.intent).sort();
-  expect(intentsFor(en)).toEqual(['classified', 'seller', 'service']);
+  expect(intentsFor(en)).toEqual(['agent', 'business', 'buyer', 'classified', 'office', 'seller', 'service', 'ship']); // owner 2026-11-17: ad links for every kind of work
   expect(intentsFor(sw)).toEqual(intentsFor(en));
   expect(intentsFor(fr)).toEqual(intentsFor(en));
 });
