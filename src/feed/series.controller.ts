@@ -28,6 +28,55 @@ export class SeriesController {
     return this.series.forPost(postId);
   }
 
+  // ── Creators (phase 5): their own series only; the service checks ownership on every call ──
+  @UseGuards(JwtAuthGuard)
+  @Get('my/status')
+  myStatus(@Request() req: any) {
+    return this.series.creatorStatus(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my/all')
+  myList(@Request() req: any) {
+    return this.series.mine(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my/:id')
+  myGet(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    return this.series.get(id, { id: req.user.id, isAdmin: false });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('my')
+  myCreate(@Body() body: any, @Request() req: any) {
+    return this.series.create(req.user.id, body, true);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('my/:id')
+  myUpdate(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Request() req: any) {
+    return this.series.update(req.user.id, id, body, true);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('my/:id/episodes')
+  myAdd(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Request() req: any) {
+    return this.series.addEpisode(req.user.id, id, body, true);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('my/:id/episodes/order')
+  myReorder(@Param('id', ParseIntPipe) id: number, @Body('postIds') postIds: unknown, @Request() req: any) {
+    return this.series.reorder(req.user.id, id, postIds, true);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('my/:id/episodes/:postId')
+  myRemove(@Param('id', ParseIntPipe) id: number, @Param('postId', ParseIntPipe) postId: number, @Request() req: any) {
+    return this.series.removeEpisode(req.user.id, id, postId, true);
+  }
+
   // ── Admin ──
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

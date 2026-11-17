@@ -45,7 +45,12 @@ const TopicChips = ({ topics, value, onChange }) => (
   </div>
 );
 
-export function SeriesEditor({ id, topics, onBack }) {
+/**
+ * The series editor, for admin and (phase 5) for a creator's own series: `mine` uses the creator
+ * routes (/series/my/...), which the server limits to the creator's own series and own posts.
+ */
+export function SeriesEditor({ id, topics, onBack, mine = false }) {
+  const base = mine ? `/series/my/${id}` : `/series/${id}`;
   const [s, setS] = useState(null);
   const [form, setForm] = useState(null);
   const [msg, setMsg] = useState('');
@@ -58,30 +63,30 @@ export function SeriesEditor({ id, topics, onBack }) {
     setForm({ title: data.title || '', description: data.description || '', coverUrl: data.coverUrl || '', topics: data.topics || [], communityId: data.communityId ?? '' });
   };
   useEffect(() => {
-    Promise.resolve().then(() => api.get(`/series/admin/${id}`)).then((r) => take(r.data)).catch((e) => setMsg(err(e, 'Imeshindikana kupakia')));
-  }, [id]);
+    Promise.resolve().then(() => api.get(mine ? `/series/my/${id}` : `/series/admin/${id}`)).then((r) => take(r.data)).catch((e) => setMsg(err(e, 'Imeshindikana kupakia')));
+  }, [id, mine]);
 
   const run = async (fn, done) => {
     setBusy(true); setMsg('');
     try { const r = await fn(); if (r?.data) take(r.data); if (done) setMsg(done); return true; }
     catch (e) { setMsg(err(e)); return false; } finally { setBusy(false); }
   };
-  const save = () => run(() => api.patch(`/series/${id}`, {
+  const save = () => run(() => api.patch(base, {
     title: form.title, description: form.description, coverUrl: form.coverUrl, topics: form.topics,
-    communityId: form.communityId === '' ? null : Number(form.communityId),
+    ...(mine ? {} : { communityId: form.communityId === '' ? null : Number(form.communityId) }),
   }), 'Imehifadhiwa');
-  const setStatus = (status) => run(() => api.patch(`/series/${id}`, { status }), status === 'published' ? 'Imechapishwa: watu wanaiona sasa' : 'Hali imebadilishwa');
+  const setStatus = (status) => run(() => api.patch(base, { status }), status === 'published' ? 'Imechapishwa: watu wanaiona sasa' : 'Hali imebadilishwa');
   const add = async () => {
-    if (await run(() => api.post(`/series/${id}/episodes`, { post, title: epTitle || undefined }), 'Sehemu imeongezwa')) { setPost(''); setEpTitle(''); }
+    if (await run(() => api.post(`${base}/episodes`, { post, title: epTitle || undefined }), 'Sehemu imeongezwa')) { setPost(''); setEpTitle(''); }
   };
   const move = (index, step) => {
     const ids = s.episodeList.map((e) => e.postId);
     const j = index + step;
     if (j < 0 || j >= ids.length) return;
     [ids[index], ids[j]] = [ids[j], ids[index]];
-    run(() => api.put(`/series/${id}/episodes/order`, { postIds: ids }));
+    run(() => api.put(`${base}/episodes/order`, { postIds: ids }));
   };
-  const remove = (postId) => run(() => api.delete(`/series/${id}/episodes/${postId}`), 'Sehemu imeondolewa');
+  const remove = (postId) => run(() => api.delete(`${base}/episodes/${postId}`), 'Sehemu imeondolewa');
   const uploadCover = async (file) => {
     if (!file) return;
     setBusy(true); setMsg('');
@@ -115,8 +120,8 @@ export function SeriesEditor({ id, topics, onBack }) {
             <input type="file" accept="image/*" onChange={(e) => uploadCover(e.target.files?.[0])} style={{ fontSize: 14 }} />
             <Label>Mada</Label>
             <TopicChips topics={topics} value={form.topics} onChange={(v) => setForm({ ...form, topics: v })} />
-            <Label>Jumuiya (namba, si lazima)</Label>
-            <input value={form.communityId} onChange={(e) => setForm({ ...form, communityId: e.target.value.replace(/\D/g, '') })} inputMode="numeric" style={{ ...input, width: 160 }} />
+            {!mine && <Label>Jumuiya (namba, si lazima)</Label>}
+            {!mine && <input value={form.communityId} onChange={(e) => setForm({ ...form, communityId: e.target.value.replace(/\D/g, '') })} inputMode="numeric" style={{ ...input, width: 160 }} />}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button type="button" disabled={busy} onClick={save} style={btn(true, busy)} data-testid="series-save">Hifadhi</button>
               {s.status !== 'published' && <button type="button" disabled={busy} onClick={() => setStatus('published')} style={btn(false, busy)} data-testid="series-publish">Chapisha</button>}
@@ -144,7 +149,7 @@ export function SeriesEditor({ id, topics, onBack }) {
               </div>
             ))}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', borderTop: `1px solid ${LINE}`, paddingTop: 12 }}>
-              <input value={post} onChange={(e) => setPost(e.target.value)} placeholder="Kiungo cha chapisho (kentexa.com/post/...) au namba yake"
+              <input value={post} onChange={(e) => setPost(e.target.value)} placeholder={mine ? 'Kiungo cha chapisho lako (kentexa.com/post/...)' : 'Kiungo cha chapisho (kentexa.com/post/...) au namba yake'}
                 style={{ ...input, flex: 2, minWidth: 220 }} data-testid="series-add-post" />
               <input value={epTitle} onChange={(e) => setEpTitle(e.target.value)} placeholder="Jina la sehemu (si lazima)" maxLength={120} style={{ ...input, flex: 1, minWidth: 160 }} />
               <button type="button" disabled={busy || !post.trim()} onClick={add} style={btn(true, busy)} data-testid="series-add">Ongeza sehemu</button>

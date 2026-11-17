@@ -137,3 +137,46 @@ describe('Mfululizo: followers hear about a new episode (phase 4, in-app, once a
     expect(again.notify).not.toHaveBeenCalled();
   });
 });
+
+describe('Mfululizo: creators (phase 5)', () => {
+  const make = (over: Record<string, any> = {}) => {
+    const db: any = {
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes('to_regclass')) return [{ ok: true }];
+        if (sql.includes('identity_profile')) return over.verified ? [{ ok: 1 }] : [];
+        if (sql.includes('COUNT(*)::int AS n FROM public.business_feed_item')) return [{ n: over.posts ?? 0 }];
+        if (sql.includes('COUNT(*)::int AS n FROM public.content_series WHERE')) return [{ n: over.series ?? 0 }];
+        if (sql.includes('SELECT x.id, x."businessId"')) return [{ id: 5, businessId: over.postOwner ?? 1 }];
+        if (sql.includes('"publishedAt", "ownerUserId"')) return [{ id: 9, status: 'draft', ownerUserId: over.seriesOwner ?? 1 }];
+        return [];
+      }),
+      transaction: async (fn: any) => fn({ query: async (sql: string) => (sql.includes('FOR UPDATE') ? [{ id: 9, ownerUserId: over.seriesOwner ?? 1 }] : []) }),
+    };
+    return new SeriesService(db);
+  };
+
+  it('eligible with a verified identity or 3 public posts', async () => {
+    expect((await make({ verified: true }).creatorStatus(1)).eligible).toBe(true);
+    expect((await make({ posts: 3 }).creatorStatus(1)).eligible).toBe(true);
+    expect((await make({ posts: 2 }).creatorStatus(1)).eligible).toBe(false);
+    await expect(make({ posts: 2 }).create(1, { title: 'Biashara Ndogo' }, true)).rejects.toThrow('thibitisha');
+    await expect(make({ posts: 5, series: 20 }).create(1, { title: 'Biashara Ndogo' }, true)).rejects.toThrow('20');
+  });
+
+  it("a creator adds only their own posts, and only to their own series", async () => {
+    await expect(make({ postOwner: 2 }).addEpisode(1, 9, { post: '5' }, true)).rejects.toThrow('yako mwenyewe');
+    await expect(make({ postOwner: 1, seriesOwner: 2 }).addEpisode(1, 9, { post: '5' }, true)).rejects.toThrow('haupatikani');
+    await expect(make({ seriesOwner: 2 }).update(1, 9, { title: 'Jina Jipya' }, true)).rejects.toThrow('haupatikani');
+    await expect(make({ seriesOwner: 2 }).reorder(1, 9, [5], true)).rejects.toThrow('haupatikani');
+  });
+
+  it('creator routes need sign-in and pass creator=true', () => {
+    const ctl = readFileSync(join(__dirname, 'series.controller.ts'), 'utf8');
+    for (const r of ["@Post('my')", "@Patch('my/:id')", "@Post('my/:id/episodes')", "@Put('my/:id/episodes/order')", "@Delete('my/:id/episodes/:postId')"]) {
+      const at = ctl.indexOf(r);
+      expect(at).toBeGreaterThan(0);
+      expect(ctl.slice(at - 40, at)).toContain('JwtAuthGuard');
+      expect(ctl.slice(at, at + 260)).toContain('true)');
+    }
+  });
+});
