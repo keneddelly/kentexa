@@ -58,6 +58,8 @@ import LineIcon from './public/components/LineIcon';
 // open offline) stay in the first download.
 const PostDetail         = lazyPage(() => import('./public/pages/PostDetail'));
 const TagPage            = lazyPage(() => import('./public/pages/TagPage'));
+const SeriesPage         = lazyPage(() => import('./public/pages/SeriesPage'));
+const TopicPage          = lazyPage(() => import('./public/pages/TopicPage'));
 const CommunityPage      = lazyPage(() => import('./public/pages/CommunityPage'));
 const CreateCommunity    = lazyPage(() => import('./public/pages/CreateCommunity'));
 const Welcome            = lazyPage(() => import('./public/pages/Welcome'));
@@ -904,6 +906,11 @@ function App() {
     // Hashtags (owner 2026-11-15): a tag's page, kentexa.com/tag/<key>.
     if (page.startsWith('Tag-'))
       return <TagPage {...publicProps} tagKey={page.slice(4)} />;
+    // Mfululizo (#410): a series and a topic page.
+    if (/^Series-\d+$/.test(page))
+      return <SeriesPage {...publicProps} seriesId={Number(page.slice(7))} />;
+    if (page.startsWith('Topic-'))
+      return <TopicPage {...publicProps} topicKey={page.slice(6)} />;
     if (page.startsWith('PostDetail-')) {
       const [rawId, suffix] = page.split('PostDetail-')[1].split('-');
       return <PostDetail {...publicProps} postId={Number(rawId)} openComments={suffix === 'comments'} />;

@@ -175,12 +175,20 @@ export class ShareController {
         Promise.resolve(this.db.query(`SELECT c.id, c."updatedAt" FROM public.community c
           WHERE c.status = 'active' AND c."joinPolicy" = 'open' ORDER BY c."updatedAt" DESC`)).catch(() => []),
       ]);
+      // Mfululizo (#410 phase 2): published series and active topics (none before the migration).
+      const [seriesRows, topicRows] = await Promise.all([
+        Promise.resolve(this.db.query(`SELECT s.id, s.title, s."updatedAt" FROM public.content_series s
+          WHERE s.status = 'published' ORDER BY s."updatedAt" DESC`)).catch(() => []),
+        Promise.resolve(this.db.query(`SELECT key FROM public.feed_topic WHERE active = true ORDER BY position`)).catch(() => []),
+      ]);
       add(profiles, (r) => '/@' + encodeURIComponent(r.username));
       add(products, (r) => '/product/' + r.id);
       add(classifieds, (r) => '/classified/' + r.id);
       add(services, (r) => '/service/' + r.id);
       add(posts, (r) => '/post/' + r.id);
       add(communities, (r) => '/community/' + r.id);
+      add(seriesRows, (r) => `/series/${r.id}${slugify(r.title) ? `-${slugify(r.title)}` : ''}`);
+      add(topicRows, (r) => '/topic/' + r.key);
       const body = rows.map((r) => `<url><loc>${xml(r.loc)}</loc>${r.lastmod ? `<lastmod>${new Date(r.lastmod).toISOString()}</lastmod>` : ''}</url>`).join('');
       res.set('Cache-Control', 'public, max-age=300');
       return res.status(200).type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`);
@@ -226,6 +234,16 @@ export class ShareController {
         image: absoluteImage(p.photoUrl || p.coverImage), path,
       };
     }
+    // Mfululizo (#410 phase 2): a topic's page, kentexa.com/topic/<key>.
+    if (type === 'topic') {
+      const key = String(ref || '').toLowerCase();
+      if (!/^[a-z_]{2,40}$/.test(key) || !this.db) return null;
+      const [t] = await this.db.query(`SELECT label, note FROM public.feed_topic WHERE key = $1::varchar AND active = true`, [key]).catch(() => []);
+      const path = `/topic/${key}`;
+      if (!t) return { ...SITE_FALLBACK, path };
+      const [d] = await this.db.query(`SELECT description FROM public.feed_topic WHERE key = $1::varchar`, [key]).catch(() => []);
+      return { title: `${t.label} · Mada kwenye KenteXa`, description: d?.description || t.note || `Mazungumzo na mfululizo kuhusu ${t.label} kwenye KenteXa.`, image: null, path };
+    }
     const id = parseRef(ref);
     if (!id) return null;
     const owner = `COALESCE(cp."displayName", u.name)`;
@@ -267,6 +285,22 @@ export class ShareController {
       const media = Array.isArray(r.media) ? r.media : [];
       // Viral engine A3: a post without a photo shows its KenteXa card.
       return { ...postPreview(r), image: absoluteImage(r.imageUrl || media[0]?.url) || `${BACKEND_URL}/share/card/post/${id}.png`, path };
+    }
+    // Mfululizo (#410 phase 2): a published series; a draft or archived one shows the general card.
+    if (type === 'series') {
+      const r = await q(`SELECT s.title, s.description, s."coverUrl", ${owner} AS owner,
+          (SELECT COUNT(*)::int FROM public.content_series_episode e JOIN public.business_feed_item x ON x.id = e."postId"
+            WHERE e."seriesId" = s.id AND ${PUBLIC_TO_GUESTS('x')}) AS episodes
+        FROM public.content_series s LEFT JOIN public.commerce_profile cp ON cp.id = s."commerceProfileId" LEFT JOIN public."user" u ON u.id = s."ownerUserId"
+        WHERE s.id = $1::int AND s.status = 'published'`);
+      const path = `/series/${id}${r ? `-${slugify(r.title)}` : ''}`;
+      if (!r) return { ...SITE_FALLBACK, path };
+      const count = Number(r.episodes || 0);
+      return {
+        title: `${r.title} · Mfululizo kwenye KenteXa`,
+        description: [`Sehemu ${count}`, r.owner, r.description].filter(Boolean).join(' · '),
+        image: absoluteImage(r.coverUrl), path,
+      };
     }
     if (type === 'community') {
       const r = await q(`SELECT name, purpose, "memberCount", "joinPolicy" FROM public.community WHERE id = $1::int AND status = 'active'`);

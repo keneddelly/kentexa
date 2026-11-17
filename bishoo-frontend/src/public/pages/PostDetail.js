@@ -16,6 +16,7 @@ import ShareNudge, { markNudge, nudgeSeen } from '../components/ShareNudge';
 import ShareSheet from '../components/ShareSheet';
 import RelatedDiscussions from '../components/RelatedDiscussions';
 import GetAppStrip from '../components/GetAppStrip';
+import SeriesBar from '../components/SeriesBar';
 
 const INK = '#0f1419';
 const MUTED = '#536471';
@@ -154,6 +155,8 @@ export default function PostDetail({ postId, onNavigate, isLoggedIn, currentUser
         </div>
       )}
 
+      {/* Mfululizo (#410): the series this post belongs to, with previous / next. */}
+      {state === 'ready' && post && <SeriesBar postId={post.id} onNavigate={onNavigate} />}
       {state === 'ready' && post && (
         <PostCard post={post} isLoggedIn={isLoggedIn} onNavigate={onNavigate} currentUser={currentUser}
           activeProfileId={activeProfileId} initialShowComments detail communityRole={role}
