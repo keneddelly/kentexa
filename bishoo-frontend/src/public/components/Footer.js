@@ -14,8 +14,8 @@ const Footer = ({ onNavigate }) => {
         {/* Brand */}
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, marginBottom: 10 }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'inherit' }}>Kente</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'inherit' }}>Xa</span>
           </div>
           <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7, margin: '0 0 12px' }}>
             {t('footer.tagline')}
