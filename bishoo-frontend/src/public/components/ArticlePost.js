@@ -127,6 +127,13 @@ export default function ArticlePost({ post, detail = false, onOpen, onCommunity 
           dakika {minutes} kusoma{Number(post.views) > 0 ? ` · wasomaji ${Number(post.views).toLocaleString('en-US')}` : ''}
         </span>
         <ArticleBody text={post.body} media={post.media?.length ? post.media : (post.imageUrl ? [{ url: post.imageUrl }] : [])} />
+        {/* Writers programme (#417): whose opinion this is, and the rules writers follow. */}
+        <p data-testid="article-note" style={{ margin: '8px 0 0', paddingTop: 12, borderTop: `1px solid ${LINE}`, fontSize: 13, lineHeight: '19px', color: MUTED }}>
+          Maoni katika makala hii ni ya mwandishi.{' '}
+          <a href="/miongozo-ya-uandishi/" style={{ color: TEAL, fontWeight: 700, textDecoration: 'none' }}>Miongozo ya uandishi</a>
+          {' · '}
+          <a href="/waandishi/" style={{ color: TEAL, fontWeight: 700, textDecoration: 'none' }}>Andika kwenye KenteXa</a>
+        </p>
       </div>
     </div>
   );

@@ -13,7 +13,7 @@
  */
 
 // Owner 2026-11-17: ad links for every kind of work (kentexa.com/?intent=office ...).
-export const ALLOWED_INTENTS = ['service', 'classified', 'seller', 'buyer', 'ship', 'office', 'agent', 'business'];
+export const ALLOWED_INTENTS = ['service', 'classified', 'seller', 'buyer', 'ship', 'office', 'agent', 'business', 'writer'];
 
 // Where each intent lands the visitor once they're authenticated — mirrors
 // the existing `kentexa_after_login` precedent (App.js), just sourced from
@@ -29,6 +29,8 @@ export const INTENT_DESTINATIONS = {
   office: 'BecomeSuperAgentInfo',
   agent: 'BecomeAgent',
   business: 'BecomeBusiness',
+  // Writers programme (#417): Home, with the Makala editor opened over it (App.js).
+  writer: 'Home',
 };
 
 const STORAGE_KEY = 'kentexa_intent';

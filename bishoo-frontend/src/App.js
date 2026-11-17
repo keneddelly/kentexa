@@ -641,7 +641,10 @@ function App() {
             // so it can only ever redirect this one post-auth landing, same
             // priority tier as the plain 'Home' fallback it replaces. Never
             // overrides an explicit targetPage a caller already asked for.
-            const intentDestination = destinationForIntent(consumeIntent());
+            const consumedIntent = consumeIntent();
+            const intentDestination = destinationForIntent(consumedIntent);
+            // Writers programme (#417): a writer's link opens the Makala editor right after sign-up.
+            if (consumedIntent === 'writer') setArticleStart({});
             const params = new URLSearchParams(window.location.search);
             const receive = params.get('receive');
             // The seller's new-order link asks for login first; after login it opens that order.

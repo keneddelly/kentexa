@@ -55,4 +55,13 @@
     <xhtml:link rel="alternate" hreflang="sw-TZ" href="https://kentexa.com/ofisi-ya-mizigo/"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://kentexa.com/office/super-agent/"/>
   </url>
+  <url><loc>https://kentexa.com/waandishi/</loc><lastmod>2026-11-18</lastmod><changefreq>monthly</changefreq><priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="sw-TZ" href="https://kentexa.com/waandishi/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kentexa.com/writers/"/>
+  </url>
+  <url><loc>https://kentexa.com/writers/</loc><lastmod>2026-11-18</lastmod><changefreq>monthly</changefreq><priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="sw-TZ" href="https://kentexa.com/waandishi/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://kentexa.com/writers/"/>
+  </url>
+  <url><loc>https://kentexa.com/miongozo-ya-uandishi/</loc><lastmod>2026-11-18</lastmod><changefreq>yearly</changefreq><priority>0.5</priority></url>
 </urlset>
