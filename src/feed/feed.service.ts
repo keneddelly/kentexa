@@ -40,6 +40,7 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import type { ComposerEvent } from './composer-events';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 import { SearchIndexService } from '../search/search-index.service';
+import { PostViewsService } from './post-views.service';
 import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
 
 export type FeedFilter =
@@ -109,6 +110,8 @@ export class FeedService {
     private readonly searchIndex: SearchIndexService,
     // Hashtags (owner 2026-11-15). Optional so hand-built test services keep working.
     @Optional() private readonly hashtags?: HashtagService,
+    // Post views on a profile's own list (owner 2026-11-17: the eye showed no number there).
+    @Optional() private readonly postViews?: PostViewsService,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -1190,9 +1193,15 @@ export class FeedService {
     // Strips the old burned-in price+category banner from any Moment
     // created before that overlay was removed — read-time only, no data
     // migration, see strip-legacy-overlay.util.ts.
+    // Owner 2026-11-17: the readers number ("views") is the same as on Home: signed-in readers
+    // (viewCount) plus guest browsers. Without it the profile's eye showed no number.
+    const guests = this.postViews
+      ? await this.postViews.guestCounts(items.map((f) => Number(f.id))).catch(() => new Map<number, number>())
+      : new Map<number, number>();
     return items.map((f) => ({
       ...f,
       imageUrl: stripLegacyPriceOverlay(f.imageUrl),
+      views: Number((f as any).viewCount || 0) + (guests.get(Number(f.id)) || 0),
     })) as BusinessFeedItem[];
   }
 
