@@ -39,7 +39,8 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const [social, setSocial] = useState(null);
   const onSocial = async (data) => {
     if (data?.status === 'need_phone') { setSocial(data); return; }
-    if (onLoginSuccess) await onLoginSuccess(data);
+    // A new account (owner 2026-11-17: no phone at sign-up) goes to the photo step when it has none.
+    if (onLoginSuccess) await onLoginSuccess(data, data?.created && !data?.user?.avatarUrl ? { targetPage: 'AddProfilePhoto' } : undefined);
   };
 
   const login = async (e) => {

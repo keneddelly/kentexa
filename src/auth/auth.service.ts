@@ -344,50 +344,11 @@ export class AuthService {
   }
 
   // ── VERIFY OTP ────────────────────────────────────────────────────────
-  async verifyOtp(identifier: string, otp: string) {
-    const isEmail = identifier.includes('@');
-    const user = isEmail
-      ? await this.userRepo.findOne({ where: { email: identifier } })
-      : await this.userRepo.findOne({ where: { phone: normalizeTzPhone(identifier) } });
-
-    if (!user) {
-      this.journey('OTP_FAILED', null, { reason: 'no_account' });
-      throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
-    }
-    if (user.isVerified) {
-      this.journey('OTP_FAILED', user.id, { reason: 'already_verified' });
-      throw authError(BadRequestException, 'ALREADY_VERIFIED', 'Account already verified. Please login.');
-    }
-    if (user.otpAttempts >= 5) {
-      this.journey('OTP_FAILED', user.id, { reason: 'too_many' });
-      throw authError(BadRequestException, 'OTP_TOO_MANY', 'Too many attempts. Request a new OTP.');
-    }
-    if (!user.otpExpiry || new Date() > user.otpExpiry) {
-      this.journey('OTP_FAILED', user.id, { reason: 'expired' });
-      throw authError(BadRequestException, 'OTP_EXPIRED', 'OTP expired. Request a new one.');
-    }
-    if (user.otp !== otp) {
-      await this.userRepo.update(user.id, {
-        otpAttempts: user.otpAttempts + 1,
-      });
-      const remaining = 5 - (user.otpAttempts + 1);
-      this.journey('OTP_FAILED', user.id, { reason: 'wrong', remaining });
-      throw authError(BadRequestException, 'OTP_WRONG', `Incorrect OTP. ${remaining} attempts remaining.`, { remaining });
-    }
-    this.journey('OTP_VERIFIED', user.id, { channel: isEmail ? 'email' : 'sms' });
-
-    await this.userRepo.update(user.id, {
-      isVerified: true,
-      otp: null,
-      otpExpiry: null,
-      otpAttempts: 0,
-    });
-
-    // Welcome email only — an SMS welcome message here meant every phone
-    // signup got two texts seconds apart (the OTP, then this), which read
-    // as a confusing duplicate rather than two separate things. If an SMS
-    // welcome touchpoint is wanted later, it belongs later in the funnel
-    // (e.g. after onboarding), not stacked directly on OTP verification.
+  /**
+   * A new account's first moment (after the sign-up code, or a Google / Facebook sign-up): the
+   * welcome email, its personal Commerce Profile and the in-app welcome. Never blocks sign-in.
+   */
+  private async welcomeNewAccount(user: User) {
     if (user.email)
       await this.mailService.sendWelcome(user.email, String(user.name || ''));
 
@@ -434,6 +395,54 @@ export class AuthService {
     } catch {
       // Notifications are engagement infrastructure, never an auth blocker.
     }
+
+  }
+
+  async verifyOtp(identifier: string, otp: string) {
+    const isEmail = identifier.includes('@');
+    const user = isEmail
+      ? await this.userRepo.findOne({ where: { email: identifier } })
+      : await this.userRepo.findOne({ where: { phone: normalizeTzPhone(identifier) } });
+
+    if (!user) {
+      this.journey('OTP_FAILED', null, { reason: 'no_account' });
+      throw authError(BadRequestException, 'ACCOUNT_NOT_FOUND', 'Account not found');
+    }
+    if (user.isVerified) {
+      this.journey('OTP_FAILED', user.id, { reason: 'already_verified' });
+      throw authError(BadRequestException, 'ALREADY_VERIFIED', 'Account already verified. Please login.');
+    }
+    if (user.otpAttempts >= 5) {
+      this.journey('OTP_FAILED', user.id, { reason: 'too_many' });
+      throw authError(BadRequestException, 'OTP_TOO_MANY', 'Too many attempts. Request a new OTP.');
+    }
+    if (!user.otpExpiry || new Date() > user.otpExpiry) {
+      this.journey('OTP_FAILED', user.id, { reason: 'expired' });
+      throw authError(BadRequestException, 'OTP_EXPIRED', 'OTP expired. Request a new one.');
+    }
+    if (user.otp !== otp) {
+      await this.userRepo.update(user.id, {
+        otpAttempts: user.otpAttempts + 1,
+      });
+      const remaining = 5 - (user.otpAttempts + 1);
+      this.journey('OTP_FAILED', user.id, { reason: 'wrong', remaining });
+      throw authError(BadRequestException, 'OTP_WRONG', `Incorrect OTP. ${remaining} attempts remaining.`, { remaining });
+    }
+    this.journey('OTP_VERIFIED', user.id, { channel: isEmail ? 'email' : 'sms' });
+
+    await this.userRepo.update(user.id, {
+      isVerified: true,
+      otp: null,
+      otpExpiry: null,
+      otpAttempts: 0,
+    });
+
+    // Welcome email only — an SMS welcome message here meant every phone
+    // signup got two texts seconds apart (the OTP, then this), which read
+    // as a confusing duplicate rather than two separate things. If an SMS
+    // welcome touchpoint is wanted later, it belongs later in the funnel
+    // (e.g. after onboarding), not stacked directly on OTP verification.
+    await this.welcomeNewAccount(user);
 
     const authenticated = await this.issueAuthenticatedResponse(user);
     return {
@@ -564,10 +573,6 @@ export class AuthService {
     return Boolean(row?.ok);
   }
 
-  private socialTicket(p: SocialProfile): string {
-    return this.jwtService.sign({ purpose: 'social', p: p.provider, sub: p.sub, email: p.email, ev: p.emailVerified, name: p.name, pic: p.picture },
-      { secret: this.socialSecret(), expiresIn: '20m' });
-  }
 
   private readTicket(ticket: unknown): SocialProfile {
     try {
@@ -615,7 +620,13 @@ export class AuthService {
     if (user && user.name === DELETED_NAME) user = null;
     if (!user && p.emailVerified && p.email) {
       const byEmail = await this.userRepo.createQueryBuilder('u').where('LOWER(u.email) = :e', { e: p.email }).getOne();
-      if (byEmail?.isVerified && byEmail.name !== DELETED_NAME) {
+      if (byEmail && byEmail.name !== DELETED_NAME) {
+        // Google proved this email: an account that never typed its email code is verified now.
+        if (!byEmail.isVerified) {
+          await this.userRepo.update(byEmail.id, { isVerified: true, otp: null, otpExpiry: null, otpAttempts: 0 } as any);
+          byEmail.isVerified = true;
+          await this.welcomeNewAccount(byEmail).catch(() => undefined);
+        }
         await this.linkSocial(byEmail, p);
         user = byEmail;
       }
@@ -625,8 +636,33 @@ export class AuthService {
       this.journey('LOGIN_SOCIAL', user.id, { provider });
       return { status: 'signed_in' as const, ...(await this.issueAuthenticatedResponse(user, metadata)) };
     }
-    this.journey('REGISTRATION_STARTED', null, { method: provider });
-    return { status: 'need_phone' as const, ticket: this.socialTicket(p), name: p.name, provider };
+    // Owner 2026-11-17: no phone at sign-up ("there are users outside Tanzania who join
+    // communities"). The account is made from the Google / Facebook profile; a phone is asked
+    // only later, by the features that need one (selling, delivery, payments).
+    const created = await this.createSocialAccount(p);
+    this.journey('REGISTRATION_STARTED', created.id, { method: provider, phone: false });
+    this.journey('LOGIN_SOCIAL', created.id, { provider, created: true });
+    return { status: 'signed_in' as const, created: true, ...(await this.issueAuthenticatedResponse(created, metadata)) };
+  }
+
+  /** A new account from a verified Google / Facebook profile: no phone, no password the person knows. */
+  private async createSocialAccount(p: SocialProfile): Promise<User> {
+    let email: string | null = null;
+    if (p.email) {
+      const [taken] = await this.userRepo.manager.query(`SELECT id FROM public."user" WHERE LOWER(email) = $1::varchar LIMIT 1`, [p.email]);
+      if (!taken) email = p.email;
+    }
+    const terms = await this.currentTermsAcceptance();
+    const user = this.userRepo.create({
+      phone: null, email, name: (p.name || '').trim().slice(0, 100) || 'Mtumiaji wa KenteXa',
+      password: await bcrypt.hash(randomBytes(24).toString('hex'), 10),
+      avatarUrl: p.picture || null, isVerified: true, otp: null, otpExpiry: null, otpAttempts: 0,
+      ...terms,
+    } as any) as unknown as User;
+    await this.userRepo.save(user);
+    await this.linkSocial(user, p);
+    await this.welcomeNewAccount(user).catch(() => undefined);
+    return user;
   }
 
   async socialPhone(body: { ticket?: unknown; phone?: unknown }) {
