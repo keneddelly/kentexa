@@ -26,6 +26,42 @@ export class KentexaFeeController {
     return this.fees.pay(req.user, body, roleContext);
   }
 
+  /** One of the asking account's own monthly invoices, with its jobs. */
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get('invoices/:id')
+  myInvoice(@Request() req: any, @Param('id', ParseIntPipe) id: number, @Query('as') as: string, @CurrentRoleContext() roleContext: any) {
+    return this.fees.myInvoice(req.user, as, id, roleContext);
+  }
+
+  /** Admin: every account that uses KenteXa's paid work, what it owes and whether it is late. */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/accounts')
+  adminAccounts(@Query('filter') filter?: string, @Query('q') q?: string) {
+    return this.fees.adminAccounts(filter, q);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/accounts/:type/:id')
+  adminAccount(@Param('type') type: string, @Param('id', ParseIntPipe) id: number) {
+    return this.fees.adminAccount(type as any, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/accounts/:type/:id/remind')
+  adminRemind(@Param('type') type: string, @Param('id', ParseIntPipe) id: number) {
+    return this.fees.adminRemind(type as any, id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/invoices/:id')
+  adminInvoice(@Param('id', ParseIntPipe) id: number) {
+    return this.fees.invoiceDetail(id);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('admin/payments')

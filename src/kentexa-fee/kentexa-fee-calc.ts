@@ -89,3 +89,56 @@ export function owedState(
   const oldTotal = all.filter((f) => f.at < limit).reduce((s, f) => s + f.fee, 0);
   return { owed, inArrears: oldTotal - paid > 0.5 };
 }
+
+// ── Monthly ankara (owner approved 2026-11-17) ───────────────────────────
+export const SW_MONTHS = ['Januari', 'Februari', 'Machi', 'Aprili', 'Mei', 'Juni', 'Julai', 'Agosti', 'Septemba', 'Oktoba', 'Novemba', 'Desemba'] as const;
+const DAR_OFFSET_MS = 3 * 3_600_000; // Dar es Salaam is UTC+3 all year
+
+/** "2026-11-01" -> "Novemba 2026". */
+export function monthLabel(periodStart: string | Date): string {
+  const d = typeof periodStart === 'string' ? new Date(`${periodStart.slice(0, 10)}T00:00:00Z`) : periodStart;
+  return `${SW_MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/** The first day (YYYY-MM-DD) of every finished month, Dar time, from the fee start month to last month. */
+export function finishedMonths(startAt: Date, now = new Date()): string[] {
+  const s = new Date(startAt.getTime() + DAR_OFFSET_MS);
+  const n = new Date(now.getTime() + DAR_OFFSET_MS);
+  const out: string[] = [];
+  let y = s.getUTCFullYear(); let m = s.getUTCMonth();
+  while (y < n.getUTCFullYear() || (y === n.getUTCFullYear() && m < n.getUTCMonth())) {
+    out.push(`${y}-${String(m + 1).padStart(2, '0')}-01`);
+    m += 1; if (m === 12) { m = 0; y += 1; }
+  }
+  return out;
+}
+
+/** KX-202611-O0012: the month, O/A/S for ofisi/wakala/muuzaji and the account. One per account per month. */
+export function invoiceNumber(type: FeeAccountType, accountId: number, periodStart: string): string {
+  const letter = type === 'office' ? 'O' : type === 'agent' ? 'A' : 'S';
+  return `KX-${periodStart.slice(0, 4)}${periodStart.slice(5, 7)}-${letter}${String(accountId).padStart(4, '0')}`;
+}
+
+export type InvoiceStatus = 'paid' | 'part' | 'unpaid';
+
+/**
+ * Which invoices are paid. Confirmed payments pay the old debt (legacy) first, then the oldest
+ * invoice first; what is left over waits for the next invoice. Nothing is stored, so it never drifts.
+ */
+export function invoiceStatuses<T extends { amount: number | string; dueAt: string | Date; periodStart: string | Date }>(
+  invoices: T[], confirmedPaid: number, legacy = 0, now = new Date(),
+): Array<T & { amount: number; paid: number; left: number; status: InvoiceStatus; late: boolean }> {
+  let pot = Math.max(0, Number(confirmedPaid) || 0) - Math.max(0, Number(legacy) || 0);
+  if (pot < 0) pot = 0;
+  return [...invoices]
+    .sort((a, b) => String(a.periodStart).localeCompare(String(b.periodStart)))
+    .map((inv) => {
+      const amount = Math.round(Number(inv.amount) || 0);
+      const paid = Math.min(amount, Math.round(pot));
+      pot -= paid;
+      const left = amount - paid;
+      const status: InvoiceStatus = left <= 0 ? 'paid' : paid > 0 ? 'part' : 'unpaid';
+      const due = new Date(typeof inv.dueAt === 'string' && inv.dueAt.length === 10 ? `${inv.dueAt}T23:59:59+03:00` : inv.dueAt);
+      return { ...inv, amount, paid, left, status, late: left > 0 && due.getTime() < now.getTime() };
+    });
+}

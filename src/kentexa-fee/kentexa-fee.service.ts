@@ -3,7 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { LIPA_PROOF_REF, signedLipaProofUrl } from '../orders/lipa-proof';
-import { DEFAULT_FEE_SETTINGS, FeeAccountType, FeeSettings, feeSettingsFrom, jobFee, owedState, ruleFor } from './kentexa-fee-calc';
+import { DEFAULT_FEE_SETTINGS, FeeAccountType, FeeSettings, feeSettingsFrom, finishedMonths, invoiceStatuses, jobFee, monthLabel, owedState, ruleFor } from './kentexa-fee-calc';
 import { setFeeStandingReady } from './paid-up-gate';
 
 /**
@@ -35,6 +35,9 @@ export const FEE_TEXT = {
   missing: 'Malipo hayapatikani.',
   notWaiting: 'Malipo haya yameshashughulikiwa.',
   reasonShort: 'Eleza sababu (angalau herufi 5).',
+  noInvoice: 'Ankara haipatikani.',
+  noAccount: 'Akaunti haipatikani.',
+  remindedToday: 'Umeshamkumbusha leo. Jaribu kesho.',
 } as const;
 
 const money = (n: number) => `TZS ${Math.round(Number(n) || 0).toLocaleString('en-US')}`;
@@ -44,6 +47,8 @@ export class KentexaFeeService implements OnModuleInit {
   private readonly logger = new Logger(KentexaFeeService.name);
   private tablesReady = false;
   private checkedAt = 0;
+  private invoicesReady = false;
+  private invoicesCheckedAt = 0;
 
   constructor(
     private readonly db: DataSource,
@@ -297,6 +302,225 @@ export class KentexaFeeService implements OnModuleInit {
     }
   }
 
+  // ── Monthly ankara (owner approved 2026-11-17) ──────────────────────────
+  /** The invoice table exists once migration 1797000000000 ran. */
+  async invoicesOn(): Promise<boolean> {
+    if (!(await this.ready())) return false;
+    if (!this.invoicesReady && Date.now() - this.invoicesCheckedAt > 60_000) {
+      this.invoicesCheckedAt = Date.now();
+      try {
+        const [row] = await this.db.query(`SELECT to_regclass('public.kentexa_fee_invoice') IS NOT NULL AS ok`);
+        this.invoicesReady = Boolean(row?.ok);
+      } catch { this.invoicesReady = false; }
+    }
+    return this.invoicesReady;
+  }
+
+  /** Every day 06:10 Dar es Salaam: makes any missing invoice for a finished month (the 1st, and any missed day). */
+  @Cron('10 3 * * *')
+  async invoiceCron() {
+    try { await this.makeInvoices(); } catch (e: any) { this.logger.warn(`fee invoices failed: ${e?.message}`); }
+  }
+
+  /**
+   * One invoice per account per finished month that had a fee to pay: the month's jobs and the
+   * total of its fee rows. Never edited and never made twice (unique account + month). Returns how
+   * many were made; each new one is told to its owner.
+   */
+  async makeInvoices(now = new Date()): Promise<number> {
+    if (!(await this.invoicesOn())) return 0;
+    const s = await this.settings();
+    let made = 0;
+    for (const month of finishedMonths(s.startAt, now)) {
+      const rows: any[] = await this.db.query(`
+        INSERT INTO public.kentexa_fee_invoice (number, "accountType", "accountId", "accountUserId", "periodStart", "periodEnd", jobs, "freeJobs", amount, "dueAt")
+        SELECT 'KX-' || to_char($1::date, 'YYYYMM') || '-' ||
+                 CASE f."accountType" WHEN 'office' THEN 'O' WHEN 'agent' THEN 'A' ELSE 'S' END || lpad(f."accountId"::text, GREATEST(4, length(f."accountId"::text)), '0'),
+               f."accountType", f."accountId", MAX(f."accountUserId"), $1::date, ($1::date + interval '1 month' - interval '1 day')::date,
+               COUNT(*)::int, (COUNT(*) FILTER (WHERE f."freeJob"))::int, SUM(f.fee),
+               ($1::date + interval '1 month' + interval '29 days')::date
+          FROM public.kentexa_fee f
+         WHERE date_trunc('month', f."doneAt" AT TIME ZONE 'Africa/Dar_es_Salaam')::date = $1::date
+         GROUP BY f."accountType", f."accountId"
+        HAVING SUM(f.fee) > 0
+        ON CONFLICT ("accountType", "accountId", "periodStart") DO NOTHING
+        RETURNING id, number, "accountType", "accountId", amount, "dueAt"`, [month]);
+      made += rows.length;
+      for (const r of rows) await this.tellInvoice(r, month);
+    }
+    return made;
+  }
+
+  private async tellInvoice(r: any, month: string) {
+    if (!this.notifications) return;
+    const userId = await this.userOf(r.accountType, Number(r.accountId)).catch(() => null);
+    if (!userId) return;
+    const due = new Date(r.dueAt).toLocaleDateString('en-GB', { timeZone: 'Africa/Dar_es_Salaam' });
+    await this.notifications.notify({
+      userId, type: 'kentexa_fee', title: `Ankara ya ${monthLabel(month)}`,
+      body: `Ankara ${r.number}: ada ya KenteXa ${money(r.amount)}. Lipa kabla ya ${due}. Kazi yako haisimami.`,
+      actionPage: 'KentexaFee', actionParam: r.accountType, sourceType: 'kentexa_fee_invoice', sourceId: Number(r.id),
+    }).catch(() => undefined);
+  }
+
+  /** The account's invoices, newest first, each with what is paid and left. */
+  async invoicesOf(type: FeeAccountType, id: number, now = new Date()) {
+    if (!(await this.invoicesOn())) return [];
+    const rows: any[] = await this.db.query(`SELECT id, number, "periodStart"::text AS "periodStart", "periodEnd"::text AS "periodEnd",
+        jobs, "freeJobs", amount, "dueAt"::text AS "dueAt", "createdAt"
+      FROM public.kentexa_fee_invoice WHERE "accountType" = $1::varchar AND "accountId" = $2::int`, [type, id]);
+    const [paid] = await this.db.query(`SELECT COALESCE(SUM(amount), 0) AS total FROM public.kentexa_fee_payment
+      WHERE "accountType" = $1::varchar AND "accountId" = $2::int AND status = 'confirmed'`, [type, id]);
+    const legacy = await this.legacyFor(type, id);
+    return invoiceStatuses(rows, Number(paid?.total) || 0, legacy, now)
+      .map((r) => ({ ...r, id: Number(r.id), jobs: Number(r.jobs), freeJobs: Number(r.freeJobs), month: monthLabel(r.periodStart) }))
+      .reverse();
+  }
+
+  /** One invoice with its jobs. `only` limits it to one account (the owner); admin passes none. */
+  async invoiceDetail(invoiceId: number, only?: { type: FeeAccountType; id: number }) {
+    if (!(await this.invoicesOn())) throw new NotFoundException(FEE_TEXT.noInvoice);
+    const [inv] = await this.db.query(`SELECT id, "accountType", "accountId", "periodStart"::text AS "periodStart" FROM public.kentexa_fee_invoice WHERE id = $1::int`, [invoiceId]);
+    if (!inv || (only && (inv.accountType !== only.type || Number(inv.accountId) !== only.id))) throw new NotFoundException(FEE_TEXT.noInvoice);
+    const type = inv.accountType as FeeAccountType; const accountId = Number(inv.accountId);
+    const all = await this.invoicesOf(type, accountId);
+    const invoice = all.find((i) => i.id === Number(invoiceId));
+    const jobs: any[] = await this.db.query(`SELECT id, "sourceType", "sourceRef", "baseAmount", rate, fee, "freeJob", "doneAt"
+      FROM public.kentexa_fee WHERE "accountType" = $1::varchar AND "accountId" = $2::int
+        AND date_trunc('month', "doneAt" AT TIME ZONE 'Africa/Dar_es_Salaam')::date = $3::date
+      ORDER BY "doneAt" ASC LIMIT 1000`, [type, accountId, inv.periodStart]);
+    const s = await this.settings();
+    const who = await this.accountName(type, accountId);
+    const n = (v: any) => Math.round(Number(v) || 0);
+    return {
+      invoice, accountType: type, accountId, who: who.name, phone: only ? undefined : who.phone,
+      lipa: { number: s.lipaNumber, name: s.lipaName, bank: s.lipaBank },
+      jobs: jobs.map((j) => ({ ...j, id: Number(j.id), baseAmount: n(j.baseAmount), fee: n(j.fee), rate: Number(j.rate) })),
+    };
+  }
+
+  private async accountName(type: FeeAccountType, id: number): Promise<{ name: string | null; phone: string | null; userId: number | null }> {
+    const userId = await this.userOf(type, id).catch(() => null);
+    const [u] = userId ? await this.db.query(`SELECT name, phone FROM public."user" WHERE id = $1::int`, [userId]) : [];
+    let name = u?.name ?? null;
+    if (type === 'office') {
+      const [o] = await this.db.query(`SELECT "businessName" FROM public.super_agent WHERE id = $1::int`, [id]);
+      name = o?.businessName || name;
+    }
+    return { name, phone: u?.phone ?? null, userId };
+  }
+
+  // ── Admin: who uses KenteXa and what they owe ───────────────────────────
+  /** Every account with fees (or an old debt): what it did, owes, paid, and whether it is late. */
+  async adminAccounts(filter = 'owing', q = '') {
+    if (!(await this.ready())) return { ready: false, totals: null, rows: [] };
+    const invoices = await this.invoicesOn();
+    const rows: any[] = await this.db.query(`
+      WITH acc AS (
+        SELECT "accountType", "accountId" FROM public.kentexa_fee
+        UNION SELECT "accountType", "accountId" FROM public.kentexa_fee_standing
+        UNION SELECT "accountType", "accountId" FROM public.kentexa_fee_payment
+      ), fee AS (
+        SELECT "accountType", "accountId", COUNT(*)::int AS jobs, COALESCE(SUM(fee), 0) AS fees,
+               COUNT(*) FILTER (WHERE "freeJob")::int AS free, MAX("doneAt") AS "lastJobAt",
+               COUNT(*) FILTER (WHERE date_trunc('month', "doneAt" AT TIME ZONE 'Africa/Dar_es_Salaam') = date_trunc('month', now() AT TIME ZONE 'Africa/Dar_es_Salaam'))::int AS "monthJobs"
+          FROM public.kentexa_fee GROUP BY 1, 2
+      ), pay AS (
+        SELECT "accountType", "accountId", COALESCE(SUM(amount) FILTER (WHERE status = 'confirmed'), 0) AS paid,
+               COUNT(*) FILTER (WHERE status = 'waiting')::int AS waiting,
+               MAX("reviewedAt") FILTER (WHERE status = 'confirmed') AS "lastPaidAt"
+          FROM public.kentexa_fee_payment GROUP BY 1, 2
+      )
+      SELECT a."accountType", a."accountId", COALESCE(f.jobs, 0) AS jobs, COALESCE(f.fees, 0) AS fees, COALESCE(f.free, 0) AS free,
+             COALESCE(f."monthJobs", 0) AS "monthJobs", f."lastJobAt",
+             COALESCE(p.paid, 0) AS paid, COALESCE(p.waiting, 0) AS waiting, p."lastPaidAt",
+             COALESCE(st.owed, 0) AS owed, COALESCE(st."inArrears", false) AS late,
+             COALESCE(sa."businessName", u.name) AS who, u.phone,
+             ${invoices ? `(SELECT COUNT(*)::int FROM public.kentexa_fee_invoice i WHERE i."accountType" = a."accountType" AND i."accountId" = a."accountId")` : '0'} AS invoices
+        FROM acc a
+        LEFT JOIN fee f ON f."accountType" = a."accountType" AND f."accountId" = a."accountId"
+        LEFT JOIN pay p ON p."accountType" = a."accountType" AND p."accountId" = a."accountId"
+        LEFT JOIN public.kentexa_fee_standing st ON st."accountType" = a."accountType" AND st."accountId" = a."accountId"
+        LEFT JOIN public.super_agent sa ON a."accountType" = 'office' AND sa.id = a."accountId"
+        LEFT JOIN public.agent ag ON a."accountType" = 'agent' AND ag.id = a."accountId"
+        LEFT JOIN public."user" u ON u.id = CASE a."accountType" WHEN 'office' THEN sa."userId" WHEN 'agent' THEN ag."userId" ELSE a."accountId" END
+       ORDER BY COALESCE(st."inArrears", false) DESC, COALESCE(st.owed, 0) DESC, f."lastJobAt" DESC NULLS LAST
+       LIMIT 2000`);
+    const n = (v: any) => Math.round(Number(v) || 0);
+    const all = rows.map((r) => ({
+      accountType: r.accountType, accountId: Number(r.accountId), who: r.who || null, phone: r.phone || null,
+      jobs: n(r.jobs), free: n(r.free), monthJobs: n(r.monthJobs), fees: n(r.fees), paid: n(r.paid), owed: n(r.owed),
+      late: Boolean(r.late), waiting: n(r.waiting), invoices: n(r.invoices), lastJobAt: r.lastJobAt, lastPaidAt: r.lastPaidAt,
+    }));
+    const totals = {
+      accounts: all.length,
+      owing: all.filter((r) => r.owed > 0).length,
+      late: all.filter((r) => r.late).length,
+      owed: all.reduce((sum, r) => sum + r.owed, 0),
+      paid: all.reduce((sum, r) => sum + r.paid, 0),
+      waiting: all.reduce((sum, r) => sum + r.waiting, 0),
+    };
+    const words = String(q ?? '').trim().toLowerCase();
+    const picked = all
+      .filter((r) => (filter === 'late' ? r.late : filter === 'all' ? true : r.owed > 0))
+      .filter((r) => !words || `${r.who ?? ''} ${r.phone ?? ''} ${r.accountId}`.toLowerCase().includes(words));
+    return { ready: true, invoicesOn: invoices, totals, rows: picked.slice(0, 300) };
+  }
+
+  /** One account for admin: who, the numbers, its invoices, payments and latest jobs. */
+  async adminAccount(type: FeeAccountType, id: number, now = new Date()) {
+    if (!(await this.ready())) throw new BadRequestException(FEE_TEXT.notReady);
+    if (!['office', 'agent', 'seller'].includes(type)) throw new BadRequestException(FEE_TEXT.badAs);
+    const who = await this.accountName(type, id);
+    const [any] = await this.db.query(`SELECT 1 AS ok FROM public.kentexa_fee WHERE "accountType" = $1::varchar AND "accountId" = $2::int
+      UNION SELECT 1 FROM public.kentexa_fee_payment WHERE "accountType" = $1::varchar AND "accountId" = $2::int
+      UNION SELECT 1 FROM public.kentexa_fee_standing WHERE "accountType" = $1::varchar AND "accountId" = $2::int LIMIT 1`, [type, id]);
+    if (!any) throw new NotFoundException(FEE_TEXT.noAccount);
+    const s = await this.settings();
+    const st = await this.stateOf(type, id, s, now);
+    const n = (v: any) => Math.round(Number(v) || 0);
+    const [sum] = await this.db.query(`SELECT COUNT(*)::int AS jobs, COALESCE(SUM("baseAmount"), 0) AS earned, COALESCE(SUM(fee), 0) AS fees,
+        COUNT(*) FILTER (WHERE "freeJob")::int AS free, MIN("doneAt") AS "firstJobAt"
+      FROM public.kentexa_fee WHERE "accountType" = $1::varchar AND "accountId" = $2::int`, [type, id]);
+    const payments: any[] = await this.db.query(`SELECT id, amount, reference, status, reason, "createdAt", "reviewedAt", "proofRef"
+      FROM public.kentexa_fee_payment WHERE "accountType" = $1::varchar AND "accountId" = $2::int ORDER BY id DESC LIMIT 50`, [type, id]);
+    const recent: any[] = await this.db.query(`SELECT id, "sourceType", "sourceRef", "baseAmount", fee, "freeJob", "doneAt"
+      FROM public.kentexa_fee WHERE "accountType" = $1::varchar AND "accountId" = $2::int ORDER BY "doneAt" DESC LIMIT 30`, [type, id]);
+    const [lastReminder] = await this.db.query(`SELECT MAX("sentAt") AS at FROM public.kentexa_fee_reminder
+      WHERE "accountType" = $1::varchar AND "accountId" = $2::int AND kind = 'admin'`, [type, id]).catch(() => [null]);
+    return {
+      accountType: type, accountId: id, who: who.name, phone: who.phone,
+      owed: st.owed, legacy: n(st.legacy), late: st.inArrears,
+      jobs: n(sum?.jobs), earned: n(sum?.earned), fees: n(sum?.fees), free: n(sum?.free), firstJobAt: sum?.firstJobAt ?? null,
+      invoices: await this.invoicesOf(type, id, now),
+      payments: payments.map((p) => ({ id: Number(p.id), amount: n(p.amount), reference: p.reference, status: p.status, reason: p.reason,
+        createdAt: p.createdAt, reviewedAt: p.reviewedAt, proofUrl: signedLipaProofUrl(p.proofRef) })),
+      recent: recent.map((r) => ({ ...r, id: Number(r.id), baseAmount: n(r.baseAmount), fee: n(r.fee) })),
+      lastRemindedAt: lastReminder?.at ?? null,
+    };
+  }
+
+  /** Admin "Mkumbushe": one in-app reminder with the amount owed, at most once a day per account. */
+  async adminRemind(type: FeeAccountType, id: number, now = new Date()) {
+    const acc = await this.adminAccount(type, id, now);
+    const who = await this.accountName(type, id);
+    if (!who.userId) throw new NotFoundException(FEE_TEXT.noAccount);
+    const day = new Date(now.getTime() + 3 * 3_600_000).toISOString().slice(0, 10);
+    const ins = await this.db.query(`INSERT INTO public.kentexa_fee_reminder ("accountType", "accountId", kind, "periodKey")
+      VALUES ($1::varchar, $2::int, 'admin', $3::varchar) ON CONFLICT DO NOTHING RETURNING id`, [type, id, day]);
+    if (!ins?.length) throw new BadRequestException(FEE_TEXT.remindedToday);
+    const open = acc.invoices.filter((i) => i.left > 0);
+    const line = open.length
+      ? `Ankara ${open.length} hazijalipwa (${open.map((i) => i.number).join(', ')}).`
+      : 'Ada ya mwezi huu inaendelea kuhesabiwa.';
+    await this.notifications?.notify({
+      userId: who.userId, type: 'kentexa_fee', title: 'Ada ya KenteXa: kumbusho',
+      body: `Deni lako la ada ni ${money(acc.owed)}. ${line} Lipa kwa Lipa Namba ya KenteXa kisha tuma picha ya malipo.`,
+      actionPage: 'KentexaFee', actionParam: type, sourceType: 'kentexa_fee', sourceId: id,
+    }).catch(() => undefined);
+    return { ok: true, owed: acc.owed };
+  }
+
   // ── The account's own view ──────────────────────────────────────────────
   /** Which account is asking: its own ofisi (active role), its own agent profile, or itself as seller. */
   async accountFor(user: { id: number }, as: string, roleContext?: any): Promise<{ type: FeeAccountType; id: number; name: string | null }> {
@@ -347,7 +571,14 @@ export class KentexaFeeService implements OnModuleInit {
       waiting: payments.filter((p) => p.status === 'waiting').reduce((sum, p) => sum + n(p.amount), 0),
       recent: recent.map((r) => ({ ...r, id: Number(r.id), baseAmount: n(r.baseAmount), fee: n(r.fee) })),
       payments: payments.map((p) => ({ ...p, id: Number(p.id), amount: n(p.amount) })),
+      invoices: await this.invoicesOf(acc.type, acc.id, now).catch(() => []),
     };
+  }
+
+  /** The owner opens one of its invoices. */
+  async myInvoice(user: { id: number }, as: string, invoiceId: number, roleContext?: any) {
+    const acc = await this.accountFor(user, as, roleContext);
+    return this.invoiceDetail(invoiceId, { type: acc.type, id: acc.id });
   }
 
   async pay(user: { id: number }, body: { as?: string; amount?: unknown; proofRef?: unknown; reference?: unknown }, roleContext?: any) {
