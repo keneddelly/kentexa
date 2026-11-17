@@ -21,7 +21,7 @@ const account = {
 
 test('Akaunti: who uses KenteXa, what they owe, who is late; one account shows ankara and Mkumbushe (owner 2026-11-17)', async () => {
   api.get.mockImplementation((url) => Promise.resolve({ data: url.endsWith('/admin/payments') ? [] : url.endsWith('/admin/accounts') ? accounts : account }));
-  api.post.mockResolvedValue({ data: { ok: true } });
+  api.post.mockResolvedValue({ data: { ok: true, smsSent: false } });
   await act(async () => { render(<AdminKentexaFees activePage="AdminKentexaFees" onNavigate={jest.fn()} onLogout={jest.fn()} />); });
   await act(async () => { fireEvent.click(screen.getByTestId('fee-tab-accounts')); });
   expect(api.get).toHaveBeenCalledWith('/kentexa-fee/admin/accounts', { params: { filter: 'owing', q: undefined } });
@@ -36,5 +36,5 @@ test('Akaunti: who uses KenteXa, what they owe, who is late; one account shows a
   expect(one).toHaveTextContent('imebaki TZS 22,500');
   await act(async () => { fireEvent.click(screen.getByTestId('fee-remind')); });
   expect(api.post).toHaveBeenCalledWith('/kentexa-fee/admin/accounts/office/12/remind');
-  expect(screen.getByRole('status')).toHaveTextContent('Kumbusho limetumwa');
+  expect(screen.getByRole('status')).toHaveTextContent('Kumbusho limetumwa kwenye app (SMS haikwenda)');
 });

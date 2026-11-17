@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { officesInArrears, paidUpFirst, paidUpGateSql, setFeeStandingReady } from './paid-up-gate';
+import { lockedAccounts, officesInArrears, paidUpFirst, paidUpGateSql, setFeeLockReady, setFeeStandingReady } from './paid-up-gate';
 
 // Ada ya KenteXa (owner approved 2026-11-03).
 describe('Ada ya KenteXa: SQL safety and paid-up first', () => {
@@ -43,6 +43,21 @@ describe('Ada ya KenteXa: SQL safety and paid-up first', () => {
     expect([...(await officesInArrears({ query: async () => [{ accountId: 9 }] }, [9]))]).toEqual([]);
     setFeeStandingReady(true, 10);
     expect([...(await officesInArrears({ query: async () => [{ accountId: 9 }] }, [9]))]).toEqual([9]);
+    setFeeStandingReady(false);
+  });
+
+  it('kufungwa (owner 2026-11-17): a locked agent never sees new jobs; locked accounts are found; off before the migration', async () => {
+    setFeeStandingReady(true, 10);
+    expect(paidUpGateSql('a."userId"')).not.toContain('locked = true');
+    setFeeLockReady(true);
+    const sql = paidUpGateSql('a."userId"');
+    expect(sql).toContain('kfl.locked = true');
+    expect(sql).toContain("interval '10 minutes'");
+    setFeeStandingReady(true, 0);
+    expect(paidUpGateSql('a."userId"')).toContain('kfl.locked = true');
+    expect([...(await lockedAccounts({ query: async () => [{ accountId: 4 }] }, 'seller', [4, 5]))]).toEqual([4]);
+    setFeeLockReady(false);
+    expect([...(await lockedAccounts({ query: async () => [{ accountId: 4 }] }, 'seller', [4]))]).toEqual([]);
     setFeeStandingReady(false);
   });
 });

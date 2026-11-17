@@ -9,6 +9,7 @@ export interface FeeSettings {
   agentRate: number; agentMin: number; agentCap: number; agentFree: number;
   marketRate: number;
   arrearsDays: number; reminderAmount: number; agentFirstMinutes: number;
+  lockAmount: number; lockWarnDays: number;
   lipaNumber: string; lipaName: string; lipaBank: string;
   startAt: Date;
 }
@@ -18,6 +19,7 @@ export const DEFAULT_FEE_SETTINGS: FeeSettings = Object.freeze({
   agentRate: 10, agentMin: 100, agentCap: 5000, agentFree: 20,
   marketRate: 2,
   arrearsDays: 30, reminderAmount: 5000, agentFirstMinutes: 10,
+  lockAmount: 50000, lockWarnDays: 3,
   lipaNumber: '10473656887', lipaName: 'Bishoo System', lipaBank: 'CRDB',
   startAt: new Date('2026-11-03T00:00:00Z'),
 }) as FeeSettings;
@@ -40,6 +42,7 @@ export function feeSettingsFrom(rows: Array<{ key: string; value: string }>): Fe
     marketRate: num(m.get('market_rate'), d.marketRate),
     arrearsDays: num(m.get('arrears_days'), d.arrearsDays), reminderAmount: num(m.get('reminder_amount'), d.reminderAmount),
     agentFirstMinutes: num(m.get('agent_first_minutes'), d.agentFirstMinutes),
+    lockAmount: num(m.get('lock_amount'), d.lockAmount), lockWarnDays: num(m.get('lock_warn_days'), d.lockWarnDays),
     lipaNumber: String(m.get('lipa_number') ?? d.lipaNumber), lipaName: String(m.get('lipa_name') ?? d.lipaName),
     lipaBank: String(m.get('lipa_bank') ?? d.lipaBank),
     startAt: Number.isNaN(start.getTime()) ? d.startAt : start,
@@ -141,4 +144,21 @@ export function invoiceStatuses<T extends { amount: number | string; dueAt: stri
       const due = new Date(typeof inv.dueAt === 'string' && inv.dueAt.length === 10 ? `${inv.dueAt}T23:59:59+03:00` : inv.dueAt);
       return { ...inv, amount, paid, left, status, late: left > 0 && due.getTime() < now.getTime() };
     });
+}
+
+/**
+ * Kufungwa (owner 2026-11-17): new work stops when the debt is at least `lockAmount` AND part of
+ * it is unpaid for more than 30 days. `warn` is true when that will happen within `warnDays`
+ * (the same debt, a few days later), so one SMS can go out first. A lock amount of 0 turns it off.
+ */
+export function lockState(
+  fees: Array<{ fee: number; doneAt: Date | string }>, confirmedPaid: number, legacy: number,
+  s: Pick<FeeSettings, 'startAt' | 'arrearsDays' | 'lockAmount' | 'lockWarnDays'>, now = new Date(),
+) {
+  const st = owedState(fees, confirmedPaid, legacy, s.startAt, s.arrearsDays, now);
+  const on = s.lockAmount > 0;
+  const big = on && st.owed >= s.lockAmount;
+  const locked = big && st.inArrears;
+  const later = owedState(fees, confirmedPaid, legacy, s.startAt, s.arrearsDays, new Date(now.getTime() + s.lockWarnDays * 86_400_000));
+  return { ...st, locked, warn: big && !locked && later.inArrears };
 }

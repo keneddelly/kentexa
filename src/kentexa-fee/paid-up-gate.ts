@@ -7,12 +7,49 @@
  *   - offices: in the sender's list of offices they come after the paid-up offices.
  * Walk-in customers are never affected. Until migration 1794600000000 runs the gate is TRUE.
  * kentexa_fee_standing is kept up to date by KentexaFeeService (every 10 minutes).
+ *
+ * Kufungwa (owner 2026-11-17: "the threshold value should be 50000/= then the account lock"):
+ * an account owing at least TZS 50,000 with part of it unpaid for more than 30 days gets no NEW
+ * work until it pays: an agent sees and takes no new pickup jobs, an ofisi registers no new
+ * walk-in parcel and is left out of the senders' office list, a seller takes no new KenteXa
+ * checkout order. Work already started goes on; signing in, messages and paying always work.
+ * Until migration 1797300000000 runs, nothing is locked.
  */
 export const PAID_UP_FIRST_MESSAGE =
   'Kazi hii itakufikia baada ya dakika chache: wenye ada iliyolipwa wanaipata kwanza. Lipa Ada ya KenteXa upate kazi mapema.';
 
 let standingReady = false;
 let firstMinutes = 10;
+let lockReady = false;
+
+export const FEE_LOCKED_TEXT = {
+  agent: 'Huwezi kupokea kazi mpya: deni la Ada ya KenteXa limefika kiwango cha kufungwa. Lipa deni, kazi zitarudi mara tukithibitisha.',
+  office: 'Ofisi haiwezi kupokea vifurushi vipya: deni la Ada ya KenteXa limefika kiwango cha kufungwa. Lipa deni, kazi zitarudi mara tukithibitisha.',
+  seller: 'Muuzaji huyu hapokei maagizo mapya kwa sasa. Jaribu tena baadaye au chagua muuzaji mwingine.',
+} as const;
+
+export function setFeeLockReady(ready: boolean) {
+  lockReady = ready;
+}
+
+export function feeLockReady(): boolean {
+  return standingReady && lockReady;
+}
+
+/** SQL condition: the agent whose USER id is `agentUserIdSql` is NOT locked. */
+export function agentNotLockedSql(agentUserIdSql: string): string {
+  if (!feeLockReady()) return 'TRUE';
+  return `NOT EXISTS (SELECT 1 FROM public.kentexa_fee_standing kfl
+       WHERE kfl."accountType" = 'agent' AND kfl."accountUserId" = (${agentUserIdSql}) AND kfl.locked = true)`;
+}
+
+/** Locked accounts of one type among `ids` (empty before the migration). */
+export async function lockedAccounts(db: { query: (sql: string, p?: any[]) => Promise<any> }, type: 'office' | 'agent' | 'seller', ids: number[]): Promise<Set<number>> {
+  if (!feeLockReady() || !ids.length) return new Set();
+  const rows: any[] = await db.query(`SELECT "accountId" FROM public.kentexa_fee_standing
+    WHERE "accountType" = $1::varchar AND locked = true AND "accountId" = ANY($2::int[])`, [type, ids]).catch(() => []);
+  return new Set(rows.map((r) => Number(r.accountId)));
+}
 
 export function setFeeStandingReady(ready: boolean, minutes?: number) {
   standingReady = ready;
@@ -28,10 +65,12 @@ export function feeStandingReady(): boolean {
  * now? Needs alias t (parcel_pickup_task) in the outer query.
  */
 export function paidUpGateSql(agentUserIdSql: string): string {
-  if (!standingReady || firstMinutes <= 0) return 'TRUE';
-  return `(t."createdAt" <= now() - interval '${firstMinutes} minutes'
+  const lock = agentNotLockedSql(agentUserIdSql);
+  if (!standingReady || firstMinutes <= 0) return lock;
+  const first = `(t."createdAt" <= now() - interval '${firstMinutes} minutes'
     OR NOT EXISTS (SELECT 1 FROM public.kentexa_fee_standing kfs
        WHERE kfs."accountType" = 'agent' AND kfs."accountUserId" = (${agentUserIdSql}) AND kfs."inArrears" = true))`;
+  return lock === 'TRUE' ? first : `(${lock} AND ${first})`;
 }
 
 /** Offices with a fee unpaid for more than 30 days (empty before the migration). */

@@ -98,6 +98,7 @@ import { customerParcelNumber, customerTrackRef, smsSafeName } from './customer-
 import { isIntercity } from './region-match';
 import { readAgentBasePoint } from '../shipments/pickup-pin';
 import { isTrainingOffice } from './training-office';
+import { FEE_LOCKED_TEXT, lockedAccounts } from '../kentexa-fee/paid-up-gate';
 
 /** "Weka mahali pa ofisi" (office map point from the phone's GPS). */
 export const OFFICE_POINT_METHOD = 'device_gps';
@@ -726,6 +727,11 @@ export class SuperAgentsService {
       !superAgent || !roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
       roleContext.userId !== superAgentUser.id || roleContext.profileId !== superAgent.id
     ) throw new ForbiddenException('An active Super Agent hub must register this receipt');
+    // Kufungwa (owner 2026-11-17): an office whose Ada ya KenteXa debt reached the lock level
+    // registers no new parcel until it pays (kentexa-fee/paid-up-gate.ts).
+    if ((await lockedAccounts(this.dataSource, 'office', [superAgent.id])).has(superAgent.id)) {
+      throw new ForbiddenException(FEE_LOCKED_TEXT.office);
+    }
 
     // Thamani ya Mzigo — required, numeric, greater than zero. Matches this
     // method's own existing convention (manual inline checks, no

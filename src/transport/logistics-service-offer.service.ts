@@ -1,7 +1,7 @@
 import { agentCovers, agentRadiusKm, geoPoint, kmBetween, officeRadiusKm, samePlace } from '../location-intelligence/place-match';
 import { agentOnlineRequired } from '../agents/agent-online';
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
-import { officesInArrears, paidUpFirst } from '../kentexa-fee/paid-up-gate';
+import { lockedAccounts, officesInArrears, paidUpFirst } from '../kentexa-fee/paid-up-gate';
 import { DataSource } from 'typeorm';
 import { AgentsService } from '../agents/agents.service';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
@@ -536,8 +536,11 @@ export class LogisticsServiceOfferService {
     const cheapestFirst = out.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     // Paid-up offices first (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts); every office still listed in its group.
     const idOf = (o: LogisticsServiceOffer) => Number((o as any).fulfillment?.officeOption?.officeId);
-    const arrears = await officesInArrears(this.db, cheapestFirst.map(idOf)).catch(() => new Set<number>());
-    return paidUpFirst(cheapestFirst, idOf, arrears).slice(0, 10);
+    // Kufungwa (owner 2026-11-17): a locked office is left out until it pays.
+    const locked = await lockedAccounts(this.db, 'office', cheapestFirst.map(idOf)).catch(() => new Set<number>());
+    const open = locked.size ? cheapestFirst.filter((o) => !locked.has(idOf(o))) : cheapestFirst;
+    const arrears = await officesInArrears(this.db, open.map(idOf)).catch(() => new Set<number>());
+    return paidUpFirst(open, idOf, arrears).slice(0, 10);
   }
 
   /**

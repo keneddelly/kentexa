@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto';
+import { FEE_LOCKED_TEXT, lockedAccounts } from '../kentexa-fee/paid-up-gate';
 import { agentHoldsDelivery, completeSettledSellerShipments, recordSellerCodReceived } from './order-delivery-sync';
 import { Cron } from '@nestjs/schedule';
 import {
@@ -965,6 +966,11 @@ export class OrdersService {
     if (soldOut.length > 0) {
       throw new BadRequestException({ message: soldOutMessage(soldOut.map((s) => s.name)), soldOut: soldOut.map((s) => s.id) });
     }
+    // Kufungwa (owner 2026-11-17): a seller whose Ada ya KenteXa debt reached the lock level takes
+    // no new KenteXa checkout order until it pays (kentexa-fee/paid-up-gate.ts).
+    const sellerIds = [...new Set(lines.map((l) => Number(l.product.seller?.id)).filter((id) => Number.isFinite(id)))];
+    const locked = await lockedAccounts(this.repo.manager, 'seller', sellerIds).catch(() => new Set<number>());
+    if (locked.size) throw new BadRequestException({ message: FEE_LOCKED_TEXT.seller, sellerLocked: [...locked] });
     for (const { item, product } of lines) {
       if (Number(product.stock) < (wanted.get(item.productId) ?? 0)) {
         throw new BadRequestException({

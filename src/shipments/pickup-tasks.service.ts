@@ -3,7 +3,7 @@ import { PICKUP_TO_BASE_DISTANCE_SQL } from './pickup-pin';
 import { agentCovers, agentCoversSql, agentRadiusKm, geoPoint, kmBetween, kmSql, placeKey, placeKeySql } from '../location-intelligence/place-match';
 import { PARTNER_JOB_MESSAGE, partnerGateSql, sellerPartnerTableReady } from '../partner-invitations/seller-agent-partner-gate';
 import { OFFER_ENDED_MESSAGE, offerEndsSql, offerOpenSql } from './pickup-offer-window';
-import { PAID_UP_FIRST_MESSAGE, feeStandingReady, paidUpGateSql } from '../kentexa-fee/paid-up-gate';
+import { FEE_LOCKED_TEXT, PAID_UP_FIRST_MESSAGE, agentNotLockedSql, feeLockReady, feeStandingReady, paidUpGateSql } from '../kentexa-fee/paid-up-gate';
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
   Logger, NotFoundException, Optional,
@@ -277,6 +277,11 @@ export class PickupTasksService {
           FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id = t."parcelId"
           JOIN public.shipment s ON s.id = p."shipmentId" WHERE t.id = $1`, [taskId, userId]);
         if (!gate[0]?.ok) throw new ConflictException(PARTNER_JOB_MESSAGE);
+      }
+      // Kufungwa (owner 2026-11-17): a locked agent takes no new job until the fee is paid.
+      if (feeLockReady()) {
+        const free: any[] = await em.query(`SELECT ${agentNotLockedSql('$1::int')} AS ok`, [userId]);
+        if (!free[0]?.ok) throw new ConflictException(FEE_LOCKED_TEXT.agent);
       }
       // Paid-up agents first, for a few minutes (Ada ya KenteXa, kentexa-fee/paid-up-gate.ts).
       if (feeStandingReady() && paidUpGateSql('$2::int') !== 'TRUE') {
