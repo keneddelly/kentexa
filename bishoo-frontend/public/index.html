@@ -5,6 +5,12 @@
     <!-- SVG favicon first — modern browsers prefer it and it's crisp at any
          size; favicon.ico stays as the legacy fallback for browsers that
          don't support rel="icon" type="image/svg+xml". -->
+    <style>
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('%PUBLIC_URL%/fonts/inter/Inter-Regular.woff') format('woff'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500 600; font-display: swap; src: url('%PUBLIC_URL%/fonts/inter/Inter-SemiBold.woff') format('woff'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('%PUBLIC_URL%/fonts/inter/Inter-Bold.woff') format('woff'); }
+      @font-face { font-family: 'Inter'; font-style: normal; font-weight: 800 900; font-display: swap; src: url('%PUBLIC_URL%/fonts/inter/Inter-ExtraBold.woff') format('woff'); }
+    </style>
     <link rel="preload" href="%PUBLIC_URL%/fonts/inter/Inter-Regular.woff" as="font" type="font/woff" crossorigin />
     <link rel="preload" href="%PUBLIC_URL%/fonts/inter/Inter-Bold.woff" as="font" type="font/woff" crossorigin />
     <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/icon-source.svg" />

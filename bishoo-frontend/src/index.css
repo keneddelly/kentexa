@@ -1,11 +1,8 @@
 /* KenteXa typeface (owner 2026-11-18: "the font style still looks the same"): Inter, the clean
    type used by many big apps, kept on kentexa.com itself so every phone and computer shows the same
    letters (before, each device used its own system font). Four weights, Latin only, ~115 KB, shown
-   with the system font until it arrives so text never waits. Licence: SIL OFL 1.1 (fonts/inter/OFL.txt). */
-@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/inter/Inter-Regular.woff') format('woff'); }
-@font-face { font-family: 'Inter'; font-style: normal; font-weight: 500 600; font-display: swap; src: url('/fonts/inter/Inter-SemiBold.woff') format('woff'); }
-@font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/inter/Inter-Bold.woff') format('woff'); }
-@font-face { font-family: 'Inter'; font-style: normal; font-weight: 800 900; font-display: swap; src: url('/fonts/inter/Inter-ExtraBold.woff') format('woff'); }
+   with the system font until it arrives so text never waits. Licence: SIL OFL 1.1 (fonts/inter/OFL.txt). The @font-face rules live in public/index.html
+   (the build cannot bundle files from public/). */
 
 body {
   margin: 0;
