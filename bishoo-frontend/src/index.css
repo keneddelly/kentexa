@@ -1,11 +1,18 @@
+/* KenteXa typeface (owner 2026-11-18: "the font style still looks the same"): Inter, the clean
+   type used by many big apps, kept on kentexa.com itself so every phone and computer shows the same
+   letters (before, each device used its own system font). Four weights, Latin only, ~115 KB, shown
+   with the system font until it arrives so text never waits. Licence: SIL OFL 1.1 (fonts/inter/OFL.txt). The @font-face rules live in public/index.html
+   (the build cannot bundle files from public/). */
+
 body {
   margin: 0;
-  /* Twitter/X's own text stack (its Chirp font is X's property; this is what X
-     shows on phones without it): SF on iPhone, Roboto on Android. */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-feature-settings: 'cv11', 'calt';
+  letter-spacing: -0.01em;
   color: #0f1419;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 button, input, select, textarea { font-family: inherit; }

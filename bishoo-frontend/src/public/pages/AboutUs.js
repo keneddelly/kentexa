@@ -36,8 +36,8 @@ const AboutUs = ({ onNavigate }) => {
         <div style={{ position: 'absolute', bottom: -60, left: -60, width: 200, height: 200, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)' }} />
         <div style={{ position: 'relative' }}>
           <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 0, marginBottom: 16 }}>
-            <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 48, fontWeight: 900, color: '#bfdbfe', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', fontFamily: 'inherit' }}>Kente</span>
+            <span style={{ fontSize: 48, fontWeight: 900, color: '#bfdbfe', fontFamily: 'inherit' }}>Xa</span>
           </div>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20 }}>{t('about_us.hero_tagline')}</p>
           <h1 style={{ fontSize: 28, fontWeight:800, color: '#fff', margin: '0 0 16px', fontFamily:'inherit', lineHeight: 1.3 }}>

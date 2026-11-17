@@ -137,8 +137,8 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
               </svg>
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, lineHeight: 1 }}>
-              <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-              <span style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', fontFamily: 'inherit' }}>Kente</span>
+              <span style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8', letterSpacing: '-0.5px', fontFamily: 'inherit' }}>Xa</span>
             </div>
           </div>
 

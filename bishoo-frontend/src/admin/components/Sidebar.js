@@ -119,8 +119,8 @@ const Sidebar = ({ activePage, onNavigate, onLogout, items: givenItems }) => {
       }}>
         <div onClick={() => navigate('Home')} style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#fff', fontFamily: 'inherit' }}>Kente</span>
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'inherit' }}>Xa</span>
           </div>
           <div style={{ fontSize: 12, color: '#64748b', letterSpacing: '1.5px', fontWeight: 600, textTransform: 'uppercase', marginTop: 2 }}>Usimamizi{STAFF_TITLE[roleType] ? ` · ${STAFF_TITLE[roleType]}` : ''}</div>
         </div>

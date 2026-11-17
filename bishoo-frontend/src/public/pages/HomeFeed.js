@@ -2130,9 +2130,9 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
             </div>
             <div style={{ display: hasPill ? 'none' : 'flex', alignItems:'baseline', gap:0, lineHeight:1 }}>
               <span style={{ fontSize:17, fontWeight:800, color:DK,
-                letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Kente</span>
+                letterSpacing:-0.5, fontFamily: 'inherit' }}>Kente</span>
               <span style={{ fontSize:17, fontWeight:800, color:'#1d4ed8',
-                letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Xa</span>
+                letterSpacing:-0.5, fontFamily: 'inherit' }}>Xa</span>
             </div>
           </button>
           </div>

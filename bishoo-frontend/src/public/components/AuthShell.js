@@ -15,7 +15,7 @@ export function AuthShell({ title, subtitle, onLogo, children, footer }) {
       padding: 'max(24px, env(safe-area-inset-top)) 16px 24px' }}>
       <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <button type="button" onClick={onLogo} aria-label="KenteXa"
-          style={{ alignSelf: 'flex-start', border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'Manrope, -apple-system, sans-serif',
+          style={{ alignSelf: 'flex-start', border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit',
             fontSize: 24, fontWeight: 900, color: AUTH.INK }}>
           Kente<span style={{ color: '#1d4ed8' }}>X</span>a
         </button>
