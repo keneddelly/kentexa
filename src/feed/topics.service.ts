@@ -8,7 +8,7 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
  * A fixed list kept in feed_topic (admin can change it later); people follow topics and
  * every post made in the composer carries one. Home follows the topics a person follows.
  */
-export interface FeedTopic { key: string; label: string; note: string | null; following?: boolean }
+export interface FeedTopic { key: string; label: string; note: string | null; description?: string | null; following?: boolean }
 
 export const MIN_TOPICS_ON_FIRST_VISIT = 3;
 
@@ -20,10 +20,11 @@ export class TopicsService {
   ) {}
 
   async list(userId?: number | null): Promise<FeedTopic[]> {
+    // Mfululizo (#410): the longer description too, once its column exists.
     const topics = await this.dataSource.query(
-      `SELECT key, label, note FROM public.feed_topic WHERE active = true ORDER BY position, key`);
+      `SELECT key, label, note${(await this.hasDescription()) ? ', description' : ''} FROM public.feed_topic WHERE active = true ORDER BY position, key`);
     const followed = userId ? await this.followedKeys(userId) : [];
-    return topics.map((t: any) => ({ key: t.key, label: t.label, note: t.note, following: followed.includes(t.key) }));
+    return topics.map((t: any) => ({ key: t.key, label: t.label, note: t.note, ...(t.description ? { description: t.description } : {}), following: followed.includes(t.key) }));
   }
 
   async followedKeys(userId: number): Promise<string[]> {
@@ -69,5 +70,64 @@ export class TopicsService {
       });
     }
     return this.list(userId);
+  }
+
+  // ── Admin: the topic list (Mfululizo #410 phase 3, owner approved 2026-11-17) ──
+  /** Every topic, active or not, with how many posts and series use it. */
+  async adminList() {
+    const hasDescription = await this.hasDescription();
+    const rows: any[] = await this.dataSource.query(`
+      SELECT t.key, t.label, t.note, ${hasDescription ? 't.description' : 'NULL::varchar AS description'}, t.position, t.active,
+             (SELECT COUNT(*)::int FROM public.business_feed_item x WHERE x.topic = t.key) AS posts,
+             (SELECT COUNT(*)::int FROM public.user_topic_follow f WHERE f."topicKey" = t.key) AS followers
+        FROM public.feed_topic t ORDER BY t.position, t.key`);
+    return rows.map((r) => ({ ...r, position: Number(r.position), posts: Number(r.posts), followers: Number(r.followers) }));
+  }
+
+  private descriptionKnown: boolean | null = null;
+  private async hasDescription(): Promise<boolean> {
+    if (this.descriptionKnown) return true;
+    const [r] = await this.dataSource.query(`SELECT EXISTS (SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'feed_topic' AND column_name = 'description') AS ok`).catch(() => [null]);
+    if (r?.ok) this.descriptionKnown = true;
+    return Boolean(r?.ok);
+  }
+
+  /** A new topic: key a-z and _, 2 to 40 letters; it goes last unless a place is given. */
+  async adminCreate(adminUserId: number, body: any) {
+    const key = String(body?.key ?? '').trim().toLowerCase();
+    if (!/^[a-z_]{2,40}$/.test(key)) throw new BadRequestException('Ufunguo wa mada: herufi a-z na _ tu (2 hadi 40).');
+    const label = String(body?.label ?? '').replace(/\s+/g, ' ').trim();
+    if (label.length < 2 || label.length > 60) throw new BadRequestException('Andika jina la mada (herufi 2 hadi 60).');
+    const [exists] = await this.dataSource.query(`SELECT key FROM public.feed_topic WHERE key = $1::varchar`, [key]);
+    if (exists) throw new BadRequestException('Mada yenye ufunguo huu tayari ipo.');
+    await this.dataSource.query(`INSERT INTO public.feed_topic (key, label, note, position, active)
+      VALUES ($1::varchar, $2::varchar, $3::varchar, COALESCE($4::int, (SELECT COALESCE(MAX(position), 0) + 1 FROM public.feed_topic)), true)`,
+      [key, label, String(body?.note ?? '').trim().slice(0, 120) || null, Number.isInteger(Number(body?.position)) && body?.position !== '' && body?.position != null ? Number(body.position) : null]);
+    if (body?.description !== undefined && (await this.hasDescription())) {
+      await this.dataSource.query(`UPDATE public.feed_topic SET description = $2::varchar WHERE key = $1::varchar`, [key, String(body.description ?? '').trim().slice(0, 400) || null]);
+    }
+    this.activityEvents.record({ eventType: 'TOPIC_CREATED', category: ActivityCategory.CONTENT, actorId: adminUserId, targetType: 'feed_topic', targetId: null, metadata: { key } });
+    return (await this.adminList()).find((t) => t.key === key);
+  }
+
+  /** Change a topic's name, note, description, place or switch it off (its key never changes). */
+  async adminUpdate(adminUserId: number, key: string, body: any) {
+    const [t] = await this.dataSource.query(`SELECT key FROM public.feed_topic WHERE key = $1::varchar`, [key]);
+    if (!t) throw new BadRequestException('Mada haipo.');
+    const sets: string[] = []; const params: any[] = [key];
+    const put = (col: string, v: any, cast: string) => { params.push(v); sets.push(`${col} = $${params.length}::${cast}`); };
+    if (body?.label !== undefined) {
+      const label = String(body.label ?? '').replace(/\s+/g, ' ').trim();
+      if (label.length < 2 || label.length > 60) throw new BadRequestException('Andika jina la mada (herufi 2 hadi 60).');
+      put('label', label, 'varchar');
+    }
+    if (body?.note !== undefined) put('note', String(body.note ?? '').trim().slice(0, 120) || null, 'varchar');
+    if (body?.description !== undefined && (await this.hasDescription())) put('description', String(body.description ?? '').trim().slice(0, 400) || null, 'varchar');
+    if (body?.position !== undefined && Number.isInteger(Number(body.position))) put('position', Number(body.position), 'int');
+    if (body?.active !== undefined) put('active', Boolean(body.active), 'boolean');
+    if (sets.length) await this.dataSource.query(`UPDATE public.feed_topic SET ${sets.join(', ')} WHERE key = $1::varchar`, params);
+    this.activityEvents.record({ eventType: 'TOPIC_UPDATED', category: ActivityCategory.CONTENT, actorId: adminUserId, targetType: 'feed_topic', targetId: null, metadata: { key, fields: Object.keys(body || {}) } });
+    return (await this.adminList()).find((x) => x.key === key);
   }
 }
