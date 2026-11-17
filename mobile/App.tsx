@@ -4,6 +4,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { EngagementProvider } from './src/api/engagement';
 import RootNavigator from './src/navigation/RootNavigator';
 import { linking } from './src/navigation/linking';
 import { Button } from './src/components/Ui';
@@ -46,7 +47,9 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <AuthProvider>
-        <Gate />
+        <EngagementProvider>
+          <Gate />
+        </EngagementProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
