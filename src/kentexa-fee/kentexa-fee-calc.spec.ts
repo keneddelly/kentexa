@@ -3,11 +3,13 @@ import { DEFAULT_FEE_SETTINGS, feeSettingsFrom, jobFee, owedState, ruleFor } fro
 describe('Ada ya KenteXa numbers (owner approved 2026-11-03)', () => {
   const s = DEFAULT_FEE_SETTINGS;
 
-  it('ofisi: 10% of the shipping fee, min 200, cap 5,000', () => {
+  it('ofisi: TZS 500 per parcel, never more than the parcel earned (owner 2026-11-17)', () => {
     const r = ruleFor('office', s);
-    expect(jobFee(15000, r.rate, r.min, r.cap)).toBe(1500);
-    expect(jobFee(1500, r.rate, r.min, r.cap)).toBe(200);
-    expect(jobFee(300000, r.rate, r.min, r.cap)).toBe(5000);
+    expect(jobFee(15000, r.rate, r.min, r.cap)).toBe(500);
+    expect(jobFee(1500, r.rate, r.min, r.cap)).toBe(500);
+    expect(jobFee(300000, r.rate, r.min, r.cap)).toBe(500);
+    expect(jobFee(300, r.rate, r.min, r.cap)).toBe(300);
+    expect(jobFee(0, r.rate, r.min, r.cap)).toBe(0);
   });
 
   it('agent: 10% of the delivery fee, min 100', () => {

@@ -37,7 +37,8 @@ test('sending a payment: the screenshot is uploaded privately, then the payment 
   expect(screen.getByText(/Tunathibitisha ndani ya saa 24/)).toBeInTheDocument();
 });
 
-test('the rule in words: ofisi 10% with min and cap; seller 2% and POS free', () => {
+test('the rule in words: ofisi TZS 500 per parcel (owner 2026-11-17); a percentage with min and cap; seller 2% and POS free', () => {
+  expect(ruleText('office', { rate: 10, min: 500, cap: 500 })).toBe('TZS 500 kwa kila kifurushi. Ukitoza chini ya hapo, unalipa ulichotoza tu; kifurushi cha bure hakilipiwi.');
   expect(ruleText('office', { rate: 10, min: 200, cap: 5000 })).toBe('10% ya ada ya usafirishaji uliyotoza, angalau TZS 200, isizidi TZS 5,000. Kifurushi cha bure hakilipiwi.');
   expect(ruleText('seller', { rate: 2, min: 0, cap: null })).toMatch(/^2% ya bei ya bidhaa/);
 });

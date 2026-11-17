@@ -2092,7 +2092,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
               </div>
             )}
 
-            {/* Ada ya KenteXa (owner approved 2026-11-03): 10% of the shipping fee after 20 free
+            {/* Ada ya KenteXa (owner approved 2026-11-03; TZS 500 per parcel since 2026-11-17) after 20 free
                 parcels; the counter never stops for an unpaid fee. Replaces the old TZS 1,000 box. */}
             <div style={{ marginBottom: 14 }}><KentexaFeeLine as="office" onNavigate={onNavigate} /></div>
 

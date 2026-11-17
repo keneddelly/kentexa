@@ -14,7 +14,7 @@ export interface FeeSettings {
 }
 
 export const DEFAULT_FEE_SETTINGS: FeeSettings = Object.freeze({
-  officeRate: 10, officeMin: 200, officeCap: 5000, officeFree: 20,
+  officeRate: 10, officeMin: 500, officeCap: 500, officeFree: 20, // ofisi: TZS 500 per parcel (owner 2026-11-17)
   agentRate: 10, agentMin: 100, agentCap: 5000, agentFree: 20,
   marketRate: 2,
   arrearsDays: 30, reminderAmount: 5000, agentFirstMinutes: 10,

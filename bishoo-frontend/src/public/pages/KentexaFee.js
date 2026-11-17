@@ -1,7 +1,7 @@
 /**
  * KentexaFee.js — "Ada ya KenteXa" (owner approved 2026-11-03, sketch "KenteXa Fee Plan").
  * Rule: only the one who made money through KenteXa pays.
- *   ofisi  10% of the shipping fee (min 200, cap 5,000) after 20 free parcels
+ *   ofisi  TZS 500 per parcel (owner 2026-11-17; never more than the parcel earned) after 20 free parcels
  *   wakala 10% of the delivery fee (min 100, cap 5,000) after 20 free deliveries
  *   muuzaji 2% of a marketplace order; POS and own sales are free
  * Work never stops for an unpaid fee. Paying: KenteXa's Lipa Namba, then the screenshot;
@@ -39,6 +39,11 @@ export const InvoiceTag = ({ inv }) => {
 export const ruleText = (as, rule) => {
   if (!rule) return '';
   if (as === 'seller') return `${rule.rate}% ya bei ya bidhaa kwa kila agizo la KenteXa. Mauzo ya POS na yako mwenyewe ni bure.`;
+  // A flat fee (owner 2026-11-17: ofisi TZS 500 per parcel) is min = cap.
+  if (rule.cap && rule.min === rule.cap) {
+    const what = as === 'office' ? 'kifurushi' : 'safari';
+    return `${tzs(rule.min)} kwa kila ${what}. Ukitoza chini ya hapo, unalipa ulichotoza tu; ${as === 'office' ? 'kifurushi cha bure' : 'safari ya bure'} hakilipiwi.`;
+  }
   const what = as === 'office' ? 'ada ya usafirishaji uliyotoza' : 'ada ya safari';
   const cap = rule.cap ? `, isizidi ${tzs(rule.cap)}` : '';
   return `${rule.rate}% ya ${what}, angalau ${tzs(rule.min)}${cap}. Kifurushi cha bure hakilipiwi.`;
@@ -219,7 +224,7 @@ export default function KentexaFee({ onNavigate, isLoggedIn, navParams, as: asPr
         <div>
           <Row label={WHAT[as]} value={data.month.jobs} />
           <Row label={EARNED[as]} value={tzs(data.month.earned)} />
-          <Row label={`Ada ya KenteXa${data.rule ? ` (${data.rule.rate}%)` : ''}`} value={tzs(data.month.fee)} />
+          <Row label={`Ada ya KenteXa${data.rule ? ` (${data.rule.cap && data.rule.min === data.rule.cap ? `${tzs(data.rule.min)} kila moja` : `${data.rule.rate}%`})` : ''}`} value={tzs(data.month.fee)} />
           {as !== 'seller' && <Row label="Vya bure vilivyobaki" value={data.freeLeft} />}
           {data.legacy > 0 && <Row label="Deni la zamani (TZS 1,000 kwa agizo)" value={tzs(data.legacy)} />}
         </div>
