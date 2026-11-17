@@ -4,9 +4,9 @@
  *  - SocialButtons: shown on Ingia and Fungua akaunti, only for providers KenteXa has keys for
  *    (GET /auth/social/config). Google's own button; Facebook through its login window.
  *    The token goes to POST /auth/social; the server checks it with Google / Facebook.
- *  - SocialFinish: a person new to KenteXa adds a phone number and the SMS code once
- *    (POST /auth/social/phone, /auth/social/verify), so every account keeps a verified phone.
- *    A phone that already has a KenteXa account is linked to it after its code.
+ *  - A person new to KenteXa gets an account at once (owner 2026-11-17: no phone at sign-up, so
+ *    people outside Tanzania can join communities); a phone is asked later by the features that
+ *    need one. SocialFinish (phone + SMS code) stays for older answers of the server.
  * Works in the Android app too (it opens in Chrome).
  */
 import React, { useEffect, useRef, useState } from 'react';
