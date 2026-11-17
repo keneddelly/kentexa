@@ -12,7 +12,8 @@
  * case where a tab stays open for days without ever completing auth.
  */
 
-export const ALLOWED_INTENTS = ['service', 'classified', 'seller'];
+// Owner 2026-11-17: ad links for every kind of work (kentexa.com/?intent=office ...).
+export const ALLOWED_INTENTS = ['service', 'classified', 'seller', 'buyer', 'ship', 'office', 'agent', 'business'];
 
 // Where each intent lands the visitor once they're authenticated — mirrors
 // the existing `kentexa_after_login` precedent (App.js), just sourced from
@@ -23,6 +24,11 @@ export const INTENT_DESTINATIONS = {
   service: 'PostService',
   classified: 'CreateClassified',
   seller: 'BecomeSeller',
+  buyer: 'Discover',
+  ship: 'SendShipment',
+  office: 'BecomeSuperAgentInfo',
+  agent: 'BecomeAgent',
+  business: 'BecomeBusiness',
 };
 
 const STORAGE_KEY = 'kentexa_intent';

@@ -3041,6 +3041,31 @@
         "headline": "Start Selling on Kentexa",
         "subheadline": "Build your store, reach customers and get paid — all in one place.",
         "cta": "Start Selling"
+      },
+      "buyer": {
+        "headline": "Buy from real Tanzanian businesses",
+        "subheadline": "Find products and services near you, talk to the seller, pay them directly and track your parcel.",
+        "cta": "Start buying"
+      },
+      "ship": {
+        "headline": "Send a parcel anywhere in Tanzania",
+        "subheadline": "Compare office and agent prices, give the receiver a tracking number, SMS at every step.",
+        "cta": "Send a parcel"
+      },
+      "office": {
+        "headline": "Open a parcel office with KenteXa",
+        "subheadline": "Senders and sellers find you, you set your prices. First 20 parcels free, then TZS 500 per parcel.",
+        "cta": "Apply as an office"
+      },
+      "agent": {
+        "headline": "Become a KenteXa delivery agent",
+        "subheadline": "Collect and deliver parcels in your town, get jobs on your phone and earn a fee for every trip.",
+        "cta": "Apply as an agent"
+      },
+      "business": {
+        "headline": "Put your business on KenteXa",
+        "subheadline": "Hotel, restaurant, shop or office: a business page, QR menu, free POS and customers who message you directly.",
+        "cta": "Start your business"
       }
     },
     "language_picker": {
@@ -3067,6 +3092,101 @@
       "business_desc": "Shop, hotel, office, POS",
       "final": "Create an account, it is free",
       "replies": "{{n}} replies"
+    },
+    "pro": {
+      "nav_for": "Who it is for",
+      "nav_why": "Why KenteXa",
+      "join_short": "Join free",
+      "eyebrow": "MADE IN TANZANIA",
+      "free_1a": "Free",
+      "free_1b": "to join",
+      "free_2a": "No",
+      "free_2b": "monthly fee",
+      "free_3a": "Kiswahili,",
+      "free_3b": "English, Français",
+      "for_kicker": "Who it is for",
+      "for_title": "One place for every kind of work",
+      "for_lead": "Choose what you want to do. Once you open an account, KenteXa takes you straight to it.",
+      "read_more": "Read more",
+      "aud": {
+        "seller": {
+          "title": "Sellers and shops",
+          "desc": "Your shop online, free POS, stock, staff and orders from every region.",
+          "cta": "Start selling"
+        },
+        "buyer": {
+          "title": "Buyers",
+          "desc": "Find products and services near you, talk to the seller, pay them directly.",
+          "cta": "Start buying"
+        },
+        "ship": {
+          "title": "Send a parcel",
+          "desc": "Compare office and agent prices; the receiver gets a tracking number and SMS.",
+          "cta": "Send a parcel"
+        },
+        "office": {
+          "title": "Parcel offices",
+          "desc": "Receive more parcels. First 20 free, then TZS 500 per parcel.",
+          "cta": "Apply as an office"
+        },
+        "agent": {
+          "title": "Delivery agents",
+          "desc": "Collect and deliver parcels in your town; earn a fee for every trip.",
+          "cta": "Apply as an agent"
+        },
+        "service": {
+          "title": "Service providers",
+          "desc": "Technician, consultant or professional: list your service and receive requests.",
+          "cta": "List your service"
+        },
+        "hotel": {
+          "title": "Hotels and restaurants",
+          "desc": "A QR menu on the table and in the room; orders go straight to the kitchen.",
+          "cta": "Set up your menu"
+        },
+        "writer": {
+          "title": "Writers and communities",
+          "desc": "Write articles, ask and discuss in communities; Writer of the Week winners are announced.",
+          "cta": "Start writing"
+        }
+      },
+      "why_kicker": "Why KenteXa",
+      "why_title": "Built on trust",
+      "why": {
+        "verified": {
+          "title": "Verified businesses",
+          "desc": "Identity is checked before offices, agents and sellers start work."
+        },
+        "direct": {
+          "title": "Your money never passes through us",
+          "desc": "You pay the seller directly on their Lipa Namba. KenteXa never holds your money."
+        },
+        "tracked": {
+          "title": "Every parcel is tracked",
+          "desc": "A tracking number, SMS at every step and a secret code at handover."
+        },
+        "local": {
+          "title": "Tanzanian, in Kiswahili",
+          "desc": "Made in Tanzania for local businesses, in Kiswahili, English and Français."
+        }
+      },
+      "app": "On an Android phone? Get the KenteXa app: faster, with order and parcel alerts.",
+      "app_button": "Get the app",
+      "live_kicker": "Happening now",
+      "live_title": "KenteXa communities and topics",
+      "final_title": "Start today. It is free.",
+      "final_sub": "Open an account with Google or your phone number in a minute.",
+      "pages": "Pages",
+      "page": {
+        "about": "About KenteXa",
+        "office": "Parcel offices",
+        "pos": "Free POS",
+        "market": "Online marketplace",
+        "delivery": "Delivery",
+        "menu": "QR menu",
+        "privacy": "Privacy",
+        "terms": "Terms"
+      }
     }
   },
   "landing": {

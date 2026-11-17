@@ -3001,6 +3001,31 @@
         "headline": "Commencez à vendre sur Kentexa",
         "subheadline": "Créez votre boutique, touchez des clients et soyez payé — le tout au même endroit.",
         "cta": "Commencer à vendre"
+      },
+      "buyer": {
+        "headline": "Achetez auprès de vraies entreprises tanzaniennes",
+        "subheadline": "Trouvez produits et services près de chez vous, parlez au vendeur, payez-le directement et suivez votre colis.",
+        "cta": "Commencer à acheter"
+      },
+      "ship": {
+        "headline": "Envoyez un colis partout en Tanzanie",
+        "subheadline": "Comparez les prix des bureaux et agents, donnez un numéro de suivi au destinataire, SMS à chaque étape.",
+        "cta": "Envoyer un colis"
+      },
+      "office": {
+        "headline": "Ouvrez un bureau de colis avec KenteXa",
+        "subheadline": "Expéditeurs et vendeurs vous trouvent, vous fixez vos prix. 20 premiers colis gratuits, puis TZS 500 par colis.",
+        "cta": "Postuler comme bureau"
+      },
+      "agent": {
+        "headline": "Devenez agent de livraison KenteXa",
+        "subheadline": "Collectez et livrez des colis dans votre ville, recevez des missions sur votre téléphone et gagnez à chaque course.",
+        "cta": "Postuler comme agent"
+      },
+      "business": {
+        "headline": "Mettez votre entreprise sur KenteXa",
+        "subheadline": "Hôtel, restaurant, boutique ou bureau : une page, un menu QR, une caisse gratuite et des clients qui vous écrivent.",
+        "cta": "Lancer votre entreprise"
       }
     },
     "language_picker": {
@@ -3027,6 +3052,101 @@
       "business_desc": "Boutique, hôtel, bureau, caisse",
       "final": "Créez un compte, c’est gratuit",
       "replies": "{{n}} réponses"
+    },
+    "pro": {
+      "nav_for": "Pour qui",
+      "nav_why": "Pourquoi KenteXa",
+      "join_short": "Inscription gratuite",
+      "eyebrow": "CONÇU EN TANZANIE",
+      "free_1a": "Gratuit",
+      "free_1b": "à l'inscription",
+      "free_2a": "Aucun",
+      "free_2b": "frais mensuel",
+      "free_3a": "Kiswahili,",
+      "free_3b": "English, Français",
+      "for_kicker": "Pour qui",
+      "for_title": "Un seul endroit pour chaque métier",
+      "for_lead": "Choisissez ce que vous voulez faire. Une fois inscrit, KenteXa vous y mène directement.",
+      "read_more": "En savoir plus",
+      "aud": {
+        "seller": {
+          "title": "Vendeurs et boutiques",
+          "desc": "Votre boutique en ligne, caisse gratuite, stock, équipe et commandes de toutes les régions.",
+          "cta": "Commencer à vendre"
+        },
+        "buyer": {
+          "title": "Acheteurs",
+          "desc": "Trouvez produits et services près de chez vous, payez le vendeur directement.",
+          "cta": "Commencer à acheter"
+        },
+        "ship": {
+          "title": "Envoyer un colis",
+          "desc": "Comparez bureaux et agents ; le destinataire reçoit un suivi et des SMS.",
+          "cta": "Envoyer un colis"
+        },
+        "office": {
+          "title": "Bureaux de colis",
+          "desc": "Recevez plus de colis. 20 premiers gratuits, puis TZS 500 par colis.",
+          "cta": "Postuler comme bureau"
+        },
+        "agent": {
+          "title": "Agents de livraison",
+          "desc": "Collectez et livrez dans votre ville ; gagnez à chaque course.",
+          "cta": "Postuler comme agent"
+        },
+        "service": {
+          "title": "Prestataires de services",
+          "desc": "Technicien, consultant ou professionnel : publiez votre service et recevez des demandes.",
+          "cta": "Publier un service"
+        },
+        "hotel": {
+          "title": "Hôtels et restaurants",
+          "desc": "Un menu QR sur la table et en chambre ; les commandes arrivent en cuisine.",
+          "cta": "Créer votre menu"
+        },
+        "writer": {
+          "title": "Auteurs et communautés",
+          "desc": "Écrivez des articles, posez des questions et débattez ; les gagnants de l’Auteur de la semaine sont annoncés.",
+          "cta": "Commencer à écrire"
+        }
+      },
+      "why_kicker": "Pourquoi KenteXa",
+      "why_title": "Bâti sur la confiance",
+      "why": {
+        "verified": {
+          "title": "Entreprises vérifiées",
+          "desc": "L'identité est vérifiée avant que bureaux, agents et vendeurs ne commencent."
+        },
+        "direct": {
+          "title": "Votre argent ne passe pas par nous",
+          "desc": "Vous payez le vendeur directement sur son Lipa Namba. KenteXa ne détient jamais votre argent."
+        },
+        "tracked": {
+          "title": "Chaque colis est suivi",
+          "desc": "Un numéro de suivi, des SMS à chaque étape et un code secret à la remise."
+        },
+        "local": {
+          "title": "Tanzanien, en kiswahili",
+          "desc": "Conçu en Tanzanie pour les entreprises locales, en kiswahili, anglais et français."
+        }
+      },
+      "app": "Sur Android ? Téléchargez l'app KenteXa : plus rapide, avec alertes de commandes et de colis.",
+      "app_button": "Télécharger l'app",
+      "live_kicker": "En ce moment",
+      "live_title": "Communautés et sujets KenteXa",
+      "final_title": "Commencez aujourd'hui. C'est gratuit.",
+      "final_sub": "Ouvrez un compte avec Google ou votre numéro en une minute.",
+      "pages": "Pages",
+      "page": {
+        "about": "À propos",
+        "office": "Bureaux de colis",
+        "pos": "Caisse gratuite",
+        "market": "Marché en ligne",
+        "delivery": "Livraison",
+        "menu": "Menu QR",
+        "privacy": "Confidentialité",
+        "terms": "Conditions"
+      }
     }
   },
   "landing": {

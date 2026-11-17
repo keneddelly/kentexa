@@ -2820,6 +2820,31 @@
         "headline": "Anza Kuuza kwenye Kentexa",
         "subheadline": "Jenga duka lako, fikia wateja na pokea malipo — pote mahali pamoja.",
         "cta": "Anza Kuuza"
+      },
+      "buyer": {
+        "headline": "Nunua kutoka kwa biashara halisi za Tanzania",
+        "subheadline": "Tafuta bidhaa na huduma karibu nawe, zungumza na muuzaji, lipa moja kwa moja na fuatilia mzigo wako.",
+        "cta": "Anza kununua"
+      },
+      "ship": {
+        "headline": "Tuma mzigo popote Tanzania",
+        "subheadline": "Linganisha bei za ofisi na mawakala, mpe mpokeaji namba ya kufuatilia, kila hatua kwa SMS.",
+        "cta": "Tuma mzigo"
+      },
+      "office": {
+        "headline": "Fungua ofisi ya mizigo na KenteXa",
+        "subheadline": "Wateja na wauzaji wanakupata, unaweka bei zako. Vifurushi 20 vya kwanza bure, kisha TZS 500 kwa kifurushi.",
+        "cta": "Omba kuwa ofisi"
+      },
+      "agent": {
+        "headline": "Kuwa wakala wa usafirishaji wa KenteXa",
+        "subheadline": "Chukua na fikisha mizigo mjini kwako, pokea kazi kwenye simu yako na pata ada ya kila safari.",
+        "cta": "Omba kuwa wakala"
+      },
+      "business": {
+        "headline": "Weka biashara yako kwenye KenteXa",
+        "subheadline": "Hoteli, mgahawa, duka au ofisi: ukurasa wa biashara, menyu ya QR, POS ya bure na wateja wanaokuandikia moja kwa moja.",
+        "cta": "Anza biashara"
       }
     },
     "language_picker": {
@@ -2846,6 +2871,101 @@
       "business_desc": "Duka, hoteli, ofisi, POS",
       "final": "Fungua akaunti, ni bure",
       "replies": "Majibu {{n}}"
+    },
+    "pro": {
+      "nav_for": "Ni kwa nani",
+      "nav_why": "Kwa nini KenteXa",
+      "join_short": "Jiunge bure",
+      "eyebrow": "IMETENGENEZWA TANZANIA",
+      "free_1a": "Bure",
+      "free_1b": "kujiunga",
+      "free_2a": "Hakuna",
+      "free_2b": "ada ya mwezi",
+      "free_3a": "Kiswahili,",
+      "free_3b": "English, Français",
+      "for_kicker": "Ni kwa nani",
+      "for_title": "Mahali pamoja kwa kila aina ya kazi",
+      "for_lead": "Chagua unachotaka kufanya. Ukifungua akaunti, KenteXa inakupeleka moja kwa moja kwenye kazi hiyo.",
+      "read_more": "Soma zaidi",
+      "aud": {
+        "seller": {
+          "title": "Wauzaji na maduka",
+          "desc": "Duka lako mtandaoni, POS ya bure, stoku, wafanyakazi na oda kutoka mikoa yote.",
+          "cta": "Anza kuuza"
+        },
+        "buyer": {
+          "title": "Wanunuzi",
+          "desc": "Tafuta bidhaa na huduma karibu nawe, zungumza na muuzaji, lipa moja kwa moja.",
+          "cta": "Anza kununua"
+        },
+        "ship": {
+          "title": "Tuma mzigo",
+          "desc": "Linganisha bei za ofisi na mawakala; mpokeaji anapata namba ya kufuatilia na SMS.",
+          "cta": "Tuma mzigo"
+        },
+        "office": {
+          "title": "Ofisi za mizigo",
+          "desc": "Pokea vifurushi zaidi. 20 za kwanza bure, kisha TZS 500 kwa kifurushi.",
+          "cta": "Omba kuwa ofisi"
+        },
+        "agent": {
+          "title": "Mawakala wa usafirishaji",
+          "desc": "Chukua na fikisha mizigo mjini kwako; pata ada ya kila safari.",
+          "cta": "Omba kuwa wakala"
+        },
+        "service": {
+          "title": "Watoa huduma",
+          "desc": "Fundi, mshauri au mtaalamu: tangaza huduma yako na pokea maombi ya wateja.",
+          "cta": "Tangaza huduma"
+        },
+        "hotel": {
+          "title": "Hoteli na migahawa",
+          "desc": "Menyu ya QR mezani na chumbani; oda zinafika jikoni moja kwa moja.",
+          "cta": "Weka menyu yako"
+        },
+        "writer": {
+          "title": "Waandishi na jumuiya",
+          "desc": "Andika makala, uliza na jadili kwenye jumuiya; washindi wa Mwandishi wa Wiki wanatangazwa.",
+          "cta": "Anza kuandika"
+        }
+      },
+      "why_kicker": "Kwa nini KenteXa",
+      "why_title": "Imejengwa juu ya uaminifu",
+      "why": {
+        "verified": {
+          "title": "Biashara zilizothibitishwa",
+          "desc": "Kitambulisho kinathibitishwa kabla ofisi, mawakala na wauzaji hawajaanza kazi."
+        },
+        "direct": {
+          "title": "Pesa yako haipiti kwetu",
+          "desc": "Unamlipa muuzaji moja kwa moja kwa Lipa Namba yake. KenteXa haishiki pesa yako."
+        },
+        "tracked": {
+          "title": "Kila mzigo unafuatiliwa",
+          "desc": "Namba ya kufuatilia, SMS kila hatua na namba ya siri wakati wa kukabidhi."
+        },
+        "local": {
+          "title": "Ya Tanzania, kwa Kiswahili",
+          "desc": "Imetengenezwa Tanzania kwa ajili ya biashara za hapa, kwa Kiswahili, English na Français."
+        }
+      },
+      "app": "Kwenye simu ya Android? Pata app ya KenteXa: haraka zaidi, na arifa za oda na mizigo.",
+      "app_button": "Pakua app",
+      "live_kicker": "Kinachoendelea sasa",
+      "live_title": "Jumuiya na mada za KenteXa",
+      "final_title": "Anza leo. Ni bure.",
+      "final_sub": "Fungua akaunti kwa Google au namba ya simu ndani ya dakika moja.",
+      "pages": "Kurasa",
+      "page": {
+        "about": "Kuhusu KenteXa",
+        "office": "Ofisi za mizigo",
+        "pos": "POS ya bure",
+        "market": "Soko la mtandaoni",
+        "delivery": "Usafirishaji",
+        "menu": "Menyu ya QR",
+        "privacy": "Faragha",
+        "terms": "Masharti"
+      }
     }
   },
   "landing": {
