@@ -257,7 +257,7 @@ export class SeriesService {
   /** "kentexa.com/post/42-..." or "42" -> 42. */
   static postIdFrom(v: unknown): number | null {
     const s = String(v ?? '').trim();
-    const m = s.match(/(?:\/post\/)?(\d{1,10})(?:-[a-z0-9-]*)?\/?(?:[?#].*)?$/i);
+    const m = s.match(/^(?:.*\/post\/)?(\d{1,10})(?:-[a-z0-9-]*)?\/?(?:[?#].*)?$/i);
     return m ? Number(m[1]) : null;
   }
 
