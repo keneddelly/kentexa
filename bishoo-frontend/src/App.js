@@ -207,6 +207,11 @@ function App() {
   const [navHistory, setNavHistory] = useState([]);
 
   const handleNavigate = (pageName, params = null) => {
+    // Keep the Super Agent application behind authentication, then resume it after login/registration.
+    if (pageName === 'BecomeSuperAgentInfo' && !checkToken().loggedIn) {
+      localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo');
+      pageName = 'PublicLogin';
+    }
     if (pageName === 'back') {
       // Pop the history stack
       setNavHistory(h => {
