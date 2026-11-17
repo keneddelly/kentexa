@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { articleBlocks, articlePhotos, boldParts, readMinutes } from '../shared';
 import { mediaUrl } from '../config';
-import { colors, type } from '../theme';
+import { F, colors, type } from '../theme';
 import Icon from './Icon';
 import { Avatar, Post, TEAL, ago } from './PostCard';
 
@@ -14,7 +14,7 @@ import { Avatar, Post, TEAL, ago } from './PostCard';
  */
 const Bold = ({ text, style }: { text: string; style?: any }) => (
   <Text style={style}>
-    {boldParts(text).map((p: { text: string; bold: boolean }, i: number) => (p.bold ? <Text key={i} style={{ fontWeight: '800' }}>{p.text}</Text> : p.text))}
+    {boldParts(text).map((p: { text: string; bold: boolean }, i: number) => (p.bold ? <Text key={i} style={{ fontFamily: F.black }}>{p.text}</Text> : p.text))}
   </Text>
 );
 
@@ -57,9 +57,9 @@ const s = StyleSheet.create({
   inner: { padding: 16, gap: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   makala: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: TEAL, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  makalaText: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
-  title: { fontSize: 28, lineHeight: 34, fontWeight: '900', color: colors.ink },
-  h: { fontSize: 21, lineHeight: 27, fontWeight: '800', color: colors.ink, marginTop: 4 },
+  makalaText: { color: '#fff', fontSize: 12, fontFamily: F.black, letterSpacing: 0.4 },
+  title: { fontSize: 28, lineHeight: 34, fontFamily: F.black, color: colors.ink, letterSpacing: -0.5 },
+  h: { fontSize: 21, lineHeight: 27, fontFamily: F.black, color: colors.ink, marginTop: 4 },
   read: { fontFamily: 'serif', fontSize: 18, lineHeight: 30, color: colors.ink },
   quote: { borderLeftWidth: 4, borderLeftColor: TEAL, paddingLeft: 14 },
   photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: 12, backgroundColor: colors.line },

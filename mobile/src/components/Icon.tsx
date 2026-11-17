@@ -3,7 +3,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { colors } from '../theme';
 
 /** Line icons (no emoji), the same shapes as the web bottom bar. */
-export type IconName = 'home' | 'search' | 'plus' | 'inbox' | 'kazi' | 'back' | 'chevron' | 'comment' | 'heart' | 'eye' | 'save' | 'share' | 'send' | 'book' | 'check';
+export type IconName = 'home' | 'search' | 'plus' | 'inbox' | 'kazi' | 'back' | 'chevron' | 'comment' | 'heart' | 'eye' | 'save' | 'share' | 'send' | 'book' | 'check' | 'bell' | 'homeFill' | 'plusBox';
 
 const paths: Record<IconName, string[]> = {
   home: ['M3 10.5 12 3l9 7.5', 'M5 9.5V21h5v-6h4v6h5V9.5'],
@@ -20,6 +20,9 @@ const paths: Record<IconName, string[]> = {
   share: ['M12 3v13', 'M7 8l5-5 5 5', 'M5 13v7h14v-7'],
   send: ['M4 12l16-8-6 16-3-7z'],
   check: ['M5 12l4 4 10-10'],
+  homeFill: ['M3 10.5 12 3l9 7.5V21h-6v-6h-6v6H3z'],
+  plusBox: ['M8 3h8a5 5 0 0 1 5 5v8a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5V8a5 5 0 0 1 5-5z', 'M12 8v8', 'M8 12h8'],
+  bell: ['M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9', 'M13.7 21a2 2 0 0 1-3.4 0'],
   book: ['M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z', 'M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5'],
 };
 

@@ -8,7 +8,7 @@ import PostCard, { Avatar, Post, ago } from '../components/PostCard';
 import ArticleView from '../components/ArticleView';
 import Icon from '../components/Icon';
 import { Empty } from '../components/Ui';
-import { colors, type } from '../theme';
+import { F, colors, type } from '../theme';
 import type { RootStackParams } from '../navigation/types';
 
 /**
@@ -31,15 +31,15 @@ function CommentRow({ c, reply, ownerId, onReply, onLike, liked, count }: { c: C
   const who = identity(c);
   return (
     <View style={[s.comment, reply && { paddingLeft: 62 }]}>
-      <Avatar uri={who.photo} name={who.name} size={reply ? 28 : 36} />
+      <Avatar uri={who.photo} name={who.name} size={reply ? 28 : 40} />
       <View style={{ flex: 1, gap: 3 }}>
         <Text style={type.meta} numberOfLines={1}><Text style={type.name}>{who.name}</Text>{ownerId && c.authorId === ownerId ? ' · mwandishi' : ''} · {ago(c.createdAt)}</Text>
         <Text style={type.body}>{c.body}</Text>
         <View style={{ flexDirection: 'row', gap: 22, marginTop: 4 }}>
           <Pressable onPress={onReply} hitSlop={8}><Text style={s.link}>Jibu</Text></Pressable>
           <Pressable onPress={onLike} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Icon name="heart" size={15} color={liked ? '#e0245e' : colors.muted} fill={liked ? '#e0245e' : 'none'} />
-            <Text style={[s.link, liked && { color: '#e0245e' }]}>{count ? count : 'Penda'}</Text>
+            <Icon name="heart" size={15} color={liked ? colors.like : colors.muted} fill={liked ? colors.like : 'none'} />
+            <Text style={[s.link, liked && { color: colors.like }]}>{count ? count : 'Penda'}</Text>
           </Pressable>
         </View>
       </View>
@@ -59,6 +59,7 @@ export default function PostScreen({ route, navigation }: NativeStackScreenProps
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [likes, setLikes] = useState<Record<number, { liked: boolean; count: number }>>({});
+  const [progress, setProgress] = useState(0);
 
   const loadComments = useCallback(() => api.get(`/feed/${id}/comments`)
     .then((c: any) => setComments(Array.isArray(c) ? c : Array.isArray(c?.items) ? c.items : [])).catch(() => {}), [id]);
@@ -118,12 +119,19 @@ export default function PostScreen({ route, navigation }: NativeStackScreenProps
         }}
         ListEmptyComponent={<Text style={[type.meta, { padding: 16 }]}>Bado hakuna majibu. Kuwa wa kwanza kujibu.</Text>}
         keyboardShouldPersistTaps="handled"
+        onScroll={post.intent === 'article' ? (e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          const max = contentSize.height - layoutMeasurement.height;
+          setProgress(max > 0 ? Math.min(1, Math.max(0, contentOffset.y / max)) : 0);
+        } : undefined}
+        scrollEventThrottle={32}
       />
+      {post.intent === 'article' ? <View style={s.progress}><View style={[s.progressFill, { width: `${Math.round(progress * 100)}%` }]} /></View> : null}
       <View style={[s.composer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         {replyTo ? (
-          <Pressable onPress={() => setReplyTo(null)}><Text style={type.meta}>Unamjibu <Text style={{ fontWeight: '700', color: colors.ink }}>{replyTo.name}</Text> · Ghairi</Text></Pressable>
+          <Pressable onPress={() => setReplyTo(null)}><Text style={type.meta}>Unamjibu <Text style={{ fontFamily: F.bold, color: colors.ink }}>{replyTo.name}</Text> · Ghairi</Text></Pressable>
         ) : null}
-        {error ? <Text style={{ color: colors.danger, fontSize: 13 }}>{error}</Text> : null}
+        {error ? <Text style={{ color: colors.danger, fontSize: 13, fontFamily: F.regular }}>{error}</Text> : null}
         <View style={s.inputRow}>
           <TextInput style={s.input} placeholder={user ? 'Andika jibu lako' : 'Ingia ili kujibu'} placeholderTextColor={colors.muted}
             value={text} onChangeText={setText} multiline maxLength={2000} editable={!sending} onFocus={() => { if (!user) navigation.navigate('Login'); }} />
@@ -137,11 +145,13 @@ export default function PostScreen({ route, navigation }: NativeStackScreenProps
 }
 
 const s = StyleSheet.create({
+  progress: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: colors.line },
+  progressFill: { height: 3, backgroundColor: colors.teal },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   comment: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  link: { color: colors.muted, fontSize: 13, fontWeight: '700' },
+  link: { color: colors.muted, fontSize: 13, fontFamily: F.bold },
   composer: { borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 12, paddingTop: 8, gap: 6, backgroundColor: '#fff' },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: 20, backgroundColor: colors.soft, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10, fontSize: 15, color: colors.ink },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: 20, backgroundColor: colors.soft, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 10, fontSize: 15, fontFamily: F.regular, color: colors.ink },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
 });

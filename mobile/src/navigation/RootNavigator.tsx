@@ -1,12 +1,8 @@
 import React from 'react';
-import { Pressable, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image } from 'expo-image';
 import Icon, { IconName } from '../components/Icon';
-import { useAuth } from '../auth/AuthContext';
-import { colors } from '../theme';
-import { mediaUrl } from '../config';
+import { F, colors } from '../theme';
 import HomeScreen from '../screens/HomeScreen';
 import PostScreen from '../screens/PostScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -24,18 +20,7 @@ import type { RootStackParams, TabParams } from './types';
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab = createBottomTabNavigator<TabParams>();
 
-const TAB_ICONS: Record<keyof TabParams, IconName> = { Mwanzo: 'home', Tafuta: 'search', Ongeza: 'plus', Inbox: 'inbox', Kazi: 'kazi' };
-
-function HeaderAvatar({ onPress }: { onPress: () => void }) {
-  const { user } = useAuth();
-  const uri = mediaUrl(user?.avatarUrl as string | undefined);
-  return (
-    <Pressable onPress={onPress} accessibilityLabel={user ? 'Akaunti yako' : 'Ingia'} hitSlop={10} style={{ marginLeft: 14 }}>
-      {uri ? <Image source={{ uri }} style={{ width: 32, height: 32, borderRadius: 16 }} />
-        : <Text style={{ fontWeight: '800', color: colors.brand, fontSize: 15 }}>{user ? (String(user.name || 'K').slice(0, 1).toUpperCase()) : 'Ingia'}</Text>}
-    </Pressable>
-  );
-}
+const TAB_ICONS: Record<keyof TabParams, IconName> = { Mwanzo: 'home', Tafuta: 'search', Ongeza: 'plusBox', Inbox: 'inbox', Kazi: 'kazi' };
 
 function Tabs({ navigation }: any) {
   return (
@@ -48,14 +33,14 @@ function Tabs({ navigation }: any) {
         headerTitleAlign: 'center',
         headerShadowVisible: false,
         headerStyle: { backgroundColor: '#fff' },
-        headerTitleStyle: { fontWeight: '800', fontSize: 17, color: colors.ink },
-        tabBarIcon: ({ color, focused }) => <Icon name={TAB_ICONS[route.name as keyof TabParams]} color={color} strokeWidth={focused ? 2.6 : 2} size={route.name === 'Ongeza' ? 28 : 26} />,
+        headerTitleStyle: { fontFamily: F.black, fontSize: 17, color: colors.ink },
+        tabBarIcon: ({ focused }) => (route.name === 'Mwanzo' && focused
+          ? <Icon name="homeFill" color={colors.ink} fill={colors.ink} size={26} />
+          : <Icon name={TAB_ICONS[route.name as keyof TabParams]} color={colors.ink} strokeWidth={focused ? 2.6 : 1.8} size={route.name === 'Ongeza' ? 28 : 26} />),
         tabBarAccessibilityLabel: route.name === 'Ongeza' ? 'Tengeneza' : route.name,
       })}
     >
-      <Tab.Screen name="Mwanzo" component={HomeScreen as any}
-        options={{ headerTitle: () => <Text style={{ fontSize: 20, fontWeight: '900', color: colors.ink }}>Kente<Text style={{ color: colors.brand }}>Xa</Text></Text>,
-          headerLeft: () => <HeaderAvatar onPress={() => navigation.navigate('Account')} /> }} />
+      <Tab.Screen name="Mwanzo" component={HomeScreen as any} options={{ headerShown: false }} />
       <Tab.Screen name="Tafuta" component={SearchScreen as any} />
       <Tab.Screen name="Ongeza" component={SearchScreen as any}
         listeners={{ tabPress: (e) => { e.preventDefault(); navigation.navigate('Create'); } }} />
@@ -67,7 +52,7 @@ function Tabs({ navigation }: any) {
 
 export default function RootNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShadowVisible: false, headerTintColor: colors.ink, headerTitleStyle: { fontWeight: '800', fontSize: 17 }, headerBackTitle: 'Rudi' }}>
+    <Stack.Navigator screenOptions={{ headerShadowVisible: false, headerTintColor: colors.ink, headerTitleStyle: { fontFamily: F.black, fontSize: 17 }, headerBackTitle: 'Rudi' }}>
       <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
       <Stack.Screen name="Post" component={PostScreen} options={{ title: 'Chapisho' }} />
       <Stack.Screen name="Web" component={WebScreen} options={{ title: 'KenteXa' }} />
