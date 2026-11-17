@@ -1,7 +1,7 @@
 export const DESTINATION_KIND = Object.freeze({ PUBLIC: 'public', ACCOUNT: 'account', OPERATIONAL: 'operational', ADMIN: 'admin' });
 
 const destination = (id, kind, roles = [], capabilities = []) => ({ id, page: id, kind, roles, capabilities });
-const PUBLIC_PAGES = ['Home','UzaTena','GuestCheckout','AboutUs','ContactUs','HowItWorks','Privacy','PrivacyPolicy','Terms','TermsAndConditions','FlashSales','PickupPoints','ClassifiedDetail','ServiceDetail','ProductDetail','PostDetail','Community','Tag','VerifyProduct','RouteCoverageMap','Store','Stores','ClassifiedsPublic','PublicLogin','Register','Search','Discover','Cart','BecomeSeller','BecomeSellerInfo','BecomeAgent','BecomeSuperAgentInfo','BecomeBusiness','VerifyReceipt','PayInvoice','TrackParcel','Services','Listings'];
+const PUBLIC_PAGES = ['Home','UzaTena','GuestCheckout','AboutUs','ContactUs','HowItWorks','Privacy','PrivacyPolicy','Terms','TermsAndConditions','FlashSales','PickupPoints','ClassifiedDetail','ServiceDetail','ProductDetail','PostDetail','Community','Tag','VerifyProduct','RouteCoverageMap','Store','Stores','ClassifiedsPublic','PublicLogin','Register','Search','Discover','Cart','BecomeSeller','BecomeSellerInfo','BecomeAgent','BecomeSuperAgentInfo','BecomeBusiness','VerifyReceipt','PayInvoice','TrackParcel','Services','Listings','Series','Topic'];
 const ACCOUNT_PAGES = ['Workspace','CreateCommunity','MyAdvertising','MyResales','QuoteRequest','MyQuoteRequests','QuoteInbox','Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','EditPublicProfile','PayoutSettings','Checkout','Wishlist','SellerInbox','SendShipment','MyShipments','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','ConnectSelling','BusinessHome','BusinessIntegrations','MyClassifieds','CreateClassified',
   // Hotel food ordering (owner 2026-10-27): the customer's orders, and the hotel's kitchen and
   // menu (the server checks that the caller owns that Business).
@@ -38,6 +38,9 @@ const DYNAMIC_DESTINATIONS = [
   [/^Community-\d+$/, 'Community'],
   // Hashtags (owner 2026-11-15): a tag's page, open to everyone.
   [/^Tag-[\p{L}\p{M}\p{N}_]{2,50}$/u, 'Tag'],
+  // Mfululizo (#410): a series and a topic page, open to everyone.
+  [/^Series-\d+$/, 'Series'],
+  [/^Topic-[a-z_]{2,40}$/, 'Topic'],
   [/^ProductDetail-/, 'ProductDetail'], [/^ClassifiedDetail-/, 'ClassifiedDetail'], [/^ServiceDetail-/, 'ServiceDetail'],
   [/^(CommerceProfile|Store|SellerStore)-/, 'CommerceProfile'], [/^Search-/, 'Search'], [/^Category-/, 'Search'], [/^Listings-/, 'Listings'],
   [/^Track(Parcel|Order)-/, 'TrackParcel'], [/^ConfirmDelivery-/, 'TrackParcel'], [/^PayInvoice-/, 'PayInvoice'], [/^VerifyReceipt-/, 'VerifyReceipt'],
