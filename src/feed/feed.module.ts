@@ -48,6 +48,8 @@ import { TraysService } from './trays.service';
 import { PostViewsService } from './post-views.service';
 import { PostViewsController } from './post-views.controller';
 import { WriterWeekController, FeedTraysController } from './writer-week.controller';
+import { WriterOutreachController } from './writer-outreach.controller';
+import { WriterOutreachService } from './writer-outreach.service';
 import { SeriesService } from './series.service';
 import { SeriesController } from './series.controller';
 import { TopicsAdminController } from './topics-admin.controller';
@@ -75,9 +77,10 @@ import { TopicsAdminController } from './topics-admin.controller';
     ActivityModule,
     SearchModule,
   ],
-  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController, WriterWeekController, FeedTraysController, PostViewsController, SeriesController, TopicsAdminController],
+  controllers: [FeedController, EngagementsController, CommentsController, CommunitiesController, HashtagsController, WriterWeekController, FeedTraysController, PostViewsController, SeriesController, TopicsAdminController, WriterOutreachController],
   providers: [
     SeriesService,
+    WriterOutreachService,
     FeedService,
     CvsService,
     PollService,

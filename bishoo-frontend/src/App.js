@@ -12,7 +12,7 @@ import useAnalytics from './public/hooks/useAnalytics';
 import { pageToAddress, pathToPage, pathToNavParams, linkPageFromAddress, joinPageFromSearch } from './utils/urlSync';
 import { missingForPage } from './utils/accountGate';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
-import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
+import { destinationForIntent, consumeIntent, takeWriterRef } from './utils/campaignIntent';
 import { rememberPageForUpdate, takeResumePage } from './utils/appVersion';
 import { useRoleContext } from './context/RoleContext';
 import ContextEpochBoundary from './context/ContextEpochBoundary';
@@ -186,6 +186,7 @@ const QuoteInbox = lazyPage(() => import('./public/pages/QuoteInbox'));
 const AdminAdvertisers = lazyPage(() => import('./admin/pages/AdminAdvertisers'));
 const AdminKentexaFees = lazyPage(() => import('./admin/pages/AdminKentexaFees'));
 const AdminSeries = lazyPage(() => import('./admin/pages/AdminSeries'));
+const AdminWriters = lazyPage(() => import('./admin/pages/AdminWriters'));
 const AdminShippingCheck = lazyPage(() => import('./admin/pages/AdminShippingCheck'));
 const AdminActivity = lazyPage(() => import('./admin/pages/AdminActivity'));
 const AdminPerson = lazyPage(() => import('./admin/pages/AdminPerson'));
@@ -645,6 +646,9 @@ function App() {
             const intentDestination = destinationForIntent(consumedIntent);
             // Writers programme (#417): a writer's link opens the Makala editor right after sign-up.
             if (consumedIntent === 'writer') setArticleStart({});
+            // Writers programme (#417 B): someone who came from an invitation counts as joined.
+            const writerRef = takeWriterRef();
+            if (writerRef) Promise.resolve().then(() => api.post('/writer-outreach/claim', { token: writerRef })).catch(() => {});
             const params = new URLSearchParams(window.location.search);
             const receive = params.get('receive');
             // The seller's new-order link asks for login first; after login it opens that order.
@@ -1198,6 +1202,7 @@ function App() {
       case 'AdminStaff': return requireAdmin(<AdminStaff activePage={page} {...adminProps} />);
       // Mfululizo na Mada (#410 phase 3).
       case 'AdminSeries': return requireAdmin(<AdminSeries activePage={page} {...adminProps} />);
+      case 'AdminWriters': return requireAdmin(<AdminWriters activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return ['admin', 'manager', 'customer_care', 'moderator'].includes(activeContext?.roleType)

@@ -19,7 +19,7 @@ const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','Batc
 const TRANSPORT_PAGES = ['TransportProviderDashboard','TransportProviderSettings'];
 const ADMIN_PAGES = ['Profile','Dashboard','AdminActivity','AdminPerson','AdminChats','AdminOnboarding','AdminResale','AdminBusinessView','AdminStaff','AdminMoments','AdminReports','AdminCommunities','AdminHotelOrders','AdminPosSales','AdminTeamInvitations','AdminInstagram','AdminOfficePrices','AdminAgentJobs','AdminReviews','AdminNotifications','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin',
   // In the admin menu but missing here, so a click went back to the Dashboard (2026-10-24).
-  'Businesses','AdminShipments','AdminDispatchReminders','AdminAdvertisers','AdminKentexaFees','AdminShippingCheck','AdminSeries'];
+  'Businesses','AdminShipments','AdminDispatchReminders','AdminAdvertisers','AdminKentexaFees','AdminShippingCheck','AdminSeries','AdminWriters'];
 
 export const DESTINATIONS = Object.freeze(Object.fromEntries([
   ...PUBLIC_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.PUBLIC)]),

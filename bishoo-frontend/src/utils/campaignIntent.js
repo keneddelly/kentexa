@@ -108,3 +108,22 @@ try {
   const fromUrl = intentFromSearch(window.location.search);
   if (fromUrl) setIntent(fromUrl);
 } catch { /* no window — SSR */ }
+
+// Writers programme (#417 step B): an invitation link carries ?wref=<token> (the /waandishi/ page
+// passes it on). Kept until the person signs in, then sent once so the invitation counts as joined.
+const WRITER_REF_KEY = 'kentexa_writer_ref';
+export const writerRefFromSearch = (search) => {
+  const v = new URLSearchParams(search || '').get('wref') || '';
+  return /^[a-f0-9]{20,40}$/.test(v) ? v : null;
+};
+export const takeWriterRef = () => {
+  try {
+    const v = window.localStorage.getItem(WRITER_REF_KEY);
+    window.localStorage.removeItem(WRITER_REF_KEY);
+    return v && /^[a-f0-9]{20,40}$/.test(v) ? v : null;
+  } catch { return null; }
+};
+try {
+  const ref = writerRefFromSearch(window.location.search);
+  if (ref) window.localStorage.setItem(WRITER_REF_KEY, ref);
+} catch { /* no window or storage off */ }
