@@ -145,6 +145,27 @@ export class AuthController {
     return result;
   }
 
+  // Add a phone later (owner 2026-11-17): features that need a phone ask for it first.
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Post('phone/start')
+  addPhoneStart(@Request() req: any, @Body('phone') phone: unknown) {
+    return this.authService.addPhoneStart(req.user.id, phone);
+  }
+
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 15, ttl: 3600000 } })
+  @Post('phone/confirm')
+  addPhoneConfirm(@Request() req: any, @Body() body: any) {
+    return this.authService.addPhoneConfirm(req.user.id, body || {});
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('city')
+  setCity(@Request() req: any, @Body('city') city: unknown) {
+    return this.authService.setCity(req.user.id, city);
+  }
+
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('me')
   getMe(@Request() req: any, @Res({ passthrough: true }) res: Response) {

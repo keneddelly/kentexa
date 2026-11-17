@@ -8,7 +8,9 @@ import { HttpException } from '@nestjs/common';
  */
 export type AuthErrorCode =
   | 'PHONE_TAKEN' | 'EMAIL_TAKEN' | 'ACCOUNT_NOT_FOUND' | 'ALREADY_VERIFIED'
-  | 'OTP_TOO_MANY' | 'OTP_EXPIRED' | 'OTP_WRONG' | 'INVALID_CREDENTIALS' | 'ACCOUNT_NOT_VERIFIED';
+  | 'OTP_TOO_MANY' | 'OTP_EXPIRED' | 'OTP_WRONG' | 'INVALID_CREDENTIALS' | 'ACCOUNT_NOT_VERIFIED'
+  // Adding a phone later (owner 2026-11-17).
+  | 'PHONE_INVALID' | 'CITY_REQUIRED';
 
 export function authError<T extends HttpException>(
   Exc: new (body: any) => T, code: AuthErrorCode, message: string, extra: Record<string, unknown> = {},

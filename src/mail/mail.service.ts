@@ -60,37 +60,66 @@ export class MailService {
   }
 
   // ── Welcome email after verification ─────────────────────────────────
+  /**
+   * Welcome email (rewritten 2026-11-17, owner: "the email sent to user after registration is
+   * outdated"): Swahili first with a short English line, what KenteXa is today (jumuiya, Makala,
+   * Mfululizo, selling with free POS, sending parcels, offices and agents), one button and the app.
+   * No emoji, no claims we cannot show.
+   */
+  static welcomeHtml(name: string, frontend = FRONTEND_URL) {
+    const safe = String(name || '').replace(/[<>&"]/g, '').trim() || 'rafiki';
+    const row = (title: string, text: string, href: string) => `
+      <tr><td style="padding:10px 0;border-top:1px solid #eef2f7;">
+        <a href="${href}" style="text-decoration:none;color:#0f1419;">
+          <div style="font-size:15px;font-weight:700;color:#0f1419;">${title}</div>
+          <div style="font-size:14px;color:#536471;line-height:1.5;">${text}</div>
+        </a>
+      </td></tr>`;
+    return `
+    <div style="background:#f5f7fb;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">
+      <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e6ecf0;">
+        <div style="background:#0b1224;padding:22px 24px;">
+          <div style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Kente<span style="color:#60a5fa;">Xa</span></div>
+          <div style="font-size:13px;color:#cfdcff;margin-top:4px;">Mazungumzo, biashara na usafiri wa Tanzania, mahali pamoja</div>
+        </div>
+        <div style="padding:24px;">
+          <h1 style="margin:0 0 10px;font-size:22px;color:#0f1419;">Karibu KenteXa, ${safe}</h1>
+          <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">
+            Akaunti yako iko tayari. Hiki ndicho unachoweza kufanya leo:
+          </p>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+            ${row('Jiunge na jumuiya', 'Uliza, jibu na jadili mada za biashara, teknolojia, kilimo na zaidi.', `${frontend}/`)}
+            ${row('Andika Makala', 'Shiriki ujuzi wako; wasomaji wanaona kazi yako na unaweza kuwa Mwandishi wa Wiki.', `${frontend}/`)}
+            ${row('Fuata Mfululizo', 'Mazungumzo yanayoendelea sehemu kwa sehemu, kama Business Conversations.', `${frontend}/topic/biashara`)}
+            ${row('Uza na nunua', 'Fungua duka lako na POS ya bure, au nunua kutoka kwa biashara za karibu nawe.', `${frontend}/?intent=seller`)}
+            ${row('Tuma mzigo', 'Linganisha bei za ofisi na mawakala, fuatilia kila hatua kwa SMS.', `${frontend}/?intent=ship`)}
+          </table>
+          <a href="${frontend}/" style="display:block;margin:20px 0 0;background:#0f1419;color:#ffffff;text-decoration:none;padding:14px;border-radius:999px;text-align:center;font-size:15px;font-weight:700;">
+            Fungua KenteXa
+          </a>
+          <p style="margin:18px 0 0;font-size:14px;color:#334155;line-height:1.6;">
+            Kwenye simu ya Android? <a href="https://play.google.com/store/apps/details?id=com.app.bishoo" style="color:#1d4ed8;font-weight:700;">Pakua app ya KenteXa</a> kwa arifa za haraka.
+          </p>
+          <p style="margin:16px 0 0;font-size:13px;color:#64748b;line-height:1.6;">
+            <b>English:</b> Welcome to KenteXa. Your account is ready: join communities, write articles, follow series, sell with a free POS, and send parcels across Tanzania.
+          </p>
+        </div>
+        <div style="padding:14px 24px;background:#f8fafc;border-top:1px solid #eef2f7;font-size:12px;color:#94a3b8;line-height:1.6;">
+          Umepokea barua hii kwa sababu umefungua akaunti ya KenteXa. Kama si wewe, puuza barua hii.<br>
+          KenteXa · <a href="${frontend}/privacy" style="color:#94a3b8;">Faragha</a> · <a href="${frontend}/terms" style="color:#94a3b8;">Masharti</a>
+        </div>
+      </div>
+    </div>`;
+  }
+
   async sendWelcome(email: string, name: string): Promise<void> {
     try {
       await this.transporter.sendMail({
         from: this.from,
         to: email,
-        subject: `Welcome to KenteXa, ${name}! 🎉`,
-        html: `
-          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px;">
-            <div style="text-align:center;margin-bottom:24px;">
-              <h1 style="font-size:28px;font-weight:900;color:#1d4ed8;margin:0;">Kente<span style="color:#0f172a;">Xa</span></h1>
-            </div>
-            <div style="background:#fff;border-radius:12px;padding:24px;border:1px solid #e2e8f0;">
-              <h2 style="color:#1e293b;font-size:20px;margin:0 0 12px;">Welcome, ${name}! 🎉</h2>
-              <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 20px;">
-                Your KenteXa account is now verified and ready to use. You can now:
-              </p>
-              <ul style="color:#475569;font-size:14px;line-height:2;padding-left:20px;margin:0 0 20px;">
-                <li>🛒 Shop from verified sellers across Tanzania</li>
-                <li>📋 Post classified ads for free</li>
-                <li>🏪 Open your own store and start selling</li>
-                <li>🤝 Apply to become a KenteXa agent</li>
-              </ul>
-              <a href="${FRONTEND_URL}" style="display:block;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;text-decoration:none;padding:14px;border-radius:10px;text-align:center;font-size:15px;font-weight:700;">
-                Start Shopping →
-              </a>
-            </div>
-            <p style="color:#94a3b8;font-size:11px;text-align:center;margin:16px 0 0;">
-              KenteXa © 2026 · Tanzania's #1 Marketplace
-            </p>
-          </div>
-        `,
+        subject: `Karibu KenteXa, ${String(name || '').trim() || 'rafiki'}`,
+        html: MailService.welcomeHtml(name),
+        text: `Karibu KenteXa. Akaunti yako iko tayari: jiunge na jumuiya, andika Makala, fuata Mfululizo, uza kwa POS ya bure na tuma mzigo popote Tanzania. ${FRONTEND_URL}/`,
       });
       this.logger.log(`Welcome email sent to ${email}`);
     } catch (err) {
