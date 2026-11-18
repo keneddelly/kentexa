@@ -14,6 +14,7 @@ const products = [
 ];
 
 beforeEach(() => {
+  window.innerWidth = 390; // phone layout (chips across the top)
   api.get.mockResolvedValue({ data: [{ key: 'electronics', label: 'Electronics', subcategories: [{ key: 'chargers', label: 'Chargers' }, { key: 'audio', label: 'Audio' }] }] });
 });
 

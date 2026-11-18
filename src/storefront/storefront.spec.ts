@@ -72,6 +72,7 @@ describe('storefront service', () => {
   it('the migration is additive and pinned', () => {
     const mig = readFileSync(join(__dirname, '../database/migrations/1797600000000-AddStoreTemplate.ts'), 'utf8');
     expect(mig.slice(0, mig.indexOf('public async down'))).not.toMatch(/\bDROP\b|DELETE FROM|\bUPDATE\b/);
-    expect(readFileSync(join(__dirname, '../../package.json'), 'utf8')).toContain('MIGRATION_RUN_UPTO=1797600000000');
+    const pin = Number((readFileSync(join(__dirname, '../../package.json'), 'utf8').match(/MIGRATION_RUN_UPTO=(\d+)/) || [])[1]);
+    expect(pin).toBeGreaterThanOrEqual(1797600000000);
   });
 });

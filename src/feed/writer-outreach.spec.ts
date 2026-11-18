@@ -118,7 +118,8 @@ describe('Writers programme (#417 B): routes and migration', () => {
   it('the migration is additive', () => {
     const mig = readFileSync(join(__dirname, '../database/migrations/1797500000000-AddWriterOutreach.ts'), 'utf8');
     expect(mig.slice(0, mig.indexOf('public async down'))).not.toMatch(/\bDROP\b|DELETE FROM|\bUPDATE\b/);
-    expect(readFileSync(join(__dirname, '../../package.json'), 'utf8')).toContain('MIGRATION_RUN_UPTO=1797500000000');
+    const pin = Number((readFileSync(join(__dirname, '../../package.json'), 'utf8').match(/MIGRATION_RUN_UPTO=(\d+)/) || [])[1]);
+    expect(pin).toBeGreaterThanOrEqual(1797500000000);
   });
 
   it('before the migration nothing breaks', async () => {
