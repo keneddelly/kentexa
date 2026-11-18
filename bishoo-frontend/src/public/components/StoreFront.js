@@ -173,7 +173,7 @@ export default function StoreFront({ profile, products, collections = [], isOwn,
   const chip = (key, label, count, on, onClick) => (
     <button key={key} type="button" onClick={onClick} data-testid="store-chip"
       style={{ flexShrink: 0, height: 34, padding: '0 14px', borderRadius: 17, border: `1px solid ${on ? INK : '#cfd9de'}`, background: on ? INK : '#fff',
-        color: on ? '#fff' : INK, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        color: on ? '#fff' : INK, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
       {label}{count != null && <small style={{ color: on ? '#cbd5e1' : FAINT, fontWeight: 500, fontSize: 12 }}>{count}</small>}
     </button>
   );
