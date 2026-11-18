@@ -46,19 +46,47 @@ export class StorefrontService {
     return p as { id: number; ownerId: number; type: string };
   }
 
-  /** Public: page type, opening hours and the shelves (in order). */
+  private creatorReady = false;
+
+  private async creatorColumns() {
+    if (!this.creatorReady) {
+      try {
+        const [r] = await this.db.query(`SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'commerce_profile' AND column_name IN ('headline', 'pinnedPostId')`);
+        this.creatorReady = Number(r?.n) === 2;
+      } catch { this.creatorReady = false; }
+    }
+    return this.creatorReady;
+  }
+
+  /** Public: page type, opening hours, the shelves (in order), and the personal brand line and pin. */
   async get(profileId: number) {
-    if (!(await this.tables())) return { pageTemplate: null, openingHours: null, collections: [] };
-    const [p] = await this.db.query(`SELECT "pageTemplate", "openingHours" FROM public.commerce_profile WHERE id = $1`, [profileId]);
+    if (!(await this.tables())) return { pageTemplate: null, openingHours: null, collections: [], headline: null, pinnedPostId: null };
+    const creator = await this.creatorColumns();
+    const [p] = await this.db.query(`SELECT "pageTemplate", "openingHours"${creator ? ', headline, "pinnedPostId"' : ''} FROM public.commerce_profile WHERE id = $1`, [profileId]);
     if (!p) throw new NotFoundException('Ukurasa haupatikani.');
     const collections = await this.db.query(`
       SELECT id, title, note, "productIds", position FROM public.store_collection
        WHERE "commerceProfileId" = $1 ORDER BY position, id LIMIT ${MAX_COLLECTIONS}`, [profileId]);
-    return { pageTemplate: cleanTemplate(p.pageTemplate), openingHours: cleanHours(p.openingHours), collections };
+    return {
+      pageTemplate: cleanTemplate(p.pageTemplate), openingHours: cleanHours(p.openingHours), collections,
+      headline: creator ? (p.headline || null) : null,
+      pinnedPostId: creator && p.pinnedPostId ? Number(p.pinnedPostId) : null,
+    };
+  }
+
+  /** A pin must be this profile's own live post (a personal profile's older posts carry no profile). */
+  private async ownPost(profile: { id: number; ownerId: number; type: string }, postId: number) {
+    const [row] = await this.db.query(`
+      SELECT id FROM public.business_feed_item
+       WHERE id = $1 AND "isActive" = true
+         AND ("commerceProfileId" = $2 OR ($4::boolean AND "commerceProfileId" IS NULL AND "businessId" = $3))`,
+    [postId, profile.id, profile.ownerId, profile.type === 'personal']);
+    return Boolean(row);
   }
 
   async saveSettings(profileId: number, userId: number, body: any) {
-    await this.owned(profileId, userId);
+    const profile = await this.owned(profileId, userId);
     const sets: string[] = [];
     const params: any[] = [profileId];
     if (body && 'pageTemplate' in body) { params.push(cleanTemplate(body.pageTemplate)); sets.push(`"pageTemplate" = $${params.length}`); }
@@ -66,6 +94,17 @@ export class StorefrontService {
       const h = body.openingHours === null ? null : cleanHours(body.openingHours);
       if (body.openingHours !== null && !h) throw new BadRequestException('Saa za kufungua si sahihi (mf. 08:00 hadi 20:00).');
       params.push(h ? JSON.stringify(h) : null); sets.push(`"openingHours" = $${params.length}::jsonb`);
+    }
+    if (body && ('headline' in body || 'pinnedPostId' in body)) {
+      if (!(await this.creatorColumns())) throw new BadRequestException('Huduma hii bado inaandaliwa. Jaribu tena baadaye.');
+      if ('headline' in body) { params.push(cleanTitle(body.headline, 120) || null); sets.push(`headline = $${params.length}`); }
+      if ('pinnedPostId' in body) {
+        const pin = body.pinnedPostId == null ? null : Number(body.pinnedPostId);
+        if (pin !== null && (!Number.isInteger(pin) || pin <= 0 || !(await this.ownPost(profile, pin)))) {
+          throw new BadRequestException('Unaweza kubandika chapisho lako tu.');
+        }
+        params.push(pin); sets.push(`"pinnedPostId" = $${params.length}`);
+      }
     }
     if (sets.length) await this.db.query(`UPDATE public.commerce_profile SET ${sets.join(', ')} WHERE id = $1`, params);
     this.event('STORE_SETTINGS_UPDATED', userId, profileId, { fields: Object.keys(body || {}) });

@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-18 (personal brand page):** the pin is now `MIGRATION_RUN_UPTO=1797700000000`. The next deploy runs `1797700000000-AddCreatorProfile` itself (`commerce_profile.headline`, `"pinnedPostId"`). Check: `/version/migrations` shows `pending: []`.
+
 **Update 2026-11-18 (Duka page template):** the pin is now `MIGRATION_RUN_UPTO=1797600000000`. The next deploy runs `1797600000000-AddStoreTemplate` itself (`product."compareAtPrice"`, `commerce_profile."pageTemplate"` and `"openingHours"`, new table `store_collection`). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-18 (Writers programme, #417 step B):** the pin is now `MIGRATION_RUN_UPTO=1797500000000`. The next deploy runs `1797500000000-AddWriterOutreach` itself (new tables `writer_prospect`, `email_suppression`, `founding_contributor`). Invitations stay off until `WRITER_OUTREACH_ENABLED=true` is set in Render. Check: `/version/migrations` shows `pending: []`.
