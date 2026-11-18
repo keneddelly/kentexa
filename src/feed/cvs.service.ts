@@ -2009,7 +2009,7 @@ export class CvsService {
    * how many posts this viewer can see from it, and the topics it posts in most (last 90 days,
    * up to 3). Only real posts; listings that posted themselves are not counted.
    */
-  async getProfileSummary(commerceProfileId: number, viewerId: number | null): Promise<{ postCount: number; topics: string[] }> {
+  async getProfileSummary(commerceProfileId: number, viewerId: number | null): Promise<{ postCount: number; topics: string[]; articleCount: number; readers: number }> {
     const base = () => this.feedRepo.createQueryBuilder('f')
       .where('f."commerceProfileId" = :pcid', { pcid: commerceProfileId })
       .andWhere('f.isActive = true')
@@ -2023,7 +2023,16 @@ export class CvsService {
         .groupBy('f.topic').orderBy('n', 'DESC').limit(3)
         .getRawMany().catch(() => [] as any[]),
     ]);
-    return { postCount: Number(postCount) || 0, topics: topicRows.map((r: any) => String(r.topic)) };
+    // Personal brand page (owner 2026-11-18): how many Makala this profile has published and how
+    // many readers they had, counted like every post's readers (signed-in once each + guests).
+    const articles = await base().select('f.id', 'id').addSelect('f."viewCount"', 'views')
+      .andWhere(`f.intent::text = 'article'`).getRawMany().catch(() => [] as any[]);
+    let readers = articles.reduce((n: number, r: any) => n + (Number(r.views) || 0), 0);
+    if (articles.length) {
+      const guests = await (this.postViews?.guestCounts(articles.map((r: any) => Number(r.id))) ?? Promise.resolve(new Map<number, number>())).catch(() => new Map<number, number>());
+      guests.forEach((v) => { readers += Number(v) || 0; });
+    }
+    return { postCount: Number(postCount) || 0, topics: topicRows.map((r: any) => String(r.topic)), articleCount: articles.length, readers };
   }
 
   /**

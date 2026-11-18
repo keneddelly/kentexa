@@ -1,7 +1,8 @@
 /**
- * Duka page template (owner approved 2026-11-18): the plain rules, kept pure and tested.
+ * Page templates (owner approved 2026-11-18): Duka (store) and the personal brand page (creator).
+ * The plain rules, kept pure and tested.
  */
-export const PAGE_TEMPLATES = ['store', 'basic'] as const;
+export const PAGE_TEMPLATES = ['store', 'creator', 'basic'] as const;
 export type PageTemplate = typeof PAGE_TEMPLATES[number];
 export const MAX_COLLECTIONS = 12;
 export const MAX_COLLECTION_PRODUCTS = 60;

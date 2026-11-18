@@ -59,13 +59,15 @@ export class SeriesService {
 
   // ── Reading ────────────────────────────────────────────────────────────
   /** Published series, newest first; `topic` keeps those in a topic. Each with its visible count and latest episode. */
-  async list(opts: { topic?: string; communityId?: number; limit?: number } = {}, viewer?: Viewer) {
+  async list(opts: { topic?: string; communityId?: number; limit?: number; profileId?: number } = {}, viewer?: Viewer) {
     if (!(await this.ready())) return [];
     const limit = Math.min(50, Math.max(1, Number(opts.limit) || 20));
     const params: any[] = [limit];
     let where = `s.status = 'published'`;
     if (opts.topic) { params.push(String(opts.topic)); where += ` AND EXISTS (SELECT 1 FROM public.content_series_topic st WHERE st."seriesId" = s.id AND st."topicKey" = $${params.length}::varchar)`; }
     if (opts.communityId) { params.push(Number(opts.communityId)); where += ` AND s."communityId" = $${params.length}::int`; }
+    // Personal brand page (owner 2026-11-18): one profile's own series.
+    if (opts.profileId) { params.push(Number(opts.profileId)); where += ` AND s."commerceProfileId" = $${params.length}::int`; }
     const rows: any[] = await this.db.query(`
       SELECT s.id, s.title, s.description, s."coverUrl", s."publishedAt", s."communityId",
              COALESCE(cp."displayName", u.name) AS publisher, COALESCE(cp."photoUrl", u."avatarUrl") AS "publisherPhoto",

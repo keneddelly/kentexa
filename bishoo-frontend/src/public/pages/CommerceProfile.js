@@ -23,6 +23,8 @@ import { profileLink } from '../utils/shareLinks';
 import { PostCard } from './HomeFeed';
 import StoreFront, { openState } from '../components/StoreFront';
 import StoreSettings from '../components/StoreSettings';
+import CreatorWork from '../components/CreatorWork';
+import CreatorSettings from '../components/CreatorSettings';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -315,6 +317,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // Duka page template (owner approved 2026-11-18): the owner's shop settings and shelves.
   const [storefront, setStorefront] = useState(null);
   const [storeSettingsOpen, setStoreSettingsOpen] = useState(false);
+  const [creatorSettingsOpen, setCreatorSettingsOpen] = useState(false);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const tabPicked = React.useRef(false);
   const [connections, setConnections] = useState(null);
@@ -499,7 +502,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     tabPicked.current = Boolean(deepLinkTab);
     setProductsLoaded(false);
     setStorefront(null);
-    if (activeProfile.type === 'business') {
+    if (activeProfile.type === 'business' || activeProfile.type === 'personal') {
       api.get(`/storefront/${activeProfile.id}`).then((r) => setStorefront(r.data || null)).catch(() => setStorefront({ collections: [] }));
     }
 
@@ -563,6 +566,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     const choice = storefront.pageTemplate || null;
     if (choice !== 'basic' && (choice === 'store' || products.length > 0)) setTab('posts');
   }, [activeProfile, storefront, productsLoaded, products.length]);
+  // Personal brand page (owner approved 2026-11-18): a writer's page opens on "Kazi zangu".
+  useEffect(() => {
+    if (!activeProfile || activeProfile.type !== 'personal' || tabPicked.current || !storefront || !talk) return;
+    const choice = storefront.pageTemplate || null;
+    if (choice !== 'basic' && (choice === 'creator' || Number(talk.articleCount) > 0)) setTab('work');
+  }, [activeProfile, storefront, talk]);
   const handleUnmute = async () => {
     try {
       const r = await api.post('/feed/mute', { commerceProfileId: activeProfile.id });
@@ -632,9 +641,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // chosen by the owner ("Panga duka"). The page then opens on Duka, the shop itself.
   const storeChoice = storefront?.pageTemplate || null;
   const isStore = activeProfile.type === 'business' && storeChoice !== 'basic' && (storeChoice === 'store' || products.length > 0);
+  // Personal brand page (owner approved 2026-11-18): automatic once the person has a Makala, or
+  // chosen by the owner ("Panga ukurasa"). Opens on "Kazi zangu".
+  const isCreator = activeProfile.type === 'personal' && storeChoice !== 'basic' && (storeChoice === 'creator' || Number(talk?.articleCount) > 0);
   const profileTabs = isStore
     ? [{ key: 'posts', label: 'Duka' }, ...plainTabs.filter((x) => x.key !== 'posts')]
-    : plainTabs;
+    : isCreator ? [{ key: 'work', label: 'Kazi zangu' }, ...plainTabs] : plainTabs;
   const shopHours = isStore ? openState(storefront?.openingHours) : null;
 
   // `profile` comes from GET /seller/public/:uid — a SELLER/business-shaped
@@ -848,6 +860,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {[displayHandle, activeProfile.category].filter(Boolean).join(' · ')}
               </div>
             )}
+            {storefront?.headline && (
+              <div data-testid="profile-headline" style={{ fontSize:16, fontWeight:600, color:INK, lineHeight:'21px', marginTop:6 }}>{storefront.headline}</div>
+            )}
             {shopHours && (
               <div data-testid="store-hours" style={{ fontSize:14, fontWeight:700, marginTop:4, color: shopHours.open ? '#15803d' : '#b45309' }}>{shopHours.text}</div>
             )}
@@ -895,6 +910,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             <button type="button" onClick={() => setConnections('following')} style={countBtn}>
               <b style={{ color:INK }}>{fmt(activeProfile.followingCount||0)}</b> <span style={{ color:MUTED }}>{t(activeProfile.type === 'personal' ? 'profile_connections.following' : 'profile_connections.account_following')}</span>
             </button>
+            {isCreator && Number(talk?.articleCount) > 0 && (
+              <button type="button" data-testid="profile-article-count" onClick={() => { tabPicked.current = true; setTab('work'); }} style={countBtn}>
+                <b style={{ color:INK }}>{fmt(talk.articleCount)}</b> <span style={{ color:MUTED }}>Makala</span>
+              </button>
+            )}
+            {isCreator && Number(talk?.readers) > 0 && (
+              <span data-testid="profile-readers" style={{ ...countBtn, cursor:'default' }}>
+                <b style={{ color:INK }}>{fmt(talk.readers)}</b> <span style={{ color:MUTED }}>Wasomaji</span>
+              </span>
+            )}
             {talk && (
               <button type="button" data-testid="profile-post-count" onClick={() => setTab('feed')} style={countBtn}>
                 <b style={{ color:INK }}>{fmt(talk.postCount || 0)}</b> <span style={{ color:MUTED }}>Machapisho</span>
@@ -909,6 +934,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 <span key={k} style={{ fontSize:12, fontWeight:700, color:INK, border:`1px solid ${LINE}`, borderRadius:12, padding:'2px 9px' }}>{topicLabel(k)}</span>
               ))}
             </div>
+          )}
+
+          {isCreator && !isOwnProfile && (
+            <button type="button" data-testid="creator-collaborate"
+              onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
+              style={{ height:44, borderRadius:22, border:'none', backgroundColor:'#0f766e', color:WH, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              Shirikiana nami
+            </button>
           )}
 
           {isTransportProfile && publicTransportData && !isOwnProfile && (
@@ -987,6 +1020,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <span style={{ color:B, fontWeight:700, whiteSpace:'nowrap' }}>Fungua Kazi</span>
         </button>
       )}
+      {isOwnProfile && activeProfile.type === 'personal' && !isCreator && (
+        <button type="button" data-testid="owner-creator-settings" onClick={() => setCreatorSettingsOpen(true)}
+          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, width:'calc(100% - 32px)', margin:'0 16px 8px',
+            padding:'10px 12px', border:`1px dashed ${LINE}`, borderRadius:12, background:WH, cursor:'pointer', fontFamily:'inherit', fontSize:14 }}>
+          <span style={{ color:MUTED }}>Mstari wa kazi yako, chapisho la juu na aina ya ukurasa</span>
+          <span style={{ color:B, fontWeight:700, whiteSpace:'nowrap' }}>Panga ukurasa</span>
+        </button>
+      )}
       {isOwnProfile && isBusinessProfile && !isStore && (
         <button type="button" data-testid="owner-store-settings" onClick={() => setStoreSettingsOpen(true)}
           style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, width:'calc(100% - 32px)', margin:'0 16px 8px',
@@ -1038,6 +1079,20 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             price/title/stats baked into the cells. Tap opens the normal
             detail page; editing (owner-only) lives behind that page's
             ••• menu instead of an icon sitting on the grid. */}
+        {tab==='work' && isCreator && (
+          <CreatorWork profileId={activeProfile.id} pinnedPostId={storefront?.pinnedPostId} feed={feed} onNavigate={onNavigate}
+            isOwn={isOwnProfile} onManage={() => setCreatorSettingsOpen(true)}
+            renderPost={(f) => (
+              <PostCard post={{ ...f, business: { id: f.business?.id || activeProfile.ownerId, name: f.business?.name || displayName, storeName: f.business?.storeName || displayName,
+                logo: f.business?.logo || displayPhoto, commerceProfileId: f.business?.commerceProfileId || activeProfile.id, isVerified: f.business?.isVerified ?? isVerifiedIdentity, ...(f.business || {}) } }}
+                isLoggedIn={isLoggedIn} onNavigate={onNavigate} currentUser={currentUser} activeProfileId={viewerActiveProfileId || activeProfile.id} />
+            )} />
+        )}
+        {isOwnProfile && creatorSettingsOpen && (
+          <CreatorSettings profileId={activeProfile.id} settings={storefront} posts={feed}
+            onChanged={(d) => { if (d) setStorefront(d); }} onClose={() => setCreatorSettingsOpen(false)} />
+        )}
+
         {tab==='posts' && isStore && (
           <StoreFront profile={activeProfile} products={products} collections={storefront?.collections || []}
             isOwn={isOwnProfile} onNavigate={onNavigate} onManage={() => setStoreSettingsOpen(true)} />

@@ -18,8 +18,9 @@ describe('storefront rules', () => {
     expect(cleanHours({ open: '08:00', close: '20:00', closedDays: [0, 1, 2, 3, 4, 5, 6] })).toBeNull();
   });
 
-  it('page type is store, basic or automatic', () => {
+  it('page type is store, creator, basic or automatic', () => {
     expect(cleanTemplate('STORE')).toBe('store');
+    expect(cleanTemplate('creator')).toBe('creator');
     expect(cleanTemplate('basic')).toBe('basic');
     expect(cleanTemplate('fancy')).toBeNull();
     expect(cleanTemplate(null)).toBeNull();
@@ -64,14 +65,29 @@ describe('storefront service', () => {
     expect(insert).toBeTruthy();
   });
 
+  it('a pin must be the person\'s own live post', async () => {
+    const svc = new StorefrontService({
+      query: jest.fn(async (sql: string) => {
+        if (sql.includes('to_regclass')) return [{ ok: true }];
+        if (sql.includes('information_schema.columns')) return [{ n: 2 }];
+        if (sql.includes('FROM public.commerce_profile WHERE id')) return [{ id: 5, ownerId: 7, type: 'personal' }];
+        if (sql.includes('FROM public.business_feed_item')) return [];
+        return [];
+      }),
+    } as any);
+    await expect(svc.saveSettings(5, 7, { pinnedPostId: 99 })).rejects.toThrow('chapisho lako');
+  });
+
   it('bad opening hours are refused', async () => {
     const { svc } = make({ id: 5, ownerId: 7, type: 'business' });
     await expect(svc.saveSettings(5, 7, { openingHours: { open: 'x', close: 'y' } })).rejects.toThrow('Saa');
   });
 
   it('the migration is additive and pinned', () => {
-    const mig = readFileSync(join(__dirname, '../database/migrations/1797600000000-AddStoreTemplate.ts'), 'utf8');
-    expect(mig.slice(0, mig.indexOf('public async down'))).not.toMatch(/\bDROP\b|DELETE FROM|\bUPDATE\b/);
+    for (const f of ['1797600000000-AddStoreTemplate.ts', '1797700000000-AddCreatorProfile.ts']) {
+      const mig = readFileSync(join(__dirname, '../database/migrations/', f), 'utf8');
+      expect(mig.slice(0, mig.indexOf('public async down'))).not.toMatch(/\bDROP\b|DELETE FROM|\bUPDATE\b/);
+    }
     const pin = Number((readFileSync(join(__dirname, '../../package.json'), 'utf8').match(/MIGRATION_RUN_UPTO=(\d+)/) || [])[1]);
     expect(pin).toBeGreaterThanOrEqual(1797600000000);
   });

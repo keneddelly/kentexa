@@ -18,8 +18,9 @@ export class SeriesController {
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
-  list(@Query('topic') topic?: string, @Query('communityId') communityId?: string, @Query('limit') limit?: string, @Request() req?: any) {
-    return this.series.list({ topic, communityId: communityId ? Number(communityId) : undefined, limit: limit ? Number(limit) : undefined }, { id: req?.user?.id ?? null });
+  list(@Query('topic') topic?: string, @Query('communityId') communityId?: string, @Query('limit') limit?: string, @Request() req?: any, @Query('profileId') profileId?: string) {
+    return this.series.list({ topic, communityId: communityId ? Number(communityId) : undefined, limit: limit ? Number(limit) : undefined,
+      profileId: profileId ? Number(profileId) : undefined }, { id: req?.user?.id ?? null });
   }
 
   /** The series a post belongs to (the bar on the post page). */
