@@ -57,6 +57,12 @@ export class CreateProductDto {
   @Min(1)
   basePrice: number;
 
+  // Duka page (owner 2026-11-18): optional old price, shown crossed out when above the price.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  compareAtPrice?: number | null;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

@@ -21,6 +21,8 @@ import ProfileConnections from '../components/ProfileConnections';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 import { profileLink } from '../utils/shareLinks';
 import { PostCard } from './HomeFeed';
+import StoreFront, { openState } from '../components/StoreFront';
+import StoreSettings from '../components/StoreSettings';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -310,6 +312,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
   const [manageOpen, setManageOpen] = useState(false);
+  // Duka page template (owner approved 2026-11-18): the owner's shop settings and shelves.
+  const [storefront, setStorefront] = useState(null);
+  const [storeSettingsOpen, setStoreSettingsOpen] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const tabPicked = React.useRef(false);
   const [connections, setConnections] = useState(null);
   const [followBusy, setFollowBusy] = useState(false);
   const [followError, setFollowError] = useState('');
@@ -369,7 +376,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     // session (moments, search results, notifications): the tab param
     // arrived correctly, but the page underneath was always the person's
     // own personal profile, which usually doesn't even have that tab.
-    const TAB_TYPE_HINT = { transport: 'transport_provider', hub: 'hub', jobs: 'agent' };
+    const TAB_TYPE_HINT = { transport: 'transport_provider', hub: 'hub', jobs: 'agent', posts: 'business' };
     // "My own profile, no more specific target" (MyProfile.js's various
     // quick-action links, the bottom nav's Profile tab landing on
     // CommerceProfile — App.js always passes pageParam={null} here) used
@@ -450,6 +457,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       if (a.status==='fulfilled') setAgentData(a.value.data);
       if (cl.status==='fulfilled') setClassifieds(cl.value.data || []);
       if (pr.status==='fulfilled') setProducts(pr.value.data || []);
+      setProductsLoaded(true);
     }).finally(() => setLoading(false));
 
     setPublicAgentData(null); setPublicHubData(null); setPublicTransportData(null);
@@ -488,6 +496,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     // business landing on a hub) must never be left selected.
     const validTabKeys = tabs(activeProfile.type, own, t).map(x => x.key);
     setTab(validTabKeys.includes(deepLinkTab) ? deepLinkTab : validTabKeys[0]);
+    tabPicked.current = Boolean(deepLinkTab);
+    setProductsLoaded(false);
+    setStorefront(null);
+    if (activeProfile.type === 'business') {
+      api.get(`/storefront/${activeProfile.id}`).then((r) => setStorefront(r.data || null)).catch(() => setStorefront({ collections: [] }));
+    }
 
     // "Also on Kentexa" — every OTHER profile this same account runs,
     // shown as independent, clickable cards (own name/photo/followers,
@@ -542,6 +556,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       .catch(() => {});
     return () => { alive = false; };
   }, [isOwnProfile, shopOwnerId]);
+  // Duka page template: once the shop's products and settings are in, a shop opens on Duka
+  // (unless the visitor already picked a tab or came by a link to one).
+  useEffect(() => {
+    if (!activeProfile || activeProfile.type !== 'business' || tabPicked.current || !productsLoaded || !storefront) return;
+    const choice = storefront.pageTemplate || null;
+    if (choice !== 'basic' && (choice === 'store' || products.length > 0)) setTab('posts');
+  }, [activeProfile, storefront, productsLoaded, products.length]);
   const handleUnmute = async () => {
     try {
       const r = await api.post('/feed/mute', { commerceProfileId: activeProfile.id });
@@ -604,9 +625,17 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     return true;
   });
   // "Anauza": the person's reposted products, right after Machapisho, when they have any.
-  const profileTabs = shelf.length > 0
+  const plainTabs = shelf.length > 0
     ? [baseTabs[0], { key: 'resale', label: 'Anauza' }, ...baseTabs.slice(1)].filter(Boolean)
     : baseTabs;
+  // Duka page template (owner approved 2026-11-18): automatic for a business with products, or
+  // chosen by the owner ("Panga duka"). The page then opens on Duka, the shop itself.
+  const storeChoice = storefront?.pageTemplate || null;
+  const isStore = activeProfile.type === 'business' && storeChoice !== 'basic' && (storeChoice === 'store' || products.length > 0);
+  const profileTabs = isStore
+    ? [{ key: 'posts', label: 'Duka' }, ...plainTabs.filter((x) => x.key !== 'posts')]
+    : plainTabs;
+  const shopHours = isStore ? openState(storefront?.openingHours) : null;
 
   // `profile` comes from GET /seller/public/:uid — a SELLER/business-shaped
   // payload (storeDescription, businessLocation, storeWhatsApp, isOfficialStore,
@@ -819,6 +848,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {[displayHandle, activeProfile.category].filter(Boolean).join(' · ')}
               </div>
             )}
+            {shopHours && (
+              <div data-testid="store-hours" style={{ fontSize:14, fontWeight:700, marginTop:4, color: shopHours.open ? '#15803d' : '#b45309' }}>{shopHours.text}</div>
+            )}
             {/* Mwandishi wa Wiki (owner approved 2026-11-16): kept on the profile for good. */}
             <WriterWins ownerUserId={activeProfile.ownerId} />
             {/* Writers programme (#417 B): a label an admin gives early writers; not verification. */}
@@ -955,6 +987,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <span style={{ color:B, fontWeight:700, whiteSpace:'nowrap' }}>Fungua Kazi</span>
         </button>
       )}
+      {isOwnProfile && isBusinessProfile && !isStore && (
+        <button type="button" data-testid="owner-store-settings" onClick={() => setStoreSettingsOpen(true)}
+          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, width:'calc(100% - 32px)', margin:'0 16px 8px',
+            padding:'10px 12px', border:`1px dashed ${LINE}`, borderRadius:12, background:WH, cursor:'pointer', fontFamily:'inherit', fontSize:14 }}>
+          <span style={{ color:MUTED }}>Aina ya ukurasa, saa za kufungua na mikusanyiko</span>
+          <span style={{ color:B, fontWeight:700, whiteSpace:'nowrap' }}>Panga duka</span>
+        </button>
+      )}
 
       {resaleCount > 0 && (
         <button type="button" data-testid="profile-resale" onClick={() => onNavigate('MyResales', { tab: 'open', supplierId: shopOwnerId })}
@@ -971,6 +1011,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         display:'flex', overflowX:'auto', scrollbarWidth:'none' }}>
         {profileTabs.map(tabItem => (
           <button key={tabItem.key} onClick={() => {
+            tabPicked.current = true;
             setTab(tabItem.key);
             if (tabItem.key==='services' && services.length===0) {
               api.get('/services/my').then(r=>setServices(r.data||[])).catch(()=>{});
@@ -990,14 +1031,23 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       </div>
 
       {/* Tab content */}
-      <div style={{ padding:'16px 16px 32px', maxWidth:900,
+      <div style={{ padding:'16px 16px 32px', maxWidth: isStore && tab==='posts' ? 1200 : 900,
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
 
         {/* Posts / Products — clean Instagram-style photo grid, no
             price/title/stats baked into the cells. Tap opens the normal
             detail page; editing (owner-only) lives behind that page's
             ••• menu instead of an icon sitting on the grid. */}
-        {tab==='posts' && (
+        {tab==='posts' && isStore && (
+          <StoreFront profile={activeProfile} products={products} collections={storefront?.collections || []}
+            isOwn={isOwnProfile} onNavigate={onNavigate} onManage={() => setStoreSettingsOpen(true)} />
+        )}
+        {isOwnProfile && storeSettingsOpen && (
+          <StoreSettings profileId={activeProfile.id} settings={storefront} products={products}
+            onChanged={(d) => { if (d) setStorefront(d); }} onClose={() => setStoreSettingsOpen(false)} />
+        )}
+
+        {tab==='posts' && !isStore && (
           <div>
             {(classifieds.length === 0 && products.length === 0) ? (
               <Empty icon="tag"

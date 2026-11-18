@@ -105,7 +105,6 @@ const MyServices                  = lazyPage(() => import('./public/pages/MyServ
 const TransportProviderDashboard = lazyPage(() => import('./public/pages/TransportProviderDashboard')); // eslint-disable-line
 const SellerInbox       = lazyPage(() => import('./public/pages/SellerInbox'));
 const Stores = lazyPage(() => import('./public/pages/Stores'));
-const SellerStore = lazyPage(() => import('./public/pages/SellerStore'));
 const ClassifiedsPublic = lazyPage(() => import('./public/pages/ClassifiedsPublic'));
 const ProductDetail = lazyPage(() => import('./public/pages/ProductDetail'));
 const ClassifiedDetail = lazyPage(() => import('./public/pages/ClassifiedDetail'));
@@ -970,8 +969,10 @@ function App() {
     }
     if (page.startsWith('BecomeBusinessServiceProvider-'))
       return requireLogin(<BecomeBusinessServiceProvider {...publicProps} businessId={Number(page.split('BecomeBusinessServiceProvider-')[1])} />);
+    // Duka page template (owner approved 2026-11-18): the old shop page is now the shop's own
+    // profile page, which opens on Duka.
     if (page.startsWith('SellerStore-'))
-      return <SellerStore {...publicProps} sellerId={page.split('SellerStore-')[1]} />;
+      return <CommerceProfile {...publicProps} pageParam={`${page.split('SellerStore-')[1]}-posts`} track={track} />;
     // Store- is a legacy alias — route it through the same CommerceProfile
     // page as everywhere else, so there is only ever ONE seller-profile
     // implementation (and therefore only one source of truth for follow state).

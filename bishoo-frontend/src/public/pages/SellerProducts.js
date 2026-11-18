@@ -35,7 +35,7 @@ const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', margi
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '2px solid #e2e8f0', fontSize: '16px', boxSizing: 'border-box', outline: 'none' };
 
 const EMPTY_FORM = {
-  name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
+  name: '', description: '', basePrice: '', compareAtPrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
   displayPrice: 0, stock: '', category: 'general', subcategory: 'other', model: '', brandId: null, officialProductId: null,
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
   sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
@@ -418,6 +418,8 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         shippingNotes: form.shippingNotes,
         images:       form.images,
         basePrice:    base,
+        // Duka page (owner 2026-11-18): the old price, shown crossed out when above the price.
+        compareAtPrice: Number(form.compareAtPrice) > base + delivery ? Number(form.compareAtPrice) : null,
         deliveryFee:  delivery,
         bodaFee:      0,
         sellerCity:   form.sellerCity || 'Dar es Salaam',
@@ -513,6 +515,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       name:         product.name,
       description:  product.description || '',
       basePrice:    String(product.basePrice || product.price || ''),
+      compareAtPrice: product.compareAtPrice ? String(Math.round(Number(product.compareAtPrice))) : '',
       deliveryFee:  String(product.deliveryFee || '0'),
       bodaFee:      String(product.bodaFee || '0'),
       sellerCity:   product.sellerCity || 'Dar es Salaam',
@@ -1153,6 +1156,14 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <label style={labelStyle}>{t('seller_products.price')} *</label>
                 <input type="number" min="1" step="1" placeholder="e.g. 90000" value={form.basePrice}
                   onChange={e => updatePrices('basePrice', e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Bei ya zamani (hiari)</label>
+                <input type="number" min="0" step="1" data-testid="product-compare-at" placeholder="Ikiwa bidhaa iko kwenye ofa"
+                  value={form.compareAtPrice} onChange={e => setForm({ ...form, compareAtPrice: e.target.value })} style={inputStyle} />
+                {Number(form.compareAtPrice) > 0 && Number(form.compareAtPrice) <= Number(form.basePrice || 0) && (
+                  <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Bei ya zamani iwe juu ya bei ya sasa, la sivyo haitaonekana.</div>
+                )}
               </div>
               <div>
                 <label style={labelStyle}>{t('seller_products.stock')} {form.productType === 'physical' && '*'}</label>

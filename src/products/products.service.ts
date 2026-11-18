@@ -1,3 +1,4 @@
+import { cleanCompareAt } from '../storefront/storefront-rules';
 import {
   Injectable,
   NotFoundException,
@@ -612,6 +613,7 @@ export class ProductsService {
       basePrice,
       deliveryFee,
       displayPrice,
+      compareAtPrice: cleanCompareAt(dto.compareAtPrice, displayPrice),
       // Digital goods are never out of stock — a large sentinel rather
       // than trusting/validating a client-sent stock count that means
       // nothing for a file.
@@ -889,6 +891,10 @@ export class ProductsService {
     Object.assign(product, dto);
     if (displayPriceChanged) {
       product.displayPrice = newBasePrice + newDeliveryFee;
+    }
+    // Duka page: an old price at or below the price is no discount, so it is not kept.
+    if (dto.compareAtPrice !== undefined || displayPriceChanged) {
+      product.compareAtPrice = cleanCompareAt(product.compareAtPrice, product.displayPrice);
     }
     const saved = await this.repo.save(product);
     this.searchIndex
