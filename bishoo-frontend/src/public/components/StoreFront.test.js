@@ -24,7 +24,7 @@ test('a visitor sees in-stock products, category chips, shelves and the real old
   expect(screen.queryByText('Kava ya simu')).toBeNull();
   expect(screen.getAllByText('Chaja ya haraka').length).toBeGreaterThan(0);
   expect(screen.getAllByText('-15%').length).toBeGreaterThan(0);
-  expect(screen.getByText('Zinazouzwa zaidi')).toBeInTheDocument();
+  expect(screen.queryByText('Zinazouzwa zaidi')).toBeNull(); // a small shop: no repeated shelves
 });
 
 test('search inside the shop filters the products', async () => {
@@ -57,4 +57,11 @@ test('open now is worked out in Tanzania time', () => {
   expect(openState({ open: '08:00', close: '20:00', closedDays: [] }, at('2026-11-18T18:30:00Z')).open).toBe(false); // 21:30 EAT
   expect(openState({ open: '08:00', close: '20:00', closedDays: [3] }, at('2026-11-18T07:00:00Z')).text).toBe('Imefungwa leo'); // Wednesday
   expect(openState(null)).toBeNull();
+});
+
+test('a bigger shop gets the automatic shelves', async () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({ ...products[1], id: 100 + i, name: `Bidhaa ${i}`, salesCount: i + 1 }));
+  await act(async () => { render(<StoreFront profile={{}} products={many} onNavigate={jest.fn()} />); });
+  expect(screen.getByText('Zinazouzwa zaidi')).toBeInTheDocument();
+  expect(screen.getByText('Mpya dukani')).toBeInTheDocument();
 });

@@ -206,9 +206,11 @@ export default function StoreFront({ profile, products, collections = [], isOwn,
   ) : (
     <>
       {own.map((c) => <Shelf key={c.id} title={c.title} note={c.note} items={c.items} onNavigate={onNavigate} wide={wide} tone={c.tone} />)}
-      {own.length === 0 && <Shelf title="Ofa" items={shelves.deals} onNavigate={onNavigate} wide={wide} />}
-      <Shelf title="Zinazouzwa zaidi" items={shelves.best} onNavigate={onNavigate} wide={wide} />
-      <Shelf title="Mpya dukani" items={shelves.fresh.slice(0, 12)} onNavigate={onNavigate} wide={wide} />
+      {/* Automatic shelves only when the shop is big enough; a small shop would just show the
+          same few products three times. */}
+      {own.length === 0 && shelves.deals.length >= 2 && <Shelf title="Ofa" items={shelves.deals} onNavigate={onNavigate} wide={wide} />}
+      {visible.length >= 8 && <Shelf title="Zinazouzwa zaidi" items={shelves.best} onNavigate={onNavigate} wide={wide} />}
+      {visible.length >= 8 && <Shelf title="Mpya dukani" items={shelves.fresh.slice(0, 12)} onNavigate={onNavigate} wide={wide} />}
       <section style={{ padding: '14px 0 4px' }}>
         <b style={{ display: 'block', fontSize: 18, fontWeight: 800, color: INK, letterSpacing: -0.3, marginBottom: 10 }}>Bidhaa zote <span style={{ color: FAINT, fontWeight: 500, fontSize: 15 }}>{visible.length}</span></b>
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${wide ? 5 : 2}, minmax(0, 1fr))`, gap: '16px 10px' }}>
