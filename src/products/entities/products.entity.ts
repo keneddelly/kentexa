@@ -68,6 +68,11 @@ export class Product {
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   displayPrice: number;
 
+  // Duka page (owner 2026-11-18): the old price a customer saw, shown crossed out as an Ofa.
+  // Kept only when it is above displayPrice (ProductsService). Migration 1797600000000.
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  compareAtPrice: number | null;
+
   @Column({ type: 'int', default: 0 })
   stock: number; // the one shared inventory count — every sales channel
 

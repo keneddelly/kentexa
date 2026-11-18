@@ -71,6 +71,7 @@ import { OwnershipFeatureFlagsModule } from './ownership/ownership-feature-flags
 import { PartnerInvitationsModule } from './partner-invitations/partner-invitations.module';
 import { AdvertisersModule } from './advertisers/advertisers.module';
 import { ResaleModule } from './resale/resale.module';
+import { StorefrontModule } from './storefront/storefront.module';
 import { FoodOrdersModule } from './food-orders/food-orders.module';
 import { QuoteRequestsModule } from './quote-requests/quote-requests.module';
 import { SellerAgentPartnersModule } from './partner-invitations/seller-agent-partners.module';
@@ -173,6 +174,7 @@ export const allowDevelopmentSchemaSync =
     PartnerInvitationsModule,
     AdvertisersModule,
     ResaleModule,
+    StorefrontModule,
     FoodOrdersModule,
     QuoteRequestsModule,
     SellerAgentPartnersModule,

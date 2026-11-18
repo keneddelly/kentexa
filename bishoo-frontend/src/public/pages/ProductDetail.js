@@ -496,7 +496,14 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
           <div>
             {/* ── Price, name, facts ── */}
             <section style={{ padding:16, borderBottom:`1px solid ${LINE}`, display:'flex', flexDirection:'column', gap:8 }}>
-              <div data-testid="pd-price" style={{ fontSize:28, fontWeight:800, letterSpacing:-0.3 }}>TZS {displayPrice.toLocaleString('en-US')}</div>
+              <div data-testid="pd-price" style={{ fontSize:28, fontWeight:800, letterSpacing:-0.3 }}>TZS {displayPrice.toLocaleString('en-US')}
+                {/* Duka page (owner 2026-11-18): the shop's old price, only when above the price and not a reseller's price. */}
+                {!offer && Number(product.compareAtPrice) > displayPrice && (
+                  <span data-testid="pd-old-price" style={{ fontSize:16, fontWeight:500, color:'#8b98a5', textDecoration:'line-through', marginLeft:8 }}>
+                    {Math.round(Number(product.compareAtPrice)).toLocaleString('en-US')}
+                  </span>
+                )}
+              </div>
               <h1 style={{ fontSize:18, fontWeight:600, margin:0, lineHeight:1.35 }}>{formatName(product.name)}</h1>
               {offer && (
                 <div data-testid="pd-reseller" style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, color:GR }}>
