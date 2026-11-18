@@ -12,7 +12,7 @@ const input = { height: 42, borderRadius: 10, border: '1px solid #cfd9de', paddi
 const btn = (dark, busy) => ({ height: 38, padding: '0 16px', borderRadius: 19, border: dark ? 'none' : '1px solid #cfd9de', background: dark ? INK : '#fff', color: dark ? '#fff' : INK,
   fontWeight: 700, fontSize: 14, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1, fontFamily: 'inherit' });
 const errText = (e) => { const m = e?.response?.data?.message; return Array.isArray(m) ? m.join(', ') : (m || 'Imeshindikana'); };
-const label = (p) => String(p.title || p.body || '').replace(/[#*>\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 70) || `Chapisho #${p.id}`;
+const label = (p) => String(p.title || p.body || '').replace(/[#*>[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 70) || `Chapisho #${p.id}`;
 
 export default function CreatorSettings({ profileId, settings, posts = [], onChanged, onClose }) {
   const [headline, setHeadline] = useState(settings?.headline || '');
