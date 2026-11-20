@@ -29,7 +29,7 @@ export class StoreService {
   private static contactDiscoveryLastRun = new Map<number, number>();
 
   private normalizeContactPhone(value: unknown): string | null {
-    let digits = String(value || '').replace(/\\D/g, '');
+    let digits = String(value || '').replace(/\D/g, '');
     if (digits.startsWith('00')) digits = digits.slice(2);
     // Kentexa's initial market is Tanzania. Normalize local 07xx/06xx and
     // nine-digit mobile formats to the same E.164 country prefix.
