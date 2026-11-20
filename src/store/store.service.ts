@@ -26,6 +26,10 @@ export class StoreService {
   // ── Discover verified Kentexa users from contacts ─────────────────────────
   // Phone numbers are processed in memory only; the submitted address book is
   // never persisted and phone numbers are never returned to the client.
+  // This process-local guard is a temporary abuse brake; production multi-instance
+  // deployments should replace it with a shared Redis/database rate limiter.
+  private static contactDiscoveryLastRun = new Map<number, number>();
+
   private normalizeContactPhone(value: unknown): string | null {
     let digits = String(value || '').replace(/\D/g, '');
     if (digits.startsWith('00')) digits = digits.slice(2);
@@ -41,6 +45,18 @@ export class StoreService {
     if (!Array.isArray(phoneNumbers) || phoneNumbers.length > 200) {
       throw new BadRequestException('Submit no more than 200 contact numbers at a time');
     }
+
+    const now = Date.now();
+    const lastRun = StoreService.contactDiscoveryLastRun.get(userId) || 0;
+    if (now - lastRun < 60 * 1000) {
+      throw new BadRequestException('Please wait before checking contacts again');
+    }
+    if (StoreService.contactDiscoveryLastRun.size > 10000) {
+      for (const [id, timestamp] of StoreService.contactDiscoveryLastRun) {
+        if (now - timestamp > 10 * 60 * 1000) StoreService.contactDiscoveryLastRun.delete(id);
+      }
+    }
+    StoreService.contactDiscoveryLastRun.set(userId, now);
 
     const normalized = [...new Set(
       phoneNumbers.map((phone) => this.normalizeContactPhone(phone)).filter(Boolean),
