@@ -14,6 +14,7 @@ const ContactDiscovery = ({ compact = false }) => {
   const [searched, setSearched] = useState(false);
   const [notice, setNotice] = useState('');
   const [following, setFollowing] = useState(new Set());
+  const [followingInProgress, setFollowingInProgress] = useState(new Set());
 
   const pickerSupported = typeof window !== 'undefined' &&
     window.isSecureContext &&
@@ -31,6 +32,8 @@ const ContactDiscovery = ({ compact = false }) => {
 
     try {
       setLoading(true);
+      setSearched(false);
+      setMatches([]);
       setNotice('');
       // The browser opens its native contact picker only after this user action.
       // Only the selected phone numbers are sent; the address book is not saved.
@@ -69,12 +72,23 @@ const ContactDiscovery = ({ compact = false }) => {
   };
 
   const followPerson = async (person) => {
-    if (following.has(person.id)) return;
+    if (following.has(person.id) || followingInProgress.has(person.id)) return;
+    setFollowingInProgress(previous => new Set([...previous, person.id]));
     try {
-      await api.post(`/stores/${person.id}/follow`);
-      setFollowing(previous => new Set([...previous, person.id]));
+      const response = await api.post(`/stores/${person.id}/follow`);
+      if (response.data?.following === true) {
+        setFollowing(previous => new Set([...previous, person.id]));
+      } else {
+        setNotice(sw ? 'Huwezi kumfuata mtu huyu kwa sasa.' : 'You could not follow this account. Please try again.');
+      }
     } catch {
       setNotice(sw ? 'Imeshindikana kumfuata mtu huyu. Jaribu tena.' : 'Could not follow this person. Please try again.');
+    } finally {
+      setFollowingInProgress(previous => {
+        const next = new Set(previous);
+        next.delete(person.id);
+        return next;
+      });
     }
   };
 
@@ -104,15 +118,15 @@ const ContactDiscovery = ({ compact = false }) => {
         </div>
       </div>
 
-      <button type="button" onClick={findContacts} disabled={loading || searched}
+      <button type="button" onClick={findContacts} disabled={loading}
         style={{ width: '100%', marginTop: 15, padding: '13px 16px',
-          border: 'none', borderRadius: 12, background: loading || searched ? '#E2E8F0' : BLUE,
-          color: loading || searched ? MUTED : '#FFFFFF', fontSize: 14,
-          fontWeight: 800, cursor: loading || searched ? 'default' : 'pointer' }}>
+          border: 'none', borderRadius: 12, background: loading ? '#E2E8F0' : BLUE,
+          color: loading ? MUTED : '#FFFFFF', fontSize: 14,
+          fontWeight: 800, cursor: loading ? 'default' : 'pointer' }}>
         {loading
           ? (sw ? 'Inaangalia contacts...' : 'Checking contacts...')
-          : searched
-            ? (sw ? 'Contacts zimeangaliwa' : 'Contacts checked')
+           : searched
+            ? (sw ? 'Jaribu tena' : 'Try again')
             : (sw ? 'Tafuta kwenye contacts' : 'Find contacts')}
       </button>
 
@@ -149,12 +163,12 @@ const ContactDiscovery = ({ compact = false }) => {
                     {[person.city, person.role].filter(Boolean).join(' · ')}
                   </div>
                 </div>
-                <button type="button" onClick={() => followPerson(person)} disabled={isFollowing}
+                <button type="button" onClick={() => followPerson(person)} disabled={isFollowing || followingInProgress.has(person.id)}
                   style={{ border: 'none', borderRadius: 9, padding: '8px 12px',
-                    background: isFollowing ? '#F1F5F9' : BLUE,
-                    color: isFollowing ? MUTED : '#FFFFFF', fontSize: 11,
-                    fontWeight: 800, cursor: isFollowing ? 'default' : 'pointer' }}>
-                  {isFollowing ? (sw ? 'Unafuata' : 'Following') : (sw ? 'Fuata' : 'Follow')}
+                    background: isFollowing || followingInProgress.has(person.id) ? '#F1F5F9' : BLUE,
+                    color: isFollowing || followingInProgress.has(person.id) ? MUTED : '#FFFFFF', fontSize: 11,
+                    fontWeight: 800, cursor: isFollowing || followingInProgress.has(person.id) ? 'default' : 'pointer' }}>
+                  {isFollowing ? (sw ? 'Unafuata' : 'Following') : followingInProgress.has(person.id) ? (sw ? 'Inapakia...' : 'Following...') : (sw ? 'Fuata' : 'Follow')}
                 </button>
               </div>
             );
