@@ -889,6 +889,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         {/* ── DISCOVER (no search yet) ── */}
         {!searched && (
           <>
+            {isLoggedIn && <ContactDiscovery compact />}
             {/* Businesses first: the identity behind the products (CLAUDE.md §15). */}
             {sellers.length > 0 && (
               <Section title={t('search.businesses_title')} sub={t('search.businesses_sub')}
