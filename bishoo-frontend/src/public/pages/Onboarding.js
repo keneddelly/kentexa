@@ -11,6 +11,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import ContactDiscovery from '../components/ContactDiscovery';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -53,7 +54,7 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
   const [logo,        setLogo]        = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  const TOTAL_STEPS = 4;
+  const TOTAL_STEPS = 5;
   const progress = (step / TOTAL_STEPS) * 100;
 
   // Load suggested sellers when reaching step 3 (Follow businesses)
@@ -118,14 +119,15 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
     if (step === 1) return city.length > 0;
     if (step === 2) return interests.length >= 1;
     if (step === 3) return true; // can skip following
-    if (step === 4) return true; // can skip photo
+    if (step === 4) return true; // contact discovery is optional
+    if (step === 5) return true; // can skip photo
     return true;
   };
 
   const nextStep = async () => {
     if (step === 1) await saveStep({ city });
     if (step === 2) await saveStep({ interests });
-    if (step === 4) { handleFinish(); return; }
+    if (step === 5) { handleFinish(); return; }
     setStep(s => s + 1);
   };
 
@@ -299,8 +301,22 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
           </div>
         )}
 
-        {/* ── STEP 4: Profile picture ── */}
+        {/* ── STEP 4: Find people from phone contacts ── */}
         {step === 4 && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>👥</div>
+            <h1 style={{ fontSize: 26, fontWeight: 900, color: DK, margin: '0 0 8px', lineHeight: 1.2 }}>
+              {t('onboarding.contacts_title', 'Find people you know')}
+            </h1>
+            <p style={{ fontSize: 15, color: GR, margin: '0 0 20px', lineHeight: 1.6 }}>
+              {t('onboarding.contacts_desc', 'Discover friends who are already on Kentexa and start following them.')}
+            </p>
+            <ContactDiscovery />
+          </div>
+        )}
+
+        {/* ── STEP 5: Profile picture ── */}
+        {step === 5 && (
           <div style={{ animation: 'fadeIn 0.3s ease', textAlign: 'center' }}>
             <div style={{ fontSize: 32, marginBottom: 16 }}>🙂</div>
             <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
@@ -351,11 +367,11 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             boxShadow: canNext() ? '0 4px 16px rgba(37,99,235,0.3)' : 'none',
             transition: 'all 0.2s' }}>
           {saving ? t('onboarding.saving_button') :
-           step === 4 ? t('onboarding.finish_button') :
+           step === 5 ? t('onboarding.finish_button') :
            t('onboarding.continue_button')}
         </button>
 
-        {step === 4 && !logo && (
+        {step === 5 && !logo && (
           <button onClick={handleFinish}
             style={{ width: '100%', marginTop: 10, padding: '12px 0',
               background: 'none', border: 'none', cursor: 'pointer',
