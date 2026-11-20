@@ -16,6 +16,7 @@ import { B, DK, GR, WH, LINE, fmt, Icon, I, Star, Verified, Avatar, Photo, selle
 import { trackSearch } from '../hooks/useAnalytics';
 import { isAppleMobile } from '../utils/isAppleMobile';
 import api           from '../../api/api';
+import ContactDiscovery from '../components/ContactDiscovery';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 
