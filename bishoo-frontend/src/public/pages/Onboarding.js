@@ -250,6 +250,7 @@ const Onboarding = ({ onNavigate, currentUser, onUserUpdated, onOpenMoment }) =>
         {step === 'next' && social && (
           <>
             {title('Jumuiya na watu wa kufuata', 'Wa karibu nawe na wa mada zako. Unaweza kuongeza zaidi baadaye.')}
+            <ContactDiscovery compact />
             {communities === null || profiles === null ? <p style={{ color: AUTH.MUTED }}>Inapakia...</p> : (
               communities.length + profiles.length === 0
                 ? <p data-testid="welcome-follow-empty" style={{ color: AUTH.MUTED, fontSize: 15 }}>Bado hakuna wa kupendekeza{city ? ` ${city}` : ''}. Utawapata Mwanzo.</p>
