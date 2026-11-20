@@ -33,6 +33,20 @@ export class StoreController {
     return this.storeService.getMyFollowers(req.user.id);
   }
 
+
+  // ── Find existing Kentexa users in the current user's selected contacts ──
+  @UseGuards(JwtAuthGuard)
+  @Post('discover-contacts')
+  discoverContacts(
+    @Request() req,
+    @Body() body: { phoneNumbers?: string[] },
+  ) {
+    return this.storeService.discoverContacts(
+      req.user.id,
+      Array.isArray(body?.phoneNumbers) ? body.phoneNumbers : [],
+    );
+  }
+
   // ── Public: View a store page ──────────────────────────────────────────────
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':sellerId')
