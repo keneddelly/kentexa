@@ -7,6 +7,7 @@ import { Follow } from './follow.entity';
 import { Review } from './review.entity';
 import { Order } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { ProfileModule } from '../profile/profile.module';
 import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
@@ -14,7 +15,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Follow, Review, Order, Product]),
+    TypeOrmModule.forFeature([User, Follow, Review, Order, Product, CommerceProfile]),
     ProfileModule,
     BusinessModule,
     CommerceProfilesModule,

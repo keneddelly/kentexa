@@ -5,15 +5,15 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { CommerceProfile, CommerceProfileStatus, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { Follow } from './follow.entity';
 import { Review } from './review.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
 import { ProfileService } from '../profile/profile.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
-import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
 @Injectable()
@@ -24,10 +24,91 @@ export class StoreService {
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
+    @InjectRepository(CommerceProfile) private commerceProfileRepo: Repository<CommerceProfile>,
     private profileService: ProfileService,
     private commerceProfiles: CommerceProfilesService,
     private inAppNotif: InAppNotificationService,
   ) {}
+
+
+  // ── Discover personal profiles from contacts selected by the user ─────────
+  // The address book is never stored. Only selected phone numbers are matched
+  // in memory, and only public personal-profile fields are returned.
+  private static contactDiscoveryLastRun = new Map<number, number>();
+
+  private normalizeContactPhone(value: string): string | null {
+    let digits = String(value || '').replace(/\D/g, '');
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    if (digits.startsWith('0')) digits = '255' + digits.slice(1);
+    else if (digits.length === 9) digits = '255' + digits;
+    if (digits.length < 10 || digits.length > 15) return null;
+    return digits;
+  }
+
+  async discoverContacts(userId: number, phoneNumbers: string[]) {
+    if (!Array.isArray(phoneNumbers) || phoneNumbers.length > 200 ||
+        phoneNumbers.some((phone) => typeof phone !== 'string' || phone.length > 32)) {
+      throw new BadRequestException('Submit up to 200 valid phone numbers');
+    }
+
+    const now = Date.now();
+    const lastRun = StoreService.contactDiscoveryLastRun.get(userId) || 0;
+    if (now - lastRun < 60 * 1000) {
+      throw new BadRequestException('Please wait before checking contacts again');
+    }
+    if (StoreService.contactDiscoveryLastRun.size > 10000) {
+      for (const [id, timestamp] of StoreService.contactDiscoveryLastRun) {
+        if (now - timestamp > 10 * 60 * 1000) StoreService.contactDiscoveryLastRun.delete(id);
+      }
+    }
+    StoreService.contactDiscoveryLastRun.set(userId, now);
+
+    const normalized = [...new Set(phoneNumbers.map((phone) => this.normalizeContactPhone(phone)).filter(Boolean))] as string[];
+    if (!normalized.length) return { matches: [] };
+
+    const variants = new Set<string>();
+    for (const phone of normalized) {
+      variants.add(phone);
+      variants.add('+' + phone);
+      if (phone.startsWith('255')) variants.add('0' + phone.slice(3));
+    }
+
+    const users = await this.userRepo.find({
+      select: { id: true },
+      where: { phone: In([...variants]), isVerified: true },
+      take: 200,
+    });
+    const ownerIds = users.filter((user) => user.id !== userId).map((user) => user.id);
+    if (!ownerIds.length) return { matches: [] };
+
+    const profiles = await this.commerceProfileRepo.find({
+      select: { id: true, ownerId: true, type: true, displayName: true, username: true, photoUrl: true, location: true },
+      where: {
+        ownerId: In(ownerIds),
+        type: CommerceProfileType.PERSONAL,
+        status: CommerceProfileStatus.ACTIVE,
+        hiddenFromPublic: false,
+      },
+      take: 200,
+    });
+    if (!profiles.length) return { matches: [] };
+
+    const followedProfiles = await this.commerceProfiles.getFollowingProfilesForAccount(userId);
+    const followedIds = new Set(followedProfiles
+      .filter((profile) => profile.type === CommerceProfileType.PERSONAL)
+      .map((profile) => profile.id));
+
+    return {
+      matches: profiles.map((profile) => ({
+        id: profile.id,
+        displayName: profile.displayName,
+        username: profile.username,
+        photoUrl: profile.photoUrl,
+        location: profile.location,
+        isFollowing: followedIds.has(profile.id),
+      })),
+    };
+  }
 
   // ── Get full store page data ──────────────────────────────────────────────
   async getStore(sellerId: number, viewerId?: number) {

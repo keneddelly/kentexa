@@ -16,6 +16,7 @@ import { B, DK, GR, WH, LINE, fmt, Icon, I, Star, Verified, Avatar, Photo, selle
 import { trackSearch } from '../hooks/useAnalytics';
 import { isAppleMobile } from '../utils/isAppleMobile';
 import api           from '../../api/api';
+import ContactDiscovery from '../components/ContactDiscovery';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 
 
@@ -888,6 +889,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         {/* ── DISCOVER (no search yet) ── */}
         {!searched && (
           <>
+            {isLoggedIn && <ContactDiscovery compact />}
             {/* Businesses first: the identity behind the products (CLAUDE.md §15). */}
             {sellers.length > 0 && (
               <Section title={t('search.businesses_title')} sub={t('search.businesses_sub')}
