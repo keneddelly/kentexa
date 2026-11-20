@@ -7,14 +7,13 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
-import { CommerceProfile, CommerceProfileStatus } from '../commerce-profiles/entities/commerce-profile.entity';
+import { CommerceProfile, CommerceProfileStatus, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { Follow } from './follow.entity';
 import { Review } from './review.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
 import { ProfileService } from '../profile/profile.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
-import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
 @Injectable()
@@ -75,7 +74,7 @@ export class StoreService {
     }
 
     const users = await this.userRepo.find({
-      select: { id: true, phone: true },
+      select: { id: true },
       where: { phone: In([...variants]), isVerified: true },
       take: 200,
     });
