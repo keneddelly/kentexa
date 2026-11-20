@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import WishlistHeart from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
 import api           from '../../api/api';
+import ContactDiscovery from '../components/ContactDiscovery';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -316,6 +317,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
       </div>
 
       <div style={{ flex:1, paddingBottom:80 }}>
+
+        {!searched && isLoggedIn && <div style={{ padding: '14px 14px 0' }}><ContactDiscovery compact /></div>}
 
         {/* ── SEARCH RESULTS ── */}
         {searched && (
