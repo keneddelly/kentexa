@@ -18,6 +18,7 @@ import { needsIdentityStep } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import { LineIcon, LINE_ICONS } from '../components/LineIcon';
 import DeleteAccount from '../components/DeleteAccount';
+import ContactDiscovery from '../components/ContactDiscovery';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -976,6 +977,9 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         {/* ══ SETTINGS ══ */}
         {section === 'settings' && (
           <>
+            <SCard>
+              <ContactDiscovery compact />
+            </SCard>
             <SCard>
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.account_title')}
