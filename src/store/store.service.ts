@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
-import { CommerceProfile, CommerceProfileStatus, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { CommerceProfile, CommerceProfileStatus } from '../commerce-profiles/entities/commerce-profile.entity';
 import { Follow } from './follow.entity';
 import { Review } from './review.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
