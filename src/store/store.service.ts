@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Follow } from './follow.entity';
 import { Review } from './review.entity';
@@ -21,6 +21,76 @@ export class StoreService {
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
   ) {}
+
+
+  // ── Discover verified Kentexa users from contacts ─────────────────────────
+  // Phone numbers are processed in memory only; the submitted address book is
+  // never persisted and phone numbers are never returned to the client.
+  private static contactDiscoveryLastRun = new Map<number, number>();
+
+  private normalizeContactPhone(value: unknown): string | null {
+    let digits = String(value || '').replace(/\\D/g, '');
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    // Kentexa's initial market is Tanzania. Normalize local 07xx/06xx and
+    // nine-digit mobile formats to the same E.164 country prefix.
+    if (digits.startsWith('0')) digits = '255' + digits.slice(1);
+    else if (digits.length === 9) digits = '255' + digits;
+    if (digits.length < 10 || digits.length > 15) return null;
+    return digits;
+  }
+
+  async discoverContacts(userId: number, phoneNumbers: string[]) {
+    if (!Array.isArray(phoneNumbers) || phoneNumbers.length > 200) {
+      throw new BadRequestException('Submit no more than 200 contact numbers at a time');
+    }
+
+    const now = Date.now();
+    const lastRun = StoreService.contactDiscoveryLastRun.get(userId) || 0;
+    if (now - lastRun < 5 * 60 * 1000) {
+      throw new BadRequestException('Please wait a few minutes before checking contacts again');
+    }
+    StoreService.contactDiscoveryLastRun.set(userId, now);
+
+    const normalized = [...new Set(
+      phoneNumbers.map((phone) => this.normalizeContactPhone(phone)).filter(Boolean),
+    )] as string[];
+    if (!normalized.length) return { matches: [] };
+
+    // Match common stored formats without scanning the complete user table.
+    const variants = new Set<string>();
+    for (const phone of normalized) {
+      variants.add(phone);
+      variants.add('+' + phone);
+      if (phone.startsWith('255')) variants.add('0' + phone.slice(3));
+    }
+
+    const users = await this.userRepo.find({
+      where: { phone: In([...variants]) },
+      take: 200,
+    });
+    const matches = users.filter((user) => user.id !== userId && user.isVerified);
+    if (!matches.length) return { matches: [] };
+
+    const followed = await this.followRepo.find({
+      where: {
+        follower: { id: userId },
+        seller: { id: In(matches.map((user) => user.id)) },
+      },
+    });
+    const followedIds = new Set(followed.map((item) => item.seller?.id));
+
+    return {
+      matches: matches.map((user) => ({
+        id: user.id,
+        name: user.name,
+        storeName: user.storeName,
+        logo: user.logo,
+        city: user.city,
+        role: user.role,
+        isFollowing: followedIds.has(user.id),
+      })),
+    };
+  }
 
   // ── Get full store page data ──────────────────────────────────────────────
   async getStore(sellerId: number, viewerId?: number) {
