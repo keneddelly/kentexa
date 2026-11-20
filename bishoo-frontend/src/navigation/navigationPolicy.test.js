@@ -11,6 +11,11 @@ test('admin navigation is centralized and context restricted', () => {
   expect(evaluateDestination({ ...context('buyer'), page: 'Dashboard' }).allowed).toBe(false);
   expect(evaluateDestination({ ...context('manager'), page: 'Dashboard' }).allowed).toBe(true);
 });
+test('seller recruitment landing page is public to signed-out visitors', () => {
+  expect(evaluateDestination({ page: 'StartSelling', isAuthenticated: false, roleType: null, capabilities: [] })).toMatchObject({
+    allowed: true, page: 'StartSelling', destination: { kind: 'public' },
+  });
+});
 test('public deep links remain functional', () => {
   expect(evaluateDestination({ ...context('seller'), page: 'ProductDetail-42' }).allowed).toBe(true);
   expect(evaluateDestination({ ...context('transport_provider'), page: 'TrackParcel-KTX-1' }).allowed).toBe(true);
