@@ -17,6 +17,7 @@ import { AUTH } from '../components/AuthShell';
 import { GOALS } from '../../utils/goals';
 import ResaleCatalogue from '../components/ResaleCatalogue';
 import { JoinResale } from './MyResales';
+import ContactDiscovery from '../components/ContactDiscovery';
 
 const CITIES = ['Dar es Salaam', 'Mwanza', 'Arusha', 'Dodoma', 'Mbeya', 'Morogoro', 'Tanga', 'Zanzibar', 'Kigoma', 'Shinyanga', 'Tabora', 'Iringa',
   'Mtwara', 'Lindi', 'Musoma', 'Bukoba', 'Sumbawanga', 'Songea', 'Kahama', 'Moshi', 'Geita', 'Singida'];
