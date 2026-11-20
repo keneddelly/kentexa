@@ -8,8 +8,9 @@ const MUTED = '#536471';
 const LINE = '#eff3f4';
 
 const ContactDiscovery = ({ compact = false }) => {
-  const { i18n } = useTranslation();
-  const sw = (i18n.language || '').toLowerCase().startsWith('sw');
+  const translation = useTranslation() || {};
+  const language = translation.i18n?.language || 'en';
+  const sw = language.toLowerCase().startsWith('sw');
   const [loading, setLoading] = useState(false);
   const [matches, setMatches] = useState([]);
   const [searched, setSearched] = useState(false);
