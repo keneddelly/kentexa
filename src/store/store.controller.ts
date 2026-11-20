@@ -1,5 +1,6 @@
 import {
   Controller,
+  BadRequestException,
   Get,
   Patch,
   Post,
@@ -35,6 +36,18 @@ export class StoreController {
   @Get('me/followers')
   getMyFollowers(@Request() req) {
     return this.storeService.getMyFollowers(req.user.id);
+  }
+
+
+  // ── Find existing Kentexa personal profiles in selected contacts ──────────
+  @UseGuards(JwtAuthGuard)
+  @Post('discover-contacts')
+  discoverContacts(@Request() req, @Body() body: { phoneNumbers?: string[] }) {
+    if (!Array.isArray(body?.phoneNumbers) || body.phoneNumbers.length > 200 ||
+        body.phoneNumbers.some((phone) => typeof phone !== 'string' || phone.length > 32)) {
+      throw new BadRequestException('Submit up to 200 phone numbers as strings');
+    }
+    return this.storeService.discoverContacts(req.user.id, body.phoneNumbers);
   }
 
   // ── Public: View a store page ──────────────────────────────────────────────
