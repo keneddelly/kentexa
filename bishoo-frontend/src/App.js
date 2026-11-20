@@ -151,6 +151,11 @@ function App() {
     // straight into tracking instead of always landing on Home.
     // e.g. https://kentexa.com/?track=KTX-ORD-47  →  TrackParcel-KTX-ORD-47
     try {
+      // Public campaign landing pages must resolve from their real URL path.
+      // Keep query parameters (UTM, tracking, verification) available as usual.
+      const pathname = window.location.pathname.replace(/\/+$/, '').toLowerCase();
+      if (pathname === '/start-selling') return 'BecomeSeller';
+
       const params = new URLSearchParams(window.location.search);
       const track   = params.get('track');
       const confirm = params.get('confirm');
