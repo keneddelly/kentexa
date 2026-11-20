@@ -125,7 +125,7 @@ const ContactDiscovery = ({ compact = false }) => {
           fontWeight: 800, cursor: loading ? 'default' : 'pointer' }}>
         {loading
           ? (sw ? 'Inaangalia contacts...' : 'Checking contacts...')
-           : searched
+          : searched
             ? (sw ? 'Jaribu tena' : 'Try again')
             : (sw ? 'Tafuta kwenye contacts' : 'Find contacts')}
       </button>
