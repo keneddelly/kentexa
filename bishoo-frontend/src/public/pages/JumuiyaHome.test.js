@@ -33,15 +33,14 @@ test('community home shows member communities and public discovery with working 
   expect(await screen.findByTestId('community-card-1')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Fungua jumuiya', exact: true }));
   expect(onNavigate).toHaveBeenCalledWith('CreateCommunity');
-  fireEvent.click(screen.getByRole('button', { name: 'Fungua jumuiya', exact: true }));
 });
 
 test('topic filter and search narrow the discovery list', async () => {
   setup();
   expect(await screen.findByTestId('community-card-2')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Kilimo' }));
-  expect(await screen.findByTestId('community-card-2')).toBeInTheDocument();
-  expect(screen.queryByTestId('community-card-3')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByTestId('community-card-3')).not.toBeInTheDocument());
+  expect(screen.getByTestId('community-card-2')).toBeInTheDocument();
   fireEvent.change(screen.getByRole('textbox', { name: 'Tafuta jumuiya' }), { target: { value: 'masoko' } });
   expect(screen.getByTestId('community-card-2')).toBeInTheDocument();
 });
