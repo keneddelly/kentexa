@@ -7,3 +7,11 @@ test('the privacy policy and terms have their own addresses', () => {
   expect(pageToPath('Terms')).toBe('/terms');
   expect(pathToPage('/terms/')).toBe('Terms');
 });
+
+
+test('Jumuiya opens the community home at its canonical address', () => {
+  expect(pageToPath('JumuiyaHome')).toBe('/jumuiya');
+  expect(pathToPage('/jumuiya')).toBe('JumuiyaHome');
+  expect(pageToPath('JumuiyaLanding')).toBe('/jumuiya-kuhusu');
+  expect(pathToPage('/jumuiya-kuhusu')).toBe('JumuiyaLanding');
+});
