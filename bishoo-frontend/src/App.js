@@ -1090,7 +1090,7 @@ function App() {
       case 'SellerWarrantyClaims': return requireLogin(<SellerWarrantyClaims {...publicProps} />);
       case 'OrderTracking':        return requireLogin(<OrderTracking {...publicProps} />);
 
-      case 'Discover':          return <Search {...publicProps} track={track} />;
+      case 'Discover':          return <Search {...publicProps} initialTab={navParams?.initialTab} track={track} />;
       case 'JumuiyaLanding':   return <JumuiyaLanding {...publicProps} />;
       case 'Activity':          return requireLogin(<Activity {...publicProps} />);
       case 'RoleActivation':    return requireLogin(<RoleActivation {...publicProps} />);
