@@ -982,7 +982,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
               <Row icon="pencil" label={t('my_profile.edit_profile_label')}
                 onAction={() => onNavigate('CustomerProfile', { editField: 'name' })} />
-              <Row icon="share" label="Invite friends / Alika marafiki"
+              <Row icon="people" label="Invite friends / Alika marafiki"
                 sub="Share Kentexa with people you know"
                 onAction={() => onNavigate('InviteFriends')} />
               {canInstallKentexa && (
