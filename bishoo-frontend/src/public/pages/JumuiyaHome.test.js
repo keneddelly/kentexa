@@ -29,10 +29,12 @@ test('community home shows member communities and public discovery with working 
   const { onNavigate } = setup();
   expect(await screen.findByTestId('community-card-2')).toBeInTheDocument();
   expect(screen.getByTestId('community-card-3')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Jumuiya zangu (1)' }));
-  expect(await screen.findByTestId('community-card-1')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Fungua jumuiya', exact: true }));
   expect(onNavigate).toHaveBeenCalledWith('CreateCommunity');
+  fireEvent.click(screen.getByRole('button', { name: 'Jumuiya zangu (1)' }));
+  expect(await screen.findByTestId('community-card-1')).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId('community-card-1').querySelector('button'));
+  expect(onNavigate).toHaveBeenLastCalledWith('Community-1');
 });
 
 test('topic filter and search narrow the discovery list', async () => {
