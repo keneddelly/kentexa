@@ -308,6 +308,13 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, init
   const TABS = getTabs(t);
   const [query,     setQuery]     = useState(initialQuery || '');
   const [tab,       setTab]       = useState(initialTab || 'all');
+  // Discover and Search render the same component. When navigation changes
+  // from an already-open Soko/Search screen to Jumuiya, React may preserve
+  // this component instance; sync the requested tab instead of relying only
+  // on the initial useState value.
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
   const [searched,  setSearched]  = useState(false);
   const [loading,   setLoading]   = useState(false);
 
