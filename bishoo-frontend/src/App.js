@@ -65,6 +65,7 @@ const MySeries           = lazyPage(() => import('./public/pages/MySeries'));
 const CompleteAccount    = lazyPage(() => import('./public/pages/CompleteAccount'));
 const CommunityPage      = lazyPage(() => import('./public/pages/CommunityPage'));
 const JumuiyaLanding      = lazyPage(() => import('./public/pages/JumuiyaLanding'));
+const JumuiyaHome         = lazyPage(() => import('./public/pages/JumuiyaHome'));
 const CreateCommunity    = lazyPage(() => import('./public/pages/CreateCommunity'));
 const Welcome            = lazyPage(() => import('./public/pages/Welcome'));
 const MyProfile          = lazyPage(() => import('./public/pages/MyProfile'));
@@ -1092,6 +1093,7 @@ function App() {
 
       case 'Discover':          return <Search {...publicProps} initialTab={navParams?.initialTab} track={track} />;
       case 'JumuiyaLanding':   return <JumuiyaLanding {...publicProps} />;
+      case 'JumuiyaHome':      return <JumuiyaHome {...publicProps} />;
       case 'Activity':          return requireLogin(<Activity {...publicProps} />);
       case 'RoleActivation':    return requireLogin(<RoleActivation {...publicProps} />);
       case 'Onboarding':        return requireLogin(<Onboarding {...publicProps} />);
