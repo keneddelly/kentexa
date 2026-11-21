@@ -430,18 +430,37 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
     const size = isReply ? 28 : 36;
     const like = likeOf(c);
     const isAuthor = ownerId != null && c.authorId != null && Number(c.authorId) === Number(ownerId);
+    // Open the exact identity the commenter used; otherwise open their Personal profile.
+    const commenterUserId = c.author?.id ?? c.authorId;
+    const commenterProfileParams = c.commerceProfile?.id
+      ? { commerceProfileId: c.commerceProfile.id }
+      : undefined;
+    const openCommenterProfile = () => {
+      if (commenterUserId && onNavigate) {
+        onNavigate(`CommerceProfile-${commenterUserId}`, commenterProfileParams);
+      }
+    };
+    const profileButtonStyle = {
+      border:0, padding:0, margin:0, background:'none', color:'inherit',
+      font:'inherit', cursor: commenterUserId ? 'pointer' : 'default',
+    };
     return (
       <div key={c.id} data-testid={isReply ? 'comment-reply' : 'comment'} style={{ display:'flex', gap:10, padding: isReply ? '4px 0 0 46px' : '12px 0 0' }}>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'center', flexShrink:0 }}>
-          <div style={{ width:size, height:size, borderRadius:'50%', background:'#d6e4f0', overflow:'hidden', display:'flex',
-            alignItems:'center', justifyContent:'center', fontSize: isReply ? 12 : 14, fontWeight:700, color:INK_TX }}>
+          <button type="button" data-testid="comment-author-avatar" aria-label={`Fungua wasifu wa ${name}`}
+            onClick={openCommenterProfile} disabled={!commenterUserId}
+            style={{ ...profileButtonStyle, width:size, height:size, borderRadius:'50%', background:'#d6e4f0', overflow:'hidden', display:'flex',
+              alignItems:'center', justifyContent:'center', fontSize: isReply ? 12 : 14, fontWeight:700, color:INK_TX }}>
             {identity.photo ? <img src={identity.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : name.charAt(0).toUpperCase()}
-          </div>
+          </button>
           {hasThread && <div aria-hidden="true" style={{ flex:1, width:2, background:LINE_BTN, marginTop:4, minHeight:12 }} />}
         </div>
         <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:3, paddingBottom:8 }}>
           <div style={{ fontSize:14, color:MUTED_TX, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            <b style={{ color:INK_TX }}>{name}</b>{isAuthor ? ' · mwandishi' : ''} · {ago(c.createdAt)}
+            <button type="button" data-testid="comment-author-name" onClick={openCommenterProfile}
+              disabled={!commenterUserId} style={{ ...profileButtonStyle, fontWeight:800, color:INK_TX }}>
+              {name}
+            </button>{isAuthor ? ' · mwandishi' : ''} · {ago(c.createdAt)}
           </div>
           <div style={{ fontSize:15, lineHeight:'21px', color: c.isDeleted ? MUTED_TX : INK_TX, fontStyle: c.isDeleted ? 'italic' : 'normal',
             whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>
