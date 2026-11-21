@@ -113,6 +113,7 @@ const MyOrders = lazyPage(() => import('./public/pages/MyOrders'));
 const CustomerProfile = lazyPage(() => import('./public/pages/CustomerProfile'));
 const EditPublicProfile = lazyPage(() => import('./public/pages/EditPublicProfile'));
 const PayoutSettings = lazyPage(() => import('./public/pages/PayoutSettings'));
+const InviteFriends = lazyPage(() => import('./public/pages/InviteFriends'));
 const BecomeSeller = lazyPage(() => import('./public/pages/BecomeSeller'));
 const SellerDashboard = lazyPage(() => import('./public/pages/SellerDashboard'));
 const BusinessDashboard = lazyPage(() => import('./public/pages/BusinessDashboard'));
@@ -1126,6 +1127,7 @@ function App() {
       case 'MyOrders':          return requireLogin(<MyOrders {...publicProps} />);
       case 'EditPublicProfile': return requireLogin(<EditPublicProfile {...publicProps} commerceProfileId={navParams?.commerceProfileId} />);
       case 'PayoutSettings': return requireLogin(<PayoutSettings {...publicProps} />);
+      case 'InviteFriends': return requireLogin(<InviteFriends {...publicProps} />);
       case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} editField={navParams?.editField} />);
       case 'Checkout':
         // Signed out at checkout: buy with a phone number, no sign-up first (owner 2026-11-10).
