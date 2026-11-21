@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '../components/Ui';
-import { colors } from '../theme';
+import { F, colors } from '../theme';
 import { WEB_URL } from '../config';
 import type { RootStackParams } from '../navigation/types';
 
@@ -43,10 +43,10 @@ export default function LoginScreen({ navigation }: NativeStackScreenProps<RootS
 
 const s = StyleSheet.create({
   wrap: { padding: 24, gap: 14, paddingTop: 40 },
-  brand: { fontSize: 30, fontWeight: '900', color: colors.ink },
-  title: { fontSize: 24, fontWeight: '800', color: colors.ink, marginBottom: 6 },
-  input: { height: 52, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 14, fontSize: 16, color: colors.ink },
-  error: { color: colors.danger, fontSize: 14 },
+  brand: { fontSize: 30, fontFamily: F.black, color: colors.ink },
+  title: { fontSize: 24, fontFamily: F.black, color: colors.ink, marginBottom: 6 },
+  input: { height: 52, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 14, fontSize: 16, fontFamily: F.regular, color: colors.ink },
+  error: { color: colors.danger, fontSize: 14, fontFamily: F.regular },
   links: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  link: { color: colors.brand, fontWeight: '700', fontSize: 15 },
+  link: { color: colors.brand, fontFamily: F.bold, fontSize: 15 },
 });

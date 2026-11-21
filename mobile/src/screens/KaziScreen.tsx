@@ -38,5 +38,5 @@ export default function KaziScreen({ navigation }: NativeStackScreenProps<RootSt
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.line },
-  note: { padding: 16, fontSize: 13, color: colors.muted, lineHeight: 18 },
+  note: { padding: 16, fontSize: 13, fontFamily: 'Inter-Regular', color: colors.muted, lineHeight: 18 },
 });
