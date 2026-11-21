@@ -302,12 +302,12 @@ const rankResults = (list, semanticExtras, intent) => {
 // ── Main ──────────────────────────────────────────────────────────────────────
 const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', moment: 'moments', transport: 'transport', hub: 'hub', people: 'people', business: 'business', all: 'all' };
 
-const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIntent, track }) => {
+const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, initialTab, aiIntent, track }) => {
   const { t } = useTranslation();
   const CATEGORIES = getCategories(t);
   const TABS = getTabs(t);
   const [query,     setQuery]     = useState(initialQuery || '');
-  const [tab,       setTab]       = useState('all');
+  const [tab,       setTab]       = useState(initialTab || 'all');
   const [searched,  setSearched]  = useState(false);
   const [loading,   setLoading]   = useState(false);
 
