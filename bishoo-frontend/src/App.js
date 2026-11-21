@@ -156,6 +156,15 @@ function App() {
       const confirm = params.get('confirm');
       const token   = params.get('token');
       const verify  = params.get('verify');
+      const publicPage = params.get('page');
+      // Send logged-out visitors through authentication first, then resume the existing application flow.
+      if (publicPage === 'BecomeSuperAgentInfo') {
+        if (!checkToken().loggedIn) {
+          localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo');
+          return 'PublicLogin';
+        }
+        return 'BecomeSuperAgentInfo';
+      }
       if (confirm && token) return `ConfirmDelivery-${token}`;
       if (track) return `TrackParcel-${track}`;
       if (verify) return `VerifyReceipt-${verify}`;
@@ -198,6 +207,11 @@ function App() {
   const [navHistory, setNavHistory] = useState([]);
 
   const handleNavigate = (pageName, params = null) => {
+    // Keep the Super Agent application behind authentication, then resume it after login/registration.
+    if (pageName === 'BecomeSuperAgentInfo' && !checkToken().loggedIn) {
+      localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo');
+      pageName = 'PublicLogin';
+    }
     if (pageName === 'back') {
       // Pop the history stack
       setNavHistory(h => {
