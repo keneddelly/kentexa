@@ -49,7 +49,7 @@ export default function JumuiyaLanding({ onNavigate = () => {} }) {
       <style>{CSS}</style>
       <header className="kxj-in kxj-nav">
         <a className="kxj-brand" href="/" onClick={(e) => { e.preventDefault(); onNavigate('Home'); }}>kentexa<span>.</span></a>
-        <button className="kxj-btn alt" onClick={() => onNavigate('Discover', { initialTab: 'communities' })}>Gundua Jumuiya</button>
+        <button className="kxj-btn alt" onClick={() => onNavigate('JumuiyaHome')}>Gundua Jumuiya</button>
       </header>
 
       <section className="kxj-hero">
@@ -59,7 +59,7 @@ export default function JumuiyaLanding({ onNavigate = () => {} }) {
             <h1>Mahali pa watu kukutana, kujadili na kujenga pamoja.</h1>
             <p className="kxj-lead">Jumuiya za Kentexa zinaunganisha watu wenye maslahi, maarifa na malengo yanayofanana. Jiunge na mazungumzo, uliza maswali, shiriki uzoefu na gundua mitazamo mipya.</p>
             <div className="kxj-actions">
-              <button className="kxj-btn" onClick={() => onNavigate('Discover', { initialTab: 'communities' })}>Gundua Jumuiya</button>
+              <button className="kxj-btn" onClick={() => onNavigate('JumuiyaHome')}>Gundua Jumuiya</button>
               <button className="kxj-btn alt" onClick={() => onNavigate('Register')}>Jiunge na Kentexa</button>
             </div>
           </div>
@@ -97,7 +97,7 @@ export default function JumuiyaLanding({ onNavigate = () => {} }) {
         <div className="kxj-in">
           <h2>Karibu kwenye Jumuiya za Kentexa.</h2>
           <p>Gundua watu, mawazo na mazungumzo yanayoweza kukupa maarifa mapya na kukusaidia kukua.</p>
-          <button className="kxj-btn" onClick={() => onNavigate('Discover', { initialTab: 'communities' })}>Gundua Jumuiya sasa</button>
+          <button className="kxj-btn" onClick={() => onNavigate('JumuiyaHome')}>Gundua Jumuiya sasa</button>
         </div>
       </section>
       <footer className="kxj-foot">Kentexa · Social commerce network ya Tanzania</footer>
