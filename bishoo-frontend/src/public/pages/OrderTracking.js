@@ -9,6 +9,7 @@ import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
 import { PageLoading, Spinner } from '../components/Loading';
 import OrderAgentPanel from '../components/OrderAgentPanel';
+import { BOTTOM_NAV_CLEARANCE } from '../components/BottomNav';
 
 const CHECK = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>;
 
@@ -26,6 +27,8 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
   const [sellerRating, setSellerRating]   = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [ratingError, setRatingError] = useState('');
+  const [ratingBusy, setRatingBusy] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
 
   useEffect(() => {
@@ -65,7 +68,9 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
   };
 
   const handleSubmitRating = async () => {
-    if (sellerRating === 0) return;
+    if (sellerRating === 0 || ratingBusy) return;
+    setRatingBusy(true);
+    setRatingError('');
     try {
       await api.post(`/orders/${orderId}/rate-seller`, {
         rating:  sellerRating,
@@ -73,7 +78,12 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
       });
       setRatingSubmitted(true);
       setShowRating(false);
-    } catch {}
+    } catch (err) {
+      // Stay on the form and say why, so the review is never lost silently.
+      setRatingError(err?.response?.data?.message || 'Maoni hayakuhifadhiwa. Jaribu tena.');
+    } finally {
+      setRatingBusy(false);
+    }
   };
 
   const handleDispute = async () => {
@@ -190,7 +200,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
 
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#fff', paddingBottom: BOTTOM_NAV_CLEARANCE }}>
 
       {/* Header */}
       <div style={{ background: '#fff', borderBottom: '1px solid #eff3f4', padding: '12px 16px 16px' }}>
@@ -246,10 +256,13 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId, cu
             <textarea placeholder={t('order_tracking.rating_comment_placeholder')} value={ratingComment}
               onChange={e => setRatingComment(e.target.value)}
               rows={2} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', marginBottom: 10, resize: 'vertical' }} />
+            {ratingError && (
+              <div role="alert" style={{ fontSize: 13, color: '#b91c1c', fontWeight: 600, marginBottom: 10 }}>{ratingError}</div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleSubmitRating} disabled={sellerRating === 0}
-                style={{ flex: 1, background: '#0f1419', color: '#1e293b', border: 'none', padding: '10px', borderRadius: 8, cursor: sellerRating === 0 ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-                {t('order_tracking.submit_rating_button')}
+              <button onClick={handleSubmitRating} disabled={sellerRating === 0 || ratingBusy}
+                style={{ flex: 1, background: '#0f1419', color: '#ffffff', border: 'none', padding: '12px', minHeight: 44, borderRadius: 8, cursor: sellerRating === 0 || ratingBusy ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 800, opacity: sellerRating === 0 ? 0.6 : 1 }}>
+                {ratingBusy ? '...' : t('order_tracking.submit_rating_button')}
               </button>
               <button onClick={() => setShowRating(false)}
                 style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: 12, color: '#64748b' }}>

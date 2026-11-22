@@ -18,9 +18,11 @@ describe('storefront rules', () => {
     expect(cleanHours({ open: '08:00', close: '20:00', closedDays: [0, 1, 2, 3, 4, 5, 6] })).toBeNull();
   });
 
-  it('page type is store, creator, basic or automatic', () => {
+  it('page type is store, creator, services, brand, basic or automatic', () => {
     expect(cleanTemplate('STORE')).toBe('store');
     expect(cleanTemplate('creator')).toBe('creator');
+    expect(cleanTemplate('services')).toBe('services');
+    expect(cleanTemplate('brand')).toBe('brand');
     expect(cleanTemplate('basic')).toBe('basic');
     expect(cleanTemplate('fancy')).toBeNull();
     expect(cleanTemplate(null)).toBeNull();
