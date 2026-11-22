@@ -59,6 +59,10 @@ export default function CommunitiesPanel({ isLoggedIn, onNavigate, topic = '' })
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: MUTED }}>Jumuiya za kujiunga</span>
+        <button type="button" data-testid="see-all-communities" onClick={() => onNavigate('JumuiyaHome')}
+          style={{ border: 'none', background: 'none', color: '#2563EB', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Tazama zote
+        </button>
         <button type="button" data-testid="open-community" onClick={() => onNavigate(isLoggedIn ? 'CreateCommunity' : 'PublicLogin')}
           style={{ border: 'none', background: 'none', color: '#2563EB', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
           Fungua jumuiya
