@@ -14,13 +14,6 @@ export function SearchScreen({ navigation }: P) {
   return <Empty title="Tafuta" text="Bidhaa, matangazo, huduma, hoteli na biashara zinakuja hapa kwenye app." action={<Button title="Tafuta kwenye ukurasa" dark={false} onPress={() => navigation.navigate('Web', { url: `${WEB_URL}/p/Search`, title: 'Tafuta' })} />} />;
 }
 
-/** Inbox (N2 makes it native with live chat). */
-export function InboxScreen({ navigation }: P) {
-  const { user } = useAuth();
-  if (!user) return <Empty title="Inbox" text="Ingia kuona ujumbe wako." action={<Button title="Ingia" onPress={() => navigation.navigate('Login')} />} />;
-  return <Empty title="Inbox" text="Mazungumzo yako yanakuja hapa kwenye app." action={<Button title="Fungua Inbox" dark={false} onPress={() => navigation.navigate('Web', { url: `${WEB_URL}/p/SellerInbox`, title: 'Inbox' })} />} />;
-}
-
 /** "+" (N4 makes it native: chapisho, Moment, Makala, tangazo, huduma, tuma mzigo). */
 export function CreateScreen({ navigation }: P) {
   const { user } = useAuth();
