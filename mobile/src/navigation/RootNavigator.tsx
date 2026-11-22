@@ -8,7 +8,9 @@ import PostScreen from '../screens/PostScreen';
 import LoginScreen from '../screens/LoginScreen';
 import WebScreen from '../screens/WebScreen';
 import KaziScreen from '../screens/KaziScreen';
-import { AccountScreen, CreateScreen, InboxScreen, SearchScreen } from '../screens/Placeholders';
+import { AccountScreen, CreateScreen, SearchScreen } from '../screens/Placeholders';
+import InboxScreen from '../screens/InboxScreen';
+import ThreadScreen from '../screens/ThreadScreen';
 import type { RootStackParams, TabParams } from './types';
 
 /**
@@ -55,6 +57,7 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShadowVisible: false, headerTintColor: colors.ink, headerTitleStyle: { fontFamily: F.black, fontSize: 17 }, headerBackTitle: 'Rudi' }}>
       <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
       <Stack.Screen name="Post" component={PostScreen} options={{ title: 'Chapisho' }} />
+      <Stack.Screen name="Thread" component={ThreadScreen} options={{ title: 'Mazungumzo' }} />
       <Stack.Screen name="Web" component={WebScreen} options={{ title: 'KenteXa' }} />
       <Stack.Group screenOptions={{ presentation: 'modal' }}>
         <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Ingia' }} />
