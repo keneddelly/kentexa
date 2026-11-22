@@ -2181,7 +2181,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         <div data-tour="hf-filters" style={{ display:'flex', overflowX:'auto', scrollbarWidth:'none',
           padding:'0 8px', borderTop:'1px solid #F8FAFC' }}>
           {FILTERS.map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
+            <button key={f.key} onClick={() => f.key === 'communities' ? onNavigate('JumuiyaHome') : setFilter(f.key)}
               style={{ position:'relative', height:38, padding:'0 12px', border:'none', background:'none',
                 cursor:'pointer', fontSize:14, fontWeight: filter===f.key ? 700 : 500, whiteSpace:'nowrap', fontFamily:'inherit',
                 flexShrink:0, color: filter===f.key ? INK_TX : MUTED_TX }}>
@@ -2457,7 +2457,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                   <DiscoveryRail type={railType} items={railItems} onNavigate={onNavigate} />
                 )}
                 {trayKey === 'communities' && (
-                  <SuggestedCommunities isLoggedIn={isLoggedIn} onNavigate={onNavigate} topic={topic} onSeeAll={() => setFilter('communities')} />
+                  <SuggestedCommunities isLoggedIn={isLoggedIn} onNavigate={onNavigate} topic={topic} onSeeAll={() => onNavigate('JumuiyaHome')} />
                 )}
                 {trayKey === 'services' && (
                   <ListTray testid="tray-services" title="Huduma mpya" sub="Zilizowekwa karibuni" items={serviceCards} onOpen={(it) => onNavigate(it.page)} onSeeAll={() => setFilter('services')} />
