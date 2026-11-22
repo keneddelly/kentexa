@@ -79,7 +79,7 @@ export default function StoreSettings({ profileId, settings, products, onChanged
 
         <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <b style={{ fontSize: 15, color: INK }}>Aina ya ukurasa</b>
-          {[['', 'Otomatiki', 'KenteXa inachagua kutokana na ulichonacho (bidhaa = Duka)'], ['store', 'Duka', 'Rafu, aina za bidhaa na utafutaji ndani ya duka'], ['basic', 'Kawaida', 'Ukurasa rahisi wa picha za bidhaa']].map(([k, label, line]) => (
+          {[['', 'Otomatiki', 'KenteXa inachagua kutokana na ulichonacho (bidhaa = Duka)'], ['store', 'Duka', 'Rafu, aina za bidhaa na utafutaji ndani ya duka'], ['brand', 'Chapa', 'Utambulisho wa biashara: maelezo, machapisho na maoni'], ['basic', 'Kawaida', 'Ukurasa rahisi wa picha za bidhaa']].map(([k, label, line]) => (
             <label key={k || 'auto'} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer' }}>
               <input type="radio" name="tpl" checked={tpl === k} onChange={() => setTpl(k)} style={{ marginTop: 3 }} />
               <span><b style={{ fontSize: 14, color: INK }}>{label}</b><br /><span style={{ fontSize: 13, color: MUTED }}>{line}</span></span>

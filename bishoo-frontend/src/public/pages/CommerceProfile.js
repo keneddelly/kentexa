@@ -25,6 +25,7 @@ import StoreFront, { openState } from '../components/StoreFront';
 import StoreSettings from '../components/StoreSettings';
 import CreatorWork from '../components/CreatorWork';
 import CreatorSettings from '../components/CreatorSettings';
+import { BOTTOM_NAV_CLEARANCE } from '../components/BottomNav';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -566,6 +567,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     const choice = storefront.pageTemplate || null;
     if (choice !== 'basic' && (choice === 'store' || products.length > 0)) setTab('posts');
   }, [activeProfile, storefront, productsLoaded, products.length]);
+  // Services page (owner approved 2026-11-22): a service provider opens on Huduma, and a brand
+  // page (owner's choice "Chapa") opens on Machapisho, the identity's own posts.
+  useEffect(() => {
+    if (!activeProfile || tabPicked.current || !storefront) return;
+    const choice = storefront.pageTemplate || null;
+    if (activeProfile.type === 'service_provider' && choice !== 'basic') setTab('services_pub');
+    else if (activeProfile.type === 'business' && choice === 'brand') setTab('feed');
+  }, [activeProfile, storefront]);
   // Personal brand page (owner approved 2026-11-18): a writer's page opens on "Kazi zangu".
   useEffect(() => {
     if (!activeProfile || activeProfile.type !== 'personal' || tabPicked.current || !storefront || !talk) return;
@@ -640,13 +649,20 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // Duka page template (owner approved 2026-11-18): automatic for a business with products, or
   // chosen by the owner ("Panga duka"). The page then opens on Duka, the shop itself.
   const storeChoice = storefront?.pageTemplate || null;
-  const isStore = activeProfile.type === 'business' && storeChoice !== 'basic' && (storeChoice === 'store' || products.length > 0);
+  const isStore = activeProfile.type === 'business' && storeChoice !== 'basic' && storeChoice !== 'brand' && (storeChoice === 'store' || products.length > 0);
+  // Services page (owner approved 2026-11-22): automatic for service providers, unless the owner chose Kawaida.
+  const isServicesPage = activeProfile.type === 'service_provider' && storeChoice !== 'basic';
+  // Brand page (owner's choice "Chapa"): a business identity with its own headline and posts.
+  const isBrandPage = activeProfile.type === 'business' && storeChoice === 'brand';
   // Personal brand page (owner approved 2026-11-18): automatic once the person has a Makala, or
   // chosen by the owner ("Panga ukurasa"). Opens on "Kazi zangu".
   const isCreator = activeProfile.type === 'personal' && storeChoice !== 'basic' && (storeChoice === 'creator' || Number(talk?.articleCount) > 0);
+  // Services page: Huduma first, then the portfolio and the rest in their usual order.
+  const servicesFirst = [...plainTabs.filter((x) => x.key === 'services_pub'), ...plainTabs.filter((x) => x.key !== 'services_pub')];
   const profileTabs = isStore
     ? [{ key: 'posts', label: 'Duka' }, ...plainTabs.filter((x) => x.key !== 'posts')]
-    : isCreator ? [{ key: 'work', label: 'Kazi zangu' }, ...plainTabs] : plainTabs;
+    : isCreator ? [{ key: 'work', label: 'Kazi zangu' }, ...plainTabs]
+    : isServicesPage ? servicesFirst : plainTabs;
   const shopHours = isStore ? openState(storefront?.openingHours) : null;
 
   // `profile` comes from GET /seller/public/:uid — a SELLER/business-shaped
@@ -747,7 +763,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   };
 
   return (
-    <div style={{ minHeight:'100vh', backgroundColor:'#f7f9f9', paddingBottom:100, color:INK,
+    <div style={{ minHeight:'100vh', backgroundColor:'#f7f9f9', paddingBottom:BOTTOM_NAV_CLEARANCE, color:INK,
       fontFamily:TW_FONT }}>
 
       {/* Top bar: name and what this identity is, Twitter-style */}
@@ -941,6 +957,22 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
               style={{ height:44, borderRadius:22, border:'none', backgroundColor:'#0f766e', color:WH, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
               Shirikiana nami
+            </button>
+          )}
+
+          {isServicesPage && !isOwnProfile && (
+            <button type="button" data-testid="services-request"
+              onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
+              style={{ height:44, borderRadius:22, border:'none', backgroundColor:'#0f766e', color:WH, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              Omba huduma
+            </button>
+          )}
+
+          {isBrandPage && !isOwnProfile && (
+            <button type="button" data-testid="brand-contact"
+              onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
+              style={{ height:44, borderRadius:22, border:'none', backgroundColor:INK, color:WH, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              Wasiliana nasi
             </button>
           )}
 
