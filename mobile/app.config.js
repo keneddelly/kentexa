@@ -20,9 +20,8 @@ module.exports = {
     splash: { image: './assets/splash.png', resizeMode: 'contain', backgroundColor: '#ffffff' },
     android: {
       package: prod ? 'com.app.bishoo' : 'com.kentexa.app.test',
-      // Firebase (push). The test app is registered; add the production file here when
-      // com.app.bishoo is added to the same Firebase project.
-      ...(prod ? {} : { googleServicesFile: './google-services.json' }),
+      // Firebase (push): one file holds both apps (com.app.bishoo and com.kentexa.app.test).
+      googleServicesFile: './google-services.json',
       versionCode,
       adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1d4ed8' },
       intentFilters: [{
