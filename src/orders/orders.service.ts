@@ -1033,6 +1033,15 @@ export class OrdersService {
       }));
       const groups = groupDirectOrdersBySeller(noticeOrders);
       if (groups.length === 0) return [];
+      // "Uza tena": short names of the resellers behind these orders (one query).
+      const resellerIds = [...new Set(orders.map((o) => Number(o.resellerUserId)).filter((id) => id > 0))];
+      const resellerNames = new Map<number, string>();
+      if (resellerIds.length) {
+        const rows: any[] = await this.repo.manager
+          .query(`SELECT id, name FROM public."user" WHERE id = ANY($1::int[])`, [resellerIds])
+          .catch(() => []);
+        rows.forEach((r) => resellerNames.set(Number(r.id), shortResellerName(r.name)));
+      }
       const place = ctx.place;
       const notices: { sellerId: number; storeName: string | null; orderIds: number[]; whatsappUrl: string | null; phone: string | null }[] = [];
       for (const group of groups) {
@@ -1043,6 +1052,13 @@ export class OrdersService {
           { s: group.sellerId, o: orderIds, r: place?.regionId ?? null, d: place?.districtId ?? null, e: sellerCheckoutExpiry() },
           process.env.JWT_SECRET,
         );
+        // Name the reseller only when every order in this seller's part came through the same reseller.
+        const groupResellers = new Set(
+          orders.filter((o) => orderIds.includes(o.id)).map((o) => Number(o.resellerUserId) || 0),
+        );
+        const resellerLabel = groupResellers.size === 1 && [...groupResellers][0] > 0
+          ? resellerNames.get([...groupResellers][0]) ?? null
+          : null;
         const text = buildSellerCheckoutMessage({
           orders: group.orders,
           place: place?.label ?? null,
@@ -1050,6 +1066,7 @@ export class OrdersService {
           buyerName: ctx.buyerName,
           buyerPhone: ctx.buyerPhone,
           link: sellerCheckoutLink(token),
+          resellerLabel,
         });
         let smsSent = false;
         if (seller?.phone) {
@@ -1077,6 +1094,7 @@ export class OrdersService {
             orderIds.map((id) => `KTX-ORD-${id}`).join(', '),
             group.orders.map((o) => o.productName).join(', '),
             source?.commerceProfileId ?? null,
+            resellerLabel,
           )
           .catch((e) => console.error(`Seller in-app notice failed for orders ${orderIds.join(',')}:`, e?.message));
         notices.push({
