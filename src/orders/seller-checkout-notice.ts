@@ -74,6 +74,8 @@ export interface SellerMessageInput {
   buyerName: string | null;
   buyerPhone: string | null;
   link: string;
+  /** "Uza tena": short name of the reseller whose link sold these orders, when they all share one. */
+  resellerLabel?: string | null;
 }
 
 /** The text sent by SMS to the seller, and pre-filled in the buyer's WhatsApp button. */
@@ -92,6 +94,7 @@ export function buildSellerCheckoutMessage(input: SellerMessageInput): string {
     `Jumla: ${tzs(checkoutTotal(orders))}`,
     `Malipo: ${method === 'lipa_namba' ? 'Lipa Namba yako (mnunuzi ametuma picha ya malipo)' : 'Pesa mkononi wakati wa kupokea (COD)'}`,
     ...(method === 'lipa_namba' && input.lipaReference ? [`Kumbukumbu ya malipo: ${input.lipaReference}`] : []),
+    ...(input.resellerLabel ? [`Kupitia muuzaji: ${input.resellerLabel}`] : []),
     `Mahali: ${input.place || 'haijulikani'}`,
     `Mnunuzi: ${[input.buyerName, input.buyerPhone].filter(Boolean).join(', ') || 'haijulikani'}`,
   ];
