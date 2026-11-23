@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "494186158252",
+    "project_id": "kentexa-6e3f0",
+    "storage_bucket": "kentexa-6e3f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494186158252:android:69f3dbafd4433fca22e709",
+        "android_client_info": {
+          "package_name": "com.app.bishoo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYETKWLIj53zWeYBKkg6_gY7Ev-JPE_s0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:494186158252:android:035fbaa01f59b12122e709",
+        "android_client_info": {
+          "package_name": "com.kentexa.app.test"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYETKWLIj53zWeYBKkg6_gY7Ev-JPE_s0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
