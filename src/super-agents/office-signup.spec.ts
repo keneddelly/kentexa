@@ -31,7 +31,7 @@ const form: any = {
 };
 const waitingId = { status: IdentityVerificationStatus.PENDING };
 
-describe('the office form (place list, GPS point, account phone)', () => {
+describe('the office form (place list, GPS point optional, account phone)', () => {
   it('saves the place from the list, the GPS point and the account phone', async () => {
     const s = service(waitingId);
     await s.apply(user, { ...form, city: 'Arusha', phone: '0799999999' }); // old fields are ignored
@@ -54,7 +54,6 @@ describe('the office form (place list, GPS point, account phone)', () => {
       [{ ...form, businessName: '  ' }, user, OFFICE_SIGNUP_MESSAGES.nameRequired],
       [{ ...form, place: undefined }, user, OFFICE_SIGNUP_MESSAGES.placeRequired],
       [{ ...form, place: { providerKey: 'tz-admin', providerPlaceId: 'nowhere' } }, user, OFFICE_SIGNUP_MESSAGES.placeRequired],
-      [{ ...form, officePoint: undefined }, user, OFFICE_SIGNUP_MESSAGES.pointRequired],
       [form, { ...user, phone: null }, OFFICE_SIGNUP_MESSAGES.noPhone],
     ];
     for (const [f, u, message] of cases) {
@@ -62,6 +61,14 @@ describe('the office form (place list, GPS point, account phone)', () => {
       await expect(s.apply(u, f)).rejects.toThrow(message);
       expect(s.superAgentRepo.save).not.toHaveBeenCalled();
     }
+  });
+
+  it('the GPS point is optional at sign-up: saved without coordinates, to be set at the office later', async () => {
+    const s = service(waitingId);
+    await s.apply(user, { ...form, officePoint: undefined });
+    expect(s.superAgentRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+      latitude: null, longitude: null, locationResolutionMethod: null,
+    }));
   });
 
   it('refuses a point outside Tanzania or a weak GPS reading', async () => {
