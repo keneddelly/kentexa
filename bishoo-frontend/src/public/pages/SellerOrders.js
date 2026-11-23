@@ -707,6 +707,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           {fact('Jumla', money(o.totalAmount))}
           {/* Ada ya KenteXa (2026-11-03): a marketplace order pays 2% of the product price, billed once it is done. */}
           {/* "Uza tena": the reseller's profit is owed after delivery; the 2% is on what the shop keeps. */}
+          {o.resellerUserId && fact('Muuzaji wa kiungo', `${o.resellerName || 'Muuzaji'}${o.resellerPhone ? ` · ${o.resellerPhone}` : ''}`)}
           {o.resellerUserId && fact('Faida ya muuzaji (unamlipa)', money(o.resellerProfit))}
           {o.source === 'online' && fact('Ada ya KenteXa (2%)', money(Math.round((Number(o.baseAmount || 0) - Number(o.resellerProfit || 0)) * MARKETPLACE_FEE_RATE / 100)))}
           {o.resellerUserId && (
