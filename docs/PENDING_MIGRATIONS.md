@@ -1,5 +1,7 @@
 # Migrations waiting for live (2026-10-27)
 
+**Update 2026-11-23 (native push):** the pin is now `MIGRATION_RUN_UPTO=1797800000000`. The next deploy runs `1797800000000-AddDevicePushToken` itself (creates `device_push_token` for Android push tokens). Additive only.
+
 **Update 2026-11-18 (personal brand page):** the pin is now `MIGRATION_RUN_UPTO=1797700000000`. The next deploy runs `1797700000000-AddCreatorProfile` itself (`commerce_profile.headline`, `"pinnedPostId"`). Check: `/version/migrations` shows `pending: []`.
 
 **Update 2026-11-18 (Duka page template):** the pin is now `MIGRATION_RUN_UPTO=1797600000000`. The next deploy runs `1797600000000-AddStoreTemplate` itself (`product."compareAtPrice"`, `commerce_profile."pageTemplate"` and `"openingHours"`, new table `store_collection`). Check: `/version/migrations` shows `pending: []`.
