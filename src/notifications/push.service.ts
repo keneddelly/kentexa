@@ -15,6 +15,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { PushSubscription } from './entities/push-subscription.entity';
+import { DevicePushToken } from './entities/device-push-token.entity';
+import { FcmClient, FcmPayload } from './fcm.client';
 
 // Lazy-load web-push to avoid crash if not installed yet
 let webpush: any = null;
@@ -28,12 +30,17 @@ try {
 export class PushService {
   private readonly logger = new Logger(PushService.name);
   private vapidConfigured = false;
+  private readonly fcm: FcmClient;
 
   constructor(
     @InjectRepository(PushSubscription)
     private subRepo: Repository<PushSubscription>,
+    @InjectRepository(DevicePushToken)
+    private tokenRepo: Repository<DevicePushToken>,
     private config: ConfigService,
   ) {
+    this.fcm = new FcmClient(config.get('FIREBASE_SERVICE_ACCOUNT_JSON'));
+    if (this.fcm.configured) this.logger.log('Native push (FCM) configured ✅');
     if (webpush) {
       const pub = config.get('VAPID_PUBLIC_KEY');
       const priv = config.get('VAPID_PRIVATE_KEY');
@@ -90,8 +97,66 @@ export class PushService {
     await this.subRepo.delete({ endpoint, userId });
   }
 
-  // ── Send push to a specific user (all their devices) ──────────────────────
+  // ── Native app devices (FCM) ──────────────────────────────────────────────
+  // Idempotent: a token that already exists is moved to the signed-in user.
+  async registerDeviceToken(userId: number, token: string, platform: string): Promise<void> {
+    const clean = (token || '').trim();
+    if (!clean || clean.length > 4096) throw new BadRequestException('Invalid device token');
+    const existing = await this.tokenRepo.findOne({ where: { token: clean } });
+    if (existing) {
+      existing.userId = userId;
+      existing.platform = platform;
+      await this.tokenRepo.save(existing);
+      return;
+    }
+    await this.tokenRepo.save(this.tokenRepo.create({ userId, token: clean, platform }));
+  }
+
+  // Called on sign-out so a signed-out phone stops receiving this account's pushes.
+  async removeDeviceToken(userId: number, token: string): Promise<void> {
+    await this.tokenRepo.delete({ token: (token || '').trim(), userId });
+  }
+
+  private async sendNativeToUser(userId: number, payload: FcmPayload): Promise<void> {
+    if (!this.fcm.configured) return;
+    const tokens = await this.tokenRepo.find({ where: { userId } });
+    await Promise.allSettled(
+      tokens.map(async (t) => {
+        const result = await this.fcm.send(t.token, payload);
+        if (result.invalidToken) {
+          await this.tokenRepo.delete({ token: t.token });
+          this.logger.log(`Removed dead device token for user ${userId}`);
+        } else if (!result.ok) {
+          this.logger.warn(`Native push delivery failed for user ${userId}`);
+        }
+      }),
+    );
+  }
+
+  // ── Send push to a specific user (all their devices, web and native) ──────
   async sendToUser(
+    userId: number,
+    payload: {
+      title: string;
+      body: string;
+      icon?: string;
+      url?: string;
+      tag?: string;
+    },
+  ): Promise<void> {
+    // Each channel is independent: a web-push failure must not stop native
+    // delivery, and vice versa. Never throws.
+    await Promise.allSettled([
+      this.sendWebToUser(userId, payload),
+      this.sendNativeToUser(userId, {
+        title: payload.title,
+        body: payload.body,
+        data: { url: payload.url || '/', tag: payload.tag || 'kentexa' },
+      }),
+    ]);
+  }
+
+  private async sendWebToUser(
     userId: number,
     payload: {
       title: string;

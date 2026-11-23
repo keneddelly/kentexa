@@ -6,12 +6,13 @@ import { PushService } from './push.service';
 import { NotificationController } from './notification.controller';
 import { Notification } from './entities/notification.entity';
 import { PushSubscription } from './entities/push-subscription.entity';
+import { DevicePushToken } from './entities/device-push-token.entity';
 import { MailModule } from '../mail/mail.module';
 import { SmsModule } from '../sms/sms.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Notification, PushSubscription]),
+    TypeOrmModule.forFeature([Notification, PushSubscription, DevicePushToken]),
     MailModule,
     SmsModule,
   ],

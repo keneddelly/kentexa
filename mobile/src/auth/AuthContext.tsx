@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { api, renew, setSignedOutHandler } from '../api/client';
 import { tokens } from '../api/tokens';
 import { API_URL } from '../config';
+import { registerForPush, unregisterPush } from '../push/nativePush';
 
 /**
  * Who is signed in (#422 N0). On start: the saved access token, renewed with the saved refresh
@@ -33,7 +34,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const saved = await tokens.load();
-        if (saved || (await renew())) await loadMe();
+        if (saved || (await renew())) {
+          await loadMe();
+          registerForPush();
+        }
       } catch { setUser(null); } finally { setReady(true); }
     })();
   }, [loadMe]);
@@ -45,9 +49,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await tokens.setAccess(token);
     setUser((r?.user || null) as User);
     loadMe().catch(() => {});
+    registerForPush();
   }, [loadMe]);
 
   const signOut = useCallback(async () => {
+    await unregisterPush();
     const credential = await tokens.refresh();
     try {
       if (credential) await fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { 'x-kentexa-client': 'app', 'x-kentexa-refresh': credential } });

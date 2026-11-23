@@ -87,6 +87,20 @@ export class NotificationController {
   }
 
   // ── Push subscription ─────────────────────────────────────────────────────
+  // ── Native app (Firebase) device tokens ─────────────────────────────────
+  @Post('device-token')
+  async registerDeviceToken(@Request() req, @Body() body: { token: string; platform?: string }) {
+    await this.pushService.registerDeviceToken(req.user.id, body?.token, body?.platform === 'ios' ? 'ios' : 'android');
+    return { ok: true };
+  }
+
+  // POST rather than DELETE: the token is sent in the body, not the URL.
+  @Post('device-token/remove')
+  async removeDeviceToken(@Request() req, @Body() body: { token: string }) {
+    await this.pushService.removeDeviceToken(req.user.id, body?.token);
+    return { ok: true };
+  }
+
   @Get('push/vapid-key')
   getVapidKey() {
     return { publicKey: this.pushService.getPublicKey() };
