@@ -2875,9 +2875,11 @@ export class OrdersService {
           data.rating ? `${stars} (${data.rating}/5)` : null,
           data.review ? `"${data.review}"` : null,
           ``,
-          isOnlineOrder
-            ? `💰 Malipo yako ya TZS ${Number(order.sellerAmount || 0).toLocaleString()} yatatoka ndani ya saa 24.`
-            : `📋 Agizo limekamilika. Rekodi imehifadhiwa.`,
+          (order as any).paymentMethod === 'cod'
+            ? `💵 Umepokea pesa ya bidhaa moja kwa moja kutoka kwa mnunuzi. KenteXa haihamishi pesa hii.`
+            : isOnlineOrder
+              ? `💰 Malipo yako ya TZS ${Number(order.sellerAmount || 0).toLocaleString()} yatatoka ndani ya saa 24.`
+              : `📋 Agizo limekamilika. Rekodi imehifadhiwa.`,
         ]
           .filter(Boolean)
           .join('\n');
