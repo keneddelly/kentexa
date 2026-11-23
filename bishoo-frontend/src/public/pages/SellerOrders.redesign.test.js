@@ -39,8 +39,8 @@ test('the list shows one next step per order; the market and my own sales are to
   expect(within(list).getByTestId('row-next')).toHaveTextContent('Imelipwa. Itume');
   fireEvent.click(screen.getByTestId('tab-way'));
   expect(screen.getByTestId('order-2')).toHaveTextContent('Mauzo yangu');
-  fireEvent.click(screen.getByRole('button', { name: 'Sokoni' }));
-  expect(screen.queryByTestId('order-2')).toBeNull();
+  // One filter only: the status tabs. The source is a label on each row, not a second filter.
+  expect(screen.queryByRole('button', { name: 'Sokoni' })).toBeNull();
   expect(EMOJI.test(container.textContent)).toBe(false);
 });
 
@@ -81,4 +81,26 @@ test('a Lipa Namba order (starts as preparing, payment unconfirmed) asks the sel
   api.get.mockResolvedValue({ data: [lipa] });
   render(<SellerOrders onNavigate={jest.fn()} highlightOrderId={9} />);
   expect(await screen.findByTestId('lipa-review')).toBeInTheDocument();
+});
+
+test('a POS sale is in the same list as orders: it opens with its shipping number and copy button', async () => {
+  const sale = { id: 7, receiptNumber: 'RS-7001', status: 'completed', total: 25000, customerName: 'Amina', createdAt: new Date().toISOString(),
+    shipmentTrackingNumber: 'KTX-TRK-7001', items: [{ productName: 'Taa', quantity: 1, unitPrice: 25000 }] };
+  api.get.mockImplementation((url) => Promise.resolve(url === '/sales' ? { data: [sale] } : url === '/sales/to-ship' ? { data: [] } : { data: ORDERS }));
+  render(<SellerOrders onNavigate={jest.fn()} />);
+  fireEvent.click(await screen.findByTestId('tab-way'));
+  fireEvent.click(await screen.findByTestId('pos-row-7'));
+  expect(screen.getByTestId('pos-tracking')).toHaveTextContent('KTX-TRK-7001');
+  expect(screen.getByTestId('pos-copy')).toBeInTheDocument();
+});
+
+test('the list is newest first and groups rows by day', async () => {
+  const older = { id: 11, status: 'paid', source: 'online', shippingMethod: 'agent', totalAmount: 1000, quantity: 1, product: { name: 'Old' }, createdAt: '2020-11-03T08:00:00Z' };
+  const newer = { id: 12, status: 'paid', source: 'online', shippingMethod: 'agent', totalAmount: 2000, quantity: 1, product: { name: 'New' }, createdAt: new Date().toISOString() };
+  api.get.mockImplementation((url) => Promise.resolve(url === '/sales' || url === '/sales/to-ship' ? { data: [] } : { data: [older, newer] }));
+  render(<SellerOrders onNavigate={jest.fn()} />);
+  const list = await screen.findByTestId('order-list');
+  const ids = within(list).getAllByRole('button').map((b) => b.getAttribute('data-testid'));
+  expect(ids).toEqual(['order-12', 'order-11']);
+  expect(within(list).getAllByTestId('day-group')).toHaveLength(2);
 });

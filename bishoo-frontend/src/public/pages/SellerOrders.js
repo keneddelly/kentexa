@@ -9,7 +9,7 @@ import { getAccessToken } from '../../api/tokenStore';
 import { buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
 import LipaPaymentReview from '../components/LipaPaymentReview';
 import { PageLoading, Spinner } from '../components/Loading';
-import PosSalesToShip, { PosSalesList } from '../components/PosSalesToShip';
+import { shipPrefillFor } from '../components/PosSalesToShip';
 import KentexaFeeLine from '../components/KentexaFeeLine';
 
 const MARKETPLACE_FEE_RATE = 2;
@@ -135,6 +135,14 @@ export const tabOf = (o) => {
   return 'send';
 };
 
+/** A POS sale in the same list as orders, in the same tabs (owner 2026-11-23: one list). */
+export const posTabOf = (s, waitingIds) => {
+  if (s?.status === 'voided') return 'problem';
+  if (s?.shipmentTrackingNumber) return 'way';
+  if (waitingIds && waitingIds.has(Number(s?.id))) return 'send';
+  return 'done';
+};
+
 export const TABS = [
   { key: 'send', label: 'Za kutuma' },
   { key: 'way', label: 'Njiani' },
@@ -191,6 +199,23 @@ const buyerName = (o) => o.recipientName || o.buyer?.name || o.manualBuyerName |
 const buyerPhone = (o) => o.phone || o.buyer?.phone || o.manualBuyerPhone || o.recipientPhone || '';
 const placeOf = (o) => String(o.deliveryAddress || '').split(',')[0].trim();
 const DAYS = ['Jumapili', 'Jumatatu', 'Jumanne', 'Jumatano', 'Alhamisi', 'Ijumaa', 'Jumamosi'];
+/** Whole days since a row was made; an old order still waiting gets an age label. */
+export const daysWaiting = (v) => {
+  if (!v) return 0;
+  const d = new Date(v); const now = new Date();
+  return Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+};
+/** Day heading for the one list (owner 2026-11-23): Leo, Jana, Wiki hii, Mwezi huu, then the month. */
+export const dayGroupOf = (v) => {
+  if (!v) return 'Zamani';
+  const d = new Date(v); const now = new Date();
+  const days = daysWaiting(v);
+  if (days <= 0) return 'Leo';
+  if (days === 1) return 'Jana';
+  if (days < 7) return 'Wiki hii';
+  if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()) return 'Mwezi huu';
+  return d.toLocaleDateString('sw-TZ', { month: 'long', year: 'numeric' });
+};
 const MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ago', 'Sep', 'Okt', 'Nov', 'Des'];
 export const shortWhen = (v) => {
   if (!v) return '';
@@ -225,9 +250,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   const [confirmLoading, setConfirmLoading] = useState({});
   const [message, setMessage]             = useState('');
   const [tab, setTab]                     = useState(null); // null: the first tab with work in it
-  const [kind, setKind]                   = useState('all'); // all | market | mine | pos
-  // POS sales waiting to be sent (COD or "Itatumwa"): they count in "Za kutuma" (owner 2026-11-02).
-  const [posWaiting, setPosWaiting]       = useState(0);
+  // POS sales join the one list (owner 2026-11-23). posToShip: ids of sales still waiting to be sent.
+  const [posSales, setPosSales]           = useState([]);
+  const [posToShip, setPosToShip]         = useState(new Set());
+  const [posOpenId, setPosOpenId]         = useState(null);
   const [openId, setOpenId]               = useState(highlightOrderId ? Number(highlightOrderId) : null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalStep, setModalStep]         = useState('method');
@@ -264,6 +290,12 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       // Every order of the active business (not the dashboard's latest 30 per source).
       const res = await api.get('/seller/orders', { params: activeProfileId ? { commerceProfileId: activeProfileId } : {} });
       setOrders(Array.isArray(res.data) ? res.data : []);
+      const [sales, toShip] = await Promise.all([
+        Promise.resolve(api.get('/sales', { params: { limit: 50 } })).then((r) => (Array.isArray(r?.data) ? r.data : [])).catch(() => []),
+        Promise.resolve(api.get('/sales/to-ship')).then((r) => (Array.isArray(r?.data) ? r.data : [])).catch(() => []),
+      ]);
+      setPosSales(sales.filter((x) => x && x.receiptNumber));
+      setPosToShip(new Set(toShip.map((x) => Number(x.id))));
     } catch { setError(t('seller_orders.load_failed')); }
     finally { setLoading(false); }
   };
@@ -443,15 +475,121 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
     boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
   };
 
-  const counts = TABS.reduce((m, tb) => ({ ...m, [tb.key]: orders.filter((o) => tabOf(o) === tb.key).length }), {});
-  // POS sales to send count in "Za kutuma" for Zote and Mauzo yangu (a POS sale is the seller's own).
-  const posShown = kind === 'all' || kind === 'mine' ? posWaiting : 0;
-  counts.send = (counts.send || 0) + posShown;
+  const posTabs = posSales.map((x) => ({ s: x, tab: posTabOf(x, posToShip), at: x.createdAt }));
+  const counts = TABS.reduce((m, tb) => ({ ...m, [tb.key]: orders.filter((o) => tabOf(o) === tb.key).length + posTabs.filter((p) => p.tab === tb.key).length }), {});
   const shownTab = tab || (counts.send ? 'send' : counts.way ? 'way' : counts.done ? 'done' : 'send');
-  const list = orders
-    .filter((o) => tabOf(o) === shownTab)
-    .filter((o) => kind === 'all' || (kind === 'mine' ? isManualOrder(o) : !isManualOrder(o)));
+  // One list, newest first: marketplace orders and POS sales together.
+  const rows = [
+    ...orders.filter((o) => tabOf(o) === shownTab).map((o) => ({ kind: 'order', o, at: o.createdAt, key: `o-${o.id}` })),
+    ...posTabs.filter((p) => p.tab === shownTab).map((p) => ({ kind: 'pos', s: p.s, at: p.at, key: `p-${p.s.id}` })),
+  ].sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
   const open = openId != null ? orders.find((o) => o.id === openId) : null;
+  const posOpen = posOpenId != null ? posSales.find((x) => x.id === posOpenId) : null;
+
+  const copyText = (text) => { try { navigator.clipboard?.writeText(String(text)); } catch { /* the number is on screen to copy by hand */ } };
+
+  // A marketplace order row: one next step, the source, the order number and how long it has waited.
+  const renderOrderRow = (o) => {
+    const step = nextStep(o);
+    const photo = o.product?.images?.[0];
+    const highlighted = Number(highlightOrderId) === o.id;
+    const waited = shownTab === 'send' ? daysWaiting(o.createdAt) : 0;
+    return (
+      <li key={`o-${o.id}`} ref={highlighted ? highlightRef : null}>
+        <button type="button" data-testid={`order-${o.id}`} onClick={() => setOpenId(o.id)}
+          style={{ display: 'flex', gap: 12, width: '100%', padding: '12px 16px', border: 'none', borderBottom: `1px solid ${LINE}`,
+            background: highlighted ? '#eff6ff' : '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: INK }}>
+          {photo ? <img src={photo} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+            : <span style={{ width: 48, height: 48, borderRadius: 10, background: LINE, flexShrink: 0 }} />}
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              <strong style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName(o)}</strong>
+              <strong style={{ fontSize: 15, flexShrink: 0 }}>{money(o.totalAmount)}</strong>
+            </span>
+            <span style={{ fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[`#${o.id}`, buyerName(o), placeOf(o), shortWhen(o.createdAt)].filter(Boolean).join(' · ')}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: '1px solid #cfd9de', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{isManualOrder(o) ? 'Mauzo yangu' : 'Sokoni'}</span>
+              {payLabel(o) && (
+                <span data-testid="row-pay" style={{ fontSize: 12, fontWeight: 700, color: TONE[payLabel(o).tone], background: payLabel(o).tone === 'green' ? '#f0fdf4' : '#fffbeb', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{payLabel(o).text}</span>
+              )}
+              {waited >= 2 && <span data-testid="row-age" style={{ fontSize: 12, fontWeight: 700, color: '#d97706' }}>imekaa siku {waited}</span>}
+              <span data-testid="row-next" style={{ fontSize: 13, fontWeight: 700, color: TONE[step.tone] }}>{step.label}</span>
+            </span>
+          </span>
+        </button>
+      </li>
+    );
+  };
+
+  // A POS sale row: receipt, items, the shipping number once sent, and the next step.
+  const renderPosRow = (x) => {
+    const sent = !!x.shipmentTrackingNumber;
+    const wait = posToShip.has(Number(x.id)) && !sent && x.status !== 'voided';
+    const waited = wait ? daysWaiting(x.createdAt) : 0;
+    const next = x.status === 'voided' ? 'Imefutwa' : sent ? `Imetumwa · ${x.shipmentTrackingNumber}` : wait ? 'Itume' : 'Amechukua dukani';
+    return (
+      <li key={`p-${x.id}`}>
+        <button type="button" data-testid={`pos-row-${x.id}`} onClick={() => setPosOpenId(x.id)}
+          style={{ display: 'flex', gap: 12, width: '100%', padding: '12px 16px', border: 'none', borderBottom: `1px solid ${LINE}`,
+            background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: INK }}>
+          <span style={{ width: 48, height: 48, borderRadius: 10, background: LINE, flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              <strong style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(x.items || []).map((i) => i.productName).join(', ') || x.receiptNumber}</strong>
+              <strong style={{ fontSize: 15, flexShrink: 0 }}>{money(x.total)}</strong>
+            </span>
+            <span style={{ fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[`#${x.receiptNumber}`, x.customerName || 'Mteja wa dukani', shortWhen(x.createdAt)].filter(Boolean).join(' · ')}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: '1px solid #cfd9de', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>POS</span>
+              {waited >= 2 && <span data-testid="row-age" style={{ fontSize: 12, fontWeight: 700, color: '#d97706' }}>imekaa siku {waited}</span>}
+              <span data-testid="row-next" style={{ fontSize: 13, fontWeight: 700, color: wait ? BLUE : MUTED }}>{next}</span>
+            </span>
+          </span>
+        </button>
+      </li>
+    );
+  };
+
+  // A POS sale opened: the receipt, what was sold, and the shipping number with a copy button.
+  const renderPosDetail = (x) => {
+    const sent = !!x.shipmentTrackingNumber;
+    const wait = posToShip.has(Number(x.id)) && !sent && x.status !== 'voided';
+    const btn = { height: 40, padding: '0 16px', borderRadius: 20, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' };
+    return (
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 720, margin: '0 auto' }}>
+        <div style={{ fontSize: 13, color: MUTED }}>Risiti #{x.receiptNumber} · {shortWhen(x.createdAt)}</div>
+        <div style={{ fontSize: 16, fontWeight: 800 }}>{x.customerName || 'Mteja wa dukani'}{x.customerPhone ? ` · ${x.customerPhone}` : ''}</div>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {(x.items || []).map((i, idx) => (
+            <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 14 }}>
+              <span>{i.productName}{Number(i.quantity) > 1 ? ` x${i.quantity}` : ''}</span>
+              <span>{money((Number(i.unitPrice) || 0) * (Number(i.quantity) || 0))}</span>
+            </li>
+          ))}
+        </ul>
+        <div style={{ fontSize: 15, fontWeight: 800 }}>Jumla: {money(x.total)}</div>
+        {sent ? (
+          <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 13, color: MUTED }}>Namba ya mzigo</div>
+            <div data-testid="pos-tracking" style={{ fontSize: 18, fontWeight: 800, wordBreak: 'break-all' }}>{x.shipmentTrackingNumber}</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" data-testid="pos-copy" onClick={() => copyText(x.shipmentTrackingNumber)}
+                style={{ ...btn, border: 'none', background: INK, color: '#fff' }}>Nakili namba</button>
+              <button type="button" onClick={() => onNavigate(`TrackParcel-${x.shipmentTrackingNumber}`)}
+                style={{ ...btn, border: '1px solid #cfd9de', background: '#fff', color: INK }}>Fuatilia mzigo</button>
+            </div>
+          </div>
+        ) : wait ? (
+          <button type="button" data-testid="pos-detail-ship" onClick={() => onNavigate('SellerShipment', shipPrefillFor(x))}
+            style={{ height: 48, borderRadius: 24, border: 'none', background: BLUE, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Tuma mzigo</button>
+        ) : null}
+      </div>
+    );
+  };
 
   const runAction = (o, action) => {
     if (action === 'engine') onNavigate('SellerShipment', orderToSend(o));
@@ -606,7 +744,12 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#fff', color: INK, paddingBottom: 90 }}>
-      {open ? (
+      {posOpen ? (
+        <>
+          <BackBar onBack={() => setPosOpenId(null)} title={`Mauzo #${posOpen.receiptNumber}`} top={0} />
+          {renderPosDetail(posOpen)}
+        </>
+      ) : open ? (
         <>
           <BackBar onBack={() => setOpenId(null)} title={`Agizo #${open.id}`} top={0} />
           {notices}
@@ -634,55 +777,23 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
             })}
           </nav>
           <div style={{ maxWidth: 720, margin: '0 auto' }}>
-            <div style={{ display: 'flex', gap: 8, padding: '12px 16px' }}>
-              {[['all', 'Zote'], ['market', 'Sokoni'], ['mine', 'Mauzo yangu'], ['pos', 'POS']].map(([k, label]) => (
-                <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}
-                  style={{ height: 32, padding: '0 14px', borderRadius: 16, fontFamily: 'inherit', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    border: kind === k ? 'none' : '1px solid #cfd9de', background: kind === k ? INK : '#fff', color: kind === k ? '#fff' : INK }}>{label}</button>
-              ))}
-            </div>
             {notices}
-            {/* POS sales to send (owner 2026-11-03): ordinary rows at the top of "Za kutuma", under the tabs. */}
-            {kind !== 'pos' && kind !== 'market' && (
-              <PosSalesToShip onNavigate={onNavigate} visible={shownTab === 'send'} onCount={setPosWaiting} />
-            )}
-            {/* Owner 2026-11-02: every POS sale is seen in Maagizo too. */}
-            {kind === 'pos' ? <PosSalesList onNavigate={onNavigate} /> : loading ? <PageLoading label="Inapakia maagizo" /> : list.length === 0 ? (
-              shownTab === 'send' && posShown > 0 ? null :
+            {loading ? <PageLoading label="Inapakia maagizo" /> : rows.length === 0 ? (
               <div style={{ padding: '48px 24px', textAlign: 'center', color: MUTED, fontSize: 15 }}>
                 {shownTab === 'send' ? 'Hakuna agizo la kutuma sasa.' : shownTab === 'way' ? 'Hakuna agizo njiani.' : shownTab === 'done' ? 'Bado hakuna agizo lililofika.' : 'Hakuna agizo lenye tatizo.'}
               </div>
             ) : (
               <ul data-testid="order-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                {list.map((o) => {
-                  const step = nextStep(o);
-                  const photo = o.product?.images?.[0];
-                  const highlighted = Number(highlightOrderId) === o.id;
+                {rows.map((r, i) => {
+                  const head = dayGroupOf(r.at);
+                  const prevHead = i > 0 ? dayGroupOf(rows[i - 1].at) : null;
                   return (
-                    <li key={o.id} ref={highlighted ? highlightRef : null}>
-                      <button type="button" data-testid={`order-${o.id}`} onClick={() => setOpenId(o.id)}
-                        style={{ display: 'flex', gap: 12, width: '100%', padding: '12px 16px', border: 'none', borderBottom: `1px solid ${LINE}`,
-                          background: highlighted ? '#eff6ff' : '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', color: INK }}>
-                        {photo ? <img src={photo} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
-                          : <span style={{ width: 48, height: 48, borderRadius: 10, background: LINE, flexShrink: 0 }} />}
-                        <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                          <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <strong style={{ fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{itemName(o)}</strong>
-                            <strong style={{ fontSize: 15, flexShrink: 0 }}>{money(o.totalAmount)}</strong>
-                          </span>
-                          <span style={{ fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {[buyerName(o), placeOf(o), shortWhen(o.createdAt)].filter(Boolean).join(' · ')}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: '1px solid #cfd9de', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{isManualOrder(o) ? 'Mauzo yangu' : 'Sokoni'}</span>
-                            {payLabel(o) && (
-                              <span data-testid="row-pay" style={{ fontSize: 12, fontWeight: 700, color: TONE[payLabel(o).tone], background: payLabel(o).tone === 'green' ? '#f0fdf4' : '#fffbeb', borderRadius: 10, padding: '1px 8px', flexShrink: 0 }}>{payLabel(o).text}</span>
-                            )}
-                            <span data-testid="row-next" style={{ fontSize: 13, fontWeight: 700, color: TONE[step.tone] }}>{step.label}</span>
-                          </span>
-                        </span>
-                      </button>
-                    </li>
+                    <React.Fragment key={r.key}>
+                      {head !== prevHead && (
+                        <li role="presentation" data-testid="day-group" style={{ padding: '14px 16px 6px', fontSize: 13, fontWeight: 800, color: MUTED, background: '#f8fafc' }}>{head}</li>
+                      )}
+                      {r.kind === 'pos' ? renderPosRow(r.s) : renderOrderRow(r.o)}
+                    </React.Fragment>
                   );
                 })}
               </ul>
