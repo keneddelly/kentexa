@@ -490,13 +490,26 @@ export class SellerService {
 
   /** The seller's orders page: every order, newest first (up to 500), with the buyer and product. */
   async getSellerOrders(sellerId: number, commerceProfileId?: number) {
-    return this.sellerOrdersQuery(sellerId, commerceProfileId)
+    const orders = await this.sellerOrdersQuery(sellerId, commerceProfileId)
       .addSelect(['p.id', 'p.name', 'p.images', 'p.weightKg', 'p.productType', 'p.workspaceId'])
       .leftJoin('o.buyer', 'b')
       .addSelect(['b.id', 'b.name', 'b.phone'])
       .orderBy('o.createdAt', 'DESC')
       .take(500)
       .getMany();
+    // "Uza tena": name and phone of the reseller whose link sold the order (one query for the list).
+    const resellerIds = [...new Set(orders.map((o: any) => Number(o.resellerUserId)).filter((id) => id > 0))];
+    if (resellerIds.length) {
+      const rows: any[] = await this.profileRepo.manager
+        .query(`SELECT id, name, phone FROM public."user" WHERE id = ANY($1::int[])`, [resellerIds])
+        .catch(() => []);
+      const byId = new Map(rows.map((r) => [Number(r.id), r]));
+      orders.forEach((o: any) => {
+        const r = byId.get(Number(o.resellerUserId));
+        if (r) { o.resellerName = r.name || null; o.resellerPhone = r.phone || null; }
+      });
+    }
+    return orders;
   }
 
   async getDashboardStats(user: User, commerceProfileId?: number) {
