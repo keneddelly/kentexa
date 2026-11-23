@@ -1,0 +1,45 @@
+/**
+ * Native push (Firebase Cloud Messaging) for the Android app.
+ *
+ * Registers this phone's FCM token with the signed-in account so the server
+ * can push notifications (messages, orders, comments, likes, Moments).
+ * iOS waits for the Apple Developer account. Push is optional: nothing here
+ * may block sign-in or sign-out.
+ */
+import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { api } from '../api/client';
+
+let lastToken: string | null = null;
+
+export async function registerForPush(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  try {
+    let { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
+    if (status !== 'granted') return;
+
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Kentexa',
+      importance: Notifications.AndroidImportance.HIGH,
+    });
+
+    const device = await Notifications.getDevicePushTokenAsync();
+    if (typeof device.data !== 'string' || !device.data) return;
+    lastToken = device.data;
+    await api.post('/notifications/device-token', { token: device.data, platform: 'android' });
+  } catch {
+    /* push is optional; sign-in must still work */
+  }
+}
+
+export async function unregisterPush(): Promise<void> {
+  const token = lastToken;
+  lastToken = null;
+  if (!token) return;
+  try {
+    await api.post('/notifications/device-token/remove', { token });
+  } catch {
+    /* signing out must still work */
+  }
+}
