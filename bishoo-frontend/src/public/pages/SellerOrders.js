@@ -671,6 +671,12 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 ? <Spinner size={18} color="#fff" /> : ACTION_LABEL[step.action]}
             </button>
           )}
+          {step.action === 'engine' && (
+            <button type="button" data-testid="sent-myself" onClick={() => openShipModal(o)} disabled={actionLoading}
+              style={pillBtn('#fff', INK, '1px solid #cfd9de')}>
+              Nimetuma mwenyewe
+            </button>
+          )}
           {codOwed && (
             <button type="button" data-testid="cod-collect" onClick={() => handleCollectCodBalance(o.id)} disabled={collectingCodId === o.id}
               style={pillBtn('#fff', INK, '1px solid #cfd9de')}>
