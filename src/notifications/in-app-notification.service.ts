@@ -22,6 +22,16 @@ export interface NotifyTarget {
   name?: string;
 }
 
+// Notifications show a short line. A long post or message must not be shown in full
+// in the list or in a push; the full text stays on the post itself.
+export const NOTIFICATION_BODY_MAX = 500;
+export const NOTIFICATION_EXCERPT_MAX = 160;
+
+export function excerpt(text: string | null | undefined, max: number): string {
+  const t = (text || '').replace(/\s+/g, ' ').trim();
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
 @Injectable()
 export class InAppNotificationService {
   constructor(
@@ -226,7 +236,7 @@ export class InAppNotificationService {
         userId: params.userId,
         type: params.type,
         title: params.title,
-        body: params.body,
+        body: excerpt(params.body, NOTIFICATION_BODY_MAX),
         icon: params.icon || '🔔',
         actionPage: params.actionPage || null,
         actionParam: params.actionParam || null,
@@ -250,7 +260,7 @@ export class InAppNotificationService {
     this.push
       .sendToUser(params.userId, {
         title: params.title,
-        body: params.body,
+        body: excerpt(params.body, NOTIFICATION_BODY_MAX),
         icon: '/logo512.png',
         // The app's URL router has no ?page= handler. Open the notification
         // inbox so the user can follow the existing role-aware action link.
@@ -516,7 +526,7 @@ export class InAppNotificationService {
       userId: followerUserId,
       type: NotificationType.ORDER_PLACED,
       title: `📢 ${businessName}`,
-      body: postTitle,
+      body: excerpt(postTitle, NOTIFICATION_EXCERPT_MAX),
       actionPage: 'CommerceProfile',
       actionParam: feedPostId ? `${sellerId}-feed-${feedPostId}` : String(sellerId),
       actionCommerceProfileId: commerceProfileId || undefined,
