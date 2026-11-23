@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../api/client';
+import { WEB_URL } from '../config';
 import { useAuth } from '../auth/AuthContext';
 import PostCard, { Avatar, Post, ago } from '../components/PostCard';
 import ArticleView from '../components/ArticleView';
@@ -19,7 +20,7 @@ import type { RootStackParams } from '../navigation/types';
 type Comment = {
   id: number; body?: string; createdAt?: string; helpfulCount?: number; likedByMe?: boolean; authorId?: number;
   author?: { name?: string | null; avatarUrl?: string | null; storeName?: string | null } | null;
-  commerceProfile?: { displayName?: string | null; photoUrl?: string | null } | null;
+  commerceProfile?: { id?: number; displayName?: string | null; photoUrl?: string | null } | null;
   replies?: Comment[];
 };
 
@@ -27,13 +28,18 @@ const identity = (c: Comment) => (c.commerceProfile
   ? { name: c.commerceProfile.displayName || c.author?.storeName || c.author?.name || 'Mtumiaji', photo: c.commerceProfile.photoUrl || c.author?.avatarUrl }
   : { name: c.author?.name || 'Mtumiaji', photo: c.author?.avatarUrl });
 
-function CommentRow({ c, reply, ownerId, onReply, onLike, liked, count }: { c: Comment; reply?: boolean; ownerId?: number; onReply: () => void; onLike: () => void; liked: boolean; count: number }) {
+function CommentRow({ c, reply, ownerId, onReply, onLike, onProfile, liked, count }: { c: Comment; reply?: boolean; ownerId?: number; onReply: () => void; onLike: () => void; onProfile: () => void; liked: boolean; count: number }) {
   const who = identity(c);
   return (
     <View style={[s.comment, reply && { paddingLeft: 62 }]}>
-      <Avatar uri={who.photo} name={who.name} size={reply ? 28 : 40} />
+      <Pressable onPress={onProfile} accessibilityRole="link" accessibilityLabel={`Fungua wasifu wa ${who.name}`}>
+        <Avatar uri={who.photo} name={who.name} size={reply ? 28 : 40} />
+      </Pressable>
       <View style={{ flex: 1, gap: 3 }}>
-        <Text style={type.meta} numberOfLines={1}><Text style={type.name}>{who.name}</Text>{ownerId && c.authorId === ownerId ? ' · mwandishi' : ''} · {ago(c.createdAt)}</Text>
+        <Text style={type.meta} numberOfLines={1}>
+          <Text onPress={onProfile} style={type.name} accessibilityRole="link">{who.name}</Text>
+          {ownerId && c.authorId === ownerId ? ' · mwandishi' : ''} · {ago(c.createdAt)}
+        </Text>
         <Text style={type.body}>{c.body}</Text>
         <View style={{ flexDirection: 'row', gap: 22, marginTop: 4 }}>
           <Pressable onPress={onReply} hitSlop={8}><Text style={s.link}>Jibu</Text></Pressable>
@@ -51,6 +57,12 @@ export default function PostScreen({ route, navigation }: NativeStackScreenProps
   const id = Number(route.params.id);
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  // Opens the commenter's profile on the web page (the native profile comes with N4).
+  const openProfile = (c: Comment) => {
+    if (!c.authorId) return;
+    const q = c.commerceProfile?.id ? `?commerceProfileId=${c.commerceProfile.id}` : '';
+    navigation.navigate('Web', { url: `${WEB_URL}/p/CommerceProfile-${c.authorId}${q}`, title: identity(c).name });
+  };
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'missing'>('loading');
@@ -115,7 +127,8 @@ export default function PostScreen({ route, navigation }: NativeStackScreenProps
         renderItem={({ item }) => {
           const l = likeOf(item.c);
           return <CommentRow c={item.c} reply={item.reply} ownerId={ownerId} liked={l.liked} count={l.count}
-            onLike={() => like(item.c)} onReply={() => setReplyTo({ id: item.root.id, name: identity(item.c).name })} />;
+            onLike={() => like(item.c)} onReply={() => setReplyTo({ id: item.root.id, name: identity(item.c).name })}
+            onProfile={() => openProfile(item.c)} />;
         }}
         ListEmptyComponent={<Text style={[type.meta, { padding: 16 }]}>Bado hakuna majibu. Kuwa wa kwanza kujibu.</Text>}
         keyboardShouldPersistTaps="handled"

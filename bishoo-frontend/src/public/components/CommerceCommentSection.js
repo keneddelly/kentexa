@@ -166,6 +166,8 @@ const CommentRow = ({
   // (name/avatar, never storeName/logo) -- see commenterIdentity().
   const { name: commenterName, photo: commenterPhoto } = commenterIdentity(c);
   const commenterNavParams = c.commerceProfile?.id ? { commerceProfileId: c.commerceProfile.id } : undefined;
+  // The commenter's photo and name both open their profile (owner 2026-11-23: comments were not clickable).
+  const openCommenter = () => c.author?.id && onNavigate(`CommerceProfile-${c.author.id}`, commenterNavParams);
 
   const submitReply = async () => {
     if (!replyBody.trim()) return;
@@ -185,7 +187,7 @@ const CommentRow = ({
   return (
     <div style={{ padding: '14px', borderBottom: '1px solid #F8FAFC' }}>
       <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={() => c.author?.id && onNavigate(`CommerceProfile-${c.author.id}`, commenterNavParams)}
+        <button type="button" aria-label={commenterName || undefined} onClick={openCommenter}
           style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, border: 'none',
             padding: 0, cursor: 'pointer', overflow: 'hidden', backgroundColor: B,
             display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -198,9 +200,10 @@ const CommentRow = ({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>
+            <button type="button" onClick={openCommenter} disabled={!c.author?.id}
+              style={{ fontSize: 13, fontWeight: 800, color: DK, background: 'none', border: 'none', padding: 0, cursor: c.author?.id ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left' }}>
               {commenterName || t('comment_section.user_fallback')}
-            </span>
+            </button>
             {c.type === 'question' && (
               <span style={{ fontSize: 12, fontWeight: 700, color: '#0f1419', backgroundColor: '#f7f9f9',
                 padding: '2px 8px', borderRadius: 100 }}>{t('comment_section.question_badge')}</span>
@@ -268,9 +271,11 @@ const CommentRow = ({
               backgroundColor: '#F8FAFC', borderRadius: 10, borderLeft: `3px solid ${B}` }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: B }}>
+                  <button type="button" disabled={!r.author?.id}
+                    onClick={() => r.author?.id && onNavigate(`CommerceProfile-${r.author.id}`, r.commerceProfile?.id ? { commerceProfileId: r.commerceProfile.id } : undefined)}
+                    style={{ fontSize: 12, fontWeight: 800, color: B, background: 'none', border: 'none', padding: 0, cursor: r.author?.id ? 'pointer' : 'default', fontFamily: 'inherit', textAlign: 'left' }}>
                     {r.commerceProfile?.displayName || r.author?.name || t('comment_section.seller_fallback')}
-                  </span>
+                  </button>
                   <span style={{ fontSize: 12, fontWeight: 700, color: WH, backgroundColor: B,
                     padding: '1px 7px', borderRadius: 100 }}>{t('comment_section.seller_badge')}</span>
                   <span style={{ fontSize: 12, color: GR }}>{ago(r.createdAt, t)}</span>
