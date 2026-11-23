@@ -760,12 +760,21 @@ export class OrdersService {
     // per seller instead, from notifySellersOfDirectCheckout()).
     try {
       if (saved.seller?.id && !(opts.checkout && direct)) {
+        // "Uza tena": the seller's message names the reseller (short) so the order is clear.
+        let resellerLabel: string | null = null;
+        if (resale?.resellerUserId) {
+          const [ru] = await this.repo.manager
+            .query(`SELECT name FROM public."user" WHERE id = $1::int`, [resale.resellerUserId])
+            .catch(() => []);
+          resellerLabel = shortResellerName(ru?.name);
+        }
         await this.inAppNotif.orderPlacedById(
           saved.seller.id,
           saved.id,
           saved.trackingNumber || `KTX-ORD-${saved.id}`,
           saved.product?.name || (saved as any).manualProductName || 'Bidhaa',
           (saved as any).commerceProfileId ?? null,
+          resellerLabel,
         );
       }
     } catch {
@@ -4080,4 +4089,12 @@ export class OrdersService {
       shippingMethod: order.shippingMethod,
     };
   }
+}
+
+/** A reseller's name shortened for a message: "Neema Mwakasege" -> "Neema M." (max 18 characters). */
+export function shortResellerName(name: unknown): string {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'muuzaji wa kiungo';
+  const short = parts.length > 1 ? `${parts[0]} ${parts[1][0].toUpperCase()}.` : parts[0];
+  return short.length > 18 ? `${short.slice(0, 17).trimEnd()}…` : short;
 }

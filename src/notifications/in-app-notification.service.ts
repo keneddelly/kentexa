@@ -669,12 +669,15 @@ export class InAppNotificationService {
     trackingNumber: string,
     productName: string,
     sellerCommerceProfileId?: number | null,
+    resellerLabel?: string | null,
   ) {
     await this.notify({
       userId: sellerId,
       type: NotificationType.ORDER_PLACED,
       title: '🛒 Agizo Jipya!',
-      body: `Agizo jipya la "${productName}" limepokelewa. Nambari: ${trackingNumber}`,
+      body: resellerLabel
+        ? `Agizo jipya la "${productName}" kupitia ${resellerLabel}. Nambari: ${trackingNumber}`
+        : `Agizo jipya la "${productName}" limepokelewa. Nambari: ${trackingNumber}`,
       actionPage: 'SellerOrders',
       actionParam: String(orderId),
       actionCommerceProfileId: sellerCommerceProfileId || undefined,
