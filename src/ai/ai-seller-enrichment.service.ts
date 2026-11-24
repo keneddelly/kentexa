@@ -44,6 +44,7 @@ export class AiSellerEnrichmentService {
       bio,
       category: profile.category || null,
       listingTitles: titles,
+      imageUrl: profile.imageUrl || null,
       activeTopics,
     });
 
