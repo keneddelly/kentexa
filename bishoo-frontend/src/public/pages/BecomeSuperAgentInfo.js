@@ -6,7 +6,6 @@ import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import { identityState, needsIdentityStep, afterIdentitySent } from '../../utils/identityState';
 import useIdentityRefresh from '../../utils/useIdentityRefresh';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
-import { getPhonePosition } from '../../utils/phoneLocation';
 import { openRolePage } from '../../utils/workRoles';
 
 
@@ -28,13 +27,11 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
   const idWaiting = isLoggedIn && identityState(identityStatus) === 'waiting';
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
-  // The office's place comes from the place list and its map point from the
-  // phone's GPS (both required); the phone is the account's, not asked again.
+  // The office's place comes from the place list. Its GPS point is not asked here: the
+  // office sets it later, at the office, from the dashboard banner. The phone is the account's.
   const [form, setForm] = useState({ businessName: '', address: '' });
   const [placeText, setPlaceText] = useState('');
   const [place, setPlace] = useState(null);       // picked place (placeRef + regionName)
-  const [point, setPoint] = useState(null);       // { latitude, longitude, accuracyM }
-  const [locating, setLocating] = useState(false);
   const accountPhone = currentUser?.phone || '';
 
   // Pre-fill the name/landmark the platform already knows.
@@ -46,13 +43,6 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
       businessName: prev.businessName || currentUser.storeName        || '',
     }));
   }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const takePoint = async () => {
-    setLocating(true); setError('');
-    try { setPoint(await getPhonePosition()); }
-    catch (err) { setError(err?.code ? t(`pickup_pin.error_${err.code}`) : t('pickup_pin.error_unavailable')); }
-    finally { setLocating(false); }
-  };
 
   useEffect(() => {
     if (!isLoggedIn) { setCheckingStatus(false); return; }
@@ -76,7 +66,6 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
         businessName: form.businessName.trim(),
         address: form.address.trim(),
         place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId },
-        ...(point ? { officePoint: { latitude: point.latitude, longitude: point.longitude, accuracyM: point.accuracyM } } : {}),
       });
       // A new office waits for admin approval: show its "pending" status here
       // instead of opening an office dashboard it cannot use yet.
@@ -140,12 +129,6 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
             <IntelligentLocationInput label={t('office_signup.place_label')} value={placeText} onTextChange={setPlaceText}
               onResolved={setPlace} placeholder={t('office_signup.place_placeholder')} required />
             {place?.regionName && <div style={{ fontSize: 13, color: K.GREEN, marginTop: -6 }}>{place.regionName}</div>}
-          </div>
-          <div data-testid="office-signup-point" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 14, color: K.MUTED }}>{t('office_point.explain')}</span>
-            <button type="button" onClick={takePoint} disabled={locating} style={pillStyle(!point, locating)}>
-              {locating ? t('pickup_pin.locating') : point ? t('office_signup.point_taken', { m: Math.round(point.accuracyM || 0) }) : t('office_point.button')}
-            </button>
           </div>
           <Field label={t('office_signup.landmark_label')}>
             <textarea rows={2} placeholder={t('become_super_agent_info.address_placeholder')} value={form.address}
