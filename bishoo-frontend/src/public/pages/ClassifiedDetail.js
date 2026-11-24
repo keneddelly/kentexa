@@ -161,7 +161,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   useEffect(() => {
     if (!classified) return undefined;
     const name = String(classified.title || 'Tangazo').trim();
-    const description = String(classified.description || `Tazama tangazo la ${name} kwenye Kentexa Tanzania.`).replace(/\\s+/g, ' ').slice(0, 160);
+    const description = String(classified.description || `Tazama tangazo la ${name} kwenye Kentexa Tanzania.`).replace(/\s+/g, ' ').slice(0, 160);
     const canonical = `${window.location.origin}${window.location.pathname}`;
     const image = absoluteImageUrl(classified.images?.[0]);
     const price = Number(classified.price);
