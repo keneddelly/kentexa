@@ -59,21 +59,41 @@
   "background_color": "#0f172a",
   "scope": "/",
   "lang": "sw",
-  "categories": ["shopping", "finance", "business"],
+  "categories": [
+    "shopping",
+    "finance",
+    "business"
+  ],
   "shortcuts": [
     {
       "name": "Fuatilia Kifurushi",
       "short_name": "Fuatilia",
       "description": "Fuatilia bidhaa yako",
       "url": "/?track=",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "Tuma Kifurushi",
       "short_name": "Tuma",
       "description": "Tuma bidhaa mpya",
       "url": "/?page=SellerShipment",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.app.bishoo"
     }
   ]
 }
