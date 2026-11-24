@@ -27,7 +27,7 @@ describe('related discussions', () => {
     return { svc, wheres };
   };
 
-  it('same community first, then same topic, under the viewer\\'s visibility rules', async () => {
+  it("same community first, then same topic, under the viewer's visibility rules", async () => {
     const { svc, wheres } = build({ communityId: 3, topic: 'kilimo' });
     const r = await svc.getRelated(7, null);
     expect(svc.assertCanSeePost).toHaveBeenCalledWith(7, null);
