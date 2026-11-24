@@ -23,6 +23,8 @@ module.exports = {
       // Firebase (push): one file holds both apps (com.app.bishoo and com.kentexa.app.test).
       googleServicesFile: './google-services.json',
       versionCode,
+      // Resize (not pan) when the keyboard opens, so the chat composer stays above it.
+      softwareKeyboardLayoutMode: 'resize',
       adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#1d4ed8' },
       intentFilters: [{
         action: 'VIEW',

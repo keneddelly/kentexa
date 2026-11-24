@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type InboxMode, type Msg, isMine, listMessages, sendMessage } from '../api/inbox';
 import { ApiError } from '../api/client';
 import { colors, type } from '../theme';
@@ -21,6 +22,9 @@ export default function ThreadScreen({ route, navigation }: P) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const listRef = useRef<FlatList<Msg>>(null);
+  // The composer sits above the phone's bottom bar (Android buttons, iPhone home line),
+  // so the Send button is never hidden under it.
+  const insets = useSafeAreaInsets();
 
   const load = useCallback(async (quiet = false) => {
     try {
@@ -91,7 +95,7 @@ export default function ThreadScreen({ route, navigation }: P) {
         />
       )}
 
-      <View style={s.composer}>
+      <View style={[s.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <TextInput
           style={s.input}
           value={text}
