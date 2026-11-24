@@ -5,6 +5,8 @@ import { api } from '../api/client';
 import { tokens } from '../api/tokens';
 import { VARIANT } from '../config';
 
+const KENTEXA_NOTIFICATION_CHANNEL = 'kentexa_updates';
+
 export type PushSetupResult = { status: 'registered' | 'permission_denied' | 'unavailable' | 'error'; message: string };
 function report(message: string) { if (VARIANT === 'test') Alert.alert('Push (test)', message); }
 
@@ -28,7 +30,13 @@ export async function registerForPush(options: { requestPermission?: boolean } =
       permission = await Notifications.requestPermissionsAsync();
     }
     if (permission.status !== 'granted') return { status: 'permission_denied', message: 'Ruhusa ya arifa haijawashwa. Unaweza kuiwasha kwenye mipangilio.' };
-    await Notifications.setNotificationChannelAsync('default', { name: 'Kentexa', importance: Notifications.AndroidImportance.HIGH });
+    await Notifications.setNotificationChannelAsync(KENTEXA_NOTIFICATION_CHANNEL, {
+      name: 'Kentexa updates',
+      importance: Notifications.AndroidImportance.HIGH,
+      sound: 'kentexa_signature_tone.wav',
+      vibrationPattern: [0, 120, 70, 120],
+      enableVibrate: true,
+    });
     const device = await Notifications.getDevicePushTokenAsync();
     if (typeof device.data !== 'string' || !device.data) return { status: 'error', message: 'Simu haijatoa token ya arifa.' };
     await registerTokenValue(device.data);
