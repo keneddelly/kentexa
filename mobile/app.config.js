@@ -44,6 +44,10 @@ module.exports = {
       webUrl: 'https://kentexa.com',
       variant,
     },
-    plugins: ['expo-secure-store', 'expo-notifications'],
+    plugins: [
+      'expo-secure-store',
+      'expo-notifications',
+      ['expo-image-picker', { photosPermission: 'Kentexa inahitaji picha zako kuweka tangazo lako.' }],
+    ],
   },
 };

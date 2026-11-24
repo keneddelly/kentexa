@@ -16,8 +16,8 @@ export function CreateScreen({ navigation }: P) {
   if (!user) return <Empty title="Unda" text="Ingia kuchapisha." action={<Button title="Ingia" onPress={() => navigation.replace('Login')} />} />;
   return (
     <ScrollView contentContainerStyle={s.list}>
-      {[['Chapisho au Makala', '/'], ['Weka tangazo', '/p/CreateClassified'], ['Weka huduma', '/p/PostService'], ['Tuma mzigo', '/p/SendShipment']].map(([t, p]) => (
-        <Button key={t} title={t} dark={false} onPress={() => go(t, p)} />
+      {[['Chapisho au Makala', '/'], ['Weka tangazo', null], ['Weka huduma', '/p/PostService'], ['Tuma mzigo', '/p/SendShipment']].map(([t, p]) => (
+        <Button key={t} title={t} dark={false} onPress={() => (p ? go(t, p) : navigation.replace('CreateClassified'))} />
       ))}
     </ScrollView>
   );

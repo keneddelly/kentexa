@@ -9,6 +9,7 @@ import LoginScreen from '../screens/LoginScreen';
 import WebScreen from '../screens/WebScreen';
 import KaziScreen from '../screens/KaziScreen';
 import { CreateScreen } from '../screens/Placeholders';
+import CreateClassifiedScreen from '../screens/CreateClassifiedScreen';
 import AccountScreen from '../screens/AccountScreen';
 import SearchScreen from '../screens/SearchScreen';
 import InboxScreen from '../screens/InboxScreen';
@@ -59,6 +60,7 @@ export default function RootNavigator() {
     <Stack.Navigator screenOptions={{ headerShadowVisible: false, headerTintColor: colors.ink, headerTitleStyle: { fontFamily: F.black, fontSize: 17 }, headerBackTitle: 'Rudi' }}>
       <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
       <Stack.Screen name="Post" component={PostScreen} options={{ title: 'Chapisho' }} />
+      <Stack.Screen name="CreateClassified" component={CreateClassifiedScreen} options={{ title: 'Weka tangazo' }} />
       <Stack.Screen name="Thread" component={ThreadScreen} options={{ title: 'Mazungumzo' }} />
       <Stack.Screen name="Web" component={WebScreen} options={{ title: 'KenteXa' }} />
       <Stack.Group screenOptions={{ presentation: 'modal' }}>
