@@ -22,11 +22,11 @@ export default function AndroidAppPromo({ languagePickerOpen, page }) {
     startedRef.current = true;
 
     const ua = navigator.userAgent || '';
-    const isAndroidChrome = /Android/i.test(ua) && /Chrome\\//i.test(ua) &&
+    const isAndroidChrome = /Android/i.test(ua) && /Chrome\//i.test(ua) &&
       !/EdgA|OPR|SamsungBrowser|Firefox|CriOS/i.test(ua);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
       window.navigator.standalone === true;
-    const openedFromNativeApp = /[?&]source=android\\b/.test(window.location.search || '') ||
+    const openedFromNativeApp = /[?&]source=android\b/.test(window.location.search || '') ||
       String(document.referrer || '').startsWith('android-app://com.app.bishoo') ||
       sessionStorage.getItem('kx_android_app') === '1';
 

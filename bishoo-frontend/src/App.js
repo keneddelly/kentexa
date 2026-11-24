@@ -1462,7 +1462,7 @@ function App() {
       <AndroidAppPromo languagePickerOpen={showLangPicker} page={page} />
       {canInstall && showInstallPrompt && page === 'Home' && !showLangPicker && !showPostModal &&
         !showMomentModal && !showGuide &&
-        !(environment.android && /Chrome\\//i.test(navigator.userAgent || '') && !/EdgA|OPR|SamsungBrowser|Firefox|CriOS/i.test(navigator.userAgent || '')) &&
+        !(environment.android && /Chrome\//i.test(navigator.userAgent || '') && !/EdgA|OPR|SamsungBrowser|Firefox|CriOS/i.test(navigator.userAgent || '')) &&
         <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} play={playOffer} />}
       {/* Inside the Google Play app: alerts come as the app (owner 2026-11-10). */}
       {environment.androidApp && isLoggedIn && page === 'Home' && !showLangPicker && !showPostModal && !showMomentModal &&
