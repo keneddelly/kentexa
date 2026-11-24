@@ -67,18 +67,25 @@ jobs:
             mobile/package.json
             mobile/package-lock.json
           retention-days: 14
-      # One fixed download page for testers: the newest test APK, opened on the phone.
-      - name: Publish test APK
+      # One fixed download page per app: the newest APK, opened on the phone.
+      - name: Publish APK
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         working-directory: mobile
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk kentexa-test.apk
-          NOTE="KenteXa Test (app ya majaribio). Build ${VERSION_CODE}, commit ${GITHUB_SHA::7}. Inajiweka pembeni ya app ya Play Store."
-          if gh release view app-test >/dev/null 2>&1; then
-            gh release upload app-test kentexa-test.apk --clobber
-            gh release edit app-test --notes "$NOTE"
+          if [ "$APP_VARIANT" = "ofisi" ]; then
+            TAG=app-ofisi; FILE=kentexa-ofisi.apk; TITLE="KenteXa Ofisi APK"
+            NOTE="KenteXa Ofisi (app ya ofisi, majaribio). Build ${VERSION_CODE}, commit ${GITHUB_SHA::7}."
           else
-            gh release create app-test kentexa-test.apk --prerelease --title "KenteXa Test APK" --notes "$NOTE" --target "$GITHUB_SHA"
+            TAG=app-test; FILE=kentexa-test.apk; TITLE="KenteXa Test APK"
+            NOTE="KenteXa Test (app ya majaribio). Build ${VERSION_CODE}, commit ${GITHUB_SHA::7}. Inajiweka pembeni ya app ya Play Store."
           fi
+          cp android/app/build/outputs/apk/release/app-release.apk "$FILE"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$FILE" --clobber
+            gh release edit "$TAG" --notes "$NOTE"
+          else
+            gh release create "$TAG" "$FILE" --prerelease --title "$TITLE" --notes "$NOTE" --target "$GITHUB_SHA"
+          fi
+
