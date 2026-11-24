@@ -150,7 +150,7 @@ export const detectInstallEnvironment = (nav = navigator, win = window) => {
   const safari = ios && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(ua);
   const standalone = Boolean(nav.standalone) || Boolean(win.matchMedia?.('(display-mode: standalone)').matches);
   // Browsers inside WhatsApp, Instagram, Facebook... cannot install: the page must be opened in Chrome or Safari.
-  const inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\\/|; wv\\)/i.test(ua);
+  const inApp = /FBAN|FBAV|Instagram|WhatsApp|Line\/|; wv\)/i.test(ua);
   const android = !ios && /Android/i.test(ua);
   return { ios, mobile, safari, standalone, inApp, android, androidApp: android && isAndroidApp(win) };
 };
@@ -162,7 +162,7 @@ const ANDROID_APP_KEY = 'kx_android_app';
 /** True inside the Google Play app: it opens kentexa.com/?source=android (referrer android-app://). */
 export const isAndroidApp = (win = window) => {
   try {
-    const opened = /[?&]source=android\\b/.test(win.location?.search || '')
+    const opened = /[?&]source=android\b/.test(win.location?.search || '')
       || String(win.document?.referrer || '').startsWith('android-app://com.app.bishoo');
     if (opened) { try { win.sessionStorage.setItem(ANDROID_APP_KEY, '1'); } catch { /* storage blocked */ } return true; }
     return win.sessionStorage?.getItem(ANDROID_APP_KEY) === '1';
