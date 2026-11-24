@@ -89,7 +89,7 @@ const measure = (url) => new Promise((resolve) => {
   img.src = url;
 });
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited, initialCommunityId = null, initialKind = null, initialText = '', onOpenArticle = null }) => {
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile, onNavigate, editPost, onEdited, initialCommunityId = null, initialKind = null, initialText = '', initialTagged = null, onOpenArticle = null }) => {
   const { t } = useTranslation();
   const isEdit = !!editPost;
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
@@ -133,7 +133,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const askTopic = !isEdit && kind !== 'looking_for' && topicList.length > 0 && !communityId;
   const [myItems,   setMyItems]   = useState([]);
   const [loadingItems, setLoadingItems] = useState(!isEdit);
-  const [tagged,    setTagged]    = useState(null); // { type, id, title, price }
+  const [tagged,    setTagged]    = useState(initialTagged || null); // { type, id, title, price }
   const [posting,   setPosting]   = useState(false);
   const [error,     setError]     = useState('');
   // A Moment that reads like a sale becomes a classified ad (owner 2026-10-26: new users

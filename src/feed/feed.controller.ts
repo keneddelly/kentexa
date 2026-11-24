@@ -152,17 +152,19 @@ export class FeedController {
     const poll = isPoll ? assertPollInput(dto.poll) : null;
     // I2B: the acting identity comes from the server-resolved active
     // context, never solely from a client-supplied commerceProfileId.
-    const item = await this.svc.publish(req.user.id, dto, req.roleContext);
-    if (poll && this.polls) {
-      try {
-        await this.polls.create(item.id, dto.title, poll);
-      } catch (err) {
-        // Never leave a poll post without its poll: the post is taken down again.
-        await this.svc.deletePost(req.user.id, item.id).catch(() => {});
-        throw err;
+    // The poll is saved before the service notifies followers or indexes the post, so a
+    // failed poll never reaches anyone. Never leave a poll post without its poll: it is taken down again.
+    const beforeAnnounce = poll && this.polls
+      ? async (created: { id: number }) => {
+        try {
+          await this.polls!.create(created.id, dto.title, poll);
+        } catch (err) {
+          await this.svc.deletePost(req.user.id, created.id).catch(() => {});
+          throw err;
+        }
       }
-    }
-    return item;
+      : undefined;
+    return this.svc.publish(req.user.id, dto, req.roleContext, beforeAnnounce);
   }
 
   // ── Smart Post: the composer's steps (no text kept; see composer-events.ts) ──
