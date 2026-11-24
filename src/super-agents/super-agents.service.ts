@@ -371,8 +371,11 @@ export class SuperAgentsService {
       : null;
     const regionName = String(place?.regionName || '').trim();
     if (!place || !regionName) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.placeRequired);
-    if (!dto?.officePoint) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.pointRequired);
-    const point = readAgentBasePoint(dto.officePoint);
+    // The office point (GPS at the office) is optional at sign-up: the owner can register
+    // from anywhere and set the point later, when at the office, from settings.
+    const point: { latitude: number | null; longitude: number | null } = dto?.officePoint
+      ? readAgentBasePoint(dto.officePoint)
+      : { latitude: null, longitude: null };
     const phone = String(user.phone || '').trim();
     if (!phone) throw new BadRequestException(OFFICE_SIGNUP_MESSAGES.noPhone);
     const address = String(dto?.address || '').trim().slice(0, 300) || place.displayLabel || null;
@@ -394,7 +397,8 @@ export class SuperAgentsService {
       wardId: place.wardId ?? null, wardName: place.wardName ?? null,
       locationLabel: place.displayLabel,
       locationProviderKey: place.providerKey, locationProviderPlaceId: place.providerPlaceId ?? null,
-      latitude: point.latitude, longitude: point.longitude, locationResolutionMethod: OFFICE_POINT_METHOD,
+      latitude: point.latitude, longitude: point.longitude,
+      locationResolutionMethod: point.latitude != null ? OFFICE_POINT_METHOD : null,
       address,
       phone,
       governmentId: dto.governmentId,

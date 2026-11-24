@@ -887,6 +887,19 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
     </div>
   );
 
+  // Banner until the office's GPS point is set (set at the office, from settings).
+  const pointBanner = profile && !profile.officePointByGps ? (
+    <div data-testid="office-point-banner" style={{ margin: '12px 16px 0', padding: '12px 14px', borderRadius: 12,
+      background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Ofisi yako bado haina mahali pa GPS</div>
+      <div style={{ fontSize: 13, color: '#92400e' }}>Ukiwa ofisini, nenda Ofisi yangu na ubonyeze "Weka mahali pa ofisi".</div>
+      <button type="button" onClick={() => onNavigate('SuperAgentSettings')}
+        style={{ alignSelf: 'flex-start', border: 'none', background: '#92400e', color: '#fff', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+        Fungua Ofisi yangu
+      </button>
+    </div>
+  ) : null;
+
   if (!loading && profileStatus === 'pending') return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.pending_title')} top={0} />
@@ -894,6 +907,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><LineIcon name="clock" size={44} color="#536471" /></div>
         <h3 style={{ color: '#1e293b' }}>{t('super_agent_dashboard.pending_title')}</h3>
         <p style={{ color: '#64748b', fontSize: 14 }}>{t('super_agent_dashboard.pending_desc')}</p>
+        {pointBanner}
       </div>
     </div>
   );
@@ -941,6 +955,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.header_title', 'Hub Dashboard')} top={0} />
+      {pointBanner}
 
       {/* Non-blocking identity prompt — existing active agents from before
           Phase 3 never had to complete Level 1 identity; this never

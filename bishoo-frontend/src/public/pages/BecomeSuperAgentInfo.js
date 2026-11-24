@@ -65,7 +65,6 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
   const handleSubmit = async () => {
     if (!form.businessName.trim()) { setError(t('become_super_agent_info.business_name_required')); return; }
     if (!place?.placeRef) { setError(t('office_signup.place_required')); return; }
-    if (!point) { setError(t('office_signup.point_required')); return; }
     if (!isLoggedIn) {
       localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo');
       onNavigate('PublicLogin');
@@ -77,7 +76,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
         businessName: form.businessName.trim(),
         address: form.address.trim(),
         place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId },
-        officePoint: { latitude: point.latitude, longitude: point.longitude, accuracyM: point.accuracyM },
+        ...(point ? { officePoint: { latitude: point.latitude, longitude: point.longitude, accuracyM: point.accuracyM } } : {}),
       });
       // A new office waits for admin approval: show its "pending" status here
       // instead of opening an office dashboard it cannot use yet.
