@@ -68,8 +68,10 @@ export class CommerceProfilesService {
   private async enrichAndIndex(profile: CommerceProfile): Promise<void> {
     try {
       const enrichment = await this.aiEnrichment.enrich({
+        displayName: profile.displayName,
         bio: profile.bio,
         category: profile.category,
+        imageUrl: profile.photoUrl || undefined,
       });
       const aiKeywords = enrichment ? JSON.stringify(enrichment) : null;
       if (aiKeywords) await this.repo.update(profile.id, { aiKeywords });
