@@ -2137,7 +2137,7 @@ export class CvsService {
     // whenever a profile is created or its public identity changes. Never run AI
     // during a visitor's page request; only expose public, approved commerce profiles.
     const businesses = p.topic ? await this.feedRepo.query(
-      `SELECT cp.id, cp.type, cp."displayName", cp.username, cp."photoUrl",
+      `SELECT cp.id, cp."ownerId", cp.type, cp."displayName", cp.username, cp."photoUrl",
               cp.category, cp.location, cp."isVerified"
          FROM public.commerce_profile cp
         WHERE cp.status = 'active'
