@@ -78,15 +78,22 @@ export class FeedController {
     // Social Home part 3: the Jumuiya tab reads the communities this person belongs to.
     const communityIds = filter === 'communities' && userId && this.communities
       ? await this.communities.myCommunityIds(userId) : undefined;
-    return this.cvs.getFilteredFeed({
-      communityIds,
-      topic: typeof topic === 'string' && /^[a-z_]{2,40}$/.test(topic) ? topic : null,
-      filter,
-      userId,
-      city,
-      page: Number(page) || 1,
-      limit: 15,
-    });
+    // Timing for the slow first load (task: measure before fixing). One line per request in
+    // the Render log: filter, page and how many milliseconds the feed took on the server.
+    const startedAt = Date.now();
+    try {
+      return await this.cvs.getFilteredFeed({
+        communityIds,
+        topic: typeof topic === 'string' && /^[a-z_]{2,40}$/.test(topic) ? topic : null,
+        filter,
+        userId,
+        city,
+        page: Number(page) || 1,
+        limit: 15,
+      });
+    } finally {
+      console.log(`[feed-timing] filter=${filter} page=${Number(page) || 1} ms=${Date.now() - startedAt}`);
+    }
   }
 
   // ── Trending feed ─────────────────────────────────────────────────────────
