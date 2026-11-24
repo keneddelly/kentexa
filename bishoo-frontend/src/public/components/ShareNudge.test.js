@@ -29,9 +29,9 @@ test('C: "Mijadala zaidi" and "Jumuiya zinazofanana" at the end of a discussion'
   const onNavigate = jest.fn();
   await act(async () => { render(<RelatedDiscussions postId={7} onNavigate={onNavigate} />); });
   expect(api.get).toHaveBeenCalledWith('/feed/7/related');
-  expect(screen.getByTestId('related-post-9')).toHaveTextContent('SWALI'); // D2: the same cards as the community page
+  expect(screen.getByTestId('related-post-9')).toHaveTextContent('SWALI');
   expect(screen.getByTestId('related-post-9')).toHaveTextContent('Bei ya mahindi leo?');
-  expect(screen.getByTestId('related-post-9')).toHaveTextContent(/Juma\s*· Wakulima/);
+  expect(screen.getByTestId('related-post-9')).toHaveTextContent(/Juma\\s*· Wakulima/);
   expect(screen.getByTestId('related-post-9')).toHaveTextContent('Majibu 4');
   expect(screen.getByTestId('related-community-4')).toHaveTextContent('wanachama 1,200');
   fireEvent.click(screen.getByTestId('related-post-9'));
@@ -40,14 +40,18 @@ test('C: "Mijadala zaidi" and "Jumuiya zinazofanana" at the end of a discussion'
   expect(onNavigate).toHaveBeenCalledWith('Community-4');
 });
 
-test('C: nothing related: nothing shown', async () => {
-  api.get.mockResolvedValueOnce({ data: { discussions: [], communities: [] } });
-  const { container } = render(<RelatedDiscussions postId={7} onNavigate={jest.fn()} />);
-  await act(async () => {});
-  expect(container).toBeEmptyDOMElement();
+test('C: when nothing is related, show discovery destinations instead of an empty page ending', async () => {
+  api.get.mockResolvedValueOnce({ data: { discussions: [], communities: [], businesses: [] } });
+  const onNavigate = jest.fn();
+  await act(async () => { render(<RelatedDiscussions postId={7} onNavigate={onNavigate} />); });
+  expect(screen.getByTestId('discovery-fallback')).toHaveTextContent('Bado hatujapata mapendekezo');
+  fireEvent.click(screen.getByTestId('discover-businesses'));
+  expect(onNavigate).toHaveBeenCalledWith('Stores');
+  fireEvent.click(screen.getByTestId('discover-communities'));
+  expect(onNavigate).toHaveBeenCalledWith('JumuiyaHome');
 });
 
-test('C12: a member\'s invitation message', () => {
+test('C12: a member's invitation message', () => {
   expect(suggestedMessage({ contentType: 'community', words: 'Wakulima Igoma', purpose: 'Mvua na mbegu', invite: true }))
     .toBe('Nimejiunga na Wakulima Igoma kwenye KenteXa. Jiunge nami: Mvua na mbegu');
   expect(suggestedMessage({ contentType: 'community', words: 'Wakulima', invite: true }, 'en')).toBe('I joined Wakulima on KenteXa. Join me');
