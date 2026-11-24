@@ -4,7 +4,8 @@ import { assertMedia, assertComposerText, cleanMedia, assertPublishInput } from 
 
 /** Home Feed phase D, the composer (owner approved 2026-11-02). */
 describe('composer input', () => {
-  const photo = (n: number) => ({ url: `https://cdn/x${n}.jpg`, width: 1200, height: 900 });
+  // Photos come from Kentexa's Cloudinary uploads (see trusted-media.spec.ts).
+  const photo = (n: number) => ({ url: `https://res.cloudinary.com/kentexa/image/upload/x${n}.jpg`, width: 1200, height: 900 });
 
   it('takes up to 4 photos, never 5; each needs its address', () => {
     expect(() => assertMedia([photo(1), photo(2), photo(3), photo(4)])).not.toThrow();

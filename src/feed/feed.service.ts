@@ -147,6 +147,9 @@ export class FeedService {
       visibility?: string;
     },
     roleContext?: RoleContext,
+    // Poll posts pass their poll here. It is saved before anyone is told about the post:
+    // a failure here stops the publish, so followers never hear about a post with no poll.
+    beforeAnnounce?: (item: BusinessFeedItem) => Promise<void>,
   ): Promise<BusinessFeedItem> {
     // Phase A: a publish body is checked before anything is saved (was `dto: any`, unchecked).
     assertPublishInput(dto);
@@ -267,6 +270,8 @@ export class FeedService {
         cvsScore: 0,
       }),
     );
+
+    if (beforeAnnounce) await beforeAnnounce(item);
 
     // Moments are first-class discovery documents. Index the human text so
     // Kentexa AI/semantic search can retrieve what people and businesses are

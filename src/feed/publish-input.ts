@@ -71,6 +71,21 @@ export function assertPublishInput(dto: any): void {
   date(dto.startsAt, 'startsAt');
 }
 
+/** Photos in posts come from Kentexa's own upload (Cloudinary). Any other absolute address is refused. */
+const TRUSTED_MEDIA_HOSTS = ['res.cloudinary.com'];
+
+export function assertTrustedMediaUrl(raw: string): void {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return; // a relative path resolves to Kentexa itself
+  }
+  if (url.protocol !== 'https:' || !TRUSTED_MEDIA_HOSTS.includes(url.hostname)) {
+    throw new BadRequestException('Picha lazima ipakiwe kupitia Kentexa.');
+  }
+}
+
 /** Phase D: up to 4 photos (a Makala: a cover and 4 inside), each a URL with an optional width and height. */
 export function assertMedia(media: unknown, max: number = COMPOSER_LIMITS.photos): void {
   if (media === undefined || media === null) return;
@@ -81,6 +96,7 @@ export function assertMedia(media: unknown, max: number = COMPOSER_LIMITS.photos
       throw new BadRequestException('Kila picha lazima iwe na anwani yake.');
     }
     text((m as any).url, 2000, 'media.url');
+    assertTrustedMediaUrl((m as any).url);
     num((m as any).width, 'media.width');
     num((m as any).height, 'media.height');
   }

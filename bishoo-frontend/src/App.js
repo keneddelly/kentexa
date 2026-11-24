@@ -818,7 +818,9 @@ function App() {
       if (opts?.kind === 'article') { setArticleStart({ communityId: opts?.communityId ?? null, text: opts?.text || '' }); return; }
       setMomentModalMode('selling');
       setMomentCommunityId(opts?.communityId ?? null);
-      setMomentStart(opts?.kind || opts?.text ? { kind: opts.kind || null, text: opts.text || '' } : null);
+      // A detail page (classified, service, transport) opens the composer with its item already tagged.
+      const linked = opts?.type && opts?.id ? { type: opts.type, id: opts.id, title: opts.title || '', price: opts.price ?? null } : null;
+      setMomentStart(opts?.kind || opts?.text || linked ? { kind: opts.kind || null, text: opts.text || '', tagged: linked } : null);
       setShowMomentModal(true);
     },
     momentRefreshKey,
@@ -1402,6 +1404,7 @@ function App() {
           initialCommunityId={momentCommunityId}
           initialKind={momentStart?.kind || null}
           initialText={momentStart?.text || ''}
+          initialTagged={momentStart?.tagged || null}
           activeProfileId={momentActorProfileId(activeProfile) ?? null}
           activeProfile={activeProfile}
           onNavigate={handleNavigate}

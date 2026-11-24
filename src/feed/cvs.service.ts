@@ -106,6 +106,8 @@ export class CvsService {
     const rows: any[] = await this.feedRepo.createQueryBuilder('f')
       .select('f.id', 'id')
       .where('f.id = :postId', { postId })
+      // Archived (deleted) posts take no comments, likes or views.
+      .andWhere('f.isActive = true')
       .andWhere(VISIBLE_TO_VIEWER('f'), { feedViewerId: viewerId || 0 })
       .getRawMany();
     if (!rows.length) throw new NotFoundException('Chapisho halipatikani.');
@@ -120,8 +122,14 @@ export class CvsService {
     toggled: boolean;
     newCvs: number;
   }> {
-    // VIEW is always recorded (no toggle)
+    // VIEW is always recorded (no toggle), but only for a post this viewer may see.
+    // A view on a hidden or archived post is quietly not recorded (no error to the app).
     if (type === EngagementType.VIEW) {
+      try {
+        await this.assertCanSeePost(postId, userId);
+      } catch {
+        return { toggled: false, newCvs: 0 };
+      }
       await this.engageRepo
         .save(this.engageRepo.create({ userId, postId, type }))
         .catch(() => {}); // ignore duplicate
