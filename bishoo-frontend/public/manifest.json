@@ -54,5 +54,11 @@
         }
       ]
     }
+  ],
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "com.app.bishoo"
+    }
   ]
 }
