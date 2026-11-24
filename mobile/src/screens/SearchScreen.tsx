@@ -9,12 +9,20 @@ import type { RootStackParams } from '../navigation/types';
 
 type P = NativeStackScreenProps<RootStackParams>;
 
-type Mode = 'biashara' | 'bidhaa' | 'matangazo';
+type Mode = 'biashara' | 'bidhaa' | 'matangazo' | 'huduma';
 
 const EMPTY_LABEL: Record<Mode, string> = {
   biashara: 'Hakuna biashara',
   bidhaa: 'Hakuna bidhaa',
   matangazo: 'Hakuna matangazo',
+  huduma: 'Hakuna huduma',
+};
+
+const PLACEHOLDER: Record<Mode, string> = {
+  biashara: 'Tafuta biashara au mtu',
+  bidhaa: 'Tafuta bidhaa',
+  matangazo: 'Tafuta matangazo',
+  huduma: 'Tafuta huduma',
 };
 
 /** The endpoint the web search uses for each tab. */
@@ -22,7 +30,18 @@ const ENDPOINT: Record<Mode, string> = {
   biashara: '/profiles/search',
   bidhaa: '/products/search',
   matangazo: '/classifieds/search',
+  huduma: '/services/search',
 };
+
+/** A service offered by a person or business (GET /services/search, the same call the web makes). */
+interface ServiceHit {
+  id: number;
+  title: string;
+  price: number | string | null;
+  priceType: string | null;
+  coverageCity: string | null;
+  images?: string[] | null;
+}
 
 /** A business found by its name or username (GET /profiles/search, the same call the web makes). */
 interface BusinessHit {
@@ -109,7 +128,11 @@ export default function SearchScreen({ navigation }: P) {
     navigation.navigate('Web', { url: `${WEB_URL}/p/ClassifiedDetail-${c.id}`, title: c.title });
   };
 
-  const tabs: Array<[Mode, string]> = [['biashara', 'Biashara'], ['bidhaa', 'Bidhaa'], ['matangazo', 'Matangazo']];
+  const openService = (sv: ServiceHit) => {
+    navigation.navigate('Web', { url: `${WEB_URL}/p/ServiceDetail-${sv.id}`, title: sv.title });
+  };
+
+  const tabs: Array<[Mode, string]> = [['biashara', 'Biashara'], ['bidhaa', 'Bidhaa'], ['matangazo', 'Matangazo'], ['huduma', 'Huduma']];
 
   return (
     <View style={s.wrap}>
@@ -131,7 +154,7 @@ export default function SearchScreen({ navigation }: P) {
         style={s.input}
         value={query}
         onChangeText={setQuery}
-        placeholder={mode === 'biashara' ? 'Tafuta biashara au mtu' : mode === 'bidhaa' ? 'Tafuta bidhaa' : 'Tafuta matangazo'}
+        placeholder={PLACEHOLDER[mode]}
         placeholderTextColor={colors.faint}
         autoCorrect={false}
         returnKeyType="search"
@@ -177,6 +200,23 @@ export default function SearchScreen({ navigation }: P) {
               </Pressable>
             );
           }
+          if (mode === 'huduma') {
+            const priceText = item.priceType === 'free_quote' || item.priceType === 'negotiate' || !Number(item.price)
+              ? 'Bei: kwa makubaliano'
+              : money(item.price);
+            return (
+              <Pressable accessibilityRole="button" onPress={() => openService(item)} style={({ pressed }) => [s.productRow, pressed && { opacity: 0.7 }]}>
+                {item.images?.[0]
+                  ? <Image source={{ uri: item.images[0] }} style={s.thumb} />
+                  : <View style={[s.thumb, s.thumbEmpty]} />}
+                <View style={s.productText}>
+                  <Text style={type.body} numberOfLines={2}>{item.title}</Text>
+                  <Text style={type.meta} numberOfLines={1}>{priceText}</Text>
+                  {!!item.coverageCity && <Text style={type.meta} numberOfLines={1}>{item.coverageCity}</Text>}
+                </View>
+              </Pressable>
+            );
+          }
           return (
             <Pressable accessibilityRole="button" onPress={() => openProduct(item)} style={({ pressed }) => [s.productRow, pressed && { opacity: 0.7 }]}>
               {item.images?.[0]
@@ -195,7 +235,7 @@ export default function SearchScreen({ navigation }: P) {
       />
 
       <Button
-        title="Tafuta huduma na hoteli kwenye ukurasa"
+        title="Tafuta hoteli kwenye ukurasa"
         dark={false}
         onPress={() => navigation.navigate('Web', { url: `${WEB_URL}/p/Search`, title: 'Tafuta' })}
       />
