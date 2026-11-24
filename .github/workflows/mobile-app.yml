@@ -52,26 +52,6 @@ jobs:
       - name: Build APK
         working-directory: mobile/android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
-      - name: Sign test APK with temporary Android debug key
-        run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
-          BUILD_TOOLS="$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)"
-          ZIPALIGN="$ANDROID_HOME/build-tools/$BUILD_TOOLS/zipalign"
-          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner"
-          keytool -genkeypair -v \
-            -keystore "$RUNNER_TEMP/kentexa-test-debug.keystore" \
-            -storepass android -keypass android \
-            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US" -noprompt
-          "$ZIPALIGN" -f -p 4 "$APK" "$RUNNER_TEMP/kentexa-test-aligned.apk"
-          "$APKSIGNER" sign \
-            --ks "$RUNNER_TEMP/kentexa-test-debug.keystore" \
-            --ks-pass pass:android --key-pass pass:android \
-            --ks-key-alias androiddebugkey \
-            --out "$RUNNER_TEMP/kentexa-test-signed.apk" \
-            "$RUNNER_TEMP/kentexa-test-aligned.apk"
-          "$APKSIGNER" verify --verbose "$RUNNER_TEMP/kentexa-test-signed.apk"
-          mv "$RUNNER_TEMP/kentexa-test-signed.apk" "$APK"
       - name: Keep the APK and lock file
         uses: actions/upload-artifact@v4
         with:
