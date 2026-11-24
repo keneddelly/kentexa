@@ -9,11 +9,6 @@ import type { RootStackParams } from '../navigation/types';
 
 type P = NativeStackScreenProps<RootStackParams>;
 
-/** Tafuta (N3 makes it native: Bidhaa, Matangazo, Huduma, Hoteli, Biashara). */
-export function SearchScreen({ navigation }: P) {
-  return <Empty title="Tafuta" text="Bidhaa, matangazo, huduma, hoteli na biashara zinakuja hapa kwenye app." action={<Button title="Tafuta kwenye ukurasa" dark={false} onPress={() => navigation.navigate('Web', { url: `${WEB_URL}/p/Search`, title: 'Tafuta' })} />} />;
-}
-
 /** "+" (N4 makes it native: chapisho, Moment, Makala, tangazo, huduma, tuma mzigo). */
 export function CreateScreen({ navigation }: P) {
   const { user } = useAuth();
