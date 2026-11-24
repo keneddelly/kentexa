@@ -25,7 +25,7 @@ const unlockKentexaNotificationAudio = () => {
 
 const playKentexaNotificationTone = () => {
   const context = kentexaNotificationAudio;
-  if (!context || context.state !== 'running') return;
+  if (!context || context.state !== 'running') return false;
   const now = context.currentTime;
   const notes = [
     { start: 0.00, duration: 0.38, frequency: 659.25 },
@@ -49,6 +49,7 @@ const playKentexaNotificationTone = () => {
       oscillator.stop(end + 0.02);
     }
   }
+  return true;
 };
 
 // ── Push notification subscription ────────────────────────────────────────
@@ -185,7 +186,8 @@ export const usePWA = () => {
     const onUserGesture = () => unlockKentexaNotificationAudio();
     const onServiceWorkerMessage = (event) => {
       if (event.data?.type === 'KENTEXA_PLAY_NOTIFICATION_TONE' && document.visibilityState === 'visible') {
-        playKentexaNotificationTone();
+        const played = playKentexaNotificationTone();
+        event.ports?.[0]?.postMessage({ played: Boolean(played) });
       }
     };
     window.addEventListener('pointerdown', onUserGesture, { once: true, passive: true });
