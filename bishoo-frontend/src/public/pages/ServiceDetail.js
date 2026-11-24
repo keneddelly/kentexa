@@ -15,6 +15,7 @@ import CommerceCommentSection from '../components/CommerceCommentSection';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 import { serviceLink } from '../utils/shareLinks';
 import { formatText, formatTitle } from '../utils/kentexaText';
+import { applyPageSeo, absoluteImageUrl } from '../../utils/pageSeo';
 
 const B = '#1d4ed8';
 const DK = '#0f1419';
@@ -80,6 +81,24 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
     setLoading(true);
     api.get(`/services/${serviceId}`).then((r) => setAd(r.data)).catch(() => setAd(null)).finally(() => setLoading(false));
   }, [serviceId]);
+
+  // Search discovery: service providers get a descriptive, shareable search result page.
+  useEffect(() => {
+    if (!ad) return undefined;
+    const name = String(ad.title || 'Huduma').trim();
+    const provider = ad.commerceProfile?.displayName || ad.provider?.name || '';
+    const description = String(ad.description || `${name} ${ad.coverageCity || ''} kupitia Kentexa Tanzania.`).replace(/\s+/g, ' ').slice(0, 160);
+    const canonical = `${window.location.origin}${window.location.pathname}`;
+    const image = absoluteImageUrl(ad.images?.[0]);
+    const price = Number(ad.price);
+    return applyPageSeo({
+      title: `${name}${ad.coverageCity ? ` – ${ad.coverageCity}` : ''} | Kentexa`, description, canonical, image,
+      jsonLd: { '@context': 'https://schema.org', '@type': 'Service', name, description, url: canonical,
+        ...(image ? { image } : {}), ...(provider ? { provider: { '@type': 'Person', name: provider } } : {}),
+        ...(ad.coverageCity ? { areaServed: { '@type': 'City', name: ad.coverageCity } } : {}),
+        ...(Number.isFinite(price) && price > 0 ? { offers: { '@type': 'Offer', priceCurrency: 'TZS', price: String(price), url: canonical } } : {}) },
+    });
+  }, [ad]);
 
   useEffect(() => {
     if (!openComments || !ad || !commentsRef.current) return;

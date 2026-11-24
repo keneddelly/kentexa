@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
 import { classifiedLink } from '../utils/shareLinks';
 import { formatText, formatTitle } from '../utils/kentexaText';
+import { applyPageSeo, absoluteImageUrl } from '../../utils/pageSeo';
 
 /**
  * ClassifiedDetail — one listing (owner 2026-10-26 redesign, same look as the
@@ -155,6 +156,22 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
     api.get(`/classifieds/${classifiedId}/contact`).then(r => setContactInfo(r.data)).catch(() => {});
   }, [isLoggedIn, classifiedId]);
 
+
+  // Search discovery: give every public classified its own title, canonical URL and structured data.
+  useEffect(() => {
+    if (!classified) return undefined;
+    const name = String(classified.title || 'Tangazo').trim();
+    const description = String(classified.description || `Tazama tangazo la ${name} kwenye Kentexa Tanzania.`).replace(/\s+/g, ' ').slice(0, 160);
+    const canonical = `${window.location.origin}${window.location.pathname}`;
+    const image = absoluteImageUrl(classified.images?.[0]);
+    const price = Number(classified.price);
+    return applyPageSeo({
+      title: `${name} | Tangazo Kentexa Tanzania`, description, canonical, image, type: 'product',
+      jsonLd: { '@context': 'https://schema.org', '@type': 'Product', name, description, url: canonical,
+        ...(image ? { image: [image] } : {}),
+        ...(Number.isFinite(price) && price > 0 ? { offers: { '@type': 'Offer', priceCurrency: 'TZS', price: String(price), availability: 'https://schema.org/InStock', url: canonical } } : {}) },
+    });
+  }, [classified]);
 
   const goBack = () => onNavigate('back');
   const backBar = (
