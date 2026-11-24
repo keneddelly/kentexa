@@ -24,37 +24,21 @@ function openNotificationDestination(raw: unknown) {
   if (!navigationRef.isReady()) { pendingNotificationDestination = raw; return; }
   pendingNotificationDestination = null;
   const path = raw.startsWith('/') ? raw : `/${raw}`;
-  if (path === '/inbox' || path.startsWith('/inbox?')) {
-    navigationRef.navigate('Tabs', { screen: 'Inbox' });
-    return;
-  }
+  if (path === '/inbox' || path.startsWith('/inbox?')) { navigationRef.navigate('Tabs', { screen: 'Inbox' }); return; }
   const post = path.match(/^\/post\/(\d+)(?:[?#].*)?$/);
-  if (post) {
-    navigationRef.navigate('Post', { id: Number(post[1]) });
-    return;
-  }
+  if (post) { navigationRef.navigate('Post', { id: Number(post[1]) }); return; }
   navigationRef.navigate('Web', { url: `${WEB_URL}${path}`, title: 'KenteXa' });
 }
 
 function Gate() {
   const { ready } = useAuth();
   const [update, setUpdate] = useState<{ url: string } | null>(null);
-
   useEffect(() => {
     api.get('/version/app').then((v: any) => {
       if (VERSION_CODE && Number(v?.minVersionCode) > VERSION_CODE && v?.androidUrl) setUpdate({ url: v.androidUrl });
     }).catch(() => {});
   }, []);
-
-  if (update) {
-    return (
-      <View style={s.center}>
-        <Text style={s.title}>Sasisha KenteXa</Text>
-        <Text style={s.text}>Toleo hili la app ni la zamani. Sasisha kupata huduma mpya.</Text>
-        <Button title="Sasisha sasa" onPress={() => Linking.openURL(update.url)} />
-      </View>
-    );
-  }
+  if (update) return <View style={s.center}><Text style={s.title}>Sasisha KenteXa</Text><Text style={s.text}>Toleo hili la app ni la zamani. Sasisha kupata huduma mpya.</Text><Button title="Sasisha sasa" onPress={() => Linking.openURL(update.url)} /></View>;
   if (!ready) return <View style={s.center}><Text style={s.brand}>Kente<Text style={{ color: colors.brand }}>Xa</Text></Text></View>;
   return (
     <NavigationContainer ref={navigationRef} linking={linking} theme={theme} onReady={() => {
@@ -75,26 +59,14 @@ export default function App() {
     'Inter-Bold': require('./assets/fonts/Inter-Bold.otf'),
     'Inter-ExtraBold': require('./assets/fonts/Inter-ExtraBold.otf'),
   });
-
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const destination = response.notification.request.content.data?.url;
-      openNotificationDestination(destination);
+      openNotificationDestination(response.notification.request.content.data?.url);
     });
     return () => subscription.remove();
   }, []);
-
   if (!fontsReady) return <View style={{ flex: 1, backgroundColor: '#fff' }} />;
-  return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <AuthProvider>
-        <EngagementProvider>
-          <Gate />
-        </EngagementProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
-  );
+  return <SafeAreaProvider><StatusBar style="dark" /><AuthProvider><EngagementProvider><Gate /></EngagementProvider></AuthProvider></SafeAreaProvider>;
 }
 
 const s = StyleSheet.create({

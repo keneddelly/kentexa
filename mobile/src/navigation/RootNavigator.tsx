@@ -10,50 +10,35 @@ import WebScreen from '../screens/WebScreen';
 import KaziScreen from '../screens/KaziScreen';
 import { CreateScreen } from '../screens/Placeholders';
 import AccountScreen from '../screens/AccountScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import SearchScreen from '../screens/SearchScreen';
 import InboxScreen from '../screens/InboxScreen';
 import ThreadScreen from '../screens/ThreadScreen';
 import type { RootStackParams, TabParams } from './types';
 
-/**
- * Native navigation (#422 N0, owner: "it should be native with navigations"):
- * - bottom tabs Mwanzo · Tafuta · + · Inbox · Kazi (same bar as the web, owner 2026-11-01); each tab keeps its place;
- * - a native stack on top: Android back button and iOS swipe-back go back one screen;
- * - "+" and Ingia open as sheets from the bottom.
- */
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab = createBottomTabNavigator<TabParams>();
-
 const TAB_ICONS: Record<keyof TabParams, IconName> = { Mwanzo: 'home', Tafuta: 'search', Ongeza: 'plusBox', Inbox: 'inbox', Kazi: 'kazi' };
 
 function Tabs({ navigation }: any) {
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarShowLabel: false,
-        tabBarActiveTintColor: colors.ink,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: { borderTopColor: colors.line },
-        headerTitleAlign: 'center',
-        headerShadowVisible: false,
-        headerStyle: { backgroundColor: '#fff' },
-        headerTitleStyle: { fontFamily: F.black, fontSize: 17, color: colors.ink },
-        tabBarIcon: ({ focused }) => (route.name === 'Mwanzo' && focused
-          ? <Icon name="homeFill" color={colors.ink} fill={colors.ink} size={26} />
-          : <Icon name={TAB_ICONS[route.name as keyof TabParams]} color={colors.ink} strokeWidth={focused ? 2.6 : 1.8} size={route.name === 'Ongeza' ? 28 : 26} />),
-        tabBarAccessibilityLabel: route.name === 'Ongeza' ? 'Tengeneza' : route.name,
-      })}
-    >
+    <Tab.Navigator screenOptions={({ route }) => ({
+      tabBarShowLabel: false, tabBarActiveTintColor: colors.ink, tabBarInactiveTintColor: colors.muted,
+      tabBarStyle: { borderTopColor: colors.line }, headerTitleAlign: 'center', headerShadowVisible: false,
+      headerStyle: { backgroundColor: '#fff' }, headerTitleStyle: { fontFamily: F.black, fontSize: 17, color: colors.ink },
+      tabBarIcon: ({ focused }) => route.name === 'Mwanzo' && focused
+        ? <Icon name="homeFill" color={colors.ink} fill={colors.ink} size={26} />
+        : <Icon name={TAB_ICONS[route.name as keyof TabParams]} color={colors.ink} strokeWidth={focused ? 2.6 : 1.8} size={route.name === 'Ongeza' ? 28 : 26} />,
+      tabBarAccessibilityLabel: route.name === 'Ongeza' ? 'Tengeneza' : route.name,
+    })}>
       <Tab.Screen name="Mwanzo" component={HomeScreen as any} options={{ headerShown: false }} />
       <Tab.Screen name="Tafuta" component={SearchScreen as any} />
-      <Tab.Screen name="Ongeza" component={SearchScreen as any}
-        listeners={{ tabPress: (e) => { e.preventDefault(); navigation.navigate('Create'); } }} />
+      <Tab.Screen name="Ongeza" component={SearchScreen as any} listeners={{ tabPress: (e) => { e.preventDefault(); navigation.navigate('Create'); } }} />
       <Tab.Screen name="Inbox" component={InboxScreen as any} />
       <Tab.Screen name="Kazi" component={KaziScreen as any} />
     </Tab.Navigator>
   );
 }
-
 export default function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShadowVisible: false, headerTintColor: colors.ink, headerTitleStyle: { fontFamily: F.black, fontSize: 17 }, headerBackTitle: 'Rudi' }}>
@@ -65,6 +50,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Ingia' }} />
         <Stack.Screen name="Create" component={CreateScreen} options={{ title: 'Tengeneza' }} />
         <Stack.Screen name="Account" component={AccountScreen} options={{ title: 'Akaunti' }} />
+        <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Arifa' }} />
       </Stack.Group>
     </Stack.Navigator>
   );
