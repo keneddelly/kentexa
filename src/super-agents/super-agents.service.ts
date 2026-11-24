@@ -408,17 +408,27 @@ export class SuperAgentsService {
       shippingRates: {},
     });
 
-    const saved = await this.superAgentRepo.save(agent);
+    // Each step logs its name when it fails, then the error is re-thrown unchanged:
+    // the server log names the failing step, the answer to the app is the same as before.
+    const stage = async <T>(name: string, run: () => Promise<T>): Promise<T> => {
+      try {
+        return await run();
+      } catch (err: any) {
+        console.error(`[office-signup] stage=${name} user=${user.id}: ${err?.message || err}`);
+        throw err;
+      }
+    };
+    const saved = await stage('save-office', () => this.superAgentRepo.save(agent));
 
     // A new office waits for admin approval (approve() activates the office,
     // the account role and the business profile). Existing offices are untouched.
-    await this.roleContextService.syncOperationalRole({
+    await stage('sync-role', () => this.roleContextService.syncOperationalRole({
       userId: user.id,
       roleType: AccountRoleType.SUPER_AGENT,
       status: AccountRoleStatus.PENDING,
       profileType: RoleProfileType.SUPER_AGENT,
       profileId: saved.id,
-    });
+    }));
     await this.commerceProfiles
       .syncStatusByLink('superAgentId', saved.id, CommerceProfileStatus.PENDING)
       .catch(() => {});
