@@ -356,19 +356,23 @@ export class AiPromptTemplateService {
   // titles into searchable metadata beyond the raw embedding vector — used
   // both to enrich the embedding text (SearchIndexService) and as a light
   // relevance signal in seller ranking (SellerRankingService).
-  sellerProfileEnrichPrompt(): PromptTemplate {
+  sellerProfileEnrichPrompt(activeTopics: Array<{ key: string; label: string; note?: string | null; description?: string | null }> = []): PromptTemplate {
+    const topicOptions = activeTopics.map((topic) =>
+      `${topic.key}: ${topic.label}${topic.note ? ` — ${topic.note}` : ''}${topic.description ? ` — ${topic.description}` : ''}`,
+    ).join('; ');
     return {
       system:
-        'You extract structured search metadata from a KenteXa (Tanzania marketplace) ' +
-        'seller/business profile. Given their bio, declared category, and a sample of their ' +
-        'product/listing titles, produce: keywords (5-10 short terms a buyer might actually ' +
-        'search for — synonyms, related items, and use-cases, not just words already in the ' +
-        'bio verbatim), useCases (2-5 short phrases describing who buys from them and why, ' +
-        'e.g. "home security", "gift for a wedding"), and impliedCategories (0-3 category keys ' +
-        'this business likely also serves, beyond their declared one, based on what they ' +
-        'actually sell). Never invent specific products they do not sell. If input is too thin ' +
-        'to infer anything reliably, return empty arrays rather than guessing.\n\n' +
-        `impliedCategories, if any, MUST be exactly from these keys: ${CATEGORY_LIST}.`,
+        'You extract structured discovery metadata from a KenteXa (Tanzania marketplace) ' +
+        'business profile. Consider the business name, bio, declared category, sample product/listing ' +
+        'titles, and attached profile/business image when provided. Use the image only as supporting ' +
+        'evidence; a logo or generic storefront alone does not prove what the business sells. Produce: ' +
+        'keywords (5-10 buyer search terms), useCases (2-5 specific buyer needs), impliedCategories ' +
+        '(0-3 valid marketplace category keys), and topicMatches (0-8 keys from the active Kentexa ' +
+        'topic list that clearly fit what this business actually offers). Match topics conservatively: ' +
+        'do not select broad or unrelated topics, do not infer a business from its name alone when ' +
+        'evidence is weak, and return an empty topicMatches array when uncertain. Never invent products ' +
+        'or services.\n\n' +
+        `Valid impliedCategories: ${CATEGORY_LIST}.\nActive topics (return exact keys only): ${topicOptions || 'none'}.`,
       schema: {
         type: 'object',
         properties: {
@@ -379,8 +383,9 @@ export class AiPromptTemplateService {
             items: { type: 'string', enum: CATEGORY_KEYS },
             maxItems: 3,
           },
+          topicMatches: { type: 'array', items: { type: 'string' }, maxItems: 8 },
         },
-        required: ['keywords', 'useCases', 'impliedCategories'],
+        required: ['keywords', 'useCases', 'impliedCategories', 'topicMatches'],
         additionalProperties: false,
       },
       schemaName: 'seller_profile_enrich',
