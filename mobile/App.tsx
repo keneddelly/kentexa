@@ -16,10 +16,13 @@ import { F, colors } from './src/theme';
 import type { RootStackParams } from './src/navigation/types';
 
 const navigationRef = createNavigationContainerRef<RootStackParams>();
+let pendingNotificationDestination: unknown = null;
 const theme = { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: '#ffffff', primary: colors.ink, border: colors.line, card: '#ffffff', text: colors.ink } };
 
 function openNotificationDestination(raw: unknown) {
-  if (typeof raw !== 'string' || !navigationRef.isReady()) return;
+  if (typeof raw !== 'string') return;
+  if (!navigationRef.isReady()) { pendingNotificationDestination = raw; return; }
+  pendingNotificationDestination = null;
   const path = raw.startsWith('/') ? raw : `/${raw}`;
   if (path === '/inbox' || path.startsWith('/inbox?')) {
     navigationRef.navigate('Tabs', { screen: 'Inbox' });
@@ -54,7 +57,12 @@ function Gate() {
   }
   if (!ready) return <View style={s.center}><Text style={s.brand}>Kente<Text style={{ color: colors.brand }}>Xa</Text></Text></View>;
   return (
-    <NavigationContainer ref={navigationRef} linking={linking} theme={theme}>
+    <NavigationContainer ref={navigationRef} linking={linking} theme={theme} onReady={() => {
+      if (pendingNotificationDestination) openNotificationDestination(pendingNotificationDestination);
+      else Notifications.getLastNotificationResponseAsync().then((response) => {
+        if (response) openNotificationDestination(response.notification.request.content.data?.url);
+      }).catch(() => {});
+    }}>
       <RootNavigator />
     </NavigationContainer>
   );
