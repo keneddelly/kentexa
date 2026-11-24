@@ -93,7 +93,7 @@ describe('PushService native (FCM) delivery', () => {
     });
     expect(mockSend).toHaveBeenCalledWith('own-device', expect.objectContaining({
       title: 'Kentexa',
-      data: { url: '/?notification-settings=1', tag: 'push-test' },
+      data: { url: '/inbox', tag: 'push-test' },
     }));
   });
 
