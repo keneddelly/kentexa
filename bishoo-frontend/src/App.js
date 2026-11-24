@@ -100,6 +100,7 @@ import ContactUs from './public/pages/ContactUs';
 import HowItWorks from './public/pages/HowItWorks';
 import TermsAndConditions from './public/pages/TermsAndConditions';
 import PrivacyPolicy from './public/pages/PrivacyPolicy';
+import AndroidAppPromo from './public/components/AndroidAppPromo';
 
 const decodeToken = (token) => {
   try {
@@ -587,6 +588,7 @@ function App() {
         </div>
       )}
       {showInstallPrompt && <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} />}
+      <AndroidAppPromo languagePickerOpen={showLangPicker} pwaPromptVisible={showInstallPrompt} page={page} />
     </CartProvider>
   );
 }
