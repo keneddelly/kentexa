@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../api/client';
 import { Button, Empty } from '../components/Ui';
@@ -50,6 +50,48 @@ export default function OfisiScreen({ navigation }: P) {
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState('');
+  const [notice, setNotice] = useState('');
+
+  /**
+   * What the office can do right here, per parcel. Same calls the web office page makes:
+   * - pending parcel from a sender: "Pokea" (received at this office);
+   * - parcel on its way to this office: "Imefika" (arrived here).
+   * Sending (dispatch) needs the transport and fare form, so it stays on the web page.
+   */
+  const actionFor = (p: Parcel): 'receive' | 'arrived' | null => {
+    if (p.status === 'pending' && p.myRole !== 'destination') return 'receive';
+    if ((p.status === 'dispatched' || p.status === 'in_transit') && p.myRole === 'destination') return 'arrived';
+    return null;
+  };
+
+  const runAction = (p: Parcel, kind: 'receive' | 'arrived') => {
+    const city = data?.agent?.city;
+    const label = p.customerNumber || p.trackingNumber;
+    const q = encodeURIComponent(p.trackingNumber);
+    const title = kind === 'receive' ? 'Pokea mzigo?' : 'Mzigo umefika?';
+    const body = kind === 'receive' ? `${label} umepokelewa ofisini kwako.` : `${label} umefika ofisini kwako.`;
+    Alert.alert(title, body, [
+      { text: 'Hapana', style: 'cancel' },
+      {
+        text: 'Ndiyo',
+        onPress: async () => {
+          setBusy(p.trackingNumber);
+          setNotice('');
+          try {
+            if (kind === 'receive') await api.patch(`/super-agents/parcels/${q}/status`, { status: 'received_at_hub', city });
+            else await api.patch(`/super-agents/shipments/${q}/arrived`, { city });
+            setNotice(`${label}: imethibitishwa.`);
+            await load();
+          } catch (e: any) {
+            setNotice(e?.message || 'Imeshindikana. Jaribu tena.');
+          } finally {
+            setBusy('');
+          }
+        },
+      },
+    ]);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,16 +171,25 @@ export default function OfisiScreen({ navigation }: P) {
 
       <Text style={[type.name, s.section]}>Mizigo</Text>
       {parcels.length === 0 && <Text style={type.meta}>Hakuna mzigo bado.</Text>}
-      {parcels.map((p) => (
-        <Pressable key={p.trackingNumber} onPress={() => openWeb('/p/SuperAgentDashboard', 'Ofisi')}
-          style={({ pressed }) => [s.row, pressed && { backgroundColor: colors.soft }]} accessibilityRole="button">
-          <View style={{ flex: 1 }}>
-            <Text style={type.name}>{p.customerNumber || p.trackingNumber}</Text>
-            <Text style={type.small}>{STATUS_SW[p.status] || 'Inaendelea'}</Text>
+      {!!notice && <Text style={[type.meta, s.notice]}>{notice}</Text>}
+      {parcels.map((p) => {
+        const act = actionFor(p);
+        const working = busy === p.trackingNumber;
+        return (
+          <View key={p.trackingNumber} style={s.row}>
+            <Pressable onPress={() => openWeb('/p/SuperAgentDashboard', 'Ofisi')} style={{ flex: 1 }} accessibilityRole="button">
+              <Text style={type.name}>{p.customerNumber || p.trackingNumber}</Text>
+              <Text style={type.small}>{STATUS_SW[p.status] || 'Inaendelea'}</Text>
+            </Pressable>
+            {act && (
+              <Pressable onPress={() => runAction(p, act)} disabled={!!busy} accessibilityRole="button"
+                style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.8 }, !!busy && { opacity: 0.5 }]}>
+                <Text style={s.actionText}>{working ? '…' : act === 'receive' ? 'Pokea' : 'Imefika'}</Text>
+              </Pressable>
+            )}
           </View>
-          <Text style={[type.small, { color: GREEN }]}>Fungua</Text>
-        </Pressable>
-      ))}
+        );
+      })}
     </ScrollView>
   );
 }
@@ -164,5 +215,8 @@ const s = StyleSheet.create({
   tileValue: { fontFamily: F.black, fontSize: 24, color: colors.ink },
   tileLabel: { fontFamily: F.regular, fontSize: 13, color: colors.muted, marginTop: 2 },
   section: { marginTop: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
+  actionBtn: { backgroundColor: GREEN, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minWidth: 84, alignItems: 'center' },
+  actionText: { color: '#fff', fontFamily: F.bold, fontSize: 14 },
+  notice: { color: GREEN },
 });
