@@ -178,6 +178,7 @@ const dismissedRecently = () => {
 export const usePWA = () => {
   const [environment] = useState(detectInstallEnvironment);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const playOffer = environment.android && !environment.androidApp && !environment.inApp;
   // A visible web client gets the Kentexa tone; background/closed clients keep
   // the browser's own notification sound and are never forced to play page audio.
   useEffect(() => {
