@@ -9,7 +9,20 @@ import type { RootStackParams } from '../navigation/types';
 
 type P = NativeStackScreenProps<RootStackParams>;
 
-type Mode = 'biashara' | 'bidhaa';
+type Mode = 'biashara' | 'bidhaa' | 'matangazo';
+
+const EMPTY_LABEL: Record<Mode, string> = {
+  biashara: 'Hakuna biashara',
+  bidhaa: 'Hakuna bidhaa',
+  matangazo: 'Hakuna matangazo',
+};
+
+/** The endpoint the web search uses for each tab. */
+const ENDPOINT: Record<Mode, string> = {
+  biashara: '/profiles/search',
+  bidhaa: '/products/search',
+  matangazo: '/classifieds/search',
+};
 
 /** A business found by its name or username (GET /profiles/search, the same call the web makes). */
 interface BusinessHit {
@@ -27,6 +40,15 @@ interface ProductHit {
   displayPrice: number | string | null;
   images?: string[] | null;
   seller?: { name?: string | null; storeName?: string | null } | null;
+}
+
+/** A classified ad (GET /classifieds/search, the same call the web makes). */
+interface ClassifiedHit {
+  id: number;
+  title: string;
+  price: number | string | null;
+  location?: string | null;
+  images?: string[] | null;
 }
 
 const MIN_CHARS = 2;
@@ -61,7 +83,7 @@ export default function SearchScreen({ navigation }: P) {
     setBusy(true);
     const timer = setTimeout(async () => {
       try {
-        const rows: any = await api.get(mode === 'biashara' ? '/profiles/search' : '/products/search', { q });
+        const rows: any = await api.get(ENDPOINT[mode], { q });
         if (cancelled) return;
         setHits(Array.isArray(rows) ? rows : []);
       } catch {
@@ -83,7 +105,11 @@ export default function SearchScreen({ navigation }: P) {
     navigation.navigate('Web', { url: `${WEB_URL}/p/ProductDetail-${p.id}`, title: p.name });
   };
 
-  const tabs: Array<[Mode, string]> = [['biashara', 'Biashara'], ['bidhaa', 'Bidhaa']];
+  const openClassified = (c: ClassifiedHit) => {
+    navigation.navigate('Web', { url: `${WEB_URL}/p/ClassifiedDetail-${c.id}`, title: c.title });
+  };
+
+  const tabs: Array<[Mode, string]> = [['biashara', 'Biashara'], ['bidhaa', 'Bidhaa'], ['matangazo', 'Matangazo']];
 
   return (
     <View style={s.wrap}>
@@ -105,7 +131,7 @@ export default function SearchScreen({ navigation }: P) {
         style={s.input}
         value={query}
         onChangeText={setQuery}
-        placeholder={mode === 'biashara' ? 'Tafuta biashara au mtu' : 'Tafuta bidhaa'}
+        placeholder={mode === 'biashara' ? 'Tafuta biashara au mtu' : mode === 'bidhaa' ? 'Tafuta bidhaa' : 'Tafuta matangazo'}
         placeholderTextColor={colors.faint}
         autoCorrect={false}
         returnKeyType="search"
@@ -122,35 +148,54 @@ export default function SearchScreen({ navigation }: P) {
         contentContainerStyle={s.list}
         ListEmptyComponent={
           query.trim().length >= MIN_CHARS && !busy && !error
-            ? <Text style={[type.meta, s.note]}>{mode === 'biashara' ? 'Hakuna biashara' : 'Hakuna bidhaa'} iliyopatikana kwa "{query.trim()}".</Text>
+            ? <Text style={[type.meta, s.note]}>{EMPTY_LABEL[mode]} iliyopatikana kwa "{query.trim()}".</Text>
             : null
         }
-        renderItem={({ item }) => mode === 'biashara' ? (
-          <Pressable accessibilityRole="button" onPress={() => openBusiness(item)} style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}>
-            <Text style={type.body}>{item.displayName}</Text>
-            <Text style={type.meta}>
-              {item.username ? `@${item.username}` : ''}
-              {item.followersCount ? `${item.username ? ' · ' : ''}wafuasi ${item.followersCount}` : ''}
-            </Text>
-          </Pressable>
-        ) : (
-          <Pressable accessibilityRole="button" onPress={() => openProduct(item)} style={({ pressed }) => [s.productRow, pressed && { opacity: 0.7 }]}>
-            {item.images?.[0]
-              ? <Image source={{ uri: item.images[0] }} style={s.thumb} />
-              : <View style={[s.thumb, s.thumbEmpty]} />}
-            <View style={s.productText}>
-              <Text style={type.body} numberOfLines={2}>{item.name}</Text>
-              <Text style={type.meta} numberOfLines={1}>{money(item.displayPrice)}</Text>
-              {!!(item.seller?.storeName || item.seller?.name) && (
-                <Text style={type.meta} numberOfLines={1}>{item.seller?.storeName || item.seller?.name}</Text>
-              )}
-            </View>
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          if (mode === 'biashara') {
+            return (
+              <Pressable accessibilityRole="button" onPress={() => openBusiness(item)} style={({ pressed }) => [s.row, pressed && { opacity: 0.7 }]}>
+                <Text style={type.body}>{item.displayName}</Text>
+                <Text style={type.meta}>
+                  {item.username ? `@${item.username}` : ''}
+                  {item.followersCount ? `${item.username ? ' · ' : ''}wafuasi ${item.followersCount}` : ''}
+                </Text>
+              </Pressable>
+            );
+          }
+          if (mode === 'matangazo') {
+            return (
+              <Pressable accessibilityRole="button" onPress={() => openClassified(item)} style={({ pressed }) => [s.productRow, pressed && { opacity: 0.7 }]}>
+                {item.images?.[0]
+                  ? <Image source={{ uri: item.images[0] }} style={s.thumb} />
+                  : <View style={[s.thumb, s.thumbEmpty]} />}
+                <View style={s.productText}>
+                  <Text style={type.body} numberOfLines={2}>{item.title}</Text>
+                  <Text style={type.meta} numberOfLines={1}>{money(item.price)}</Text>
+                  {!!item.location && <Text style={type.meta} numberOfLines={1}>{item.location}</Text>}
+                </View>
+              </Pressable>
+            );
+          }
+          return (
+            <Pressable accessibilityRole="button" onPress={() => openProduct(item)} style={({ pressed }) => [s.productRow, pressed && { opacity: 0.7 }]}>
+              {item.images?.[0]
+                ? <Image source={{ uri: item.images[0] }} style={s.thumb} />
+                : <View style={[s.thumb, s.thumbEmpty]} />}
+              <View style={s.productText}>
+                <Text style={type.body} numberOfLines={2}>{item.name}</Text>
+                <Text style={type.meta} numberOfLines={1}>{money(item.displayPrice)}</Text>
+                {!!(item.seller?.storeName || item.seller?.name) && (
+                  <Text style={type.meta} numberOfLines={1}>{item.seller?.storeName || item.seller?.name}</Text>
+                )}
+              </View>
+            </Pressable>
+          );
+        }}
       />
 
       <Button
-        title="Tafuta huduma, matangazo na hoteli kwenye ukurasa"
+        title="Tafuta huduma na hoteli kwenye ukurasa"
         dark={false}
         onPress={() => navigation.navigate('Web', { url: `${WEB_URL}/p/Search`, title: 'Tafuta' })}
       />
