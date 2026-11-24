@@ -7,6 +7,7 @@ export type RootStackParams = {
   Web: { url: string; title?: string };
   Login: undefined;
   Create: undefined;
+  CreateClassified: undefined;
   Account: undefined;
 };
 

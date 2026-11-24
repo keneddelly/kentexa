@@ -59,14 +59,16 @@ export const renew = (): Promise<boolean> => {
 
 export async function request<T = any>(path: string, opts: Opts = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json', 'x-kentexa-client': 'app' };
-  if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+  // Photo uploads send a FormData body: the phone sets its own multipart header, and the body is not re-encoded.
+  const isForm = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+  if (opts.body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   if (tokens.access) headers.Authorization = `Bearer ${tokens.access}`;
   let res: Response;
   try {
     res = await fetch(buildUrl(path, opts.params), {
       method: opts.method || 'GET',
       headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body: opts.body === undefined ? undefined : isForm ? (opts.body as any) : JSON.stringify(opts.body),
     });
   } catch {
     throw new ApiError(0, 'Hakuna mtandao. Angalia intaneti yako.');
@@ -87,4 +89,5 @@ export async function request<T = any>(path: string, opts: Opts = {}, retried = 
 export const api = {
   get: <T = any>(path: string, params?: Opts['params']) => request<T>(path, { params }),
   post: <T = any>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ?? {} }),
+  patch: <T = any>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body: body ?? {} }),
 };
