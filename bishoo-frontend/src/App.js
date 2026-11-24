@@ -53,6 +53,7 @@ import { identityState, afterIdentitySent } from './utils/identityState';
 import useIdentityRefresh from './utils/useIdentityRefresh';
 import useAgentPresence from './utils/useAgentPresence';
 import LineIcon from './public/components/LineIcon';
+import AndroidAppPromo from './public/components/AndroidAppPromo';
 
 // Light first load (owner 2026-11-16: a Samsung S23 on mobile data saw a blank page): each page
 // downloads when it is opened, not all ~100 at start. Home, sign-in, sign-up and the POS (it must
@@ -1458,8 +1459,10 @@ function App() {
           </div>
         </div>
       )}
+      <AndroidAppPromo languagePickerOpen={showLangPicker} page={page} />
       {canInstall && showInstallPrompt && page === 'Home' && !showLangPicker && !showPostModal &&
         !showMomentModal && !showGuide &&
+        !(environment.android && /Chrome\\//i.test(navigator.userAgent || '') && !/EdgA|OPR|SamsungBrowser|Firefox|CriOS/i.test(navigator.userAgent || '')) &&
         <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} play={playOffer} />}
       {/* Inside the Google Play app: alerts come as the app (owner 2026-11-10). */}
       {environment.androidApp && isLoggedIn && page === 'Home' && !showLangPicker && !showPostModal && !showMomentModal &&
