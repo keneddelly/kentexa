@@ -4,6 +4,10 @@ import PostDetail from './PostDetail';
 import api from '../../api/api';
 
 jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn() }));
+jest.mock('../components/RelatedDiscussions', () => ({
+  __esModule: true,
+  default: () => require('react').createElement('div', { 'data-testid': 'related-discovery-marker' }),
+}));
 
 const post = {
   id: 7, type: 'moment', title: 'Mzigo mpya', body: 'Mzigo mpya', createdAt: new Date().toISOString(),
@@ -31,6 +35,16 @@ test('shows the post the server returns, with its likes and its save', async () 
   expect(screen.getByTestId('post-like')).toHaveTextContent('2');
   expect(screen.getByTestId('post-like')).toHaveAttribute('aria-pressed', 'false');
   expect(screen.getByTestId('post-save')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('discovery is placed before post actions and comments, not after the discussion thread', async () => {
+  answerPost(post);
+  await open();
+  const discovery = screen.getByTestId('related-discovery-marker');
+  const actions = screen.getByTestId('post-actions');
+  const reply = screen.getByTestId('reply-under-post');
+  expect(discovery.compareDocumentPosition(actions) & 4).toBeTruthy();
+  expect(discovery.compareDocumentPosition(reply) & 4).toBeTruthy();
 });
 
 test('the heart is a like, not a save', async () => {
