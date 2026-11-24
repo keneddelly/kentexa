@@ -23,22 +23,6 @@ export function CreateScreen({ navigation }: P) {
   );
 }
 
-/** Akaunti: who is signed in, sign out, app version. */
-export function AccountScreen({ navigation }: P) {
-  const { user, signOut } = useAuth();
-  return (
-    <View style={s.wrap}>
-      {user ? (
-        <>
-          <Text style={type.title}>{user.name || 'Akaunti yako'}</Text>
-          <Text style={type.meta}>{user.email || user.phone || ''}</Text>
-          <Button title="Toka" dark={false} onPress={async () => { await signOut(); navigation.goBack(); }} />
-        </>
-      ) : <Button title="Ingia" onPress={() => navigation.replace('Login')} />}
-      <Text style={[type.meta, { marginTop: 24 }]}>KenteXa app</Text>
-    </View>
-  );
-}
 
 const s = StyleSheet.create({
   list: { padding: 16, gap: 10, backgroundColor: '#fff' },
