@@ -2120,8 +2120,10 @@ export class CvsService {
       .andWhere(NOT_MUTED_BY_VIEWER('f'));
     if (p.communityId && p.topic) qb.andWhere('(f."communityId" = :rc OR f.topic = :rt)', { rc: p.communityId, rt: p.topic });
     else if (p.communityId) qb.andWhere('f."communityId" = :rc', { rc: p.communityId });
-    else qb.andWhere('f.topic = :rt', { rt: p.topic });
-    const rows = await qb.orderBy('rel_rank', 'ASC').addOrderBy('activity_at', 'DESC').take(5).getMany().catch(() => []);
+    else if (p.topic) qb.andWhere('f.topic = :rt', { rt: p.topic });
+    const rows = p.communityId || p.topic
+      ? await qb.orderBy('rel_rank', 'ASC').addOrderBy('activity_at', 'DESC').take(5).getMany().catch(() => [])
+      : [];
     const followed = await this.getFollowedSellerIds(viewerId);
     const discussions = await this.presentRealItems(rows, followed, []);
     const ids = discussions.map((d) => d.id);
