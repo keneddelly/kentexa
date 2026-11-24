@@ -31,7 +31,7 @@ test('C: "Mijadala zaidi" and "Jumuiya zinazofanana" at the end of a discussion'
   expect(api.get).toHaveBeenCalledWith('/feed/7/related');
   expect(screen.getByTestId('related-post-9')).toHaveTextContent('SWALI');
   expect(screen.getByTestId('related-post-9')).toHaveTextContent('Bei ya mahindi leo?');
-  expect(screen.getByTestId('related-post-9')).toHaveTextContent(/Juma\\s*· Wakulima/);
+  expect(screen.getByTestId('related-post-9')).toHaveTextContent(/Juma\s*· Wakulima/);
   expect(screen.getByTestId('related-post-9')).toHaveTextContent('Majibu 4');
   expect(screen.getByTestId('related-community-4')).toHaveTextContent('wanachama 1,200');
   fireEvent.click(screen.getByTestId('related-post-9'));
