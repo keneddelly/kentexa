@@ -23,7 +23,8 @@ module.exports = {
     android: {
       package: prod ? 'com.app.bishoo' : ofisi ? 'com.kentexa.ofisi' : 'com.kentexa.app.test',
       // Firebase (push): one file holds both apps (com.app.bishoo and com.kentexa.app.test).
-      googleServicesFile: './google-services.json',
+      // The Ofisi app has no entry in that file yet, so its build skips it (no push until it is added).
+      googleServicesFile: ofisi ? undefined : './google-services.json',
       versionCode,
       // Resize (not pan) when the keyboard opens, so the chat composer stays above it.
       softwareKeyboardLayoutMode: 'resize',
