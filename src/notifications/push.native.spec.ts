@@ -13,6 +13,7 @@ function repo() {
     save: jest.fn(async (x) => x),
     create: jest.fn((x) => x),
     delete: jest.fn(),
+    count: jest.fn(),
   };
 }
 
@@ -68,6 +69,39 @@ describe('PushService native (FCM) delivery', () => {
 
     await service.sendToUser(7, { title: 't', body: 'b' });
 
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it('reports device status without exposing tokens', async () => {
+    tokenRepo.count.mockResolvedValue(2);
+    subRepo.count.mockResolvedValue(1);
+    await expect(service.getDeviceStatus(7)).resolves.toEqual({
+      nativeDeviceCount: 2,
+      webSubscriptionCount: 1,
+      nativeConfigured: true,
+      webConfigured: false,
+    });
+    expect(tokenRepo.count).toHaveBeenCalledWith({ where: { userId: 7 } });
+    expect(subRepo.count).toHaveBeenCalledWith({ where: { userId: 7 } });
+  });
+
+  it('sends a test only to the signed-in user registered devices', async () => {
+    tokenRepo.find.mockResolvedValue([{ token: 'own-device' }]);
+    mockSend.mockResolvedValue({ ok: true, invalidToken: false });
+    await expect(service.sendTestToUser(7)).resolves.toEqual({
+      status: 'accepted', registered: 1, accepted: 1, failed: 0,
+    });
+    expect(mockSend).toHaveBeenCalledWith('own-device', expect.objectContaining({
+      title: 'Kentexa',
+      data: { url: '/?notification-settings=1', tag: 'push-test' },
+    }));
+  });
+
+  it('does not claim a test was sent when no device is registered', async () => {
+    tokenRepo.find.mockResolvedValue([]);
+    await expect(service.sendTestToUser(7)).resolves.toEqual({
+      status: 'no_device', registered: 0, accepted: 0, failed: 0,
+    });
     expect(mockSend).not.toHaveBeenCalled();
   });
 
