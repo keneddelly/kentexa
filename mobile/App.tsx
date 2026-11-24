@@ -81,9 +81,6 @@ export default function App() {
       const destination = response.notification.request.content.data?.url;
       openNotificationDestination(destination);
     });
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) openNotificationDestination(response.notification.request.content.data?.url);
-    }).catch(() => {});
     return () => subscription.remove();
   }, []);
 
