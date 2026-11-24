@@ -31,7 +31,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.origin !== self.location.origin) return;
-  if (request.destination === 'document' && /^\/pos\/?$/.test(url.pathname)) {
+  if (request.destination === 'document' && /^\\/pos\\/?$/.test(url.pathname)) {
     event.respondWith(fetch(request).then((response) => {
       if (response.ok && response.type === 'basic') {
         const clone = response.clone();
@@ -44,7 +44,7 @@ self.addEventListener('fetch', (event) => {
   // Never serve a stale document or cache a same-origin user image. Only
   // versioned build assets and the published Kentexa icon set are static.
   const isStatic = url.pathname.startsWith('/static/') ||
-    /^\/(?:logo(?:192|512)\.png|favicon(?:-16|-32)?\.(?:png|ico)|icon-(?:source|maskable)\.svg)$/.test(url.pathname);
+    /^\\/(?:logo(?:192|512)\\.png|favicon(?:-16|-32)?\\.(?:png|ico)|icon-(?:source|maskable)\\.svg)$/.test(url.pathname);
   if (!isStatic) return;
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
@@ -63,9 +63,20 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {};
-  event.waitUntil(self.registration.showNotification(data.title || 'KenteXa', {
-    body: data.body || '', icon: '/logo192.png', badge: '/favicon-32.png', data: data.url || '/',
-  }));
+  event.waitUntil((async () => {
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const visibleClient = windows.find((client) => client.visibilityState === 'visible');
+    // The foreground Kentexa tab plays its signature chime after a user gesture.
+    // Keep the native banner, but silence its generic sound to avoid double tones.
+    if (visibleClient) visibleClient.postMessage({ type: 'KENTEXA_PLAY_NOTIFICATION_TONE' });
+    await self.registration.showNotification(data.title || 'KenteXa', {
+      body: data.body || '',
+      icon: '/logo192.png',
+      badge: '/favicon-32.png',
+      data: data.url || '/',
+      silent: Boolean(visibleClient),
+    });
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {
