@@ -51,7 +51,7 @@ test('C: when nothing is related, show discovery destinations instead of an empt
   expect(onNavigate).toHaveBeenCalledWith('JumuiyaHome');
 });
 
-test('C12: a member's invitation message', () => {
+test("C12: a member's invitation message", () => {
   expect(suggestedMessage({ contentType: 'community', words: 'Wakulima Igoma', purpose: 'Mvua na mbegu', invite: true }))
     .toBe('Nimejiunga na Wakulima Igoma kwenye KenteXa. Jiunge nami: Mvua na mbegu');
   expect(suggestedMessage({ contentType: 'community', words: 'Wakulima', invite: true }, 'en')).toBe('I joined Wakulima on KenteXa. Join me');
