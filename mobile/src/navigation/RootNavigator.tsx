@@ -14,6 +14,8 @@ import AccountScreen from '../screens/AccountScreen';
 import SearchScreen from '../screens/SearchScreen';
 import InboxScreen from '../screens/InboxScreen';
 import ThreadScreen from '../screens/ThreadScreen';
+import OfisiScreen from '../screens/OfisiScreen';
+import { VARIANT } from '../config';
 import type { RootStackParams, TabParams } from './types';
 
 /**
@@ -26,6 +28,9 @@ const Stack = createNativeStackNavigator<RootStackParams>();
 const Tab = createBottomTabNavigator<TabParams>();
 
 const TAB_ICONS: Record<keyof TabParams, IconName> = { Mwanzo: 'home', Tafuta: 'search', Ongeza: 'plusBox', Inbox: 'inbox', Kazi: 'kazi' };
+
+/** The Ofisi app (VARIANT=ofisi) is the office's own bar: Mwanzo (the office), Inbox, Kazi. */
+const OFISI = VARIANT === 'ofisi';
 
 function Tabs({ navigation }: any) {
   return (
@@ -45,10 +50,10 @@ function Tabs({ navigation }: any) {
         tabBarAccessibilityLabel: route.name === 'Ongeza' ? 'Tengeneza' : route.name,
       })}
     >
-      <Tab.Screen name="Mwanzo" component={HomeScreen as any} options={{ headerShown: false }} />
-      <Tab.Screen name="Tafuta" component={SearchScreen as any} />
-      <Tab.Screen name="Ongeza" component={SearchScreen as any}
-        listeners={{ tabPress: (e) => { e.preventDefault(); navigation.navigate('Create'); } }} />
+      <Tab.Screen name="Mwanzo" component={(OFISI ? OfisiScreen : HomeScreen) as any} options={{ headerShown: false }} />
+      {!OFISI && <Tab.Screen name="Tafuta" component={SearchScreen as any} />}
+      {!OFISI && <Tab.Screen name="Ongeza" component={SearchScreen as any}
+        listeners={{ tabPress: (e) => { e.preventDefault(); navigation.navigate('Create'); } }} />}
       <Tab.Screen name="Inbox" component={InboxScreen as any} />
       <Tab.Screen name="Kazi" component={KaziScreen as any} />
     </Tab.Navigator>

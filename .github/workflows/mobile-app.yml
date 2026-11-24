@@ -14,6 +14,12 @@ on:
       - 'mobile/**'
       - '.github/workflows/mobile-app.yml'
   workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Which app to build'
+        type: choice
+        options: [test, ofisi]
+        default: test
 
 permissions:
   contents: write
@@ -27,7 +33,7 @@ jobs:
       run:
         working-directory: mobile
     env:
-      APP_VARIANT: test
+      APP_VARIANT: ${{ inputs.variant || 'test' }}
       VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
