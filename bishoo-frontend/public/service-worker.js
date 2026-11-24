@@ -66,15 +66,30 @@ self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     const visibleClient = windows.find((client) => client.visibilityState === 'visible');
-    // The foreground Kentexa tab plays its signature chime after a user gesture.
-    // Keep the native banner, but silence its generic sound to avoid double tones.
-    if (visibleClient) visibleClient.postMessage({ type: 'KENTEXA_PLAY_NOTIFICATION_TONE' });
+    // Ask a visible Kentexa tab to play the signature chime. Silence the browser
+    // notification only after the page confirms audio is actually available.
+    let signatureTonePlayed = false;
+    if (visibleClient) {
+      const channel = new MessageChannel();
+      signatureTonePlayed = await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          channel.port1.close();
+          resolve(false);
+        }, 250);
+        channel.port1.onmessage = (message) => {
+          clearTimeout(timeout);
+          channel.port1.close();
+          resolve(message.data?.played === true);
+        };
+        visibleClient.postMessage({ type: 'KENTEXA_PLAY_NOTIFICATION_TONE' }, [channel.port2]);
+      });
+    }
     await self.registration.showNotification(data.title || 'KenteXa', {
       body: data.body || '',
       icon: '/logo192.png',
       badge: '/favicon-32.png',
       data: data.url || '/',
-      silent: Boolean(visibleClient),
+      silent: signatureTonePlayed,
     });
   })());
 });
