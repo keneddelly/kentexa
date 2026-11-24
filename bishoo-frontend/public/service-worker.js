@@ -31,7 +31,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.origin !== self.location.origin) return;
-  if (request.destination === 'document' && /^\\/pos\\/?$/.test(url.pathname)) {
+  if (request.destination === 'document' && /^\/pos\/?$/.test(url.pathname)) {
     event.respondWith(fetch(request).then((response) => {
       if (response.ok && response.type === 'basic') {
         const clone = response.clone();
@@ -44,7 +44,7 @@ self.addEventListener('fetch', (event) => {
   // Never serve a stale document or cache a same-origin user image. Only
   // versioned build assets and the published Kentexa icon set are static.
   const isStatic = url.pathname.startsWith('/static/') ||
-    /^\\/(?:logo(?:192|512)\\.png|favicon(?:-16|-32)?\\.(?:png|ico)|icon-(?:source|maskable)\\.svg)$/.test(url.pathname);
+    /^\/(?:logo(?:192|512)\.png|favicon(?:-16|-32)?\.(?:png|ico)|icon-(?:source|maskable)\.svg)$/.test(url.pathname);
   if (!isStatic) return;
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
