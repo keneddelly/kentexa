@@ -22,6 +22,7 @@ import { PushService } from './push.service';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
+import { Throttle } from '@nestjs/throttler';
 
 // Stage 2B item 4/5: RoleContextGuard resolves the caller's current active
 // context on every route in this controller (never denies on its own --
