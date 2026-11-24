@@ -2104,8 +2104,8 @@ export class CvsService {
   async getRelated(postId: number, viewerId: number | null): Promise<{ discussions: any[]; communities: any[]; businesses: any[] }> {
     await this.assertCanSeePost(postId, viewerId);
     const [p] = await this.feedRepo.query(
-      `SELECT "communityId", topic FROM public.business_feed_item WHERE id = $1`, [postId]).catch(() => []);
-    if (!p || (!p.communityId && !p.topic)) return { discussions: [], communities: [], businesses: [] };
+      `SELECT "communityId", topic, title, body, category FROM public.business_feed_item WHERE id = $1`, [postId]).catch(() => []);
+    if (!p) return { discussions: [], communities: [], businesses: [] };
     const qb = this.feedRepo.createQueryBuilder('f')
       .leftJoin('f.business', 'b')
       .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.isVerified', 'b.role'])
@@ -2120,8 +2120,10 @@ export class CvsService {
       .andWhere(NOT_MUTED_BY_VIEWER('f'));
     if (p.communityId && p.topic) qb.andWhere('(f."communityId" = :rc OR f.topic = :rt)', { rc: p.communityId, rt: p.topic });
     else if (p.communityId) qb.andWhere('f."communityId" = :rc', { rc: p.communityId });
-    else qb.andWhere('f.topic = :rt', { rt: p.topic });
-    const rows = await qb.orderBy('rel_rank', 'ASC').addOrderBy('activity_at', 'DESC').take(5).getMany().catch(() => []);
+    else if (p.topic) qb.andWhere('f.topic = :rt', { rt: p.topic });
+    const rows = p.communityId || p.topic
+      ? await qb.orderBy('rel_rank', 'ASC').addOrderBy('activity_at', 'DESC').take(5).getMany().catch(() => [])
+      : [];
     const followed = await this.getFollowedSellerIds(viewerId);
     const discussions = await this.presentRealItems(rows, followed, []);
     const ids = discussions.map((d) => d.id);
@@ -2133,10 +2135,14 @@ export class CvsService {
       `SELECT id, name, purpose, "memberCount", "topicKey" FROM public.community
         WHERE status = 'active' AND "joinPolicy" = 'open' AND "topicKey" = $1 AND id IS DISTINCT FROM $2
         ORDER BY "memberCount" DESC, id DESC LIMIT 3`, [p.topic, p.communityId || null]).catch(() => []) : [];
-    // Business-topic matches are precomputed by the existing AI seller enrichment
-    // whenever a profile is created or its public identity changes. Never run AI
-    // during a visitor's page request; only expose public, approved commerce profiles.
-    const businesses = p.topic ? await this.feedRepo.query(
+    // Content-to-Commerce Discovery V1:
+    // 1) Prefer the explicit topic match already stored by seller enrichment.
+    // 2) Also compare the post's own title/body/category with the seller's
+    //    precomputed AI keywords/use-cases. This catches older and article posts
+    //    that have no feed_topic key (for example a CCTV article with #CCTV).
+    // No AI call runs during a visitor request; the matching evidence is already
+    // stored on public commerce profiles. Keep visibility and profile-type gates.
+    const businesses = await this.feedRepo.query(
       `SELECT cp.id, cp."ownerId", cp.type, cp."displayName", cp.username, cp."photoUrl",
               cp.category, cp.location, cp."isVerified"
          FROM public.commerce_profile cp
@@ -2144,9 +2150,34 @@ export class CvsService {
           AND cp."hiddenFromPublic" = false
           AND cp.type::text IN ('business', 'hub', 'agent', 'service_provider', 'transport_provider')
           AND cp."aiKeywords" IS NOT NULL
-          AND (cp."aiKeywords"::jsonb -> 'topicMatches') ? $1
-        ORDER BY cp."isVerified" DESC, cp."followersCount" DESC, cp.id ASC
-        LIMIT 6`, [p.topic]).catch(() => []) : [];
+          AND (
+            ($1::varchar IS NOT NULL AND (cp."aiKeywords"::jsonb -> 'topicMatches') ? $1)
+            OR EXISTS (
+              SELECT 1
+                FROM jsonb_array_elements_text(
+                  CASE WHEN jsonb_typeof(cp."aiKeywords"::jsonb -> 'keywords') = 'array'
+                       THEN cp."aiKeywords"::jsonb -> 'keywords' ELSE '[]'::jsonb END
+                ) AS kw(value)
+               WHERE length(trim(kw.value)) >= 4
+                 AND lower(concat_ws(' ', $2, $3, $4)) LIKE '%' || lower(trim(kw.value)) || '%'
+            )
+            OR EXISTS (
+              SELECT 1
+                FROM jsonb_array_elements_text(
+                  CASE WHEN jsonb_typeof(cp."aiKeywords"::jsonb -> 'useCases') = 'array'
+                       THEN cp."aiKeywords"::jsonb -> 'useCases' ELSE '[]'::jsonb END
+                ) AS use_case(value)
+               WHERE length(trim(use_case.value)) >= 5
+                 AND lower(concat_ws(' ', $2, $3, $4)) LIKE '%' || lower(trim(use_case.value)) || '%'
+            )
+          )
+        ORDER BY
+          CASE WHEN $1::varchar IS NOT NULL
+                 AND (cp."aiKeywords"::jsonb -> 'topicMatches') ? $1 THEN 0 ELSE 1 END,
+          cp."isVerified" DESC, cp."followersCount" DESC, cp.id ASC
+        LIMIT 6`,
+      [p.topic || null, p.title || '', p.body || '', p.category || ''],
+    ).catch(() => []);
     return {
       discussions: discussions.map((d) => ({ ...d, replyCount: Number(byId.get(d.id)?.n || 0), lastReplyAt: byId.get(d.id)?.last || null })),
       communities,
