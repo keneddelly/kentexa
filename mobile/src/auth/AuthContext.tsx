@@ -1,29 +1,19 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { api, renew, setSignedOutHandler } from '../api/client';
 import { tokens } from '../api/tokens';
 import { API_URL } from '../config';
-import { registerForPush, unregisterPush } from '../push/nativePush';
+import { registerForPush, registerTokenValue, refreshPushRegistration, unregisterPush } from '../push/nativePush';
 
-/**
- * Who is signed in (#422 N0). On start: the saved access token, renewed with the saved refresh
- * credential when needed, then /auth/me. Guests can still read public content.
- */
 export type User = { id: number; name?: string | null; email?: string | null; phone?: string | null; avatarUrl?: string | null; [k: string]: unknown };
-
-type Auth = {
-  ready: boolean;
-  user: User | null;
-  signIn: (identifier: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-};
-
+type Auth = { ready: boolean; user: User | null; signIn: (identifier: string, password: string) => Promise<void>; signOut: () => Promise<void> };
 const Ctx = createContext<Auth>({ ready: false, user: null, signIn: async () => {}, signOut: async () => {} });
 export const useAuth = () => useContext(Ctx);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-
   const loadMe = useCallback(async () => {
     const me: any = await api.get('/auth/me');
     setUser((me?.user || me) as User);
@@ -36,11 +26,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const saved = await tokens.load();
         if (saved || (await renew())) {
           await loadMe();
-          registerForPush();
+          await registerForPush(); // silent recovery; never prompt at login/startup
         }
       } catch { setUser(null); } finally { setReady(true); }
     })();
   }, [loadMe]);
+
+  useEffect(() => {
+    if (!user || Platform.OS !== 'android') return;
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshPushRegistration().catch(() => {});
+    });
+    const tokenListener = Notifications.addPushTokenListener((token) => {
+      registerTokenValue(token.data).catch(() => {});
+    });
+    return () => { appState.remove(); tokenListener.remove(); };
+  }, [user]);
 
   const signIn = useCallback(async (identifier: string, password: string) => {
     const r: any = await api.post('/auth/login', { identifier: identifier.trim(), password, deviceId: 'kentexa-app' });
@@ -49,11 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await tokens.setAccess(token);
     setUser((r?.user || null) as User);
     loadMe().catch(() => {});
-    registerForPush();
+    await registerForPush(); // permission prompts live in Notification Settings
   }, [loadMe]);
 
   const signOut = useCallback(async () => {
-    await unregisterPush();
+    try { await unregisterPush(); } catch { /* preserve stored token for a later cleanup attempt */ }
     const credential = await tokens.refresh();
     try {
       if (credential) await fetch(`${API_URL}/auth/logout`, { method: 'POST', headers: { 'x-kentexa-client': 'app', 'x-kentexa-refresh': credential } });

@@ -8,6 +8,49 @@ import { getAccessToken } from '../../api/tokenStore';
 import api from '../../api/api';
 import { API_BASE_URL } from '../../api/baseUrl';
 
+// Web Audio is used only for a push received while Kentexa is visible. Browsers
+// require a user gesture before audio can play, so unlock it on the first tap/key.
+let kentexaNotificationAudio = null;
+
+const unlockKentexaNotificationAudio = () => {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  try {
+    if (!kentexaNotificationAudio) kentexaNotificationAudio = new AudioContextClass();
+    if (kentexaNotificationAudio.state === 'suspended') {
+      kentexaNotificationAudio.resume().catch(() => {});
+    }
+  } catch { /* Audio is optional; the browser notification remains available. */ }
+};
+
+const playKentexaNotificationTone = () => {
+  const context = kentexaNotificationAudio;
+  if (!context || context.state !== 'running') return false;
+  const now = context.currentTime;
+  const notes = [
+    { start: 0.00, duration: 0.38, frequency: 659.25 },
+    { start: 0.22, duration: 0.42, frequency: 830.61 },
+    { start: 0.48, duration: 0.78, frequency: 987.77 },
+  ];
+  for (const note of notes) {
+    for (const [frequency, volume] of [[note.frequency, 0.16], [note.frequency * 2, 0.025]]) {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const start = now + note.start;
+      const end = start + note.duration;
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(volume, start + 0.018);
+      gain.gain.exponentialRampToValueAtTime(0.0001, end);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(end + 0.02);
+    }
+  }
+  return true;
+};
 
 // ── Push notification subscription ────────────────────────────────────────
 export const subscribeToPush = async (apiBase = '') => {
@@ -113,8 +156,8 @@ export const detectInstallEnvironment = (nav = navigator, win = window) => {
   return { ios, mobile, safari, standalone, inApp, android, androidApp: android && isAndroidApp(win) };
 };
 
-// KenteXa on Google Play (owner 2026-11-10): Android phones use the Play app, not the web app, so
-// alerts arrive as the KenteXa app. iPhone and computers keep the web app.
+// KenteXa on Google Play (owner 2026-11-10): Android phones use the Play app, not
+// the web app, so alerts arrive as the KenteXa app. iPhone and computers keep the web app.
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.app.bishoo';
 const ANDROID_APP_KEY = 'kx_android_app';
 /** True inside the Google Play app: it opens kentexa.com/?source=android (referrer android-app://). */
@@ -136,8 +179,27 @@ const dismissedRecently = () => {
 export const usePWA = () => {
   const [environment] = useState(detectInstallEnvironment);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  // An Android phone outside the Play app is offered the Play app, even if it installed the web app.
   const playOffer = environment.android && !environment.androidApp && !environment.inApp;
+  // A visible web client gets the Kentexa tone; background/closed clients keep
+  // the browser's own notification sound and are never forced to play page audio.
+  useEffect(() => {
+    const onUserGesture = () => unlockKentexaNotificationAudio();
+    const onServiceWorkerMessage = (event) => {
+      if (event.data?.type === 'KENTEXA_PLAY_NOTIFICATION_TONE' && document.visibilityState === 'visible') {
+        const played = playKentexaNotificationTone();
+        event.ports?.[0]?.postMessage({ played: Boolean(played) });
+      }
+    };
+    window.addEventListener('pointerdown', onUserGesture, { once: true, passive: true });
+    window.addEventListener('keydown', onUserGesture, { once: true });
+    navigator.serviceWorker?.addEventListener('message', onServiceWorkerMessage);
+    return () => {
+      window.removeEventListener('pointerdown', onUserGesture);
+      window.removeEventListener('keydown', onUserGesture);
+      navigator.serviceWorker?.removeEventListener('message', onServiceWorkerMessage);
+    };
+  }, []);
+
   const [isInstalled, setIsInstalled] = useState(environment.androidApp || (environment.standalone && !playOffer));
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showGuide, setShowGuide] = useState(false);

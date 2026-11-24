@@ -1,5 +1,4 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
-
 export type RootStackParams = {
   Tabs: NavigatorScreenParams<TabParams> | undefined;
   Post: { id: number };
@@ -8,12 +7,6 @@ export type RootStackParams = {
   Login: undefined;
   Create: undefined;
   Account: undefined;
+  NotificationSettings: undefined;
 };
-
-export type TabParams = {
-  Mwanzo: undefined;
-  Tafuta: undefined;
-  Ongeza: undefined;
-  Inbox: undefined;
-  Kazi: undefined;
-};
+export type TabParams = { Mwanzo: undefined; Tafuta: undefined; Ongeza: undefined; Inbox: undefined; Kazi: undefined };

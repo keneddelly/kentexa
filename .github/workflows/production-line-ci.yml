@@ -62,6 +62,8 @@ jobs:
       - run: npm ci
       - name: Search regression tests
         run: npx jest src/search/search.controller.spec.ts src/search/search-term-normalizer.util.spec.ts --runInBand
+      - name: Notification reliability and sound tests
+        run: npx jest notifications/push.native.spec.ts notifications/fcm.client.spec.ts --runInBand
       - name: Type-check
         run: set -o pipefail; npx tsc --noEmit --project tsconfig.build.json 2>&1 | tee -a backend.log
       - name: Production build

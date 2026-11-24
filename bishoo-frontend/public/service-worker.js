@@ -63,9 +63,35 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {};
-  event.waitUntil(self.registration.showNotification(data.title || 'KenteXa', {
-    body: data.body || '', icon: '/logo192.png', badge: '/favicon-32.png', data: data.url || '/',
-  }));
+  event.waitUntil((async () => {
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const visibleClient = windows.find((client) => client.visibilityState === 'visible');
+    // Ask a visible Kentexa tab to play the signature chime. Silence the browser
+    // notification only after the page confirms audio is actually available.
+    let signatureTonePlayed = false;
+    if (visibleClient) {
+      const channel = new MessageChannel();
+      signatureTonePlayed = await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          channel.port1.close();
+          resolve(false);
+        }, 250);
+        channel.port1.onmessage = (message) => {
+          clearTimeout(timeout);
+          channel.port1.close();
+          resolve(message.data?.played === true);
+        };
+        visibleClient.postMessage({ type: 'KENTEXA_PLAY_NOTIFICATION_TONE' }, [channel.port2]);
+      });
+    }
+    await self.registration.showNotification(data.title || 'KenteXa', {
+      body: data.body || '',
+      icon: '/logo192.png',
+      badge: '/favicon-32.png',
+      data: data.url || '/',
+      silent: signatureTonePlayed,
+    });
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {
