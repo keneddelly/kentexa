@@ -4,7 +4,7 @@ import { ForbiddenException } from '@nestjs/common';
 
 /** Viral engine C (issue #381): what to read next, and what invitations brought. */
 describe('related discussions', () => {
-  const build = (post: any) => {
+  const build = (post: any, businessResults: any[] = []) => {
     const svc: any = Object.create(CvsService.prototype);
     const wheres: string[] = [];
     const qb: any = {};
@@ -19,6 +19,7 @@ describe('related discussions', () => {
         if (sql.includes('SELECT "communityId", topic')) return post ? [post] : [];
         if (sql.includes('FROM public.post_comment')) return [{ postId: 9, n: 4, last: null }];
         if (sql.includes('FROM public.community')) return [{ id: 4, name: 'Wakulima', memberCount: 12 }];
+        if (sql.includes('FROM public.commerce_profile')) return businessResults;
         return [];
       }),
     };
@@ -40,6 +41,32 @@ describe('related discussions', () => {
   it('a post with no community and no topic returns empty recommendation collections', async () => {
     expect(await build({ communityId: null, topic: null }).svc.getRelated(7, null))
       .toEqual({ discussions: [], communities: [], businesses: [] });
+  });
+
+  it('matches public businesses from post text when an older post has no topic', async () => {
+    const business = {
+      id: 31, ownerId: 8, type: 'business', displayName: 'BIS',
+      username: 'bis', photoUrl: null, category: 'Usalama', location: 'Dar es Salaam',
+      isVerified: true,
+    };
+    const { svc } = build({
+      communityId: null, topic: null,
+      title: 'Mambo 8 kabla ya kununua CCTV',
+      body: 'Angalia #CCTV na #SecurityCameras kabla ya kununua kamera za usalama.',
+      category: null,
+    }, [business]);
+
+    const result = await svc.getRelated(7, null);
+    expect(result.businesses).toEqual([business]);
+    const matchingCall = svc.feedRepo.query.mock.calls.find(([sql]) => sql.includes('FROM public.commerce_profile'));
+    expect(matchingCall[1]).toEqual([
+      null,
+      'Mambo 8 kabla ya kununua CCTV',
+      'Angalia #CCTV na #SecurityCameras kabla ya kununua kamera za usalama.',
+      '',
+    ]);
+    expect(matchingCall[0]).toContain("jsonb_array_elements_text");
+    expect(matchingCall[0]).toContain("topicMatches");
   });
 });
 
