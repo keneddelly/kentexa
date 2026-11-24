@@ -11,7 +11,7 @@
 ## Web
 
 - The service worker continues to show the same system notification banner.
-- When a Kentexa tab is visible, the worker messages that tab and asks it to play the three-note chime through Web Audio.
+- When a Kentexa tab is visible, the worker asks that tab to play the three-note chime through Web Audio after a user gesture. It silences the generic browser alert only after the page confirms playback; otherwise the browser's own sound remains enabled.
 - Web Audio is unlocked only after a real user gesture. If the browser does not permit playback, the banner still appears.
 - When Kentexa is closed or in the background, the browser/operating system controls notification sound. Web Push has no portable custom-sound option for system notifications.
 
