@@ -2101,11 +2101,11 @@ export class CvsService {
    * topic, newest activity first, under the feed's visibility rules for this viewer. "Jumuiya
    * zinazofanana": up to 3 open communities on the same topic, largest first.
    */
-  async getRelated(postId: number, viewerId: number | null): Promise<{ discussions: any[]; communities: any[] }> {
+  async getRelated(postId: number, viewerId: number | null): Promise<{ discussions: any[]; communities: any[]; businesses: any[] }> {
     await this.assertCanSeePost(postId, viewerId);
     const [p] = await this.feedRepo.query(
       `SELECT "communityId", topic FROM public.business_feed_item WHERE id = $1`, [postId]).catch(() => []);
-    if (!p || (!p.communityId && !p.topic)) return { discussions: [], communities: [] };
+    if (!p || (!p.communityId && !p.topic)) return { discussions: [], communities: [], businesses: [] };
     const qb = this.feedRepo.createQueryBuilder('f')
       .leftJoin('f.business', 'b')
       .addSelect(['b.id', 'b.name', 'b.storeName', 'b.logo', 'b.businessLocation', 'b.isVerified', 'b.role'])
@@ -2133,9 +2133,24 @@ export class CvsService {
       `SELECT id, name, purpose, "memberCount", "topicKey" FROM public.community
         WHERE status = 'active' AND "joinPolicy" = 'open' AND "topicKey" = $1 AND id IS DISTINCT FROM $2
         ORDER BY "memberCount" DESC, id DESC LIMIT 3`, [p.topic, p.communityId || null]).catch(() => []) : [];
+    // Business-topic matches are precomputed by the existing AI seller enrichment
+    // whenever a profile is created or its public identity changes. Never run AI
+    // during a visitor's page request; only expose public, approved commerce profiles.
+    const businesses = p.topic ? await this.feedRepo.query(
+      `SELECT cp.id, cp.type, cp."displayName", cp.username, cp."photoUrl",
+              cp.category, cp.location, cp."isVerified"
+         FROM public.commerce_profile cp
+        WHERE cp.status = 'active'
+          AND cp."hiddenFromPublic" = false
+          AND cp.type::text IN ('business', 'hub', 'agent', 'service_provider', 'transport_provider')
+          AND cp."aiKeywords" IS NOT NULL
+          AND (cp."aiKeywords"::jsonb -> 'topicMatches') ? $1
+        ORDER BY cp."isVerified" DESC, cp."followersCount" DESC, cp.id ASC
+        LIMIT 6`, [p.topic]).catch(() => []) : [];
     return {
       discussions: discussions.map((d) => ({ ...d, replyCount: Number(byId.get(d.id)?.n || 0), lastReplyAt: byId.get(d.id)?.last || null })),
       communities,
+      businesses,
     };
   }
 
