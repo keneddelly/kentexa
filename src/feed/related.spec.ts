@@ -27,7 +27,7 @@ describe('related discussions', () => {
     return { svc, wheres };
   };
 
-  it('same community first, then same topic, under the viewer\'s visibility rules', async () => {
+  it("same community first, then same topic, under the viewer's visibility rules", async () => {
     const { svc, wheres } = build({ communityId: 3, topic: 'kilimo' });
     const r = await svc.getRelated(7, null);
     expect(svc.assertCanSeePost).toHaveBeenCalledWith(7, null);
@@ -37,8 +37,9 @@ describe('related discussions', () => {
     expect(r.communities).toEqual([{ id: 4, name: 'Wakulima', memberCount: 12 }]);
   });
 
-  it('a post with no community and no topic has nothing related', async () => {
-    expect(await build({ communityId: null, topic: null }).svc.getRelated(7, null)).toEqual({ discussions: [], communities: [] });
+  it('a post with no community and no topic returns empty recommendation collections', async () => {
+    expect(await build({ communityId: null, topic: null }).svc.getRelated(7, null))
+      .toEqual({ discussions: [], communities: [], businesses: [] });
   });
 });
 

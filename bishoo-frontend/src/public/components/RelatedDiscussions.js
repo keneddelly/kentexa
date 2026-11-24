@@ -1,8 +1,7 @@
 /**
- * RelatedDiscussions.js — what to read next at the end of a discussion (viral engine C, issue
- * #381): "Mijadala zaidi" (same community, then same topic) and "Jumuiya zinazofanana" (open
- * communities on the same topic), so a visitor from a shared link finds more reasons to stay.
- * Shown to everyone, guests included; the server applies the usual visibility rules.
+ * RelatedDiscussions.js — discovery continues after a shared/Google landing post.
+ * Recommendations are personalized when available; the fallback always gives guests
+ * useful next destinations instead of ending the page at the post.
  */
 import React, { useEffect, useState } from 'react';
 import api from '../../api/api';
@@ -12,30 +11,37 @@ import { ThreadCard } from './DiscussionCard';
 const INK = '#0f1419';
 const MUTED = '#536471';
 const LINE = '#eff3f4';
+const buttonStyle = {
+  minHeight: 42, padding: '0 14px', borderRadius: 10, border: `1px solid #cfd9de`,
+  background: '#fff', color: INK, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+  fontFamily: 'inherit',
+};
 
 export default function RelatedDiscussions({ postId, onNavigate }) {
   const [data, setData] = useState(null);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let alive = true;
     setData(null);
+    setLoaded(false);
     Promise.resolve()
       .then(() => api.get(`/feed/${postId}/related`))
-      .then((r) => { if (alive) setData(r?.data || null); })
-      .catch(() => {});
+      .then((r) => { if (alive) setData(r?.data || {}); })
+      .catch(() => { if (alive) setData({}); })
+      .finally(() => { if (alive) setLoaded(true); });
     return () => { alive = false; };
   }, [postId]);
 
   const discussions = Array.isArray(data?.discussions) ? data.discussions : [];
   const communities = Array.isArray(data?.communities) ? data.communities : [];
   const businesses = Array.isArray(data?.businesses) ? data.businesses : [];
-  if (!discussions.length && !communities.length && !businesses.length) return null;
+  const hasRecommendations = discussions.length > 0 || communities.length > 0 || businesses.length > 0;
   const h = { margin: 0, padding: '14px 16px 6px', fontSize: 17, fontWeight: 800, color: INK };
   return (
-    <div data-testid="related" style={{ borderTop: `8px solid ${LINE}` }}>
+    <div data-testid="related" style={{ borderTop: `8px solid ${LINE}`, background: '#fff' }}>
       {discussions.length > 0 && (
         <section aria-label="Mijadala zaidi">
           <h2 style={{ ...h, background: '#eef1f4', paddingBottom: 10 }}>Mijadala zaidi</h2>
-          {/* D2: the same discussion cards as the community page. */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '6px 12px 12px', background: '#eef1f4' }}>
             {discussions.map((p) => (
               <ThreadCard key={p.id} post={p} showCommunity testId={`related-post-${p.id}`} onOpen={() => onNavigate(`PostDetail-${p.id}`)} />
@@ -82,6 +88,22 @@ export default function RelatedDiscussions({ postId, onNavigate }) {
           ))}
         </section>
       )}
+      <section aria-label="Endelea kugundua Kentexa" data-testid="discovery-fallback"
+        style={{ padding: '16px', borderTop: `1px solid ${LINE}`, background: '#f8fafc' }}>
+        <h2 style={{ ...h, padding: '0 0 6px' }}>Endelea kugundua Kentexa</h2>
+        <p style={{ margin: '0 0 12px', color: MUTED, fontSize: 14, lineHeight: 1.5 }}>
+          {hasRecommendations
+            ? 'Chunguza biashara, huduma na mijadala mingine ndani ya mtandao wa Kentexa.'
+            : loaded
+              ? 'Bado hatujapata mapendekezo yanayolingana moja kwa moja na chapisho hili. Unaweza kuendelea kugundua biashara na jumuiya nyingine.'
+              : 'Tunatafuta mijadala, biashara na jumuiya zinazohusiana na chapisho hili.'}
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button type="button" data-testid="discover-businesses" style={buttonStyle} onClick={() => onNavigate('Stores')}>Gundua biashara</button>
+          <button type="button" data-testid="discover-communities" style={buttonStyle} onClick={() => onNavigate('JumuiyaHome')}>Tembelea Jumuiya</button>
+          <button type="button" data-testid="discover-home" style={buttonStyle} onClick={() => onNavigate('Home')}>Mwanzo wa Kentexa</button>
+        </div>
+      </section>
     </div>
   );
 }
