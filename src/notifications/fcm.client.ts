@@ -27,6 +27,7 @@ interface ServiceAccount {
 
 const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
+const KENTEXA_ANDROID_CHANNEL = 'kentexa_updates';
 
 export class FcmClient {
   private account: ServiceAccount | null = null;
@@ -61,7 +62,13 @@ export class FcmClient {
             token,
             notification: { title: payload.title, body: payload.body },
             data: payload.data || {},
-            android: { priority: 'HIGH', notification: { channel_id: 'default' } },
+            android: {
+              priority: 'HIGH',
+              notification: {
+                channel_id: KENTEXA_ANDROID_CHANNEL,
+                sound: 'kentexa_signature_tone',
+              },
+            },
           },
         }),
       },
