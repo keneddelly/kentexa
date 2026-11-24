@@ -87,7 +87,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, serviceId, currentUser, onOpenM
     if (!ad) return undefined;
     const name = String(ad.title || 'Huduma').trim();
     const provider = ad.commerceProfile?.displayName || ad.provider?.name || '';
-    const description = String(ad.description || `${name} ${ad.coverageCity || ''} kupitia Kentexa Tanzania.`).replace(/\\s+/g, ' ').slice(0, 160);
+    const description = String(ad.description || `${name} ${ad.coverageCity || ''} kupitia Kentexa Tanzania.`).replace(/\s+/g, ' ').slice(0, 160);
     const canonical = `${window.location.origin}${window.location.pathname}`;
     const image = absoluteImageUrl(ad.images?.[0]);
     const price = Number(ad.price);
