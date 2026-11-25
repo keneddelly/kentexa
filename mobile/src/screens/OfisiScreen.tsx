@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../api/client';
+import { tokens } from '../api/tokens';
 import { Button, Empty } from '../components/Ui';
 import { useAuth } from '../auth/AuthContext';
 import { WEB_URL } from '../config';
@@ -26,6 +27,26 @@ interface Dashboard {
   agent?: { businessName?: string; city?: string; billing?: { billingBlocked?: boolean } };
   stats?: { pending: number; receivedAtHub: number; inTransit: number; arrivedAtHub: number; delivered: number };
   parcels?: Parcel[];
+}
+
+/**
+ * Puts the phone on this account's office role, the same switch the website makes, so the office
+ * data is read in the office's own context. 'none': no office on this account. 'pending': an office
+ * exists but is not switchable yet (application not accepted).
+ */
+async function ensureOfficeContext(): Promise<'ok' | 'none' | 'pending'> {
+  const roles: any = await api.get('/auth/roles');
+  const list: any[] = Array.isArray(roles?.availableRoles) ? roles.availableRoles : [];
+  const mine = list.filter((r) => r.roleType === 'super_agent');
+  if (mine.length === 0) return 'none';
+  const office = mine.find((r) => r.switchable);
+  if (!office) return 'pending';
+  const me: any = await api.get('/auth/me');
+  if (Number(me?.activeContext?.accountRoleId) !== Number(office.accountRoleId)) {
+    const sw: any = await api.post('/auth/switch-role', { accountRoleId: Number(office.accountRoleId) });
+    if (sw?.accessToken) await tokens.setAccess(sw.accessToken);
+  }
+  return 'ok';
 }
 
 /** Plain Swahili for a parcel's state. Unknown states show as "Inaendelea". */
@@ -97,6 +118,9 @@ export default function OfisiScreen({ navigation }: P) {
     setLoading(true);
     setError('');
     try {
+      const office = await ensureOfficeContext();
+      if (office === 'none') { setData({ status: 'not_applied' }); return; }
+      if (office === 'pending') { setData({ status: 'active_role_required', activeRoleRequired: true }); return; }
       setData(await api.get<Dashboard>('/super-agents/dashboard'));
     } catch (e: any) {
       setError(e?.message || 'Imeshindikana kupakia. Jaribu tena.');

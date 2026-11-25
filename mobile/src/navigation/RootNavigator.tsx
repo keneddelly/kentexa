@@ -8,6 +8,7 @@ import PostScreen from '../screens/PostScreen';
 import LoginScreen from '../screens/LoginScreen';
 import WebScreen from '../screens/WebScreen';
 import KaziScreen from '../screens/KaziScreen';
+import OfisiKaziScreen from '../screens/OfisiKaziScreen';
 import { CreateScreen } from '../screens/Placeholders';
 import CreateClassifiedScreen from '../screens/CreateClassifiedScreen';
 import AccountScreen from '../screens/AccountScreen';
@@ -55,7 +56,7 @@ function Tabs({ navigation }: any) {
       {!OFISI && <Tab.Screen name="Ongeza" component={SearchScreen as any}
         listeners={{ tabPress: (e) => { e.preventDefault(); navigation.navigate('Create'); } }} />}
       <Tab.Screen name="Inbox" component={InboxScreen as any} />
-      <Tab.Screen name="Kazi" component={KaziScreen as any} />
+      <Tab.Screen name="Kazi" component={(OFISI ? OfisiKaziScreen : KaziScreen) as any} />
     </Tab.Navigator>
   );
 }
