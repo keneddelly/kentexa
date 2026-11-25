@@ -186,7 +186,6 @@
   },
   "webOnly": [
     "officePointGps",
-    "vanDesk",
     "bulkShipments"
   ],
   "pricing": {
@@ -330,5 +329,51 @@
     },
     "methodsFromServer": true,
     "note": "KenteXa never holds the money: this is the office's own record of what the sender paid it."
+  },
+  "vanDesk": {
+    "cityMatch": "dar",
+    "gate": "Shown only when the office city contains the word in cityMatch (web: isDar).",
+    "title": "Van Desk",
+    "subtitle": "Pokea mizigo iliyoshushwa na Van, kisha endelea na pickup au delivery.",
+    "queues": {
+      "readyToSend": "READY TO SEND",
+      "incoming": "INCOMING VAN",
+      "atOffice": "IKO OFISINI"
+    },
+    "emptyMessages": {
+      "readyToSend": "Hakuna mzigo uliopo custody yako unaosubiri Van.",
+      "incoming": "Hakuna mzigo wa Van unaosubiri kupokelewa.",
+      "atOffice": "Hakuna mzigo wa Van unaosubiri pickup/delivery."
+    },
+    "endpoints": {
+      "blockedReceipts": "GET /van-pilot/desk/blocked-receipts",
+      "awaitingCompletion": "GET /van-pilot/desk/awaiting-completion",
+      "readyForMovement": "GET /van-pilot/desk/ready-for-movement",
+      "eligibleRuns": "GET /van-pilot/parcels/:parcelId/eligible-runs",
+      "tender": "POST /van-pilot/movement-tenders",
+      "confirmReceipt": "PATCH /van-pilot/assignments/:assignmentId/confirm-receipt"
+    },
+    "tenderBody": {
+      "parcelId": "number",
+      "transportProviderId": "from the chosen run",
+      "runId": "from the chosen run",
+      "loadRunStopId": "from the chosen run",
+      "idempotencyKey": "hub-release:{parcelId}:run:{runId}:stop:{loadRunStopId}"
+    },
+    "parcelNumber": "customerNumber, else trackingNumber",
+    "messages": {
+      "tendered": "Mzigo umeachiwa kwa transporter. Utatokea kwenye manifest baada ya transporter kuukubali.",
+      "received": "Mzigo umepokelewa na custody imehamia kwenye hub yako.",
+      "loadFailed": "Imeshindwa kupakia shughuli za Van",
+      "noRuns": "Hakuna Van inayopatikana kwa mzigo huu",
+      "tenderFailed": "Imeshindwa kuachia mzigo kwa Van",
+      "receiptFailed": "Imeshindwa kuthibitisha mzigo"
+    },
+    "buttons": {
+      "findRun": "Tafuta Van",
+      "chooseRun": "Chagua Van",
+      "release": "Achia kwa Van",
+      "received": "Nimepokea Mzigo"
+    }
   }
 }

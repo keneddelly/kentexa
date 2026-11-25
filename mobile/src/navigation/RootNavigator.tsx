@@ -22,6 +22,7 @@ import OfisiBeiScreen from '../screens/OfisiBeiScreen';
 import OfisiMapatoScreen from '../screens/OfisiMapatoScreen';
 import OfisiWashirikaScreen from '../screens/OfisiWashirikaScreen';
 import OfisiTrackScreen from '../screens/OfisiTrackScreen';
+import OfisiVanScreen from '../screens/OfisiVanScreen';
 import { VARIANT } from '../config';
 import type { RootStackParams, TabParams } from './types';
 
@@ -79,6 +80,7 @@ export default function RootNavigator() {
       <Stack.Screen name="OfisiMapato" component={OfisiMapatoScreen} options={{ title: 'Mapato' }} />
       <Stack.Screen name="OfisiWashirika" component={OfisiWashirikaScreen} options={{ title: 'Washirika' }} />
       <Stack.Screen name="OfisiTrack" component={OfisiTrackScreen} options={{ title: 'Fuatilia mzigo' }} />
+      <Stack.Screen name="OfisiVan" component={OfisiVanScreen} options={{ title: 'Van Desk' }} />
       <Stack.Screen name="Thread" component={ThreadScreen} options={{ title: 'Mazungumzo' }} />
       <Stack.Screen name="Web" component={WebScreen} options={{ title: 'KenteXa' }} />
       <Stack.Group screenOptions={{ presentation: 'modal' }}>

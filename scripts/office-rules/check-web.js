@@ -107,6 +107,21 @@ need(`useState('${sp.defaultMethod}')`, 'default method', payments);
 need('<OfficeShipmentPayments', 'payments mounted on dashboard', page);
 need(sp.savedMessage.split('{number}')[0].trim(), 'saved message', payments);
 
+// Van desk (Dar offices only on the web).
+const vd = rules.vanDesk;
+const vanPage = page;
+need(`profile?.city?.toLowerCase().includes('${vd.cityMatch}')`, 'van desk city gate', page);
+need(vd.title, 'van desk title', page);
+need(vd.subtitle, 'van desk subtitle', page);
+for (const lbl of Object.values(vd.queues)) need(lbl, `van queue ${lbl}`, page);
+for (const msg of Object.values(vd.emptyMessages)) need(msg, 'van empty message', page);
+for (const msg of Object.values(vd.messages)) need(msg, 'van message', page);
+for (const lbl of Object.values(vd.buttons)) need(lbl, 'van button', page);
+for (const ep of Object.values(vd.endpoints)) for (const seg of segs(ep)) need(seg, `van endpoint ${ep} segment ${seg}`, page);
+need('hub-release:', 'van idempotency key prefix', page);
+need(':stop:', 'van idempotency key stop segment', page);
+need('displayParcelNumber(p)', 'van parcel number helper', page);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

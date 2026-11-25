@@ -15,6 +15,7 @@ export type RootStackParams = {
   OfisiMapato: undefined;
   OfisiWashirika: { shopName?: string } | undefined;
   OfisiTrack: { trackingNumber?: string } | undefined;
+  OfisiVan: undefined;
 };
 
 export type TabParams = {
