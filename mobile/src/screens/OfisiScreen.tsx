@@ -220,7 +220,13 @@ export default function OfisiScreen({ navigation }: P) {
       </Pressable>
 
       <Text style={[type.name, s.section]}>{group === 'pokea' ? 'Mizigo ya kupokea' : 'Mizigo ya kutuma'}</Text>
-      {shown.length === 0 && <Text style={type.meta}>Hakuna mzigo hapa kwa sasa.</Text>}
+      {shown.length === 0 && (
+        <Text style={type.meta}>
+          {group === 'pokea'
+            ? 'Hakuna mzigo unaoingia ofisini sasa hivi. Mzigo ukitumwa kwenye ofisi yako utaonekana hapa.'
+            : 'Hakuna mzigo wa kutuma kutoka ofisini sasa hivi.'}
+        </Text>
+      )}
       {!!notice && <Text style={[type.meta, s.notice]}>{notice}</Text>}
       {shown.map((p) => {
         const act = actionFor(p);
