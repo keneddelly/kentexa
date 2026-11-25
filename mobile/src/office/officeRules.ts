@@ -474,7 +474,8 @@ export const OFFICE_RULES = {
           "whatsapp": "Fungua WhatsApp",
           "own_sms": "Fungua SMS"
         },
-        "needs": "waybill (the parcel has one)"
+        "needs": "waybill (the parcel has one)",
+        "followUpWebOnly": "Listing sent invites and confirming joined ones stays on the web (owner decision 2026-11-25). The native app only sends the invite."
       },
       "endpoints": {
         "invite": "POST /partner-invitations"
@@ -574,6 +575,7 @@ export const OFFICE_RULES = {
     }
   },
   "webOnly": [
-    "bulkShipments"
+    "bulkShipments",
+    "partnerInviteFollowUp"
   ]
 } as const;
