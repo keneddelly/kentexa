@@ -102,7 +102,7 @@ export default function OfisiMapatoScreen({ navigation }: P) {
             <Text style={[type.name, { color: GREEN }]}>{freeLeft}</Text>
           </View>
           {(refs.referrals || []).map((r) => {
-            const [text, color] = (R.referralStatusLabels as Record<string, [string, string]>)[r.status] || [r.status, colors.muted];
+            const [text, color] = (R.referralStatusLabels as Record<string, readonly [string, string]>)[r.status] || [r.status, colors.muted];
             return (
               <View key={r.id} style={s.row}>
                 <Text style={type.small}>{r.referredUser?.name || '—'}</Text>
