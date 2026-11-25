@@ -139,6 +139,7 @@ function App() {
   const [userRole, setUserRole]     = useState(() => checkToken().role);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showMomentModal, setShowMomentModal] = useState(false);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [momentModalMode, setMomentModalMode] = useState('selling');
   const [momentRefreshKey, setMomentRefreshKey] = useState(0);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -238,13 +239,12 @@ function App() {
         // Fetch and cache full profile so all forms can pre-fill
         api.get('/auth/profile').then(res => {
           setCurrentUser(res.data);
-          // Subscribe to push notifications in background
+          // Keep push subscription for already-granted users. Ask new users only
+          // after showing the visible Kentexa explanation and receiving their click.
           if ('Notification' in window && Notification.permission === 'granted') {
             subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {});
-          } else if ('Notification' in window && Notification.permission !== 'denied') {
-            Notification.requestPermission().then(perm => {
-              if (perm === 'granted') subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {});
-            });
+          } else if ('Notification' in window && Notification.permission === 'default') {
+            setShowNotificationPrompt(true);
           }
           localStorage.setItem('kentexa_user', JSON.stringify(res.data));
         }).catch(() => {});
@@ -561,6 +561,21 @@ function App() {
         />
       )}
 
+      {/* Notification opt-in explanation — shown before the native browser permission prompt */}
+      {showNotificationPrompt && 'Notification' in window && Notification.permission === 'default' && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(15,23,42,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#fff', width: '100%', maxWidth: 420, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', borderRadius: 20, padding: '24px 22px', boxShadow: '0 24px 70px rgba(0,0,0,0.32)', textAlign: 'center' }}>
+            <div style={{ fontSize: 38, marginBottom: 8 }}>🔔</div>
+            <h2 style={{ margin: '0 0 10px', color: '#0f172a', fontSize: 22, fontWeight: 900 }}>Usikose taarifa muhimu za Kentexa!</h2>
+            <p style={{ margin: '0 0 16px', color: '#475569', fontSize: 15, lineHeight: 1.55 }}>Washa notifications ili upate taarifa za:</p>
+            <div style={{ textAlign: 'left', background: '#f8fafc', borderRadius: 14, padding: '14px 16px', marginBottom: 20, color: '#1e293b', fontSize: 15, lineHeight: 1.7 }}>
+              <div>• Ujumbe mpya (Chat)</div><div>• Watu wanaokufuata (Followers)</div><div>• Posts na comments</div><div>• Ofa maalum</div><div>• Taarifa nyingine muhimu za Kentexa</div>
+            </div>
+            <button onClick={() => { setShowNotificationPrompt(false); Notification.requestPermission().then(perm => { if (perm === 'granted') subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {}); }); }} style={{ width: '100%', minHeight: 48, padding: '13px 16px', border: 0, borderRadius: 12, background: '#1d4ed8', color: '#fff', fontSize: 16, fontWeight: 800, cursor: 'pointer', marginBottom: 10 }}>Washa Notifications</button>
+            <button onClick={() => setShowNotificationPrompt(false)} style={{ width: '100%', minHeight: 48, padding: '12px 16px', border: '1px solid #cbd5e1', borderRadius: 12, background: '#fff', color: '#334155', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Baadaye</button>
+          </div>
+        </div>
+      )}
       {/* First-visit language picker */}
       {showLangPicker && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
