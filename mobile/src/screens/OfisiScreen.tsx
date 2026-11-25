@@ -66,6 +66,10 @@ const STATUS_SW: Record<string, string> = {
  * its parcels. Taking an action on a parcel (receive, dispatch, hand over) opens the office page on
  * kentexa.com, where the full, tested flow already lives. Nothing here changes a parcel by itself.
  */
+/** POKEA: parcels on their way into this office. TUMA: parcels held here to send out. */
+const isPokea = (p: Parcel) => (p.status === 'dispatched' || p.status === 'in_transit') && p.myRole === 'destination';
+const isTuma = (p: Parcel) => ['pending', 'received_at_hub', 'verified', 'ready_for_dispatch'].includes(p.status) && p.myRole !== 'destination';
+
 export default function OfisiScreen({ navigation }: P) {
   const { user } = useAuth();
   const [data, setData] = useState<Dashboard | null>(null);
@@ -73,6 +77,7 @@ export default function OfisiScreen({ navigation }: P) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
+  const [group, setGroup] = useState<'pokea' | 'tuma'>('tuma');
 
   /**
    * What the office can do right here, per parcel. Same calls the web office page makes:
@@ -172,8 +177,10 @@ export default function OfisiScreen({ navigation }: P) {
     );
   }
 
-  const st = data.stats;
   const parcels = data.parcels || [];
+  const pokea = parcels.filter(isPokea);
+  const tuma = parcels.filter(isTuma);
+  const shown = group === 'pokea' ? pokea : tuma;
 
   return (
     <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={GREEN} />}>
@@ -186,17 +193,21 @@ export default function OfisiScreen({ navigation }: P) {
         </Pressable>
       )}
 
-      <View style={s.tiles}>
-        <Tile label="Zinasubiri" value={st?.pending ?? 0} />
-        <Tile label="Zimepokelewa" value={st?.receivedAtHub ?? 0} />
-        <Tile label="Njiani" value={st?.inTransit ?? 0} />
-        <Tile label="Zimefika" value={st?.arrivedAtHub ?? 0} />
+      {/* The two daily jobs, big, as on the web office page. Tapping one shows its parcels below. */}
+      <View style={s.jobs}>
+        <JobCard word="POKEA" line="Mzigo unaingia ofisini" count={pokea.length} color="#1d4ed8" active={group === 'pokea'} onPress={() => setGroup('pokea')} />
+        <JobCard word="TUMA" line="Mzigo unatoka ofisini" count={tuma.length} color="#c97a30" active={group === 'tuma'} onPress={() => setGroup('tuma')} />
       </View>
 
-      <Text style={[type.name, s.section]}>Mizigo</Text>
-      {parcels.length === 0 && <Text style={type.meta}>Hakuna mzigo bado.</Text>}
+      <Pressable onPress={() => navigation.navigate('OfisiSettings')} style={s.quick} accessibilityRole="button">
+        <Text style={type.name}>Mipangilio ya ofisi</Text>
+        <Text style={type.small}>Jina, mji na hali</Text>
+      </Pressable>
+
+      <Text style={[type.name, s.section]}>{group === 'pokea' ? 'Mizigo ya kupokea' : 'Mizigo ya kutuma'}</Text>
+      {shown.length === 0 && <Text style={type.meta}>Hakuna mzigo hapa kwa sasa.</Text>}
       {!!notice && <Text style={[type.meta, s.notice]}>{notice}</Text>}
-      {parcels.map((p) => {
+      {shown.map((p) => {
         const act = actionFor(p);
         const working = busy === p.trackingNumber;
         return (
@@ -218,17 +229,27 @@ export default function OfisiScreen({ navigation }: P) {
   );
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function JobCard({ word, line, count, color, active, onPress }: { word: string; line: string; count: number; color: string; active: boolean; onPress: () => void }) {
   return (
-    <View style={s.tile}>
-      <Text style={s.tileValue}>{value}</Text>
-      <Text style={s.tileLabel}>{label}</Text>
-    </View>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }}
+      style={[s.job, { backgroundColor: color }, !active && s.jobIdle]}>
+      <Text style={s.jobWord}>{word}</Text>
+      <Text style={s.jobLine}>{line}</Text>
+      <Text style={s.jobCount}>{count}</Text>
+    </Pressable>
   );
 }
 
+
 const s = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: '#fff', padding: 16, gap: 12 },
+  jobs: { flexDirection: 'row', gap: 10 },
+  job: { flex: 1, borderRadius: 16, padding: 16, minHeight: 150, justifyContent: 'space-between' },
+  jobIdle: { opacity: 0.55 },
+  jobWord: { fontFamily: F.black, fontSize: 26, color: '#fff', letterSpacing: -0.3 },
+  jobLine: { fontFamily: F.regular, fontSize: 13, color: '#fff' },
+  jobCount: { fontFamily: F.black, fontSize: 30, color: '#fff' },
+  quick: { marginTop: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 2 },
   body: { padding: 16, gap: 12, backgroundColor: '#fff' },
   head: { gap: 2, marginBottom: 4 },
   brand: { fontFamily: F.black, fontSize: 22, color: colors.ink, letterSpacing: -0.3 },
