@@ -11,6 +11,7 @@ export type RootStackParams = {
   Account: undefined;
   OfisiSettings: undefined;
   WalkIn: { city?: string } | undefined;
+  OfisiBei: undefined;
 };
 
 export type TabParams = {

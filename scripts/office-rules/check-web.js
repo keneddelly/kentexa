@@ -64,6 +64,16 @@ need(`'${rules.localDispatch.defaultTransportType}'`, 'local dispatch default tr
 for (const seg of segs(rules.handover.listEndpoint)) need(seg, 'handover list endpoint', allWeb);
 for (const seg of segs(rules.localDispatch.agentsEndpoint)) need(seg, 'agents endpoint', allWeb);
 
+// Prices and pickup (Phase A).
+const pr = rules.pricing;
+const priceFiles = allWeb + fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/OfficePickupCard.js'), 'utf8') + fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/ChargeRuleSection.js'), 'utf8') + fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/OfficePrices.js'), 'utf8') + fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/RouteRangePanel.js'), 'utf8');
+for (const [k, lbl] of pr.goodsTypes) need(`'${k}'`, `goods type ${k}`, priceFiles);
+for (const [k, lbl] of pr.pickupModes) need(`'${k}'`, `pickup mode ${k}`, priceFiles);
+need(`valuePercent: '${pr.valueDefaults.valuePercent}'`, 'default value percent', priceFiles);
+need(`valueMinimum: '${pr.valueDefaults.valueMinimum}'`, 'default value minimum', priceFiles);
+need(`estimatedDays: ${pr.routeDefaults.estimatedDays}`, 'default route days', priceFiles);
+for (const ep of Object.values(pr.endpoints)) for (const seg of segs(ep)) need(seg, `pricing endpoint ${ep} segment ${seg}`, priceFiles);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

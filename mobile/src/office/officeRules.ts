@@ -185,11 +185,67 @@ export const OFFICE_RULES = {
     "listEndpoint": "GET /collections/hub/handover-requests",
     "acceptEndpoint": "PATCH /collections/:id/hub-accept"
   },
+  "pricing": {
+    "$comment": "Office prices copied from bishoo-frontend/src/public/components/OfficePrices.js, ChargeRuleSection.js, RouteRangePanel.js and OfficePickupCard.js.",
+    "chargeModes": [
+      "value",
+      "kg"
+    ],
+    "valueDefaults": {
+      "chargeMode": "value",
+      "valuePercent": 10,
+      "valueMinimum": 5000
+    },
+    "routeDefaults": {
+      "estimatedDays": 3
+    },
+    "goodsTypes": [
+      [
+        "parcel",
+        "Vifurushi vidogo"
+      ],
+      [
+        "large",
+        "Mzigo mkubwa"
+      ],
+      [
+        "container",
+        "Kontena"
+      ]
+    ],
+    "pickupModes": [
+      [
+        "none",
+        "Sichukui mzigo kwa mteja"
+      ],
+      [
+        "free",
+        "Nachukua bure"
+      ],
+      [
+        "fixed",
+        "Nachukua kwa bei"
+      ]
+    ],
+    "endpoints": {
+      "priceRuleGet": "GET /super-agents/me/price-rule",
+      "priceRulePut": "PUT /super-agents/me/price-rule",
+      "ratesGet": "GET /super-agents/rates/:city",
+      "ratesPost": "POST /super-agents/rates",
+      "regions": "GET /locations/regions",
+      "goodsGet": "GET /quote-requests/goods-types",
+      "goodsPut": "PUT /quote-requests/goods-types",
+      "pickupGet": "GET /super-agents/me/pickup",
+      "pickupPut": "PUT /super-agents/me/pickup",
+      "routeRange": "GET /super-agents/me/route-range?destinationCity&weightKg",
+      "officePointPatch": "PATCH /super-agents/my-profile/office-point"
+    }
+  },
   "webOnly": [
+    "officePointGps",
     "vanDesk",
     "bulkShipments",
     "referrals",
-    "revenue",
-    "rates"
+    "revenue"
   ]
 } as const;

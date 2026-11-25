@@ -18,39 +18,62 @@
   "groups": {
     "pokea": {
       "incoming": {
-        "statuses": ["dispatched", "in_transit", "arrived_at_hub"],
+        "statuses": [
+          "dispatched",
+          "in_transit",
+          "arrived_at_hub"
+        ],
         "myRole": "destination"
       }
     },
     "tuma": {
       "toDispatch": {
-        "statuses": ["received_at_hub", "ready_for_dispatch"],
+        "statuses": [
+          "received_at_hub",
+          "ready_for_dispatch"
+        ],
         "myRole": "not_destination"
       },
       "inTransit": {
-        "statuses": ["dispatched", "in_transit"],
+        "statuses": [
+          "dispatched",
+          "in_transit"
+        ],
         "myRole": "not_destination"
       },
       "awaitingBuyer": {
-        "statuses": ["awaiting_buyer", "out_for_delivery"],
+        "statuses": [
+          "awaiting_buyer",
+          "out_for_delivery"
+        ],
         "myRole": "not_origin"
       }
     },
     "delivered": {
       "delivered": {
-        "statuses": ["delivered"]
+        "statuses": [
+          "delivered"
+        ]
       }
     }
   },
   "counts": {
-    "pokea": ["incoming", "handoverRequests"],
-    "tuma": ["toDispatch", "awaitingBuyer"]
+    "pokea": [
+      "incoming",
+      "handoverRequests"
+    ],
+    "tuma": [
+      "toDispatch",
+      "awaitingBuyer"
+    ]
   },
   "expectedActions": {
     "receive_from_sender": {
       "label": "Mtumaji yuko hapa: pokea mzigo",
       "endpoint": "PATCH /super-agents/parcels/:trackingNumber/status",
-      "body": { "status": "received_at_hub" }
+      "body": {
+        "status": "received_at_hub"
+      }
     },
     "receive_order": {
       "label": "Muuzaji yuko hapa: pokea oda",
@@ -70,7 +93,9 @@
   },
   "arrival": {
     "endpoint": "PATCH /super-agents/shipments/:trackingNumber/arrived",
-    "body": { "city": "<office city>" }
+    "body": {
+      "city": "<office city>"
+    }
   },
   "regionMatch": {
     "$comment": "Same place or not. Copied from bishoo-frontend/src/utils/regionMatch.js (backend: src/super-agents/region-match.ts).",
@@ -81,7 +106,11 @@
     "$comment": "Walk-in counter rules copied from SuperAgentDashboard.js (handleWalkSubmit) and OfficePricePreview.js.",
     "reasonMinLength": 3,
     "defaultServicePath": "local_agent",
-    "servicePaths": ["local_agent", "van", "intercity"],
+    "servicePaths": [
+      "local_agent",
+      "van",
+      "intercity"
+    ],
     "pricePreviewEndpoint": "POST /super-agents/me/price-quote",
     "submitEndpoint": "POST /super-agents/offline-intercity",
     "hubsEndpoint": "GET /super-agents/hubs/:city",
@@ -91,18 +120,50 @@
   },
   "statusModal": {
     "$comment": "Status change rules copied from SuperAgentDashboard.js (status modal, handleConfirmPickup, handleSendPickupCode, handleIssueAgentHandoff). preDispatchStatuses decides which intake options show. Server enforces the same stages.",
-    "preDispatchStatuses": ["pending", "collection_requested", "collected_by_agent", "received_at_hub", "verified", "ready_for_dispatch"],
+    "preDispatchStatuses": [
+      "pending",
+      "collection_requested",
+      "collected_by_agent",
+      "received_at_hub",
+      "verified",
+      "ready_for_dispatch"
+    ],
     "originOptions": [
-      { "value": "received_at_hub", "label": "Imepokewa ofisini", "onlyPreDispatch": true },
-      { "value": "verified", "label": "Imethibitishwa", "onlyPreDispatch": true },
-      { "value": "ready_for_dispatch", "label": "Tayari Kutuma", "onlyPreDispatch": true },
-      { "value": "in_transit", "label": "Njiani", "onlyPreDispatch": false }
+      {
+        "value": "received_at_hub",
+        "label": "Imepokewa ofisini",
+        "onlyPreDispatch": true
+      },
+      {
+        "value": "verified",
+        "label": "Imethibitishwa",
+        "onlyPreDispatch": true
+      },
+      {
+        "value": "ready_for_dispatch",
+        "label": "Tayari Kutuma",
+        "onlyPreDispatch": true
+      },
+      {
+        "value": "in_transit",
+        "label": "Njiani",
+        "onlyPreDispatch": false
+      }
     ],
     "destinationOptions": [
-      { "value": "arrived_at_hub", "label": "Imefika ofisini" },
-      { "value": "awaiting_buyer", "label": "Inasubiri Mteja" }
+      {
+        "value": "arrived_at_hub",
+        "label": "Imefika ofisini"
+      },
+      {
+        "value": "awaiting_buyer",
+        "label": "Inasubiri Mteja"
+      }
     ],
-    "pickupOfferStatuses": ["arrived_at_hub", "awaiting_buyer"],
+    "pickupOfferStatuses": [
+      "arrived_at_hub",
+      "awaiting_buyer"
+    ],
     "pickupCodeLength": 6,
     "agentHandoffMinutes": 10,
     "endpoints": {
@@ -123,5 +184,67 @@
     "listEndpoint": "GET /collections/hub/handover-requests",
     "acceptEndpoint": "PATCH /collections/:id/hub-accept"
   },
-  "webOnly": ["vanDesk", "bulkShipments", "referrals", "revenue", "rates"]
+  "webOnly": [
+    "officePointGps",
+    "vanDesk",
+    "bulkShipments",
+    "referrals",
+    "revenue"
+  ],
+  "pricing": {
+    "$comment": "Office prices copied from bishoo-frontend/src/public/components/OfficePrices.js, ChargeRuleSection.js, RouteRangePanel.js and OfficePickupCard.js.",
+    "chargeModes": [
+      "value",
+      "kg"
+    ],
+    "valueDefaults": {
+      "chargeMode": "value",
+      "valuePercent": 10,
+      "valueMinimum": 5000
+    },
+    "routeDefaults": {
+      "estimatedDays": 3
+    },
+    "goodsTypes": [
+      [
+        "parcel",
+        "Vifurushi vidogo"
+      ],
+      [
+        "large",
+        "Mzigo mkubwa"
+      ],
+      [
+        "container",
+        "Kontena"
+      ]
+    ],
+    "pickupModes": [
+      [
+        "none",
+        "Sichukui mzigo kwa mteja"
+      ],
+      [
+        "free",
+        "Nachukua bure"
+      ],
+      [
+        "fixed",
+        "Nachukua kwa bei"
+      ]
+    ],
+    "endpoints": {
+      "priceRuleGet": "GET /super-agents/me/price-rule",
+      "priceRulePut": "PUT /super-agents/me/price-rule",
+      "ratesGet": "GET /super-agents/rates/:city",
+      "ratesPost": "POST /super-agents/rates",
+      "regions": "GET /locations/regions",
+      "goodsGet": "GET /quote-requests/goods-types",
+      "goodsPut": "PUT /quote-requests/goods-types",
+      "pickupGet": "GET /super-agents/me/pickup",
+      "pickupPut": "PUT /super-agents/me/pickup",
+      "routeRange": "GET /super-agents/me/route-range?destinationCity&weightKg",
+      "officePointPatch": "PATCH /super-agents/my-profile/office-point"
+    }
+  }
 }

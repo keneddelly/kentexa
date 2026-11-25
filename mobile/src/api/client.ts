@@ -90,4 +90,5 @@ export const api = {
   get: <T = any>(path: string, params?: Opts['params']) => request<T>(path, { params }),
   post: <T = any>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ?? {} }),
   patch: <T = any>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body: body ?? {} }),
+  put: <T = any>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body: body ?? {} }),
 };

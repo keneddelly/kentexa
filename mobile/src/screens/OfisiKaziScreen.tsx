@@ -10,9 +10,11 @@ import type { RootStackParams } from '../navigation/types';
  * Kazi in the KenteXa Ofisi app: only the office's own tools. Nothing from the general app here
  * (no shops, POS, orders or classifieds).
  */
-const TOOLS: Array<[string, string, string | null]> = [
-  ['Mipangilio ya ofisi', 'Jina, mji na hali ya ofisi', null],
-  ['Dashibodi ya ofisi', 'Tuma mzigo kwenye kivinjari', '/p/SuperAgentDashboard'],
+/** Each tool opens a native screen ('screen') or the web page for the office ('web'). */
+const TOOLS: Array<{ title: string; line: string; go: { screen: 'OfisiBei' | 'OfisiSettings' } | { web: string } }> = [
+  { title: 'Bei zangu', line: 'Bei za njia, kilo na kuchukua mzigo', go: { screen: 'OfisiBei' } },
+  { title: 'Mipangilio ya ofisi', line: 'Jina, mji na hali ya ofisi', go: { screen: 'OfisiSettings' } },
+  { title: 'Dashibodi ya ofisi', line: 'Tuma mzigo kwenye kivinjari', go: { web: '/p/SuperAgentDashboard' } },
 ];
 
 export default function OfisiKaziScreen({ navigation }: NativeStackScreenProps<RootStackParams>) {
@@ -22,9 +24,11 @@ export default function OfisiKaziScreen({ navigation }: NativeStackScreenProps<R
         <Text style={type.title}>Kazi</Text>
         <Text style={type.meta}>Zana za ofisi yako</Text>
       </View>
-      {TOOLS.map(([title, line, path]) => (
+      {TOOLS.map(({ title, line, go }) => (
         <Pressable key={title}
-          onPress={() => (path ? navigation.navigate('Web', { url: `${WEB_URL}${path}`, title }) : navigation.navigate('OfisiSettings'))}
+          onPress={() => ('screen' in go
+            ? navigation.navigate(go.screen as 'OfisiBei')
+            : navigation.navigate('Web', { url: `${WEB_URL}${go.web}`, title }))}
           style={({ pressed }) => [s.row, pressed && { backgroundColor: colors.soft }]} accessibilityRole="button">
           <View style={{ flex: 1 }}>
             <Text style={type.name}>{title}</Text>

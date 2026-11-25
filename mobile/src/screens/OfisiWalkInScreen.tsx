@@ -13,6 +13,8 @@ type P = NativeStackScreenProps<RootStackParams, 'WalkIn'>;
 const GREEN = '#15803d';
 const BLUE = '#1d4ed8';
 const RULES = OFFICE_RULES.walkIn;
+const RULES_ROUTE_RANGE = OFFICE_RULES.pricing.endpoints.routeRange.split(' ')[1].split('?')[0];
+const money0 = (n: unknown) => `TZS ${Number(n || 0).toLocaleString('en-US')}`;
 
 type ServicePath = 'local_agent' | 'van' | 'intercity';
 type Relation = RelationT;
@@ -47,6 +49,9 @@ interface Place {
   placeRef?: { providerPlaceId?: string; providerKey?: string } | null;
 }
 interface Hub { id: number; businessName?: string; city?: string }
+/** GET /super-agents/me/route-range: the anonymous market range only, never another office's price. */
+interface RouteRange { destinationCity?: string; weightKg?: number; range?: { low: number; middle: number; high: number } | null; officeCount?: number; position?: 'low' | 'middle' | 'high' | null; mine?: number | null }
+const POSITION_SW: Record<string, string> = { low: 'Bei yako iko chini sokoni', middle: 'Bei yako iko katikati ya soko', high: 'Bei yako iko juu sokoni' };
 interface Route { estimatedDays?: number; transitCity?: string | null; baseShippingFee?: number | null }
 interface Estimate { confidence?: string; displayPrice?: string; displayNote?: string; via?: string; estimatedDays?: number }
 interface Quote {
@@ -95,6 +100,7 @@ export default function OfisiWalkInScreen({ navigation, route }: P) {
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteError, setQuoteError] = useState('');
+  const [routeRange, setRouteRange] = useState<RouteRange | null>(null);
 
   // Reused on a retry of the same details, new for a changed form (same rule as the web).
   const pending = useRef<{ fingerprint: string; requestKey: string } | null>(null);
@@ -144,6 +150,19 @@ export default function OfisiWalkInScreen({ navigation, route }: P) {
       setEstimate(await api.get<Estimate>(`/pricing/estimate?${params.toString()}`));
     } catch { setEstimate(null); }
   };
+
+  // Market range for the destination, as the web RouteRangePanel (400 ms debounce).
+  useEffect(() => {
+    const city = dest ? (dest.regionName || dest.districtName || '') : '';
+    if (!city) { setRouteRange(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ destinationCity: city, ...(Number(form.weightKg) > 0 ? { weightKg: String(Number(form.weightKg)) } : {}) });
+        setRouteRange(await api.get<RouteRange>(`${RULES_ROUTE_RANGE}?${params.toString()}`));
+      } catch { setRouteRange(null); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [dest, form.weightKg]);
 
   // Live office price, as the web preview (400 ms debounce).
   useEffect(() => {
@@ -333,6 +352,23 @@ export default function OfisiWalkInScreen({ navigation, route }: P) {
               {routeInfo.transitCity ? `via ${routeInfo.transitCity} · ` : ''}Siku {routeInfo.estimatedDays ?? '—'}
               {routeInfo.baseShippingFee ? ` · ~${money(routeInfo.baseShippingFee)}` : ''}
             </Text>
+          )}
+          {routeRange && (
+            <View style={s.quote}>
+              <Text style={[type.small, { fontFamily: F.bold }]}>BEI SOKONI · {routeRange.destinationCity} · {routeRange.weightKg} kg</Text>
+              {routeRange.range ? (
+                <>
+                  <Text style={type.name}>{money0(routeRange.range.low)} – {money0(routeRange.range.high)}</Text>
+                  <Text style={type.small}>Katikati: {money0(routeRange.range.middle)} · ofisi {routeRange.officeCount}</Text>
+                  {routeRange.position
+                    ? <Text style={[type.small, { color: BLUE, fontFamily: F.bold }]}>{POSITION_SW[routeRange.position]} ({money0(routeRange.mine)})</Text>
+                    : <Text style={type.small}>Hujaweka bei ya kilo ya mji huu.</Text>}
+                </>
+              ) : (
+                <Text style={type.small}>Ofisi chache mno kwenye njia hii kuonyesha bei ya soko.</Text>
+              )}
+              <Text style={type.small}>Ni mwongozo tu: unaweza kuandika ada yoyote.</Text>
+            </View>
           )}
           {estimate && !quote && (
             <Text style={type.meta}>{estimate.confidence === 'exact' ? 'Bei halisi' : 'Makisio ya bei'}: {estimate.displayPrice || ''}{estimate.via ? ` · ${estimate.via}` : ''}</Text>
