@@ -558,7 +558,7 @@
       "setGps": "Mahali pa ofisi pamewekwa kwa GPS.",
       "change": "Badilisha",
       "title": "Weka mahali pa ofisi",
-      "explain": "Simama ndani au mlangoni mwa ofisi, kisha bonyeza. Mteja asipopata wakala, ataona ofisi yako na \"Fungua ramani\" ili alete mzigo.",
+      "explain": "Kwa nini: mahali pa GPS ndiyo yanamwonyesha mteja ofisi yako ilipo hasa. Ofisi ikiwa na mahali pa GPS, wateja walio karibu nayo wanaiona, na \"Fungua ramani\" inaelekeza mahali pa kweli. Bila hiyo, ofisi inalinganishwa kwa jina la mji tu, na mahali pake ni katikati ya eneo. Simama ndani au mlangoni mwa ofisi, kisha bonyeza.",
       "onlyPlace": "Ofisi ina mahali pa makadirio tu (katikati ya eneo). Weka kwa GPS ukiwa ofisini ili wateja wakupate kwa usahihi.",
       "button": "Weka mahali pa ofisi",
       "locating": "Inatafuta mahali…",
@@ -578,10 +578,11 @@
     },
     "prompt": {
       "native": true,
-      "webNote": "The web keeps its dashboard banner. This prompt is native only until the owner approves a change.",
-      "when": "Shown on the office home once the office is active and has no GPS point.",
+      "web": true,
+      "webNote": "Same prompt on the web dashboard, with the same two buttons and the same explanation.",
+      "when": "Shown each time the office is opened (office home in the app, dashboard on the web) while it has no GPS point. Baadaye hides it for laterDays.",
       "title": "Weka mahali pa ofisi",
-      "explain": "Simama ndani au mlangoni mwa ofisi, kisha bonyeza. Mteja asipopata wakala, ataona ofisi yako na \"Fungua ramani\" ili alete mzigo.",
+      "explain": "Kwa nini: mahali pa GPS ndiyo yanamwonyesha mteja ofisi yako ilipo hasa. Ofisi ikiwa na mahali pa GPS, wateja walio karibu nayo wanaiona, na \"Fungua ramani\" inaelekeza mahali pa kweli. Bila hiyo, ofisi inalinganishwa kwa jina la mji tu, na mahali pake ni katikati ya eneo. Simama ndani au mlangoni mwa ofisi, kisha bonyeza.",
       "now": "Weka sasa",
       "later": "Baadaye",
       "laterDays": 1

@@ -8,7 +8,8 @@ import { getPhonePosition } from '../../utils/phoneLocation';
 // up to 500 m). Customers see it as "Fungua ramani" on the no-agent office card.
 // officePointByGps: set with this button; officePointSet only: an approximate
 // place centre from the place picker.
-export default function OfficePoint({ officePointSet, officePointByGps, onSaved, getPosition = getPhonePosition }) {
+// onLater (dashboard prompt only): shows "Baadaye" next to "Weka sasa"; the parent hides it for a day.
+export default function OfficePoint({ officePointSet, officePointByGps, onSaved, onLater, getPosition = getPhonePosition }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null); // { ok, text }
@@ -48,10 +49,23 @@ export default function OfficePoint({ officePointSet, officePointByGps, onSaved,
       <div style={{ fontSize: 12, color: '#92400e', margin: '6px 0 10px' }}>
         {officePointSet ? t('office_point.only_place') : t('office_point.explain')}
       </div>
-      <button type="button" onClick={save} disabled={busy}
-        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', background: '#d97706', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
-        {busy ? t('pickup_pin.locating') : t('office_point.button')}
-      </button>
+      {onLater ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" onClick={onLater} disabled={busy}
+            style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: '1px solid #fde68a', background: '#fff', color: '#1e293b', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+            {t('office_point.later')}
+          </button>
+          <button type="button" onClick={save} disabled={busy}
+            style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: 'none', background: '#d97706', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+            {busy ? t('pickup_pin.locating') : t('office_point.now')}
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={save} disabled={busy}
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', background: '#d97706', color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+          {busy ? t('pickup_pin.locating') : t('office_point.button')}
+        </button>
+      )}
       {note}
     </div>
   );

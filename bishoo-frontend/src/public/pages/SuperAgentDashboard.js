@@ -41,6 +41,7 @@ import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
 import OfficeShipmentPayments from '../components/OfficeShipmentPayments';
 import StaleParcelsNotice from '../components/StaleParcelsNotice';
+import OfficePoint from '../components/OfficePoint';
 import { buildReceiptHtml, formatClaimSecret } from '../../utils/receiptPrint';
 import { displayParcelNumber, otherParcelNumbers } from '../../utils/counterReceipt';
 import { formatWaybill } from '../../utils/waybill';
@@ -203,6 +204,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
   const [localAgents, setLocalAgents]   = useState([]);
   const [loading, setLoading]           = useState(true);
   const [profileStatus, setProfileStatus] = useState(null);
+  // GPS point prompt: "Baadaye" hides it for one day in this browser (same as the app).
+  const [pointLater, setPointLater] = useState(() => {
+    try { const at = Number(localStorage.getItem('kentexa.officePoint.laterAt')); return Boolean(at) && Date.now() - at < 24 * 60 * 60 * 1000; }
+    catch { return false; }
+  });
   // "+" -> Pokea mzigo ofisini opens straight on POKEA (owner 2026-11-09).
   const [activeTab, setActiveTab]       = useState(startTab === 'pokea' || startTab === 'tuma' ? startTab : 'home');
   const [tumaMode, setTumaMode]         = useState('list'); // 'list' | 'shehena'
@@ -887,16 +893,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread, canInstallKe
     </div>
   );
 
-  // Banner until the office's GPS point is set (set at the office, from settings).
-  const pointBanner = profile && !profile.officePointByGps ? (
-    <div data-testid="office-point-banner" style={{ margin: '12px 16px 0', padding: '12px 14px', borderRadius: 12,
-      background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Ofisi yako bado haina mahali pa GPS</div>
-      <div style={{ fontSize: 13, color: '#92400e' }}>Ukiwa ofisini, nenda Ofisi yangu na ubonyeze "Weka mahali pa ofisi".</div>
-      <button type="button" onClick={() => onNavigate('SuperAgentSettings')}
-        style={{ alignSelf: 'flex-start', border: 'none', background: '#92400e', color: '#fff', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-        Fungua Ofisi yangu
-      </button>
+  // Asked each time the office is opened until its GPS point is set: "Weka sasa" now, or "Baadaye" (hidden for a day).
+  const pointBanner = profile && !profile.officePointByGps && !pointLater ? (
+    <div data-testid="office-point-banner" style={{ margin: '12px 16px 0' }}>
+      <OfficePoint
+        officePointSet={profile.officePointSet}
+        officePointByGps={profile.officePointByGps}
+        onSaved={fetchAll}
+        onLater={() => {
+          try { localStorage.setItem('kentexa.officePoint.laterAt', String(Date.now())); } catch { /* private window: prompt returns next visit */ }
+          setPointLater(true);
+        }}
+      />
     </div>
   ) : null;
 
