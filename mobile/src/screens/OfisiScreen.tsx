@@ -19,7 +19,13 @@ const BLUE = '#1d4ed8';
 const RULES = OFFICE_RULES;
 
 interface Parcel {
+  id?: number;
   trackingNumber: string;
+  waybillNumber?: string | null;
+  recipientName?: string | null;
+  recipientPhone?: string | null;
+  buyerPhone?: string | null;
+  destinationSuperAgent?: { id?: number } | null;
   customerNumber?: string;
   orderId?: number | null;
   status: string;
@@ -471,8 +477,15 @@ export default function OfisiScreen({ navigation }: P) {
                     </Pressable>
                   )}
                   {!local && (
-                    <Pressable onPress={() => openWeb('/p/SuperAgentDashboard', 'Ofisi')} accessibilityRole="button" style={s.webBtn}>
-                      <Text style={s.webText}>{van ? 'Van' : 'Shehena'}</Text>
+                    <Pressable disabled={!p.id && !van} onPress={() => (van
+                        ? navigation.navigate('OfisiVan')
+                        : navigation.navigate('OfisiShehenaNew', { single: {
+                          parcelId: Number(p.id), trackingNumber: p.trackingNumber, number: p.customerNumber || p.trackingNumber,
+                          destinationCity: p.destinationCity || '', waybill: p.waybillNumber || null,
+                          recipientName: p.recipientName || null, recipientPhone: p.recipientPhone || null,
+                          buyerPhone: p.buyerPhone || null, preferredHubId: p.destinationSuperAgent?.id ?? null } }))}
+                      accessibilityRole="button" style={s.actionBtn}>
+                      <Text style={s.actionText}>{van ? 'Van Desk' : 'Tuma'}</Text>
                     </Pressable>
                   )}
                 </View>

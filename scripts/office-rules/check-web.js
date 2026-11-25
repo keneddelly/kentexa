@@ -162,6 +162,26 @@ need('`pickup_pin.error_${err.code}`', 'office point error key template', opFile
 for (const code of Object.keys(op.errorKeys)) need(`'${code}'`, `office point error code ${code}`, phoneLoc);
 for (const txt of [...Object.values(op.texts), ...Object.values(op.errorTexts)]) need(JSON.stringify(txt).slice(1, -1), `office point text ${txt.slice(0, 30)}`, swLocale);
 
+// Single-parcel shehena (shehena of one) and its partner invite.
+const sg = rules.shehena.single;
+const pageSrc = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/pages/SuperAgentDashboard.js'), 'utf8');
+const invitePanel = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/PartnerInvitePanel.js'), 'utf8');
+need(sg.title, 'single title', pageSrc);
+need(sg.receiverCustomer.title, 'single customer receiver', pageSrc);
+need(sg.receiverCustomer.sub, 'single customer sub', pageSrc);
+need(sg.continueLabel, 'single continue label', pageSrc);
+need(sg.dispatchHint.split('.')[0], 'single dispatch hint', pageSrc);
+need(sg.dispatchLabel, 'single dispatch label', pageSrc);
+need(sg.invite.title.split(' ').slice(1).join(' '), 'invite title', invitePanel);
+need(sg.invite.help.split('{')[0].trim(), 'invite help', invitePanel);
+for (const [k, lbl] of Object.entries(sg.invite.roles)) need(`${k}: `, `invite role key ${k}`, invitePanel);
+for (const [k, lbl] of Object.entries(sg.invite.roles)) need(`'${lbl}'`, `invite role ${k}`, invitePanel);
+need(sg.invite.endpoint.split(' ')[1], 'invite endpoint', invitePanel);
+for (const [ch, url] of Object.entries(sg.invite.urlField)) need(url, `invite url ${ch}`, invitePanel);
+for (const [ch, lbl] of Object.entries(sg.invite.channels)) need(`'${ch}'`, `invite channel ${ch}`, invitePanel), need(lbl, `invite channel label ${ch}`, invitePanel);
+for (const [ch, lbl] of Object.entries(sg.invite.openLink)) need(lbl, `invite open link ${ch}`, invitePanel);
+need("parcel?.waybillNumber", 'invite needs waybill', invitePanel);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

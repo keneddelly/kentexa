@@ -435,6 +435,50 @@ export const OFFICE_RULES = {
       "dispatchFailed": "Imeshindwa kutuma shehena",
       "receiveFailed": "Imeshindikana. Jaribu tena.",
       "noParcels": "Hakuna vifurushi vilivyopo hubuni kwa mji huu bado."
+    },
+    "single": {
+      "entry": "TUMA list: a parcel that is not a same-town delivery and not a Van parcel is sent as a shehena of one (web startSingleShehena). Van parcels open Van Desk.",
+      "title": "Tuma mzigo mmoja",
+      "receiverCustomer": {
+        "title": "Mteja mwenyewe atauchukua",
+        "sub": "Atauchukua kwenye basi au stendi",
+        "fillFrom": "recipientName and buyerPhone or recipientPhone"
+      },
+      "continueLabel": "Endelea: chagua usafiri",
+      "dispatchHint": "Chagua usafiri. Atakayepokea huko anapata ujumbe.",
+      "dispatchLabel": "Tuma mzigo",
+      "invite": {
+        "title": "Mwalike ajiunge KenteXa",
+        "help": "Mwaliko unatumwa kwa WhatsApp au SMS yako mwenyewe, na mzigo {waybill}. Akijiunga, KenteXa itakagua ombi lake kama kawaida.",
+        "roles": {
+          "transport_provider": "Msafirishaji",
+          "super_agent": "Ofisi ya mizigo"
+        },
+        "endpoint": "POST /partner-invitations",
+        "body": {
+          "parcelId": "number",
+          "phone": "string",
+          "name": "optional string",
+          "role": "transport_provider | super_agent",
+          "channel": "whatsapp | own_sms"
+        },
+        "urlField": {
+          "whatsapp": "whatsappUrl",
+          "own_sms": "smsUrl"
+        },
+        "channels": {
+          "whatsapp": "WhatsApp",
+          "own_sms": "SMS yangu"
+        },
+        "openLink": {
+          "whatsapp": "Fungua WhatsApp",
+          "own_sms": "Fungua SMS"
+        },
+        "needs": "waybill (the parcel has one)"
+      },
+      "endpoints": {
+        "invite": "POST /partner-invitations"
+      }
     }
   },
   "apply": {

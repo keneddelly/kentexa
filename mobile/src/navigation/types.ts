@@ -18,7 +18,12 @@ export type RootStackParams = {
   OfisiVan: undefined;
   OfisiShehena: undefined;
   OfisiApply: undefined;
-  OfisiShehenaNew: { shipmentId?: number; destinationCity?: string; lastMileName?: string; step?: 'add' | 'dispatch' } | undefined;
+  OfisiShehenaNew: {
+    shipmentId?: number; destinationCity?: string; lastMileName?: string; step?: 'add' | 'dispatch';
+    /** A parcel sent as a shehena of one (web: Tuma from the TUMA list). */
+    single?: { parcelId: number; trackingNumber: string; number: string; destinationCity: string; waybill?: string | null;
+      recipientName?: string | null; recipientPhone?: string | null; buyerPhone?: string | null; preferredHubId?: number | null };
+  } | undefined;
 };
 
 export type TabParams = {

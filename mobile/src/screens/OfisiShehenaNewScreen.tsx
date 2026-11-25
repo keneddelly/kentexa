@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { colors, type } from '../theme';
 import type { RootStackParams } from '../navigation/types';
 import { OFFICE_RULES } from '../office/officeRules';
+import OfisiPartnerInvite from './OfisiPartnerInvite';
 
 type P = NativeStackScreenProps<RootStackParams, 'OfisiShehenaNew'>;
 
@@ -21,7 +22,7 @@ interface Place { displayLabel: string; regionName?: string | null; districtName
 interface Candidate { trackingNumber: string; customerNumber?: string | null; recipientName?: string | null; description?: string | null }
 interface Hub { id: number; businessName?: string | null; address?: string | null; city?: string | null }
 interface TransportOpt { id: number; name: string; relation?: string | null }
-type Receiver = 'office' | 'manual';
+type Receiver = 'office' | 'manual' | 'customer';
 type Step = 'new' | 'add' | 'dispatch';
 
 const pathOf = (ep: string) => ep.split(' ')[1];
@@ -47,12 +48,14 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const chosen = candidates.filter((c) => selected[c.trackingNumber]).map((c) => c.trackingNumber);
+  // A parcel sent as a shehena of one is always the chosen parcel (web: inviteParcel).
+  const single = init?.single;
+  const chosen = single ? [single.trackingNumber] : candidates.filter((c) => selected[c.trackingNumber]).map((c) => c.trackingNumber);
 
   // Destination search (same place engine as the web picker).
   useEffect(() => {
     const q = placeText.trim();
-    if (step !== 'new' || q.length < 2 || q === city) { setPlaces([]); return; }
+    if (step !== 'new' || single || q.length < 2 || q === city) { setPlaces([]); return; }
     const t = setTimeout(async () => {
       try {
         const r: any = await api.get(`/location-intelligence/places?q=${encodeURIComponent(q)}&limit=8`);
@@ -60,7 +63,7 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
       } catch { setPlaces([]); }
     }, 220);
     return () => clearTimeout(t);
-  }, [placeText, city, step]);
+  }, [placeText, city, step, single]);
 
   const loadCandidates = async (c: string) => {
     if (!c) { setCandidates([]); return; }
@@ -83,6 +86,7 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
     if (init?.step === 'add' && init.destinationCity) loadCandidates(init.destinationCity);
     if (init?.step === 'dispatch') loadTransports();
     if (init?.destinationCity) setCity(init.destinationCity);
+    if (init?.single) { setCity(init.single.destinationCity); loadHubs(init.single.destinationCity); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadTransports = async () => {
@@ -105,7 +109,13 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
   };
 
   const receiverReady = receiver === 'office' ? hubId != null
-    : receiver === 'manual' ? manual.name.trim().length > 0 && manual.phone.trim().length > 0 : false;
+    : (receiver === 'manual' || receiver === 'customer') ? manual.name.trim().length > 0 && manual.phone.trim().length > 0 : false;
+
+  const chooseCustomer = () => {
+    if (!single) return;
+    setReceiver('customer');
+    setManual({ name: single.recipientName || '', phone: single.buyerPhone || single.recipientPhone || '', address: '' });
+  };
 
   const toggle = (tn: string) => setSelected((s) => ({ ...s, [tn]: !s[tn] }));
 
@@ -118,8 +128,16 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
       const body: Record<string, unknown> = { destinationCity: city, trackingNumbers: chosen };
       if (receiver === 'office') body.destinationSuperAgentId = hubId;
       else { body.manualContactName = manual.name; body.manualContactPhone = manual.phone; body.manualContactCity = city; body.manualContactAddress = manual.address; }
+      const r: any = await api.post(pathOf(SH.endpoints.create), body);
+      if (single) {
+        // Same as the web: a parcel sent as a shehena of one goes straight on to the transport.
+        const hub = hubs.find((h) => h.id === hubId);
+        setShipment({ id: r.shipmentId, destinationCity: city, lastMileName: hub?.businessName || manual.name });
+        setStep('dispatch');
+        loadTransports();
+        return;
+      }
       // Same as the web: a new batch waits in the open list until it is finished with "Maliza na Tuma".
-      await api.post(pathOf(SH.endpoints.create), body);
       navigation.goBack();
     } catch (e: any) {
       setError(e?.message || SH.messages.createFailed);
@@ -165,7 +183,11 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
 
   return (
     <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-      {step === 'new' && (
+      {step === 'new' && single && (
+        <Text style={[type.name, s.head]}>Mzigo mmoja · {single.number} → {single.destinationCity}</Text>
+      )}
+
+      {step === 'new' && !single && (
         <>
           <Text style={type.small}>Mji wa kuelekea</Text>
           <TextInput value={placeText} onChangeText={(v) => { setPlaceText(v); setCity(''); }} placeholder="Tafuta eneo la shehena…"
@@ -191,7 +213,11 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
               ))}
               <Choice on={receiver === 'manual'} title={SH.receiverModes.manual} sub="Andika jina, simu na mahali"
                 onPress={() => setReceiver('manual')} />
-              {receiver === 'manual' && (
+              {single && (
+                <Choice on={receiver === 'customer'} title={SH.single.receiverCustomer.title} sub={SH.single.receiverCustomer.sub}
+                  onPress={chooseCustomer} />
+              )}
+              {(receiver === 'manual' || receiver === 'customer') && (
                 <View style={{ gap: 8 }}>
                   <TextInput value={manual.name} onChangeText={(v) => setManual({ ...manual, name: v })} placeholder="Jina la ofisi au mtu" placeholderTextColor={colors.muted} style={s.input} />
                   <TextInput value={manual.phone} onChangeText={(v) => setManual({ ...manual, phone: v })} keyboardType="phone-pad" placeholder="Namba ya simu" placeholderTextColor={colors.muted} style={s.input} />
@@ -215,14 +241,14 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
           ))}
         </>
       )}
-      {(step === 'new' || step === 'add') && !!city && candidates.length === 0 && (
+      {(step === 'new' || step === 'add') && !single && !!city && candidates.length === 0 && (
         <Text style={s.empty}>{SH.messages.noParcels}</Text>
       )}
 
       {step === 'new' && (
         <Pressable onPress={createBatch} disabled={busy || !chosen.length || !receiverReady} accessibilityRole="button"
           style={[s.btn, { backgroundColor: AMBER }, (busy || !chosen.length || !receiverReady) && { opacity: 0.5 }]}>
-          <Text style={s.btnText}>{busy ? '…' : SH.labels.createAction.replace('{n}', String(chosen.length))}</Text>
+          <Text style={s.btnText}>{busy ? '…' : single ? SH.single.continueLabel : SH.labels.createAction.replace('{n}', String(chosen.length))}</Text>
         </Pressable>
       )}
 
@@ -238,7 +264,11 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
 
       {step === 'dispatch' && shipment && (
         <>
-          <Text style={type.meta}>Shehena → {shipment.destinationCity}{shipment.lastMileName ? ` (${shipment.lastMileName})` : ''}. Taarifa za usafiri ni hiari. Ujumbe mmoja unatumwa kwa atakayepokea.</Text>
+          <Text style={type.meta}>
+            {single
+              ? `Mzigo mmoja (${single.number}) → ${shipment.destinationCity}${shipment.lastMileName ? ` (${shipment.lastMileName})` : ''}. ${SH.single.dispatchHint}`
+              : `Shehena → ${shipment.destinationCity}${shipment.lastMileName ? ` (${shipment.lastMileName})` : ''}. Taarifa za usafiri ni hiari. Ujumbe mmoja unatumwa kwa atakayepokea.`}
+          </Text>
           <Text style={[type.small, s.head]}>Usafiri</Text>
           <View style={s.chips}>
             {transports.map((t) => (
@@ -262,8 +292,11 @@ export default function OfisiShehenaNewScreen({ navigation, route }: P) {
             placeholder="Namba ya Tiketi/Rejea (hiari)" placeholderTextColor={colors.muted} style={s.input} />
           <TextInput value={transport.totalShippingCost} onChangeText={(v) => setTransport((x) => ({ ...x, totalShippingCost: v.replace(/[^0-9]/g, '') }))}
             keyboardType="number-pad" placeholder="Gharama ya Usafiri (TZS, hiari)" placeholderTextColor={colors.muted} style={s.input} />
+          {single && single.waybill ? (
+            <OfisiPartnerInvite parcelId={single.parcelId} waybill={single.waybill} />
+          ) : null}
           <Pressable onPress={dispatch} disabled={busy} accessibilityRole="button" style={[s.btn, { backgroundColor: GREEN }, busy && { opacity: 0.5 }]}>
-            <Text style={s.btnText}>{busy ? 'Inatuma…' : SH.labels.send}</Text>
+            <Text style={s.btnText}>{busy ? 'Inatuma…' : single ? SH.single.dispatchLabel : SH.labels.send}</Text>
           </Pressable>
         </>
       )}
