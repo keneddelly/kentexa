@@ -10,6 +10,7 @@ export type RootStackParams = {
   CreateClassified: undefined;
   Account: undefined;
   OfisiSettings: undefined;
+  WalkIn: undefined;
 };
 
 export type TabParams = {

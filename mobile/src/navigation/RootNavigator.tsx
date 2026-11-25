@@ -17,6 +17,7 @@ import InboxScreen from '../screens/InboxScreen';
 import ThreadScreen from '../screens/ThreadScreen';
 import OfisiScreen from '../screens/OfisiScreen';
 import OfisiSettingsScreen from '../screens/OfisiSettingsScreen';
+import OfisiWalkInScreen from '../screens/OfisiWalkInScreen';
 import { VARIANT } from '../config';
 import type { RootStackParams, TabParams } from './types';
 
@@ -69,6 +70,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Post" component={PostScreen} options={{ title: 'Chapisho' }} />
       <Stack.Screen name="CreateClassified" component={CreateClassifiedScreen} options={{ title: 'Weka tangazo' }} />
       <Stack.Screen name="OfisiSettings" component={OfisiSettingsScreen} options={{ title: 'Mipangilio ya ofisi' }} />
+      <Stack.Screen name="WalkIn" component={OfisiWalkInScreen} options={{ title: 'Walk-in' }} />
       <Stack.Screen name="Thread" component={ThreadScreen} options={{ title: 'Mazungumzo' }} />
       <Stack.Screen name="Web" component={WebScreen} options={{ title: 'KenteXa' }} />
       <Stack.Group screenOptions={{ presentation: 'modal' }}>

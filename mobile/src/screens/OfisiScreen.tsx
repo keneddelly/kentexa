@@ -280,10 +280,10 @@ export default function OfisiScreen({ navigation }: P) {
             );
           })}
           {expected.length === 0 && incoming.length === 0 && <Text style={type.meta}>Hakuna mzigo unaosubiri kupokelewa sasa hivi.</Text>}
-          {/* Walk-in and the handover list stay on the web page for now (same as the web's own tab). */}
-          <Pressable onPress={() => openWeb('/p/SuperAgentDashboard', 'Ofisi')} style={s.walkin} accessibilityRole="button">
+          {/* The handover list stays on the web page for now. */}
+          <Pressable onPress={() => navigation.navigate('WalkIn')} style={s.walkin} accessibilityRole="button">
             <Text style={type.name}>Walk-in</Text>
-            <Text style={type.small}>Mteja amekuja ofisini. Fungua fomu kwenye kivinjari.</Text>
+            <Text style={type.small}>Mteja amekuja ofisini. Tengeneza mzigo papo hapo.</Text>
           </Pressable>
         </>
       ) : (
