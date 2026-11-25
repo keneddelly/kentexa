@@ -3,6 +3,7 @@ import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { api } from '../api/client';
 import { tokens } from '../api/tokens';
+import { API_URL } from '../config';
 import { Button, Empty } from '../components/Ui';
 import { useAuth } from '../auth/AuthContext';
 import { WEB_URL } from '../config';
@@ -43,8 +44,22 @@ async function ensureOfficeContext(): Promise<'ok' | 'none' | 'pending'> {
   if (!office) return 'pending';
   const me: any = await api.get('/auth/me');
   if (Number(me?.activeContext?.accountRoleId) !== Number(office.accountRoleId)) {
-    const sw: any = await api.post('/auth/switch-role', { accountRoleId: Number(office.accountRoleId) });
-    if (sw?.accessToken) await tokens.setAccess(sw.accessToken);
+    // Sent directly, not through the shared client: a failed switch must show its own message here,
+    // and must not sign the person out of the app.
+    const res = await fetch(`${API_URL}/auth/switch-role`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-kentexa-client': 'app',
+        ...(tokens.access ? { Authorization: `Bearer ${tokens.access}` } : {}),
+      },
+      body: JSON.stringify({ accountRoleId: Number(office.accountRoleId) }),
+    });
+    const body: any = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(`Ofisi haikufunguka (${res.status}): ${body?.message || 'jaribu tena'}`);
+    const refresh = res.headers.get('x-kentexa-refresh');
+    if (refresh) await tokens.setRefresh(refresh);
+    if (body?.accessToken) await tokens.setAccess(body.accessToken);
   }
   return 'ok';
 }
