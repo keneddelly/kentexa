@@ -10,6 +10,7 @@ import { F, colors, type } from '../theme';
 import type { RootStackParams } from '../navigation/types';
 import { OFFICE_RULES } from '../office/officeRules';
 import { isIntercityPlace } from '../office/regionRules';
+import OfisiShipmentPaymentsCard from './OfisiShipmentPaymentsCard';
 
 type P = NativeStackScreenProps<RootStackParams>;
 
@@ -448,6 +449,8 @@ export default function OfisiScreen({ navigation }: P) {
                 </View>
               );
             })}
+            {/* Send-form payments for parcels received here (web: after the expected list). */}
+            <OfisiShipmentPaymentsCard refreshKey={incoming.length + expected.length} />
             {expected.length === 0 && incoming.length === 0 && handovers.length === 0 && <Text style={type.meta}>Hakuna mzigo unaosubiri kupokelewa sasa hivi.</Text>}
           </>
         ) : (

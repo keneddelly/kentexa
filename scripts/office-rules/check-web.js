@@ -94,6 +94,19 @@ need("api.patch('/super-agents/my-profile/location'", 'profile location patch', 
 for (const f of pf.editableFields) need(`${f}:`, `profile field ${f}`, settings);
 for (const ep of Object.values(pf.endpoints)) for (const seg of segs(ep)) need(seg, `profile endpoint ${ep} segment ${seg}`, allWeb + settings);
 
+// Shipment payments (send-form parcels received here; the office's own record).
+const sp = rules.shipmentPayments;
+const payments = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/OfficeShipmentPayments.js'), 'utf8');
+need(sp.sectionTitle, 'payments section title', payments);
+need(sp.saveLabel, 'payments save label', payments);
+for (const [k, lbl] of Object.entries(sp.methodLabels)) need(`${k}: '${lbl}'`, `payment method ${k}`, payments);
+need(`reference: method === 'mobile_money'`, 'reference only for mobile money', payments);
+need(sp.endpoints.pending.split(' ')[1], 'pending endpoint', payments);
+need(`api.post('${sp.endpoints.record.split(' ')[1]}'`, 'record endpoint', payments);
+need(`useState('${sp.defaultMethod}')`, 'default method', payments);
+need('<OfficeShipmentPayments', 'payments mounted on dashboard', page);
+need(sp.savedMessage.split('{number}')[0].trim(), 'saved message', payments);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

@@ -304,5 +304,31 @@
       "location": "PATCH /super-agents/my-profile/location",
       "placeSearch": "GET /location-intelligence/places?q&limit=8"
     }
+  },
+  "shipmentPayments": {
+    "placement": "Receive section, right after the expected shipments list (web: OfficeShipmentPayments in SuperAgentDashboard).",
+    "sectionTitle": "Malipo ya kuweka",
+    "saveLabel": "Weka malipo",
+    "methodLabels": {
+      "cash": "Taslimu",
+      "mobile_money": "Mobile money"
+    },
+    "defaultMethod": "cash",
+    "referenceMaxLength": 60,
+    "maxAmount": 10000000,
+    "savedMessage": "Malipo ya {number} yamewekwa. Mtumaji amepata SMS.",
+    "errorMessage": "Imeshindikana kuweka malipo.",
+    "endpoints": {
+      "pending": "GET /office/shipment-payments/pending",
+      "record": "POST /office/shipment-payments"
+    },
+    "recordBody": {
+      "parcelId": "number",
+      "amount": "integer > 0",
+      "method": "cash | mobile_money",
+      "reference": "optional, only for mobile_money"
+    },
+    "methodsFromServer": true,
+    "note": "KenteXa never holds the money: this is the office's own record of what the sender paid it."
   }
 }
