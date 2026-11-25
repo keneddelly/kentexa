@@ -11,6 +11,7 @@ import type { RootStackParams } from '../navigation/types';
 import { OFFICE_RULES } from '../office/officeRules';
 import { isIntercityPlace } from '../office/regionRules';
 import OfisiShipmentPaymentsCard from './OfisiShipmentPaymentsCard';
+import OfisiPointPrompt from './OfisiPointPrompt';
 
 type P = NativeStackScreenProps<RootStackParams>;
 
@@ -369,6 +370,7 @@ export default function OfisiScreen({ navigation }: P) {
     <>
       <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={GREEN} />}>
         {header}
+        <OfisiPointPrompt />
 
         {data.agent?.billing?.billingBlocked && (
           <Pressable onPress={() => openWeb('/p/SuperAgentDashboard', 'Ofisi')} style={s.banner} accessibilityRole="button">

@@ -575,6 +575,16 @@
       "denied": "Ruhusu KenteXa kutumia mahali (location) kwenye mipangilio ya simu, kisha jaribu tena.",
       "unsupported": "Simu hii haiwezi kutoa mahali. Andika alama ya mahali vizuri.",
       "timeout": "Imechukua muda mrefu kupata mahali. Jaribu tena."
+    },
+    "prompt": {
+      "native": true,
+      "webNote": "The web keeps its dashboard banner. This prompt is native only until the owner approves a change.",
+      "when": "Shown on the office home once the office is active and has no GPS point.",
+      "title": "Weka mahali pa ofisi",
+      "explain": "Simama ndani au mlangoni mwa ofisi, kisha bonyeza. Mteja asipopata wakala, ataona ofisi yako na \"Fungua ramani\" ili alete mzigo.",
+      "now": "Weka sasa",
+      "later": "Baadaye",
+      "laterDays": 1
     }
   }
 }

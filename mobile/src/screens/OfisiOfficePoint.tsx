@@ -16,6 +16,31 @@ const AMBER = '#d97706';
 
 type ErrCode = keyof typeof OP.errorTexts;
 
+/** Takes the phone's GPS and saves it as the office point. Returns the text to show. */
+export async function saveOfficePointFromGps(): Promise<{ ok: boolean; text: string }> {
+  // Location failures use the web's wording; only the server's own message is shown as-is.
+  let pos: Location.LocationObject;
+  try {
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (perm.status !== 'granted') throw new Error('denied');
+    pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  } catch (e: any) {
+    const code: ErrCode = e?.message === 'denied' ? 'denied' : 'unavailable';
+    return { ok: false, text: OP.errorTexts[code] };
+  }
+  try {
+    const accuracy = pos.coords.accuracy == null ? null : Math.round(pos.coords.accuracy);
+    const res: any = await api.patch(OP.endpoint.split(' ')[1], {
+      latitude: Math.round(pos.coords.latitude * 1e6) / 1e6,
+      longitude: Math.round(pos.coords.longitude * 1e6) / 1e6,
+      accuracyM: accuracy,
+    });
+    return { ok: true, text: res?.message || OP.texts.saved };
+  } catch (e: any) {
+    return { ok: false, text: e?.message || OP.errorTexts.unavailable };
+  }
+}
+
 export default function OfisiOfficePoint({ byGps, set, onSaved }: { byGps?: boolean | null; set?: boolean | null; onSaved: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -23,32 +48,10 @@ export default function OfisiOfficePoint({ byGps, set, onSaved }: { byGps?: bool
   const capture = async () => {
     setBusy(true);
     setMessage(null);
-    // Location failures use the web's wording; only the server's own message is shown as-is.
-    let pos: Location.LocationObject;
-    try {
-      const perm = await Location.requestForegroundPermissionsAsync();
-      if (perm.status !== 'granted') throw new Error('denied');
-      pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-    } catch (e: any) {
-      const code: ErrCode = e?.message === 'denied' ? 'denied' : 'unavailable';
-      setMessage({ ok: false, text: OP.errorTexts[code] });
-      setBusy(false);
-      return;
-    }
-    try {
-      const accuracy = pos.coords.accuracy == null ? null : Math.round(pos.coords.accuracy);
-      const res: any = await api.patch(OP.endpoint.split(' ')[1], {
-        latitude: Math.round(pos.coords.latitude * 1e6) / 1e6,
-        longitude: Math.round(pos.coords.longitude * 1e6) / 1e6,
-        accuracyM: accuracy,
-      });
-      setMessage({ ok: true, text: res?.message || OP.texts.saved });
-      onSaved();
-    } catch (e: any) {
-      setMessage({ ok: false, text: e?.message || OP.errorTexts.unavailable });
-    } finally {
-      setBusy(false);
-    }
+    const r = await saveOfficePointFromGps();
+    setMessage(r);
+    if (r.ok) onSaved();
+    setBusy(false);
   };
 
   const note = message ? <Text style={[type.meta, { color: message.ok ? GREEN : '#b91c1c' }]}>{message.text}</Text> : null;
