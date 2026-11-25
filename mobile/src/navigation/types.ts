@@ -17,6 +17,7 @@ export type RootStackParams = {
   OfisiTrack: { trackingNumber?: string } | undefined;
   OfisiVan: undefined;
   OfisiShehena: undefined;
+  OfisiApply: undefined;
   OfisiShehenaNew: { shipmentId?: number; destinationCity?: string; lastMileName?: string; step?: 'add' | 'dispatch' } | undefined;
 };
 

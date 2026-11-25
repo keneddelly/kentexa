@@ -439,5 +439,56 @@
       "receiveFailed": "Imeshindikana. Jaribu tena.",
       "noParcels": "Hakuna vifurushi vilivyopo hubuni kwa mji huu bado."
     }
+  },
+  "apply": {
+    "scope": "Apply to open an office. The ID step stays on the web (ID capture is not in the native app yet); status and the office form are native.",
+    "identityNeedsWeb": [
+      "missing",
+      "rejected"
+    ],
+    "identityWebPath": "/p/BecomeSuperAgentInfo",
+    "businessNameMax": 160,
+    "addressMax": 300,
+    "endpoints": {
+      "identity": "GET /identity/me",
+      "profile": "GET /super-agents/my-profile",
+      "apply": "POST /super-agents/apply",
+      "placeSearch": "GET /location-intelligence/places?q&limit=8"
+    },
+    "applyBody": {
+      "businessName": "trimmed, max 160",
+      "address": "trimmed, max 300, optional",
+      "place": "{ providerKey, providerPlaceId } from the picked place"
+    },
+    "messages": {
+      "nameRequired": "Weka jina la biashara",
+      "placeRequired": "Chagua mahali ofisi ilipo kutoka kwenye orodha.",
+      "submitFailed": "Imeshindwa kutuma ombi",
+      "done": "Ombi Limetumwa!",
+      "doneDesc": "Tutakipigia kazi ombi lako ndani ya saa 24. Utapata SMS na email ukithibitishwa.",
+      "identityWaiting": "Unaweza kuomba sasa. Ofisi itaidhinishwa na kuonekana kwa wateja baada ya kitambulisho kuthibitishwa.",
+      "identityNeeded": "Ofisi inahitaji kitambulisho cha mwenye ofisi. Kitume mara moja tu; kitatumika kila mahali kwenye KenteXa.",
+      "phoneFromAccount": "Simu ya ofisi: {phone} (kutoka akaunti yako)"
+    },
+    "statusTitles": {
+      "pending": "Ombi Liko Chini ya Mapitio",
+      "active": "Umeidhinishwa kama ofisi!",
+      "suspended": "Akaunti Imesimamishwa",
+      "blocked": "Akaunti Imezuiwa"
+    },
+    "statusPendingDesc": "Tutalipigia kazi ndani ya saa 24–48. Utapata ujumbe ukithibitishwa.",
+    "statusDefaultDesc": "Wasiliana na KenteXa support.",
+    "labels": {
+      "heroTitle": "Fungua ofisi kwenye KenteXa",
+      "heroDesc": "Simamia vifurushi vya intercity na uongeze mapato yako",
+      "formTitle": "Jaza Fomu ya Ombi",
+      "businessName": "Jina la Biashara / Ofisi *",
+      "placeLabel": "Ofisi iko wapi?",
+      "placePlaceholder": "Andika mtaa, kata au mji, kisha chagua kwenye orodha",
+      "landmark": "Alama ya karibu (hiari)",
+      "submit": "Wasilisha Ombi la Ofisi",
+      "submitting": "Inatuma...",
+      "identityButton": "Tuma kitambulisho"
+    }
   }
 }

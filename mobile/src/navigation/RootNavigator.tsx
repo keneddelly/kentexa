@@ -25,6 +25,7 @@ import OfisiTrackScreen from '../screens/OfisiTrackScreen';
 import OfisiVanScreen from '../screens/OfisiVanScreen';
 import OfisiShehenaScreen from '../screens/OfisiShehenaScreen';
 import OfisiShehenaNewScreen from '../screens/OfisiShehenaNewScreen';
+import OfisiApplyScreen from '../screens/OfisiApplyScreen';
 import { VARIANT } from '../config';
 import type { RootStackParams, TabParams } from './types';
 
@@ -85,6 +86,7 @@ export default function RootNavigator() {
       <Stack.Screen name="OfisiVan" component={OfisiVanScreen} options={{ title: 'Van Desk' }} />
       <Stack.Screen name="OfisiShehena" component={OfisiShehenaScreen} options={{ title: 'Shehena' }} />
       <Stack.Screen name="OfisiShehenaNew" component={OfisiShehenaNewScreen} options={{ title: 'Shehena mpya' }} />
+      <Stack.Screen name="OfisiApply" component={OfisiApplyScreen} options={{ title: 'Omba ofisi' }} />
       <Stack.Screen name="Thread" component={ThreadScreen} options={{ title: 'Mazungumzo' }} />
       <Stack.Screen name="Web" component={WebScreen} options={{ title: 'KenteXa' }} />
       <Stack.Group screenOptions={{ presentation: 'modal' }}>

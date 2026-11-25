@@ -135,6 +135,21 @@ need(`slice(0, ${sh.receiveReasonMaxLength})`, 'receive reason maximum', shehena
 for (const f of sh.dispatchFields) need(f, `dispatch field ${f}`, page);
 for (const ep of Object.values(sh.endpoints)) for (const seg of segs(ep)) need(seg, `shehena endpoint ${ep} segment ${seg}`, shehenaFiles + allWeb);
 
+// Apply to open an office (ID step stays on the web).
+const ap = rules.apply;
+const applyPage = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/pages/BecomeSuperAgentInfo.js'), 'utf8');
+const sw = fs.readFileSync(path.join(root, 'bishoo-frontend/src/locales/sw.json'), 'utf8');
+need(`api.post('${ap.endpoints.apply.split(' ')[1]}', {`, 'apply post', applyPage);
+need(`place: { providerKey: place.placeRef.providerKey, providerPlaceId: place.placeRef.providerPlaceId }`, 'apply place body', applyPage);
+need(`address: form.address.trim()`, 'apply address body', applyPage);
+need(`businessName: form.businessName.trim()`, 'apply name body', applyPage);
+need("api.get('/identity/me')", 'identity endpoint', applyPage);
+need("api.get('/super-agents/my-profile')", 'profile endpoint', applyPage);
+for (const st of ap.identityNeedsWeb) need(st, `identity state ${st}`, fs.readFileSync(path.join(root, 'bishoo-frontend/src/utils/identityState.js'), 'utf8'));
+for (const [k, msg] of Object.entries(ap.messages)) if (!msg.includes('{')) need(msg, `apply message ${k}`, sw);
+for (const [k, t] of Object.entries(ap.statusTitles)) need(t, `apply status ${k}`, sw);
+for (const ep of Object.values(ap.endpoints)) for (const seg of segs(ep)) need(seg, `apply endpoint ${ep} segment ${seg}`, allWeb + applyPage);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

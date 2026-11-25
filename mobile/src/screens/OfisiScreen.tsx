@@ -330,7 +330,7 @@ export default function OfisiScreen({ navigation }: P) {
     return (
       <View style={s.wrap}>
         {header}
-        <Empty title="Huna ofisi bado" text="Omba kuwa ofisi kwenye KenteXa, kisha utaona mizigo yako hapa." action={<Button title="Omba ofisi" dark={false} onPress={() => openWeb('/p/BecomeSuperAgentInfo', 'Omba ofisi')} />} />
+        <Empty title="Huna ofisi bado" text="Omba kuwa ofisi kwenye KenteXa, kisha utaona mizigo yako hapa." action={<Button title="Omba ofisi" dark={false} onPress={() => navigation.navigate('OfisiApply')} />} />
       </View>
     );
   }
