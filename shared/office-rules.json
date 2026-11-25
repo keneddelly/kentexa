@@ -375,5 +375,69 @@
       "release": "Achia kwa Van",
       "received": "Nimepokea Mzigo"
     }
+  },
+  "shehena": {
+    "scope": "Batch shehena: open batches, create, add parcels, dispatch, sent list, incoming receive with the 6-digit code or a reason. Single-parcel shehena (customer pick-up, partner invite) stays on the web.",
+    "receiveCodeLength": 6,
+    "receiveReasonMinLength": 5,
+    "receiveReasonMaxLength": 300,
+    "receiverModes": {
+      "office": "Ofisi ya KenteXa",
+      "manual": "Ofisi au mtu asiye kwenye KenteXa"
+    },
+    "manualFields": [
+      "name",
+      "phone",
+      "address"
+    ],
+    "defaultTransportType": "Mwingine",
+    "dispatchFields": [
+      "transportCompany",
+      "transportProviderId",
+      "transportRef",
+      "totalShippingCost"
+    ],
+    "endpoints": {
+      "open": "GET /super-agents/bulk-shipments/open",
+      "candidates": "GET /super-agents/bulk-shipments/candidates?destinationCity",
+      "hubs": "GET /super-agents/hubs/:city",
+      "create": "POST /super-agents/bulk-shipments",
+      "addParcels": "POST /super-agents/bulk-shipments/:id/add-parcels",
+      "dispatch": "PATCH /super-agents/bulk-shipments/:id/dispatch",
+      "transportList": "GET /super-agents/shehena/transport",
+      "sent": "GET /super-agents/shehena/sent",
+      "incoming": "GET /super-agents/shehena/incoming",
+      "receive": "POST /super-agents/shehena/:id/receive",
+      "placeSearch": "GET /location-intelligence/places?q&limit=8"
+    },
+    "labels": {
+      "title": "Shehena",
+      "newBatch": "+ Anzisha Shehena Mpya",
+      "openBatches": "SHEHENA ZILIZO WAZI",
+      "addParcels": "Ongeza Vifurushi",
+      "finish": "Maliza na Tuma",
+      "incoming": "SHEHENA ZINAZOKUJA",
+      "sent": "SHEHENA ZILIZO NJIANI",
+      "receiveAll": "Pokea vifurushi vyote",
+      "noCode": "Sina namba",
+      "hasCode": "Nina namba",
+      "handoverHint": "Namba ya shehena (iandike kwenye mzigo)",
+      "receiverQuestion": "Huko {city}, mzigo utapokelewa na nani?",
+      "send": "Tuma shehena",
+      "addAction": "Ongeza ({n}) — SMS kwa Wanunuzi",
+      "createAction": "Unda shehena ya vifurushi {n}, SMS kwa wapokeaji"
+    },
+    "messages": {
+      "chooseReceiver": "Chagua atakayepokea mzigo huko",
+      "created": "Shehena imeundwa — vifurushi {linked} vimeongezwa, SMS kwa wanunuzi {sms}",
+      "createFailed": "Imeshindwa kuunda shehena",
+      "added": "Vifurushi {linked} vimeongezwa kwenye shehena, SMS kwa wanunuzi {sms}",
+      "addFailed": "Imeshindwa kuongeza vifurushi",
+      "dispatched": "Shehena imetumwa — vifurushi {parcels}, ujumbe kwa mshirika: {notified}",
+      "handoverCode": "Andika namba ya shehena kwenye mzigo: {code}",
+      "dispatchFailed": "Imeshindwa kutuma shehena",
+      "receiveFailed": "Imeshindikana. Jaribu tena.",
+      "noParcels": "Hakuna vifurushi vilivyopo hubuni kwa mji huu bado."
+    }
   }
 }

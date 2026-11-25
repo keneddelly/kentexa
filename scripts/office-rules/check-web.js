@@ -122,6 +122,19 @@ need('hub-release:', 'van idempotency key prefix', page);
 need(':stop:', 'van idempotency key stop segment', page);
 need('displayParcelNumber(p)', 'van parcel number helper', page);
 
+// Batch shehena (single-parcel shehena stays web-only).
+const sh = rules.shehena;
+const shehenaFiles = page + fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/ShehenaHandover.js'), 'utf8') + fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/ShehenaTransportPicker.js'), 'utf8');
+for (const [k, lbl] of Object.entries(sh.receiverModes)) need(lbl, `receiver mode ${k}`, page);
+for (const lbl of Object.values(sh.labels)) need(lbl.split('{')[0].trim(), `shehena label ${lbl}`, shehenaFiles);
+need(sh.labels.createAction.split('{')[0].trim(), 'shehena create action', shehenaFiles);
+for (const msg of Object.values(sh.messages)) need(msg.split('{')[0].trim(), `shehena message ${msg}`, shehenaFiles);
+need(`code.length !== ${sh.receiveCodeLength}`, 'receive code length', shehenaFiles);
+need(`reason.trim().length < ${sh.receiveReasonMinLength}`, 'receive reason minimum', shehenaFiles);
+need(`slice(0, ${sh.receiveReasonMaxLength})`, 'receive reason maximum', shehenaFiles);
+for (const f of sh.dispatchFields) need(f, `dispatch field ${f}`, page);
+for (const ep of Object.values(sh.endpoints)) for (const seg of segs(ep)) need(seg, `shehena endpoint ${ep} segment ${seg}`, shehenaFiles + allWeb);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

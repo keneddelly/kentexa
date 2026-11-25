@@ -13,13 +13,14 @@ import type { RootStackParams } from '../navigation/types';
  * (no shops, POS, orders or classifieds).
  */
 /** Each tool opens a native screen ('screen') or the web page for the office ('web'). */
-type Tool = { title: string; line: string; darOnly?: boolean; go: { screen: 'OfisiBei' | 'OfisiSettings' | 'OfisiMapato' | 'OfisiWashirika' | 'OfisiTrack' | 'OfisiVan' } | { web: string } };
+type Tool = { title: string; line: string; darOnly?: boolean; go: { screen: 'OfisiBei' | 'OfisiSettings' | 'OfisiMapato' | 'OfisiWashirika' | 'OfisiTrack' | 'OfisiVan' | 'OfisiShehena' } | { web: string } };
 const TOOLS: Tool[] = [
   { title: 'Bei zangu', line: 'Bei za njia, kilo na kuchukua mzigo', go: { screen: 'OfisiBei' } },
   { title: 'Mapato na referral', line: 'Mapato ya leo, wiki na mwezi', go: { screen: 'OfisiMapato' } },
   { title: 'Washirika', line: 'Msafirishaji unayefanya naye kazi', go: { screen: 'OfisiWashirika' } },
   { title: 'Fuatilia mzigo', line: 'Historia, risiti na SMS', go: { screen: 'OfisiTrack' } },
   { title: OFFICE_RULES.vanDesk.title, line: 'Mizigo ya Van, Dar es Salaam', darOnly: true, go: { screen: 'OfisiVan' } },
+  { title: OFFICE_RULES.shehena.labels.title, line: 'Shehena: vifurushi vingi pamoja', go: { screen: 'OfisiShehena' } },
   { title: 'Mipangilio ya ofisi', line: 'Jina, mji na hali ya ofisi', go: { screen: 'OfisiSettings' } },
   { title: 'Dashibodi ya ofisi', line: 'Tuma mzigo kwenye kivinjari', go: { web: '/p/SuperAgentDashboard' } },
 ];
