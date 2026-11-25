@@ -6,6 +6,7 @@ import { Button } from '../components/Ui';
 import { F, colors, type } from '../theme';
 import type { RootStackParams } from '../navigation/types';
 import { OFFICE_RULES } from '../office/officeRules';
+import { regionRelation, type RelationT } from '../office/regionRules';
 
 type P = NativeStackScreenProps<RootStackParams, 'WalkIn'>;
 
@@ -14,7 +15,7 @@ const BLUE = '#1d4ed8';
 const RULES = OFFICE_RULES.walkIn;
 
 type ServicePath = 'local_agent' | 'van' | 'intercity';
-type Relation = 'same' | 'other' | null;
+type Relation = RelationT;
 
 interface Form {
   senderName: string;
@@ -62,21 +63,6 @@ interface Receipt {
   senderSmsSent?: boolean;
   shipmentClaim?: { receiptSecret?: string | null } | null;
 }
-
-/** Same rule as the web (utils/regionMatch.js), read from shared/office-rules.json. */
-const normalizePlace = (value: unknown) => String(value ?? '')
-  .toLowerCase()
-  .replace(new RegExp(OFFICE_RULES.regionMatch.separatorsPattern, 'g'), ' ')
-  .replace(new RegExp(OFFICE_RULES.regionMatch.stripPattern, 'g'), ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
-
-const regionRelation = (officeRegion: unknown, destinationRegion: unknown): Relation => {
-  const a = normalizePlace(officeRegion);
-  const b = normalizePlace(destinationRegion);
-  if (!a || !b) return null;
-  return a === b ? 'same' : 'other';
-};
 
 const money = (n: unknown) => `TZS ${Number(n || 0).toLocaleString('en-US')}`;
 const lineText = (l?: { status?: string; amount?: number }) =>

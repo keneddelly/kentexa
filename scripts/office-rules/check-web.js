@@ -49,6 +49,21 @@ for (const ep of ['/super-agents/me/price-quote', '/super-agents/offline-interci
   need(ep, `endpoint ${ep}`, allWeb);
 }
 
+// Status modal, local dispatch and handover rules.
+const sm = rules.statusModal;
+for (const x of sm.preDispatchStatuses) need(`'${x}'`, `pre-dispatch status ${x}`);
+for (const o of [...sm.originOptions, ...sm.destinationOptions]) need(`['${o.value}',`, `status option ${o.value}`);
+need(`${sm.pickupCodeLength}`, 'pickup code length', page);
+need(`/^\\d{${sm.pickupCodeLength}}$/`, 'pickup code pattern');
+// Endpoints: every fixed path segment must appear in the web sources (placeholders like :id are skipped).
+const segs = (ep) => ep.split(' ')[1].split('?')[0].split('/').filter((x) => x && !x.startsWith(':'));
+for (const ep of Object.values(sm.endpoints).concat([rules.localDispatch.dispatchEndpoint, rules.handover.acceptEndpoint])) {
+  for (const seg of segs(ep)) need(seg, `endpoint ${ep} segment ${seg}`, allWeb);
+}
+need(`'${rules.localDispatch.defaultTransportType}'`, 'local dispatch default transport', page);
+for (const seg of segs(rules.handover.listEndpoint)) need(seg, 'handover list endpoint', allWeb);
+for (const seg of segs(rules.localDispatch.agentsEndpoint)) need(seg, 'agents endpoint', allWeb);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

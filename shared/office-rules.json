@@ -89,5 +89,39 @@
     "estimateEndpoint": "GET /pricing/estimate?from&to&weight&destDistrict",
     "placeSearchEndpoint": "GET /location-intelligence/places?q&limit=8"
   },
-  "webOnly": ["handoverRequests", "dispatchForm", "bulkShipments", "referrals", "revenue", "rates"]
+  "statusModal": {
+    "$comment": "Status change rules copied from SuperAgentDashboard.js (status modal, handleConfirmPickup, handleSendPickupCode, handleIssueAgentHandoff). preDispatchStatuses decides which intake options show. Server enforces the same stages.",
+    "preDispatchStatuses": ["pending", "collection_requested", "collected_by_agent", "received_at_hub", "verified", "ready_for_dispatch"],
+    "originOptions": [
+      { "value": "received_at_hub", "label": "Imepokewa ofisini", "onlyPreDispatch": true },
+      { "value": "verified", "label": "Imethibitishwa", "onlyPreDispatch": true },
+      { "value": "ready_for_dispatch", "label": "Tayari Kutuma", "onlyPreDispatch": true },
+      { "value": "in_transit", "label": "Njiani", "onlyPreDispatch": false }
+    ],
+    "destinationOptions": [
+      { "value": "arrived_at_hub", "label": "Imefika ofisini" },
+      { "value": "awaiting_buyer", "label": "Inasubiri Mteja" }
+    ],
+    "pickupOfferStatuses": ["arrived_at_hub", "awaiting_buyer"],
+    "pickupCodeLength": 6,
+    "agentHandoffMinutes": 10,
+    "endpoints": {
+      "status": "PATCH /super-agents/parcels/:trackingNumber/status",
+      "sendPickupCode": "POST /super-agents/parcels/:trackingNumber/pickup-code",
+      "confirmPickup": "POST /super-agents/parcels/:trackingNumber/confirm-pickup",
+      "agentHandoffCode": "POST /super-agents/parcels/:trackingNumber/agent-handoff-code"
+    }
+  },
+  "localDispatch": {
+    "$comment": "Parcel for the same town goes to a local agent (web: isDirectLocalParcel + 'Chagua Agent').",
+    "agentsEndpoint": "GET /agents/nearby?region=:city",
+    "dispatchEndpoint": "PATCH /super-agents/parcels/:trackingNumber/dispatch",
+    "defaultTransportType": "bus"
+  },
+  "handover": {
+    "$comment": "Agent handovers awaiting receipt at this hub (web: 'Agent handovers awaiting receipt').",
+    "listEndpoint": "GET /collections/hub/handover-requests",
+    "acceptEndpoint": "PATCH /collections/:id/hub-accept"
+  },
+  "webOnly": ["vanDesk", "bulkShipments", "referrals", "revenue", "rates"]
 }
