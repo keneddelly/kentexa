@@ -281,7 +281,7 @@ export default function OfisiScreen({ navigation }: P) {
           })}
           {expected.length === 0 && incoming.length === 0 && <Text style={type.meta}>Hakuna mzigo unaosubiri kupokelewa sasa hivi.</Text>}
           {/* The handover list stays on the web page for now. */}
-          <Pressable onPress={() => navigation.navigate('WalkIn')} style={s.walkin} accessibilityRole="button">
+          <Pressable onPress={() => navigation.navigate('WalkIn', { city: data?.agent?.city })} style={s.walkin} accessibilityRole="button">
             <Text style={type.name}>Walk-in</Text>
             <Text style={type.small}>Mteja amekuja ofisini. Tengeneza mzigo papo hapo.</Text>
           </Pressable>

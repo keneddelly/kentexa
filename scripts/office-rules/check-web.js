@@ -37,6 +37,18 @@ for (const action of ['receive_from_sender', 'receive_order', 'confirm_agent_han
   need(`'${action}'`, `nextAction ${action}`, expected);
 }
 
+// Walk-in and region rules, and the endpoints they call (checked against the web sources).
+const pricePreview = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/OfficePricePreview.js'), 'utf8');
+const regionFile = fs.readFileSync(path.join(root, 'bishoo-frontend/src/utils/regionMatch.js'), 'utf8');
+const locationInput = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/IntelligentLocationInput.js'), 'utf8');
+const allWeb = page + pricePreview + regionFile + locationInput;
+need(`REASON_MIN = ${rules.walkIn.reasonMinLength}`, 'walk-in reason minimum', pricePreview);
+need(rules.regionMatch.separatorsPattern, 'region separators', regionFile);
+need(rules.regionMatch.stripPattern, 'region strip words', regionFile);
+for (const ep of ['/super-agents/me/price-quote', '/super-agents/offline-intercity', '/super-agents/hubs/', '/super-agents/route/', '/pricing/estimate', '/location-intelligence/places']) {
+  need(ep, `endpoint ${ep}`, allWeb);
+}
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

@@ -98,10 +98,33 @@ export const OFFICE_RULES = {
       "city": "<office city>"
     }
   },
+  "regionMatch": {
+    "$comment": "Same place or not. Copied from bishoo-frontend/src/utils/regionMatch.js (backend: src/super-agents/region-match.ts).",
+    "separatorsPattern": "[-_.,]",
+    "stripPattern": "\\bmkoa wa\\b|\\bregion\\b|\\bmkoa\\b"
+  },
+  "walkIn": {
+    "$comment": "Walk-in counter rules copied from SuperAgentDashboard.js (handleWalkSubmit) and OfficePricePreview.js.",
+    "reasonMinLength": 3,
+    "defaultServicePath": "local_agent",
+    "servicePaths": [
+      "local_agent",
+      "van",
+      "intercity"
+    ],
+    "pricePreviewEndpoint": "POST /super-agents/me/price-quote",
+    "submitEndpoint": "POST /super-agents/offline-intercity",
+    "hubsEndpoint": "GET /super-agents/hubs/:city",
+    "routeEndpoint": "GET /super-agents/route/:from/:to",
+    "estimateEndpoint": "GET /pricing/estimate?from&to&weight&destDistrict",
+    "placeSearchEndpoint": "GET /location-intelligence/places?q&limit=8"
+  },
   "webOnly": [
-    "walkIn",
-    "dispatchForm",
     "handoverRequests",
-    "awaitingBuyerActions"
+    "dispatchForm",
+    "bulkShipments",
+    "referrals",
+    "revenue",
+    "rates"
   ]
 } as const;

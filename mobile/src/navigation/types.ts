@@ -10,7 +10,7 @@ export type RootStackParams = {
   CreateClassified: undefined;
   Account: undefined;
   OfisiSettings: undefined;
-  WalkIn: undefined;
+  WalkIn: { city?: string } | undefined;
 };
 
 export type TabParams = {
