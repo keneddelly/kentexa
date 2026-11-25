@@ -11,8 +11,11 @@ import type { RootStackParams } from '../navigation/types';
  * (no shops, POS, orders or classifieds).
  */
 /** Each tool opens a native screen ('screen') or the web page for the office ('web'). */
-const TOOLS: Array<{ title: string; line: string; go: { screen: 'OfisiBei' | 'OfisiSettings' } | { web: string } }> = [
+const TOOLS: Array<{ title: string; line: string; go: { screen: 'OfisiBei' | 'OfisiSettings' | 'OfisiMapato' | 'OfisiWashirika' | 'OfisiTrack' } | { web: string } }> = [
   { title: 'Bei zangu', line: 'Bei za njia, kilo na kuchukua mzigo', go: { screen: 'OfisiBei' } },
+  { title: 'Mapato na referral', line: 'Mapato ya leo, wiki na mwezi', go: { screen: 'OfisiMapato' } },
+  { title: 'Washirika', line: 'Msafirishaji unayefanya naye kazi', go: { screen: 'OfisiWashirika' } },
+  { title: 'Fuatilia mzigo', line: 'Historia, risiti na SMS', go: { screen: 'OfisiTrack' } },
   { title: 'Mipangilio ya ofisi', line: 'Jina, mji na hali ya ofisi', go: { screen: 'OfisiSettings' } },
   { title: 'Dashibodi ya ofisi', line: 'Tuma mzigo kwenye kivinjari', go: { web: '/p/SuperAgentDashboard' } },
 ];

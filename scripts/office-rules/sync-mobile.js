@@ -13,7 +13,7 @@ const rules = JSON.parse(fs.readFileSync(src, 'utf8'));
 const body = `// GENERATED from shared/office-rules.json by scripts/office-rules/sync-mobile.js. Do not edit by hand.
 /* eslint-disable */
 export const OFFICE_RULES = ${JSON.stringify(
-  { version: rules.version, statusLabels: rules.statusLabels, groups: rules.groups, counts: rules.counts, expectedActions: rules.expectedActions, arrival: rules.arrival, regionMatch: rules.regionMatch, walkIn: rules.walkIn, statusModal: rules.statusModal, localDispatch: rules.localDispatch, handover: rules.handover, pricing: rules.pricing, webOnly: rules.webOnly },
+  { version: rules.version, statusLabels: rules.statusLabels, groups: rules.groups, counts: rules.counts, expectedActions: rules.expectedActions, arrival: rules.arrival, regionMatch: rules.regionMatch, walkIn: rules.walkIn, statusModal: rules.statusModal, localDispatch: rules.localDispatch, handover: rules.handover, pricing: rules.pricing, partners: rules.partners, webOnly: rules.webOnly },
   null,
   2
 )} as const;

@@ -241,11 +241,55 @@ export const OFFICE_RULES = {
       "officePointPatch": "PATCH /super-agents/my-profile/office-point"
     }
   },
+  "partners": {
+    "$comment": "Washirika and referral rules copied from bishoo-frontend/src/public/components/InviteCarrier.js, OfficePartners.js and SuperAgentDashboard.js (referral card).",
+    "inviteRoles": [
+      [
+        "transport",
+        "Msafirishaji"
+      ],
+      [
+        "office",
+        "Ofisi ya mizigo"
+      ]
+    ],
+    "inviteJoinParam": {
+      "transport": "transport",
+      "office": "office"
+    },
+    "inviteMessage": "Habari, ni {shopName} kwenye KenteXa. Nina mizigo{route}. Jiunge KenteXa kama {as} tufanye kazi pamoja: {origin}/?join={join}",
+    "inviteAs": {
+      "transport": "msafirishaji",
+      "office": "ofisi ya mizigo"
+    },
+    "referralStatusLabels": {
+      "registered": [
+        "Amejisajili",
+        "#d97706"
+      ],
+      "qualified": [
+        "Amekamilisha",
+        "#16a34a"
+      ],
+      "rejected_fraud": [
+        "Amekataliwa",
+        "#dc2626"
+      ]
+    },
+    "referralLink": "https://kentexa.com/?ref={referralCode}",
+    "endpoints": {
+      "revenue": "GET /super-agents/revenue",
+      "referrals": "GET /super-agents/my-referrals",
+      "transportList": "GET /super-agents/shehena/transport",
+      "track": "GET /super-agents/track/:trackingNumber",
+      "receipt": "GET /super-agents/parcels/:trackingNumber/receipt",
+      "resendSenderSms": "POST /super-agents/parcels/:trackingNumber/resend-sender-sms",
+      "resendReceiverSms": "POST /super-agents/parcels/:trackingNumber/resend-receiver-sms"
+    }
+  },
   "webOnly": [
     "officePointGps",
     "vanDesk",
-    "bulkShipments",
-    "referrals",
-    "revenue"
+    "bulkShipments"
   ]
 } as const;

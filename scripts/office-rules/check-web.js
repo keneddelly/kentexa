@@ -74,6 +74,17 @@ need(`valueMinimum: '${pr.valueDefaults.valueMinimum}'`, 'default value minimum'
 need(`estimatedDays: ${pr.routeDefaults.estimatedDays}`, 'default route days', priceFiles);
 for (const ep of Object.values(pr.endpoints)) for (const seg of segs(ep)) need(seg, `pricing endpoint ${ep} segment ${seg}`, priceFiles);
 
+// Partners, referrals, track and receipt (Phase B).
+const pt = rules.partners;
+const partnerFiles = allWeb + ['InviteCarrier.js','OfficePartners.js'].map((f) => fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components', f), 'utf8')).join('');
+need('Jiunge KenteXa kama', 'invite wording', partnerFiles);
+need('?join=${role === \'office\' ? \'office\' : \'transport\'}', 'invite join parameter', partnerFiles);
+need("'ofisi ya mizigo'", 'invite label office', partnerFiles);
+for (const [k, lbl] of pt.inviteRoles) need(lbl, `invite role ${k}`, partnerFiles);
+for (const [k, [lbl]] of Object.entries(pt.referralStatusLabels)) need(`${k}: ['${lbl}'`, `referral status ${k}`, page);
+need('https://kentexa.com/?ref=', 'referral link', page);
+for (const ep of Object.values(pt.endpoints)) for (const seg of segs(ep)) need(seg, `partner endpoint ${ep} segment ${seg}`, allWeb + partnerFiles);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

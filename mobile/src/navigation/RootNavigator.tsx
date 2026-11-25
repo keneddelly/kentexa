@@ -19,6 +19,9 @@ import OfisiScreen from '../screens/OfisiScreen';
 import OfisiSettingsScreen from '../screens/OfisiSettingsScreen';
 import OfisiWalkInScreen from '../screens/OfisiWalkInScreen';
 import OfisiBeiScreen from '../screens/OfisiBeiScreen';
+import OfisiMapatoScreen from '../screens/OfisiMapatoScreen';
+import OfisiWashirikaScreen from '../screens/OfisiWashirikaScreen';
+import OfisiTrackScreen from '../screens/OfisiTrackScreen';
 import { VARIANT } from '../config';
 import type { RootStackParams, TabParams } from './types';
 
@@ -73,6 +76,9 @@ export default function RootNavigator() {
       <Stack.Screen name="OfisiSettings" component={OfisiSettingsScreen} options={{ title: 'Mipangilio ya ofisi' }} />
       <Stack.Screen name="WalkIn" component={OfisiWalkInScreen} options={{ title: 'Walk-in' }} />
       <Stack.Screen name="OfisiBei" component={OfisiBeiScreen} options={{ title: 'Bei zangu' }} />
+      <Stack.Screen name="OfisiMapato" component={OfisiMapatoScreen} options={{ title: 'Mapato' }} />
+      <Stack.Screen name="OfisiWashirika" component={OfisiWashirikaScreen} options={{ title: 'Washirika' }} />
+      <Stack.Screen name="OfisiTrack" component={OfisiTrackScreen} options={{ title: 'Fuatilia mzigo' }} />
       <Stack.Screen name="Thread" component={ThreadScreen} options={{ title: 'Mazungumzo' }} />
       <Stack.Screen name="Web" component={WebScreen} options={{ title: 'KenteXa' }} />
       <Stack.Group screenOptions={{ presentation: 'modal' }}>

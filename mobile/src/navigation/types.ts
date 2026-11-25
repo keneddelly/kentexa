@@ -12,6 +12,9 @@ export type RootStackParams = {
   OfisiSettings: undefined;
   WalkIn: { city?: string } | undefined;
   OfisiBei: undefined;
+  OfisiMapato: undefined;
+  OfisiWashirika: { shopName?: string } | undefined;
+  OfisiTrack: { trackingNumber?: string } | undefined;
 };
 
 export type TabParams = {
