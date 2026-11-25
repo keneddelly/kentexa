@@ -287,6 +287,20 @@ export const OFFICE_RULES = {
       "resendReceiverSms": "POST /super-agents/parcels/:trackingNumber/resend-receiver-sms"
     }
   },
+  "profile": {
+    "editableFields": [
+      "businessName",
+      "phone",
+      "address"
+    ],
+    "location": "Changed through a Kentexa place selection; the server re-resolves it.",
+    "endpoints": {
+      "get": "GET /super-agents/my-profile",
+      "patch": "PATCH /super-agents/my-profile",
+      "location": "PATCH /super-agents/my-profile/location",
+      "placeSearch": "GET /location-intelligence/places?q&limit=8"
+    }
+  },
   "webOnly": [
     "officePointGps",
     "vanDesk",

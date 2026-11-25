@@ -85,6 +85,15 @@ for (const [k, [lbl]] of Object.entries(pt.referralStatusLabels)) need(`${k}: ['
 need('https://kentexa.com/?ref=', 'referral link', page);
 for (const ep of Object.values(pt.endpoints)) for (const seg of segs(ep)) need(seg, `partner endpoint ${ep} segment ${seg}`, allWeb + partnerFiles);
 
+// Profile editing (native settings must save the same fields the web saves).
+const pf = rules.profile;
+const settings = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/pages/SuperAgentSettings.js'), 'utf8');
+need("api.patch('/super-agents/my-profile', {", 'profile patch call', settings);
+need('businessName: form.businessName, phone: form.phone, address: form.address', 'profile saved fields', settings);
+need("api.patch('/super-agents/my-profile/location'", 'profile location patch', settings);
+for (const f of pf.editableFields) need(`${f}:`, `profile field ${f}`, settings);
+for (const ep of Object.values(pf.endpoints)) for (const seg of segs(ep)) need(seg, `profile endpoint ${ep} segment ${seg}`, allWeb + settings);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);
