@@ -81,9 +81,16 @@ const STATUS_SW: Record<string, string> = {
  * its parcels. Taking an action on a parcel (receive, dispatch, hand over) opens the office page on
  * kentexa.com, where the full, tested flow already lives. Nothing here changes a parcel by itself.
  */
-/** POKEA: parcels on their way into this office. TUMA: parcels held here to send out. */
-const isPokea = (p: Parcel) => (p.status === 'dispatched' || p.status === 'in_transit') && p.myRole === 'destination';
-const isTuma = (p: Parcel) => ['pending', 'received_at_hub', 'verified', 'ready_for_dispatch'].includes(p.status) && p.myRole !== 'destination';
+/**
+ * As on the web office page (its POKEA and TUMA):
+ * POKEA: taking parcels in: walk-in senders, KenteXa orders to receive, and parcels arriving here.
+ * TUMA: parcels that leave this office: waiting to go out, or on their way.
+ */
+const isPokea = (p: Parcel) =>
+  (['pending', 'verified', 'received_at_hub'].includes(p.status) && p.myRole !== 'destination') ||
+  ((p.status === 'dispatched' || p.status === 'in_transit') && p.myRole === 'destination');
+const isTuma = (p: Parcel) =>
+  ['ready_for_dispatch', 'dispatched', 'in_transit'].includes(p.status) && p.myRole !== 'destination';
 
 export default function OfisiScreen({ navigation }: P) {
   const { user } = useAuth();
@@ -92,7 +99,7 @@ export default function OfisiScreen({ navigation }: P) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [notice, setNotice] = useState('');
-  const [group, setGroup] = useState<'pokea' | 'tuma'>('tuma');
+  const [group, setGroup] = useState<'pokea' | 'tuma'>('pokea');
 
   /**
    * What the office can do right here, per parcel. Same calls the web office page makes:
