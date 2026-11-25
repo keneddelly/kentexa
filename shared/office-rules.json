@@ -185,7 +185,6 @@
     "acceptEndpoint": "PATCH /collections/:id/hub-accept"
   },
   "webOnly": [
-    "officePointGps",
     "bulkShipments"
   ],
   "pricing": {
@@ -489,6 +488,47 @@
       "submit": "Wasilisha Ombi la Ofisi",
       "submitting": "Inatuma...",
       "identityButton": "Tuma kitambulisho"
+    }
+  },
+  "officePoint": {
+    "source": "The phone's GPS, captured once at the office. The server checks it: inside Tanzania and accuracy within its limit (server rule, 500 m).",
+    "endpoint": "PATCH /super-agents/my-profile/office-point",
+    "body": {
+      "latitude": "number",
+      "longitude": "number",
+      "accuracyM": "number"
+    },
+    "nativePermission": "expo-location (foreground, when in use)",
+    "keys": {
+      "setGps": "office_point.set_gps",
+      "change": "office_point.change",
+      "title": "office_point.title",
+      "explain": "office_point.explain",
+      "onlyPlace": "office_point.only_place",
+      "button": "office_point.button",
+      "locating": "pickup_pin.locating"
+    },
+    "texts": {
+      "setGps": "Mahali pa ofisi pamewekwa kwa GPS.",
+      "change": "Badilisha",
+      "title": "Weka mahali pa ofisi",
+      "explain": "Simama ndani au mlangoni mwa ofisi, kisha bonyeza. Mteja asipopata wakala, ataona ofisi yako na \"Fungua ramani\" ili alete mzigo.",
+      "onlyPlace": "Ofisi ina mahali pa makadirio tu (katikati ya eneo). Weka kwa GPS ukiwa ofisini ili wateja wakupate kwa usahihi.",
+      "button": "Weka mahali pa ofisi",
+      "locating": "Inatafuta mahali…",
+      "saved": "Mahali pa ofisi pamehifadhiwa."
+    },
+    "errorKeys": {
+      "unavailable": "pickup_pin.error_unavailable",
+      "denied": "pickup_pin.error_denied",
+      "unsupported": "pickup_pin.error_unsupported",
+      "timeout": "pickup_pin.error_timeout"
+    },
+    "errorTexts": {
+      "unavailable": "Imeshindikana kupata mahali. Jaribu tena.",
+      "denied": "Ruhusu KenteXa kutumia mahali (location) kwenye mipangilio ya simu, kisha jaribu tena.",
+      "unsupported": "Simu hii haiwezi kutoa mahali. Andika alama ya mahali vizuri.",
+      "timeout": "Imechukua muda mrefu kupata mahali. Jaribu tena."
     }
   }
 }

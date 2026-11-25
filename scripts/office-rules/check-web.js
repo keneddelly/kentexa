@@ -150,6 +150,18 @@ for (const [k, msg] of Object.entries(ap.messages)) if (!msg.includes('{')) need
 for (const [k, t] of Object.entries(ap.statusTitles)) need(t, `apply status ${k}`, sw);
 for (const ep of Object.values(ap.endpoints)) for (const seg of segs(ep)) need(seg, `apply endpoint ${ep} segment ${seg}`, allWeb + applyPage);
 
+// Office point by GPS (the server checks the point; the app sends it).
+const op = rules.officePoint;
+const opFile = fs.readFileSync(path.join(root, 'bishoo-frontend/src/public/components/OfficePoint.js'), 'utf8');
+const swLocale = fs.readFileSync(path.join(root, 'bishoo-frontend/src/locales/sw.json'), 'utf8');
+const phoneLoc = fs.readFileSync(path.join(root, 'bishoo-frontend/src/utils/phoneLocation.js'), 'utf8');
+need(`api.patch('${op.endpoint.split(' ')[1]}'`, 'office point endpoint', opFile);
+for (const k of ['latitude', 'longitude', 'accuracyM']) need(k, `office point body ${k}`, opFile);
+for (const key of Object.values(op.keys)) need(`t('${key}')`, `office point key ${key}`, opFile);
+need('`pickup_pin.error_${err.code}`', 'office point error key template', opFile);
+for (const code of Object.keys(op.errorKeys)) need(`'${code}'`, `office point error code ${code}`, phoneLoc);
+for (const txt of [...Object.values(op.texts), ...Object.values(op.errorTexts)]) need(JSON.stringify(txt).slice(1, -1), `office point text ${txt.slice(0, 30)}`, swLocale);
+
 if (problems.length) {
   console.error('Office rules drift between shared/office-rules.json and the web page:');
   for (const p of problems) console.error(' - ' + p);

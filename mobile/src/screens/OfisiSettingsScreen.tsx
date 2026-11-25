@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import { Empty } from '../components/Ui';
 import { F, colors, type } from '../theme';
 import type { RootStackParams } from '../navigation/types';
-import { OFFICE_RULES } from '../office/officeRules';
+import OfisiOfficePoint from './OfisiOfficePoint';
 
 type P = NativeStackScreenProps<RootStackParams, 'OfisiSettings'>;
 
@@ -20,6 +20,8 @@ interface Profile {
   status?: string | null;
   hubLocationComplete?: boolean;
   hubLocationPrompt?: { message?: string } | null;
+  officePointSet?: boolean;
+  officePointByGps?: boolean;
 }
 
 /** A place from GET /location-intelligence/places (the same candidates the web picker shows). */
@@ -173,6 +175,8 @@ export default function OfisiSettingsScreen(_: P) {
           <Text style={type.meta}>{profile.hubLocationPrompt?.message || 'Tafuta eneo la ofisi yako hapa chini.'}</Text>
         </View>
       )}
+
+      <OfisiOfficePoint byGps={profile.officePointByGps} set={profile.officePointSet} onSaved={load} />
 
       <Pressable onPress={startEdit} accessibilityRole="button" style={[s.btn, { backgroundColor: GREEN, marginTop: 16 }]}>
         <Text style={[s.btnText, { color: '#fff' }]}>Hariri</Text>

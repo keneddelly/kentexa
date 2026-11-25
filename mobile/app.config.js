@@ -54,6 +54,7 @@ module.exports = {
       'expo-secure-store',
       'expo-notifications',
       ['expo-image-picker', { photosPermission: 'Kentexa inahitaji picha zako kuweka tangazo lako.' }],
+      ['expo-location', { locationWhenInUsePermission: 'Kentexa inahitaji mahali pa ofisi yako kuweka ramani ya ofisi.' }],
     ],
   },
 };
