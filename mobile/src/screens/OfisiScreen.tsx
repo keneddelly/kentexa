@@ -12,6 +12,8 @@ import { OFFICE_RULES } from '../office/officeRules';
 import { isIntercityPlace } from '../office/regionRules';
 import OfisiShipmentPaymentsCard from './OfisiShipmentPaymentsCard';
 import OfisiPointPrompt from './OfisiPointPrompt';
+import { readLastWalk } from './OfisiWalkInScreen';
+import { useFocusEffect } from '@react-navigation/native';
 
 type P = NativeStackScreenProps<RootStackParams>;
 
@@ -115,6 +117,13 @@ export default function OfisiScreen({ navigation }: P) {
   const { user } = useAuth();
   const [data, setData] = useState<Dashboard | null>(null);
   const [expected, setExpected] = useState<Expected[]>([]);
+  // A failed list load says so, instead of looking like "no parcels".
+  const [listError, setListError] = useState(false);
+  // Receive any parcel or order by its number: the web's one box.
+  const [number, setNumber] = useState('');
+  const [foundOrder, setFoundOrder] = useState<any>(null);
+  // Last walk-in receipt, kept until "Mzigo mpya" (the web keeps it the same way).
+  const [lastWalk, setLastWalk] = useState<any>(null);
   const [handovers, setHandovers] = useState<Handover[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -142,14 +151,17 @@ export default function OfisiScreen({ navigation }: P) {
       const office = await ensureOfficeContext();
       if (office === 'none') { setData({ status: 'not_applied' }); return; }
       if (office === 'pending') { setData({ status: 'active_role_required', activeRoleRequired: true }); return; }
+      let failed = false;
       const [dash, exp, hov] = await Promise.all([
         api.get<Dashboard>('/super-agents/dashboard'),
-        api.get<Expected[]>('/pickup-tasks/hub/expected').catch(() => [] as Expected[]),
-        api.get<Handover[]>('/collections/hub/handover-requests').catch(() => [] as Handover[]),
+        api.get<Expected[]>('/pickup-tasks/hub/expected').catch(() => { failed = true; return [] as Expected[]; }),
+        api.get<Handover[]>('/collections/hub/handover-requests').catch(() => { failed = true; return [] as Handover[]; }),
       ]);
       setData(dash);
       setExpected(Array.isArray(exp) ? exp : []);
       setHandovers(Array.isArray(hov) ? hov : []);
+      setListError(failed);
+      setLastWalk(await readLastWalk());
     } catch (e: any) {
       setError(e?.message || 'Imeshindikana kupakia. Jaribu tena.');
     } finally {
@@ -158,6 +170,9 @@ export default function OfisiScreen({ navigation }: P) {
   }, []);
 
   useEffect(() => { if (user) load(); }, [user, load]);
+
+  // Coming back from a walk-in receipt: the last receipt may have been cleared by "Mzigo mpya".
+  useFocusEffect(useCallback(() => { readLastWalk().then(setLastWalk); }, []));
 
   const openWeb = (path: string, title: string) => navigation.navigate('Web', { url: `${WEB_URL}${path}`, title });
 
@@ -366,6 +381,31 @@ export default function OfisiScreen({ navigation }: P) {
   const canHandoff = !!sheetParcel && sheetParcel.buyerRequestedDelivery === true && !!sheetParcel.localAgentId &&
     (RULES.statusModal.pickupOfferStatuses as readonly string[]).includes(sheetParcel.status) && sheetParcel.myRole !== 'origin';
 
+  // The web's one box, in the same order: the list first, then an order by its number, then a parcel the sender brings.
+  const typed = number.trim().toUpperCase();
+  const plainNo = (v?: string | null) => String(v || '').toUpperCase().replace(/[\s-]/g, '');
+  const receiveTyped = async () => {
+    setFoundOrder(null);
+    const t = plainNo(typed);
+    const row = expected.find((r) => [r.waybill, r.trackingNumber].some((n) => !!n && plainNo(n) === t)
+      || (r.orderId != null && t.replace(/^KTXORD/, '') === String(r.orderId)));
+    if (row) { receiveExpected(row); return; }
+    setBusy(typed);
+    const order = await api.get<any>(`/orders/${encodeURIComponent(typed)}/agent-lookup`).catch(() => null);
+    setBusy('');
+    if (order?.orderId) { setFoundOrder(order); return; }
+    const ok = await doAction(typed, typed, () => api.patch(`/super-agents/parcels/${encodeURIComponent(typed)}/status`, { status: 'received_at_hub' }), `${typed} imepokewa ofisini.`);
+    if (ok) setNumber('');
+  };
+  const receiveFound = async () => {
+    const o = foundOrder;
+    if (!o) return;
+    const ok = await doAction(`order-${o.orderId}`, `Oda #${o.orderId}`, () => api.patch(`/orders/${o.orderId}/super-agent-receive`, {
+      originCity: data?.agent?.city || undefined, destinationCity: o.destinationCity || undefined,
+    }), `Oda #${o.orderId} imepokewa ofisini.`);
+    if (ok) { setFoundOrder(null); setNumber(''); }
+  };
+
   return (
     <>
       <ScrollView contentContainerStyle={s.body} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={GREEN} />}>
@@ -393,10 +433,17 @@ export default function OfisiScreen({ navigation }: P) {
 
         {group === 'pokea' ? (
           <>
-            <Pressable onPress={() => navigation.navigate('WalkIn', { city: data.agent?.city })} style={s.walkin} accessibilityRole="button">
-              <Text style={type.name}>Walk-in</Text>
-              <Text style={type.small}>Mteja amekuja ofisini. Tengeneza mzigo papo hapo.</Text>
+            <Pressable onPress={() => navigation.navigate('WalkIn', { city: data.agent?.city })} style={s.walkinBig} accessibilityRole="button">
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={s.walkinTitle}>Walk-in</Text>
+                <Text style={s.walkinLine}>Mteja amekuja ofisini. Andika mzigo mpya.</Text>
+              </View>
             </Pressable>
+            {!!lastWalk && (
+              <Pressable onPress={() => navigation.navigate('WalkIn', { city: data.agent?.city, receipt: lastWalk })} style={s.lastWalk} accessibilityRole="button">
+                <Text style={type.small}>Risiti ya mwisho: <Text style={{ fontFamily: F.bold }}>{lastWalk.customerNumber || lastWalk.trackingNumber || ''}</Text> — Fungua</Text>
+              </Pressable>
+            )}
 
             {handovers.length > 0 && (
               <>
@@ -417,6 +464,28 @@ export default function OfisiScreen({ navigation }: P) {
             )}
 
             <Text style={[type.name, s.section]}>Mizigo ya kupokea</Text>
+            <Text style={type.small}>Andika namba ya mzigo, ya oda au ya KenteXa kupokea.</Text>
+            <View style={s.numberRow}>
+              <TextInput value={number} onChangeText={(v) => { setNumber(v); setFoundOrder(null); }} placeholder="Mfano KTX 4829 1037 52" placeholderTextColor={colors.muted}
+                autoCapitalize="characters" style={s.numberInput} />
+              <Pressable onPress={receiveTyped} disabled={!typed || busy === typed} accessibilityRole="button"
+                style={({ pressed }) => [s.actionBtn, pressed && { opacity: 0.8 }, (!typed || busy === typed) && { opacity: 0.5 }]}>
+                <Text style={s.actionText}>{busy === typed ? '…' : 'Pokea'}</Text>
+              </Pressable>
+            </View>
+            {!!foundOrder && (
+              <View style={s.found}>
+                <Text style={type.name}>Oda #{foundOrder.orderId}</Text>
+                <Text style={type.small}>{foundOrder.productName || 'Mzigo'} → {foundOrder.destinationCity || foundOrder.deliveryAddress || ''}</Text>
+                <Text style={type.small}>Muuzaji (analipa ada ya usafiri): {foundOrder.sellerName || '—'}</Text>
+                <Text style={type.small}>Mpokeaji: {foundOrder.recipientName || foundOrder.buyerName || '—'}</Text>
+                {!!foundOrder.isCod && <Text style={[type.small, { color: BLUE }]}>Mpokeaji analipa akipokea.</Text>}
+                <Pressable onPress={receiveFound} disabled={!!busy} accessibilityRole="button" style={[s.actionBtn, { alignSelf: 'flex-start', marginTop: 4 }]}>
+                  <Text style={s.actionText}>{busy === `order-${foundOrder.orderId}` ? '…' : 'Pokea oda hii'}</Text>
+                </Pressable>
+              </View>
+            )}
+            {listError && <Text style={[type.meta, { color: colors.danger }]}>Mizigo haikupakia. Vuta chini ujaribu tena.</Text>}
             {expected.map((row) => {
               const name = row.orderId ? `Oda #${row.orderId}` : (row.waybill || row.trackingNumber);
               const act = RULES.expectedActions[row.nextAction as keyof typeof RULES.expectedActions];
@@ -459,7 +528,7 @@ export default function OfisiScreen({ navigation }: P) {
             })}
             {/* Send-form payments for parcels received here (web: after the expected list). */}
             <OfisiShipmentPaymentsCard refreshKey={incoming.length + expected.length} />
-            {expected.length === 0 && incoming.length === 0 && handovers.length === 0 && <Text style={type.meta}>Hakuna mzigo unaosubiri kupokelewa sasa hivi.</Text>}
+            {!listError && expected.length === 0 && incoming.length === 0 && handovers.length === 0 && <Text style={type.meta}>Hakuna mzigo unaosubiri kupokelewa sasa hivi.</Text>}
           </>
         ) : (
           <>
@@ -625,6 +694,13 @@ const s = StyleSheet.create({
   jobCount: { fontFamily: F.black, fontSize: 30, color: '#fff' },
   quick: { borderRadius: 12, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 2 },
   walkin: { borderRadius: 12, borderWidth: 1, borderColor: colors.line, padding: 14, gap: 2 },
+  walkinBig: { backgroundColor: BLUE, borderRadius: 16, minHeight: 76, padding: 16, flexDirection: 'row', alignItems: 'center' },
+  walkinTitle: { fontFamily: F.black, fontSize: 22, color: '#fff' },
+  walkinLine: { fontFamily: F.regular, fontSize: 14, color: '#dbeafe' },
+  lastWalk: { borderRadius: 12, borderWidth: 2, borderColor: BLUE, backgroundColor: '#eff6ff', padding: 12 },
+  numberRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  numberInput: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: colors.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: colors.ink },
+  found: { borderWidth: 2, borderColor: BLUE, borderRadius: 12, padding: 12, gap: 4 },
   section: { marginTop: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
   actionBtn: { backgroundColor: GREEN, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minWidth: 84, alignItems: 'center' },

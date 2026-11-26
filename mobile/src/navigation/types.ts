@@ -10,7 +10,7 @@ export type RootStackParams = {
   CreateClassified: undefined;
   Account: undefined;
   OfisiSettings: undefined;
-  WalkIn: { city?: string } | undefined;
+  WalkIn: { city?: string; receipt?: unknown } | undefined;
   OfisiBei: undefined;
   OfisiMapato: undefined;
   OfisiWashirika: { shopName?: string } | undefined;

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as SecureStore from 'expo-secure-store';
 import { api } from '../api/client';
 import { Button } from '../components/Ui';
 import { F, colors, type } from '../theme';
@@ -11,6 +12,16 @@ import { regionRelation, type RelationT } from '../office/regionRules';
 type P = NativeStackScreenProps<RootStackParams, 'WalkIn'>;
 
 const GREEN = '#15803d';
+/** The last walk-in receipt, kept until "Mzigo mpya" (the web keeps it the same way). No claim code is stored. */
+export const LAST_WALKIN_KEY = 'ofisi.lastWalkIn';
+export async function readLastWalk(): Promise<any | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(LAST_WALKIN_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 const BLUE = '#1d4ed8';
 const RULES = OFFICE_RULES.walkIn;
 const RULES_ROUTE_RANGE = OFFICE_RULES.pricing.endpoints.routeRange.split(' ')[1].split('?')[0];
@@ -86,7 +97,9 @@ export default function OfisiWalkInScreen({ navigation, route }: P) {
   const [form, setForm] = useState<Form>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  // Opened from "Risiti ya mwisho" on the POKEA screen: show that receipt straight away.
+  const initialReceipt = ((route.params as { receipt?: Receipt } | undefined)?.receipt) || null;
+  const [receipt, setReceipt] = useState<Receipt | null>(initialReceipt);
 
   const [destText, setDestText] = useState('');
   const [places, setPlaces] = useState<Place[]>([]);
@@ -245,6 +258,7 @@ export default function OfisiWalkInScreen({ navigation, route }: P) {
       const res = await api.post<Receipt>('/super-agents/offline-intercity', { ...payload, requestKey });
       pending.current = null;
       setReceipt(res);
+      SecureStore.setItemAsync(LAST_WALKIN_KEY, JSON.stringify({ ...res, shipmentClaim: null })).catch(() => undefined);
     } catch (e: any) {
       setError(e?.message || 'Imeshindwa kuunda agizo');
     } finally {
@@ -255,6 +269,7 @@ export default function OfisiWalkInScreen({ navigation, route }: P) {
   const reset = () => {
     setForm(EMPTY);
     setReceipt(null);
+    SecureStore.deleteItemAsync(LAST_WALKIN_KEY).catch(() => undefined);
     setError('');
     setDest(null);
     setDestText('');
