@@ -939,7 +939,6 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         border:'none', background: on ? onBg : '#f7f9f9', color: on ? onColor : INK_TX, fontSize:13, fontWeight: on ? 700 : 600,
         cursor:'pointer', fontFamily:'inherit' });
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
-  const handleInlineHashtag = (tag) => onNavigate(`Search-${tag}`);
   const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
 
   // Phase F: after a mute the card steps aside, with a way to undo it.
