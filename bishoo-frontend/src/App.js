@@ -228,6 +228,16 @@ if ('serviceWorker' in navigator) {
 /** The installed till's address (owner 2026-10-27). */
 const TEAM_INVITE_TOKEN = /^[A-Za-z0-9_-]{16,48}$/;
 const isPosPath = () => { try { return /^\/pos\/?$/.test(window.location.pathname); } catch { return false; } };
+// Office app (Android, owner 2026-11-26): /p/PublicLogin?next=SuperAgentDashboard opens the office
+// after sign-in. Only the office dashboard is accepted; any other value is ignored.
+const OFFICE_NEXT_PAGE = 'SuperAgentDashboard';
+const AFTER_LOGIN_KEY = 'kentexa_after_login';
+const officeNextFromAddress = () => {
+  try {
+    const next = new URLSearchParams(window.location.search).get('next');
+    return next === OFFICE_NEXT_PAGE && /^\/p\/PublicLogin\/?$/.test(window.location.pathname) ? next : null;
+  } catch { return null; }
+};
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -246,6 +256,20 @@ function App() {
     refreshContext,
     logout: roleLogout,
   } = roleContext;
+  // Office app: remember the destination from the address; a user who is already signed in goes there now.
+  useEffect(() => {
+    const next = officeNextFromAddress();
+    if (next) { try { localStorage.setItem(AFTER_LOGIN_KEY, next); } catch { /* private window: login page as usual */ } }
+  }, []);
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    try {
+      if (localStorage.getItem(AFTER_LOGIN_KEY) !== OFFICE_NEXT_PAGE) return;
+      localStorage.removeItem(AFTER_LOGIN_KEY);
+    } catch { return; }
+    setPage(OFFICE_NEXT_PAGE);
+  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // POS that opens without internet (owner 2026-10-27): /pos on a computer where the till
   // was used before opens with the products and sales kept there, even when the session
   // cannot be restored (no internet). Nothing is sent until the account is back online.
