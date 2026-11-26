@@ -7,16 +7,34 @@ plugins {
 // from 100 plus the CI run number; every upload must be higher than the one before.
 def ciVersionCode = 100 + ((System.getenv('VERSION_CODE') ?: '0') as int)
 
+// The office app (KenteXa Ofisi, owner 2026-11-26) is the same wrapper built with -Poffice=true:
+// its own package, its own title, and it opens the office dashboard after sign-in. Without the
+// flag the build is the main KenteXa app, exactly as before.
+def officeBuild = project.hasProperty('office') && project.property('office').toString() == 'true'
+
 android {
     namespace 'com.kentexa.app'
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.app.bishoo'
+        applicationId officeBuild ? 'com.kentexa.ofisi' : 'com.app.bishoo'
         minSdk 24 // Play's automatic protection needs 24+ (the old Bishoo app was 24+ too)
         targetSdk 36
         versionCode ciVersionCode
         versionName "2.0.${ciVersionCode}"
+        // Each value a store build needs to differ on. The file-sharing authority must be unique on
+        // a phone, or the two apps cannot be installed together.
+        manifestPlaceholders = officeBuild ? [
+            appLabel: 'KenteXa Ofisi',
+            startUrl: 'https://kentexa.com/p/PublicLogin?next=SuperAgentDashboard&source=ofisi',
+            linkHost: 'ofisi.invalid', // the office app does not take over kentexa.com links
+            fileProviderAuthority: 'com.kentexa.ofisi.fileprovider',
+        ] : [
+            appLabel: 'KenteXa',
+            startUrl: 'https://kentexa.com/?source=android',
+            linkHost: 'kentexa.com',
+            fileProviderAuthority: 'com.kentexa.app.fileprovider',
+        ]
     }
 
     buildTypes {
