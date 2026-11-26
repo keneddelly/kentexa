@@ -745,7 +745,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   );
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : (Array.isArray(post.references) ? post.references : []);
-  const handleInlineHashtag = (tag) => onNavigate(`Search-${encodeURIComponent(tag)}`);
+  const handleInlineHashtag = (tag) => onNavigate(`Search-${tag}`);
   const handleInlineReference = (reference) => {
     const id = reference?.entityId;
     if (!id) return;
