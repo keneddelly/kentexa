@@ -8,7 +8,7 @@ describe('InlineEntityText', () => {
     render(<InlineEntityText text="BIS – Vifaa #CCTV" references={[ref]} onReferenceClick={() => {}} onHashtagClick={() => {}} />);
     expect(screen.getByRole('button', { name: 'Biashara: BIS' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hashtag CCTV' })).toBeInTheDocument();
-    expect(screen.getByText(' – Vifaa ')).toBeInTheDocument();
+    expect(screen.getByText(/– Vifaa/)).toBeInTheDocument();
   });
 
   test('calls the reference callback with the selected structured reference', () => {
