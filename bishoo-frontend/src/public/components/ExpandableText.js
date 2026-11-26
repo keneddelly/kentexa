@@ -20,7 +20,7 @@ const ExpandableText = ({ text, lines = 4, style, onOpen, references = [], onRef
   const clamp = open ? {} : { display: '-webkit-box', WebkitLineClamp: lines, WebkitBoxOrient: 'vertical', overflow: 'hidden' };
   return (
     <div style={style}>
-      <div ref={ref} data-testid="post-text" onClick={onOpen} style={{ ...POST_TEXT, ...clamp, cursor: onOpen ? 'pointer' : 'auto' }}}><InlineEntityText text={text} references={references} onReferenceClick={onReferenceClick} onHashtagClick={onHashtagClick} /></div>
+      <div ref={ref} data-testid="post-text" onClick={onOpen} style={{ ...POST_TEXT, ...clamp, cursor: onOpen ? 'pointer' : 'auto' }}><InlineEntityText text={text} references={references} onReferenceClick={onReferenceClick} onHashtagClick={onHashtagClick} /></div>
       {long && !open && (
         <button type="button" data-testid="read-more" onClick={(e) => { e.stopPropagation(); setOpen(true); }}
           style={{ background: 'none', border: 'none', padding: '2px 0 0', cursor: 'pointer', color: '#1d9bf0', fontSize: 15, lineHeight: '20px', fontWeight: 400 }}>
