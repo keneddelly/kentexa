@@ -387,7 +387,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           communityId: communityId || undefined,
           visibility: audience,
           commerceProfileId: activeProfileId || undefined,
-          inlineMentions: mentionRefs.map((r) => ({ ...r, startOffset: r.startOffset - text.length + caption.length, endOffset: r.endOffset - text.length + caption.length })).filter((r) => r.startOffset >= 0 && text.slice(r.startOffset, r.endOffset) === r.matchedText),
+          inlineMentions: mentionRefs.map((r) => ({ ...r, startOffset: r.startOffset - (caption.length - caption.trimStart().length), endOffset: r.endOffset - (caption.length - caption.trimStart().length) })).filter((r) => r.startOffset >= 0 && text.slice(r.startOffset, r.endOffset) === r.matchedText),
         });
       } else {
         await api.post('/feed/publish', {
@@ -399,6 +399,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           category,
           visibility: audience,
           commerceProfileId: activeProfileId || undefined,
+          inlineMentions: mentionRefs.map((r) => ({ ...r, startOffset: r.startOffset - (caption.length - caption.trimStart().length), endOffset: r.endOffset - (caption.length - caption.trimStart().length) })).filter((r) => r.startOffset >= 0 && text.slice(r.startOffset, r.endOffset) === r.matchedText),
         });
       }
 
