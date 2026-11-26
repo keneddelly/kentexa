@@ -118,7 +118,7 @@ export class FeedService {
   /** Resolve exact public entity names in a post; errors never block publishing. */
   private async resolveInlineReferences(text: string): Promise<Record<string, any>[]> {
     if (!text?.trim()) return [];
-    const tokens = [...new Set((text.match(/[\\p{L}\\p{N}][\\p{L}\\p{N}_-]{2,}/gu) || [])].slice(0, 30);
+    const tokens = [...new Set((text.match(/[\p{L}\p{N}][\p{L}\p{N}_-]{2,}/gu) || [])].slice(0, 30);
     if (!tokens.length) return [];
     const patterns = tokens.map((t) => `%${t}%`);
     const candidates: InlineEntityCandidate[] = [];

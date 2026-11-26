@@ -1,6 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import HashtagText from './HashtagText';
-import InlineEntityText from './InlineEntityText';
 import { leadSeparator } from '../utils/kentexaText';
 
 // Long post text, the Twitter way (owner 2026-10-26: "the longest text moment looks
@@ -16,7 +15,7 @@ export const POST_TEXT = { fontSize: 16, lineHeight: '22px', fontWeight: 400, co
 // filling the feed; a shorter one opens in place.
 export const LONG_TEXT = 700;
 
-const ExpandableText = ({ text, lead = '', lines = 4, style, onOpen, onTag, raw = false, onMore = null, references = [], onReferenceClick, onHashtagClick }) => {
+const ExpandableText = ({ text, lead = '', lines = 4, style, onOpen, onTag, raw = false, onMore = null }) => {
   const [open, setOpen] = useState(false);
   const [long, setLong] = useState(false);
   const ref = useRef(null);
@@ -31,7 +30,7 @@ const ExpandableText = ({ text, lead = '', lines = 4, style, onOpen, onTag, raw 
     <div style={style}>
       <div ref={ref} data-testid="post-text" onClick={onOpen} style={{ ...POST_TEXT, ...clamp, cursor: onOpen ? 'pointer' : 'auto' }}>
         {lead && <><strong data-testid="post-lead" style={{ fontWeight: 700 }}>{lead}</strong>{text ? leadSeparator(lead) : ''}</>}
-        {references?.length ? <InlineEntityText text={text} references={references} onReferenceClick={onReferenceClick} onHashtagClick={onHashtagClick || onTag} /> : <HashtagText text={text} onTag={onTag} raw={raw} />}
+        <HashtagText text={text} onTag={onTag} raw={raw} />
       </div>
       {long && !open && (
         <button type="button" data-testid="read-more" onClick={(e) => { e.stopPropagation(); if (onMore && String(text || '').length + String(lead || '').length > LONG_TEXT) onMore(); else setOpen(true); }}
