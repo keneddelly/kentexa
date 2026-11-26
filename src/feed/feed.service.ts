@@ -180,7 +180,8 @@ export class FeedService {
     };
     const candidates: InlineEntityCandidate[] = [];
     const [businesses, products, listings, services] = await Promise.all([
-      qb(this.businessRepo, 'b', ['legalName', 'tradingName'])
+      this.businessRepo.createQueryBuilder('b')
+        .where('(b.legalName ILIKE ANY(:patterns) OR b.tradingName ILIKE ANY(:patterns) OR cp.displayName ILIKE ANY(:patterns) OR cp.username ILIKE ANY(:patterns))', { patterns })
         .andWhere('b.status = :active', { active: 'active' })
         .innerJoin('public.commerce_profile', 'cp', 'cp."businessId" = b.id')
         .andWhere('cp.status = :profileActive', { profileActive: 'active' })
