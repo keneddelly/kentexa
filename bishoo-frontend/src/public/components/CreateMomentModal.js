@@ -482,7 +482,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               maxLength={COMPOSER.text} aria-label="Maandishi"
               style={{ width:'100%', minHeight:96, padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
                 fontSize:16, lineHeight:1.45, resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none', color:DK }} />
-            {mentionQuery && !isEdit && (
+            {mentionQuery && (
               <div role="listbox" aria-label="Mention suggestions" style={{ border: `1px solid ${LN}`, borderRadius:12, marginTop:8, overflow:'hidden', background:WH }}>
                 {mentionLoading && <div style={{ padding:10, color:GR, fontSize:13 }}>Inatafuta...</div>}
                 {!mentionLoading && mentionSuggestions.map((profile) => (
