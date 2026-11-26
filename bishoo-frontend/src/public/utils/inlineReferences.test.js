@@ -8,6 +8,7 @@ describe('inlineReferences', () => {
   test('parses hashtags with Unicode and preserves offsets', () => {
     const text = 'Habari #Biashara na #Teknolojia';
     expect(parseHashtagRanges(text).map((r) => r.hashtag)).toEqual(['Biashara', 'Teknolojia']);
+    expect(parseHashtagRanges('Habari,#Kentexa!').map((r) => r.hashtag)).toEqual(['Kentexa']);
   });
 
   test('does not parse hashtag without a boundary or an empty hashtag', () => {
