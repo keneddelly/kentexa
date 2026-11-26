@@ -1379,6 +1379,11 @@ export class FeedService {
     changes.editedAt = now;
     await this.feedRepo.update(post.id, changes as any);
     const saved = { ...post, ...changes } as BusinessFeedItem;
+    if (dto.body !== undefined && Array.isArray(changes.inlineReferences)) {
+      const priorMentionOwners = new Set((post.inlineReferences || []).filter((r: any) => r.source === 'mention').map((r: any) => Number(r.navigationOwnerId)));
+      const newMentions = changes.inlineReferences.filter((r: any) => r.source === 'mention' && !priorMentionOwners.has(Number(r.navigationOwnerId)));
+      this.notifyExplicitMentions(saved, newMentions);
+    }
 
     // Search follows the edit: a post made followers-only leaves search.
     if (!saved.visibility || saved.visibility === MomentVisibility.PUBLIC) {
