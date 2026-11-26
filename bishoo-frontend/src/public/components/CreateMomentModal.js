@@ -172,7 +172,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     setMentionLoading(true);
     const handle = setTimeout(() => {
       api.get('/profiles/search', { params: { q: mentionQuery.query } })
-        .then((r) => { if (alive) setMentionSuggestions(Array.isArray(r?.data) ? r.data.slice(0, 6) : []); })
+        .then((r) => { if (alive) setMentionSuggestions(Array.isArray(r?.data) ? r.data.filter((profile) => ['personal', 'business'].includes(profile?.type)).slice(0, 6) : []); })
         .catch(() => { if (alive) setMentionSuggestions([]); })
         .finally(() => { if (alive) setMentionLoading(false); });
     }, 180);
