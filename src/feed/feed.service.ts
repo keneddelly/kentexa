@@ -117,7 +117,62 @@ export class FeedService {
     @Optional() @InjectRepository(Business) private readonly businessRepo?: Repository<Business>,
   ) {}
 
-  /** Resolve exact public entity names in a post; errors never block publishing. */
+  private async resolveExplicitMentions(text: string, mentions: any[] = []): Promise<Record<string, any>[]> {
+    if (!text || !Array.isArray(mentions) || !mentions.length) return [];
+    const resolved: Record<string, any>[] = [];
+    for (const mention of mentions.slice(0, 20)) {
+      if (!mention || !Number.isInteger(Number(mention.profileId))) continue;
+      const startOffset = Number(mention.startOffset);
+      const endOffset = Number(mention.endOffset);
+      const matchedText = mention.matchedText;
+      if (!Number.isInteger(startOffset) || !Number.isInteger(endOffset) || startOffset < 0
+        || endOffset <= startOffset || endOffset > text.length || typeof matchedText !== 'string'
+        || text.slice(startOffset, endOffset) !== matchedText || !matchedText.startsWith('@')) continue;
+      const profile = await this.commerceProfileRepo.findOne({ where: { id: Number(mention.profileId) } });
+      if (!profile || profile.status !== 'active' || profile.hiddenFromPublic
+        || ![CommerceProfileType.PERSONAL, CommerceProfileType.BUSINESS].includes(profile.type)
+        || matchedText !== `@${profile.username}`) continue;
+      resolved.push({
+        entityType: profile.type === CommerceProfileType.PERSONAL ? 'user' : 'business',
+        entityId: profile.type === CommerceProfileType.PERSONAL ? profile.ownerId : profile.id,
+        navigationOwnerId: profile.ownerId,
+        profileId: profile.id,
+        matchedText,
+        startOffset,
+        endOffset,
+        source: 'mention',
+        confidence: 1,
+      });
+    }
+    return resolved;
+  }
+
+  private notifyExplicitMentions(item: BusinessFeedItem, references: Record<string, any>[]): void {
+    if (!isPublicPost(item)) return; // followers-only mention delivery requires a verified follower check
+    const recipients = new Map<number, number>();
+    for (const reference of references) {
+      if (reference.source !== 'mention' || !reference.navigationOwnerId || !reference.profileId) continue;
+      const recipientId = Number(reference.navigationOwnerId);
+      if (!recipientId || recipientId === Number(item.businessId)) continue;
+      recipients.set(recipientId, Number(reference.profileId));
+    }
+    for (const [userId, profileId] of recipients) {
+      this.notifService.notify({
+        userId,
+        type: 'mention' as any,
+        title: 'Umetajwa kwenye chapisho',
+        body: `${item.business?.name || 'Mtu'} amekutaja kwenye chapisho.`,
+        actionPage: 'CommerceProfile',
+        actionParam: `${item.businessId}-feed-${item.id}`,
+        actionCommerceProfileId: profileId,
+      }).catch((err) => this.logger.warn('Mention notification failed: ' + err));
+    }
+  }
+
+  /**
+   * Resolve exact, public entity names against a Moment body. This is deliberately
+   * fail-safe: recognition errors are logged and publishing continues without refs.
+   */
   private async resolveInlineReferences(text: string): Promise<Record<string, any>[]> {
     if (!text?.trim()) return [];
     const tokens = [...new Set((text.match(/[\p{L}\p{N}][\p{L}\p{N}_-]{2,}/gu) || [])
@@ -334,6 +389,7 @@ export class FeedService {
     );
 
     if (beforeAnnounce) await beforeAnnounce(item);
+    this.notifyExplicitMentions(item, inlineReferences);
 
     // Moments are first-class discovery documents. Index the human text so
     // Kentexa AI/semantic search can retrieve what people and businesses are
