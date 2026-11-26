@@ -161,7 +161,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       r.startOffset >= end ? { ...r, startOffset: r.startOffset + delta, endOffset: r.endOffset + delta } : r));
     setCaption(next);
     const before = next.slice(0, start);
-    const match = before.match(/(?:^|\\s)@([\\p{L}\\p{N}_-]{2,30})$/u);
+    const match = before.match(/(?:^|\s)@([\p{L}\p{N}_-]{2,30})$/u);
     if (match) setMentionQuery({ query: match[1], startOffset: start - match[1].length - 1 });
     else setMentionQuery(null);
   };
