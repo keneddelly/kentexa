@@ -751,7 +751,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
     if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);
     else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);
     else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);
-    else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${id}`);
+    else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${reference.navigationOwnerId || id}`, { commerceProfileId: id });
   };
   const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
 
