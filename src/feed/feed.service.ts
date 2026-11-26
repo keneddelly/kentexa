@@ -292,7 +292,7 @@ export class FeedService {
 
     let inlineReferences: Record<string, any>[] = [];
     try {
-      inlineReferences = await this.resolveInlineReferences(dto.body || '');
+      inlineReferences = await this.resolveInlineReferences((dto.body || '').trim());
       // Existing explicit/manual post link wins over automatic matches in the same range.
       if (dto.linkedEntityType && dto.linkedEntityId) {
         inlineReferences = inlineReferences.filter((r) => !(r.entityType === dto.linkedEntityType && r.entityId === dto.linkedEntityId));
