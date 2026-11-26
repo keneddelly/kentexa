@@ -6,6 +6,7 @@ import { Module } from '@nestjs/common';
 import { RoleContextModule } from '../role-context/role-context.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
+import { Business } from '../business/entities/business.entity';
 import { User } from '../users/entities/user.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
@@ -46,6 +47,7 @@ import { SearchModule } from '../search/search.module';
     RoleContextModule,
     TypeOrmModule.forFeature([
       BusinessFeedItem,
+      Business,
       Classified,
       Product,
       ServiceAd,
