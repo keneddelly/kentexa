@@ -1337,7 +1337,7 @@ export class FeedService {
   async editPost(
     userId: number,
     postId: number,
-    dto: { title?: string; body?: string | null; media?: any[] | null; visibility?: string },
+    dto: { title?: string; body?: string | null; media?: any[] | null; visibility?: string; inlineMentions?: { profileId: number; startOffset: number; endOffset: number; matchedText: string }[] },
     now: Date = new Date(),
   ): Promise<BusinessFeedItem> {
     const post = await this.feedRepo.findOne({ where: { id: postId, businessId: userId, isActive: true } });
@@ -1356,7 +1356,19 @@ export class FeedService {
       if (!dto.title.trim()) throw new BadRequestException('Andika kitu kwenye chapisho.');
       changes.title = dto.title;
     }
-    if (dto.body !== undefined) changes.body = dto.body || null;
+    if (dto.body !== undefined) {
+      changes.body = dto.body || null;
+      try {
+        const renderedText = (dto.body || '').trim();
+        changes.inlineReferences = [
+          ...await this.resolveExplicitMentions(renderedText, dto.inlineMentions || []),
+          ...await this.resolveInlineReferences(renderedText),
+        ];
+      } catch (error) {
+        this.logger.warn('Inline entity recognition skipped during edit: ' + (error instanceof Error ? error.message : String(error)));
+        changes.inlineReferences = [];
+      }
+    }
     if (dto.media !== undefined) {
       changes.media = cleanMedia(dto.media);
       changes.imageUrl = changes.media?.[0]?.url || null;
