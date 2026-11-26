@@ -20,6 +20,10 @@ on:
         type: choice
         options: [test, ofisi]
         default: test
+      publish:
+        description: 'Publish the APK to its download page (manual runs)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -69,7 +73,7 @@ jobs:
           retention-days: 14
       # One fixed download page per app: the newest APK, opened on the phone.
       - name: Publish APK
-        if: github.event_name != 'workflow_dispatch' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: (github.event_name != 'workflow_dispatch' || inputs.publish) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         working-directory: mobile
         env:
           GH_TOKEN: ${{ github.token }}
