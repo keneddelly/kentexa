@@ -22,6 +22,7 @@ import {
 import { PostComment } from './entities/post-comment.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { User } from '../users/entities/user.entity';
+import { Business } from '../business/entities/business.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { PUBLIC_SERVICE_AD } from '../services/service-ad-visibility';
@@ -40,6 +41,7 @@ import type { ComposerEvent } from './composer-events';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 import { SearchIndexService } from '../search/search-index.service';
 import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
+import { recognizeInlineEntities, InlineEntityCandidate } from './inline-entity-recognition';
 
 export type FeedFilter =
   | 'for_you'
@@ -91,6 +93,7 @@ export class FeedService {
     private engageRepo: Repository<PostEngagement>,
     @InjectRepository(PostComment) private commentRepo: Repository<PostComment>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(Classified)
     private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
@@ -107,6 +110,63 @@ export class FeedService {
     private readonly activityEvents: ActivityEventService,
     private readonly searchIndex: SearchIndexService,
   ) {}
+
+  /**
+   * Resolve exact, public entity names against a Moment body. This is deliberately
+   * fail-safe: recognition errors are logged and publishing continues without refs.
+   */
+  private async resolveInlineReferences(text: string): Promise<Record<string, any>[]> {
+    if (!text?.trim()) return [];
+    const tokens = [...new Set((text.match(/[\\p{L}\\p{N}][\\p{L}\\p{N}_-]{2,}/gu) || [])
+      .map((t) => t.trim()).filter(Boolean))].slice(0, 30);
+    if (!tokens.length) return [];
+    const patterns = tokens.map((t) => `%${t}%`);
+    const qb = (repo: Repository<any>, alias: string, fields: string[]) => {
+      const query = repo.createQueryBuilder(alias);
+      query.where(fields.map((field, i) => `${alias}.${field} ILIKE ANY(:patterns)`).join(' OR '), { patterns });
+      return query;
+    };
+    const candidates: InlineEntityCandidate[] = [];
+    const [businesses, products, listings, services] = await Promise.all([
+      qb(this.businessRepo, 'b', ['legalName', 'tradingName'])
+        .andWhere('b.status = :active', { active: 'active' })
+        .andWhere(`EXISTS (SELECT 1 FROM public.commerce_profile cp WHERE cp."businessId" = b.id AND cp.status = 'active' AND cp."hiddenFromPublic" = false)`)
+        .select(['b.id', 'b.legalName', 'b.tradingName'])
+        .take(250).getMany(),
+      qb(this.productRepo, 'p', ['name', 'modelName'])
+        .andWhere('p."isActive" = true')
+        .andWhere('p."isAvailable" = true')
+        .andWhere('p."availableOnline" = true')
+        .select(['p.id', 'p.name', 'p.modelName'])
+        .take(250).getMany(),
+      qb(this.classifiedRepo, 'c', ['title'])
+        .andWhere('c.status = :active', { active: 'active' })
+        .select(['c.id', 'c.title'])
+        .take(250).getMany(),
+      qb(this.serviceAdRepo, 's', ['title', 'subcategory'])
+        .andWhere('s.status = :active', { active: 'active' })
+        .andWhere(PUBLIC_SERVICE_AD('s'))
+        .select(['s.id', 's.title', 's.subcategory'])
+        .take(250).getMany(),
+    ]);
+    for (const b of businesses) candidates.push({
+      entityType: 'business', entityId: b.id, name: b.tradingName || b.legalName,
+      aliases: b.tradingName && b.legalName !== b.tradingName ? [b.legalName] : [],
+      discoverable: true,
+    });
+    for (const p of products) candidates.push({
+      entityType: 'product', entityId: p.id, name: p.name,
+      aliases: p.modelName ? [p.modelName] : [], discoverable: true,
+    });
+    for (const l of listings) candidates.push({
+      entityType: 'listing', entityId: l.id, name: l.title, discoverable: true,
+    });
+    for (const s of services) candidates.push({
+      entityType: 'service', entityId: s.id, name: s.title,
+      aliases: s.subcategory ? [s.subcategory] : [], discoverable: true,
+    });
+    return recognizeInlineEntities(text, candidates);
+  }
 
   // ── Publish a post ────────────────────────────────────────────────────────
   async publish(
@@ -223,6 +283,17 @@ export class FeedService {
       commerceProfileId = requestedProfileId;
     }
 
+    let inlineReferences: Record<string, any>[] = [];
+    try {
+      inlineReferences = await this.resolveInlineReferences(dto.body || '');
+      // Existing explicit/manual post link wins over automatic matches in the same range.
+      if (dto.linkedEntityType && dto.linkedEntityId) {
+        inlineReferences = inlineReferences.filter((r) => !(r.entityType === dto.linkedEntityType && r.entityId === dto.linkedEntityId));
+      }
+    } catch (error) {
+      this.logger.warn('Inline entity recognition skipped: ' + (error instanceof Error ? error.message : String(error)));
+    }
+
     const item = await this.feedRepo.save(
       this.feedRepo.create({
         intent,
@@ -249,6 +320,7 @@ export class FeedService {
         imageUrl: cleanMedia(dto.media)?.[0]?.url || dto.imageUrl || null,
         linkedEntityType: dto.linkedEntityType || null,
         linkedEntityId: dto.linkedEntityId || null,
+        inlineReferences,
         ctaLabel: dto.ctaLabel || null,
         category: dto.category || null,
         price: dto.price || null,
