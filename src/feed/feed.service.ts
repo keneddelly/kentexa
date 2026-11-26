@@ -141,6 +141,28 @@ export class FeedService {
     return resolved;
   }
 
+  private notifyExplicitMentions(item: BusinessFeedItem, references: Record<string, any>[]): void {
+    if (!isPublicPost(item)) return; // followers-only mention delivery requires a verified follower check
+    const recipients = new Map<number, number>();
+    for (const reference of references) {
+      if (reference.source !== 'mention' || !reference.navigationOwnerId || !reference.profileId) continue;
+      const recipientId = Number(reference.navigationOwnerId);
+      if (!recipientId || recipientId === Number(item.businessId)) continue;
+      recipients.set(recipientId, Number(reference.profileId));
+    }
+    for (const [userId, profileId] of recipients) {
+      this.notifService.notify({
+        userId,
+        type: 'mention' as any,
+        title: 'Umetajwa kwenye chapisho',
+        body: `${item.business?.name || 'Mtu'} amekutaja kwenye chapisho.`,
+        actionPage: 'CommerceProfile',
+        actionParam: `${item.businessId}-feed-${item.id}`,
+        actionCommerceProfileId: profileId,
+      }).catch((err) => this.logger.warn('Mention notification failed: ' + err));
+    }
+  }
+
   /**
    * Resolve exact, public entity names against a Moment body. This is deliberately
    * fail-safe: recognition errors are logged and publishing continues without refs.
@@ -376,6 +398,8 @@ export class FeedService {
         cvsScore: 0,
       }),
     );
+
+    this.notifyExplicitMentions(item, inlineReferences);
 
     // Moments are first-class discovery documents. Index the human text so
     // Kentexa AI/semantic search can retrieve what people and businesses are
