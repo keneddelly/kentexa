@@ -940,15 +940,6 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         cursor:'pointer', fontFamily:'inherit' });
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   const handleInlineHashtag = (tag) => onNavigate(`Search-${tag}`);
-  const handleInlineReference = (reference) => {
-    const id = reference?.entityId;
-    if (!id) return;
-    if (reference.entityType === 'user') onNavigate(`CommerceProfile-${reference.navigationOwnerId || id}`, { commerceProfileId: reference.profileId || id });
-    else if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);
-    else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);
-    else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);
-    else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${reference.navigationOwnerId || id}`, { commerceProfileId: id });
-  };
   const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
 
   // Phase F: after a mute the card steps aside, with a way to undo it.
