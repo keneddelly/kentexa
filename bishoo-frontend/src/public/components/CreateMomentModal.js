@@ -131,6 +131,11 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const [loadingItems, setLoadingItems] = useState(!isEdit);
   const [tagged,    setTagged]    = useState(null); // { type, id, title, price }
   const [posting,   setPosting]   = useState(false);
+  const [mentionRefs, setMentionRefs] = useState([]);
+  const [mentionQuery, setMentionQuery] = useState(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState([]);
+  const [mentionLoading, setMentionLoading] = useState(false);
+  const textareaRef = useRef(null);
   const [error,     setError]     = useState('');
   // A Moment that reads like a sale becomes a classified ad (owner 2026-10-26: new users
   // post sale items as Moments, so buyers never find them in search). The user can
@@ -147,6 +152,53 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     setKind(key); setError('');
     if (key !== kind) composerEvent('kind', { kind: key });
   };
+  const handleCaptionChange = (event) => {
+    const next = event.target.value.slice(0, COMPOSER.text);
+    const start = event.target.selectionStart ?? next.length;
+    const end = event.target.selectionEnd ?? start;
+    const delta = next.length - caption.length;
+    setMentionRefs((refs) => refs.filter((r) => !(r.startOffset < end && r.endOffset > start)).map((r) =>
+      r.startOffset >= end ? { ...r, startOffset: r.startOffset + delta, endOffset: r.endOffset + delta } : r));
+    setCaption(next);
+    const before = next.slice(0, start);
+    const match = before.match(/(?:^|\\s)@([\\p{L}\\p{N}_-]{2,30})$/u);
+    if (match) setMentionQuery({ query: match[1], startOffset: start - match[1].length - 1 });
+    else setMentionQuery(null);
+  };
+
+  useEffect(() => {
+    if (!mentionQuery?.query) { setMentionSuggestions([]); setMentionLoading(false); return undefined; }
+    let alive = true;
+    setMentionLoading(true);
+    const handle = setTimeout(() => {
+      api.get('/profiles/search', { params: { q: mentionQuery.query } })
+        .then((r) => { if (alive) setMentionSuggestions(Array.isArray(r?.data) ? r.data.slice(0, 6) : []); })
+        .catch(() => { if (alive) setMentionSuggestions([]); })
+        .finally(() => { if (alive) setMentionLoading(false); });
+    }, 180);
+    return () => { alive = false; clearTimeout(handle); };
+  }, [mentionQuery?.query]);
+
+  const selectMention = (profile) => {
+    const username = String(profile?.username || profile?.displayName || '').trim();
+    if (!username || !mentionQuery) return;
+    const start = mentionQuery.startOffset;
+    const tokenEnd = start + mentionQuery.query.length + 1;
+    const insert = `@${username}`;
+    const next = caption.slice(0, start) + insert + caption.slice(tokenEnd);
+    const end = start + insert.length;
+    setCaption(next);
+    setMentionRefs((refs) => [...refs.filter((r) => r.endOffset <= start || r.startOffset >= tokenEnd)
+      .map((r) => r.startOffset >= tokenEnd ? { ...r, startOffset: r.startOffset + insert.length - (tokenEnd - start), endOffset: r.endOffset + insert.length - (tokenEnd - start) } : r),
+      { profileId: profile.id, startOffset: start, endOffset: end, matchedText: insert }]);
+    setMentionQuery(null);
+    setMentionSuggestions([]);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(end, end);
+    });
+  };
+
   const close = () => {
     if (!isEdit && !postedRef.current) {
       composerEvent('abandoned', { kind, at: step, hasText: !!caption.trim(), photos: photos.length });
@@ -335,6 +387,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           communityId: communityId || undefined,
           visibility: audience,
           commerceProfileId: activeProfileId || undefined,
+          inlineMentions: mentionRefs.map((r) => ({ ...r, startOffset: r.startOffset - text.length + caption.length, endOffset: r.endOffset - text.length + caption.length })).filter((r) => r.startOffset >= 0 && text.slice(r.startOffset, r.endOffset) === r.matchedText),
         });
       } else {
         await api.post('/feed/publish', {
@@ -422,11 +475,24 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
 
           {/* Text, with the 500-character count */}
           <div>
-            <textarea value={caption} onChange={e => setCaption(e.target.value.slice(0, COMPOSER.text))}
+            <textarea ref={textareaRef} value={caption} onChange={handleCaptionChange}
               placeholder={mode === 'moment' ? (PLACEHOLDER[kind] || PLACEHOLDER.moment) : t('create_moment_modal.placeholder_looking_for')}
               maxLength={COMPOSER.text} aria-label="Maandishi"
               style={{ width:'100%', minHeight:96, padding:'10px 0', border:'none', borderBottom:`1px solid ${LN}`,
                 fontSize:16, lineHeight:1.45, resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', outline:'none', color:DK }} />
+            {mentionQuery && !isEdit && (
+              <div role="listbox" aria-label="Mention suggestions" style={{ border: `1px solid ${LN}`, borderRadius:12, marginTop:8, overflow:'hidden', background:WH }}>
+                {mentionLoading && <div style={{ padding:10, color:GR, fontSize:13 }}>Inatafuta...</div>}
+                {!mentionLoading && mentionSuggestions.map((profile) => (
+                  <button key={profile.id} type="button" role="option" onClick={() => selectMention(profile)}
+                    style={{ width:'100%', display:'flex', alignItems:'center', gap:10, padding:10, border:0, borderBottom:`1px solid ${LN}`, background:WH, textAlign:'left', cursor:'pointer', fontFamily:'inherit' }}>
+                    {profile.photoUrl ? <img src={profile.photoUrl} alt="" style={{ width:36, height:36, borderRadius:18, objectFit:'cover' }} /> : <div style={{ width:36, height:36, borderRadius:18, background:'#EFF6FF', display:'grid', placeItems:'center', color:B, fontWeight:800 }}>{(profile.displayName || '?').slice(0,1)}</div>}
+                    <div style={{ minWidth:0 }}><div style={{ fontSize:14, fontWeight:700, color:DK }}>{profile.displayName}</div><div style={{ fontSize:12, color:GR }}>@{profile.username}</div></div>
+                  </button>
+                ))}
+                {!mentionLoading && !mentionSuggestions.length && <div style={{ padding:10, color:GR, fontSize:13 }}>Hakuna matokeo</div>}
+              </div>
+            )}
             <div data-testid="char-count" style={{ textAlign:'right', fontSize:12, color: caption.length >= COMPOSER.text ? '#B91C1C' : GR, fontVariantNumeric:'tabular-nums' }}>
               {caption.length} / {COMPOSER.text}
             </div>
