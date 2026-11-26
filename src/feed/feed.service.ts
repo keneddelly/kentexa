@@ -158,7 +158,7 @@ export class FeedService {
         body: `${item.business?.name || 'Mtu'} amekutaja kwenye chapisho.`,
         actionPage: 'CommerceProfile',
         actionParam: `${item.businessId}-feed-${item.id}`,
-        actionCommerceProfileId: profileId,
+        actionCommerceProfileId: (item as any).commerceProfileId || undefined,
       }).catch((err) => this.logger.warn('Mention notification failed: ' + err));
     }
   }
