@@ -23,6 +23,7 @@ import {
 import { PostComment } from './entities/post-comment.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { User } from '../users/entities/user.entity';
+import { Business } from '../business/entities/business.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { PUBLIC_SERVICE_AD } from '../services/service-ad-visibility';
@@ -113,6 +114,7 @@ export class FeedService {
     @Optional() private readonly hashtags?: HashtagService,
     // Post views on a profile's own list (owner 2026-11-17: the eye showed no number there).
     @Optional() private readonly postViews?: PostViewsService,
+    @Optional() @InjectRepository(Business) private readonly businessRepo?: Repository<Business>,
   ) {}
 
   /** Resolve exact public entity names in a post; errors never block publishing. */
@@ -122,7 +124,16 @@ export class FeedService {
     if (!tokens.length) return [];
     const patterns = tokens.map((t) => `%${t}%`);
     const candidates: InlineEntityCandidate[] = [];
-    const [profiles, products, listings, services] = await Promise.all([
+    const [businesses, profiles, products, listings, services] = await Promise.all([
+      this.businessRepo ? this.businessRepo.createQueryBuilder('b')
+        .innerJoin('public.commerce_profile', 'cp', 'cp."businessId" = b.id')
+        .where('(b.legalName ILIKE ANY(:patterns) OR b.tradingName ILIKE ANY(:patterns) OR cp.displayName ILIKE ANY(:patterns) OR cp.username ILIKE ANY(:patterns))', { patterns })
+        .andWhere('b.status = :active', { active: 'active' })
+        .andWhere('cp.status = :profileActive', { profileActive: 'active' })
+        .andWhere('cp."hiddenFromPublic" = false')
+        .select('b.id', 'businessId').addSelect('b.legalName', 'legalName').addSelect('b.tradingName', 'tradingName')
+        .addSelect('cp.id', 'profileId').addSelect('cp.ownerId', 'ownerId').addSelect('cp.displayName', 'profileDisplayName').addSelect('cp.username', 'username')
+        .take(250).getRawMany() : Promise.resolve([]),
       this.commerceProfileRepo.createQueryBuilder('cp')
         .where('cp.displayName ILIKE ANY(:patterns) OR cp.username ILIKE ANY(:patterns)', { patterns })
         .andWhere('cp.status = :active', { active: 'active' })
@@ -139,6 +150,10 @@ export class FeedService {
         .andWhere('s.status = :active', { active: 'active' }).andWhere(PUBLIC_SERVICE_AD('s'))
         .select(['s.id', 's.title', 's.subcategory']).take(250).getMany(),
     ]);
+    for (const business of businesses) candidates.push({ entityType: 'business', entityId: business.profileId,
+      name: business.profileDisplayName || business.tradingName || business.legalName,
+      aliases: [business.tradingName, business.legalName, business.username ? `@${business.username}` : null].filter((alias) => alias && alias !== business.profileDisplayName),
+      navigationOwnerId: business.ownerId, discoverable: true });
     for (const profile of profiles) candidates.push({ entityType: 'business', entityId: profile.id,
       name: profile.displayName || profile.username, aliases: profile.username ? [`@${profile.username}`] : [],
       navigationOwnerId: profile.ownerId, discoverable: true });
