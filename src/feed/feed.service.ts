@@ -166,6 +166,8 @@ export class FeedService {
         .addSelect('b.tradingName', 'tradingName')
         .addSelect('cp.id', 'profileId')
         .addSelect('cp.ownerId', 'ownerId')
+        .addSelect('cp.displayName', 'profileDisplayName')
+        .addSelect('cp.username', 'username')
         .take(250).getRawMany(),
       qb(this.productRepo, 'p', ['name', 'modelName'])
         .andWhere('p."isActive" = true')
@@ -184,8 +186,8 @@ export class FeedService {
         .take(250).getMany(),
     ]);
     for (const b of businesses) candidates.push({
-      entityType: 'business', entityId: b.profileId, name: b.tradingName || b.legalName,
-      aliases: b.tradingName && b.legalName !== b.tradingName ? [b.legalName] : [],
+      entityType: 'business', entityId: b.profileId, name: b.profileDisplayName || b.tradingName || b.legalName,
+      aliases: [b.tradingName, b.legalName, b.username ? `@${b.username}` : null].filter((alias) => alias && alias !== b.profileDisplayName),
       navigationOwnerId: b.ownerId, discoverable: true,
     });
     for (const p of products) candidates.push({
