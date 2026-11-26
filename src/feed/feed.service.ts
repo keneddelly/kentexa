@@ -309,7 +309,7 @@ export class FeedService {
         imageUrl: cleanMedia(dto.media)?.[0]?.url || dto.imageUrl || null,
         linkedEntityType: dto.linkedEntityType || null,
         linkedEntityId: dto.linkedEntityId || null,
-        inlineReferences: await this.resolveInlineReferences((dto.body || dto.title || '').trim()).catch((error) => { this.logger.warn('Inline recognition skipped: ' + error); return []; }),
+        inlineReferences: await this.resolveInlineReferences((dto.body || dto.title || '').trim()).catch((error) => { this.logger.warn('Inline recognition skipped: ' + error); return []; }).then((refs) => refs.filter((r) => !(dto.linkedEntityType && dto.linkedEntityId && (r.entityType === dto.linkedEntityType || (r.entityType === 'listing' && dto.linkedEntityType === 'classified')) && Number(r.entityId) === Number(dto.linkedEntityId))),
         ctaLabel: dto.ctaLabel || null,
         category: dto.category || null,
         price: dto.price || null,
@@ -1293,7 +1293,7 @@ export class FeedService {
     }
     if (dto.body !== undefined) {
       changes.body = dto.body || null;
-      changes.inlineReferences = await this.resolveInlineReferences((dto.body || dto.title || '').trim()).catch((error) => { this.logger.warn('Inline recognition skipped during edit: ' + error); return []; });
+      changes.inlineReferences = await this.resolveInlineReferences((dto.body || dto.title || '').trim()).catch((error) => { this.logger.warn('Inline recognition skipped during edit: ' + error); return []; }).then((refs) => refs.filter((r) => !(post.linkedEntityType && post.linkedEntityId && (r.entityType === post.linkedEntityType || (r.entityType === 'listing' && post.linkedEntityType === 'classified')) && Number(r.entityId) === Number(post.linkedEntityId)));
     }
     if (dto.media !== undefined) {
       changes.media = cleanMedia(dto.media);
