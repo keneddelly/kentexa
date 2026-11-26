@@ -123,7 +123,9 @@ export class FeedService {
         || endOffset <= startOffset || endOffset > text.length || typeof matchedText !== 'string'
         || text.slice(startOffset, endOffset) !== matchedText || !matchedText.startsWith('@')) continue;
       const profile = await this.commerceProfileRepo.findOne({ where: { id: Number(mention.profileId) } });
-      if (!profile || profile.status !== 'active' || profile.hiddenFromPublic) continue;
+      if (!profile || profile.status !== 'active' || profile.hiddenFromPublic
+        || ![CommerceProfileType.PERSONAL, CommerceProfileType.BUSINESS].includes(profile.type)
+        || matchedText !== `@${profile.username}`) continue;
       resolved.push({
         entityType: profile.type === CommerceProfileType.PERSONAL ? 'user' : 'business',
         entityId: profile.type === CommerceProfileType.PERSONAL ? profile.ownerId : profile.id,
