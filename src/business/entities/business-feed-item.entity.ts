@@ -155,6 +155,10 @@ export class BusinessFeedItem {
   @Column({ type: 'varchar', nullable: true })
   linkedEntityType: string | null;
 
+  // Smart Entity Recognition: additive structured references; text itself is never rewritten.
+  @Column({ type: 'jsonb', nullable: true })
+  inlineReferences: Record<string, any>[] | null;
+
   @Column({ type: 'int', nullable: true })
   linkedEntityId: number | null;
 
