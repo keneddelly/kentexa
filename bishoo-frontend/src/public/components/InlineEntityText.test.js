@@ -5,7 +5,7 @@ import InlineEntityText from './InlineEntityText';
 describe('InlineEntityText', () => {
   test('renders plain text, references and hashtags without altering the text', () => {
     const ref = { entityType: 'business', entityId: 2, matchedText: 'BIS', startOffset: 0, endOffset: 3, source: 'automatic' };
-    render(<InlineEntityText text="BIS – Vifaa #CCTV" references={[ref]} />);
+    render(<InlineEntityText text="BIS – Vifaa #CCTV" references={[ref]} onReferenceClick={() => {}} onHashtagClick={() => {}} />);
     expect(screen.getByRole('button', { name: 'Biashara: BIS' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hashtag CCTV' })).toBeInTheDocument();
     expect(screen.getByText(' – Vifaa ')).toBeInTheDocument();

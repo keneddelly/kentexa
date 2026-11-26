@@ -34,7 +34,7 @@ export const normalizeInlineReferences = (text, references = []) => {
 /** Parse hashtags without changing text. Positions are UTF-16 offsets. */
 export const parseHashtagRanges = (text) => {
   if (typeof text !== 'string' || !text) return [];
-  const regex = /(^|[\s([{])#([\p{L}\p{M}\p{N}_]{1,64})/gu;
+  const regex = /(^|[^\p{L}\p{M}\p{N}_])#([\p{L}\p{M}\p{N}_]{1,64})/gu;
   const ranges = [];
   let match;
   while ((match = regex.exec(text)) !== null) {
