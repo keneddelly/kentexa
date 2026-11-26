@@ -194,9 +194,9 @@ export class FeedService {
         .addSelect('cp.username', 'username')
         .take(250).getRawMany(),
       qb(this.productRepo, 'p', ['name', 'model'])
-        .andWhere('p."isActive" = true')
         .andWhere('p."isAvailable" = true')
         .andWhere('p."availableOnline" = true')
+        .andWhere('p.stock > 0')
         .select(['p.id', 'p.name', 'p.model'])
         .take(250).getMany(),
       qb(this.classifiedRepo, 'c', ['title'])
