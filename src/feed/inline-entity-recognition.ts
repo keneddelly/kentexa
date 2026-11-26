@@ -6,6 +6,7 @@ export type InlineEntityCandidate = {
   name: string;
   aliases?: string[];
   discoverable: boolean;
+  navigationOwnerId?: number;
 };
 
 export type InlineEntityMatch = {
@@ -16,6 +17,7 @@ export type InlineEntityMatch = {
   endOffset: number;
   source: 'automatic';
   confidence: 1;
+  navigationOwnerId?: number;
 };
 
 const COMMON_TERMS = new Set([
@@ -65,6 +67,7 @@ export const recognizeInlineEntities = (
         endOffset: startOffset + matchedText.length,
         source: 'automatic',
         confidence: 1,
+        navigationOwnerId: candidate.navigationOwnerId,
       });
     }
   }
