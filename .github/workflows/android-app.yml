@@ -9,6 +9,11 @@ on:
       - 'android/**'
       - '.github/workflows/android-app.yml'
   workflow_dispatch:
+    inputs:
+      office:
+        description: 'Build the KenteXa Ofisi bundle (com.kentexa.ofisi) instead of the main app'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -30,15 +35,17 @@ jobs:
         working-directory: android
         env:
           VERSION_CODE: ${{ github.run_number }}
-        run: gradle --no-daemon bundleRelease
+        run: gradle --no-daemon bundleRelease ${{ inputs.office && '-Poffice=true' || '' }}
       - uses: actions/upload-artifact@v4
         with:
-          name: kentexa-android-unsigned
+          name: ${{ inputs.office && 'kentexa-ofisi-unsigned' || 'kentexa-android-unsigned' }}
           path: android/app/build/outputs/bundle/release/*.aab
           retention-days: 14
       # The unsigned bundle (no secret in it) also goes to the android-builds branch, so it
-      # can be fetched with git and signed with the upload key.
+      # can be fetched with git and signed with the upload key. The office bundle is only
+      # kept as the run's artifact, so it never replaces the main app's bundle.
       - name: Hand the bundle back through the android-builds branch
+        if: ${{ !inputs.office }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash android/store/handback.sh "android/app/build/outputs/bundle/release/app-release.aab" "bundle"
