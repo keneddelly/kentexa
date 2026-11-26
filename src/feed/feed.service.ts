@@ -310,7 +310,7 @@ export class FeedService {
         linkedEntityType: dto.linkedEntityType || null,
         linkedEntityId: dto.linkedEntityId || null,
         inlineReferences: await this.resolveInlineReferences((dto.body || dto.title || '').trim())
-          .catch((error) => { this.logger.warn('Inline recognition skipped: ' + error); return []; })
+          .catch((error) => { this.logger?.warn?.('Inline recognition skipped: ' + error); return []; })
           .then((refs: Record<string, any>[]) => {
             if (!dto.linkedEntityType || !dto.linkedEntityId) return refs;
             return refs.filter((r) => {
@@ -1303,7 +1303,7 @@ export class FeedService {
     if (dto.body !== undefined) {
       changes.body = dto.body || null;
       changes.inlineReferences = await this.resolveInlineReferences((dto.body || dto.title || '').trim())
-        .catch((error) => { this.logger.warn('Inline recognition skipped during edit: ' + error); return []; })
+        .catch((error) => { this.logger?.warn?.('Inline recognition skipped during edit: ' + error); return []; })
         .then((refs: Record<string, any>[]) => {
           if (!post.linkedEntityType || !post.linkedEntityId) return refs;
           return refs.filter((r) => {

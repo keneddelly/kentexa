@@ -1,4 +1,4 @@
-**Update 2026-11-26 (Issue #488 inline entity recognition):** the existing migration pin `MIGRATION_RUN_UPTO=1797800000000` includes `1795800000000-AddInlineReferencesToBusinessFeedItem` (additive nullable JSONB `business_feed_item.inlineReferences`). The migration is not applied to production until the approved deploy. Check `/version/migrations` after deployment.
+**Update 2026-11-26 (Issue #488 inline entity recognition):** the existing migration pin `MIGRATION_RUN_UPTO=1797800000000` includes `1795801000000-AddInlineReferencesToBusinessFeedItem` (additive nullable JSONB `business_feed_item.inlineReferences`). The migration is not applied to production until the approved deploy. Check `/version/migrations` after deployment.
 
 # Migrations waiting for live (2026-10-27)
 
