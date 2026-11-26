@@ -193,11 +193,11 @@ export class FeedService {
         .addSelect('cp.displayName', 'profileDisplayName')
         .addSelect('cp.username', 'username')
         .take(250).getRawMany(),
-      qb(this.productRepo, 'p', ['name', 'modelName'])
+      qb(this.productRepo, 'p', ['name', 'model'])
         .andWhere('p."isActive" = true')
         .andWhere('p."isAvailable" = true')
         .andWhere('p."availableOnline" = true')
-        .select(['p.id', 'p.name', 'p.modelName'])
+        .select(['p.id', 'p.name', 'p.model'])
         .take(250).getMany(),
       qb(this.classifiedRepo, 'c', ['title'])
         .andWhere('c.status = :active', { active: 'active' })
@@ -216,7 +216,7 @@ export class FeedService {
     });
     for (const p of products) candidates.push({
       entityType: 'product', entityId: p.id, name: p.name,
-      aliases: p.modelName ? [p.modelName] : [], discoverable: true,
+      aliases: p.model ? [p.model] : [], discoverable: true,
     });
     for (const l of listings) candidates.push({
       entityType: 'listing', entityId: l.id, name: l.title, discoverable: true,
