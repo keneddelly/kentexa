@@ -35,6 +35,14 @@ describe('inlineReferences', () => {
     expect(normalizeInlineReferences(text, [auto, manual])).toEqual([manual]);
   });
 
+  test('hashtag takes precedence over an automatic entity match inside its token', () => {
+    const text = '#BIS';
+    const ref = { entityType: 'business', entityId: 3, matchedText: 'BIS', startOffset: 1, endOffset: 4, source: 'automatic' };
+    expect(buildInlineTextSegments(text, [ref])).toEqual([
+      { kind: 'hashtag', startOffset: 0, endOffset: 4, matchedText: '#BIS', hashtag: 'BIS', text: '#BIS' },
+    ]);
+  });
+
   test('builds segments preserving original punctuation and whitespace', () => {
     const text = 'BIS – Vifaa #CCTV!';
     const ref = { entityType: 'business', entityId: 3, matchedText: 'BIS', startOffset: 0, endOffset: 3, source: 'automatic' };
