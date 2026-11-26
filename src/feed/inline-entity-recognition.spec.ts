@@ -53,7 +53,7 @@ describe('recognizeInlineEntities', () => {
   it('supports Unicode text and keeps JavaScript offsets', () => {
     const text = '😀 vifaa vya BIS';
     const result = recognizeInlineEntities(text, [business]);
-    expect(result[0].startOffset).toBe(12);
+    expect(result[0].startOffset).toBe(13);
     expect(text.slice(result[0].startOffset, result[0].endOffset)).toBe('BIS');
   });
 });
