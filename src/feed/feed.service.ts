@@ -131,8 +131,11 @@ export class FeedService {
       qb(this.businessRepo, 'b', ['legalName', 'tradingName'])
         .andWhere('b.status = :active', { active: 'active' })
         .andWhere(`EXISTS (SELECT 1 FROM public.commerce_profile cp WHERE cp."businessId" = b.id AND cp.status = 'active' AND cp."hiddenFromPublic" = false)`)
-        .select(['b.id', 'b.legalName', 'b.tradingName'])
-        .take(250).getMany(),
+        .innerJoin('public.commerce_profile', 'cp', 'cp."businessId" = b.id')
+        .andWhere('cp.status = :profileActive', { profileActive: 'active' })
+        .andWhere('cp."hiddenFromPublic" = false')
+        .select(['b.id', 'b.legalName', 'b.tradingName', 'cp.id', 'cp.ownerId'])
+        .take(250).getRawMany(),
       qb(this.productRepo, 'p', ['name', 'modelName'])
         .andWhere('p."isActive" = true')
         .andWhere('p."isAvailable" = true')
@@ -150,9 +153,9 @@ export class FeedService {
         .take(250).getMany(),
     ]);
     for (const b of businesses) candidates.push({
-      entityType: 'business', entityId: b.id, name: b.tradingName || b.legalName,
-      aliases: b.tradingName && b.legalName !== b.tradingName ? [b.legalName] : [],
-      discoverable: true,
+      entityType: 'business', entityId: b.cp_id, name: b.b_tradingName || b.b_legalName,
+      aliases: b.b_tradingName && b.b_legalName !== b.b_tradingName ? [b.b_legalName] : [],
+      navigationOwnerId: b.cp_ownerId, discoverable: true,
     });
     for (const p of products) candidates.push({
       entityType: 'product', entityId: p.id, name: p.name,
