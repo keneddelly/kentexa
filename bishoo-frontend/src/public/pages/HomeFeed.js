@@ -745,7 +745,12 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   );
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : (Array.isArray(post.references) ? post.references : []);
-  const handleInlineReference = (reference) => {\n    const id = reference?.entityId;\n    if (!id) return;\n    if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);\n    else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);\n    else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);
+  const handleInlineReference = (reference) => {
+    const id = reference?.entityId;
+    if (!id) return;
+    if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);
+    else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);
+    else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);
     else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${id}`);
   };
   const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
