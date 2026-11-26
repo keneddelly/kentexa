@@ -29,11 +29,15 @@ android {
             startUrl: 'https://kentexa.com/p/PublicLogin?next=SuperAgentDashboard&source=ofisi',
             linkHost: 'ofisi.invalid', // the office app does not take over kentexa.com links
             fileProviderAuthority: 'com.kentexa.ofisi.fileprovider',
+            appIcon: '@mipmap/ic_launcher_ofisi',
+            appRoundIcon: '@mipmap/ic_launcher_ofisi_round',
         ] : [
             appLabel: 'KenteXa',
             startUrl: 'https://kentexa.com/?source=android',
             linkHost: 'kentexa.com',
             fileProviderAuthority: 'com.kentexa.app.fileprovider',
+            appIcon: '@mipmap/ic_launcher',
+            appRoundIcon: '@mipmap/ic_launcher_round',
         ]
     }
 
