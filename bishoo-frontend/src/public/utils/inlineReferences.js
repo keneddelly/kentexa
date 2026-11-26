@@ -54,8 +54,11 @@ export const parseHashtagRanges = (text) => {
 /** Produce plain-text and reference segments, with hashtags only in unreferenced text. */
 export const buildInlineTextSegments = (text, references = []) => {
   if (typeof text !== 'string' || !text) return [];
-  const refs = normalizeInlineReferences(text, references);
-  const hashtags = parseHashtagRanges(text).filter((tag) =>
+  const parsedHashtags = parseHashtagRanges(text);
+  const refs = normalizeInlineReferences(text, references).filter((r) =>
+    r.source !== 'automatic' || !parsedHashtags.some((tag) => tag.startOffset < r.endOffset && tag.endOffset > r.startOffset),
+  );
+  const hashtags = parsedHashtags.filter((tag) =>
     !refs.some((r) => tag.startOffset < r.endOffset && tag.endOffset > r.startOffset),
   );
   const tokens = [...refs.map((r) => ({ ...r, kind: 'reference' })), ...hashtags.map((h) => ({ ...h, kind: 'hashtag' }))]
