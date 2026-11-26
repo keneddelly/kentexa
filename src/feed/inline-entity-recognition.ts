@@ -24,6 +24,9 @@ const COMMON_TERMS = new Set([
   'biashara', 'bidhaa', 'huduma', 'camera', 'kamera', 'phone', 'simu',
   'business', 'product', 'service', 'shop', 'store', 'company', 'bei',
   'pesa', 'sale', 'offer', 'new', 'good', 'nzuri', 'technology', 'teknolojia',
+  'umeme', 'mabomba', 'seremala', 'ufundi', 'usafi', 'upishi', 'elimu', 'usafirishaji',
+  'transport', 'delivery', 'photographer', 'photo', 'repair', 'tutor', 'driver', 'cleaning',
+  'plumbing', 'electrician', 'consulting', 'accounting', 'legal', 'fundi', 'mwalimu',
 ]);
 
 const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
