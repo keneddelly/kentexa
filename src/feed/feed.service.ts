@@ -111,6 +111,34 @@ export class FeedService {
     private readonly searchIndex: SearchIndexService,
   ) {}
 
+  private async resolveExplicitMentions(text: string, mentions: any[] = []): Promise<Record<string, any>[]> {
+    if (!text || !Array.isArray(mentions) || !mentions.length) return [];
+    const resolved: Record<string, any>[] = [];
+    for (const mention of mentions.slice(0, 20)) {
+      if (!mention || !Number.isInteger(Number(mention.profileId))) continue;
+      const startOffset = Number(mention.startOffset);
+      const endOffset = Number(mention.endOffset);
+      const matchedText = mention.matchedText;
+      if (!Number.isInteger(startOffset) || !Number.isInteger(endOffset) || startOffset < 0
+        || endOffset <= startOffset || endOffset > text.length || typeof matchedText !== 'string'
+        || text.slice(startOffset, endOffset) !== matchedText || !matchedText.startsWith('@')) continue;
+      const profile = await this.commerceProfileRepo.findOne({ where: { id: Number(mention.profileId) } });
+      if (!profile || profile.status !== 'active' || profile.hiddenFromPublic) continue;
+      resolved.push({
+        entityType: profile.type === CommerceProfileType.PERSONAL ? 'user' : 'business',
+        entityId: profile.type === CommerceProfileType.PERSONAL ? profile.ownerId : profile.id,
+        navigationOwnerId: profile.ownerId,
+        profileId: profile.id,
+        matchedText,
+        startOffset,
+        endOffset,
+        source: 'mention',
+        confidence: 1,
+      });
+    }
+    return resolved;
+  }
+
   /**
    * Resolve exact, public entity names against a Moment body. This is deliberately
    * fail-safe: recognition errors are logged and publishing continues without refs.
@@ -206,6 +234,7 @@ export class FeedService {
       locationWard?: string;
       locationLabel?: string;
       visibility?: string;
+      inlineMentions?: { profileId: number; startOffset: number; endOffset: number; matchedText: string }[];
     },
     roleContext?: RoleContext,
   ): Promise<BusinessFeedItem> {
@@ -292,7 +321,11 @@ export class FeedService {
 
     let inlineReferences: Record<string, any>[] = [];
     try {
-      inlineReferences = await this.resolveInlineReferences((dto.body || '').trim());
+      const renderedText = (dto.body || '').trim();
+      inlineReferences = [
+        ...await this.resolveExplicitMentions(renderedText, dto.inlineMentions || []),
+        ...await this.resolveInlineReferences(renderedText),
+      ];
       // Existing explicit/manual post link wins over automatic matches in the same range.
       if (dto.linkedEntityType && dto.linkedEntityId) {
         inlineReferences = inlineReferences.filter((r) => !(r.entityType === dto.linkedEntityType && r.entityId === dto.linkedEntityId));
