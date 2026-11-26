@@ -131,7 +131,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   const [loadingItems, setLoadingItems] = useState(!isEdit);
   const [tagged,    setTagged]    = useState(null); // { type, id, title, price }
   const [posting,   setPosting]   = useState(false);
-  const [mentionRefs, setMentionRefs] = useState([]);
+  const [mentionRefs, setMentionRefs] = useState(() => isEdit ? (editPost.inlineReferences || []).filter((r) => r.source === 'mention' && r.profileId).map((r) => ({ profileId: r.profileId, startOffset: r.startOffset, endOffset: r.endOffset, matchedText: r.matchedText })) : []);
   const [mentionQuery, setMentionQuery] = useState(null);
   const [mentionSuggestions, setMentionSuggestions] = useState([]);
   const [mentionLoading, setMentionLoading] = useState(false);
@@ -352,6 +352,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           body: text || null,
           media,
           visibility: audience,
+          inlineMentions: mentionRefs.map((r) => ({ ...r, startOffset: r.startOffset - (caption.length - caption.trimStart().length), endOffset: r.endOffset - (caption.length - caption.trimStart().length) })).filter((r) => r.startOffset >= 0 && text.slice(r.startOffset, r.endOffset) === r.matchedText),
         });
         onEdited?.(res?.data);
         onClose();
