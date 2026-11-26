@@ -15,7 +15,7 @@ const InlineEntityText = ({ text, references = [], onReferenceClick, onHashtagCl
     <span className={className} data-testid={testId} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...style }}>
       {segments.map((segment, index) => {
         if (segment.kind === 'reference') {
-          if (!onReferenceClick) return <React.Fragment key={\`ref-text-\${index}\`}>{segment.text}</React.Fragment>;
+          if (!onReferenceClick) return <React.Fragment key={`ref-text-${index}`}>{segment.text}</React.Fragment>;
           return (
             <button key={`ref-${index}`} type="button" onClick={(event) => { event.stopPropagation(); onReferenceClick?.(segment); }}
               aria-label={segment.entityType === 'business' ? `Biashara: ${segment.matchedText}` : segment.matchedText}
@@ -25,7 +25,7 @@ const InlineEntityText = ({ text, references = [], onReferenceClick, onHashtagCl
           );
         }
         if (segment.kind === 'hashtag') {
-          if (!onHashtagClick) return <React.Fragment key={\`tag-text-\${index}\`}>{segment.text}</React.Fragment>;
+          if (!onHashtagClick) return <React.Fragment key={`tag-text-${index}`}>{segment.text}</React.Fragment>;
           return (
             <button key={`tag-${index}`} type="button" onClick={(event) => { event.stopPropagation(); onHashtagClick?.(segment.hashtag); }}
               aria-label={`Hashtag ${segment.hashtag}`}
