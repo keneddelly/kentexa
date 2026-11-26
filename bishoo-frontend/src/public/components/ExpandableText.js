@@ -1,4 +1,5 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';\nimport InlineEntityText from './InlineEntityText';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import InlineEntityText from './InlineEntityText';
 
 // Long post text, the Twitter way (owner 2026-10-26: "the longest text moment looks
 // badly, it's cut off"): the full text, clamped to a few lines with "Soma zaidi" when
