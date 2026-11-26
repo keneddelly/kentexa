@@ -41,7 +41,7 @@ describe('inlineReferences', () => {
     expect(buildInlineTextSegments(text, [ref])).toEqual([
       { kind: 'reference', ...ref, text: 'BIS' },
       { kind: 'text', text: ' – Vifaa ' },
-      { kind: 'hashtag', startOffset: 12, endOffset: 17, matchedText: '#CCTV', hashtag: 'CCTV', text: '#CCTV' },
+      { kind: 'hashtag', startOffset: 13, endOffset: 18, matchedText: '#CCTV', hashtag: 'CCTV', text: '#CCTV' },
       { kind: 'text', text: '!' },
     ]);
   });
