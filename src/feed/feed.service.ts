@@ -158,7 +158,6 @@ export class FeedService {
     const [businesses, products, listings, services] = await Promise.all([
       qb(this.businessRepo, 'b', ['legalName', 'tradingName'])
         .andWhere('b.status = :active', { active: 'active' })
-        .andWhere(`EXISTS (SELECT 1 FROM public.commerce_profile cp WHERE cp."businessId" = b.id AND cp.status = 'active' AND cp."hiddenFromPublic" = false)`)
         .innerJoin('public.commerce_profile', 'cp', 'cp."businessId" = b.id')
         .andWhere('cp.status = :profileActive', { profileActive: 'active' })
         .andWhere('cp."hiddenFromPublic" = false')
