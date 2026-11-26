@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';\nimport InlineEntityText from './InlineEntityText';
 
 // Long post text, the Twitter way (owner 2026-10-26: "the longest text moment looks
 // badly, it's cut off"): the full text, clamped to a few lines with "Soma zaidi" when
@@ -7,7 +7,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 export const POST_TEXT = { fontSize: 15, lineHeight: '20px', fontWeight: 400, color: '#0f1419',
   whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word' };
 
-const ExpandableText = ({ text, lines = 4, style, onOpen }) => {
+const ExpandableText = ({ text, lines = 4, style, onOpen, references = [], onReferenceClick, onHashtagClick }) => {
   const [open, setOpen] = useState(false);
   const [long, setLong] = useState(false);
   const ref = useRef(null);
@@ -20,7 +20,7 @@ const ExpandableText = ({ text, lines = 4, style, onOpen }) => {
   const clamp = open ? {} : { display: '-webkit-box', WebkitLineClamp: lines, WebkitBoxOrient: 'vertical', overflow: 'hidden' };
   return (
     <div style={style}>
-      <div ref={ref} data-testid="post-text" onClick={onOpen} style={{ ...POST_TEXT, ...clamp, cursor: onOpen ? 'pointer' : 'auto' }}>{text}</div>
+      <div ref={ref} data-testid="post-text" onClick={onOpen} style={{ ...POST_TEXT, ...clamp, cursor: onOpen ? 'pointer' : 'auto' }}}><InlineEntityText text={text} references={references} onReferenceClick={onReferenceClick} onHashtagClick={onHashtagClick} /></div>
       {long && !open && (
         <button type="button" data-testid="read-more" onClick={(e) => { e.stopPropagation(); setOpen(true); }}
           style={{ background: 'none', border: 'none', padding: '2px 0 0', cursor: 'pointer', color: '#1d9bf0', fontSize: 15, lineHeight: '20px', fontWeight: 400 }}>
