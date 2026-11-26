@@ -12,6 +12,7 @@
  *  Comments go to POST /comments (entity-based)
  */
 import ExpandableText from '../components/ExpandableText';
+import InlineEntityText from '../components/InlineEntityText';
 import ArticlePost from '../components/ArticlePost';
 import ViewsCount, { countGuestView } from '../components/PostViews';
 import WriterOfWeek, { WriterBadge } from '../components/WriterOfWeek';
@@ -739,6 +740,16 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const postText = sameText ? rawBody : (rawBody || (!headline ? rawTitle : ''));
   // Hashtags (owner 2026-11-15): a tag in the text opens its page.
   const openTag = (key) => onNavigate && onNavigate(`Tag-${key}`);
+  const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : [];
+  const handleInlineReference = (reference) => {
+    const id = reference?.entityId;
+    if (!id) return;
+    if (reference.entityType === 'user') onNavigate(`CommerceProfile-${reference.navigationOwnerId || id}`, { commerceProfileId: reference.profileId || id });
+    else if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);
+    else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);
+    else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);
+    else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${reference.navigationOwnerId || id}`, { commerceProfileId: id });
+  };
   // Badge: real, unambiguous post types (Moment, Looking For, Discount...)
   // always win over the entityType inference above, which is really about
   // what's tagged/for-sale, not what kind of post this is.
@@ -1030,9 +1041,10 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         {post.intent !== 'article' && (caption.text || caption.lead) && (detail
           ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}>
               {caption.lead && <><strong data-testid="post-lead" style={{ fontWeight:700 }}>{caption.lead}</strong>{caption.text ? leadSeparator(caption.lead) : ''}</>}
-              <HashtagText text={caption.text} onTag={openTag} />
+              <InlineEntityText text={caption.text} references={inlineReferences} onReferenceClick={handleInlineReference} onHashtagClick={openTag} />
             </div>
           : <ExpandableText text={caption.text} lead={caption.lead} lines={image || photos.length > 1 ? 3 : 6} onTag={openTag}
+              references={inlineReferences} onReferenceClick={handleInlineReference} onHashtagClick={openTag}
               onMore={onNavigate && /^\d+$/.test(String(post.id ?? '')) ? () => onNavigate(`PostDetail-${post.id}`) : null} />)}
 
         {post.intent === 'poll' && /^\d+$/.test(String(post.id)) && (

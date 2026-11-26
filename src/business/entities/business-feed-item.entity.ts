@@ -169,6 +169,10 @@ export class BusinessFeedItem {
   @Column({ type: 'varchar', nullable: true })
   linkedEntityType: string | null;
 
+  // Structured inline references detected in post text.
+  @Column({ type: 'jsonb', nullable: true })
+  inlineReferences: Record<string, any>[] | null;
+
   @Column({ type: 'int', nullable: true })
   linkedEntityId: number | null;
 

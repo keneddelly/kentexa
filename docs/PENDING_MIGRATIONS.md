@@ -1,3 +1,5 @@
+**Update 2026-11-26 (Issue #488 inline entity recognition):** the existing migration pin `MIGRATION_RUN_UPTO=1797800000000` includes `1795801000000-AddInlineReferencesToBusinessFeedItem` (additive nullable JSONB `business_feed_item.inlineReferences`). The migration is not applied to production until the approved deploy. Check `/version/migrations` after deployment.
+
 # Migrations waiting for live (2026-10-27)
 
 **Update 2026-11-23 (native push):** the pin is now `MIGRATION_RUN_UPTO=1797800000000`. The next deploy runs `1797800000000-AddDevicePushToken` itself (creates `device_push_token` for Android push tokens). Additive only.

@@ -23,6 +23,7 @@ import {
 import { PostComment } from './entities/post-comment.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { User } from '../users/entities/user.entity';
+import { Business } from '../business/entities/business.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { PUBLIC_SERVICE_AD } from '../services/service-ad-visibility';
@@ -42,6 +43,7 @@ import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 import { SearchIndexService } from '../search/search-index.service';
 import { PostViewsService } from './post-views.service';
 import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
+import { recognizeInlineEntities, InlineEntityCandidate } from './inline-entity-recognition';
 
 export type FeedFilter =
   | 'for_you'
@@ -112,7 +114,56 @@ export class FeedService {
     @Optional() private readonly hashtags?: HashtagService,
     // Post views on a profile's own list (owner 2026-11-17: the eye showed no number there).
     @Optional() private readonly postViews?: PostViewsService,
+    @Optional() @InjectRepository(Business) private readonly businessRepo?: Repository<Business>,
   ) {}
+
+  /** Resolve exact public entity names in a post; errors never block publishing. */
+  private async resolveInlineReferences(text: string): Promise<Record<string, any>[]> {
+    if (!text?.trim()) return [];
+    const tokens = [...new Set(text.match(/[\p{L}\p{N}][\p{L}\p{N}_-]{2,}/gu) || [])].slice(0, 30);
+    if (!tokens.length) return [];
+    const patterns = tokens.map((t) => `%${t}%`);
+    const candidates: InlineEntityCandidate[] = [];
+    const [businesses, profiles, products, listings, services] = await Promise.all([
+      this.businessRepo ? this.businessRepo.createQueryBuilder('b')
+        .innerJoin('public.commerce_profile', 'cp', 'cp."businessId" = b.id')
+        .where('(b.legalName ILIKE ANY(:patterns) OR b.tradingName ILIKE ANY(:patterns) OR cp.displayName ILIKE ANY(:patterns) OR cp.username ILIKE ANY(:patterns))', { patterns })
+        .andWhere('b.status = :active', { active: 'active' })
+        .andWhere('cp.status = :profileActive', { profileActive: 'active' })
+        .andWhere('cp."hiddenFromPublic" = false')
+        .select('b.id', 'businessId').addSelect('b.legalName', 'legalName').addSelect('b.tradingName', 'tradingName')
+        .addSelect('cp.id', 'profileId').addSelect('cp.ownerId', 'ownerId').addSelect('cp.displayName', 'profileDisplayName').addSelect('cp.username', 'username')
+        .take(250).getRawMany() : Promise.resolve([]),
+      this.commerceProfileRepo.createQueryBuilder('cp')
+        .where('cp.displayName ILIKE ANY(:patterns) OR cp.username ILIKE ANY(:patterns)', { patterns })
+        .andWhere('cp.status = :active', { active: 'active' })
+        .andWhere('cp."hiddenFromPublic" = false')
+        .andWhere('cp.type = :business', { business: CommerceProfileType.BUSINESS })
+        .select(['cp.id', 'cp.ownerId', 'cp.displayName', 'cp.username']).take(250).getMany(),
+      this.productRepo.createQueryBuilder('p')
+        .where('p.name ILIKE ANY(:patterns) OR p.model ILIKE ANY(:patterns)', { patterns })
+        .andWhere('p."isAvailable" = true').andWhere('p."availableOnline" = true').andWhere('p.stock > 0')
+        .select(['p.id', 'p.name', 'p.model']).take(250).getMany(),
+      this.classifiedRepo.createQueryBuilder('c').where('c.title ILIKE ANY(:patterns)', { patterns })
+        .andWhere('c.status = :active', { active: 'active' }).select(['c.id', 'c.title']).take(250).getMany(),
+      this.serviceAdRepo.createQueryBuilder('s').where('s.title ILIKE ANY(:patterns)', { patterns })
+        .andWhere('s.status = :active', { active: 'active' }).andWhere(PUBLIC_SERVICE_AD('s'))
+        .select(['s.id', 's.title', 's.subcategory']).take(250).getMany(),
+    ]);
+    for (const business of businesses) candidates.push({ entityType: 'business', entityId: business.profileId,
+      name: business.profileDisplayName || business.tradingName || business.legalName,
+      aliases: [business.tradingName, business.legalName, business.username ? `@${business.username}` : null].filter((alias) => alias && alias !== business.profileDisplayName),
+      navigationOwnerId: business.ownerId, discoverable: true });
+    for (const profile of profiles) candidates.push({ entityType: 'business', entityId: profile.id,
+      name: profile.displayName || profile.username, aliases: profile.username ? [`@${profile.username}`] : [],
+      navigationOwnerId: profile.ownerId, discoverable: true });
+    for (const product of products) candidates.push({ entityType: 'product', entityId: product.id, name: product.name,
+      aliases: product.model ? [product.model] : [], discoverable: true });
+    for (const listing of listings) candidates.push({ entityType: 'listing', entityId: listing.id, name: listing.title, discoverable: true });
+    for (const service of services) candidates.push({ entityType: 'service', entityId: service.id, name: service.title,
+      aliases: service.subcategory ? [service.subcategory] : [], discoverable: true });
+    return recognizeInlineEntities(text, candidates);
+  }
 
   // ── Publish a post ────────────────────────────────────────────────────────
   async publish(
@@ -258,6 +309,16 @@ export class FeedService {
         imageUrl: cleanMedia(dto.media)?.[0]?.url || dto.imageUrl || null,
         linkedEntityType: dto.linkedEntityType || null,
         linkedEntityId: dto.linkedEntityId || null,
+        inlineReferences: await this.resolveInlineReferences((dto.body || dto.title || '').trim())
+          .catch((error) => { this.logger?.warn?.('Inline recognition skipped: ' + error); return []; })
+          .then((refs: Record<string, any>[]) => {
+            if (!dto.linkedEntityType || !dto.linkedEntityId) return refs;
+            return refs.filter((r) => {
+              const sameType = r.entityType === dto.linkedEntityType
+                || (r.entityType === 'listing' && dto.linkedEntityType === 'classified');
+              return !(sameType && Number(r.entityId) === Number(dto.linkedEntityId));
+            });
+          }),
         ctaLabel: dto.ctaLabel || null,
         category: dto.category || null,
         price: dto.price || null,
@@ -1239,7 +1300,19 @@ export class FeedService {
       if (!dto.title.trim()) throw new BadRequestException('Andika kitu kwenye chapisho.');
       changes.title = dto.title;
     }
-    if (dto.body !== undefined) changes.body = dto.body || null;
+    if (dto.body !== undefined) {
+      changes.body = dto.body || null;
+      changes.inlineReferences = await this.resolveInlineReferences((dto.body || dto.title || '').trim())
+        .catch((error) => { this.logger?.warn?.('Inline recognition skipped during edit: ' + error); return []; })
+        .then((refs: Record<string, any>[]) => {
+          if (!post.linkedEntityType || !post.linkedEntityId) return refs;
+          return refs.filter((r) => {
+            const sameType = r.entityType === post.linkedEntityType
+              || (r.entityType === 'listing' && post.linkedEntityType === 'classified');
+            return !(sameType && Number(r.entityId) === Number(post.linkedEntityId));
+          });
+        });
+    }
     if (dto.media !== undefined) {
       changes.media = cleanMedia(dto.media);
       changes.imageUrl = changes.media?.[0]?.url || null;
