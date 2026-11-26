@@ -11,7 +11,8 @@
  *  All saves/shares/views go to POST /engagements (entity-based, works on virtual IDs)
  *  Comments go to POST /comments (entity-based)
  */
-import ExpandableText from '../components/ExpandableText';\nimport InlineEntityText from '../components/InlineEntityText';
+import ExpandableText from '../components/ExpandableText';
+import InlineEntityText from '../components/InlineEntityText';
 import { photoAspect, momentRoleLine, postShareUrl, postPhotos, formatTag, canEditPost, topicLabel } from '../utils/feedPresentation';
 import PostPhotos from '../components/PostPhotos';
 import PollBlock from '../components/PollBlock';
@@ -742,7 +743,11 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const icon = (d, filled) => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill={filled || 'none'} stroke={filled || MUTED_TX} strokeWidth="2" aria-hidden="true"><path d={d} /></svg>
   );
-  const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);\n  const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : (Array.isArray(post.references) ? post.references : []);\n  const handleInlineReference = (reference) => {\n    const id = reference?.entityId;\n    if (!id) return;\n    if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);\n    else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);\n    else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);\n    else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${id}`);\n  };
+  const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
+  const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : (Array.isArray(post.references) ? post.references : []);
+  const handleInlineReference = (reference) => {\n    const id = reference?.entityId;\n    if (!id) return;\n    if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);\n    else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);\n    else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);
+    else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${id}`);
+  };
   const isOwnPost = !!currentUser?.id && Number(post.businessId ?? bizId) === Number(currentUser.id);
 
   // Phase F: after a mute the card steps aside, with a way to undo it.
