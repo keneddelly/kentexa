@@ -389,7 +389,7 @@ export class FeedService {
     );
 
     if (beforeAnnounce) await beforeAnnounce(item);
-    this.notifyExplicitMentions(item, inlineReferences);
+    this.notifyExplicitMentions(item, item.inlineReferences || []);
 
     // Moments are first-class discovery documents. Index the human text so
     // Kentexa AI/semantic search can retrieve what people and businesses are

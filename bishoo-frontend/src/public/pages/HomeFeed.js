@@ -740,7 +740,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const postText = sameText ? rawBody : (rawBody || (!headline ? rawTitle : ''));
   // Hashtags (owner 2026-11-15): a tag in the text opens its page.
   const openTag = (key) => onNavigate && onNavigate(`Tag-${key}`);
-  const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : [];
+  const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : (Array.isArray(post.references) ? post.references : []);
   const handleInlineReference = (reference) => {
     const id = reference?.entityId;
     if (!id) return;
@@ -939,7 +939,6 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         border:'none', background: on ? onBg : '#f7f9f9', color: on ? onColor : INK_TX, fontSize:13, fontWeight: on ? 700 : 600,
         cursor:'pointer', fontFamily:'inherit' });
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
-  const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : (Array.isArray(post.references) ? post.references : []);
   const handleInlineHashtag = (tag) => onNavigate(`Search-${tag}`);
   const handleInlineReference = (reference) => {
     const id = reference?.entityId;
