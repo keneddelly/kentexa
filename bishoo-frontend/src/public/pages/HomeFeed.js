@@ -749,7 +749,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   const handleInlineReference = (reference) => {
     const id = reference?.entityId;
     if (!id) return;
-    if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);
+    if (reference.entityType === 'user') onNavigate(`CommerceProfile-${reference.navigationOwnerId || id}`, { commerceProfileId: reference.profileId || id });
+    else if (reference.entityType === 'product') onNavigate(`ProductDetail-${id}`);
     else if (reference.entityType === 'service') onNavigate(`ServiceDetail-${id}`);
     else if (reference.entityType === 'listing' || reference.entityType === 'classified') onNavigate(`ClassifiedDetail-${id}`);
     else if (reference.entityType === 'business') onNavigate(`CommerceProfile-${reference.navigationOwnerId || id}`, { commerceProfileId: id });
