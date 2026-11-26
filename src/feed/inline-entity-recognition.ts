@@ -51,7 +51,7 @@ export const recognizeInlineEntities = (
 
   const matches: InlineEntityMatch[] = [];
   for (const { candidate, name } of prepared) {
-    const escaped = escapeRegex(name).replace(/\\\s+/g, '\\s+');
+    const escaped = escapeRegex(name).replace(/\s+/g, '\\s+');
     const regex = new RegExp(`(^|[^\\p{L}\\p{M}\\p{N}_])(${escaped})(?=$|[^\\p{L}\\p{M}\\p{N}_])`, 'giu');
     let match: RegExpExecArray | null;
     while ((match = regex.exec(text)) !== null) {
