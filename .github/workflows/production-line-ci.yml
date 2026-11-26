@@ -60,8 +60,8 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      - name: Search regression tests
-        run: npx jest src/search/search.controller.spec.ts src/search/search-term-normalizer.util.spec.ts --runInBand
+      - name: Search and inline entity recognition tests
+        run: npx jest src/search/search.controller.spec.ts src/search/search-term-normalizer.util.spec.ts src/feed/inline-entity-recognition.spec.ts --runInBand
       - name: Type-check
         run: set -o pipefail; npx tsc --noEmit --project tsconfig.build.json 2>&1 | tee -a backend.log
       - name: Production build
