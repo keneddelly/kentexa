@@ -745,6 +745,7 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
   );
   const openProfile = () => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   const inlineReferences = Array.isArray(post.inlineReferences) ? post.inlineReferences : (Array.isArray(post.references) ? post.references : []);
+  const handleInlineHashtag = (tag) => onNavigate(`Search-${encodeURIComponent(tag)}`);
   const handleInlineReference = (reference) => {
     const id = reference?.entityId;
     if (!id) return;
@@ -839,8 +840,8 @@ export const PostCard = ({ post: postProp, isLoggedIn, onNavigate, currentUser, 
         )}
         {headline && !productName && <div style={{ fontSize:15, fontWeight:700, color:INK_TX, lineHeight:'20px' }}>{headline}</div>}
         {postText && (detail
-          ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}><InlineEntityText text={postText} references={inlineReferences} onReferenceClick={handleInlineReference} /></div>
-          : <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} references={inlineReferences} onReferenceClick={handleInlineReference} />)}
+          ? <div data-testid="detail-text" style={{ fontSize:17, lineHeight:'24px', color:INK_TX, whiteSpace:'pre-wrap', overflowWrap:'anywhere' }}><InlineEntityText text={postText} references={inlineReferences} onReferenceClick={handleInlineReference} onHashtagClick={handleInlineHashtag} /></div>
+          : <ExpandableText text={postText} lines={image || photos.length > 1 ? 3 : 6} references={inlineReferences} onReferenceClick={handleInlineReference} onHashtagClick={handleInlineHashtag} />)}
 
         {post.intent === 'poll' && /^\d+$/.test(String(post.id)) && (
           <PollBlock postId={post.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
