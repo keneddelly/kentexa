@@ -215,7 +215,7 @@ export class FeedService {
 
       // Businesses: public business profiles whose business is KenteXa-verified.
       if (ids('profile').length && this.businessRepo) {
-        const profiles: { id: number; displayName: string; ownerId: number; businessId: number }[] = await this.commerceProfileRepo.createQueryBuilder('cp')
+        const profiles = await this.commerceProfileRepo.createQueryBuilder('cp')
           .where('cp.id IN (:...ids)', { ids: ids('profile') })
           .andWhere('cp.type = :business', { business: CommerceProfileType.BUSINESS })
           .andWhere('cp.status = :active', { active: CommerceProfileStatus.ACTIVE })
