@@ -49,6 +49,7 @@ import api             from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import { listingUrl, listingWhatsAppHref } from '../utils/listingWhatsApp';
+import AppPushCard from '../components/AppPushCard';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -2104,6 +2105,8 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         minHeight:'100vh', paddingBottom:80,
         boxShadow:'0 0 0 1px rgba(15,23,42,0.05)' }}>
 
+      {/* Alerts banner for signed-in web users with alerts off (owner choice 2026-11-27). Hidden inside the Android app. */}
+      {isLoggedIn && <AppPushCard variant="banner" allowDenied={false} />}
       {/* ── Top bar ── */}
       <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
         borderBottom:'1px solid #F1F5F9', paddingTop:'env(safe-area-inset-top, 0px)' }}>
