@@ -25,12 +25,12 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { User } from '../users/entities/user.entity';
 import { Business } from '../business/entities/business.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
-import { ServiceAd } from '../services/entities/service-ad.entity';
+import { ServiceAd, ServiceStatus } from '../services/entities/service-ad.entity';
 import { PUBLIC_SERVICE_AD } from '../services/service-ad-visibility';
 import { Product } from '../products/entities/products.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
-import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { CommerceProfile, CommerceProfileType, CommerceProfileStatus } from '../commerce-profiles/entities/commerce-profile.entity';
 import { momentActorFields } from '../commerce-profiles/moment-actor';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -45,6 +45,7 @@ import { PostViewsService } from './post-views.service';
 import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
 import { recognizeInlineEntities, InlineEntityCandidate } from './inline-entity-recognition';
 import { buildTopicQuery, topicSuggestionsEnabled, TOPIC_SUGGESTION_LIMIT, TOPIC_SUGGESTION_MIN_SCORE } from './topic-suggestions';
+import { IdentityVerificationStatus } from '../identity/entities/identity-profile.entity';
 import { TopicsService } from './topics.service';
 
 export type FeedFilter =
@@ -176,32 +177,65 @@ export class FeedService {
    * Resolve exact, public entity names against a Moment body. This is deliberately
    * fail-safe: recognition errors are logged and publishing continues without refs.
    */
-  /** Smart Post: products related to the post's topic. Off unless the flag is on; never blocks publishing. */
+  /**
+   * Smart Post: related products, verified services and verified businesses for the post's topic.
+   * Off unless TOPIC_SUGGESTIONS_ENABLED=true. Never blocks publishing. Eligibility is re-checked here.
+   */
   private async resolveTopicSuggestions(topicKey: string | null | undefined, title: string | null | undefined): Promise<Record<string, any>[] | null> {
     if (!topicSuggestionsEnabled() || !topicKey) return null;
     try {
       const topic = (await this.topics?.list())?.find((t) => t.key === topicKey) ?? null;
       const query = buildTopicQuery({ title, topicLabel: topic?.label, topicNote: topic?.note, topicDescription: topic?.description });
       if (!query) return null;
-      const matches = (await this.searchIndex.similaritySearch(query, 60, TOPIC_SUGGESTION_MIN_SCORE))
-        .filter((m) => m.entityType === 'product');
-      if (!matches.length) return [];
-      const rows: { id: number; name: string }[] = await this.productRepo.createQueryBuilder('p')
-        .where('p.id IN (:...ids)', { ids: matches.map((m) => m.entityId) })
-        .andWhere('p."isAvailable" = true').andWhere('p."availableOnline" = true').andWhere('p.stock > 0')
-        .select(['p.id', 'p.name']).getMany();
-      const byId = new Map(rows.map((r) => [Number(r.id), r]));
-      return matches
-        .filter((m) => byId.has(Number(m.entityId)))
-        .slice(0, TOPIC_SUGGESTION_LIMIT)
-        .map((m) => ({
-          entityType: 'product',
-          entityId: m.entityId,
-          name: byId.get(Number(m.entityId))!.name,
-          navigationOwnerId: null,
-          score: Number(m.score.toFixed(3)),
-          reason: 'topic',
-        }));
+      const matches = await this.searchIndex.similaritySearch(query, 60, TOPIC_SUGGESTION_MIN_SCORE);
+      const ids = (type: string) => matches.filter((m) => m.entityType === type).map((m) => Number(m.entityId));
+      const scoreOf = new Map(matches.map((m) => [`${m.entityType}:${Number(m.entityId)}`, Number(m.score)]));
+      const scored = (type: string, id: number) => Number((scoreOf.get(`${type}:${id}`) ?? 0).toFixed(3));
+      const found: Record<string, any>[] = [];
+
+      // Products: public, available online, in stock.
+      if (ids('product').length) {
+        const rows: { id: number; name: string }[] = await this.productRepo.createQueryBuilder('p')
+          .where('p.id IN (:...ids)', { ids: ids('product') })
+          .andWhere('p."isAvailable" = true').andWhere('p."availableOnline" = true').andWhere('p.stock > 0')
+          .select(['p.id', 'p.name']).getMany();
+        for (const r of rows) found.push({ entityType: 'product', entityId: Number(r.id), name: r.name, navigationOwnerId: null, score: scored('product', Number(r.id)), reason: 'topic' });
+      }
+
+      // Services: KenteXa-verified, active, and public under the existing service rule.
+      if (ids('service').length && this.serviceAdRepo) {
+        const rows: { id: number; title: string }[] = await this.serviceAdRepo.createQueryBuilder('s')
+          .where('s.id IN (:...ids)', { ids: ids('service') })
+          .andWhere('s.status = :active', { active: ServiceStatus.ACTIVE })
+          .andWhere('s."isVerified" = true')
+          .andWhere(PUBLIC_SERVICE_AD('s'))
+          .select(['s.id', 's.title']).getMany();
+        for (const r of rows) found.push({ entityType: 'service', entityId: Number(r.id), name: r.title, navigationOwnerId: null, score: scored('service', Number(r.id)), reason: 'topic' });
+      }
+
+      // Businesses: public business profiles whose business is KenteXa-verified.
+      if (ids('profile').length && this.businessRepo) {
+        const profiles: { id: number; displayName: string; ownerId: number; businessId: number }[] = await this.commerceProfileRepo.createQueryBuilder('cp')
+          .where('cp.id IN (:...ids)', { ids: ids('profile') })
+          .andWhere('cp.type = :business', { business: CommerceProfileType.BUSINESS })
+          .andWhere('cp.status = :active', { active: CommerceProfileStatus.ACTIVE })
+          .andWhere('cp."hiddenFromPublic" = false')
+          .andWhere('cp."businessId" IS NOT NULL')
+          .select(['cp.id', 'cp.displayName', 'cp.ownerId', 'cp.businessId']).getMany();
+        const businessIds = profiles.map((p) => Number(p.businessId));
+        const verified = new Set<number>(businessIds.length
+          ? (await this.businessRepo.createQueryBuilder('b')
+              .where('b.id IN (:...bids)', { bids: businessIds })
+              .andWhere('b."businessVerificationStatus" = :verified', { verified: IdentityVerificationStatus.VERIFIED })
+              .select(['b.id']).getMany()).map((b) => Number(b.id))
+          : []);
+        for (const p of profiles) {
+          if (!verified.has(Number(p.businessId))) continue;
+          found.push({ entityType: 'business', entityId: Number(p.id), name: p.displayName, navigationOwnerId: Number(p.ownerId), score: scored('profile', Number(p.id)), reason: 'topic' });
+        }
+      }
+
+      return found.sort((a, b) => b.score - a.score).slice(0, TOPIC_SUGGESTION_LIMIT);
     } catch (error) {
       this.logger?.warn?.('Topic suggestions skipped: ' + error);
       return null;
