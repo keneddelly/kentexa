@@ -44,6 +44,8 @@ import { SearchIndexService } from '../search/search-index.service';
 import { PostViewsService } from './post-views.service';
 import { NOT_FROM_HIDDEN_PROFILE, NOT_MUTED_BY_VIEWER, VISIBLE_TO_VIEWER } from '../commerce-profiles/public-visibility';
 import { recognizeInlineEntities, InlineEntityCandidate } from './inline-entity-recognition';
+import { buildTopicQuery, topicSuggestionsEnabled, TOPIC_SUGGESTION_LIMIT, TOPIC_SUGGESTION_MIN_SCORE } from './topic-suggestions';
+import { TopicsService } from './topics.service';
 
 export type FeedFilter =
   | 'for_you'
@@ -115,6 +117,7 @@ export class FeedService {
     // Post views on a profile's own list (owner 2026-11-17: the eye showed no number there).
     @Optional() private readonly postViews?: PostViewsService,
     @Optional() @InjectRepository(Business) private readonly businessRepo?: Repository<Business>,
+    @Optional() private readonly topics?: TopicsService,
   ) {}
 
   private async resolveExplicitMentions(text: string, mentions: any[] = []): Promise<Record<string, any>[]> {
@@ -173,6 +176,38 @@ export class FeedService {
    * Resolve exact, public entity names against a Moment body. This is deliberately
    * fail-safe: recognition errors are logged and publishing continues without refs.
    */
+  /** Smart Post: products related to the post's topic. Off unless the flag is on; never blocks publishing. */
+  private async resolveTopicSuggestions(topicKey: string | null | undefined, title: string | null | undefined): Promise<Record<string, any>[] | null> {
+    if (!topicSuggestionsEnabled() || !topicKey) return null;
+    try {
+      const topic = (await this.topics?.list())?.find((t) => t.key === topicKey) ?? null;
+      const query = buildTopicQuery({ title, topicLabel: topic?.label, topicNote: topic?.note, topicDescription: topic?.description });
+      if (!query) return null;
+      const matches = (await this.searchIndex.similaritySearch(query, 60, TOPIC_SUGGESTION_MIN_SCORE))
+        .filter((m) => m.entityType === 'product');
+      if (!matches.length) return [];
+      const rows: { id: number; name: string }[] = await this.productRepo.createQueryBuilder('p')
+        .where('p.id IN (:...ids)', { ids: matches.map((m) => m.entityId) })
+        .andWhere('p."isAvailable" = true').andWhere('p."availableOnline" = true').andWhere('p.stock > 0')
+        .select(['p.id', 'p.name']).getMany();
+      const byId = new Map(rows.map((r) => [Number(r.id), r]));
+      return matches
+        .filter((m) => byId.has(Number(m.entityId)))
+        .slice(0, TOPIC_SUGGESTION_LIMIT)
+        .map((m) => ({
+          entityType: 'product',
+          entityId: m.entityId,
+          name: byId.get(Number(m.entityId))!.name,
+          navigationOwnerId: null,
+          score: Number(m.score.toFixed(3)),
+          reason: 'topic',
+        }));
+    } catch (error) {
+      this.logger?.warn?.('Topic suggestions skipped: ' + error);
+      return null;
+    }
+  }
+
   private async resolveInlineReferences(text: string): Promise<Record<string, any>[]> {
     if (!text?.trim()) return [];
     const tokens = [...new Set((text.match(/[\p{L}\p{N}][\p{L}\p{N}_-]{2,}/gu) || [])
@@ -388,6 +423,15 @@ export class FeedService {
       }),
     );
 
+    // Smart Post: only when the flag is on, and written separately, so the publish itself never depends on the column.
+    if (topicSuggestionsEnabled()) {
+      const suggestions = await this.resolveTopicSuggestions(dto.topic, dto.title);
+      if (suggestions) {
+        await this.feedRepo.createQueryBuilder().update(BusinessFeedItem)
+          .set({ topicSuggestions: suggestions as any }).where('id = :id', { id: item.id }).execute()
+          .catch((error) => this.logger.warn('Topic suggestions not saved: ' + error));
+      }
+    }
     if (beforeAnnounce) await beforeAnnounce(item);
     this.notifyExplicitMentions(item, item.inlineReferences || []);
 

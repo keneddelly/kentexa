@@ -173,6 +173,11 @@ export class BusinessFeedItem {
   @Column({ type: 'jsonb', nullable: true })
   inlineReferences: Record<string, any>[] | null;
 
+  // Smart Post: products related to the post's topic, shown under it (max 3). Null when off or none.
+  // select: false, so reads never touch it before its migration has run (Smart Post).
+  @Column({ type: 'jsonb', nullable: true, select: false })
+  topicSuggestions: Record<string, any>[] | null;
+
   @Column({ type: 'int', nullable: true })
   linkedEntityId: number | null;
 

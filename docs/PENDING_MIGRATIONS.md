@@ -1,3 +1,5 @@
+**Update 2026-11-27 (Smart Post topic suggestions):** migration `1797900000000-AddTopicSuggestions` adds nullable JSONB `business_feed_item.topicSuggestions`. It is above the current pin `MIGRATION_RUN_UPTO=1797800000000`, so it does not run until the pin is raised. The column is read only when `TOPIC_SUGGESTIONS_ENABLED=true`, which is off by default. Raise the pin to `1797900000000` before turning the flag on.
+
 **Update 2026-11-26 (Issue #488 inline entity recognition):** the existing migration pin `MIGRATION_RUN_UPTO=1797800000000` includes `1795801000000-AddInlineReferencesToBusinessFeedItem` (additive nullable JSONB `business_feed_item.inlineReferences`). The migration is not applied to production until the approved deploy. Check `/version/migrations` after deployment.
 
 # Migrations waiting for live (2026-10-27)
