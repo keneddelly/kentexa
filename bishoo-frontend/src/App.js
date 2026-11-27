@@ -1485,8 +1485,9 @@ function App() {
         !(environment.android && /Chrome\//i.test(navigator.userAgent || '') && !/EdgA|OPR|SamsungBrowser|Firefox|CriOS/i.test(navigator.userAgent || '')) &&
         <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} play={playOffer} />}
       {/* Inside the Google Play app: alerts come as the app (owner 2026-11-10). */}
-      {environment.androidApp && isLoggedIn && page === 'Home' && !showLangPicker && !showPostModal && !showMomentModal &&
-        <AppPushCard />}
+      {/* Alerts card: Android app as before; on the web for signed-in people with alerts off (Smart Post / alerts opt-in, approved 2026-11-27). */}
+      {isLoggedIn && page === 'Home' && !showLangPicker && !showPostModal && !showMomentModal && !showNotificationPrompt &&
+        <AppPushCard allowDenied={!!environment.androidApp} />}
       {showGuide && <InstallGuide environment={environment} onClose={closeGuide} />}
     </CartProvider>
     </OnboardingProvider>

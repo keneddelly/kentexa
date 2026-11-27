@@ -13,7 +13,8 @@ const laterRecently = () => {
   try { return Date.now() - Number(localStorage.getItem(LATER_KEY) || 0) < 3 * 86400000; } catch { return false; }
 };
 
-export default function AppPushCard() {
+// allowDenied: the Android app can send people to its own settings; on the web a blocked browser cannot be fixed here, so the card stays hidden.
+export default function AppPushCard({ allowDenied = true } = {}) {
   const [key, setKey] = useState('');
   const [state, setState] = useState('');
   const [hidden, setHidden] = useState(laterRecently);
@@ -30,7 +31,7 @@ export default function AppPushCard() {
     return () => { live = false; };
   }, [hidden]);
 
-  if (hidden || !key || (state !== 'off' && state !== 'denied')) return null;
+  if (hidden || !key || (state !== 'off' && !(state === 'denied' && allowDenied))) return null;
   const later = () => { try { localStorage.setItem(LATER_KEY, String(Date.now())); } catch { /* storage blocked */ } setHidden(true); };
   return (
     <div data-testid="app-push-card" role="status" style={{
