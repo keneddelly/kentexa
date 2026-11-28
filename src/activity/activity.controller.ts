@@ -46,6 +46,12 @@ export class ActivityController {
     });
   }
 
+  // Error Watch: 5xx errors in the last N hours (default 24), grouped by feature and route.
+  @Get('admin/errors')
+  serverErrors(@Query('hours') hours?: string) {
+    return this.activityEvents.serverErrorSummary(Number(hours) || 24);
+  }
+
   // Everything about one person, on one page.
   @Get('admin/people/:userId')
   person(@Param('userId', ParseIntPipe) userId: number) {

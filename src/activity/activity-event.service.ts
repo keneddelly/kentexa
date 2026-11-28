@@ -92,6 +92,48 @@ export class ActivityEventService {
     });
   }
 
+  // Error Watch: 5xx errors grouped by feature and route for the admin Errors view.
+  // Counts are exact; the sample message is the newest one in each group.
+  async serverErrorSummary(hours = 24): Promise<{
+    since: string;
+    totalErrors: number;
+    groups: { feature: string; route: string; method: string; count: number; firstSeen: Date; lastSeen: Date; sampleMessage: string }[];
+  }> {
+    const safeHours = Math.min(Math.max(Math.floor(hours) || 24, 1), 168);
+    const since = new Date(Date.now() - safeHours * 3600 * 1000);
+    const rows = await this.repo
+      .createQueryBuilder('e')
+      .select(`e.metadata->>'feature'`, 'feature')
+      .addSelect(`e.metadata->>'route'`, 'route')
+      .addSelect(`e.metadata->>'method'`, 'method')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('MIN(e."createdAt")', 'firstSeen')
+      .addSelect('MAX(e."createdAt")', 'lastSeen')
+      .addSelect(`(ARRAY_AGG(e.metadata->>'message' ORDER BY e."createdAt" DESC))[1]`, 'sampleMessage')
+      .where('e."eventType" = :type', { type: 'SERVER_ERROR' })
+      .andWhere('e."createdAt" >= :since', { since })
+      .groupBy(`e.metadata->>'feature'`)
+      .addGroupBy(`e.metadata->>'route'`)
+      .addGroupBy(`e.metadata->>'method'`)
+      .orderBy('"count"', 'DESC')
+      .limit(200)
+      .getRawMany();
+    const groups = rows.map((r) => ({
+      feature: String(r.feature || 'root'),
+      route: String(r.route || ''),
+      method: String(r.method || ''),
+      count: Number(r.count),
+      firstSeen: new Date(r.firstSeen),
+      lastSeen: new Date(r.lastSeen),
+      sampleMessage: String(r.sampleMessage || ''),
+    }));
+    return {
+      since: since.toISOString(),
+      totalErrors: groups.reduce((sum, g) => sum + g.count, 0),
+      groups,
+    };
+  }
+
   // Layer 2 building block — deterministic count of a specific event type
   // for one business identity since a given time. Used by
   // BusinessService.getTodayIntelligence() rather than exposing the raw
