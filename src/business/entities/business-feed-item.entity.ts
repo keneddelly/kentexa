@@ -175,7 +175,10 @@ export class BusinessFeedItem {
 
   // Smart Post: products related to the post's topic, shown under it (max 3). Null when off or none.
   // select: false, so reads never touch it before its migration has run (Smart Post).
-  @Column({ type: 'jsonb', nullable: true, select: false })
+  // insert/update: false, so publishing never writes it either: an INSERT that lists this
+  // column fails with a 500 while the migration is still pending. The topic write uses an
+  // explicit query-builder update, flag-gated, after the post is saved.
+  @Column({ type: 'jsonb', nullable: true, select: false, insert: false, update: false })
   topicSuggestions: Record<string, any>[] | null;
 
   @Column({ type: 'int', nullable: true })
