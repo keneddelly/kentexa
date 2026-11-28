@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import ActivityList from '../components/ActivityList';
+import ServerErrorsPanel from '../components/ServerErrorsPanel';
 import { CATEGORY_LABEL } from '../utils/describeEvent';
 import api from '../../api/api';
 
@@ -61,6 +62,7 @@ export default function AdminActivity({ activePage, onNavigate, onLogout }) {
           <input aria-label="Tafuta" placeholder="Tafuta (mf. orders, approve)" value={filter.q}
             onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))} style={{ ...input, flex: 1, minWidth: 180 }} />
         </div>
+        <ServerErrorsPanel />
         {error && <p role="alert" style={{ color: '#b91c1c' }}>{error}</p>}
         <section style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '4px 16px 12px' }}>
           {loading ? <p style={{ color: '#64748b' }}>Inapakia...</p>
