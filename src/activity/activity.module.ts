@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MailModule } from '../mail/mail.module';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ServerErrorFilter } from './server-error.filter';
 import { FeatureHealthService } from './feature-health.service';
@@ -11,7 +12,7 @@ import { ActivityController } from './activity.controller';
 import { ClientErrorsController } from './client-errors.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ActivityEvent])],
+  imports: [TypeOrmModule.forFeature([ActivityEvent]), MailModule],
   controllers: [ActivityController, ClientErrorsController],
   // Every change made on KenteXa is recorded for the admin (owner 2026-11-09).
   providers: [ActivityEventService, AdminMirrorService, { provide: APP_INTERCEPTOR, useClass: ActionRecorderInterceptor },

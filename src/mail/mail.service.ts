@@ -219,6 +219,25 @@ export class MailService {
   }
 
   // ── Contact form submission — sent to support inbox ──────────────────
+  /**
+   * Error Watch: plain alert to the admin inbox (ALERT_EMAIL, default support@kentexa.com).
+   * Never throws: an alert that cannot be sent must not affect the platform.
+   */
+  async sendAdminAlert(subject: string, text: string): Promise<boolean> {
+    try {
+      await this.transporter.sendMail({
+        from: `"KenteXa" <${process.env.MAIL_USER}>`,
+        to: process.env.ALERT_EMAIL || 'support@kentexa.com',
+        subject: `[KenteXa alert] ${subject}`.slice(0, 200),
+        text: text.slice(0, 4000),
+      });
+      return true;
+    } catch (err) {
+      console.warn('Admin alert email failed', err);
+      return false;
+    }
+  }
+
   async sendContactFormMessage(data: {
     name: string;
     email: string;
